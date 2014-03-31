@@ -59,6 +59,8 @@
 #include "ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -73,6 +75,8 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -122,7 +126,6 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
-
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -283,9 +286,12 @@ int Label::pos() const {
 //                              00 [4 bit middle_tag] 11 followed by
 //                              00 [6 bit pc delta]
 //
-//      1101: constant pool. Used on ARM only for now.
-//        The format is:       11 1101 11
-//                             signed int (size of the constant pool).
+//      1101: constant or veneer pool. Used only on ARM and ARM64 for now.
+//        The format is:       [2-bit sub-type] 1101 11
+//                             signed int (size of the pool).
+//          The 2-bit sub-types are:
+//            00: constant pool
+//            01: veneer pool
 //      1110: long_data_record
 //        The format is:       [2-bit data_type_tag] 1110 11
 //                             signed intptr_t, lowest byte written first
@@ -342,8 +348,9 @@ const int kNonstatementPositionTag = 1;
 const int kStatementPositionTag = 2;
 const int kCommentTag = 3;
 
-const int kConstPoolExtraTag = kPCJumpExtraTag - 2;
-const int kConstPoolTag = 3;
+const int kPoolExtraTag = kPCJumpExtraTag - 2;
+const int kConstPoolTag = 0;
+const int kVeneerPoolTag = 1;
 
 
 uint32_t RelocInfoWriter::WriteVariableLengthPCJump(uint32_t pc_delta) {
@@ -403,8 +410,8 @@ void RelocInfoWriter::WriteExtraTaggedIntData(int data_delta, int top_tag) {
 }
 
 
-void RelocInfoWriter::WriteExtraTaggedConstPoolData(int data) {
-  WriteExtraTag(kConstPoolExtraTag, kConstPoolTag);
+void RelocInfoWriter::WriteExtraTaggedPoolData(int data, int pool_type) {
+  WriteExtraTag(kPoolExtraTag, pool_type);
   for (int i = 0; i < kIntSize; i++) {
     *--pos_ = static_cast<byte>(data);
     // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
@@ -476,9 +483,11 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
     WriteExtraTaggedData(rinfo->data(), kCommentTag);
     ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
-  } else if (RelocInfo::IsConstPool(rmode)) {
+  } else if (RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode)) {
       WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
-      WriteExtraTaggedConstPoolData(static_cast<int>(rinfo->data()));
+      WriteExtraTaggedPoolData(static_cast<int>(rinfo->data()),
+                               RelocInfo::IsConstPool(rmode) ? kConstPoolTag
+                                                             : kVeneerPoolTag);
   } else {
     ASSERT(rmode > RelocInfo::LAST_COMPACT_ENUM);
     int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;
@@ -529,7 +538,7 @@ void RelocIterator::AdvanceReadId() {
 }
 
 
-void RelocIterator::AdvanceReadConstPoolData() {
+void RelocIterator::AdvanceReadPoolData() {
   int x = 0;
   for (int i = 0; i < kIntSize; i++) {
     x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
@@ -671,10 +680,13 @@ void RelocIterator::next() {
           }
           Advance(kIntptrSize);
         }
-      } else if ((extra_tag == kConstPoolExtraTag) &&
-                 (GetTopTag() == kConstPoolTag)) {
-        if (SetMode(RelocInfo::CONST_POOL)) {
-          AdvanceReadConstPoolData();
+      } else if (extra_tag == kPoolExtraTag) {
+        int pool_type = GetTopTag();
+        ASSERT(pool_type == kConstPoolTag || pool_type == kVeneerPoolTag);
+        RelocInfo::Mode rmode = (pool_type == kConstPoolTag) ?
+          RelocInfo::CONST_POOL : RelocInfo::VENEER_POOL;
+        if (SetMode(rmode)) {
+          AdvanceReadPoolData();
           return;
         }
         Advance(kIntSize);
@@ -793,6 +805,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case RelocInfo::CONST_POOL:
       return "constant pool";
+    case RelocInfo::VENEER_POOL:
+      return "veneer pool";
     case RelocInfo::DEBUG_BREAK_SLOT:
 #ifndef ENABLE_DEBUGGER_SUPPORT
       UNREACHABLE();
@@ -880,6 +894,7 @@ void RelocInfo::Verify() {
     case EXTERNAL_REFERENCE:
     case INTERNAL_REFERENCE:
     case CONST_POOL:
+    case VENEER_POOL:
     case DEBUG_BREAK_SLOT:
     case NONE32:
     case NONE64:
@@ -1026,14 +1041,6 @@ ExternalReference ExternalReference::
 
 
 ExternalReference ExternalReference::
-    incremental_evacuation_record_write_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(IncrementalMarking::RecordWriteForEvacuationFromCode)));
-}
-
-
-ExternalReference ExternalReference::
     store_buffer_overflow_function(Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate,
@@ -1049,6 +1056,12 @@ ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
 ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
   return
       ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::PerformGC)));
+}
+
+
+ExternalReference ExternalReference::out_of_memory_function(Isolate* isolate) {
+  return
+      ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::OutOfMemory)));
 }
 
 
@@ -1336,6 +1349,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
+#elif V8_TARGET_ARCH_ARM64
+  function = FUNCTION_ADDR(RegExpMacroAssemblerARM64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS
@@ -1594,6 +1609,40 @@ bool PositionsRecorder::WriteRecordedPositions() {
 
   // Return whether something was written.
   return written;
+}
+
+
+MultiplierAndShift::MultiplierAndShift(int32_t d) {
+  ASSERT(d <= -2 || 2 <= d);
+  const uint32_t two31 = 0x80000000;
+  uint32_t ad = Abs(d);
+  uint32_t t = two31 + (uint32_t(d) >> 31);
+  uint32_t anc = t - 1 - t % ad;   // Absolute value of nc.
+  int32_t p = 31;                  // Init. p.
+  uint32_t q1 = two31 / anc;       // Init. q1 = 2**p/|nc|.
+  uint32_t r1 = two31 - q1 * anc;  // Init. r1 = rem(2**p, |nc|).
+  uint32_t q2 = two31 / ad;        // Init. q2 = 2**p/|d|.
+  uint32_t r2 = two31 - q2 * ad;   // Init. r2 = rem(2**p, |d|).
+  uint32_t delta;
+  do {
+    p++;
+    q1 *= 2;          // Update q1 = 2**p/|nc|.
+    r1 *= 2;          // Update r1 = rem(2**p, |nc|).
+    if (r1 >= anc) {  // Must be an unsigned comparison here.
+      q1++;
+      r1 = r1 - anc;
+    }
+    q2 *= 2;          // Update q2 = 2**p/|d|.
+    r2 *= 2;          // Update r2 = rem(2**p, |d|).
+    if (r2 >= ad) {   // Must be an unsigned comparison here.
+      q2++;
+      r2 = r2 - ad;
+    }
+    delta = ad - r2;
+  } while (q1 < delta || (q1 == delta && r1 == 0));
+  int32_t mul = static_cast<int32_t>(q2 + 1);
+  multiplier_ = (d < 0) ? -mul : mul;
+  shift_ = p - 32;
 }
 
 } }  // namespace v8::internal

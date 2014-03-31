@@ -66,21 +66,21 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
-  __ push(kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
-  __ push(rbx);
-  __ push(rcx);
-  __ movq(rax, Immediate(0));
-  __ movq(rbx, Immediate(string.at(0)));
+  __ pushq(rbx);
+  __ pushq(rcx);
+  __ movp(rax, Immediate(0));
+  __ movp(rbx, Immediate(string.at(0)));
   StringHelper::GenerateHashInit(masm, rax, rbx, rcx);
   for (int i = 1; i < string.length(); i++) {
-    __ movq(rbx, Immediate(string.at(i)));
+    __ movp(rbx, Immediate(string.at(i)));
     StringHelper::GenerateHashAddCharacter(masm, rax, rbx, rcx);
   }
   StringHelper::GenerateHashGetHash(masm, rax, rcx);
-  __ pop(rcx);
-  __ pop(rbx);
-  __ pop(kRootRegister);
+  __ popq(rcx);
+  __ popq(rbx);
+  __ popq(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);
@@ -96,6 +96,24 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   StringHelper::GenerateHashGetHash(masm, r0);
   __ pop(kRootRegister);
   __ mov(pc, Operand(lr));
+#elif V8_TARGET_ARCH_ARM64
+  // The ARM64 assembler usually uses jssp (x28) as a stack pointer, but only
+  // csp is initialized by the calling (C++) code.
+  Register old_stack_pointer = __ StackPointer();
+  __ SetStackPointer(csp);
+  __ Push(root, xzr);
+  __ InitializeRootRegister();
+  __ Mov(x0, 0);
+  __ Mov(x10, Operand(string.at(0)));
+  StringHelper::GenerateHashInit(masm, x0, x10);
+  for (int i = 1; i < string.length(); i++) {
+    __ Mov(x10, Operand(string.at(i)));
+    StringHelper::GenerateHashAddCharacter(masm, x0, x10);
+  }
+  StringHelper::GenerateHashGetHash(masm, x0, x10);
+  __ Pop(xzr, root);
+  __ Ret();
+  __ SetStackPointer(old_stack_pointer);
 #elif V8_TARGET_ARCH_MIPS
   __ push(kRootRegister);
   __ InitializeRootRegister();
@@ -111,6 +129,8 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#else
+#error Unsupported architecture.
 #endif
 }
 
@@ -123,13 +143,13 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
-  __ push(kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
-  __ push(rbx);
-  __ movq(rax, Immediate(key));
+  __ pushq(rbx);
+  __ movp(rax, Immediate(key));
   __ GetNumberHash(rax, rbx);
-  __ pop(rbx);
-  __ pop(kRootRegister);
+  __ popq(rbx);
+  __ popq(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);
@@ -138,6 +158,18 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ GetNumberHash(r0, ip);
   __ pop(kRootRegister);
   __ mov(pc, Operand(lr));
+#elif V8_TARGET_ARCH_ARM64
+  // The ARM64 assembler usually uses jssp (x28) as a stack pointer, but only
+  // csp is initialized by the calling (C++) code.
+  Register old_stack_pointer = __ StackPointer();
+  __ SetStackPointer(csp);
+  __ Push(root, xzr);
+  __ InitializeRootRegister();
+  __ Mov(x0, key);
+  __ GetNumberHash(x0, x10);
+  __ Pop(xzr, root);
+  __ Ret();
+  __ SetStackPointer(old_stack_pointer);
 #elif V8_TARGET_ARCH_MIPS
   __ push(kRootRegister);
   __ InitializeRootRegister();
@@ -146,6 +178,8 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#else
+#error Unsupported architecture.
 #endif
 }
 
@@ -172,8 +206,8 @@ void check(i::Vector<const uint8_t> string) {
   Handle<String> v8_string = factory->NewStringFromOneByte(string);
   v8_string->set_hash_field(String::kEmptyHashField);
 #ifdef USE_SIMULATOR
-  uint32_t codegen_hash =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
+  uint32_t codegen_hash = static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0)));
 #else
   uint32_t codegen_hash = hash();
 #endif
@@ -207,8 +241,8 @@ void check(uint32_t key) {
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
 #ifdef USE_SIMULATOR
-  uint32_t codegen_hash =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
+  uint32_t codegen_hash = static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0)));
 #else
   uint32_t codegen_hash = hash();
 #endif

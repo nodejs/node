@@ -28,6 +28,8 @@
 #ifndef V8_ALLOCATION_TRACKER_H_
 #define V8_ALLOCATION_TRACKER_H_
 
+#include <map>
+
 namespace v8 {
 namespace internal {
 
@@ -38,13 +40,13 @@ class AllocationTraceTree;
 class AllocationTraceNode {
  public:
   AllocationTraceNode(AllocationTraceTree* tree,
-                      SnapshotObjectId shared_function_info_id);
+                      unsigned function_info_index);
   ~AllocationTraceNode();
-  AllocationTraceNode* FindChild(SnapshotObjectId shared_function_info_id);
-  AllocationTraceNode* FindOrAddChild(SnapshotObjectId shared_function_info_id);
+  AllocationTraceNode* FindChild(unsigned function_info_index);
+  AllocationTraceNode* FindOrAddChild(unsigned function_info_index);
   void AddAllocation(unsigned size);
 
-  SnapshotObjectId function_id() const { return function_id_; }
+  unsigned function_info_index() const { return function_info_index_; }
   unsigned allocation_size() const { return total_size_; }
   unsigned allocation_count() const { return allocation_count_; }
   unsigned id() const { return id_; }
@@ -54,7 +56,7 @@ class AllocationTraceNode {
 
  private:
   AllocationTraceTree* tree_;
-  SnapshotObjectId function_id_;
+  unsigned function_info_index_;
   unsigned total_size_;
   unsigned allocation_count_;
   unsigned id_;
@@ -68,7 +70,7 @@ class AllocationTraceTree {
  public:
   AllocationTraceTree();
   ~AllocationTraceTree();
-  AllocationTraceNode* AddPathFromEnd(const Vector<SnapshotObjectId>& path);
+  AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
   void Print(AllocationTracker* tracker);
@@ -81,11 +83,36 @@ class AllocationTraceTree {
 };
 
 
+class AddressToTraceMap {
+ public:
+  void AddRange(Address addr, int size, unsigned node_id);
+  unsigned GetTraceNodeId(Address addr);
+  void MoveObject(Address from, Address to, int size);
+  void Clear();
+  size_t size() { return ranges_.size(); }
+  void Print();
+
+ private:
+  struct RangeStack {
+    RangeStack(Address start, unsigned node_id)
+        : start(start), trace_node_id(node_id) {}
+    Address start;
+    unsigned trace_node_id;
+  };
+  // [start, end) -> trace
+  typedef std::map<Address, RangeStack> RangeMap;
+
+  void RemoveRange(Address start, Address end);
+
+  RangeMap ranges_;
+};
+
 class AllocationTracker {
  public:
   struct FunctionInfo {
     FunctionInfo();
     const char* name;
+    SnapshotObjectId function_id;
     const char* script_name;
     int script_id;
     int line;
@@ -99,11 +126,15 @@ class AllocationTracker {
   void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }
-  HashMap* id_to_function_info() { return &id_to_function_info_; }
-  FunctionInfo* GetFunctionInfo(SnapshotObjectId id);
+  const List<FunctionInfo*>& function_info_list() const {
+    return function_info_list_;
+  }
+  AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  void AddFunctionInfo(SharedFunctionInfo* info, SnapshotObjectId id);
+  unsigned AddFunctionInfo(SharedFunctionInfo* info, SnapshotObjectId id);
+  static void DeleteFunctionInfo(FunctionInfo** info);
+  unsigned functionInfoIndexForVMState(StateTag state);
 
   class UnresolvedLocation {
    public:
@@ -125,9 +156,12 @@ class AllocationTracker {
   HeapObjectsMap* ids_;
   StringsStorage* names_;
   AllocationTraceTree trace_tree_;
-  SnapshotObjectId allocation_trace_buffer_[kMaxAllocationTraceLength];
-  HashMap id_to_function_info_;
+  unsigned allocation_trace_buffer_[kMaxAllocationTraceLength];
+  List<FunctionInfo*> function_info_list_;
+  HashMap id_to_function_info_index_;
   List<UnresolvedLocation*> unresolved_locations_;
+  unsigned info_index_for_other_state_;
+  AddressToTraceMap address_to_trace_;
 
   DISALLOW_COPY_AND_ASSIGN(AllocationTracker);
 };

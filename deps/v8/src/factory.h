@@ -44,7 +44,7 @@ class Factory {
       Handle<Object> value,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a new uninitialized fixed array.
+  // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
@@ -54,6 +54,9 @@ class Factory {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates an uninitialized fixed array. It must be filled by the caller.
+  Handle<FixedArray> NewUninitializedFixedArray(int size);
+
   // Allocate a new uninitialized fixed double array.
   Handle<FixedDoubleArray> NewFixedDoubleArray(
       int size,
@@ -61,7 +64,8 @@ class Factory {
 
   Handle<ConstantPoolArray> NewConstantPoolArray(
       int number_of_int64_entries,
-      int number_of_ptr_entries,
+      int number_of_code_ptr_entries,
+      int number_of_heap_ptr_entries,
       int number_of_int32_entries);
 
   Handle<SeededNumberDictionary> NewSeededNumberDictionary(
@@ -225,9 +229,6 @@ class Factory {
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 
-  // Return the internalized version of the passed in string.
-  Handle<String> InternalizedStringFromString(Handle<String> value);
-
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
@@ -287,10 +288,11 @@ class Factory {
   Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
   Handle<Map> CopyMap(Handle<Map> map);
 
-  Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
-                                       ElementsKind elements_kind);
-
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
+
+  // This method expects a COW array in new space, and creates a copy
+  // of it in old space.
+  Handle<FixedArray> CopyAndTenureFixedCOWArray(Handle<FixedArray> array);
 
   Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
                                         int new_length,
@@ -326,15 +328,20 @@ class Factory {
   // runtime.
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
+  // JSObject that should have a memento pointing to the allocation site.
+  Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
+                                          Handle<AllocationSite> site);
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
-  Handle<JSObject> NewJSObjectFromMap(Handle<Map> map,
-                                      PretenureFlag pretenure = NOT_TENURED,
-                                      bool allocate_properties = true);
+  Handle<JSObject> NewJSObjectFromMap(
+      Handle<Map> map,
+      PretenureFlag pretenure = NOT_TENURED,
+      bool allocate_properties = true,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
   Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
       Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
@@ -345,20 +352,39 @@ class Factory {
 
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<JSArray> NewJSArray(
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewJSArray(elements_kind, 0, capacity,
+                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
+  }
+
+  Handle<JSArray> NewJSArrayWithElements(
+      Handle<FixedArrayBase> elements,
+      ElementsKind elements_kind,
+      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      PretenureFlag pretenure = NOT_TENURED);
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewJSArrayWithElements(
+        elements, elements_kind, elements->length(), pretenure);
+  }
 
-  void SetElementsCapacityAndLength(Handle<JSArray> array,
-                                    int capacity,
-                                    int length);
-
-  void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
+  void NewJSArrayStorage(
+      Handle<JSArray> array,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
@@ -379,7 +405,7 @@ class Factory {
 
   Handle<JSFunction> NewFunctionWithoutPrototype(
       Handle<String> name,
-      LanguageMode language_mode);
+      StrictMode strict_mode);
 
   Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
@@ -438,6 +464,7 @@ class Factory {
 
   Handle<Object> NewReferenceError(const char* message,
                                    Vector< Handle<Object> > args);
+  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
   Handle<Object> NewReferenceError(Handle<String> message);
 
   Handle<Object> NewEvalError(const char* message,
@@ -528,7 +555,6 @@ class Factory {
       int start_position,
       int end_position,
       Handle<Object> script,
-      Handle<Object> stack_trace,
       Handle<Object> stack_frames);
 
   Handle<SeededNumberDictionary> DictionaryAtNumberPut(
@@ -582,7 +608,7 @@ class Factory {
 
   Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
       Handle<String> name,
-      LanguageMode language_mode);
+      StrictMode strict_mode);
 
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);

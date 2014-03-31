@@ -84,6 +84,8 @@ class ExitFrameConstants : public AllStatic {
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
   static const int kCallerSPDisplacement = +2 * kPointerSize;
+
+  static const int kConstantPoolOffset   = 0;  // Not used
 };
 
 

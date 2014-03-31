@@ -131,9 +131,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // to only do a local lookup for context extension objects.
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
-        *attributes = object->GetLocalPropertyAttribute(*name);
+        *attributes = JSReceiver::GetLocalPropertyAttribute(object, name);
       } else {
-        *attributes = object->GetPropertyAttribute(*name);
+        *attributes = JSReceiver::GetPropertyAttribute(object, name);
       }
       if (isolate->has_pending_exception()) return Handle<Object>();
 
@@ -185,12 +185,12 @@ Handle<Object> Context::Lookup(Handle<String> name,
             *binding_flags = (init_flag == kNeedsInitialization)
                 ? MUTABLE_CHECK_INITIALIZED : MUTABLE_IS_INITIALIZED;
             break;
-          case CONST:
+          case CONST_LEGACY:
             *attributes = READ_ONLY;
             *binding_flags = (init_flag == kNeedsInitialization)
                 ? IMMUTABLE_CHECK_INITIALIZED : IMMUTABLE_IS_INITIALIZED;
             break;
-          case CONST_HARMONY:
+          case CONST:
             *attributes = READ_ONLY;
             *binding_flags = (init_flag == kNeedsInitialization)
                 ? IMMUTABLE_CHECK_INITIALIZED_HARMONY :
@@ -222,8 +222,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          ASSERT(mode == CONST || mode == CONST_HARMONY);
-          *binding_flags = (mode == CONST)
+          ASSERT(mode == CONST_LEGACY || mode == CONST);
+          *binding_flags = (mode == CONST_LEGACY)
               ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
           return context;
         }
@@ -368,7 +368,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Handle<Object> result(error_message_for_code_gen_from_strings(),
                         GetIsolate());
   if (!result->IsUndefined()) return result;
-  return GetIsolate()->factory()->NewStringFromAscii(i::CStrVector(
+  return GetIsolate()->factory()->NewStringFromOneByte(STATIC_ASCII_VECTOR(
       "Code generation from strings disallowed for this context"));
 }
 

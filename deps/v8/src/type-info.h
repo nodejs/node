@@ -50,14 +50,16 @@ class TypeFeedbackOracle: public ZoneObject {
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
   bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
+  bool CallIsMonomorphic(int slot);
   bool CallIsMonomorphic(TypeFeedbackId aid);
-  bool CallNewIsMonomorphic(TypeFeedbackId id);
+  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
+  bool CallNewIsMonomorphic(int slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
   // TODO(rossberg): once all oracle access is removed from ast.cc, it should
   // be possible.
-  byte ForInType(TypeFeedbackId id);
+  byte ForInType(int feedback_vector_slot);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
@@ -84,9 +86,9 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  Handle<JSFunction> GetCallTarget(TypeFeedbackId id);
-  Handle<JSFunction> GetCallNewTarget(TypeFeedbackId id);
-  Handle<AllocationSite> GetCallNewAllocationSite(TypeFeedbackId id);
+  Handle<JSFunction> GetCallTarget(int slot);
+  Handle<JSFunction> GetCallNewTarget(int slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
   bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
@@ -127,19 +129,23 @@ class TypeFeedbackOracle: public ZoneObject {
   void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
   void CreateDictionary(Handle<Code> code, ZoneList<RelocInfo>* infos);
   void RelocateRelocInfos(ZoneList<RelocInfo>* infos,
-                          byte* old_start,
-                          byte* new_start);
+                          Code* old_code,
+                          Code* new_code);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
-  void ProcessTypeFeedbackCells(Handle<Code> code);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
   Handle<Object> GetInfo(TypeFeedbackId id);
 
+  // Returns an element from the type feedback vector. Returns undefined
+  // if there is no information.
+  Handle<Object> GetInfo(int slot);
+
  private:
   Handle<Context> native_context_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
+  Handle<FixedArray> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

@@ -33,9 +33,9 @@
 // NOTE these macros are used by some of the tool scripts and the build
 // system so their names cannot be changed without changing the scripts.
 #define MAJOR_VERSION     3
-#define MINOR_VERSION     24
-#define BUILD_NUMBER      35
-#define PATCH_LEVEL       22
+#define MINOR_VERSION     25
+#define BUILD_NUMBER      30
+#define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
 #define IS_CANDIDATE_VERSION 0

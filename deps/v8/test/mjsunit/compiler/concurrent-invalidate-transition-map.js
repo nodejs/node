@@ -43,9 +43,10 @@ function new_object() {
 function add_field(obj) {
   obj.c = 3;
 }
-
-add_field(new_object());
-add_field(new_object());
+var obj1 = new_object();
+var obj2 = new_object();
+add_field(obj1);
+add_field(obj2);
 %OptimizeFunctionOnNextCall(add_field, "concurrent");
 
 var o = new_object();

@@ -30,6 +30,9 @@
   # BUG(237872). TODO(bmeurer): Investigate.
   'string-replacement-outofmemory': [FAIL],
 
+  # TODO(rossberg): Awaiting spec resolution (https://bugs.ecmascript.org/show_bug.cgi?id=2566)
+  'fast/js/Promise-then': [FAIL],
+
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
@@ -48,4 +51,7 @@
 ['simulator', {
   'function-apply-aliased': [SKIP],
 }],  # 'simulator'
+['arch == arm64 and simulator_run == True', {
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == arm64 and simulator_run == True'
 ]

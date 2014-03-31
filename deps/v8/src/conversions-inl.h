@@ -128,7 +128,7 @@ inline bool AdvanceToNonspace(UnicodeCache* unicode_cache,
                               Iterator* current,
                               EndMark end) {
   while (*current != end) {
-    if (!unicode_cache->IsWhiteSpace(**current)) return true;
+    if (!unicode_cache->IsWhiteSpaceOrLineTerminator(**current)) return true;
     ++*current;
   }
   return false;

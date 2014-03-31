@@ -158,25 +158,12 @@ static int32_t Load16Aligned(const byte* pc) {
 // matching terminates.
 class BacktrackStack {
  public:
-  explicit BacktrackStack(Isolate* isolate) : isolate_(isolate) {
-    if (isolate->irregexp_interpreter_backtrack_stack_cache() != NULL) {
-      // If the cache is not empty reuse the previously allocated stack.
-      data_ = isolate->irregexp_interpreter_backtrack_stack_cache();
-      isolate->set_irregexp_interpreter_backtrack_stack_cache(NULL);
-    } else {
-      // Cache was empty. Allocate a new backtrack stack.
-      data_ = NewArray<int>(kBacktrackStackSize);
-    }
+  explicit BacktrackStack() {
+    data_ = NewArray<int>(kBacktrackStackSize);
   }
 
   ~BacktrackStack() {
-    if (isolate_->irregexp_interpreter_backtrack_stack_cache() == NULL) {
-      // The cache is empty. Keep this backtrack stack around.
-      isolate_->set_irregexp_interpreter_backtrack_stack_cache(data_);
-    } else {
-      // A backtrack stack was already cached, just release this one.
-      DeleteArray(data_);
-    }
+    DeleteArray(data_);
   }
 
   int* data() const { return data_; }
@@ -187,7 +174,6 @@ class BacktrackStack {
   static const int kBacktrackStackSize = 10000;
 
   int* data_;
-  Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
@@ -204,7 +190,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
   // BacktrackStack ensures that the memory allocated for the backtracking stack
   // is returned to the system or cached if there is no stack being cached at
   // the moment.
-  BacktrackStack backtrack_stack(isolate);
+  BacktrackStack backtrack_stack;
   int* backtrack_stack_base = backtrack_stack.data();
   int* backtrack_sp = backtrack_stack_base;
   int backtrack_stack_space = backtrack_stack.max_size();

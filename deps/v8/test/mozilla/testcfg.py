@@ -132,8 +132,11 @@ class MozillaTestSuite(testsuite.TestSuite):
 
     # If we have a local archive file with the test data, extract it.
     directory_name = "data"
+    directory_name_old = "data.old"
     if os.path.exists(directory_name):
-      os.rename(directory_name, "data.old")
+      if os.path.exists(directory_name_old):
+        shutil.rmtree(directory_name_old)
+      os.rename(directory_name, directory_name_old)
     archive_file = "downloaded_%s.tar.gz" % MOZILLA_VERSION
     if os.path.exists(archive_file):
       with tarfile.open(archive_file, "r:gz") as tar:

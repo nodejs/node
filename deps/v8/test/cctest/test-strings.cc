@@ -661,7 +661,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
     HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(isolate);
     // Build flat version of cons string.
     Handle<String> flat_string = build(i, &data);
     ConsStringStats flat_string_stats;
@@ -1209,24 +1209,17 @@ TEST(AsciiArrayJoin) {
   // starting with 'bad', followed by 2^14 times the string s. That means the
   // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
   // summing the lengths of the strings (as Smis) overflows and wraps.
-  static const char* join_causing_out_of_memory =
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::TryCatch try_catch;
+  CHECK(CompileRun(
       "var two_14 = Math.pow(2, 14);"
       "var two_17 = Math.pow(2, 17);"
       "var s = Array(two_17 + 1).join('c');"
       "var a = ['bad'];"
       "for (var i = 1; i <= two_14; i++) a.push(s);"
-      "a.join("");";
-
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext context;
-  v8::V8::IgnoreOutOfMemoryException();
-  v8::Local<v8::Script> script = v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), join_causing_out_of_memory));
-  v8::Local<v8::Value> result = script->Run();
-
-  // Check for out of memory state.
-  CHECK(result.IsEmpty());
-  CHECK(context->HasOutOfMemoryException());
+      "a.join("");").IsEmpty());
+  CHECK(try_catch.HasCaught());
 }
 
 
@@ -1279,23 +1272,6 @@ TEST(RobustSubStringStub) {
   // would have been valid for the underlying string.
   CompileRun("var slice = long.slice(1, 15);");
   CheckException("%_SubString(slice, 0, 17);");
-}
-
-
-TEST(RegExpOverflow) {
-  // Result string has the length 2^32, causing a 32-bit integer overflow.
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext context;
-  v8::V8::IgnoreOutOfMemoryException();
-  v8::Local<v8::Value> result = CompileRun(
-      "var a = 'a';                     "
-      "for (var i = 0; i < 16; i++) {   "
-      "  a += a;                        "
-      "}                                "
-      "a.replace(/a/g, a);              ");
-  CHECK(result.IsEmpty());
-  CHECK(context->HasOutOfMemoryException());
 }
 
 
@@ -1376,3 +1352,62 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
+
+
+class DummyResource: public v8::String::ExternalStringResource {
+ public:
+  virtual const uint16_t* data() const { return NULL; }
+  virtual size_t length() const { return 1 << 30; }
+};
+
+
+class DummyOneByteResource: public v8::String::ExternalOneByteStringResource {
+ public:
+  virtual const char* data() const { return NULL; }
+  virtual size_t length() const { return 1 << 30; }
+};
+
+
+TEST(InvalidExternalString) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  { HandleScope scope(isolate);
+    DummyOneByteResource r;
+    CHECK(isolate->factory()->NewExternalStringFromAscii(&r).is_null());
+    CHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+  }
+
+  { HandleScope scope(isolate);
+    DummyResource r;
+    CHECK(isolate->factory()->NewExternalStringFromTwoByte(&r).is_null());
+    CHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+  }
+}
+
+
+#define INVALID_STRING_TEST(FUN, TYPE)                                         \
+  TEST(StringOOM##FUN) {                                                       \
+    CcTest::InitializeVM();                                                    \
+    LocalContext context;                                                      \
+    Isolate* isolate = CcTest::i_isolate();                                    \
+    STATIC_ASSERT(String::kMaxLength < kMaxInt);                               \
+    static const int invalid = String::kMaxLength + 1;                         \
+    HandleScope scope(isolate);                                                \
+    Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
+    CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
+    memset(dummy.start(), 0x20, dummy.length() * sizeof(TYPE));                \
+    CHECK(isolate->has_pending_exception());                                   \
+    isolate->clear_pending_exception();                                        \
+    dummy.Dispose();                                                           \
+  }
+
+INVALID_STRING_TEST(NewStringFromAscii, char)
+INVALID_STRING_TEST(NewStringFromUtf8, char)
+INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
+INVALID_STRING_TEST(InternalizeOneByteString, uint8_t)
+INVALID_STRING_TEST(InternalizeUtf8String, char)
+
+#undef INVALID_STRING_TEST

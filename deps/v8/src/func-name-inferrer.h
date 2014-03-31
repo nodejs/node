@@ -28,9 +28,13 @@
 #ifndef V8_FUNC_NAME_INFERRER_H_
 #define V8_FUNC_NAME_INFERRER_H_
 
+#include "handles.h"
+#include "zone.h"
+
 namespace v8 {
 namespace internal {
 
+class FunctionLiteral;
 class Isolate;
 
 // FuncNameInferrer is a stateful class that is used to perform name

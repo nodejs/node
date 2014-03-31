@@ -1266,6 +1266,10 @@ TEST(15) {
     uint32_t dstA1;
     uint32_t dstA2;
     uint32_t dstA3;
+    uint32_t dstA4;
+    uint32_t dstA5;
+    uint32_t dstA6;
+    uint32_t dstA7;
   } T;
   T t;
 
@@ -1291,7 +1295,14 @@ TEST(15) {
     __ add(r4, r0, Operand(OFFSET_OF(T, dstA0)));
     __ vst1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(r4));
 
-  __ ldm(ia_w, sp, r4.bit() | pc.bit());
+    // The same expansion, but with different source and destination registers.
+    __ add(r4, r0, Operand(OFFSET_OF(T, srcA0)));
+    __ vld1(Neon8, NeonListOperand(d1), NeonMemOperand(r4));
+    __ vmovl(NeonU8, q1, d1);
+    __ add(r4, r0, Operand(OFFSET_OF(T, dstA4)));
+    __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
+
+    __ ldm(ia_w, sp, r4.bit() | pc.bit());
 
     CodeDesc desc;
     assm.GetCode(&desc);
@@ -1326,6 +1337,10 @@ TEST(15) {
     t.dstA1 = 0;
     t.dstA2 = 0;
     t.dstA3 = 0;
+    t.dstA4 = 0;
+    t.dstA5 = 0;
+    t.dstA6 = 0;
+    t.dstA7 = 0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(0x01020304, t.dst0);
@@ -1340,6 +1355,10 @@ TEST(15) {
     CHECK_EQ(0x00410042, t.dstA1);
     CHECK_EQ(0x00830084, t.dstA2);
     CHECK_EQ(0x00810082, t.dstA3);
+    CHECK_EQ(0x00430044, t.dstA4);
+    CHECK_EQ(0x00410042, t.dstA5);
+    CHECK_EQ(0x00830084, t.dstA6);
+    CHECK_EQ(0x00810082, t.dstA7);
   }
 }
 

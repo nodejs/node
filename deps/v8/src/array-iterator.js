@@ -36,9 +36,9 @@ var ARRAY_ITERATOR_KIND_VALUES = 2;
 var ARRAY_ITERATOR_KIND_ENTRIES = 3;
 // The spec draft also has "sparse" but it is never used.
 
-var iteratorObjectSymbol = NEW_PRIVATE("iterator_object");
-var arrayIteratorNextIndexSymbol = NEW_PRIVATE("iterator_next");
-var arrayIterationKindSymbol = NEW_PRIVATE("iterator_kind");
+var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
+var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
+var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
 
 function ArrayIterator() {}
 
@@ -46,7 +46,7 @@ function ArrayIterator() {}
 function CreateArrayIterator(array, kind) {
   var object = ToObject(array);
   var iterator = new ArrayIterator;
-  SET_PRIVATE(iterator, iteratorObjectSymbol, object);
+  SET_PRIVATE(iterator, arrayIteratorObjectSymbol, object);
   SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, 0);
   SET_PRIVATE(iterator, arrayIterationKindSymbol, kind);
   return iterator;
@@ -60,7 +60,7 @@ function CreateIteratorResultObject(value, done) {
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
   var iterator = ToObject(this);
-  var array = GET_PRIVATE(iterator, iteratorObjectSymbol);
+  var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
   if (!array) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Array Iterator.prototype.next']);

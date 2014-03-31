@@ -78,7 +78,29 @@ void HRangeAnalysisPhase::Run() {
 
     // Go through all instructions of the current block.
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      InferRange(it.Current());
+      HValue* value = it.Current();
+      InferRange(value);
+
+      // Compute the bailout-on-minus-zero flag.
+      if (value->IsChange()) {
+        HChange* instr = HChange::cast(value);
+        // Propagate flags for negative zero checks upwards from conversions
+        // int32-to-tagged and int32-to-double.
+        Representation from = instr->value()->representation();
+        ASSERT(from.Equals(instr->from()));
+        if (from.IsSmiOrInteger32()) {
+          ASSERT(instr->to().IsTagged() ||
+                instr->to().IsDouble() ||
+                instr->to().IsSmiOrInteger32());
+          PropagateMinusZeroChecks(instr->value());
+        }
+      } else if (value->IsCompareMinusZeroAndBranch()) {
+        HCompareMinusZeroAndBranch* instr =
+            HCompareMinusZeroAndBranch::cast(value);
+        if (instr->value()->representation().IsSmiOrInteger32()) {
+          PropagateMinusZeroChecks(instr->value());
+        }
+      }
     }
 
     // Continue analysis in all dominated blocks.
@@ -194,6 +216,81 @@ void HRangeAnalysisPhase::AddRange(HValue* value, Range* range) {
   TraceRange("New information was [%d,%d]\n",
              range->lower(),
              range->upper());
+}
+
+
+void HRangeAnalysisPhase::PropagateMinusZeroChecks(HValue* value) {
+  ASSERT(worklist_.is_empty());
+  ASSERT(in_worklist_.IsEmpty());
+
+  AddToWorklist(value);
+  while (!worklist_.is_empty()) {
+    value = worklist_.RemoveLast();
+
+    if (value->IsPhi()) {
+      // For phis, we must propagate the check to all of its inputs.
+      HPhi* phi = HPhi::cast(value);
+      for (int i = 0; i < phi->OperandCount(); ++i) {
+        AddToWorklist(phi->OperandAt(i));
+      }
+    } else if (value->IsUnaryMathOperation()) {
+      HUnaryMathOperation* instr = HUnaryMathOperation::cast(value);
+      if (instr->representation().IsSmiOrInteger32() &&
+          !instr->value()->representation().Equals(instr->representation())) {
+        if (instr->value()->range() == NULL ||
+            instr->value()->range()->CanBeMinusZero()) {
+          instr->SetFlag(HValue::kBailoutOnMinusZero);
+        }
+      }
+      if (instr->RequiredInputRepresentation(0).IsSmiOrInteger32() &&
+          instr->representation().Equals(
+              instr->RequiredInputRepresentation(0))) {
+        AddToWorklist(instr->value());
+      }
+    } else if (value->IsChange()) {
+      HChange* instr = HChange::cast(value);
+      if (!instr->from().IsSmiOrInteger32() &&
+          !instr->CanTruncateToInt32() &&
+          (instr->value()->range() == NULL ||
+           instr->value()->range()->CanBeMinusZero())) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+      }
+    } else if (value->IsForceRepresentation()) {
+      HForceRepresentation* instr = HForceRepresentation::cast(value);
+      AddToWorklist(instr->value());
+    } else if (value->IsMod()) {
+      HMod* instr = HMod::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+        AddToWorklist(instr->left());
+      }
+    } else if (value->IsDiv() || value->IsMul()) {
+      HBinaryOperation* instr = HBinaryOperation::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+      }
+      AddToWorklist(instr->right());
+      AddToWorklist(instr->left());
+    } else if (value->IsMathFloorOfDiv()) {
+      HMathFloorOfDiv* instr = HMathFloorOfDiv::cast(value);
+      instr->SetFlag(HValue::kBailoutOnMinusZero);
+    } else if (value->IsAdd() || value->IsSub()) {
+      HBinaryOperation* instr = HBinaryOperation::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        // Propagate to the left argument. If the left argument cannot be -0,
+        // then the result of the add/sub operation cannot be either.
+        AddToWorklist(instr->left());
+      }
+    } else if (value->IsMathMinMax()) {
+      HMathMinMax* instr = HMathMinMax::cast(value);
+      AddToWorklist(instr->right());
+      AddToWorklist(instr->left());
+    }
+  }
+
+  in_worklist_.Clear();
+  ASSERT(in_worklist_.IsEmpty());
+  ASSERT(worklist_.is_empty());
 }
 
 

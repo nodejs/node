@@ -31,6 +31,7 @@
 
 #include "d8.h"
 #include "debug.h"
+#include "platform/socket.h"
 
 
 namespace v8 {

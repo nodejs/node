@@ -175,6 +175,19 @@ bool LGoto::HasInterestingComment(LCodeGen* gen) const {
 }
 
 
+template<int R>
+bool LTemplateResultInstruction<R>::MustSignExtendResult(
+    LPlatformChunk* chunk) const {
+  HValue* hvalue = this->hydrogen_value();
+
+  if (hvalue == NULL) return false;
+  if (!hvalue->representation().IsInteger32()) return false;
+  if (hvalue->HasRange() && !hvalue->range()->CanBeNegative()) return false;
+
+  return chunk->GetDehoistedKeyIds()->Contains(hvalue->id());
+}
+
+
 void LGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", block_id());
 }
@@ -947,18 +960,20 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   if (goto_instr != NULL) return goto_instr;
 
   HValue* value = instr->value();
-  LBranch* result = new(zone()) LBranch(UseRegister(value));
-  // Tagged values that are not known smis or booleans require a
-  // deoptimization environment. If the instruction is generic no
-  // environment is needed since all cases are handled.
-  ToBooleanStub::Types expected = instr->expected_input_types();
-  Representation rep = value->representation();
+  Representation r = value->representation();
   HType type = value->type();
-  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean() &&
-      !expected.IsGeneric()) {
-    return AssignEnvironment(result);
+  ToBooleanStub::Types expected = instr->expected_input_types();
+  if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
+
+  bool easy_case = !r.IsTagged() || type.IsBoolean() || type.IsSmi() ||
+      type.IsJSArray() || type.IsHeapNumber() || type.IsString();
+  LInstruction* branch = new(zone()) LBranch(UseRegister(value));
+  if (!easy_case &&
+      ((!expected.Contains(ToBooleanStub::SMI) && expected.NeedsMap()) ||
+       !expected.IsGeneric())) {
+    branch = AssignEnvironment(branch);
   }
-  return result;
+  return branch;
 }
 
 
@@ -1117,6 +1132,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
+    case kMathClz32: return DoMathClz32(instr);
     default:
       UNREACHABLE();
       return NULL;
@@ -1142,8 +1158,12 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
   LOperand* context = UseAny(instr->context());
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathAbs* result = new(zone()) LMathAbs(context, input);
-  return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+  LInstruction* result =
+      DefineSameAsFirst(new(zone()) LMathAbs(context, input));
+  Representation r = instr->value()->representation();
+  if (!r.IsDouble() && !r.IsSmiOrInteger32()) result = AssignPointerMap(result);
+  if (!r.IsDouble()) result = AssignEnvironment(result);
+  return result;
 }
 
 
@@ -1152,6 +1172,13 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   ASSERT(instr->value()->representation().IsDouble());
   LOperand* input = UseRegisterAtStart(instr->value());
   return MarkAsCall(DefineSameAsFirst(new(zone()) LMathLog(input)), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LMathClz32* result = new(zone()) LMathClz32(input);
+  return DefineAsRegister(result);
 }
 
 
@@ -1246,24 +1273,72 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDivByPowerOf2I(HDiv* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kCanOverflow) && divisor == -1) ||
+      (!instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+       divisor != 1 && divisor != -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LOperand* temp1 = FixedTemp(rax);
+  LOperand* temp2 = FixedTemp(rdx);
+  LInstruction* result = DefineFixed(new(zone()) LDivByConstI(
+          dividend, divisor, temp1, temp2), rdx);
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      !instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseFixed(instr->left(), rax);
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = FixedTemp(rdx);
+  LInstruction* result = DefineFixed(new(zone()) LDivI(
+          dividend, divisor, temp), rax);
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+      instr->CheckFlag(HValue::kCanOverflow) ||
+      (!instr->IsMathFloorOfDiv() &&
+       !instr->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
-      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
-      LDivI* div =
-          new(zone()) LDivI(value, UseOrConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineSameAsFirst(div));
+      return DoDivByPowerOf2I(instr);
+    } else if (instr->right()->IsConstant()) {
+      return DoDivByConstI(instr);
+    } else {
+      return DoDivI(instr);
     }
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into rdx.
-    LOperand* temp = FixedTemp(rdx);
-    LOperand* dividend = UseFixed(instr->left(), rax);
-    LOperand* divisor = UseRegister(instr->right());
-    LDivI* result = new(zone()) LDivI(dividend, divisor, temp);
-    return AssignEnvironment(DefineFixed(result, rax));
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
@@ -1272,74 +1347,114 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  HValue* right = instr->right();
-  if (!right->IsConstant()) {
-    ASSERT(right->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into rdx.
-    LOperand* temp = FixedTemp(rdx);
-    LOperand* dividend = UseFixed(instr->left(), rax);
-    LOperand* divisor = UseRegister(instr->right());
-    LDivI* flooring_div = new(zone()) LDivI(dividend, divisor, temp);
-    return AssignEnvironment(DefineFixed(flooring_div, rax));
+LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineSameAsFirst(new(zone()) LFlooringDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kLeftCanBeMinInt) && divisor == -1)) {
+    result = AssignEnvironment(result);
   }
+  return result;
+}
 
-  ASSERT(right->IsConstant() && HConstant::cast(right)->HasInteger32Value());
-  LOperand* divisor = chunk_->DefineConstantOperand(HConstant::cast(right));
-  int32_t divisor_si = HConstant::cast(right)->Integer32Value();
-  if (divisor_si == 0) {
-    LOperand* dividend = UseRegister(instr->left());
-    return AssignEnvironment(DefineAsRegister(
-        new(zone()) LMathFloorOfDiv(dividend, divisor, NULL)));
-  } else if (IsPowerOf2(abs(divisor_si))) {
-    LOperand* dividend = UseRegisterAtStart(instr->left());
-    LInstruction* result = DefineAsRegister(
-        new(zone()) LMathFloorOfDiv(dividend, divisor, NULL));
-    return divisor_si < 0 ? AssignEnvironment(result) : result;
+
+LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LOperand* temp1 = FixedTemp(rax);
+  LOperand* temp2 = FixedTemp(rdx);
+  LOperand* temp3 =
+      ((divisor > 0 && !instr->CheckFlag(HValue::kLeftCanBeNegative)) ||
+       (divisor < 0 && !instr->CheckFlag(HValue::kLeftCanBePositive))) ?
+      NULL : TempRegister();
+  LInstruction* result =
+      DefineFixed(new(zone()) LFlooringDivByConstI(dividend,
+                                                   divisor,
+                                                   temp1,
+                                                   temp2,
+                                                   temp3),
+                  rdx);
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+  if (instr->RightIsPowerOf2()) {
+    return DoFlooringDivByPowerOf2I(instr);
+  } else if (instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);
   } else {
-    // use two r64
-    LOperand* dividend = UseRegisterAtStart(instr->left());
-    LOperand* temp = TempRegister();
-    LInstruction* result = DefineAsRegister(
-        new(zone()) LMathFloorOfDiv(dividend, divisor, temp));
-    return divisor_si < 0 ? AssignEnvironment(result) : result;
+    return DoDivI(instr);
   }
 }
 
 
+LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
+          dividend, divisor));
+  if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LOperand* temp1 = FixedTemp(rax);
+  LOperand* temp2 = FixedTemp(rdx);
+  LInstruction* result = DefineFixed(new(zone()) LModByConstI(
+          dividend, divisor, temp1, temp2), rax);
+  if (divisor == 0 || instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoModI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseFixed(instr->left(), rax);
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = FixedTemp(rdx);
+  LInstruction* result = DefineFixed(new(zone()) LModI(
+          dividend, divisor, temp), rdx);
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
-  HValue* left = instr->left();
-  HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(left->representation().Equals(instr->representation()));
-    ASSERT(right->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
-      ASSERT(!right->CanBeZero());
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseOrConstant(right),
-                                     NULL);
-      LInstruction* result = DefineSameAsFirst(mod);
-      return (left->CanBeNegative() &&
-              instr->CheckFlag(HValue::kBailoutOnMinusZero))
-          ? AssignEnvironment(result)
-          : result;
+      return DoModByPowerOf2I(instr);
+    } else if (instr->right()->IsConstant()) {
+      return DoModByConstI(instr);
     } else {
-      // The temporary operand is necessary to ensure that right is not
-      // allocated into edx.
-      LModI* mod = new(zone()) LModI(UseFixed(left, rax),
-                                     UseRegister(right),
-                                     FixedTemp(rdx));
-      LInstruction* result = DefineFixed(mod, rdx);
-      return (right->CanBeZero() ||
-              (left->RangeCanInclude(kMinInt) &&
-               right->RangeCanInclude(-1) &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
-              (left->CanBeNegative() &&
-               instr->CanBeZero() &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)))
-          ? AssignEnvironment(result)
-          : result;
+      return DoModI(instr);
     }
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MOD, instr);
@@ -1702,8 +1817,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsTagged()) {
     if (to.IsDouble()) {
       LOperand* value = UseRegister(instr->value());
-      LNumberUntagD* res = new(zone()) LNumberUntagD(value);
-      return AssignEnvironment(DefineAsRegister(res));
+      LInstruction* res = DefineAsRegister(new(zone()) LNumberUntagD(value));
+      if (!instr->value()->representation().IsSmi()) {
+        res = AssignEnvironment(res);
+      }
+      return res;
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
@@ -1720,8 +1838,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         bool truncating = instr->CanTruncateToInt32();
         LOperand* xmm_temp = truncating ? NULL : FixedTemp(xmm1);
-        LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
-        return AssignEnvironment(DefineSameAsFirst(res));
+        LInstruction* res =
+            DefineSameAsFirst(new(zone()) LTaggedToI(value, xmm_temp));
+        if (!instr->value()->representation().IsSmi()) {
+          // Note: Only deopts in deferred code.
+          res = AssignEnvironment(res);
+        }
+        return res;
       }
     }
   } else if (from.IsDouble()) {
@@ -1741,41 +1864,37 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      return AssignEnvironment(
-          DefineAsRegister(new(zone()) LDoubleToI(value)));
+      LInstruction* result = DefineAsRegister(new(zone()) LDoubleToI(value));
+      if (!instr->CanTruncateToInt32()) {
+        result = AssignEnvironment(result);
+      }
+      return result;
     }
   } else if (from.IsInteger32()) {
     info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* temp = FixedTemp(xmm1);
-        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
-        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-      } else if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineSameAsFirst(new(zone()) LSmiTag(value));
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
+        return DefineAsRegister(new(zone()) LSmiTag(value));
+      } else if (val->CheckFlag(HInstruction::kUint32)) {
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = FixedTemp(xmm1);
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
+        return AssignPointerMap(DefineSameAsFirst(result));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
-        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+        return AssignPointerMap(DefineSameAsFirst(result));
       }
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = NULL;
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        result = DefineAsRegister(new(zone()) LUint32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange() &&
-            val->range()->upper() != kMaxInt) {
-          return result;
-        }
-      } else {
-        result = DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange()) {
-          return result;
-        }
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        ASSERT(val->CheckFlag(HValue::kUint32));
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp = FixedTemp(xmm1);
@@ -1826,6 +1945,7 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   }
   LCheckMaps* result = new(zone()) LCheckMaps(value);
   if (!instr->CanOmitMapChecks()) {
+    // Note: Only deopts in deferred code.
     AssignEnvironment(result);
     if (instr->has_migration_target()) return AssignPointerMap(result);
   }
@@ -1849,6 +1969,20 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
                                                         FixedTemp(xmm1));
     return AssignEnvironment(DefineSameAsFirst(result));
   }
+}
+
+
+LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
+  HValue* value = instr->value();
+  ASSERT(value->representation().IsDouble());
+  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
+}
+
+
+LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
+  LOperand* lo = UseRegister(instr->lo());
+  LOperand* hi = UseRegister(instr->hi());
+  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
 }
 
 
@@ -1911,7 +2045,10 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   LInstruction* result =
       DefineAsRegister(new(zone()) LLoadContextSlot(context));
-  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
+  if (instr->RequiresHoleCheck() && instr->DeoptimizesOnHole()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1928,7 +2065,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     temp = NULL;
   }
   LInstruction* result = new(zone()) LStoreContextSlot(context, value, temp);
-  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
+  if (instr->RequiresHoleCheck() && instr->DeoptimizesOnHole()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1969,32 +2109,51 @@ LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
 }
 
 
+void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
+  BitVector* dehoisted_key_ids = chunk_->GetDehoistedKeyIds();
+  if (dehoisted_key_ids->Contains(candidate->id())) return;
+  dehoisted_key_ids->Add(candidate->id());
+  if (!candidate->IsPhi()) return;
+  for (int i = 0; i < candidate->OperandCount(); ++i) {
+    FindDehoistedKeyDefinitions(candidate->OperandAt(i));
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ASSERT(instr->key()->representation().IsInteger32());
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-  LLoadKeyed* result = NULL;
+  LInstruction* result = NULL;
+
+  if (instr->IsDehoisted()) {
+    FindDehoistedKeyDefinitions(instr->key());
+  }
 
   if (!instr->is_typed_elements()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
-    result = new(zone()) LLoadKeyed(obj, key);
+    result = DefineAsRegister(new(zone()) LLoadKeyed(obj, key));
   } else {
     ASSERT(
         (instr->representation().IsInteger32() &&
-         !(IsDoubleOrFloatElementsKind(instr->elements_kind()))) ||
+         !(IsDoubleOrFloatElementsKind(elements_kind))) ||
         (instr->representation().IsDouble() &&
-         (IsDoubleOrFloatElementsKind(instr->elements_kind()))));
+         (IsDoubleOrFloatElementsKind(elements_kind))));
     LOperand* backing_store = UseRegister(instr->elements());
-    result = new(zone()) LLoadKeyed(backing_store, key);
+    result = DefineAsRegister(new(zone()) LLoadKeyed(backing_store, key));
   }
 
-  DefineAsRegister(result);
-  bool can_deoptimize = instr->RequiresHoleCheck() ||
-      (elements_kind == EXTERNAL_UINT32_ELEMENTS) ||
-      (elements_kind == UINT32_ELEMENTS);
-  // An unsigned int array load might overflow and cause a deopt, make sure it
-  // has an environment.
-  return can_deoptimize ? AssignEnvironment(result) : result;
+  if ((instr->is_external() || instr->is_fixed_typed_array()) ?
+      // see LCodeGen::DoLoadKeyedExternalArray
+      ((elements_kind == EXTERNAL_UINT32_ELEMENTS ||
+        elements_kind == UINT32_ELEMENTS) &&
+       !instr->CheckFlag(HInstruction::kUint32)) :
+      // see LCodeGen::DoLoadKeyedFixedDoubleArray and
+      // LCodeGen::DoLoadKeyedFixedArray
+      instr->RequiresHoleCheck()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -2012,6 +2171,10 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
 
+  if (instr->IsDehoisted()) {
+    FindDehoistedKeyDefinitions(instr->key());
+  }
+
   if (!instr->is_typed_elements()) {
     ASSERT(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
@@ -2022,7 +2185,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     Representation value_representation = instr->value()->representation();
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
-      val = UseTempRegister(instr->value());
+      val = UseRegisterAtStart(instr->value());
       key = UseRegisterOrConstantAtStart(instr->key());
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
@@ -2133,7 +2296,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   bool can_be_constant = instr->value()->IsConstant() &&
       HConstant::cast(instr->value())->NotInNewSpace() &&
-      !(FLAG_track_double_fields && instr->field_representation().IsDouble());
+      !instr->field_representation().IsDouble();
 
   LOperand* val;
   if (needs_write_barrier) {
@@ -2142,10 +2305,9 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     val = UseFixed(instr->value(), rax);
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
-  } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
+  } else if (instr->field_representation().IsSmi()) {
     val = UseRegister(instr->value());
-  } else if (FLAG_track_double_fields &&
-             instr->field_representation().IsDouble()) {
+  } else if (instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());
   } else {
     val = UseRegister(instr->value());
@@ -2156,12 +2318,13 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = (!is_in_object || needs_write_barrier ||
       needs_write_barrier_for_map) ? TempRegister() : NULL;
 
-  LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (FLAG_track_heap_object_fields &&
-      instr->field_representation().IsHeapObject()) {
-    if (!instr->value()->type().IsHeapObject()) {
-      return AssignEnvironment(result);
-    }
+  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
+  if (!instr->access().IsExternalMemory() &&
+      instr->field_representation().IsHeapObject() &&
+      (val->IsConstantOperand()
+       ? HConstant::cast(instr->value())->HasSmiValue()
+       : !instr->value()->type().IsHeapObject())) {
+    result = AssignEnvironment(result);
   }
   return result;
 }
@@ -2193,7 +2356,7 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
   LOperand* context = UseAny(instr->context());
   LStringCharCodeAt* result =
       new(zone()) LStringCharCodeAt(context, string, index);
-  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

@@ -35,7 +35,7 @@ namespace internal {
 
 // Call this function to load ICU's data tables for the current process.  This
 // function should be called before ICU is used.
-bool InitializeICU();
+bool InitializeICU(const char* icu_data_file);
 
 } }  // namespace v8::internal
 

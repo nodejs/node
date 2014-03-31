@@ -34,6 +34,8 @@ template<class Type, class TypeHandle, class Region>
 class Types {
  public:
   Types(Region* region, Isolate* isolate) :
+      Representation(Type::Representation(region)),
+      Semantic(Type::Semantic(region)),
       None(Type::None(region)),
       Any(Type::Any(region)),
       Oddball(Type::Oddball(region)),
@@ -41,9 +43,9 @@ class Types {
       Null(Type::Null(region)),
       Undefined(Type::Undefined(region)),
       Number(Type::Number(region)),
-      Smi(Type::Smi(region)),
+      SignedSmall(Type::SignedSmall(region)),
       Signed32(Type::Signed32(region)),
-      Double(Type::Double(region)),
+      Float(Type::Float(region)),
       Name(Type::Name(region)),
       UniqueName(Type::UniqueName(region)),
       String(Type::String(region)),
@@ -72,6 +74,8 @@ class Types {
     ArrayConstant2 = Type::Constant(array, region);
   }
 
+  TypeHandle Representation;
+  TypeHandle Semantic;
   TypeHandle None;
   TypeHandle Any;
   TypeHandle Oddball;
@@ -79,9 +83,9 @@ class Types {
   TypeHandle Null;
   TypeHandle Undefined;
   TypeHandle Number;
-  TypeHandle Smi;
+  TypeHandle SignedSmall;
   TypeHandle Signed32;
-  TypeHandle Double;
+  TypeHandle Float;
   TypeHandle Name;
   TypeHandle UniqueName;
   TypeHandle String;
@@ -190,10 +194,10 @@ struct ZoneRep {
     return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
   }
   static Map* AsClass(Type* t) {
-    return *reinterpret_cast<Map**>(AsTagged(t)->at(1));
+    return *reinterpret_cast<Map**>(AsTagged(t)->at(2));
   }
   static Object* AsConstant(Type* t) {
-    return *reinterpret_cast<Object**>(AsTagged(t)->at(1));
+    return *reinterpret_cast<Object**>(AsTagged(t)->at(2));
   }
   static ZoneList<Type*>* AsUnion(Type* t) {
     return reinterpret_cast<ZoneList<Type*>*>(AsTagged(t));
@@ -236,7 +240,7 @@ struct Tests : Rep {
       T(Rep::ToRegion(&zone, isolate), isolate) {
   }
 
-  static void CheckEqual(TypeHandle type1, TypeHandle type2) {
+  void CheckEqual(TypeHandle type1, TypeHandle type2) {
     CHECK_EQ(Rep::IsBitset(type1), Rep::IsBitset(type2));
     CHECK_EQ(Rep::IsClass(type1), Rep::IsClass(type2));
     CHECK_EQ(Rep::IsConstant(type1), Rep::IsConstant(type2));
@@ -256,7 +260,7 @@ struct Tests : Rep {
     CHECK(type2->Is(type1));
   }
 
-  static void CheckSub(TypeHandle type1, TypeHandle type2) {
+  void CheckSub(TypeHandle type1, TypeHandle type2) {
     CHECK(type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
@@ -264,7 +268,7 @@ struct Tests : Rep {
     }
   }
 
-  static void CheckUnordered(TypeHandle type1, TypeHandle type2) {
+  void CheckUnordered(TypeHandle type1, TypeHandle type2) {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
@@ -272,21 +276,23 @@ struct Tests : Rep {
     }
   }
 
-  static void CheckOverlap(TypeHandle type1, TypeHandle type2) {
+  void CheckOverlap(TypeHandle type1, TypeHandle type2, TypeHandle mask) {
     CHECK(type1->Maybe(type2));
     CHECK(type2->Maybe(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_NE(0, Rep::AsBitset(type1) & Rep::AsBitset(type2));
+      CHECK_NE(0,
+          Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask));
     }
   }
 
-  static void CheckDisjoint(TypeHandle type1, TypeHandle type2) {
+  void CheckDisjoint(TypeHandle type1, TypeHandle type2, TypeHandle mask) {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
     CHECK(!type1->Maybe(type2));
     CHECK(!type2->Maybe(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_EQ(0, Rep::AsBitset(type1) & Rep::AsBitset(type2));
+      CHECK_EQ(0,
+          Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask));
     }
   }
 
@@ -300,10 +306,12 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.Union(T.String, T.Receiver)));
 
     CHECK_EQ(0, this->AsBitset(T.None));
-    CHECK_EQ(this->AsBitset(T.Number) | this->AsBitset(T.String),
-             this->AsBitset(T.Union(T.String, T.Number)));
-    CHECK_EQ(this->AsBitset(T.Receiver),
-             this->AsBitset(T.Union(T.Receiver, T.Object)));
+    CHECK_EQ(
+        this->AsBitset(T.Number) | this->AsBitset(T.String),
+        this->AsBitset(T.Union(T.String, T.Number)));
+    CHECK_EQ(
+        this->AsBitset(T.Receiver),
+        this->AsBitset(T.Union(T.Receiver, T.Object)));
   }
 
   void Class() {
@@ -352,12 +360,12 @@ struct Tests : Rep {
     CheckUnordered(T.Boolean, T.Undefined);
 
     CheckSub(T.Number, T.Any);
-    CheckSub(T.Smi, T.Number);
+    CheckSub(T.SignedSmall, T.Number);
     CheckSub(T.Signed32, T.Number);
-    CheckSub(T.Double, T.Number);
-    CheckSub(T.Smi, T.Signed32);
-    CheckUnordered(T.Smi, T.Double);
-    CheckUnordered(T.Signed32, T.Double);
+    CheckSub(T.Float, T.Number);
+    CheckSub(T.SignedSmall, T.Signed32);
+    CheckUnordered(T.SignedSmall, T.Float);
+    CheckUnordered(T.Signed32, T.Float);
 
     CheckSub(T.Name, T.Any);
     CheckSub(T.UniqueName, T.Any);
@@ -391,7 +399,7 @@ struct Tests : Rep {
     CheckSub(T.ArrayClass, T.Object);
     CheckUnordered(T.ObjectClass, T.ArrayClass);
 
-    CheckSub(T.SmiConstant, T.Smi);
+    CheckSub(T.SmiConstant, T.SignedSmall);
     CheckSub(T.SmiConstant, T.Signed32);
     CheckSub(T.SmiConstant, T.Number);
     CheckSub(T.ObjectConstant1, T.Object);
@@ -409,71 +417,71 @@ struct Tests : Rep {
   }
 
   void Maybe() {
-    CheckOverlap(T.Any, T.Any);
-    CheckOverlap(T.Object, T.Object);
+    CheckOverlap(T.Any, T.Any, T.Semantic);
+    CheckOverlap(T.Object, T.Object, T.Semantic);
 
-    CheckOverlap(T.Oddball, T.Any);
-    CheckOverlap(T.Boolean, T.Oddball);
-    CheckOverlap(T.Null, T.Oddball);
-    CheckOverlap(T.Undefined, T.Oddball);
-    CheckDisjoint(T.Boolean, T.Null);
-    CheckDisjoint(T.Undefined, T.Null);
-    CheckDisjoint(T.Boolean, T.Undefined);
+    CheckOverlap(T.Oddball, T.Any, T.Semantic);
+    CheckOverlap(T.Boolean, T.Oddball, T.Semantic);
+    CheckOverlap(T.Null, T.Oddball, T.Semantic);
+    CheckOverlap(T.Undefined, T.Oddball, T.Semantic);
+    CheckDisjoint(T.Boolean, T.Null, T.Semantic);
+    CheckDisjoint(T.Undefined, T.Null, T.Semantic);
+    CheckDisjoint(T.Boolean, T.Undefined, T.Semantic);
 
-    CheckOverlap(T.Number, T.Any);
-    CheckOverlap(T.Smi, T.Number);
-    CheckOverlap(T.Double, T.Number);
-    CheckDisjoint(T.Signed32, T.Double);
+    CheckOverlap(T.Number, T.Any, T.Semantic);
+    CheckOverlap(T.SignedSmall, T.Number, T.Semantic);
+    CheckOverlap(T.Float, T.Number, T.Semantic);
+    CheckDisjoint(T.Signed32, T.Float, T.Semantic);
 
-    CheckOverlap(T.Name, T.Any);
-    CheckOverlap(T.UniqueName, T.Any);
-    CheckOverlap(T.UniqueName, T.Name);
-    CheckOverlap(T.String, T.Name);
-    CheckOverlap(T.InternalizedString, T.String);
-    CheckOverlap(T.InternalizedString, T.UniqueName);
-    CheckOverlap(T.InternalizedString, T.Name);
-    CheckOverlap(T.Symbol, T.UniqueName);
-    CheckOverlap(T.Symbol, T.Name);
-    CheckOverlap(T.String, T.UniqueName);
-    CheckDisjoint(T.String, T.Symbol);
-    CheckDisjoint(T.InternalizedString, T.Symbol);
+    CheckOverlap(T.Name, T.Any, T.Semantic);
+    CheckOverlap(T.UniqueName, T.Any, T.Semantic);
+    CheckOverlap(T.UniqueName, T.Name, T.Semantic);
+    CheckOverlap(T.String, T.Name, T.Semantic);
+    CheckOverlap(T.InternalizedString, T.String, T.Semantic);
+    CheckOverlap(T.InternalizedString, T.UniqueName, T.Semantic);
+    CheckOverlap(T.InternalizedString, T.Name, T.Semantic);
+    CheckOverlap(T.Symbol, T.UniqueName, T.Semantic);
+    CheckOverlap(T.Symbol, T.Name, T.Semantic);
+    CheckOverlap(T.String, T.UniqueName, T.Semantic);
+    CheckDisjoint(T.String, T.Symbol, T.Semantic);
+    CheckDisjoint(T.InternalizedString, T.Symbol, T.Semantic);
 
-    CheckOverlap(T.Receiver, T.Any);
-    CheckOverlap(T.Object, T.Any);
-    CheckOverlap(T.Object, T.Receiver);
-    CheckOverlap(T.Array, T.Object);
-    CheckOverlap(T.Function, T.Object);
-    CheckOverlap(T.Proxy, T.Receiver);
-    CheckDisjoint(T.Object, T.Proxy);
-    CheckDisjoint(T.Array, T.Function);
+    CheckOverlap(T.Receiver, T.Any, T.Semantic);
+    CheckOverlap(T.Object, T.Any, T.Semantic);
+    CheckOverlap(T.Object, T.Receiver, T.Semantic);
+    CheckOverlap(T.Array, T.Object, T.Semantic);
+    CheckOverlap(T.Function, T.Object, T.Semantic);
+    CheckOverlap(T.Proxy, T.Receiver, T.Semantic);
+    CheckDisjoint(T.Object, T.Proxy, T.Semantic);
+    CheckDisjoint(T.Array, T.Function, T.Semantic);
 
-    CheckOverlap(T.ObjectClass, T.Any);
-    CheckOverlap(T.ObjectConstant1, T.Any);
+    CheckOverlap(T.ObjectClass, T.Any, T.Semantic);
+    CheckOverlap(T.ObjectConstant1, T.Any, T.Semantic);
 
-    CheckOverlap(T.ObjectClass, T.Object);
-    CheckOverlap(T.ArrayClass, T.Object);
-    CheckOverlap(T.ObjectClass, T.ObjectClass);
-    CheckOverlap(T.ArrayClass, T.ArrayClass);
-    CheckDisjoint(T.ObjectClass, T.ArrayClass);
+    CheckOverlap(T.ObjectClass, T.Object, T.Semantic);
+    CheckOverlap(T.ArrayClass, T.Object, T.Semantic);
+    CheckOverlap(T.ObjectClass, T.ObjectClass, T.Semantic);
+    CheckOverlap(T.ArrayClass, T.ArrayClass, T.Semantic);
+    CheckDisjoint(T.ObjectClass, T.ArrayClass, T.Semantic);
 
-    CheckOverlap(T.SmiConstant, T.Smi);
-    CheckOverlap(T.SmiConstant, T.Signed32);
-    CheckOverlap(T.SmiConstant, T.Number);
-    CheckDisjoint(T.SmiConstant, T.Double);
-    CheckOverlap(T.ObjectConstant1, T.Object);
-    CheckOverlap(T.ObjectConstant2, T.Object);
-    CheckOverlap(T.ArrayConstant1, T.Object);
-    CheckOverlap(T.ArrayConstant1, T.Array);
-    CheckOverlap(T.ArrayConstant1, T.ArrayConstant2);
-    CheckOverlap(T.ObjectConstant1, T.ObjectConstant1);
-    CheckDisjoint(T.ObjectConstant1, T.ObjectConstant2);
-    CheckDisjoint(T.ObjectConstant1, T.ArrayConstant1);
+    CheckOverlap(T.SmiConstant, T.SignedSmall, T.Semantic);
+    CheckOverlap(T.SmiConstant, T.Signed32, T.Semantic);
+    CheckOverlap(T.SmiConstant, T.Number, T.Semantic);
+    CheckDisjoint(T.SmiConstant, T.Float, T.Semantic);
+    CheckOverlap(T.ObjectConstant1, T.Object, T.Semantic);
+    CheckOverlap(T.ObjectConstant2, T.Object, T.Semantic);
+    CheckOverlap(T.ArrayConstant1, T.Object, T.Semantic);
+    CheckOverlap(T.ArrayConstant1, T.Array, T.Semantic);
+    CheckOverlap(T.ArrayConstant1, T.ArrayConstant2, T.Semantic);
+    CheckOverlap(T.ObjectConstant1, T.ObjectConstant1, T.Semantic);
+    CheckDisjoint(T.ObjectConstant1, T.ObjectConstant2, T.Semantic);
+    CheckDisjoint(T.ObjectConstant1, T.ArrayConstant1, T.Semantic);
 
-    CheckDisjoint(T.ObjectConstant1, T.ObjectClass);
-    CheckDisjoint(T.ObjectConstant2, T.ObjectClass);
-    CheckDisjoint(T.ObjectConstant1, T.ArrayClass);
-    CheckDisjoint(T.ObjectConstant2, T.ArrayClass);
-    CheckDisjoint(T.ArrayConstant1, T.ObjectClass);
+    CheckDisjoint(T.ObjectConstant1, T.ObjectClass, T.Semantic);
+    CheckDisjoint(T.ObjectConstant2, T.ObjectClass, T.Semantic);
+    CheckDisjoint(T.ObjectConstant1, T.ArrayClass, T.Semantic);
+    CheckDisjoint(T.ObjectConstant2, T.ArrayClass, T.Semantic);
+    CheckDisjoint(T.ArrayConstant1, T.ObjectClass, T.Semantic);
   }
 
   void Union() {
@@ -498,8 +506,8 @@ struct Tests : Rep {
     CheckSub(T.ArrayClass, T.Union(T.ObjectClass, T.ArrayClass));
     CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Object);
     CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), T.Array);
-    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.Array);
-    CheckDisjoint(T.Union(T.ObjectClass, T.ArrayClass), T.Number);
+    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.Array, T.Semantic);
+    CheckDisjoint(T.Union(T.ObjectClass, T.ArrayClass), T.Number, T.Semantic);
 
     // Constant-constant
     CHECK(this->IsConstant(T.Union(T.ObjectConstant1, T.ObjectConstant1)));
@@ -520,11 +528,16 @@ struct Tests : Rep {
     CheckUnordered(
         T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ObjectClass);
     CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Array);
-    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Array);
     CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ArrayConstant2);
-    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Number);
-    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ObjectClass);
+        T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Array, T.Semantic);
+    CheckOverlap(
+        T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ArrayConstant2,
+        T.Semantic);
+    CheckDisjoint(
+        T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Number, T.Semantic);
+    CheckDisjoint(
+        T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ObjectClass,
+        T.Semantic);
 
     // Bitset-class
     CHECK(this->IsBitset(T.Union(T.ObjectClass, T.Object)));
@@ -533,11 +546,12 @@ struct Tests : Rep {
     CheckEqual(T.Union(T.ObjectClass, T.Object), T.Object);
     CheckSub(T.None, T.Union(T.ObjectClass, T.Number));
     CheckSub(T.Union(T.ObjectClass, T.Number), T.Any);
-    CheckSub(T.Union(T.ObjectClass, T.Smi), T.Union(T.Object, T.Number));
+    CheckSub(
+        T.Union(T.ObjectClass, T.SignedSmall), T.Union(T.Object, T.Number));
     CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
     CheckUnordered(T.Union(T.ObjectClass, T.String), T.Array);
-    CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
-    CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
+    CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object, T.Semantic);
+    CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number, T.Semantic);
 
     // Bitset-constant
     CHECK(this->IsBitset(T.Union(T.SmiConstant, T.Number)));
@@ -552,8 +566,8 @@ struct Tests : Rep {
         T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
     CheckSub(T.Union(T.ObjectConstant1, T.Array), T.Object);
     CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.Array);
-    CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
-    CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number);
+    CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object, T.Semantic);
+    CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number, T.Semantic);
     CheckEqual(T.Union(T.Signed32, T.Signed32Constant), T.Signed32);
 
     // Class-constant
@@ -569,8 +583,11 @@ struct Tests : Rep {
     CheckSub(
         T.Union(T.ObjectConstant1, T.ArrayClass), T.Union(T.Array, T.Object));
     CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant1);
-    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
-    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);
+    CheckDisjoint(
+        T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2,
+        T.Semantic);
+    CheckDisjoint(
+        T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass, T.Semantic);
 
     // Bitset-union
     CHECK(this->IsBitset(
@@ -585,19 +602,19 @@ struct Tests : Rep {
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number),
         T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
     CheckSub(
-        T.Double,
+        T.Float,
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
     CheckSub(
         T.ObjectConstant1,
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float));
     CheckSub(
         T.None,
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double));
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float));
     CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double),
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float),
         T.Any);
     CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Double),
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float),
         T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
 
     // Class-union
@@ -661,7 +678,9 @@ struct Tests : Rep {
             T.Union(T.ObjectConstant1, T.ObjectConstant2),
             T.ArrayConstant1));
     CheckEqual(
-        T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Smi, T.Array)),
+        T.Union(
+            T.Union(T.Number, T.ArrayClass),
+            T.Union(T.SignedSmall, T.Array)),
         T.Union(T.Number, T.Array));
   }
 
@@ -672,7 +691,7 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.Intersect(T.Any, T.None)));
 
     CheckEqual(T.Intersect(T.None, T.Number), T.None);
-    CheckEqual(T.Intersect(T.Object, T.Proxy), T.None);
+    CheckSub(T.Intersect(T.Object, T.Proxy), T.Representation);
     CheckEqual(T.Intersect(T.Name, T.String), T.Intersect(T.String, T.Name));
     CheckEqual(T.Intersect(T.UniqueName, T.String), T.InternalizedString);
 
@@ -699,15 +718,15 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.Intersect(T.ObjectClass, T.Number)));
 
     CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
-    CheckEqual(T.Intersect(T.ObjectClass, T.Array), T.None);
-    CheckEqual(T.Intersect(T.ObjectClass, T.Number), T.None);
+    CheckSub(T.Intersect(T.ObjectClass, T.Array), T.Representation);
+    CheckSub(T.Intersect(T.ObjectClass, T.Number), T.Representation);
 
     // Bitset-constant
-    CHECK(this->IsBitset(T.Intersect(T.Smi, T.Number)));
+    CHECK(this->IsBitset(T.Intersect(T.SignedSmall, T.Number)));
     CHECK(this->IsConstant(T.Intersect(T.SmiConstant, T.Number)));
     CHECK(this->IsConstant(T.Intersect(T.ObjectConstant1, T.Object)));
 
-    CheckEqual(T.Intersect(T.Smi, T.Number), T.Smi);
+    CheckEqual(T.Intersect(T.SignedSmall, T.Number), T.SignedSmall);
     CheckEqual(T.Intersect(T.SmiConstant, T.Number), T.SmiConstant);
     CheckEqual(T.Intersect(T.ObjectConstant1, T.Object), T.ObjectConstant1);
 
@@ -778,8 +797,8 @@ struct Tests : Rep {
     CheckEqual(
         T.Intersect(
             T.Union(T.Number, T.ArrayClass),
-            T.Union(T.Smi, T.Array)),
-        T.Union(T.Smi, T.ArrayClass));
+            T.Union(T.SignedSmall, T.Array)),
+        T.Union(T.SignedSmall, T.ArrayClass));
     CheckEqual(
         T.Intersect(
             T.Union(T.Number, T.ObjectClass),

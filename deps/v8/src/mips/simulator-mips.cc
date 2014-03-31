@@ -925,6 +925,10 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 }
 
 
+Simulator::~Simulator() {
+}
+
+
 // When the generated code calls an external reference we need to catch that in
 // the simulator.  The external reference will be a function compiled for the
 // host architecture.  We need to call that function instead of trying to
@@ -1926,7 +1930,11 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           alu_out = rs_u * rt_u;  // Only the lower 32 bits are kept.
           break;
         case CLZ:
-          alu_out = __builtin_clz(rs_u);
+          // MIPS32 spec: If no bits were set in GPR rs, the result written to
+          // GPR rd is 32.
+          // GCC __builtin_clz: If input is 0, the result is undefined.
+          alu_out =
+              rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
           break;
         default:
           UNREACHABLE();

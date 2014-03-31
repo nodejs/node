@@ -53,6 +53,7 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-ast.cc',
+        'test-atomicops.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
         'test-circular-queue.cc',
@@ -88,6 +89,7 @@
         'test-liveedit.cc',
         'test-lockers.cc',
         'test-log.cc',
+        'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
         'test-mutex.cc',
@@ -138,6 +140,7 @@
             'test-code-stubs.cc',
             'test-code-stubs-x64.cc',
             'test-cpu-x64.cc',
+            'test-disasm-x64.cc',
             'test-macro-assembler-x64.cc',
             'test-log-stack-tracer.cc'
           ],
@@ -149,6 +152,18 @@
             'test-code-stubs-arm.cc',
             'test-disasm-arm.cc',
             'test-macro-assembler-arm.cc'
+          ],
+        }],
+        ['v8_target_arch=="arm64"', {
+          'sources': [
+            'test-utils-arm64.cc',
+            'test-assembler-arm64.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-arm64.cc',
+            'test-disasm-arm64.cc',
+            'test-fuzz-arm64.cc',
+            'test-javascript-arm64.cc',
+            'test-js-arm64-variables.cc'
           ],
         }],
         ['v8_target_arch=="mipsel"', {

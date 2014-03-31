@@ -1115,8 +1115,8 @@ function ArraySort(comparefn) {
     max_prototype_element = CopyFromPrototype(this, length);
   }
 
-  var num_non_undefined = %IsObserved(this) ?
-      -1 : %RemoveArrayHoles(this, length);
+  // %RemoveArrayHoles returns -1 if fast removal is not supported.
+  var num_non_undefined = %RemoveArrayHoles(this, length);
 
   if (num_non_undefined == -1) {
     // The array is observed, or there were indexed accessors in the array.
@@ -1153,7 +1153,7 @@ function ArrayFilter(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1201,7 +1201,7 @@ function ArrayForEach(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1242,7 +1242,7 @@ function ArraySome(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1282,7 +1282,7 @@ function ArrayEvery(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1321,7 +1321,7 @@ function ArrayMap(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 

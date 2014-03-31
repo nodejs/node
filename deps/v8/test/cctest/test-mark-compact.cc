@@ -162,7 +162,7 @@ TEST(MarkCompactCollector) {
   SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
       heap->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
   JSFunction* function = JSFunction::cast(
-      heap->AllocateFunction(*isolate->function_map(),
+      heap->AllocateFunction(*isolate->sloppy_function_map(),
                              function_share,
                              heap->undefined_value())->ToObjectChecked());
   Map* initial_map =
@@ -170,7 +170,7 @@ TEST(MarkCompactCollector) {
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
   JSReceiver::SetProperty(
-      global, handle(func_name), handle(function), NONE, kNonStrictMode);
+      global, handle(func_name), handle(function), NONE, SLOPPY);
 
   JSObject* obj = JSObject::cast(
       heap->AllocateJSObject(function)->ToObjectChecked());
@@ -187,13 +187,12 @@ TEST(MarkCompactCollector) {
   obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  JSReceiver::SetProperty(
-      global, handle(obj_name), handle(obj), NONE, kNonStrictMode);
+  JSReceiver::SetProperty(global, handle(obj_name), handle(obj), NONE, SLOPPY);
   String* prop_name =
       String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   JSReceiver::SetProperty(
-      handle(obj), handle(prop_name), twenty_three, NONE, kNonStrictMode);
+      handle(obj), handle(prop_name), twenty_three, NONE, SLOPPY);
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
@@ -496,6 +495,7 @@ TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
   // Avoid flakiness.
   FLAG_crankshaft = false;
+  FLAG_concurrent_osr = false;
   FLAG_concurrent_recompilation = false;
 
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not

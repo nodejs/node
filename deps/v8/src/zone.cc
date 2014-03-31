@@ -104,6 +104,8 @@ void Zone::DeleteAll() {
     } else {
       int size = current->size();
 #ifdef DEBUG
+      // Un-poison first so the zapping doesn't trigger ASan complaints.
+      ASAN_UNPOISON_MEMORY_REGION(current, size);
       // Zap the entire current segment (including the header).
       memset(current, kZapDeadByte, size);
 #endif
@@ -120,6 +122,8 @@ void Zone::DeleteAll() {
     Address start = keep->start();
     position_ = RoundUp(start, kAlignment);
     limit_ = keep->end();
+    // Un-poison so we can re-use the segment later.
+    ASAN_UNPOISON_MEMORY_REGION(start, keep->capacity());
 #ifdef DEBUG
     // Zap the contents of the kept segment (but not the header).
     memset(start, kZapDeadByte, keep->capacity());
@@ -143,6 +147,8 @@ void Zone::DeleteKeptSegment() {
   if (segment_head_ != NULL) {
     int size = segment_head_->size();
 #ifdef DEBUG
+    // Un-poison first so the zapping doesn't trigger ASan complaints.
+    ASAN_UNPOISON_MEMORY_REGION(segment_head_, size);
     // Zap the entire kept segment (including the header).
     memset(segment_head_, kZapDeadByte, size);
 #endif

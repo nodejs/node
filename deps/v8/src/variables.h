@@ -168,7 +168,7 @@ class Variable: public ZoneObject {
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
-  // non-strict 'eval' calls between the reference scope (inclusive) and the
+  // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
 

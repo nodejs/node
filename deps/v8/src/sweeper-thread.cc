@@ -45,6 +45,7 @@ SweeperThread::SweeperThread(Isolate* isolate)
        start_sweeping_semaphore_(0),
        end_sweeping_semaphore_(0),
        stop_semaphore_(0) {
+  ASSERT(!FLAG_job_based_sweeping);
   NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
 }
 

@@ -38,30 +38,34 @@
 #include "platform.h"
 #include "v8.h"
 
+namespace v8 {
+namespace internal {
+
+intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
 
 // Attempts to dump a backtrace (if supported).
-static V8_INLINE void DumpBacktrace() {
+void DumpBacktrace() {
 #if V8_LIBC_GLIBC || V8_OS_BSD
   void* trace[100];
   int size = backtrace(trace, ARRAY_SIZE(trace));
   char** symbols = backtrace_symbols(trace, size);
-  i::OS::PrintError("\n==== C stack trace ===============================\n\n");
+  OS::PrintError("\n==== C stack trace ===============================\n\n");
   if (size == 0) {
-    i::OS::PrintError("(empty)\n");
+    OS::PrintError("(empty)\n");
   } else if (symbols == NULL) {
-    i::OS::PrintError("(no symbols)\n");
+    OS::PrintError("(no symbols)\n");
   } else {
     for (int i = 1; i < size; ++i) {
-      i::OS::PrintError("%2d: ", i);
+      OS::PrintError("%2d: ", i);
       char mangled[201];
       if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {  // NOLINT
         int status;
         size_t length;
         char* demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-        i::OS::PrintError("%s\n", demangled != NULL ? demangled : mangled);
+        OS::PrintError("%s\n", demangled != NULL ? demangled : mangled);
         free(demangled);
       } else {
-        i::OS::PrintError("??\n");
+        OS::PrintError("??\n");
       }
     }
   }
@@ -73,21 +77,23 @@ static V8_INLINE void DumpBacktrace() {
   bt_init_accessor(&acc, BT_SELF);
   bt_load_memmap(&acc, &memmap);
   bt_sprn_memmap(&memmap, out, sizeof(out));
-  i::OS::PrintError(out);
+  OS::PrintError(out);
   bt_addr_t trace[100];
   int size = bt_get_backtrace(&acc, trace, ARRAY_SIZE(trace));
-  i::OS::PrintError("\n==== C stack trace ===============================\n\n");
+  OS::PrintError("\n==== C stack trace ===============================\n\n");
   if (size == 0) {
-    i::OS::PrintError("(empty)\n");
+    OS::PrintError("(empty)\n");
   } else {
     bt_sprnf_addrs(&memmap, trace, size, const_cast<char*>("%a\n"),
                    out, sizeof(out), NULL);
-    i::OS::PrintError(out);
+    OS::PrintError(out);
   }
   bt_unload_memmap(&memmap);
   bt_release_accessor(&acc);
 #endif  // V8_LIBC_GLIBC || V8_OS_BSD
 }
+
+} }  // namespace v8::internal
 
 
 // Contains protection against recursive calls (faults while handling faults).
@@ -102,7 +108,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   i::OS::VPrintError(format, arguments);
   va_end(arguments);
   i::OS::PrintError("\n#\n");
-  DumpBacktrace();
+  v8::internal::DumpBacktrace();
   fflush(stderr);
   i::OS::Abort();
 }
@@ -136,10 +142,3 @@ void CheckNonEqualsHelper(const char* file,
              unexpected_source, value_source, *value_str);
   }
 }
-
-
-namespace v8 { namespace internal {
-
-  intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
-
-} }  // namespace v8::internal

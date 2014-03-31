@@ -163,7 +163,7 @@ void SetResolvedDateSettings(Isolate* isolate,
             reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
             pattern.length())),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   // Set time zone and calendar.
   const icu::Calendar* calendar = date_format->getCalendar();
@@ -173,7 +173,7 @@ void SetResolvedDateSettings(Isolate* isolate,
       isolate->factory()->NewStringFromAscii(CStrVector("calendar")),
       isolate->factory()->NewStringFromAscii(CStrVector(calendar_name)),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   const icu::TimeZone& tz = calendar->getTimeZone();
   icu::UnicodeString time_zone;
@@ -188,7 +188,7 @@ void SetResolvedDateSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("timeZone")),
           isolate->factory()->NewStringFromAscii(CStrVector("UTC")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
     } else {
       JSObject::SetProperty(
           resolved,
@@ -199,7 +199,7 @@ void SetResolvedDateSettings(Isolate* isolate,
                     canonical_time_zone.getBuffer()),
                 canonical_time_zone.length())),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
     }
   }
 
@@ -216,14 +216,14 @@ void SetResolvedDateSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
         isolate->factory()->NewStringFromAscii(CStrVector(ns)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
         isolate->factory()->undefined_value(),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
   delete numbering_system;
 
@@ -238,7 +238,7 @@ void SetResolvedDateSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector(result)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
@@ -246,7 +246,7 @@ void SetResolvedDateSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector("und")),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 }
 
@@ -389,7 +389,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
             reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
             pattern.length())),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   // Set resolved currency code in options.currency if not empty.
   icu::UnicodeString currency(number_format->getCurrency());
@@ -402,7 +402,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
               reinterpret_cast<const uint16_t*>(currency.getBuffer()),
               currency.length())),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 
   // Ugly hack. ICU doesn't expose numbering system in any way, so we have
@@ -418,14 +418,14 @@ void SetResolvedNumberSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
         isolate->factory()->NewStringFromAscii(CStrVector(ns)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
         isolate->factory()->undefined_value(),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
   delete numbering_system;
 
@@ -434,7 +434,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
       isolate->factory()->NewStringFromAscii(CStrVector("useGrouping")),
       isolate->factory()->ToBoolean(number_format->isGroupingUsed()),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   JSObject::SetProperty(
       resolved,
@@ -443,7 +443,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
       isolate->factory()->NewNumberFromInt(
           number_format->getMinimumIntegerDigits()),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   JSObject::SetProperty(
       resolved,
@@ -452,7 +452,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
       isolate->factory()->NewNumberFromInt(
           number_format->getMinimumFractionDigits()),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   JSObject::SetProperty(
       resolved,
@@ -461,7 +461,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
       isolate->factory()->NewNumberFromInt(
           number_format->getMaximumFractionDigits()),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   Handle<String> key = isolate->factory()->NewStringFromAscii(
       CStrVector("minimumSignificantDigits"));
@@ -473,7 +473,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
         isolate->factory()->NewNumberFromInt(
             number_format->getMinimumSignificantDigits()),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 
   key = isolate->factory()->NewStringFromAscii(
@@ -486,7 +486,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
         isolate->factory()->NewNumberFromInt(
             number_format->getMaximumSignificantDigits()),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 
   // Set the locale
@@ -500,7 +500,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector(result)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
@@ -508,7 +508,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector("und")),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 }
 
@@ -589,7 +589,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
       isolate->factory()->ToBoolean(
           collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   switch (collator->getAttribute(UCOL_CASE_FIRST, status)) {
     case UCOL_LOWER_FIRST:
@@ -598,7 +598,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
           isolate->factory()->NewStringFromAscii(CStrVector("lower")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       break;
     case UCOL_UPPER_FIRST:
       JSObject::SetProperty(
@@ -606,7 +606,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
           isolate->factory()->NewStringFromAscii(CStrVector("upper")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       break;
     default:
       JSObject::SetProperty(
@@ -614,7 +614,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
           isolate->factory()->NewStringFromAscii(CStrVector("false")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
   }
 
   switch (collator->getAttribute(UCOL_STRENGTH, status)) {
@@ -624,7 +624,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("strength")),
           isolate->factory()->NewStringFromAscii(CStrVector("primary")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
 
       // case level: true + s1 -> case, s1 -> base.
       if (UCOL_ON == collator->getAttribute(UCOL_CASE_LEVEL, status)) {
@@ -633,14 +633,14 @@ void SetResolvedCollatorSettings(Isolate* isolate,
             isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
             isolate->factory()->NewStringFromAscii(CStrVector("case")),
             NONE,
-            kNonStrictMode);
+            SLOPPY);
       } else {
         JSObject::SetProperty(
             resolved,
             isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
             isolate->factory()->NewStringFromAscii(CStrVector("base")),
             NONE,
-            kNonStrictMode);
+            SLOPPY);
       }
       break;
     }
@@ -650,13 +650,13 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("strength")),
           isolate->factory()->NewStringFromAscii(CStrVector("secondary")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       JSObject::SetProperty(
           resolved,
           isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
           isolate->factory()->NewStringFromAscii(CStrVector("accent")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       break;
     case UCOL_TERTIARY:
       JSObject::SetProperty(
@@ -664,13 +664,13 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("strength")),
           isolate->factory()->NewStringFromAscii(CStrVector("tertiary")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       JSObject::SetProperty(
           resolved,
           isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
           isolate->factory()->NewStringFromAscii(CStrVector("variant")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       break;
     case UCOL_QUATERNARY:
       // We shouldn't get quaternary and identical from ICU, but if we do
@@ -680,13 +680,13 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("strength")),
           isolate->factory()->NewStringFromAscii(CStrVector("quaternary")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       JSObject::SetProperty(
           resolved,
           isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
           isolate->factory()->NewStringFromAscii(CStrVector("variant")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       break;
     default:
       JSObject::SetProperty(
@@ -694,13 +694,13 @@ void SetResolvedCollatorSettings(Isolate* isolate,
           isolate->factory()->NewStringFromAscii(CStrVector("strength")),
           isolate->factory()->NewStringFromAscii(CStrVector("identical")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
       JSObject::SetProperty(
           resolved,
           isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
           isolate->factory()->NewStringFromAscii(CStrVector("variant")),
           NONE,
-          kNonStrictMode);
+          SLOPPY);
   }
 
   JSObject::SetProperty(
@@ -709,7 +709,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
       isolate->factory()->ToBoolean(collator->getAttribute(
           UCOL_ALTERNATE_HANDLING, status) == UCOL_SHIFTED),
       NONE,
-      kNonStrictMode);
+      SLOPPY);
 
   // Set the locale
   char result[ULOC_FULLNAME_CAPACITY];
@@ -722,7 +722,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector(result)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
@@ -730,7 +730,7 @@ void SetResolvedCollatorSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector("und")),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 }
 
@@ -785,7 +785,7 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector(result)),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
@@ -793,7 +793,7 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
         isolate->factory()->NewStringFromAscii(CStrVector("locale")),
         isolate->factory()->NewStringFromAscii(CStrVector("und")),
         NONE,
-        kNonStrictMode);
+        SLOPPY);
   }
 }
 

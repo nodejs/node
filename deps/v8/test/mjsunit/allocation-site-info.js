@@ -232,14 +232,13 @@ if (support_smi_only_arrays) {
   obj = newarraycase_length_smidouble(2);
   assertKind(elements_kind.fast_double, obj);
 
-  // Try to continue the transition to fast object. This won't work for
-  // constructed arrays because constructor dispatch is done on the
-  // elements kind, and a DOUBLE array constructor won't create an allocation
-  // memento.
+  // Try to continue the transition to fast object.
+  // TODO(mvstanton): re-enable commented out code when
+  // FLAG_pretenuring_call_new is turned on in the build.
   obj = newarraycase_length_smidouble("coates");
   assertKind(elements_kind.fast, obj);
   obj = newarraycase_length_smidouble(2);
-  assertKind(elements_kind.fast_double, obj);
+  // assertKind(elements_kind.fast, obj);
 
   function newarraycase_length_smiobj(value) {
     var a = new Array(3);

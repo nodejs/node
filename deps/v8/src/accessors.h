@@ -49,7 +49,6 @@ namespace internal {
   V(ScriptId)                       \
   V(ScriptLineOffset)               \
   V(ScriptColumnOffset)             \
-  V(ScriptData)                     \
   V(ScriptType)                     \
   V(ScriptCompilationType)          \
   V(ScriptLineEnds)                 \
@@ -128,7 +127,6 @@ class Accessors : public AllStatic {
   static MaybeObject* ScriptGetColumnOffset(Isolate* isolate,
                                             Object* object,
                                             void*);
-  static MaybeObject* ScriptGetData(Isolate* isolate, Object* object, void*);
   static MaybeObject* ScriptGetType(Isolate* isolate, Object* object, void*);
   static MaybeObject* ScriptGetCompilationType(Isolate* isolate,
                                                Object* object,

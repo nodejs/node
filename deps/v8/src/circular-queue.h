@@ -28,6 +28,7 @@
 #ifndef V8_CIRCULAR_QUEUE_H_
 #define V8_CIRCULAR_QUEUE_H_
 
+#include "atomicops.h"
 #include "v8globals.h"
 
 namespace v8 {

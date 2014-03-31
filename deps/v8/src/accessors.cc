@@ -119,9 +119,7 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
         CheckForName(name, isolate->heap()->byte_length_string(),
                      JSTypedArray::kByteLengthOffset, object_offset) ||
         CheckForName(name, isolate->heap()->byte_offset_string(),
-                     JSTypedArray::kByteOffsetOffset, object_offset) ||
-        CheckForName(name, isolate->heap()->buffer_string(),
-                     JSTypedArray::kBufferOffset, object_offset);
+                     JSTypedArray::kByteOffsetOffset, object_offset);
     case JS_ARRAY_BUFFER_TYPE:
       return
         CheckForName(name, isolate->heap()->byte_length_string(),
@@ -131,9 +129,7 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
         CheckForName(name, isolate->heap()->byte_length_string(),
                      JSDataView::kByteLengthOffset, object_offset) ||
         CheckForName(name, isolate->heap()->byte_offset_string(),
-                     JSDataView::kByteOffsetOffset, object_offset) ||
-        CheckForName(name, isolate->heap()->buffer_string(),
-                     JSDataView::kBufferOffset, object_offset);
+                     JSDataView::kByteOffsetOffset, object_offset);
     default:
       return false;
   }
@@ -213,7 +209,9 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
-    return array_handle->SetElementsLength(*uint32_v);
+    Handle<Object> result = JSArray::SetElementsLength(array_handle, uint32_v);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
   return isolate->Throw(
       *isolate->factory()->NewRangeError("invalid_array_length",
@@ -345,26 +343,6 @@ MaybeObject* Accessors::ScriptGetColumnOffset(Isolate* isolate,
 
 const AccessorDescriptor Accessors::ScriptColumnOffset = {
   ScriptGetColumnOffset,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptData
-//
-
-
-MaybeObject* Accessors::ScriptGetData(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->data();
-}
-
-
-const AccessorDescriptor Accessors::ScriptData = {
-  ScriptGetData,
   IllegalSetter,
   0
 };
@@ -620,10 +598,7 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
   }
 
   Handle<Object> old_value;
-  bool is_observed =
-      FLAG_harmony_observation &&
-      *function == *object &&
-      function->map()->is_observed();
+  bool is_observed = *function == *object && function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
@@ -911,10 +886,10 @@ MaybeObject* Accessors::FunctionGetCaller(Isolate* isolate,
   if (caller->shared()->bound()) {
     return isolate->heap()->null_value();
   }
-  // Censor if the caller is not a classic mode function.
+  // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (!caller->shared()->is_classic_mode()) {
+  if (caller->shared()->strict_mode() == STRICT) {
     return isolate->heap()->null_value();
   }
 

@@ -235,10 +235,12 @@ class GlobalHandles::Node {
     weak_callback_ = weak_callback;
   }
 
-  void ClearWeakness() {
+  void* ClearWeakness() {
     ASSERT(state() != FREE);
+    void* p = parameter();
     set_state(NORMAL);
     set_parameter(NULL);
+    return p;
   }
 
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
@@ -271,7 +273,7 @@ class GlobalHandles::Node {
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
-    ASSERT(state() != NEAR_DEATH);
+    CHECK(state() != NEAR_DEATH);
     return true;
   }
 
@@ -502,8 +504,8 @@ void GlobalHandles::MakeWeak(Object** location,
 }
 
 
-void GlobalHandles::ClearWeakness(Object** location) {
-  Node::FromLocation(location)->ClearWeakness();
+void* GlobalHandles::ClearWeakness(Object** location) {
+  return Node::FromLocation(location)->ClearWeakness();
 }
 
 

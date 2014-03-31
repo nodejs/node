@@ -55,11 +55,11 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
                  "--debug-code", "--verify-heap",
                  "--noconcurrent-recompilation"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--noconcurrent-recompilation"]}
 
 SUPPORTED_ARCHS = ["android_arm",

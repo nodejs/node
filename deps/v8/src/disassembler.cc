@@ -200,7 +200,7 @@ static int DecodeIt(Isolate* isolate,
     // Print all the reloc info for this instruction which are not comments.
     for (int i = 0; i < pcs.length(); i++) {
       // Put together the reloc info
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], NULL);
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], converter.code());
 
       // Indent the printing of the reloc info.
       if (i == 0) {

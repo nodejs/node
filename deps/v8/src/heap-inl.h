@@ -137,8 +137,8 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
 
 MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
                                                      uint32_t hash_field) {
-  if (str.length() > SeqOneByteString::kMaxLength) {
-    return Failure::OutOfMemoryException(0x2);
+  if (str.length() > String::kMaxLength) {
+    return isolate()->ThrowInvalidStringLength();
   }
   // Compute map and object size.
   Map* map = ascii_internalized_string_map();
@@ -170,8 +170,8 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
 
 MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                      uint32_t hash_field) {
-  if (str.length() > SeqTwoByteString::kMaxLength) {
-    return Failure::OutOfMemoryException(0x3);
+  if (str.length() > String::kMaxLength) {
+    return isolate()->ThrowInvalidStringLength();
   }
   // Compute map and object size.
   Map* map = internalized_string_map();
@@ -223,7 +223,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   HeapProfiler* profiler = isolate_->heap_profiler();
 #ifdef DEBUG
   if (FLAG_gc_interval >= 0 &&
-      !disallow_allocation_failure_ &&
+      AllowAllocationFailure::IsAllowed(isolate_) &&
       Heap::allocation_timeout_-- <= 0) {
     return Failure::RetryAfterGC(space);
   }
@@ -490,7 +490,8 @@ void Heap::ScavengePointer(HeapObject** p) {
 }
 
 
-void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
+void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
+                                        ScratchpadSlotMode mode) {
   Heap* heap = object->GetHeap();
   ASSERT(heap->InFromSpace(object));
 
@@ -518,7 +519,7 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   if (!memento->IsValid()) return;
 
   if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
-    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite());
+    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
   }
 }
 
@@ -541,7 +542,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  UpdateAllocationSiteFeedback(object);
+  UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
@@ -640,35 +641,26 @@ Isolate* Heap::isolate() {
 // Warning: Do not use the identifiers __object__, __maybe_object__ or
 // __scope__ in a call to this macro.
 
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY, OOM)\
+#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)     \
   do {                                                                         \
     GC_GREEDY_CHECK(ISOLATE);                                                  \
     MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
     Object* __object__ = NULL;                                                 \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (__maybe_object__->IsOutOfMemory()) {                                   \
-      OOM;                                                                     \
-    }                                                                          \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
     (ISOLATE)->heap()->CollectGarbage(Failure::cast(__maybe_object__)->        \
                                     allocation_space(),                        \
                                     "allocation failure");                     \
     __maybe_object__ = FUNCTION_CALL;                                          \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (__maybe_object__->IsOutOfMemory()) {                                   \
-      OOM;                                                                     \
-    }                                                                          \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
     {                                                                          \
-      AlwaysAllocateScope __scope__;                                           \
+      AlwaysAllocateScope __scope__(ISOLATE);                                  \
       __maybe_object__ = FUNCTION_CALL;                                        \
     }                                                                          \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (__maybe_object__->IsOutOfMemory()) {                                   \
-      OOM;                                                                     \
-    }                                                                          \
     if (__maybe_object__->IsRetryAfterGC()) {                                  \
       /* TODO(1181417): Fix this. */                                           \
       v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);\
@@ -682,8 +674,7 @@ Isolate* Heap::isolate() {
       ISOLATE,                                                             \
       FUNCTION_CALL,                                                       \
       RETURN_VALUE,                                                        \
-      RETURN_EMPTY,                                                        \
-      v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY", true))
+      RETURN_EMPTY)
 
 #define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
   CALL_AND_RETRY_OR_DIE(ISOLATE,                                              \
@@ -700,7 +691,6 @@ Isolate* Heap::isolate() {
   CALL_AND_RETRY(ISOLATE,                                         \
                  FUNCTION_CALL,                                   \
                  return __object__,                               \
-                 return __maybe_object__,                         \
                  return __maybe_object__)
 
 
@@ -777,21 +767,20 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
-AlwaysAllocateScope::AlwaysAllocateScope() {
+AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
+    : heap_(isolate->heap()), daf_(isolate) {
   // We shouldn't hit any nested scopes, because that requires
   // non-handle code to call handle code. The code still works but
   // performance will degrade, so we want to catch this situation
   // in debug mode.
-  Isolate* isolate = Isolate::Current();
-  ASSERT(isolate->heap()->always_allocate_scope_depth_ == 0);
-  isolate->heap()->always_allocate_scope_depth_++;
+  ASSERT(heap_->always_allocate_scope_depth_ == 0);
+  heap_->always_allocate_scope_depth_++;
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->always_allocate_scope_depth_--;
-  ASSERT(isolate->heap()->always_allocate_scope_depth_ == 0);
+  heap_->always_allocate_scope_depth_--;
+  ASSERT(heap_->always_allocate_scope_depth_ == 0);
 }
 
 
@@ -809,6 +798,21 @@ NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
 #endif
 
 
+GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
+  heap_->gc_callbacks_depth_++;
+}
+
+
+GCCallbacksScope::~GCCallbacksScope() {
+  heap_->gc_callbacks_depth_--;
+}
+
+
+bool GCCallbacksScope::CheckReenter() {
+  return heap_->gc_callbacks_depth_ == 1;
+}
+
+
 void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
@@ -820,25 +824,15 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
 }
 
 
+void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
+  for (Object** current = start; current < end; current++) {
+     CHECK((*current)->IsSmi());
+  }
+}
+
+
 double GCTracer::SizeOfHeapObjects() {
   return (static_cast<double>(heap_->SizeOfObjects())) / MB;
-}
-
-
-DisallowAllocationFailure::DisallowAllocationFailure() {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-  old_state_ = isolate->heap()->disallow_allocation_failure_;
-  isolate->heap()->disallow_allocation_failure_ = true;
-#endif
-}
-
-
-DisallowAllocationFailure::~DisallowAllocationFailure() {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->disallow_allocation_failure_ = old_state_;
-#endif
 }
 
 

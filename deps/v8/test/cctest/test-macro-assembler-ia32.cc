@@ -122,6 +122,34 @@ TEST(LoadAndStoreWithRepresentation) {
   __ cmp(ebx, edx);
   __ j(not_equal, &exit);
 
+  // Test 5.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatureScope scope(masm, SSE2);
+    __ mov(eax, Immediate(5));  // Test XMM move immediate.
+    __ Move(xmm0, 0.0);
+    __ Move(xmm1, 0.0);
+    __ ucomisd(xmm0, xmm1);
+    __ j(not_equal, &exit);
+    __ Move(xmm2, 991.01);
+    __ ucomisd(xmm0, xmm2);
+    __ j(equal, &exit);
+    __ Move(xmm0, 991.01);
+    __ ucomisd(xmm0, xmm2);
+    __ j(not_equal, &exit);
+  }
+
+  // Test 6.
+  __ mov(eax, Immediate(6));
+  __ Move(edx, Immediate(0));  // Test Move()
+  __ cmp(edx, Immediate(0));
+  __ j(not_equal, &exit);
+  __ Move(ecx, Immediate(-1));
+  __ cmp(ecx, Immediate(-1));
+  __ j(not_equal, &exit);
+  __ Move(ebx, Immediate(0x77));
+  __ cmp(ebx, Immediate(0x77));
+  __ j(not_equal, &exit);
+
   __ xor_(eax, eax);  // Success.
   __ bind(&exit);
   __ add(esp, Immediate(1 * kPointerSize));

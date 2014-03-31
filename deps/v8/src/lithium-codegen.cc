@@ -38,6 +38,9 @@
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
 #include "arm/lithium-codegen-arm.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/lithium-arm64.h"
+#include "arm64/lithium-codegen-arm64.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
@@ -104,11 +107,9 @@ bool LCodeGenBase::GenerateBody() {
     GenerateBodyInstructionPre(instr);
 
     HValue* value = instr->hydrogen_value();
-    if (value->position() != RelocInfo::kNoPosition) {
-      ASSERT(!graph()->info()->IsOptimizing() ||
-             !FLAG_emit_opt_code_positions ||
-             value->position() != RelocInfo::kNoPosition);
-      RecordAndWritePosition(value->position());
+    if (!value->position().IsUnknown()) {
+      RecordAndWritePosition(
+        chunk()->graph()->SourcePositionToScriptPosition(value->position()));
     }
 
     instr->CompileToNative(codegen);
@@ -141,13 +142,15 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 int LCodeGenBase::GetNextEmittedBlock() const {
   for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
+    if (!graph()->blocks()->at(i)->IsReachable()) continue;
     if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
   return -1;
 }
 
 
-void LCodeGenBase::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
+void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
+  ASSERT(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
   ZoneList<Handle<JSObject> > objects(1, zone());
   ZoneList<Handle<Cell> > cells(1, zone());
@@ -156,11 +159,11 @@ void LCodeGenBase::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::CELL &&
-        Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_cell())) {
+        code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
       Handle<Cell> cell(it.rinfo()->target_cell());
       cells.Add(cell, zone());
     } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
-        Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_object())) {
+               code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
       if (it.rinfo()->target_object()->IsMap()) {
         Handle<Map> map(Map::cast(it.rinfo()->target_object()));
         maps.Add(map, zone());

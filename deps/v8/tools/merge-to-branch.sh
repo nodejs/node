@@ -235,7 +235,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   echo ">>> Step $CURRENT_STEP: Apply patches for selected revisions."
   restore_if_unset "MERGE_TO_BRANCH"
   restore_patch_commit_hashes_if_unset "PATCH_COMMIT_HASHES"
-  rm -f "$TOUCHED_FILES_FILE"
   for HASH in ${PATCH_COMMIT_HASHES[@]} ; do
     echo "Applying patch for $HASH to $MERGE_TO_BRANCH..."
     git log -1 -p $HASH > "$TEMPORARY_PATCH_FILE"

@@ -378,7 +378,7 @@ void JSObject::PrintElements(FILE* out) {
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
       PrintF(out, "   parameter map:");
       for (int i = 2; i < p->length(); i++) {
@@ -400,28 +400,39 @@ void JSObject::PrintTransitions(FILE* out) {
   if (!map()->HasTransitionArray()) return;
   TransitionArray* transitions = map()->transitions();
   for (int i = 0; i < transitions->number_of_transitions(); i++) {
+    Name* key = transitions->GetKey(i);
     PrintF(out, "   ");
-    transitions->GetKey(i)->NamePrint(out);
+    key->NamePrint(out);
     PrintF(out, ": ");
-    switch (transitions->GetTargetDetails(i).type()) {
-      case FIELD: {
-        PrintF(out, " (transition to field)\n");
-        break;
+    if (key == GetHeap()->frozen_symbol()) {
+      PrintF(out, " (transition to frozen)\n");
+    } else if (key == GetHeap()->elements_transition_symbol()) {
+      PrintF(out, " (transition to ");
+      PrintElementsKind(out, transitions->GetTarget(i)->elements_kind());
+      PrintF(out, ")\n");
+    } else if (key == GetHeap()->observed_symbol()) {
+      PrintF(out, " (transition to Object.observe)\n");
+    } else {
+      switch (transitions->GetTargetDetails(i).type()) {
+        case FIELD: {
+          PrintF(out, " (transition to field)\n");
+          break;
+        }
+        case CONSTANT:
+          PrintF(out, " (transition to constant)\n");
+          break;
+        case CALLBACKS:
+          PrintF(out, " (transition to callback)\n");
+          break;
+        // Values below are never in the target descriptor array.
+        case NORMAL:
+        case HANDLER:
+        case INTERCEPTOR:
+        case TRANSITION:
+        case NONEXISTENT:
+          UNREACHABLE();
+          break;
       }
-      case CONSTANT:
-        PrintF(out, " (transition to constant)\n");
-        break;
-      case CALLBACKS:
-        PrintF(out, " (transition to callback)\n");
-        break;
-      // Values below are never in the target descriptor array.
-      case NORMAL:
-      case HANDLER:
-      case INTERCEPTOR:
-      case TRANSITION:
-      case NONEXISTENT:
-        UNREACHABLE();
-        break;
     }
   }
 }
@@ -555,8 +566,8 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - type_feedback_cells: ");
-  type_feedback_cells()->FixedArrayPrint(out);
+  PrintF(out, " - feedback_vector: ");
+  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -595,11 +606,14 @@ void ConstantPoolArray::ConstantPoolArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ConstantPoolArray");
   PrintF(out, " - length: %d", length());
   for (int i = 0; i < length(); i++) {
-    if (i < first_ptr_index()) {
+    if (i < first_code_ptr_index()) {
       PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
+    } else if (i < first_heap_ptr_index()) {
+      PrintF(out, "\n  [%d]: code target pointer: %p", i,
+             reinterpret_cast<void*>(get_code_ptr_entry(i)));
     } else if (i < first_int32_index()) {
-      PrintF(out, "\n  [%d]: pointer: %p", i,
-             reinterpret_cast<void*>(get_ptr_entry(i)));
+      PrintF(out, "\n  [%d]: heap pointer: %p", i,
+             reinterpret_cast<void*>(get_heap_ptr_entry(i)));
     } else {
       PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
     }
@@ -624,8 +638,6 @@ void JSMessageObject::JSMessageObjectPrint(FILE* out) {
   PrintF(out, "\n - end_position: %d", end_position());
   PrintF(out, "\n - script: ");
   script()->ShortPrint(out);
-  PrintF(out, "\n - stack_trace: ");
-  stack_trace()->ShortPrint(out);
   PrintF(out, "\n - stack_frames: ");
   stack_frames()->ShortPrint(out);
   PrintF(out, "\n");
@@ -1138,8 +1150,6 @@ void Script::ScriptPrint(FILE* out) {
   type()->ShortPrint(out);
   PrintF(out, "\n - id: ");
   id()->ShortPrint(out);
-  PrintF(out, "\n - data: ");
-  data()->ShortPrint(out);
   PrintF(out, "\n - context data: ");
   context_data()->ShortPrint(out);
   PrintF(out, "\n - wrapper: ");

@@ -66,6 +66,27 @@ struct IdentifierPart {
   }
 };
 
+
+// WhiteSpace according to ECMA-262 5.1, 7.2.
+struct WhiteSpace {
+  static inline bool Is(uc32 c) {
+    return c == 0x0009 ||  // <TAB>
+           c == 0x000B ||  // <VT>
+           c == 0x000C ||  // <FF>
+           c == 0xFEFF ||  // <BOM>
+           // \u0020 and \u00A0 are included in unibrow::WhiteSpace.
+           unibrow::WhiteSpace::Is(c);
+  }
+};
+
+
+// WhiteSpace and LineTerminator according to ECMA-262 5.1, 7.2 and 7.3.
+struct WhiteSpaceOrLineTerminator {
+  static inline bool Is(uc32 c) {
+    return WhiteSpace::Is(c) || unibrow::LineTerminator::Is(c);
+  }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_CHAR_PREDICATES_H_

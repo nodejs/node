@@ -101,6 +101,8 @@ class V8 : public AllStatic {
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
   static void FireCallCompletedCallback(Isolate* isolate);
 
+  static void RunMicrotasks(Isolate* isolate);
+
   static v8::ArrayBuffer::Allocator* ArrayBufferAllocator() {
     return array_buffer_allocator_;
   }

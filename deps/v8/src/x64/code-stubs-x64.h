@@ -305,19 +305,19 @@ class RecordWriteStub: public PlatformCodeStub {
       // We don't have to save scratch0_orig_ because it was given to us as
       // a scratch register.  But if we had to switch to a different reg then
       // we should save the new scratch0_.
-      if (!scratch0_.is(scratch0_orig_)) masm->push(scratch0_);
+      if (!scratch0_.is(scratch0_orig_)) masm->Push(scratch0_);
       if (!rcx.is(scratch0_orig_) &&
           !rcx.is(object_orig_) &&
           !rcx.is(address_orig_)) {
-        masm->push(rcx);
+        masm->Push(rcx);
       }
-      masm->push(scratch1_);
+      masm->Push(scratch1_);
       if (!address_.is(address_orig_)) {
-        masm->push(address_);
+        masm->Push(address_);
         masm->movp(address_, address_orig_);
       }
       if (!object_.is(object_orig_)) {
-        masm->push(object_);
+        masm->Push(object_);
         masm->movp(object_, object_orig_);
       }
     }
@@ -328,19 +328,19 @@ class RecordWriteStub: public PlatformCodeStub {
       // one, since only one of them can alias with rcx.
       if (!object_.is(object_orig_)) {
         masm->movp(object_orig_, object_);
-        masm->pop(object_);
+        masm->Pop(object_);
       }
       if (!address_.is(address_orig_)) {
         masm->movp(address_orig_, address_);
-        masm->pop(address_);
+        masm->Pop(address_);
       }
-      masm->pop(scratch1_);
+      masm->Pop(scratch1_);
       if (!rcx.is(scratch0_orig_) &&
           !rcx.is(object_orig_) &&
           !rcx.is(address_orig_)) {
-        masm->pop(rcx);
+        masm->Pop(rcx);
       }
-      if (!scratch0_.is(scratch0_orig_)) masm->pop(scratch0_);
+      if (!scratch0_.is(scratch0_orig_)) masm->Pop(scratch0_);
     }
 
     // If we have to call into C then we need to save and restore all caller-
@@ -401,7 +401,7 @@ class RecordWriteStub: public PlatformCodeStub {
       MacroAssembler* masm,
       OnNoNeedToInformIncrementalMarker on_no_need,
       Mode mode);
-  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 

@@ -1,0 +1,29 @@
+This directory contains code for running Promise/A+ Compliance Test Suite[1].
+You can download the it from [1], or by specifying --download to
+tools/run-tests.py.
+Promise/A+ Compliance Test Suite requires Node environment and needs some
+libraries. To run it in d8 shell, we provides some emulation functions in the
+lib/ directory.
+
+ - lib/adapter.js
+  - An adapter for harmony Promise used in Promise/A+ tests.
+ - lib/assert.js
+  - Emulates assert modules in Node.
+ - lib/global.js
+  - Provides global functions and variables.
+ - lib/mocha.js
+  - Emulates Mocha[2] test framework.
+ - lib/require.j
+  - Emulate require function in Node.
+ - lib/run-tests.js
+  - Run all describe tests.
+
+The emulation is not complete. Upgrading Promise/A+ tests will require
+changing lib/ scripts.
+
+Sinon.JS[3], required by Promise/A+ tests, is also downloaded by run-tests.py.
+
+[1]: https://github.com/promises-aplus/promises-tests
+[2]: http://visionmedia.github.io/mocha/
+[3]: http://sinonjs.org/
+

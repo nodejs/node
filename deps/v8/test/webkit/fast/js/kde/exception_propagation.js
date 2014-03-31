@@ -402,26 +402,6 @@ catch (e) {
 shouldBe("for_val_part3_throwbody","4");
 
 // ---------------------------------
-var forin_test_obj = new Object();
-forin_test_obj.a = 1;
-forin_test_obj.b = 2;
-forin_test_obj.c = 3;
-var forin_count = 4;
-function forin_lexpr() {
-//  if (forincount == 1);
-//    throwex();
-  return new Object();
-}
-try {
-  for (throwex() in forin_test_obj) {
-    forin_count++;
-  }
-}
-catch (e) {
-}
-shouldBe("forin_count","4");
-
-// ---------------------------------
 var set_inside_with_throw = 4;
 try {
   with (throwex()) {

@@ -82,6 +82,8 @@ bool V8::Initialize(Deserializer* des) {
 #ifdef V8_USE_DEFAULT_PLATFORM
   DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
   platform->SetThreadPoolSize(isolate->max_available_threads());
+  // We currently only start the threads early, if we know that we'll use them.
+  if (FLAG_job_based_sweeping) platform->EnsureInitialized();
 #endif
 
   return isolate->Init(des);
@@ -148,15 +150,16 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void V8::FireCallCompletedCallback(Isolate* isolate) {
   bool has_call_completed_callbacks = call_completed_callbacks_ != NULL;
-  bool microtask_pending = isolate->microtask_pending();
-  if (!has_call_completed_callbacks && !microtask_pending) return;
+  bool run_microtasks = isolate->autorun_microtasks() &&
+                        isolate->microtask_pending();
+  if (!has_call_completed_callbacks && !run_microtasks) return;
 
   HandleScopeImplementer* handle_scope_implementer =
       isolate->handle_scope_implementer();
   if (!handle_scope_implementer->CallDepthIsZero()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   handle_scope_implementer->IncrementCallDepth();
-  if (microtask_pending) Execution::RunMicrotasks(isolate);
+  if (run_microtasks) Execution::RunMicrotasks(isolate);
   if (has_call_completed_callbacks) {
     for (int i = 0; i < call_completed_callbacks_->length(); i++) {
       call_completed_callbacks_->at(i)();
@@ -166,15 +169,27 @@ void V8::FireCallCompletedCallback(Isolate* isolate) {
 }
 
 
+void V8::RunMicrotasks(Isolate* isolate) {
+  if (!isolate->microtask_pending())
+    return;
+
+  HandleScopeImplementer* handle_scope_implementer =
+      isolate->handle_scope_implementer();
+  ASSERT(handle_scope_implementer->CallDepthIsZero());
+
+  // Increase call depth to prevent recursive callbacks.
+  handle_scope_implementer->IncrementCallDepth();
+  Execution::RunMicrotasks(isolate);
+  handle_scope_implementer->DecrementCallDepth();
+}
+
+
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
 
-  if (FLAG_predictable) {
-    if (FLAG_random_seed == 0) {
-      // Avoid random seeds in predictable mode.
-      FLAG_random_seed = 12347;
-    }
-    FLAG_hash_seed = 0;
+  if (FLAG_predictable && FLAG_random_seed == 0) {
+    // Avoid random seeds in predictable mode.
+    FLAG_random_seed = 12347;
   }
 
   if (FLAG_stress_compaction) {

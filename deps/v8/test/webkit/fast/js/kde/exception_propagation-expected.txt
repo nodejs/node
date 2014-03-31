@@ -88,7 +88,6 @@ PASS for_val_part3_throw2 is 4
 PASS for_val_part1_throwbody is 1
 PASS for_val_part2_throwbody is 1
 PASS for_val_part3_throwbody is 4
-PASS forin_count is 4
 PASS set_inside_with_throw is 4
 PASS set_inside_with_cantconverttoobject is 4
 PASS successfullyParsed is true

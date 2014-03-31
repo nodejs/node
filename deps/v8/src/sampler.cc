@@ -54,7 +54,8 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
@@ -92,6 +93,18 @@ typedef struct sigcontext mcontext_t;
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  // Other fields are not used by V8, don't define them here.
+} ucontext_t;
+
+#elif defined(__aarch64__)
+
+typedef struct sigcontext mcontext_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
@@ -146,6 +159,23 @@ typedef struct ucontext {
   // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
+
+#elif defined(__x86_64__)
+// x64 version for Android.
+typedef struct {
+  uint64_t gregs[23];
+  void* fpregs;
+  uint64_t __reserved1[8];
+} mcontext_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  // Other fields are not used by V8, don't define them here.
+} ucontext_t;
+enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 #endif
 
 #endif  // V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -226,13 +256,27 @@ class SimulatorHelper {
   }
 
   inline void FillRegisters(RegisterState* state) {
+#if V8_TARGET_ARCH_ARM
     state->pc = reinterpret_cast<Address>(simulator_->get_pc());
     state->sp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::sp));
-#if V8_TARGET_ARCH_ARM
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
+#elif V8_TARGET_ARCH_ARM64
+    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
+      // It possible that the simulator is interrupted while it is updating
+      // the sp or fp register. ARM64 simulator does this in two steps:
+      // first setting it to zero and then setting it to the new value.
+      // Bailout if sp/fp doesn't contain the new value.
+      return;
+    }
+    state->pc = reinterpret_cast<Address>(simulator_->pc());
+    state->sp = reinterpret_cast<Address>(simulator_->sp());
+    state->fp = reinterpret_cast<Address>(simulator_->fp());
 #elif V8_TARGET_ARCH_MIPS
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
 #endif
@@ -329,6 +373,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   SimulatorHelper helper;
   if (!helper.Init(sampler, isolate)) return;
   helper.FillRegisters(&state);
+  // It possible that the simulator is interrupted while it is updating
+  // the sp or fp register. ARM64 simulator does this in two steps:
+  // first setting it to zero and then setting it to the new value.
+  // Bailout if sp/fp doesn't contain the new value.
+  if (state.sp == 0 || state.fp == 0) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -358,6 +407,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#elif V8_HOST_ARCH_ARM64
+  state.pc = reinterpret_cast<Address>(mcontext.pc);
+  state.sp = reinterpret_cast<Address>(mcontext.sp);
+  // FP is an alias for x29.
+  state.fp = reinterpret_cast<Address>(mcontext.regs[29]);
 #elif V8_HOST_ARCH_MIPS
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);

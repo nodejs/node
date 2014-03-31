@@ -89,20 +89,38 @@ PASS whitespace[19].s.trimRight() is ''
 PASS whitespace[20].s.trim() is ''
 PASS whitespace[20].s.trimLeft() is ''
 PASS whitespace[20].s.trimRight() is ''
-PASS whitespace[21].s.trim() is ''
-PASS whitespace[21].s.trimLeft() is ''
-PASS whitespace[21].s.trimRight() is ''
-PASS wsString.trim() is ''
-PASS wsString.trimLeft() is ''
-PASS wsString.trimRight() is ''
-PASS trimString.trim() is testString
-PASS trimString.trimLeft() is leftTrimString
-PASS trimString.trimRight() is rightTrimString
-PASS leftTrimString.trim() is testString
+FAIL whitespace[21].s.trim() should be . Was ​.
+FAIL whitespace[21].s.trimLeft() should be . Was ​.
+FAIL whitespace[21].s.trimRight() should be . Was ​.
+FAIL wsString.trim() should be . Was ​.
+FAIL wsString.trimLeft() should be . Was ​.
+FAIL wsString.trimRight() should be . Was   
+
+             　  ​.
+FAIL trimString.trim() should be foo bar. Was ​foo bar  
+
+             　  ​.
+FAIL trimString.trimLeft() should be foo bar  
+
+             　  ​. Was ​foo bar 
+
+             　  ​.
+FAIL trimString.trimRight() should be   
+
+             　  ​foo bar. Was   
+
+             　  ​foo bar  
+
+             　  ​.
+FAIL leftTrimString.trim() should be foo bar. Was foo bar 
+
+             　  ​.
 PASS leftTrimString.trimLeft() is leftTrimString
-PASS leftTrimString.trimRight() is testString
-PASS rightTrimString.trim() is testString
-PASS rightTrimString.trimLeft() is testString
+FAIL leftTrimString.trimRight() should be foo bar. Was foo bar  
+
+             　  ​.
+FAIL rightTrimString.trim() should be foo bar. Was ​foo bar.
+FAIL rightTrimString.trimLeft() should be foo bar. Was ​foo bar.
 PASS rightTrimString.trimRight() is rightTrimString
 PASS trim.call(0) is '0'
 PASS trimLeft.call(0) is '0'

@@ -198,7 +198,14 @@ void LGapResolver::EmitMove(int index) {
       if (cgen_->IsSmiConstant(constant_source)) {
         __ Move(dst, cgen_->ToSmi(constant_source));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
-        __ Set(dst, static_cast<uint32_t>(cgen_->ToInteger32(constant_source)));
+        int32_t constant = cgen_->ToInteger32(constant_source);
+        // Do sign extension only for constant used as de-hoisted array key.
+        // Others only need zero extension, which saves 2 bytes.
+        if (cgen_->IsDehoistedKeyConstant(constant_source)) {
+          __ Set(dst, constant);
+        } else {
+          __ Set(dst, static_cast<uint32_t>(constant));
+        }
       } else {
         __ Move(dst, cgen_->ToHandle(constant_source));
       }
@@ -218,8 +225,7 @@ void LGapResolver::EmitMove(int index) {
       if (cgen_->IsSmiConstant(constant_source)) {
         __ Move(dst, cgen_->ToSmi(constant_source));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
-        // Zero top 32 bits of a 64 bit spill slot that holds a 32 bit untagged
-        // value.
+        // Do sign extension to 64 bits when stored into stack slot.
         __ movp(dst, Immediate(cgen_->ToInteger32(constant_source)));
       } else {
         __ Move(kScratchRegister, cgen_->ToHandle(constant_source));

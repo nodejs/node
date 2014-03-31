@@ -167,3 +167,25 @@ TEST(DaylightSavingsTime) {
   CheckDST(august_20 + 2 * 3600 - 1000);
   CheckDST(august_20);
 }
+
+
+TEST(DateCacheVersion) {
+  FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  v8::Handle<v8::Array> date_cache_version =
+      v8::Handle<v8::Array>::Cast(CompileRun("%DateCacheVersion()"));
+
+  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
+  CHECK(date_cache_version->Get(0)->IsNumber());
+  CHECK_EQ(0.0, date_cache_version->Get(0)->NumberValue());
+
+  v8::Date::DateTimeConfigurationChangeNotification(isolate);
+
+  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
+  CHECK(date_cache_version->Get(0)->IsNumber());
+  CHECK_EQ(1.0, date_cache_version->Get(0)->NumberValue());
+}

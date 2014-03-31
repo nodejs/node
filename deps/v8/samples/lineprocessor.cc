@@ -238,7 +238,8 @@ int RunMain(int argc, char* argv[]) {
   {
     // Compile script in try/catch context.
     v8::TryCatch try_catch;
-    script = v8::Script::Compile(script_source, script_name);
+    v8::ScriptOrigin origin(script_name);
+    script = v8::Script::Compile(script_source, &origin);
     if (script.IsEmpty()) {
       // Print errors that happened during compilation.
       if (report_exceptions)

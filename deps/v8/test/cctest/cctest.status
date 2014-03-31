@@ -46,6 +46,10 @@
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
 
+  # This test always fails.  It tests that DisallowJavascriptExecutionScope
+  # works as intended.
+  'test-api/DisallowJavascriptExecutionScope': [FAIL],
+
   # TODO(gc): Temporarily disabled in the GC branch.
   'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
 
@@ -61,13 +65,51 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
+  'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
+
+##############################################################################
+['arch == arm64', {
+
+  'test-api/Bug618': [PASS],
+
+  # BUG(v8:2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # BUG(v8:3154).
+  'test-heap/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3155).
+  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+}],  # 'arch == arm64'
+
+['arch == arm64 and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/Threading1': [SKIP],
+}],  # 'arch == arm64 and simulator_run == True'
+
+['arch == arm64 and mode == debug and simulator_run == True', {
+
+  # Pass but take too long with the simulator in debug mode.
+  'test-api/ExternalDoubleArray': [SKIP],
+  'test-api/ExternalFloat32Array': [SKIP],
+  'test-api/ExternalFloat64Array': [SKIP],
+  'test-api/ExternalFloatArray': [SKIP],
+  'test-api/Float32Array': [SKIP],
+  'test-api/Float64Array': [SKIP],
+  'test-debug/DebugBreakLoop': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
 ['asan == True', {
@@ -75,6 +117,13 @@
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
   'test-lockers/MultithreadedParallelIsolates': [SKIP],
 }],  # 'asan == True'
+
+##############################################################################
+# This should be 'nosnap == True': issue 3216 to add 'nosnap'.
+[ALWAYS, {
+  # BUG(3215)
+  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL],
+}],  # 'nosnap == True'
 
 ##############################################################################
 ['system == windows', {
@@ -102,12 +151,6 @@
 ##############################################################################
 ['arch == arm', {
 
-  # We cannot assume that we can throw OutOfMemory exceptions in all situations.
-  # Apparently our ARM box is in such a state. Skip the test as it also runs for
-  # a long time.
-  'test-api/OutOfMemory': [SKIP],
-  'test-api/OutOfMemoryNested': [SKIP],
-
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],
 
@@ -116,9 +159,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # BUG(2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.
@@ -183,5 +223,8 @@
 
   # BUG(2998).
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
+
+  # BUG(3150).
+  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]

@@ -82,8 +82,9 @@ function assertKind(expected, obj, name_opt) {
 
 if (support_smi_only_arrays) {
 
-  // Test: If a call site goes megamorphic, it loses the ability to
-  // use allocation site feedback.
+  // Test: If a call site goes megamorphic, it retains the ability to
+  // use allocation site feedback (if FLAG_allocation_site_pretenuring
+  // is on).
   (function() {
     function bar(t, len) {
       return new t(len);
@@ -95,10 +96,9 @@ if (support_smi_only_arrays) {
     assertKind(elements_kind.fast_double, b);
     c = bar(Object, 3);
     b = bar(Array, 10);
-    assertKind(elements_kind.fast_smi_only, b);
-    b[0] = 3.5;
-    c = bar(Array, 10);
-    assertKind(elements_kind.fast_smi_only, c);
+    // TODO(mvstanton): re-enable when FLAG_allocation_site_pretenuring
+    // is on in the build.
+    // assertKind(elements_kind.fast_double, b);
   })();
 
 
@@ -123,13 +123,16 @@ if (support_smi_only_arrays) {
     bar0(Array);
     %OptimizeFunctionOnNextCall(bar0);
     b = bar0(Array);
-    // We also lost our ability to record kind feedback, as the site
-    // is megamorphic now.
-    assertKind(elements_kind.fast_smi_only, b);
-    assertOptimized(bar0);
-    b[0] = 3.5;
-    c = bar0(Array);
-    assertKind(elements_kind.fast_smi_only, c);
+    // This only makes sense to test if we allow crankshafting
+    if (4 != %GetOptimizationStatus(bar0)) {
+      // We also lost our ability to record kind feedback, as the site
+      // is megamorphic now.
+      assertKind(elements_kind.fast_smi_only, b);
+      assertOptimized(bar0);
+      b[0] = 3.5;
+      c = bar0(Array);
+      assertKind(elements_kind.fast_smi_only, c);
+    }
   })();
 
 

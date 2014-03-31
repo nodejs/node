@@ -101,7 +101,9 @@ class IC {
   }
 
   // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    ConstantPoolArray* constant_pool);
 
 #ifdef DEBUG
   bool IsLoadStub() const {
@@ -155,14 +157,17 @@ class IC {
   Isolate* isolate() const { return isolate_; }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Computes the address in the original code when the code running is
-  // containing break points (calls to DebugBreakXXX builtins).
-  Address OriginalCodeAddress() const;
+  // Get the shared function info of the caller.
+  SharedFunctionInfo* GetSharedFunctionInfo() const;
+  // Get the code object of the caller.
+  Code* GetCode() const;
+  // Get the original (non-breakpointed) code object of the caller.
+  Code* GetOriginalCode() const;
 #endif
 
   // Set the call-site target.
   void set_target(Code* code) {
-    SetTargetAtAddress(address(), code);
+    SetTargetAtAddress(address(), code, constant_pool());
     target_set_ = true;
   }
 
@@ -180,8 +185,11 @@ class IC {
   Failure* ReferenceError(const char* type, Handle<String> name);
 
   // Access the target code for the given IC address.
-  static inline Code* GetTargetAtAddress(Address address);
-  static inline void SetTargetAtAddress(Address address, Code* target);
+  static inline Code* GetTargetAtAddress(Address address,
+                                         ConstantPoolArray* constant_pool);
+  static inline void SetTargetAtAddress(Address address,
+                                        Code* target,
+                                        ConstantPoolArray* constant_pool);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
@@ -209,7 +217,7 @@ class IC {
   virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Handle<HeapType> type);
+  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
@@ -239,8 +247,17 @@ class IC {
     extra_ic_state_ = state;
   }
 
+ protected:
+  void UpdateTarget() {
+    target_ = handle(raw_target(), isolate_);
+  }
+
  private:
-  Code* raw_target() const { return GetTargetAtAddress(address()); }
+  Code* raw_target() const {
+    return GetTargetAtAddress(address(), constant_pool());
+  }
+  inline ConstantPoolArray* constant_pool() const;
+  inline ConstantPoolArray* raw_constant_pool() const;
 
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
@@ -252,6 +269,10 @@ class IC {
   Address* pc_address_;
 
   Isolate* isolate_;
+
+  // The constant pool of the code which originally called the IC (which might
+  // be for the breakpointed copy of the original code).
+  Handle<ConstantPoolArray> raw_constant_pool_;
 
   // The original code target that missed.
   Handle<Code> target_;
@@ -320,8 +341,7 @@ class LoadIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_state);
+  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
@@ -374,7 +394,10 @@ class LoadIC: public IC {
                                Representation representation =
                                     Representation::Tagged());
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
@@ -400,7 +423,7 @@ class KeyedLoadIC: public LoadIC {
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -437,14 +460,17 @@ class KeyedLoadIC: public LoadIC {
   Handle<Code> indexed_interceptor_stub() {
     return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
   }
   Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
@@ -452,12 +478,11 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
-  class StrictModeState: public BitField<StrictModeFlag, 1, 1> {};
-  static ExtraICState ComputeExtraICState(StrictModeFlag flag) {
+  class StrictModeState: public BitField<StrictMode, 1, 1> {};
+  static ExtraICState ComputeExtraICState(StrictMode flag) {
     return StrictModeState::encode(flag);
   }
-
-  static StrictModeFlag GetStrictMode(ExtraICState state) {
+  static StrictMode GetStrictMode(ExtraICState state) {
     return StrictModeState::decode(state);
   }
 
@@ -471,7 +496,7 @@ class StoreIC: public IC {
     ASSERT(IsStoreStub());
   }
 
-  StrictModeFlag strict_mode() const {
+  StrictMode strict_mode() const {
     return StrictModeState::decode(extra_ic_state());
   }
 
@@ -482,14 +507,13 @@ class StoreIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_ic_state);
+  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode);
+                                         StrictMode strict_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode);
+                                      StrictMode strict_mode);
 
   MUST_USE_RESULT MaybeObject* Store(
       Handle<Object> object,
@@ -514,7 +538,7 @@ class StoreIC: public IC {
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode);
+                                           StrictMode strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -536,7 +560,10 @@ class StoreIC: public IC {
     IC::set_target(code);
   }
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
@@ -561,7 +588,7 @@ class KeyedStoreIC: public StoreIC {
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
 
-  static ExtraICState ComputeExtraICState(StrictModeFlag flag,
+  static ExtraICState ComputeExtraICState(StrictMode flag,
                                           KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
         ExtraICStateKeyedAccessStoreMode::encode(mode);
@@ -589,9 +616,9 @@ class KeyedStoreIC: public StoreIC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode);
-  static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+                                         StrictMode strict_mode);
+  static void GenerateGeneric(MacroAssembler* masm, StrictMode strict_mode);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
@@ -602,8 +629,8 @@ class KeyedStoreIC: public StoreIC {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
+                                           StrictMode strict_mode) {
+    if (strict_mode == STRICT) {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
     } else {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
@@ -613,7 +640,7 @@ class KeyedStoreIC: public StoreIC {
     return isolate()->builtins()->KeyedStoreIC_Slow();
   }
   virtual Handle<Code> megamorphic_stub() {
-    if (strict_mode() == kStrictMode) {
+    if (strict_mode() == STRICT) {
       return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
     } else {
       return isolate()->builtins()->KeyedStoreIC_Generic();
@@ -632,18 +659,21 @@ class KeyedStoreIC: public StoreIC {
 
   // Stub accessors.
   virtual Handle<Code> generic_stub() const {
-    if (strict_mode() == kStrictMode) {
+    if (strict_mode() == STRICT) {
       return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
     } else {
       return isolate()->builtins()->KeyedStoreIC_Generic();
     }
   }
 
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
                                     Handle<Object> key,
@@ -850,7 +880,10 @@ class CompareIC: public IC {
 
   static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   Token::Value op_;
 
@@ -866,7 +899,9 @@ class CompareNilIC: public IC {
 
   static Handle<Code> GetUninitialized();
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   static MUST_USE_RESULT MaybeObject* DoCompareNilSlow(NilValue nil,
                                                        Handle<Object> object);

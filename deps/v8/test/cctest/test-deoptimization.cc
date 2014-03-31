@@ -613,7 +613,6 @@ TEST(DeoptimizeLoadICStoreIC) {
   CHECK(!GetJSFunction(env->Global(), "g2")->IsOptimized());
   CHECK_EQ(4, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(13, env->Global()->Get(v8_str("result"))->Int32Value());
-  CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }
 
 
@@ -695,5 +694,4 @@ TEST(DeoptimizeLoadICStoreICNested) {
   CHECK(!GetJSFunction(env->Global(), "g2")->IsOptimized());
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(13, env->Global()->Get(v8_str("result"))->Int32Value());
-  CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }

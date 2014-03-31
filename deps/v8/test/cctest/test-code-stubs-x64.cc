@@ -57,11 +57,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   DoubleToIStub stub(source_reg, destination_reg, offset, true);
   byte* start = stub.GetCode(isolate)->instruction_start();
 
-  __ push(rbx);
-  __ push(rcx);
-  __ push(rdx);
-  __ push(rsi);
-  __ push(rdi);
+  __ pushq(rbx);
+  __ pushq(rcx);
+  __ pushq(rdx);
+  __ pushq(rsi);
+  __ pushq(rdi);
 
   if (!source_reg.is(rsp)) {
     // The argument we pass to the stub is not a heap number, but instead
@@ -70,7 +70,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
     // registers.
     int double_argument_slot =
         (Register::NumAllocatableRegisters() - 1) * kPointerSize + kDoubleSize;
-    __ lea(source_reg, MemOperand(rsp, -double_argument_slot - offset));
+    __ leaq(source_reg, MemOperand(rsp, -double_argument_slot - offset));
   }
 
   // Save registers make sure they don't get clobbered.
@@ -78,7 +78,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
-      __ push(reg);
+      __ pushq(reg);
     }
   }
 
@@ -103,11 +103,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   __ movq(rax, destination_reg);
 
-  __ pop(rdi);
-  __ pop(rsi);
-  __ pop(rdx);
-  __ pop(rcx);
-  __ pop(rbx);
+  __ popq(rdi);
+  __ popq(rsi);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
 
   __ ret(0);
 

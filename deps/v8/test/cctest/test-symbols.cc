@@ -37,7 +37,7 @@ TEST(Create) {
 #endif
   }
 
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // All symbols should be distinct.

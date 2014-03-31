@@ -49,13 +49,36 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
+  if (FLAG_zap_code_space) {
+    // Fail hard and early if we enter this code object again.
+    byte* pointer = code->FindCodeAgeSequence();
+    if (pointer != NULL) {
+      pointer += kNoCodeAgeSequenceLength * Assembler::kInstrSize;
+    } else {
+      pointer = code->instruction_start();
+    }
+    CodePatcher patcher(pointer, 1);
+    patcher.masm()->break_(0xCC);
+
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int osr_offset = data->OsrPcOffset()->value();
+    if (osr_offset > 0) {
+      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      osr_patcher.masm()->break_(0xCC);
+    }
+  }
+
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
@@ -368,6 +391,12 @@ void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
 }
 
 

@@ -63,10 +63,10 @@ VARIANT_FLAGS = {
 VARIANTS = ["default", "stress", "nocrankshaft"]
 
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
                  "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants"]}
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
@@ -75,20 +75,24 @@ GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
                    "--concurrent-recompilation"]
 
 SUPPORTED_ARCHS = ["android_arm",
+                   "android_arm64",
                    "android_ia32",
                    "arm",
                    "ia32",
                    "mipsel",
                    "nacl_ia32",
                    "nacl_x64",
-                   "x64"]
+                   "x64",
+                   "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
+              "android_arm64",
               "android_ia32",
               "arm",
               "mipsel",
               "nacl_ia32",
-              "nacl_x64"]
+              "nacl_x64",
+              "arm64"]
 
 
 def BuildOptions():
@@ -172,6 +176,10 @@ def BuildOptions():
   result.add_option("--shell", help="DEPRECATED! use --shell-dir", default="")
   result.add_option("--shell-dir", help="Directory containing executables",
                     default="")
+  result.add_option("--dont-skip-slow-simulator-tests",
+                    help="Don't skip more slow tests when using a simulator.",
+                    default=False, action="store_true",
+                    dest="dont_skip_simulator_slow_tests")
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
@@ -387,6 +395,9 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.extra_flags,
                         options.no_i18n)
 
+  # TODO(all): Combine "simulator" and "simulator_run".
+  simulator_run = not options.dont_skip_simulator_slow_tests and \
+      arch in ['arm64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,
@@ -396,6 +407,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": options.no_i18n,
+    "simulator_run": simulator_run,
     "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
   }

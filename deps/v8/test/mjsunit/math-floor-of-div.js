@@ -286,3 +286,14 @@ test_div_deopt_div_by_zero_v();
 test_div_deopt_minus_zero_v();
 test_div_deopt_overflow_v();
 test_div_deopt_div_by_zero_v();
+
+
+// Test for flooring division with negative dividend.
+function flooring_div_by_3(y) {
+  return Math.floor(y / 3);
+}
+
+assertEquals(-1, flooring_div_by_3(-2));
+assertEquals(-1, flooring_div_by_3(-2));
+%OptimizeFunctionOnNextCall(flooring_div_by_3);
+assertEquals(-1, flooring_div_by_3(-2));

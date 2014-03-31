@@ -414,6 +414,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitExternalReference(RelocInfo* rinfo)) { }
   INLINE(static void VisitRuntimeEntry(RelocInfo* rinfo)) { }
+  // Skip the weak next code link in a code object.
+  INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) { }
 
   // TODO(mstarzinger): This should be made protected once refactoring is done.
   // Mark non-optimize code for functions inlined into the given optimized

@@ -109,9 +109,9 @@ TestLocalDoesNotThrow("switch (true) { case true: var x; }");
 TestLocalDoesNotThrow("switch (true) { default: var x; }");
 
 // Test function declarations in source element and
-// non-strict statement positions.
+// sloppy statement positions.
 function f() {
-  // Non-strict source element positions.
+  // Sloppy source element positions.
   function g0() {
     "use strict";
     // Strict source element positions.

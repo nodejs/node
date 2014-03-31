@@ -351,7 +351,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ j(not_zero, slow_case);
 
   // Load the elements into scratch1 and check its map.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  Handle<Map> arguments_map(heap->sloppy_arguments_elements_map());
   __ mov(scratch1, FieldOperand(object, JSObject::kElementsOffset));
   __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
 
@@ -657,7 +657,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : key
   //  -- edx    : receiver
@@ -682,7 +682,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -859,7 +859,7 @@ static void KeyedStoreGenerateGenericHelper(
 
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictModeFlag strict_mode) {
+                                   StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -947,8 +947,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 }
 
 
-void LoadIC::GenerateMegamorphic(MacroAssembler* masm,
-                                 ExtraICState extra_state) {
+void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- edx    : receiver
@@ -956,9 +955,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_state,
-      Code::NORMAL, Code::LOAD_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, eax);
 
@@ -1064,17 +1061,14 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_ic_state) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_ic_state,
-      Code::NORMAL, Code::STORE_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, edx, ecx, ebx, no_reg);
 
@@ -1136,7 +1130,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode) {
+                                         StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -1157,7 +1151,7 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
 
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictModeFlag strict_mode) {
+                                              StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key

@@ -51,6 +51,29 @@
       ],
       'sources': [
         'lexer-shell.cc',
+        'shell-utils.h',
+      ],
+    },
+    {
+      'target_name': 'parser-shell',
+      'type': 'executable',
+      'dependencies': [
+        '../tools/gyp/v8.gyp:v8',
+      ],
+      'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
+      ],
+      'include_dirs+': [
+        '../src',
+      ],
+      'sources': [
+        'parser-shell.cc',
+        'shell-utils.h',
       ],
     },
   ],

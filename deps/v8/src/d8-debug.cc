@@ -217,6 +217,8 @@ void RemoteDebugger::Run() {
     delete event;
   }
 
+  delete conn_;
+  conn_ = NULL;
   // Wait for the receiver thread to end.
   receiver.Join();
 }

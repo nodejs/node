@@ -31,21 +31,21 @@ var S1 = "string1";
 var S2 = "@@string2";
 
 function dead1(a, b) {
-    var x = %StringCharCodeAt(a, 4);
+    var x = %_StringCharCodeAt(a, 4);
     return a; // x is dead code
 }
 
 function dead2(a, b) {
-    var x = %StringCharCodeAt(a, 3);
-    var y = %StringCharCodeAt(b, 1);
+    var x = %_StringCharCodeAt(a, 3);
+    var y = %_StringCharCodeAt(b, 1);
     return a; // x and y are both dead
 }
 
 function dead3(a, b) {
     a = a ? "11" : "12";
     b = b ? "13" : "14";
-    var x = %StringCharCodeAt(a, 2);
-    var y = %StringCharCodeAt(b, 0);
+    var x = %_StringCharCodeAt(a, 2);
+    var y = %_StringCharCodeAt(b, 0);
     return a; // x and y are both dead
 }
 

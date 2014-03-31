@@ -51,7 +51,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object());
   Runtime::SetObjectProperty(isolate, global, internalized_name, object, NONE,
-                             kNonStrictMode);
+                             SLOPPY);
 }
 
 
@@ -66,8 +66,7 @@ static Handle<JSFunction> Compile(const char* source) {
                               0,
                               false,
                               Handle<Context>(isolate->native_context()),
-                              NULL, NULL,
-                              Handle<String>::null(),
+                              NULL, NULL, NO_CACHED_DATA,
                               NOT_NATIVES_CODE);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());

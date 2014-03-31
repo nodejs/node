@@ -270,7 +270,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   // TODO(ulan): It could be better to record slots only for strongly embedded
   // objects here and record slots for weakly embedded object during clearing
   // of non-live references in mark-compact.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
+  if (!rinfo->host()->IsWeakObject(object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }
@@ -282,7 +282,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(
   ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
   // No need to record slots because the cell space is not compacted during GC.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), cell)) {
+  if (!rinfo->host()->IsWeakObject(cell)) {
     StaticVisitor::MarkObject(heap, cell);
   }
 }
@@ -313,7 +313,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
           Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
-    IC::Clear(target->GetIsolate(), rinfo->pc());
+    IC::Clear(target->GetIsolate(), rinfo->pc(),
+              rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
@@ -427,7 +428,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
   if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackCells(heap);
+    code->ClearTypeFeedbackInfo(heap);
   }
   if (FLAG_age_code && !Serializer::enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
@@ -489,16 +490,16 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
-  if (constant_pool->count_of_ptr_entries() > 0) {
-    int first_ptr_offset = constant_pool->OffsetOfElementAt(
-        constant_pool->first_ptr_index());
-    int last_ptr_offset = constant_pool->OffsetOfElementAt(
-        constant_pool->first_ptr_index() +
-        constant_pool->count_of_ptr_entries() - 1);
-    StaticVisitor::VisitPointers(
-        heap,
-        HeapObject::RawField(object, first_ptr_offset),
-        HeapObject::RawField(object, last_ptr_offset));
+  for (int i = 0; i < constant_pool->count_of_code_ptr_entries(); i++) {
+    int index = constant_pool->first_code_ptr_index() + i;
+    Address code_entry =
+        reinterpret_cast<Address>(constant_pool->RawFieldOfElementAt(index));
+    StaticVisitor::VisitCodeEntry(heap, code_entry);
+  }
+  for (int i = 0; i < constant_pool->count_of_heap_ptr_entries(); i++) {
+    int index = constant_pool->first_heap_ptr_index() + i;
+    StaticVisitor::VisitPointer(heap,
+                                constant_pool->RawFieldOfElementAt(index));
   }
 }
 
@@ -898,6 +899,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kHandlerTableOffset);
   IteratePointer(v, kDeoptimizationDataOffset);
   IteratePointer(v, kTypeFeedbackInfoOffset);
+  IterateNextCodeLink(v, kNextCodeLinkOffset);
   IteratePointer(v, kConstantPoolOffset);
 
   RelocIterator it(this, mode_mask);
@@ -932,6 +934,9 @@ void Code::CodeIterateBody(Heap* heap) {
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kTypeFeedbackInfoOffset));
+  StaticVisitor::VisitNextCodeLink(
+      heap,
+      reinterpret_cast<Object**>(this->address() + kNextCodeLinkOffset));
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kConstantPoolOffset));

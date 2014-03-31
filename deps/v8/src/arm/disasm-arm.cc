@@ -1061,7 +1061,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb16'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb16'cond 'rd, 'rm, ror #8");
@@ -1085,7 +1085,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
@@ -1100,7 +1100,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 } else {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #0");
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
@@ -1566,7 +1566,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl signed
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1579,7 +1580,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl unsigned
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,

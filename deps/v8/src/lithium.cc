@@ -41,6 +41,9 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
 #include "mips/lithium-codegen-mips.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/lithium-arm64.h"
+#include "arm64/lithium-codegen-arm64.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -108,39 +111,40 @@ void LOperand::PrintTo(StringStream* stream) {
     case DOUBLE_REGISTER:
       stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
       break;
-    case ARGUMENT:
-      stream->Add("[arg:%d]", index());
-      break;
   }
 }
 
-#define DEFINE_OPERAND_CACHE(name, type)                      \
-  L##name* L##name::cache = NULL;                             \
-                                                              \
-  void L##name::SetUpCache() {                                \
-    if (cache) return;                                        \
-    cache = new L##name[kNumCachedOperands];                  \
-    for (int i = 0; i < kNumCachedOperands; i++) {            \
-      cache[i].ConvertTo(type, i);                            \
-    }                                                         \
-  }                                                           \
-                                                              \
-  void L##name::TearDownCache() {                             \
-    delete[] cache;                                           \
-  }
 
-LITHIUM_OPERAND_LIST(DEFINE_OPERAND_CACHE)
-#undef DEFINE_OPERAND_CACHE
+template<LOperand::Kind kOperandKind, int kNumCachedOperands>
+LSubKindOperand<kOperandKind, kNumCachedOperands>*
+LSubKindOperand<kOperandKind, kNumCachedOperands>::cache = NULL;
+
+
+template<LOperand::Kind kOperandKind, int kNumCachedOperands>
+void LSubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
+  if (cache) return;
+  cache = new LSubKindOperand[kNumCachedOperands];
+  for (int i = 0; i < kNumCachedOperands; i++) {
+    cache[i].ConvertTo(kOperandKind, i);
+  }
+}
+
+
+template<LOperand::Kind kOperandKind, int kNumCachedOperands>
+void LSubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
+  delete[] cache;
+}
+
 
 void LOperand::SetUpCaches() {
-#define LITHIUM_OPERAND_SETUP(name, type) L##name::SetUpCache();
+#define LITHIUM_OPERAND_SETUP(name, type, number) L##name::SetUpCache();
   LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_SETUP)
 #undef LITHIUM_OPERAND_SETUP
 }
 
 
 void LOperand::TearDownCaches() {
-#define LITHIUM_OPERAND_TEARDOWN(name, type) L##name::TearDownCache();
+#define LITHIUM_OPERAND_TEARDOWN(name, type, number) L##name::TearDownCache();
   LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_TEARDOWN)
 #undef LITHIUM_OPERAND_TEARDOWN
 }
@@ -442,6 +446,7 @@ Handle<Code> LChunk::Codegen() {
     CodeGenerator::PrintCode(code, info());
     return code;
   }
+  assembler.AbortedCodeGeneration();
   return Handle<Code>::null();
 }
 
@@ -495,10 +500,9 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
 
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
+    CHECK(!value->IsPushArgument());  // Do not deopt outgoing arguments
     if (value->IsArgumentsObject() || value->IsCapturedObject()) {
       op = LEnvironment::materialization_marker();
-    } else if (value->IsPushArgument()) {
-      op = new(zone()) LArgument(argument_index++);
     } else {
       op = UseAny(value);
     }

@@ -128,7 +128,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -156,6 +156,12 @@ Address RelocInfo::target_address_address() {
 }
 
 
+Address RelocInfo::constant_pool_entry_address() {
+  UNREACHABLE();
+  return NULL;
+}
+
+
 int RelocInfo::target_address_size() {
   return Assembler::kSpecialTargetSize;
 }
@@ -163,7 +169,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -179,21 +185,22 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_address_at(pc_)));
+      Assembler::target_address_at(pc_, host_)));
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
-  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_address_at(pc_, host_,
+                                   reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -205,7 +212,7 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 
 Address RelocInfo::target_reference() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -260,13 +267,14 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   return Code::GetCodeFromTargetAddress(
-      Assembler::target_address_at(pc_ + Assembler::kInstrSize));
+      Assembler::target_address_at(pc_ + Assembler::kInstrSize, host_));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   Assembler::set_target_address_at(pc_ + Assembler::kInstrSize,
+                                   host_,
                                    stub->instruction_start());
 }
 
@@ -277,7 +285,7 @@ Address RelocInfo::call_address() {
   // The pc_ offset of 0 assumes mips patched return sequence per
   // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
   // debug break slot per BreakLocationIterator::SetDebugBreakAtSlot().
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -287,7 +295,7 @@ void RelocInfo::set_call_address(Address target) {
   // The pc_ offset of 0 assumes mips patched return sequence per
   // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
   // debug break slot per BreakLocationIterator::SetDebugBreakAtSlot().
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -318,7 +326,7 @@ void RelocInfo::WipeOut() {
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));
-  Assembler::set_target_address_at(pc_, NULL);
+  Assembler::set_target_address_at(pc_, host_, NULL);
 }
 
 

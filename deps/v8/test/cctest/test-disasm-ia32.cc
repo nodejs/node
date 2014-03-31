@@ -28,13 +28,13 @@
 #include <stdlib.h>
 
 #include "v8.h"
-#include "stub-cache.h"
 
 #include "debug.h"
 #include "disasm.h"
 #include "disassembler.h"
 #include "macro-assembler.h"
 #include "serialize.h"
+#include "stub-cache.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -49,7 +49,7 @@ static void DummyStaticFunction(Object* result) {
 
 TEST(DisasmIa320) {
   CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -74,12 +74,23 @@ TEST(DisasmIa320) {
   __ add(edx, Operand(ebx, 0));
   __ add(edx, Operand(ebx, 16));
   __ add(edx, Operand(ebx, 1999));
+  __ add(edx, Operand(ebx, -4));
+  __ add(edx, Operand(ebx, -1999));
   __ add(edx, Operand(esp, 0));
   __ add(edx, Operand(esp, 16));
   __ add(edx, Operand(esp, 1999));
+  __ add(edx, Operand(esp, -4));
+  __ add(edx, Operand(esp, -1999));
+  __ nop();
+  __ add(esi, Operand(ecx, times_4, 0));
+  __ add(esi, Operand(ecx, times_4, 24));
+  __ add(esi, Operand(ecx, times_4, -4));
+  __ add(esi, Operand(ecx, times_4, -1999));
   __ nop();
   __ add(edi, Operand(ebp, ecx, times_4, 0));
   __ add(edi, Operand(ebp, ecx, times_4, 12));
+  __ add(edi, Operand(ebp, ecx, times_4, -8));
+  __ add(edi, Operand(ebp, ecx, times_4, -3999));
   __ add(Operand(ebp, ecx, times_4, 12), Immediate(12));
 
   __ nop();

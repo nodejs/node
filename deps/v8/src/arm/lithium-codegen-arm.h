@@ -126,9 +126,11 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredNumberTagD(LNumberTagD* instr);
 
   enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
-  void DoDeferredNumberTagI(LInstruction* instr,
-                            LOperand* value,
-                            IntegerSignedness signedness);
+  void DoDeferredNumberTagIU(LInstruction* instr,
+                             LOperand* value,
+                             LOperand* temp1,
+                             LOperand* temp2,
+                             IntegerSignedness signedness);
 
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
@@ -162,9 +164,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictModeFlag strict_mode_flag() const {
-    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
+  StrictMode strict_mode() const { return info()->strict_mode(); }
 
   Scope* scope() const { return scope_; }
 
@@ -347,17 +347,6 @@ class LCodeGen: public LCodeGenBase {
                     Register source,
                     int* offset,
                     AllocationSiteMode mode);
-
-  // Emit optimized code for integer division.
-  // Inputs are signed.
-  // All registers are clobbered.
-  // If 'remainder' is no_reg, it is not computed.
-  void EmitSignedIntegerDivisionByConstant(Register result,
-                                           Register dividend,
-                                           int32_t divisor,
-                                           Register remainder,
-                                           Register scratch,
-                                           LEnvironment* environment);
 
   void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);

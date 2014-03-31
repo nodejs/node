@@ -107,7 +107,7 @@ void ExternalizeStringExtension::Externalize(
     SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
         reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsInternalizedString()) {
+    if (result) {
       i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
       isolate->heap()->external_string_table()->AddString(*string);
     }
@@ -118,7 +118,7 @@ void ExternalizeStringExtension::Externalize(
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsInternalizedString()) {
+    if (result) {
       i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
       isolate->heap()->external_string_table()->AddString(*string);
     }

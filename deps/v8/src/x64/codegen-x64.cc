@@ -66,13 +66,13 @@ UnaryMathFunction CreateExpFunction() {
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
+  __ pushq(rax);
+  __ pushq(rbx);
 
   MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
 
-  __ pop(rbx);
-  __ pop(rax);
+  __ popq(rbx);
+  __ popq(rax);
   __ movsd(xmm0, result);
   __ Ret();
 
@@ -300,7 +300,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Allocate new backing store.
   __ bind(&new_backing_store);
-  __ lea(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
+  __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
   __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
@@ -353,7 +353,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
-  __ decq(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   __ bind(&done);
@@ -381,13 +381,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  __ push(rax);
+  __ Push(rax);
 
   __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   // r8 : source FixedDoubleArray
   // r9 : number of elements
-  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
   __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
@@ -404,7 +404,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(rax);
+  __ Pop(rax);
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ jmp(fail);
 
@@ -446,7 +446,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
           rdi);
 
   __ bind(&entry);
-  __ decq(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   // Replace receiver's backing store with newly created and filled FixedArray.
@@ -458,7 +458,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ pop(rax);
+  __ Pop(rax);
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
@@ -496,7 +496,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Handle slices.
   Label indirect_string_loaded;
   __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
-  __ addq(index, result);
+  __ addp(index, result);
   __ movp(string, FieldOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded, Label::kNear);
 
@@ -606,13 +606,13 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ lea(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
+  __ leaq(temp1, Operand(temp2, 0x1ff800));
+  __ andq(temp2, Immediate(0x7ff));
   __ shr(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
   __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);
@@ -640,10 +640,10 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
     // following boilerplate stack-building prologue that is found both in
     // FUNCTION and OPTIMIZED_FUNCTION code:
     CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(rbp);
+    patcher.masm()->pushq(rbp);
     patcher.masm()->movp(rbp, rsp);
-    patcher.masm()->push(rsi);
-    patcher.masm()->push(rdi);
+    patcher.masm()->Push(rsi);
+    patcher.masm()->Push(rdi);
     initialized = true;
   }
   return sequence;

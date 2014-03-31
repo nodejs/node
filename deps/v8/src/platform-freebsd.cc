@@ -61,7 +61,7 @@ namespace v8 {
 namespace internal {
 
 
-const char* OS::LocalTimezone(double time) {
+const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
@@ -70,7 +70,7 @@ const char* OS::LocalTimezone(double time) {
 }
 
 
-double OS::LocalTimeOffset() {
+double OS::LocalTimeOffset(TimezoneCache* cache) {
   time_t tv = time(NULL);
   struct tm* t = localtime(&tv);
   // tm_gmtoff includes any daylight savings offset, so subtract it.

@@ -310,7 +310,7 @@ TEST(Issue23768) {
   // Script needs to have a name in order to trigger InitLineEnds execution.
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test");
-  v8::Handle<v8::Script> evil_script = v8::Script::Compile(source, origin);
+  v8::Handle<v8::Script> evil_script = CompileWithOrigin(source, origin);
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run().IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
@@ -468,7 +468,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       CcTest::isolate(), reinterpret_cast<const char*>(source.start()),
       v8::String::kNormalString, source.length());
   v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(source_str, v8_str(""));
+  v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
   if (script.IsEmpty()) {
     v8::String::Utf8Value exception(try_catch.Exception());
     printf("compile: %s\n", *exception);

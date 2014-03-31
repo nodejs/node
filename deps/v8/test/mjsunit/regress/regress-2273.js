@@ -79,7 +79,7 @@ function strict_mode() {
 };
 strict_mode();
 
-function classic_mode() {
+function sloppy_mode() {
   CheckStringReceiver.call("foo");
   CheckNumberReceiver.call(42);
   CheckUndefinedReceiver.call(undefined);
@@ -100,4 +100,4 @@ function classic_mode() {
   [4].some(CheckCoersion, 42);
   [5].map(CheckCoersion, 42);
 };
-classic_mode();
+sloppy_mode();

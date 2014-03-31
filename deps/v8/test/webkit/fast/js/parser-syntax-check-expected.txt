@@ -442,8 +442,8 @@ PASS Valid:   "for ((++a) in b) break"
 PASS Valid:   "function f() { for ((++a) in b) break }"
 FAIL Invalid: "for (a, b in c) break" should throw undefined
 FAIL Invalid: "function f() { for (a, b in c) break }" should throw undefined
-PASS Invalid: "for (a,b in c ;;) break"
-PASS Invalid: "function f() { for (a,b in c ;;) break }"
+FAIL Invalid: "for (a,b in c ;;) break" should throw undefined
+FAIL Invalid: "function f() { for (a,b in c ;;) break }" should throw undefined
 PASS Valid:   "for (a,(b in c) ;;) break"
 PASS Valid:   "function f() { for (a,(b in c) ;;) break }"
 PASS Valid:   "for ((a, b) in c) break"

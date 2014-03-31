@@ -29,7 +29,6 @@
 #define V8_IA32_CODE_STUBS_IA32_H_
 
 #include "macro-assembler.h"
-#include "code-stubs.h"
 #include "ic-inl.h"
 
 namespace v8 {
@@ -428,7 +427,7 @@ class RecordWriteStub: public PlatformCodeStub {
       MacroAssembler* masm,
       OnNoNeedToInformIncrementalMarker on_no_need,
       Mode mode);
-  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 
