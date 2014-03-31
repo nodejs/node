@@ -12,26 +12,32 @@ Prerequisites (Unix only):
 
 Unix/Macintosh:
 
-    ./configure
-    make
-    make install
+```sh
+./configure
+make
+make install
+```
 
 With libicu i18n support:
 
-    svn checkout --force --revision 214189 \
-        http://src.chromium.org/svn/trunk/deps/third_party/icu46 \
-        deps/v8/third_party/icu46
-    ./configure --with-icu-path=deps/v8/third_party/icu46/icu.gyp
-    make
-    make install
+```sh
+svn checkout --force --revision 214189 \
+   http://src.chromium.org/svn/trunk/deps/third_party/icu46 \
+   deps/v8/third_party/icu46
+./configure --with-icu-path=deps/v8/third_party/icu46/icu.gyp
+make
+make install
+```
 
 If your python binary is in a non-standard location or has a
 non-standard name, run the following instead:
 
-    export PYTHON=/path/to/python
-    $PYTHON ./configure
-    make
-    make install
+```sh
+export PYTHON=/path/to/python
+$PYTHON ./configure
+make
+make install
+```
 
 Prerequisites (Windows only):
 
@@ -48,30 +54,42 @@ and OS X installers will prompt you for the location to install to.
 The tarballs are self-contained; you can extract them to a local directory
 with:
 
-    tar xzf /path/to/node-<version>-<platform>-<arch>.tar.gz
+```sh
+tar xzf /path/to/node-<version>-<platform>-<arch>.tar.gz
+```
 
 Or system-wide with:
 
-    cd /usr/local && tar --strip-components 1 -xzf \
-                         /path/to/node-<version>-<platform>-<arch>.tar.gz
+```sh
+cd /usr/local && tar --strip-components 1 -xzf \
+                    /path/to/node-<version>-<platform>-<arch>.tar.gz
+```
 
 ### To run the tests:
 
 Unix/Macintosh:
 
-    make test
+```sh
+make test
+```
 
 Windows:
 
-    vcbuild test
+```sh
+vcbuild test
+```
 
 ### To build the documentation:
 
-    make doc
+```sh
+make doc
+```
 
 ### To read the documentation:
 
-    man doc/node.1
+```sh
+man doc/node.1
+```
 
 Resources for Newcomers
 ---
