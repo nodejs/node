@@ -97,7 +97,8 @@ bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   if (!AllowHandleDereference::IsAllowed()) return false;
   if (mode == INCLUDE_DEFERRED_CHECK &&
       !AllowDeferredHandleDereference::IsAllowed()) {
-    // Accessing maps and internalized strings is safe.
+    // Accessing cells, maps and internalized strings is safe.
+    if (heap_object->IsCell()) return true;
     if (heap_object->IsMap()) return true;
     if (heap_object->IsInternalizedString()) return true;
     return !heap->isolate()->IsDeferredHandle(handle);

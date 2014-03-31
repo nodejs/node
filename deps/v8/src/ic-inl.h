@@ -50,12 +50,20 @@ Address IC::address() const {
 
   // At least one break point is active perform additional test to ensure that
   // break point locations are updated correctly.
-  if (debug->IsDebugBreak(Assembler::target_address_at(result))) {
+  if (debug->IsDebugBreak(Assembler::target_address_at(result,
+                                                       raw_constant_pool()))) {
     // If the call site is a call to debug break then return the address in
     // the original code instead of the address in the running code. This will
     // cause the original code to be updated and keeps the breakpoint active in
     // the running code.
-    return OriginalCodeAddress();
+    Code* code = GetCode();
+    Code* original_code = GetOriginalCode();
+    intptr_t delta =
+        original_code->instruction_start() - code->instruction_start();
+    // Return the address in the original code. This is the place where
+    // the call which has been overwritten by the DebugBreakXXX resides
+    // and the place where the inline cache system should look.
+    return result + delta;
   } else {
     // No break point here just return the address of the call.
     return result;
@@ -66,9 +74,45 @@ Address IC::address() const {
 }
 
 
-Code* IC::GetTargetAtAddress(Address address) {
+ConstantPoolArray* IC::constant_pool() const {
+  if (!FLAG_enable_ool_constant_pool) {
+    return NULL;
+  } else {
+    Handle<ConstantPoolArray> result = raw_constant_pool_;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    Debug* debug = isolate()->debug();
+    // First check if any break points are active if not just return the
+    // original constant pool.
+    if (!debug->has_break_points()) return *result;
+
+    // At least one break point is active perform additional test to ensure that
+    // break point locations are updated correctly.
+    Address target = Assembler::target_address_from_return_address(pc());
+    if (debug->IsDebugBreak(
+            Assembler::target_address_at(target, raw_constant_pool()))) {
+      // If the call site is a call to debug break then we want to return the
+      // constant pool for the original code instead of the breakpointed code.
+      return GetOriginalCode()->constant_pool();
+    }
+#endif
+    return *result;
+  }
+}
+
+
+ConstantPoolArray* IC::raw_constant_pool() const {
+  if (FLAG_enable_ool_constant_pool) {
+    return *raw_constant_pool_;
+  } else {
+    return NULL;
+  }
+}
+
+
+Code* IC::GetTargetAtAddress(Address address,
+                             ConstantPoolArray* constant_pool) {
   // Get the target address of the IC.
-  Address target = Assembler::target_address_at(address);
+  Address target = Assembler::target_address_at(address, constant_pool);
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
   // is safe for use during GC where the map might be marked.
   Code* result = Code::GetCodeFromTargetAddress(target);
@@ -77,10 +121,12 @@ Code* IC::GetTargetAtAddress(Address address) {
 }
 
 
-void IC::SetTargetAtAddress(Address address, Code* target) {
+void IC::SetTargetAtAddress(Address address,
+                            Code* target,
+                            ConstantPoolArray* constant_pool) {
   ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
   Heap* heap = target->GetHeap();
-  Code* old_target = GetTargetAtAddress(address);
+  Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
   // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
   // ICs as strict mode. The strict-ness of the IC must be preserved.
@@ -90,7 +136,8 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
            StoreIC::GetStrictMode(target->extra_ic_state()));
   }
 #endif
-  Assembler::set_target_address_at(address, target->instruction_start());
+  Assembler::set_target_address_at(
+      address, constant_pool, target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {
     heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
   } else {

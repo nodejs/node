@@ -265,10 +265,10 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  if (FLAG_break_on_abort) {
-    DebugBreak();
+  if (FLAG_hard_abort) {
+    V8_IMMEDIATE_CRASH();
   }
+  // Redirect to std abort to signal abnormal program termination.
   abort();
 }
 
@@ -276,6 +276,8 @@ void OS::Abort() {
 void OS::DebugBreak() {
 #if V8_HOST_ARCH_ARM
   asm("bkpt 0");
+#elif V8_HOST_ARCH_ARM64
+  asm("brk 0");
 #elif V8_HOST_ARCH_MIPS
   asm("break");
 #elif V8_HOST_ARCH_IA32
@@ -352,7 +354,25 @@ double OS::TimeCurrentMillis() {
 }
 
 
-double OS::DaylightSavingsOffset(double time) {
+class TimezoneCache {};
+
+
+TimezoneCache* OS::CreateTimezoneCache() {
+  return NULL;
+}
+
+
+void OS::DisposeTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+void OS::ClearTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
   if (std::isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
@@ -560,6 +580,8 @@ class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {}
   pthread_t thread_;  // Thread handle for pthread.
+  // Synchronizes thread creation
+  Mutex thread_creation_mutex_;
 };
 
 Thread::Thread(const Options& options)
@@ -607,10 +629,10 @@ static void SetThreadName(const char* name) {
 
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
+  // We take the lock here to make sure that pthread_create finished first since
+  // we don't know which thread will run first (the original thread or the new
+  // one).
+  { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
@@ -637,7 +659,10 @@ void Thread::Start() {
     ASSERT_EQ(0, result);
   }
 #endif
-  result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  {
+    LockGuard<Mutex> lock_guard(&data_->thread_creation_mutex_);
+    result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  }
   ASSERT_EQ(0, result);
   result = pthread_attr_destroy(&attr);
   ASSERT_EQ(0, result);

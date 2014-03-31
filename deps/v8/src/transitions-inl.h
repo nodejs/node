@@ -28,7 +28,6 @@
 #ifndef V8_TRANSITIONS_INL_H_
 #define V8_TRANSITIONS_INL_H_
 
-#include "objects-inl.h"
 #include "transitions.h"
 
 namespace v8 {

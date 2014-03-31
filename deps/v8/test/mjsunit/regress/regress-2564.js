@@ -66,7 +66,7 @@ Error.prepareStackTrace = function(error, frames) {
   try {
     assertEquals(5, frames.length);
     for (var i = 0; i < 2; i++) {
-      // The first two frames are still classic mode.
+      // The first two frames are still sloppy mode.
       assertEquals(o[i], frames[i].getFunction());
       assertEquals(o, frames[i].getThis());
     }

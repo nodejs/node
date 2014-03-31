@@ -122,9 +122,10 @@ class HFlowEngine {
 
       // Skip blocks not dominated by the root node.
       if (SkipNonDominatedBlock(root, block)) continue;
-      State* state = StateAt(block);
+      State* state = State::Finish(StateAt(block), block, zone_);
 
       if (block->IsReachable()) {
+        ASSERT(state != NULL);
         if (block->IsLoopHeader()) {
           // Apply loop effects before analyzing loop body.
           ComputeLoopEffects(block)->Apply(state);
@@ -144,18 +145,14 @@ class HFlowEngine {
       for (int i = 0; i < max; i++) {
         HBasicBlock* succ = block->end()->SuccessorAt(i);
         IncrementPredecessorCount(succ);
-        if (StateAt(succ) == NULL) {
-          // This is the first state to reach the successor.
-          if (max == 1 && succ->predecessors()->length() == 1) {
-            // Optimization: successor can inherit this state.
-            SetStateAt(succ, state);
-          } else {
-            // Successor needs a copy of the state.
-            SetStateAt(succ, state->Copy(succ, block, zone_));
-          }
+
+        if (max == 1 && succ->predecessors()->length() == 1) {
+          // Optimization: successor can inherit this state.
+          SetStateAt(succ, state);
         } else {
           // Merge the current state with the state already at the successor.
-          SetStateAt(succ, StateAt(succ)->Merge(succ, state, block, zone_));
+          SetStateAt(succ,
+                     State::Merge(StateAt(succ), succ, state, block, zone_));
         }
       }
     }

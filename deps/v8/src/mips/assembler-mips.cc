@@ -213,6 +213,11 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
+bool RelocInfo::IsInConstantPool() {
+  return false;
+}
+
+
 // Patch the code at the current address with the supplied instructions.
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   Instr* pc = reinterpret_cast<Instr*>(pc_);
@@ -313,11 +318,12 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   trampoline_pool_blocked_nesting_ = 0;
   // We leave space (16 * kTrampolineSlotsSize)
   // for BlockTrampolinePoolScope buffer.
-  next_buffer_check_ = kMaxBranchOffset - kTrampolineSlotsSize * 16;
+  next_buffer_check_ = FLAG_force_long_branches
+      ? kMaxInt : kMaxBranchOffset - kTrampolineSlotsSize * 16;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
 
-  trampoline_emitted_ = false;
+  trampoline_emitted_ = FLAG_force_long_branches;
   unbound_labels_count_ = 0;
   block_buffer_growth_ = false;
 
@@ -2320,6 +2326,20 @@ void Assembler::JumpLabelToJumpRegister(Address pc) {
       CPU::FlushICache(pc+2, sizeof(Address));
   }
 }
+
+
+MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+}
+
 
 } }  // namespace v8::internal
 

@@ -1124,8 +1124,14 @@ void Logger::LeaveExternal(Isolate* isolate) {
 }
 
 
+void Logger::LogInternalEvents(const char* name, int se) {
+  Isolate* isolate = Isolate::Current();
+  LOG(isolate, TimerEvent(static_cast<StartEnd>(se), name));
+}
+
+
 void Logger::TimerEventScope::LogTimerEvent(StartEnd se) {
-  LOG(isolate_, TimerEvent(se, name_));
+  isolate_->event_logger()(name_, se);
 }
 
 
@@ -1192,37 +1198,33 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 
 
 void Logger::LogRuntime(Vector<const char> format,
-                        JSArray* args) {
+                        Handle<JSArray> args) {
   if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  HandleScope scope(isolate_);
   Log::MessageBuilder msg(log_);
   for (int i = 0; i < format.length(); i++) {
     char c = format[i];
     if (c == '%' && i <= format.length() - 2) {
       i++;
       ASSERT('0' <= format[i] && format[i] <= '9');
-      MaybeObject* maybe = args->GetElement(isolate_, format[i] - '0');
-      Object* obj;
-      if (!maybe->ToObject(&obj)) {
-        msg.Append("<exception>");
-        continue;
-      }
+      // No exception expected when getting an element from an array literal.
+      Handle<Object> obj =
+          Object::GetElementNoExceptionThrown(isolate_, args, format[i] - '0');
       i++;
       switch (format[i]) {
         case 's':
-          msg.AppendDetailed(String::cast(obj), false);
+          msg.AppendDetailed(String::cast(*obj), false);
           break;
         case 'S':
-          msg.AppendDetailed(String::cast(obj), true);
+          msg.AppendDetailed(String::cast(*obj), true);
           break;
         case 'r':
-          Logger::LogRegExpSource(Handle<JSRegExp>(JSRegExp::cast(obj)));
+          Logger::LogRegExpSource(Handle<JSRegExp>::cast(obj));
           break;
         case 'x':
-          msg.Append("0x%x", Smi::cast(obj)->value());
+          msg.Append("0x%x", Smi::cast(*obj)->value());
           break;
         case 'i':
-          msg.Append("%i", Smi::cast(obj)->value());
+          msg.Append("%i", Smi::cast(*obj)->value());
           break;
         default:
           UNREACHABLE();

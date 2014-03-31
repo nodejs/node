@@ -754,6 +754,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
       isolate->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name = factory->NewStringFromAscii(name);
+  ASSERT(!script_name.is_null());
   Handle<Context> context = isolate->native_context();
 
   // Compile the script.
@@ -762,8 +763,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
                                           script_name, 0, 0,
                                           false,
                                           context,
-                                          NULL, NULL,
-                                          Handle<String>::null(),
+                                          NULL, NULL, NO_CACHED_DATA,
                                           NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.
@@ -792,7 +792,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
     isolate->ComputeLocation(&computed_location);
     Handle<Object> message = MessageHandler::MakeMessageObject(
         isolate, "error_loading_debugger", &computed_location,
-        Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
+        Vector<Handle<Object> >::empty(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
     if (!exception.is_null()) {
       isolate->set_pending_exception(*exception);
@@ -853,7 +853,7 @@ bool Debug::Load() {
                               key,
                               Handle<Object>(global->builtins(), isolate_),
                               NONE,
-                              kNonStrictMode),
+                              SLOPPY),
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.
@@ -1900,30 +1900,34 @@ static void RedirectActivationsToRecompiledCodeOnThread(
     }
 
     // Iterate over the RelocInfo in the original code to compute the sum of the
-    // constant pools sizes. (See Assembler::CheckConstPool())
-    // Note that this is only useful for architectures using constant pools.
-    int constpool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL);
-    int frame_const_pool_size = 0;
-    for (RelocIterator it(*frame_code, constpool_mask); !it.done(); it.next()) {
+    // constant pools and veneer pools sizes. (See Assembler::CheckConstPool()
+    // and Assembler::CheckVeneerPool())
+    // Note that this is only useful for architectures using constant pools or
+    // veneer pools.
+    int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+                    RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+    int frame_pool_size = 0;
+    for (RelocIterator it(*frame_code, pool_mask); !it.done(); it.next()) {
       RelocInfo* info = it.rinfo();
       if (info->pc() >= frame->pc()) break;
-      frame_const_pool_size += static_cast<int>(info->data());
+      frame_pool_size += static_cast<int>(info->data());
     }
     intptr_t frame_offset =
-      frame->pc() - frame_code->instruction_start() - frame_const_pool_size;
+      frame->pc() - frame_code->instruction_start() - frame_pool_size;
 
     // Iterate over the RelocInfo for new code to find the number of bytes
     // generated for debug slots and constant pools.
     int debug_break_slot_bytes = 0;
-    int new_code_const_pool_size = 0;
+    int new_code_pool_size = 0;
     int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-               RelocInfo::ModeMask(RelocInfo::CONST_POOL);
+               RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+               RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
     for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
       // Check if the pc in the new code with debug break
       // slots is before this slot.
       RelocInfo* info = it.rinfo();
       intptr_t new_offset = info->pc() - new_code->instruction_start() -
-                            new_code_const_pool_size - debug_break_slot_bytes;
+                            new_code_pool_size - debug_break_slot_bytes;
       if (new_offset >= frame_offset) {
         break;
       }
@@ -1932,14 +1936,14 @@ static void RedirectActivationsToRecompiledCodeOnThread(
         debug_break_slot_bytes += Assembler::kDebugBreakSlotLength;
       } else {
         ASSERT(RelocInfo::IsConstPool(info->rmode()));
-        // The size of the constant pool is encoded in the data.
-        new_code_const_pool_size += static_cast<int>(info->data());
+        // The size of the pools is encoded in the data.
+        new_code_pool_size += static_cast<int>(info->data());
       }
     }
 
     // Compute the equivalent pc in the new code.
     byte* new_pc = new_code->instruction_start() + frame_offset +
-                   debug_break_slot_bytes + new_code_const_pool_size;
+                   debug_break_slot_bytes + new_code_pool_size;
 
     if (FLAG_trace_deopt) {
       PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
@@ -2360,7 +2364,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Continue just after the slot.
     thread_local_.after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
-  } else if (IsDebugBreak(Assembler::target_address_at(addr))) {
+  } else if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
     // We now know that there is still a debug break call at the target address,
     // so the break point is still there and the original code will hold the
     // address to jump to in order to complete the call which is replaced by a
@@ -2371,13 +2375,15 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Install jump to the call address in the original code. This will be the
     // call which was overwritten by the call to DebugBreakXXX.
-    thread_local_.after_break_target_ = Assembler::target_address_at(addr);
+    thread_local_.after_break_target_ =
+        Assembler::target_address_at(addr, *original_code);
   } else {
     // There is no longer a break point present. Don't try to look in the
     // original code as the running code will have the right address. This takes
     // care of the case where the last break point is removed from the function
     // and therefore no "original code" is available.
-    thread_local_.after_break_target_ = Assembler::target_address_at(addr);
+    thread_local_.after_break_target_ =
+        Assembler::target_address_at(addr, *code);
   }
 }
 
@@ -2594,6 +2600,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   // Create the execution state object.
   Handle<String> constructor_str =
       isolate_->factory()->InternalizeUtf8String(constructor_name);
+  ASSERT(!constructor_str.is_null());
   Handle<Object> constructor(
       isolate_->global_object()->GetPropertyNoExceptionThrown(*constructor_str),
       isolate_);

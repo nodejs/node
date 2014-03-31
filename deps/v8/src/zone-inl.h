@@ -30,6 +30,12 @@
 
 #include "zone.h"
 
+#ifdef V8_USE_ADDRESS_SANITIZER
+  #include <sanitizer/asan_interface.h>
+#else
+  #define ASAN_UNPOISON_MEMORY_REGION(start, size) ((void) 0)
+#endif
+
 #include "counters.h"
 #include "isolate.h"
 #include "utils.h"
@@ -37,6 +43,9 @@
 
 namespace v8 {
 namespace internal {
+
+
+static const int kASanRedzoneBytes = 24;  // Must be a multiple of 8.
 
 
 inline void* Zone::New(int size) {
@@ -54,11 +63,24 @@ inline void* Zone::New(int size) {
   // Check if the requested size is available without expanding.
   Address result = position_;
 
-  if (size > limit_ - position_) {
-     result = NewExpand(size);
+  int size_with_redzone =
+#ifdef V8_USE_ADDRESS_SANITIZER
+      size + kASanRedzoneBytes;
+#else
+      size;
+#endif
+
+  if (size_with_redzone > limit_ - position_) {
+     result = NewExpand(size_with_redzone);
   } else {
-     position_ += size;
+     position_ += size_with_redzone;
   }
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+  Address redzone_position = result + size;
+  ASSERT(redzone_position + kASanRedzoneBytes == position_);
+  ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
+#endif
 
   // Check that the result has the proper alignment and return it.
   ASSERT(IsAddressAligned(result, kAlignment, 0));
@@ -69,6 +91,7 @@ inline void* Zone::New(int size) {
 
 template <typename T>
 T* Zone::NewArray(int length) {
+  CHECK(std::numeric_limits<int>::max() / static_cast<int>(sizeof(T)) > length);
   return static_cast<T*>(New(length * sizeof(T)));
 }
 

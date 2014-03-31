@@ -137,7 +137,7 @@ enum BuiltinExtraArguments {
                                     kNoExtraICState)                    \
   V(KeyedLoadIC_IndexedInterceptor, KEYED_LOAD_IC, MONOMORPHIC,         \
                                     kNoExtraICState)                    \
-  V(KeyedLoadIC_NonStrictArguments, KEYED_LOAD_IC, MONOMORPHIC,         \
+  V(KeyedLoadIC_SloppyArguments,    KEYED_LOAD_IC, MONOMORPHIC,         \
                                     kNoExtraICState)                    \
                                                                         \
   V(StoreIC_Setter_ForDeopt,        STORE_IC, MONOMORPHIC,              \
@@ -156,8 +156,8 @@ enum BuiltinExtraArguments {
                                     StoreIC::kStrictModeState)          \
   V(KeyedStoreIC_Generic_Strict,    KEYED_STORE_IC, GENERIC,            \
                                     StoreIC::kStrictModeState)          \
-  V(KeyedStoreIC_NonStrictArguments, KEYED_STORE_IC, MONOMORPHIC,       \
-                                     kNoExtraICState)                   \
+  V(KeyedStoreIC_SloppyArguments,   KEYED_STORE_IC, MONOMORPHIC,        \
+                                    kNoExtraICState)                    \
                                                                         \
   /* Uses KeyedLoadIC_Initialize; must be after in list. */             \
   V(FunctionCall,                   BUILTIN, UNINITIALIZED,             \

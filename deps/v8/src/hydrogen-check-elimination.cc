@@ -48,12 +48,12 @@ typedef UniqueSet<Map>* MapSet;
 
 struct HCheckTableEntry {
   HValue* object_;  // The object being approximated. NULL => invalid entry.
-  HValue* check_;   // The last check instruction.
-  MapSet maps_;     // The set of known maps for the object.
+  HInstruction* check_;  // The last check instruction.
+  MapSet maps_;          // The set of known maps for the object.
 };
 
 
-// The main datastructure used during check elimination, which stores a
+// The main data structure used during check elimination, which stores a
 // set of known maps for each object.
 class HCheckTable : public ZoneObject {
  public:
@@ -88,6 +88,10 @@ class HCheckTable : public ZoneObject {
         ReduceCompareMap(HCompareMap::cast(instr));
         break;
       }
+      case HValue::kCompareObjectEqAndBranch: {
+        ReduceCompareObjectEqAndBranch(HCompareObjectEqAndBranch::cast(instr));
+        break;
+      }
       case HValue::kTransitionElementsKind: {
         ReduceTransitionElementsKind(
             HTransitionElementsKind::cast(instr));
@@ -103,8 +107,8 @@ class HCheckTable : public ZoneObject {
       }
       default: {
         // If the instruction changes maps uncontrollably, drop everything.
-        if (instr->CheckGVNFlag(kChangesMaps) ||
-            instr->CheckGVNFlag(kChangesOsrEntries)) {
+        if (instr->CheckChangesFlag(kMaps) ||
+            instr->CheckChangesFlag(kOsrEntries)) {
           Kill();
         }
       }
@@ -116,39 +120,105 @@ class HCheckTable : public ZoneObject {
     return this;
   }
 
-  // Global analysis: Copy state to successor block.
+  // Support for global analysis with HFlowEngine: Merge given state with
+  // the other incoming state.
+  static HCheckTable* Merge(HCheckTable* succ_state, HBasicBlock* succ_block,
+                            HCheckTable* pred_state, HBasicBlock* pred_block,
+                            Zone* zone) {
+    if (pred_state == NULL || pred_block->IsUnreachable()) {
+      return succ_state;
+    }
+    if (succ_state == NULL) {
+      return pred_state->Copy(succ_block, pred_block, zone);
+    } else {
+      return succ_state->Merge(succ_block, pred_state, pred_block, zone);
+    }
+  }
+
+  // Support for global analysis with HFlowEngine: Given state merged with all
+  // the other incoming states, prepare it for use.
+  static HCheckTable* Finish(HCheckTable* state, HBasicBlock* block,
+                             Zone* zone) {
+    if (state == NULL) {
+      block->MarkUnreachable();
+    } else if (block->IsUnreachable()) {
+      state = NULL;
+    }
+    if (FLAG_trace_check_elimination) {
+      PrintF("Processing B%d, checkmaps-table:\n", block->block_id());
+      Print(state);
+    }
+    return state;
+  }
+
+ private:
+  // Copy state to successor block.
   HCheckTable* Copy(HBasicBlock* succ, HBasicBlock* from_block, Zone* zone) {
     HCheckTable* copy = new(phase_->zone()) HCheckTable(phase_);
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* old_entry = &entries_[i];
+      ASSERT(old_entry->maps_->size() > 0);
       HCheckTableEntry* new_entry = &copy->entries_[i];
-      // TODO(titzer): keep the check if this block dominates the successor?
       new_entry->object_ = old_entry->object_;
-      new_entry->check_ = NULL;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
+      // Keep the check if the existing check's block dominates the successor.
+      if (old_entry->check_ != NULL &&
+          old_entry->check_->block()->Dominates(succ)) {
+        new_entry->check_ = old_entry->check_;
+      } else {
+        // Leave it NULL till we meet a new check instruction for this object
+        // in the control flow.
+        new_entry->check_ = NULL;
+      }
     }
     copy->cursor_ = cursor_;
     copy->size_ = size_;
 
+    // Create entries for succ block's phis.
+    if (!succ->IsLoopHeader() && succ->phis()->length() > 0) {
+      int pred_index = succ->PredecessorIndexOf(from_block);
+      for (int phi_index = 0;
+           phi_index < succ->phis()->length();
+           ++phi_index) {
+        HPhi* phi = succ->phis()->at(phi_index);
+        HValue* phi_operand = phi->OperandAt(pred_index);
+
+        HCheckTableEntry* pred_entry = copy->Find(phi_operand);
+        if (pred_entry != NULL) {
+          // Create an entry for a phi in the table.
+          copy->Insert(phi, NULL, pred_entry->maps_->Copy(phase_->zone()));
+        }
+      }
+    }
+
     // Branch-sensitive analysis for certain comparisons may add more facts
     // to the state for the successor on the true branch.
     bool learned = false;
-    HControlInstruction* end = succ->predecessors()->at(0)->end();
-    if (succ->predecessors()->length() == 1 && end->SuccessorAt(0) == succ) {
+    if (succ->predecessors()->length() == 1) {
+      HControlInstruction* end = succ->predecessors()->at(0)->end();
+      bool is_true_branch = end->SuccessorAt(0) == succ;
       if (end->IsCompareMap()) {
-        // Learn on the true branch of if(CompareMap(x)).
         HCompareMap* cmp = HCompareMap::cast(end);
         HValue* object = cmp->value()->ActualValue();
         HCheckTableEntry* entry = copy->Find(object);
-        if (entry == NULL) {
-          copy->Insert(object, cmp->map());
+        if (is_true_branch) {
+          // Learn on the true branch of if(CompareMap(x)).
+          if (entry == NULL) {
+            copy->Insert(object, cmp, cmp->map());
+          } else {
+            MapSet list = new(phase_->zone()) UniqueSet<Map>();
+            list->Add(cmp->map(), phase_->zone());
+            entry->maps_ = list;
+            entry->check_ = cmp;
+          }
         } else {
-          MapSet list = new(phase_->zone()) UniqueSet<Map>();
-          list->Add(cmp->map(), phase_->zone());
-          entry->maps_ = list;
+          // Learn on the false branch of if(CompareMap(x)).
+          if (entry != NULL) {
+            entry->maps_->Remove(cmp->map());
+          }
         }
         learned = true;
-      } else if (end->IsCompareObjectEqAndBranch()) {
+      } else if (is_true_branch && end->IsCompareObjectEqAndBranch()) {
         // Learn on the true branch of if(CmpObjectEq(x, y)).
         HCompareObjectEqAndBranch* cmp =
           HCompareObjectEqAndBranch::cast(end);
@@ -177,44 +247,54 @@ class HCheckTable : public ZoneObject {
              succ->block_id(),
              learned ? "learned" : "copied",
              from_block->block_id());
-      copy->Print();
+      Print(copy);
     }
 
     return copy;
   }
 
-  // Global analysis: Merge this state with the other incoming state.
+  // Merge this state with the other incoming state.
   HCheckTable* Merge(HBasicBlock* succ, HCheckTable* that,
-                     HBasicBlock* that_block, Zone* zone) {
-    if (that_block->IsReachable()) {
-      if (that->size_ == 0) {
-        // If the other state is empty, simply reset.
-        size_ = 0;
-        cursor_ = 0;
-      } else {
-        bool compact = false;
-        for (int i = 0; i < size_; i++) {
-          HCheckTableEntry* this_entry = &entries_[i];
-          HCheckTableEntry* that_entry = that->Find(this_entry->object_);
-          if (that_entry == NULL) {
-            this_entry->object_ = NULL;
-            compact = true;
-          } else {
-            this_entry->maps_ =
-                this_entry->maps_->Union(that_entry->maps_, phase_->zone());
-            if (this_entry->check_ != that_entry->check_) {
-              this_entry->check_ = NULL;
-            }
-            ASSERT(this_entry->maps_->size() > 0);
-          }
+                     HBasicBlock* pred_block, Zone* zone) {
+    if (that->size_ == 0) {
+      // If the other state is empty, simply reset.
+      size_ = 0;
+      cursor_ = 0;
+    } else {
+      int pred_index = succ->PredecessorIndexOf(pred_block);
+      bool compact = false;
+      for (int i = 0; i < size_; i++) {
+        HCheckTableEntry* this_entry = &entries_[i];
+        HCheckTableEntry* that_entry;
+        if (this_entry->object_->IsPhi() &&
+            this_entry->object_->block() == succ) {
+          HPhi* phi = HPhi::cast(this_entry->object_);
+          HValue* phi_operand = phi->OperandAt(pred_index);
+          that_entry = that->Find(phi_operand);
+
+        } else {
+          that_entry = that->Find(this_entry->object_);
         }
-        if (compact) Compact();
+
+        if (that_entry == NULL) {
+          this_entry->object_ = NULL;
+          compact = true;
+        } else {
+          this_entry->maps_ =
+              this_entry->maps_->Union(that_entry->maps_, phase_->zone());
+          if (this_entry->check_ != that_entry->check_) {
+            this_entry->check_ = NULL;
+          }
+          ASSERT(this_entry->maps_->size() > 0);
+        }
       }
+      if (compact) Compact();
     }
+
     if (FLAG_trace_check_elimination) {
       PrintF("B%d checkmaps-table merged with B%d table:\n",
-             succ->block_id(), that_block->block_id());
-      Print();
+             succ->block_id(), pred_block->block_id());
+      Print(this);
     }
     return this;
   }
@@ -244,14 +324,43 @@ class HCheckTable : public ZoneObject {
         }
         return;
       }
-      i = i->Intersect(a, phase_->zone());
-      if (i->size() == 0) {
+      MapSet intersection = i->Intersect(a, phase_->zone());
+      if (intersection->size() == 0) {
         // Intersection is empty; probably megamorphic, which is likely to
         // deopt anyway, so just leave things as they are.
         INC_STAT(empty_);
       } else {
-        // TODO(titzer): replace the first check with a more strict check
-        INC_STAT(narrowed_);
+        // Update set of maps in the entry.
+        entry->maps_ = intersection;
+        if (intersection->size() != i->size()) {
+          // Narrow set of maps in the second check maps instruction.
+          HGraph* graph = instr->block()->graph();
+          if (entry->check_ != NULL &&
+              entry->check_->block() == instr->block() &&
+              entry->check_->IsCheckMaps()) {
+            // There is a check in the same block so replace it with a more
+            // strict check and eliminate the second check entirely.
+            HCheckMaps* check = HCheckMaps::cast(entry->check_);
+            TRACE(("CheckMaps #%d at B%d narrowed\n", check->id(),
+                check->block()->block_id()));
+            // Update map set and ensure that the check is alive.
+            check->set_map_set(intersection, graph->zone());
+            check->ClearFlag(HValue::kIsDead);
+            TRACE(("Replacing redundant CheckMaps #%d at B%d with #%d\n",
+                instr->id(), instr->block()->block_id(), entry->check_->id()));
+            instr->DeleteAndReplaceWith(entry->check_);
+          } else {
+            TRACE(("CheckMaps #%d at B%d narrowed\n", instr->id(),
+                instr->block()->block_id()));
+            instr->set_map_set(intersection, graph->zone());
+            entry->check_ = instr;
+          }
+
+          if (FLAG_trace_check_elimination) {
+            Print(this);
+          }
+          INC_STAT(narrowed_);
+        }
       }
     } else {
       // No entry; insert a new one.
@@ -292,22 +401,32 @@ class HCheckTable : public ZoneObject {
     HValue* object = instr->value()->ActualValue();
     // Match a HCheckMapValue(object, HConstant(map))
     Unique<Map> map = MapConstant(instr->map());
-    MapSet maps = FindMaps(object);
-    if (maps != NULL) {
+
+    HCheckTableEntry* entry = Find(object);
+    if (entry != NULL) {
+      MapSet maps = entry->maps_;
       if (maps->Contains(map)) {
         if (maps->size() == 1) {
           // Object is known to have exactly this map.
-          instr->DeleteAndReplaceWith(NULL);
+          if (entry->check_ != NULL) {
+            instr->DeleteAndReplaceWith(entry->check_);
+          } else {
+            // Mark check as dead but leave it in the graph as a checkpoint for
+            // subsequent checks.
+            instr->SetFlag(HValue::kIsDead);
+            entry->check_ = instr;
+          }
           INC_STAT(removed_);
         } else {
           // Only one map survives the check.
           maps->Clear();
           maps->Add(map, phase_->zone());
+          entry->check_ = instr;
         }
       }
     } else {
       // No prior information.
-      Insert(object, map);
+      Insert(object, instr, map);
     }
   }
 
@@ -324,34 +443,61 @@ class HCheckTable : public ZoneObject {
     if (instr->has_transition()) {
       // This store transitions the object to a new map.
       Kill(object);
-      Insert(object, MapConstant(instr->transition()));
+      Insert(object, NULL, MapConstant(instr->transition()));
     } else if (IsMapAccess(instr->access())) {
       // This is a store directly to the map field of the object.
       Kill(object);
       if (!instr->value()->IsConstant()) return;
-      Insert(object, MapConstant(instr->value()));
+      Insert(object, NULL, MapConstant(instr->value()));
     } else {
       // If the instruction changes maps, it should be handled above.
-      CHECK(!instr->CheckGVNFlag(kChangesMaps));
+      CHECK(!instr->CheckChangesFlag(kMaps));
     }
   }
 
   void ReduceCompareMap(HCompareMap* instr) {
     MapSet maps = FindMaps(instr->value()->ActualValue());
     if (maps == NULL) return;
+
+    int succ;
     if (maps->Contains(instr->map())) {
-      if (maps->size() == 1) {
-        TRACE(("Marking redundant CompareMap #%d at B%d as true\n",
-            instr->id(), instr->block()->block_id()));
-        instr->set_known_successor_index(0);
-        INC_STAT(compares_true_);
+      if (maps->size() != 1) {
+        TRACE(("CompareMap #%d for #%d at B%d can't be eliminated: "
+               "ambiguous set of maps\n", instr->id(), instr->value()->id(),
+               instr->block()->block_id()));
+        return;
       }
+      succ = 0;
+      INC_STAT(compares_true_);
     } else {
-      TRACE(("Marking redundant CompareMap #%d at B%d as false\n",
-          instr->id(), instr->block()->block_id()));
-      instr->set_known_successor_index(1);
+      succ = 1;
       INC_STAT(compares_false_);
     }
+
+    TRACE(("Marking redundant CompareMap #%d for #%d at B%d as %s\n",
+        instr->id(), instr->value()->id(), instr->block()->block_id(),
+        succ == 0 ? "true" : "false"));
+    instr->set_known_successor_index(succ);
+
+    int unreachable_succ = 1 - succ;
+    instr->block()->MarkSuccEdgeUnreachable(unreachable_succ);
+  }
+
+  void ReduceCompareObjectEqAndBranch(HCompareObjectEqAndBranch* instr) {
+    MapSet maps_left = FindMaps(instr->left()->ActualValue());
+    if (maps_left == NULL) return;
+    MapSet maps_right = FindMaps(instr->right()->ActualValue());
+    if (maps_right == NULL) return;
+    MapSet intersection = maps_left->Intersect(maps_right, phase_->zone());
+    if (intersection->size() > 0) return;
+
+    TRACE(("Marking redundant CompareObjectEqAndBranch #%d at B%d as false\n",
+        instr->id(), instr->block()->block_id()));
+    int succ = 1;
+    instr->set_known_successor_index(succ);
+
+    int unreachable_succ = 1 - succ;
+    instr->block()->MarkSuccEdgeUnreachable(unreachable_succ);
   }
 
   void ReduceTransitionElementsKind(HTransitionElementsKind* instr) {
@@ -422,11 +568,17 @@ class HCheckTable : public ZoneObject {
     cursor_ = size_;  // Move cursor to end.
   }
 
-  void Print() {
-    for (int i = 0; i < size_; i++) {
-      HCheckTableEntry* entry = &entries_[i];
+  static void Print(HCheckTable* table) {
+    if (table == NULL) {
+      PrintF("  unreachable\n");
+      return;
+    }
+
+    for (int i = 0; i < table->size_; i++) {
+      HCheckTableEntry* entry = &table->entries_[i];
       ASSERT(entry->object_ != NULL);
-      PrintF("  checkmaps-table @%d: object #%d ", i, entry->object_->id());
+      PrintF("  checkmaps-table @%d: %s #%d ", i,
+             entry->object_->IsPhi() ? "phi" : "object", entry->object_->id());
       if (entry->check_ != NULL) {
         PrintF("check #%d ", entry->check_->id());
       }
@@ -440,7 +592,6 @@ class HCheckTable : public ZoneObject {
     }
   }
 
- private:
   HCheckTableEntry* Find(HValue* object) {
     for (int i = size_ - 1; i >= 0; i--) {
       // Search from most-recently-inserted to least-recently-inserted.
@@ -456,13 +607,13 @@ class HCheckTable : public ZoneObject {
     return entry == NULL ? NULL : entry->maps_;
   }
 
-  void Insert(HValue* object, Unique<Map> map) {
+  void Insert(HValue* object, HInstruction* check, Unique<Map> map) {
     MapSet list = new(phase_->zone()) UniqueSet<Map>();
     list->Add(map, phase_->zone());
-    Insert(object, NULL, list);
+    Insert(object, check, list);
   }
 
-  void Insert(HValue* object, HCheckMaps* check, MapSet maps) {
+  void Insert(HValue* object, HInstruction* check, MapSet maps) {
     HCheckTableEntry* entry = &entries_[cursor_++];
     entry->object_ = object;
     entry->check_ = check;
@@ -481,6 +632,7 @@ class HCheckTable : public ZoneObject {
   }
 
   friend class HCheckMapsEffects;
+  friend class HCheckEliminationPhase;
 
   HCheckEliminationPhase* phase_;
   HCheckTableEntry entries_[kMaxTrackedObjects];
@@ -514,8 +666,8 @@ class HCheckMapsEffects : public ZoneObject {
         maps_stored_ = true;
       }
       default: {
-        maps_stored_ |= (instr->CheckGVNFlag(kChangesMaps) |
-                         instr->CheckGVNFlag(kChangesElementsKind));
+        maps_stored_ |= (instr->CheckChangesFlag(kMaps) |
+                         instr->CheckChangesFlag(kElementsKind));
       }
     }
   }

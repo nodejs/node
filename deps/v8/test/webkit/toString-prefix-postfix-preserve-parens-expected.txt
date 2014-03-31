@@ -26,42 +26,6 @@ This test checks that toString() round-trip on a function that has prefix, postf
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS unevalf(eval(unevalf(prefix_should_preserve_parens))) is unevalf(prefix_should_preserve_parens)
-PASS /.*\(+x\)*, y\)/.test(unevalf(prefix_should_preserve_parens)) is true
-PASS prefix_should_preserve_parens(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS eval(unevalf(prefix_should_preserve_parens))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS unevalf(eval(unevalf(postfix_should_preserve_parens))) is unevalf(postfix_should_preserve_parens)
-PASS /.*\(+x\)*, y\)/.test(unevalf(postfix_should_preserve_parens)) is true
-PASS postfix_should_preserve_parens(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS eval(unevalf(postfix_should_preserve_parens))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS unevalf(eval(unevalf(both_should_preserve_parens))) is unevalf(both_should_preserve_parens)
-PASS /.*\(+x\)*, y\)/.test(unevalf(both_should_preserve_parens)) is true
-PASS both_should_preserve_parens(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS eval(unevalf(both_should_preserve_parens))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS unevalf(eval(unevalf(prefix_should_preserve_parens_multi))) is unevalf(prefix_should_preserve_parens_multi)
-PASS /.*\(+x\)*, y\)/.test(unevalf(prefix_should_preserve_parens_multi)) is true
-PASS prefix_should_preserve_parens_multi(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS eval(unevalf(prefix_should_preserve_parens_multi))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS unevalf(eval(unevalf(postfix_should_preserve_parens_multi))) is unevalf(postfix_should_preserve_parens_multi)
-PASS /.*\(+x\)*, y\)/.test(unevalf(postfix_should_preserve_parens_multi)) is true
-PASS postfix_should_preserve_parens_multi(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS eval(unevalf(postfix_should_preserve_parens_multi))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS unevalf(eval(unevalf(prefix_should_preserve_parens_multi1))) is unevalf(prefix_should_preserve_parens_multi1)
-PASS /.*\(+x\)*, y\)/.test(unevalf(prefix_should_preserve_parens_multi1)) is true
-PASS prefix_should_preserve_parens_multi1(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS eval(unevalf(prefix_should_preserve_parens_multi1))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS unevalf(eval(unevalf(postfix_should_preserve_parens_multi1))) is unevalf(postfix_should_preserve_parens_multi1)
-PASS /.*\(+x\)*, y\)/.test(unevalf(postfix_should_preserve_parens_multi1)) is true
-PASS postfix_should_preserve_parens_multi1(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS eval(unevalf(postfix_should_preserve_parens_multi1))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS unevalf(eval(unevalf(prefix_should_preserve_parens_multi2))) is unevalf(prefix_should_preserve_parens_multi2)
-PASS /.*\(+x\)*, y\)/.test(unevalf(prefix_should_preserve_parens_multi2)) is true
-PASS prefix_should_preserve_parens_multi2(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS eval(unevalf(prefix_should_preserve_parens_multi2))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS unevalf(eval(unevalf(postfix_should_preserve_parens_multi2))) is unevalf(postfix_should_preserve_parens_multi2)
-PASS /.*\(+x\)*, y\)/.test(unevalf(postfix_should_preserve_parens_multi2)) is true
-PASS postfix_should_preserve_parens_multi2(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS eval(unevalf(postfix_should_preserve_parens_multi2))(1, 2, 3); threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
 PASS unevalf(eval(unevalf(typeof_should_preserve_parens))) is unevalf(typeof_should_preserve_parens)
 PASS /.*\(+x\)*, y\)/.test(unevalf(typeof_should_preserve_parens)) is true
 PASS typeof_should_preserve_parens('a', 1); is 'number'

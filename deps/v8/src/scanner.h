@@ -44,6 +44,9 @@ namespace v8 {
 namespace internal {
 
 
+class ParserRecorder;
+
+
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.
 inline int HexValue(uc32 c) {
@@ -117,8 +120,8 @@ class Utf16CharacterStream {
   virtual bool ReadBlock() = 0;
   virtual unsigned SlowSeekForward(unsigned code_unit_count) = 0;
 
-  const uc16* buffer_cursor_;
-  const uc16* buffer_end_;
+  const uint16_t* buffer_cursor_;
+  const uint16_t* buffer_end_;
   unsigned pos_;
 };
 
@@ -139,12 +142,17 @@ class UnicodeCache {
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
+  bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
+    return kIsWhiteSpaceOrLineTerminator.get(c);
+  }
 
  private:
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
   unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
+  unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
+      kIsWhiteSpaceOrLineTerminator;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
@@ -161,32 +169,32 @@ class DuplicateFinder {
         backing_store_(16),
         map_(&Match) { }
 
-  int AddAsciiSymbol(Vector<const char> key, int value);
-  int AddUtf16Symbol(Vector<const uint16_t> key, int value);
+  int AddOneByteSymbol(Vector<const uint8_t> key, int value);
+  int AddTwoByteSymbol(Vector<const uint16_t> key, int value);
   // Add a a number literal by converting it (if necessary)
   // to the string that ToString(ToNumber(literal)) would generate.
   // and then adding that string with AddAsciiSymbol.
   // This string is the actual value used as key in an object literal,
   // and the one that must be different from the other keys.
-  int AddNumber(Vector<const char> key, int value);
+  int AddNumber(Vector<const uint8_t> key, int value);
 
  private:
-  int AddSymbol(Vector<const byte> key, bool is_ascii, int value);
+  int AddSymbol(Vector<const uint8_t> key, bool is_one_byte, int value);
   // Backs up the key and its length in the backing store.
   // The backup is stored with a base 127 encoding of the
-  // length (plus a bit saying whether the string is ASCII),
+  // length (plus a bit saying whether the string is one byte),
   // followed by the bytes of the key.
-  byte* BackupKey(Vector<const byte> key, bool is_ascii);
+  uint8_t* BackupKey(Vector<const uint8_t> key, bool is_one_byte);
 
   // Compare two encoded keys (both pointing into the backing store)
   // for having the same base-127 encoded lengths and ASCII-ness,
   // and then having the same 'length' bytes following.
   static bool Match(void* first, void* second);
   // Creates a hash from a sequence of bytes.
-  static uint32_t Hash(Vector<const byte> key, bool is_ascii);
+  static uint32_t Hash(Vector<const uint8_t> key, bool is_one_byte);
   // Checks whether a string containing a JS number is its canonical
   // form.
-  static bool IsNumberCanonical(Vector<const char> key);
+  static bool IsNumberCanonical(Vector<const uint8_t> key);
 
   // Size of buffer. Sufficient for using it to call DoubleToCString in
   // from conversions.h.
@@ -206,7 +214,7 @@ class DuplicateFinder {
 
 class LiteralBuffer {
  public:
-  LiteralBuffer() : is_ascii_(true), position_(0), backing_store_() { }
+  LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() { }
 
   ~LiteralBuffer() {
     if (backing_store_.length() > 0) {
@@ -216,48 +224,48 @@ class LiteralBuffer {
 
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
-    if (is_ascii_) {
+    if (is_one_byte_) {
       if (code_unit <= unibrow::Latin1::kMaxChar) {
         backing_store_[position_] = static_cast<byte>(code_unit);
         position_ += kOneByteSize;
         return;
       }
-      ConvertToUtf16();
+      ConvertToTwoByte();
     }
     ASSERT(code_unit < 0x10000u);
-    *reinterpret_cast<uc16*>(&backing_store_[position_]) = code_unit;
+    *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
     position_ += kUC16Size;
   }
 
-  bool is_ascii() { return is_ascii_; }
+  bool is_one_byte() { return is_one_byte_; }
 
   bool is_contextual_keyword(Vector<const char> keyword) {
-    return is_ascii() && keyword.length() == position_ &&
+    return is_one_byte() && keyword.length() == position_ &&
         (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
   }
 
-  Vector<const uc16> utf16_literal() {
-    ASSERT(!is_ascii_);
+  Vector<const uint16_t> two_byte_literal() {
+    ASSERT(!is_one_byte_);
     ASSERT((position_ & 0x1) == 0);
-    return Vector<const uc16>(
-        reinterpret_cast<const uc16*>(backing_store_.start()),
+    return Vector<const uint16_t>(
+        reinterpret_cast<const uint16_t*>(backing_store_.start()),
         position_ >> 1);
   }
 
-  Vector<const char> ascii_literal() {
-    ASSERT(is_ascii_);
-    return Vector<const char>(
-        reinterpret_cast<const char*>(backing_store_.start()),
+  Vector<const uint8_t> one_byte_literal() {
+    ASSERT(is_one_byte_);
+    return Vector<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(backing_store_.start()),
         position_);
   }
 
   int length() {
-    return is_ascii_ ? position_ : (position_ >> 1);
+    return is_one_byte_ ? position_ : (position_ >> 1);
   }
 
   void Reset() {
     position_ = 0;
-    is_ascii_ = true;
+    is_one_byte_ = true;
   }
 
  private:
@@ -278,8 +286,8 @@ class LiteralBuffer {
     backing_store_ = new_store;
   }
 
-  void ConvertToUtf16() {
-    ASSERT(is_ascii_);
+  void ConvertToTwoByte() {
+    ASSERT(is_one_byte_);
     Vector<byte> new_store;
     int new_content_size = position_ * kUC16Size;
     if (new_content_size >= backing_store_.length()) {
@@ -290,7 +298,7 @@ class LiteralBuffer {
       new_store = backing_store_;
     }
     uint8_t* src = backing_store_.start();
-    uc16* dst = reinterpret_cast<uc16*>(new_store.start());
+    uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.start());
     for (int i = position_ - 1; i >= 0; i--) {
       dst[i] = src[i];
     }
@@ -299,10 +307,10 @@ class LiteralBuffer {
       backing_store_ = new_store;
     }
     position_ = new_content_size;
-    is_ascii_ = false;
+    is_one_byte_ = false;
   }
 
-  bool is_ascii_;
+  bool is_one_byte_;
   int position_;
   Vector<byte> backing_store_;
 
@@ -365,32 +373,13 @@ class Scanner {
   // Returns the location information for the current token
   // (the token last returned by Next()).
   Location location() const { return current_.location; }
-  // Returns the literal string, if any, for the current token (the
-  // token last returned by Next()). The string is 0-terminated.
-  // Literal strings are collected for identifiers, strings, and
-  // numbers.
-  // These functions only give the correct result if the literal
-  // was scanned between calls to StartLiteral() and TerminateLiteral().
-  Vector<const char> literal_ascii_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->ascii_literal();
-  }
-  Vector<const uc16> literal_utf16_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->utf16_literal();
-  }
-  bool is_literal_ascii() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_ascii();
-  }
-  bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_contextual_keyword(keyword);
-  }
-  int literal_length() const {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->length();
-  }
+
+  // Similar functions for the upcoming token.
+
+  // One token look-ahead (past the token returned by Next()).
+  Token::Value peek() const { return next_.token; }
+
+  Location peek_location() const { return next_.location; }
 
   bool literal_contains_escapes() const {
     Location location = current_.location;
@@ -401,43 +390,47 @@ class Scanner {
     }
     return current_.literal_chars->length() != source_length;
   }
-
-  // Similar functions for the upcoming token.
-
-  // One token look-ahead (past the token returned by Next()).
-  Token::Value peek() const { return next_.token; }
-
-  Location peek_location() const { return next_.location; }
-
-  // Returns the literal string for the next token (the token that
-  // would be returned if Next() were called).
-  Vector<const char> next_literal_ascii_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->ascii_literal();
-  }
-  Vector<const uc16> next_literal_utf16_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->utf16_literal();
-  }
-  bool is_next_literal_ascii() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->is_ascii();
+  bool is_literal_contextual_keyword(Vector<const char> keyword) {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_contextual_keyword(keyword);
   }
   bool is_next_contextual_keyword(Vector<const char> keyword) {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_contextual_keyword(keyword);
   }
-  int next_literal_length() const {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->length();
+
+  Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                           PretenureFlag tenured);
+  Handle<String> AllocateInternalizedString(Isolate* isolate);
+
+  double DoubleValue();
+  bool UnescapedLiteralMatches(const char* data, int length) {
+    if (is_literal_one_byte() &&
+        literal_length() == length &&
+        !literal_contains_escapes()) {
+      const char* token =
+          reinterpret_cast<const char*>(literal_one_byte_string().start());
+      return !strncmp(token, data, length);
+    }
+    return false;
+  }
+  void IsGetOrSet(bool* is_get, bool* is_set) {
+    if (is_literal_one_byte() &&
+        literal_length() == 3 &&
+        !literal_contains_escapes()) {
+      const char* token =
+          reinterpret_cast<const char*>(literal_one_byte_string().start());
+      *is_get = strncmp(token, "get", 3) == 0;
+      *is_set = !*is_get && strncmp(token, "set", 3) == 0;
+    }
   }
 
+  int FindNumber(DuplicateFinder* finder, int value);
+  int FindSymbol(DuplicateFinder* finder, int value);
+
+  void LogSymbol(ParserRecorder* log, int position);
+
   UnicodeCache* unicode_cache() { return unicode_cache_; }
-
-  static const int kCharacterLookaheadBufferSize = 1;
-
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
 
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
@@ -489,6 +482,11 @@ class Scanner {
     Location location;
     LiteralBuffer* literal_chars;
   };
+
+  static const int kCharacterLookaheadBufferSize = 1;
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
 
   // Call this after setting source_ to the input.
   void Init() {
@@ -548,6 +546,47 @@ class Scanner {
     } else {
       return else_;
     }
+  }
+
+  // Returns the literal string, if any, for the current token (the
+  // token last returned by Next()). The string is 0-terminated.
+  // Literal strings are collected for identifiers, strings, and
+  // numbers.
+  // These functions only give the correct result if the literal
+  // was scanned between calls to StartLiteral() and TerminateLiteral().
+  Vector<const uint8_t> literal_one_byte_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->one_byte_literal();
+  }
+  Vector<const uint16_t> literal_two_byte_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->two_byte_literal();
+  }
+  bool is_literal_one_byte() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_one_byte();
+  }
+  int literal_length() const {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->length();
+  }
+  // Returns the literal string for the next token (the token that
+  // would be returned if Next() were called).
+  Vector<const uint8_t> next_literal_one_byte_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->one_byte_literal();
+  }
+  Vector<const uint16_t> next_literal_two_byte_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->two_byte_literal();
+  }
+  bool is_next_literal_one_byte() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->is_one_byte();
+  }
+  int next_literal_length() const {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->length();
   }
 
   uc32 ScanHexNumber(int expected_length);

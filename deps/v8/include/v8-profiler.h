@@ -35,6 +35,9 @@
  */
 namespace v8 {
 
+class HeapGraphNode;
+struct HeapStatsUpdate;
+
 typedef uint32_t SnapshotObjectId;
 
 /**
@@ -158,12 +161,18 @@ class V8_EXPORT CpuProfiler {
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
    */
+  void StartProfiling(Handle<String> title, bool record_samples = false);
+
+  /** Deprecated. Use StartProfiling instead. */
   void StartCpuProfiling(Handle<String> title, bool record_samples = false);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
+  CpuProfile* StopProfiling(Handle<String> title);
+
+  /** Deprecated. Use StopProfiling instead. */
   const CpuProfile* StopCpuProfiling(Handle<String> title);
 
   /**
@@ -177,9 +186,6 @@ class V8_EXPORT CpuProfiler {
   CpuProfiler(const CpuProfiler&);
   CpuProfiler& operator=(const CpuProfiler&);
 };
-
-
-class HeapGraphNode;
 
 
 /**
@@ -257,13 +263,48 @@ class V8_EXPORT HeapGraphNode {
   SnapshotObjectId GetId() const;
 
   /** Returns node's own size, in bytes. */
-  int GetSelfSize() const;
+  V8_DEPRECATED("Use GetShallowSize instead",
+                int GetSelfSize() const);
+
+  /** Returns node's own size, in bytes. */
+  size_t GetShallowSize() const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
   /** Retrieves a child by index. */
   const HeapGraphEdge* GetChild(int index) const;
+};
+
+
+/**
+ * An interface for exporting data from V8, using "push" model.
+ */
+class V8_EXPORT OutputStream {  // NOLINT
+ public:
+  enum WriteResult {
+    kContinue = 0,
+    kAbort = 1
+  };
+  virtual ~OutputStream() {}
+  /** Notify about the end of stream. */
+  virtual void EndOfStream() = 0;
+  /** Get preferred output chunk size. Called only once. */
+  virtual int GetChunkSize() { return 1024; }
+  /**
+   * Writes the next chunk of snapshot data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of heap stats data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
+    return kAbort;
+  };
 };
 
 
@@ -334,7 +375,24 @@ class V8_EXPORT HeapSnapshot {
 };
 
 
-class RetainedObjectInfo;
+/**
+ * An interface for reporting progress and controlling long-running
+ * activities.
+ */
+class V8_EXPORT ActivityControl {  // NOLINT
+ public:
+  enum ControlOption {
+    kContinue = 0,
+    kAbort = 1
+  };
+  virtual ~ActivityControl() {}
+  /**
+   * Notify about current progress. The activity can be stopped by
+   * returning kAbort as the callback result.
+   */
+  virtual ControlOption ReportProgressValue(int done, int total) = 0;
+};
+
 
 /**
  * Interface for controlling heap profiling. Instance of the

@@ -138,7 +138,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 #ifdef DEBUG
     __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-    __ Set(eax, Immediate(0));  // No arguments.
+    __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
     CEntryStub ceb(1);
@@ -154,7 +154,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       int r = JSCallerSavedCode(i);
       Register reg = { r };
       if (FLAG_debug_code) {
-        __ Set(reg, Immediate(kDebugZapValue));
+        __ Move(reg, Immediate(kDebugZapValue));
       }
       bool taken = reg.code() == esi.code();
       if ((object_regs & (1 << r)) != 0) {
@@ -280,10 +280,12 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-ia32.cc).
   // ----------- S t a t e -------------
-  //  -- ebx: cache cell for call target
+  //  -- ebx: feedback array
+  //  -- edx: slot in feedback array
   //  -- edi: function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edx.bit() | edi.bit(),
+                                0, false);
 }
 
 
@@ -306,11 +308,13 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // above IC call.
   // ----------- S t a t e -------------
   //  -- eax: number of arguments (not smi)
-  //  -- ebx: cache cell for call target
+  //  -- ebx: feedback array
+  //  -- edx: feedback slot (smi)
   //  -- edi: constructor function
   // -----------------------------------
   // The number of arguments in eax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), eax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edx.bit() | edi.bit(),
+                                eax.bit(), false);
 }
 
 

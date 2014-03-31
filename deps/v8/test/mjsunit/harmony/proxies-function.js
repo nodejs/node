@@ -707,7 +707,7 @@ function TestCalls() {
     function(f, x, y, o) { if (typeof o == "object") return (1, o)["f"](x, y) },
   ]
   var receivers = [o, global_object, undefined, null, 2, "bla", true]
-  var expectedNonStricts = [o, global_object, global_object, global_object]
+  var expectedSloppies = [o, global_object, global_object, global_object]
 
   for (var t = 0; t < traps.length; ++t) {
     for (var i = 0; i < creates.length; ++i) {
@@ -719,7 +719,7 @@ function TestCalls() {
               var receiver = receivers[n]
               var func = binds[j](creates[i](traps[t]), bound, 31, 11)
               var expected = j > 0 ? bound : receiver
-              var expectedNonStrict = expectedNonStricts[j > 0 ? m : n]
+              var expectedSloppy = expectedSloppies[j > 0 ? m : n]
               o.f = func
               global_object.f = func
               var x = calls[k](func, 11, 31, receiver)
@@ -729,10 +729,10 @@ function TestCalls() {
                   assertSame(x.strict ? undefined : global_object, x.receiver)
                 else if (x.strict)
                   assertSame(expected, x.receiver)
-                else if (expectedNonStrict === undefined)
+                else if (expectedSloppy === undefined)
                   assertSame(expected, x.receiver.valueOf())
                 else
-                  assertSame(expectedNonStrict, x.receiver)
+                  assertSame(expectedSloppy, x.receiver)
               }
             }
           }

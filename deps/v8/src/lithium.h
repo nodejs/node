@@ -35,12 +35,12 @@
 namespace v8 {
 namespace internal {
 
-#define LITHIUM_OPERAND_LIST(V)         \
-  V(ConstantOperand, CONSTANT_OPERAND)  \
-  V(StackSlot,       STACK_SLOT)        \
-  V(DoubleStackSlot, DOUBLE_STACK_SLOT) \
-  V(Register,        REGISTER)          \
-  V(DoubleRegister,  DOUBLE_REGISTER)
+#define LITHIUM_OPERAND_LIST(V)               \
+  V(ConstantOperand, CONSTANT_OPERAND,  128)  \
+  V(StackSlot,       STACK_SLOT,        128)  \
+  V(DoubleStackSlot, DOUBLE_STACK_SLOT, 128)  \
+  V(Register,        REGISTER,          16)   \
+  V(DoubleRegister,  DOUBLE_REGISTER,   16)
 
 
 class LOperand : public ZoneObject {
@@ -52,20 +52,18 @@ class LOperand : public ZoneObject {
     STACK_SLOT,
     DOUBLE_STACK_SLOT,
     REGISTER,
-    DOUBLE_REGISTER,
-    ARGUMENT
+    DOUBLE_REGISTER
   };
 
   LOperand() : value_(KindField::encode(INVALID)) { }
 
   Kind kind() const { return KindField::decode(value_); }
   int index() const { return static_cast<int>(value_) >> kKindFieldWidth; }
-#define LITHIUM_OPERAND_PREDICATE(name, type) \
+#define LITHIUM_OPERAND_PREDICATE(name, type, number) \
   bool Is##name() const { return kind() == type; }
   LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_PREDICATE)
-  LITHIUM_OPERAND_PREDICATE(Argument, ARGUMENT)
-  LITHIUM_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
-  LITHIUM_OPERAND_PREDICATE(Ignored, INVALID)
+  LITHIUM_OPERAND_PREDICATE(Unallocated, UNALLOCATED, 0)
+  LITHIUM_OPERAND_PREDICATE(Ignored, INVALID, 0)
 #undef LITHIUM_OPERAND_PREDICATE
   bool Equals(LOperand* other) const { return value_ == other->value_; }
 
@@ -317,140 +315,35 @@ class LMoveOperands V8_FINAL BASE_EMBEDDED {
 };
 
 
-class LConstantOperand V8_FINAL : public LOperand {
+template<LOperand::Kind kOperandKind, int kNumCachedOperands>
+class LSubKindOperand V8_FINAL : public LOperand {
  public:
-  static LConstantOperand* Create(int index, Zone* zone) {
+  static LSubKindOperand* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new(zone) LConstantOperand(index);
+    return new(zone) LSubKindOperand(index);
   }
 
-  static LConstantOperand* cast(LOperand* op) {
-    ASSERT(op->IsConstantOperand());
-    return reinterpret_cast<LConstantOperand*>(op);
+  static LSubKindOperand* cast(LOperand* op) {
+    ASSERT(op->kind() == kOperandKind);
+    return reinterpret_cast<LSubKindOperand*>(op);
   }
 
   static void SetUpCache();
   static void TearDownCache();
 
  private:
-  static const int kNumCachedOperands = 128;
-  static LConstantOperand* cache;
+  static LSubKindOperand* cache;
 
-  LConstantOperand() : LOperand() { }
-  explicit LConstantOperand(int index) : LOperand(CONSTANT_OPERAND, index) { }
+  LSubKindOperand() : LOperand() { }
+  explicit LSubKindOperand(int index) : LOperand(kOperandKind, index) { }
 };
 
 
-class LArgument V8_FINAL : public LOperand {
- public:
-  explicit LArgument(int index) : LOperand(ARGUMENT, index) { }
-
-  static LArgument* cast(LOperand* op) {
-    ASSERT(op->IsArgument());
-    return reinterpret_cast<LArgument*>(op);
-  }
-};
-
-
-class LStackSlot V8_FINAL : public LOperand {
- public:
-  static LStackSlot* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
-    if (index < kNumCachedOperands) return &cache[index];
-    return new(zone) LStackSlot(index);
-  }
-
-  static LStackSlot* cast(LOperand* op) {
-    ASSERT(op->IsStackSlot());
-    return reinterpret_cast<LStackSlot*>(op);
-  }
-
-  static void SetUpCache();
-  static void TearDownCache();
-
- private:
-  static const int kNumCachedOperands = 128;
-  static LStackSlot* cache;
-
-  LStackSlot() : LOperand() { }
-  explicit LStackSlot(int index) : LOperand(STACK_SLOT, index) { }
-};
-
-
-class LDoubleStackSlot V8_FINAL : public LOperand {
- public:
-  static LDoubleStackSlot* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
-    if (index < kNumCachedOperands) return &cache[index];
-    return new(zone) LDoubleStackSlot(index);
-  }
-
-  static LDoubleStackSlot* cast(LOperand* op) {
-    ASSERT(op->IsStackSlot());
-    return reinterpret_cast<LDoubleStackSlot*>(op);
-  }
-
-  static void SetUpCache();
-  static void TearDownCache();
-
- private:
-  static const int kNumCachedOperands = 128;
-  static LDoubleStackSlot* cache;
-
-  LDoubleStackSlot() : LOperand() { }
-  explicit LDoubleStackSlot(int index) : LOperand(DOUBLE_STACK_SLOT, index) { }
-};
-
-
-class LRegister V8_FINAL : public LOperand {
- public:
-  static LRegister* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
-    if (index < kNumCachedOperands) return &cache[index];
-    return new(zone) LRegister(index);
-  }
-
-  static LRegister* cast(LOperand* op) {
-    ASSERT(op->IsRegister());
-    return reinterpret_cast<LRegister*>(op);
-  }
-
-  static void SetUpCache();
-  static void TearDownCache();
-
- private:
-  static const int kNumCachedOperands = 16;
-  static LRegister* cache;
-
-  LRegister() : LOperand() { }
-  explicit LRegister(int index) : LOperand(REGISTER, index) { }
-};
-
-
-class LDoubleRegister V8_FINAL : public LOperand {
- public:
-  static LDoubleRegister* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
-    if (index < kNumCachedOperands) return &cache[index];
-    return new(zone) LDoubleRegister(index);
-  }
-
-  static LDoubleRegister* cast(LOperand* op) {
-    ASSERT(op->IsDoubleRegister());
-    return reinterpret_cast<LDoubleRegister*>(op);
-  }
-
-  static void SetUpCache();
-  static void TearDownCache();
-
- private:
-  static const int kNumCachedOperands = 16;
-  static LDoubleRegister* cache;
-
-  LDoubleRegister() : LOperand() { }
-  explicit LDoubleRegister(int index) : LOperand(DOUBLE_REGISTER, index) { }
-};
+#define LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS(name, type, number)   \
+typedef LSubKindOperand<LOperand::type, number> L##name;
+LITHIUM_OPERAND_LIST(LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS)
+#undef LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS
 
 
 class LParallelMove V8_FINAL : public ZoneObject {
@@ -679,7 +572,7 @@ class ShallowIterator V8_FINAL BASE_EMBEDDED {
 
  private:
   bool ShouldSkip(LOperand* op) {
-    return op == NULL || op->IsConstantOperand() || op->IsArgument();
+    return op == NULL || op->IsConstantOperand();
   }
 
   // Skip until something interesting, beginning with and including current_.

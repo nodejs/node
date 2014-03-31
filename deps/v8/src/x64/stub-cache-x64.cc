@@ -49,10 +49,12 @@ static void ProbeTable(Isolate* isolate,
                        // The offset is scaled by 4, based on
                        // kHeapObjectTagSize, which is two bits
                        Register offset) {
-  // We need to scale up the pointer by 2 because the offset is scaled by less
+  // We need to scale up the pointer by 2 when the offset is scaled by less
   // than the pointer size.
-  ASSERT(kPointerSizeLog2 == kHeapObjectTagSize + 1);
-  ScaleFactor scale_factor = times_2;
+  ASSERT(kPointerSize == kInt64Size
+      ? kPointerSizeLog2 == kHeapObjectTagSize + 1
+      : kPointerSizeLog2 == kHeapObjectTagSize);
+  ScaleFactor scale_factor = kPointerSize == kInt64Size ? times_2 : times_1;
 
   ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
@@ -62,7 +64,7 @@ static void ProbeTable(Isolate* isolate,
   Label miss;
 
   // Multiply by 3 because there are 3 fields per entry (name, code, map).
-  __ lea(offset, Operand(offset, offset, times_2, 0));
+  __ leap(offset, Operand(offset, offset, times_2, 0));
 
   __ LoadAddress(kScratchRegister, key_offset);
 
@@ -77,7 +79,7 @@ static void ProbeTable(Isolate* isolate,
   // Use key_offset + kPointerSize * 2, rather than loading map_offset.
   __ movp(kScratchRegister,
           Operand(kScratchRegister, offset, scale_factor, kPointerSize * 2));
-  __ cmpq(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ cmpp(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));
   __ j(not_equal, &miss);
 
   // Get the code entry from the cache.
@@ -87,7 +89,7 @@ static void ProbeTable(Isolate* isolate,
 
   // Check that the flags match what we're looking for.
   __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
-  __ and_(offset, Immediate(~Code::kFlagsNotUsedInLookup));
+  __ andp(offset, Immediate(~Code::kFlagsNotUsedInLookup));
   __ cmpl(offset, Immediate(flags));
   __ j(not_equal, &miss);
 
@@ -100,7 +102,7 @@ static void ProbeTable(Isolate* isolate,
 #endif
 
   // Jump to the first instruction in the code stub.
-  __ addq(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ addp(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(kScratchRegister);
 
   __ bind(&miss);
@@ -193,10 +195,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   // Use only the low 32 bits of the map pointer.
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(scratch, Immediate(flags));
+  __ xorp(scratch, Immediate(flags));
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
-  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the primary table.
   ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch);
@@ -204,11 +206,11 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Primary miss: Compute hash for secondary probe.
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(scratch, Immediate(flags));
-  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ xorp(scratch, Immediate(flags));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
   __ subl(scratch, name);
   __ addl(scratch, Immediate(flags));
-  __ and_(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the secondary table.
   ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch);
@@ -281,54 +283,6 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-// Generate code to check if an object is a string.  If the object is
-// a string, the map's instance type is left in the scratch register.
-static void GenerateStringCheck(MacroAssembler* masm,
-                                Register receiver,
-                                Register scratch,
-                                Label* smi,
-                                Label* non_string_object) {
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(receiver, smi);
-
-  // Check that the object is a string.
-  __ movp(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzxbq(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ testl(scratch, Immediate(kNotStringTag));
-  __ j(not_zero, non_string_object);
-}
-
-
-void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Label* miss) {
-  Label check_wrapper;
-
-  // Check if the object is a string leaving the instance type in the
-  // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
-
-  // Load length directly from the string.
-  __ movp(rax, FieldOperand(receiver, String::kLengthOffset));
-  __ ret(0);
-
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmpl(scratch1, Immediate(JS_VALUE_TYPE));
-  __ j(not_equal, miss);
-
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ movp(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ movp(rax, FieldOperand(scratch2, String::kLengthOffset));
-  __ ret(0);
-}
-
-
 void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register receiver,
                                                  Register result,
@@ -346,7 +300,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             bool inobject,
                                             int index,
                                             Representation representation) {
-  ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
+  ASSERT(!representation.IsDouble());
   int offset = index * kPointerSize;
   if (!inobject) {
     // Calculate the offset into the properties array.
@@ -368,13 +322,13 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   STATIC_ASSERT(StubCache::kInterceptorArgsThisIndex == 2);
   STATIC_ASSERT(StubCache::kInterceptorArgsHolderIndex == 3);
   STATIC_ASSERT(StubCache::kInterceptorArgsLength == 4);
-  __ push(name);
+  __ Push(name);
   Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
   ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
   __ Move(kScratchRegister, interceptor);
-  __ push(kScratchRegister);
-  __ push(receiver);
-  __ push(holder);
+  __ Push(kScratchRegister);
+  __ Push(receiver);
+  __ Push(holder);
 }
 
 
@@ -393,24 +347,25 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Handle<Map> receiver_map,
-                                Register receiver,
-                                Register scratch_in,
-                                int argc,
-                                Register* values) {
+void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
+                                       const CallOptimization& optimization,
+                                       Handle<Map> receiver_map,
+                                       Register receiver,
+                                       Register scratch_in,
+                                       bool is_store,
+                                       int argc,
+                                       Register* values) {
   ASSERT(optimization.is_simple_api_call());
 
   __ PopReturnAddressTo(scratch_in);
   // receiver
-  __ push(receiver);
+  __ Push(receiver);
   // Write the arguments to stack frame.
   for (int i = 0; i < argc; i++) {
     Register arg = values[argc-1-i];
     ASSERT(!receiver.is(arg));
     ASSERT(!scratch_in.is(arg));
-    __ push(arg);
+    __ Push(arg);
   }
   __ PushReturnAddressFrom(scratch_in);
   // Stack now matches JSFunction abi.
@@ -465,7 +420,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
       api_function_address, function_address, RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiFunctionStub stub(true, call_data_undefined, argc);
+  CallApiFunctionStub stub(is_store, call_data_undefined, argc);
   __ TailCallStub(&stub);
 }
 
@@ -536,11 +491,11 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
     __ Cmp(value_reg, constant);
     __ j(not_equal, miss_label);
-  } else if (FLAG_track_fields && representation.IsSmi()) {
+  } else if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     Label do_store, heap_number;
     __ AllocateHeapNumber(storage_reg, scratch1, slow);
 
@@ -568,9 +523,9 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ PopReturnAddressTo(scratch1);
-    __ push(receiver_reg);
+    __ Push(receiver_reg);
     __ Push(transition);
-    __ push(value_reg);
+    __ Push(value_reg);
     __ PushReturnAddressFrom(scratch1);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
@@ -613,15 +568,15 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    if (FLAG_track_double_fields && representation.IsDouble()) {
+    if (representation.IsDouble()) {
       __ movp(FieldOperand(receiver_reg, offset), storage_reg);
     } else {
       __ movp(FieldOperand(receiver_reg, offset), value_reg);
     }
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
-      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+      if (!representation.IsDouble()) {
         __ movp(storage_reg, value_reg);
       }
       __ RecordWriteField(
@@ -633,15 +588,15 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
     __ movp(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    if (FLAG_track_double_fields && representation.IsDouble()) {
+    if (representation.IsDouble()) {
       __ movp(FieldOperand(scratch1, offset), storage_reg);
     } else {
       __ movp(FieldOperand(scratch1, offset), value_reg);
     }
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
-      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+      if (!representation.IsDouble()) {
         __ movp(storage_reg, value_reg);
       }
       __ RecordWriteField(
@@ -680,11 +635,11 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   Representation representation = lookup->representation();
   ASSERT(!representation.IsNone());
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     // Load the double storage.
     if (index < 0) {
       int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -723,7 +678,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     int offset = object->map()->instance_size() + (index * kPointerSize);
     __ movp(FieldOperand(receiver_reg, offset), value_reg);
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
       __ movp(name_reg, value_reg);
@@ -738,7 +693,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ movp(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ movp(FieldOperand(scratch1, offset), value_reg);
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
       __ movp(name_reg, value_reg);
@@ -773,9 +728,6 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Label* miss,
                                        PrototypeCheckType check) {
   Handle<Map> receiver_map(IC::TypeToMap(*type, isolate()));
-  // Make sure that the type feedback oracle harvests the receiver map.
-  // TODO(svenpanne) Remove this hack when all ICs are reworked.
-  __ Move(scratch1, receiver_map);
 
   // Make sure there's no overlap between holder and object registers.
   ASSERT(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
@@ -941,7 +893,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
             Operand(dictionary, index, times_pointer_size,
                     kValueOffset - kHeapObjectTag));
     __ Move(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
-    __ cmpq(scratch2(), scratch3());
+    __ cmpp(scratch2(), scratch3());
     __ j(not_equal, &miss);
   }
 
@@ -970,15 +922,6 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
 
 
 void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization,
-    Handle<Map> receiver_map) {
-  GenerateFastApiCall(
-      masm(), call_optimization, receiver_map,
-      receiver(), scratch1(), 0, NULL);
-}
-
-
-void LoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
@@ -992,22 +935,22 @@ void LoadStubCompiler::GenerateLoadCallback(
   STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
   STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
-  __ push(receiver());  // receiver
+  __ Push(receiver());  // receiver
   if (heap()->InNewSpace(callback->data())) {
     ASSERT(!scratch2().is(reg));
     __ Move(scratch2(), callback);
-    __ push(FieldOperand(scratch2(),
+    __ Push(FieldOperand(scratch2(),
                          ExecutableAccessorInfo::kDataOffset));  // data
   } else {
     __ Push(Handle<Object>(callback->data(), isolate()));
   }
   ASSERT(!kScratchRegister.is(reg));
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ push(kScratchRegister);  // return value
-  __ push(kScratchRegister);  // return value default
+  __ Push(kScratchRegister);  // return value
+  __ Push(kScratchRegister);  // return value default
   __ PushAddress(ExternalReference::isolate_address(isolate()));
-  __ push(reg);  // holder
-  __ push(name());  // name
+  __ Push(reg);  // holder
+  __ Push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const PropertyAccessorInfo& to the C++ callback.
 
@@ -1075,10 +1018,10 @@ void LoadStubCompiler::GenerateLoadInterceptor(
       FrameScope frame_scope(masm(), StackFrame::INTERNAL);
 
       if (must_preserve_receiver_reg) {
-        __ push(receiver());
+        __ Push(receiver());
       }
-      __ push(holder_reg);
-      __ push(this->name());
+      __ Push(holder_reg);
+      __ Push(this->name());
 
       // Invoke an interceptor.  Note: map checks from receiver to
       // interceptor's holder has been compiled before (see a caller
@@ -1096,10 +1039,10 @@ void LoadStubCompiler::GenerateLoadInterceptor(
       __ ret(0);
 
       __ bind(&interceptor_failed);
-      __ pop(this->name());
-      __ pop(holder_reg);
+      __ Pop(this->name());
+      __ Pop(holder_reg);
       if (must_preserve_receiver_reg) {
-        __ pop(receiver());
+        __ Pop(receiver());
       }
 
       // Leave the internal frame.
@@ -1141,35 +1084,17 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
       IC::CurrentTypeOf(object, isolate()), receiver(), holder, name);
 
   __ PopReturnAddressTo(scratch1());
-  __ push(receiver());
-  __ push(holder_reg);
+  __ Push(receiver());
+  __ Push(holder_reg);
   __ Push(callback);  // callback info
   __ Push(name);
-  __ push(value());
+  __ Push(value());
   __ PushReturnAddressFrom(scratch1());
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
   __ TailCallExternalReference(store_callback_property, 5, 1);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
-Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
-
-  Register values[] = { value() };
-  GenerateFastApiCall(
-      masm(), call_optimization, handle(object->map()),
-      receiver(), scratch1(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1183,20 +1108,16 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
     Handle<HeapType> type,
+    Register receiver,
     Handle<JSFunction> setter) {
   // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    Register receiver = rdx;
-    Register value = rax;
 
     // Save value register, so we can restore it later.
-    __ push(value);
+    __ Push(value());
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
@@ -1205,8 +1126,8 @@ void StoreStubCompiler::GenerateStoreViaSetter(
         __ movp(receiver,
                 FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
       }
-      __ push(receiver);
-      __ push(value);
+      __ Push(receiver);
+      __ Push(value());
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
@@ -1218,7 +1139,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
     }
 
     // We have to return the passed value, not the return value of the setter.
-    __ pop(rax);
+    __ Pop(rax);
 
     // Restore context register.
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -1235,9 +1156,9 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> object,
     Handle<Name> name) {
   __ PopReturnAddressTo(scratch1());
-  __ push(receiver());
-  __ push(this->name());
-  __ push(value());
+  __ Push(receiver());
+  __ Push(this->name());
+  __ Push(value());
   __ PushReturnAddressFrom(scratch1());
 
   // Do tail-call to the runtime system.
@@ -1247,6 +1168,20 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
+}
+
+
+void StoreStubCompiler::GenerateStoreArrayLength() {
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ PopReturnAddressTo(scratch1());
+  __ Push(receiver());
+  __ Push(value());
+  __ PushReturnAddressFrom(scratch1());
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength),
+                        masm()->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -1314,16 +1249,21 @@ Register* KeyedLoadStubCompiler::registers() {
 }
 
 
+Register StoreStubCompiler::value() {
+  return rax;
+}
+
+
 Register* StoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { rdx, rcx, rax, rbx, rdi, r8 };
+  // receiver, name, scratch1, scratch2, scratch3.
+  static Register registers[] = { rdx, rcx, rbx, rdi, r8 };
   return registers;
 }
 
 
 Register* KeyedStoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { rdx, rcx, rax, rbx, rdi, r8 };
+  // receiver, name, scratch1, scratch2, scratch3.
+  static Register registers[] = { rdx, rcx, rbx, rdi, r8 };
   return registers;
 }
 
@@ -1351,7 +1291,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
         __ movp(receiver,
                 FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
       }
-      __ push(receiver);
+      __ Push(receiver);
       ParameterCount actual(0);
       ParameterCount expected(getter);
       __ InvokeFunction(getter, expected, actual,

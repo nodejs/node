@@ -258,9 +258,13 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
       uint32_t offset = code->TranslateAstIdToPcOffset(info->osr_ast_id());
       BackEdgeTable::RemoveStackCheck(code, offset);
     } else {
-      Handle<Code> code = Compiler::GetConcurrentlyOptimizedCode(job);
-      function->ReplaceCode(
-          code.is_null() ? function->shared()->code() : *code);
+      if (function->IsOptimized()) {
+        DisposeOptimizedCompileJob(job, false);
+      } else {
+        Handle<Code> code = Compiler::GetConcurrentlyOptimizedCode(job);
+        function->ReplaceCode(
+            code.is_null() ? function->shared()->code() : *code);
+      }
     }
   }
 }

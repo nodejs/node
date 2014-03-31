@@ -160,6 +160,11 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
+bool RelocInfo::IsInConstantPool() {
+  return false;
+}
+
+
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   for (int i = 0; i < instruction_count; i++) {
@@ -1256,6 +1261,14 @@ void Assembler::bts(const Operand& dst, Register src) {
   EMIT(0x0F);
   EMIT(0xAB);
   emit_operand(src, dst);
+}
+
+
+void Assembler::bsr(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xBD);
+  emit_operand(dst, src);
 }
 
 
@@ -2555,7 +2568,7 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 void Assembler::GrowBuffer() {
-  ASSERT(overflow());
+  ASSERT(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
@@ -2614,7 +2627,7 @@ void Assembler::GrowBuffer() {
     }
   }
 
-  ASSERT(!overflow());
+  ASSERT(!buffer_overflow());
 }
 
 
@@ -2701,6 +2714,19 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
+}
+
+
+MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
 }
 
 

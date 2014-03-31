@@ -25,10 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-collections --expose-gc --allow-natives-syntax
+// Flags: --harmony-collections
+// Flags: --expose-gc --allow-natives-syntax
 
 
-// Test valid getter and setter calls on Sets.
+// Test valid getter and setter calls on Sets and WeakSets
 function TestValidSetCalls(m) {
   assertDoesNotThrow(function () { m.add(new Object) });
   assertDoesNotThrow(function () { m.has(new Object) });
@@ -63,7 +64,7 @@ function TestInvalidCalls(m) {
 TestInvalidCalls(new WeakMap);
 
 
-// Test expected behavior for Sets
+// Test expected behavior for Sets and WeakSets
 function TestSet(set, key) {
   assertFalse(set.has(key));
   assertSame(undefined, set.add(key));
@@ -289,19 +290,20 @@ assertEquals("WeakSet", WeakSet.name);
 
 
 // Test prototype property of Set, Map, WeakMap and WeakSet.
-function TestPrototype(C) {
+// TODO(2793): Should all be non-writable, and the extra flag removed.
+function TestPrototype(C, writable) {
   assertTrue(C.prototype instanceof Object);
   assertEquals({
     value: {},
-    writable: true,  // TODO(2793): This should be non-writable.
+    writable: writable,
     enumerable: false,
     configurable: false
   }, Object.getOwnPropertyDescriptor(C, "prototype"));
 }
-TestPrototype(Set);
-TestPrototype(Map);
-TestPrototype(WeakMap);
-TestPrototype(WeakSet);
+TestPrototype(Set, true);
+TestPrototype(Map, true);
+TestPrototype(WeakMap, false);
+TestPrototype(WeakSet, false);
 
 
 // Test constructor property of the Set, Map, WeakMap and WeakSet prototype.

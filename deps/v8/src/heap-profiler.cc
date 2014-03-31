@@ -168,7 +168,10 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
 
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
-  ids_->MoveObject(from, to, size);
+  bool known_object = ids_->MoveObject(from, to, size);
+  if (!known_object && !allocation_tracker_.is_empty()) {
+    allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
+  }
 }
 
 

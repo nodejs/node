@@ -16,6 +16,7 @@
         ['component!="shared_library"', {
           'dependencies': [
             '../tools/lexer-shell.gyp:lexer-shell',
+            '../tools/lexer-shell.gyp:parser-shell',
           ],
         }],
       ]

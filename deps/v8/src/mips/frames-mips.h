@@ -176,6 +176,8 @@ class ExitFrameConstants : public AllStatic {
 
   // FP-relative displacement of the caller's SP.
   static const int kCallerSPDisplacement = +2 * kPointerSize;
+
+  static const int kConstantPoolOffset = 0;  // Not used.
 };
 
 

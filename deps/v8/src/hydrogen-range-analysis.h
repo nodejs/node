@@ -37,7 +37,9 @@ namespace internal {
 class HRangeAnalysisPhase : public HPhase {
  public:
   explicit HRangeAnalysisPhase(HGraph* graph)
-      : HPhase("H_Range analysis", graph), changed_ranges_(16, zone()) { }
+      : HPhase("H_Range analysis", graph), changed_ranges_(16, zone()),
+        in_worklist_(graph->GetMaximumValueID(), zone()),
+        worklist_(32, zone()) {}
 
   void Run();
 
@@ -49,8 +51,19 @@ class HRangeAnalysisPhase : public HPhase {
   void InferRange(HValue* value);
   void RollBackTo(int index);
   void AddRange(HValue* value, Range* range);
+  void AddToWorklist(HValue* value) {
+    if (in_worklist_.Contains(value->id())) return;
+    in_worklist_.Add(value->id());
+    worklist_.Add(value, zone());
+  }
+  void PropagateMinusZeroChecks(HValue* value);
 
   ZoneList<HValue*> changed_ranges_;
+
+  BitVector in_worklist_;
+  ZoneList<HValue*> worklist_;
+
+  DISALLOW_COPY_AND_ASSIGN(HRangeAnalysisPhase);
 };
 
 

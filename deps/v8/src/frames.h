@@ -35,7 +35,11 @@
 namespace v8 {
 namespace internal {
 
+#if V8_TARGET_ARCH_ARM64
+typedef uint64_t RegList;
+#else
 typedef uint32_t RegList;
+#endif
 
 // Get the number of registers in a given register list.
 int NumRegs(RegList list);
@@ -221,10 +225,12 @@ class StackFrame BASE_EMBEDDED {
   };
 
   struct State {
-    State() : sp(NULL), fp(NULL), pc_address(NULL) { }
+    State() : sp(NULL), fp(NULL), pc_address(NULL),
+              constant_pool_address(NULL) { }
     Address sp;
     Address fp;
     Address* pc_address;
+    Address* constant_pool_address;
   };
 
   // Copy constructor; it breaks the connection to host iterator
@@ -266,12 +272,21 @@ class StackFrame BASE_EMBEDDED {
   Address pc() const { return *pc_address(); }
   void set_pc(Address pc) { *pc_address() = pc; }
 
+  Address constant_pool() const { return *constant_pool_address(); }
+  void set_constant_pool(ConstantPoolArray* constant_pool) {
+    *constant_pool_address() = reinterpret_cast<Address>(constant_pool);
+  }
+
   virtual void SetCallerFp(Address caller_fp) = 0;
 
   // Manually changes value of fp in this object.
   void UpdateFp(Address fp) { state_.fp = fp; }
 
   Address* pc_address() const { return state_.pc_address; }
+
+  Address* constant_pool_address() const {
+    return state_.constant_pool_address;
+  }
 
   // Get the id of this stack frame.
   Id id() const { return static_cast<Id>(OffsetFrom(caller_sp())); }
@@ -491,6 +506,10 @@ class StandardFrame: public StackFrame {
   // Computes the address of the PC field in the standard frame given
   // by the provided frame pointer.
   static inline Address ComputePCAddress(Address fp);
+
+  // Computes the address of the constant pool  field in the standard
+  // frame given by the provided frame pointer.
+  static inline Address ComputeConstantPoolAddress(Address fp);
 
   // Iterate over expression stack including stack handlers, locals,
   // and parts of the fixed part including context and code fields.

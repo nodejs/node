@@ -60,7 +60,7 @@ divn1(2);
 divn1(2);
 %OptimizeFunctionOnNextCall(divn1);
 assertEquals(-2, divn1(2));
-assertEquals(two_31, divn1(-two_31));
+assertEquals(-two_31, divn1(two_31));
 
 
 //Check for truncating to int32 case
@@ -85,3 +85,14 @@ divn4t(8);
 assertEquals(1, divn4t(-5));
 assertEquals(-1, divn4t(5));
 assertOptimized(divn4t);
+
+// Check kMinInt case.
+function div_by_two(x) {
+  return (x / 2) | 0;
+}
+
+div_by_two(12);
+div_by_two(34);
+%OptimizeFunctionOnNextCall(div_by_two);
+div_by_two(56);
+assertEquals(-(1 << 30), div_by_two(1 << 31));

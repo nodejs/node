@@ -83,28 +83,6 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
                                              Isolate* isolate) {
   ASSERT(obj->IsHeapObject());
   IncrementalMarking* marking = isolate->heap()->incremental_marking();
-  ASSERT(!marking->is_compacting_);
-
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-  int counter = chunk->write_barrier_counter();
-  if (counter < (MemoryChunk::kWriteBarrierCounterGranularity / 2)) {
-    marking->write_barriers_invoked_since_last_step_ +=
-        MemoryChunk::kWriteBarrierCounterGranularity -
-            chunk->write_barrier_counter();
-    chunk->set_write_barrier_counter(
-        MemoryChunk::kWriteBarrierCounterGranularity);
-  }
-
-  marking->RecordWrite(obj, slot, *slot);
-}
-
-
-void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
-                                                          Object** slot,
-                                                          Isolate* isolate) {
-  ASSERT(obj->IsHeapObject());
-  IncrementalMarking* marking = isolate->heap()->incremental_marking();
-  ASSERT(marking->is_compacting_);
 
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   int counter = chunk->write_barrier_counter();

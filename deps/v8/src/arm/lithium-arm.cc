@@ -831,7 +831,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
 void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
-  if (current->has_position()) position_ = current->position();
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
@@ -1110,6 +1109,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
+    case kMathClz32: return DoMathClz32(instr);
     default:
       UNREACHABLE();
       return NULL;
@@ -1148,6 +1148,13 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   ASSERT(instr->value()->representation().IsDouble());
   LOperand* input = UseFixedDouble(instr->value(), d0);
   return MarkAsCall(DefineFixedDouble(new(zone()) LMathLog(input), d0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LMathClz32* result = new(zone()) LMathClz32(input);
+  return DefineAsRegister(result);
 }
 
 
@@ -1242,21 +1249,62 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDivByPowerOf2I(HDiv* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kCanOverflow) && divisor == -1) ||
+      (!instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+       divisor != 1 && divisor != -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LDivByConstI(
+          dividend, divisor));
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      !instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+  LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
+  return AssignEnvironment(DefineAsRegister(div));
+}
+
+
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
-      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
-      LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineAsRegister(div));
+      return DoDivByPowerOf2I(instr);
+    } else if (instr->right()->IsConstant()) {
+      return DoDivByConstI(instr);
+    } else {
+      return DoDivI(instr);
     }
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegister(instr->right());
-    LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
-    LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
-    return AssignEnvironment(DefineAsRegister(div));
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
@@ -1265,97 +1313,106 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
-bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
-  uint32_t divisor_abs = abs(divisor);
-  // Dividing by 0, 1, and powers of 2 is easy.
-  // Note that IsPowerOf2(0) returns true;
-  ASSERT(IsPowerOf2(0) == true);
-  if (IsPowerOf2(divisor_abs)) return true;
+LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LFlooringDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kLeftCanBeMinInt) && divisor == -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
 
-  // We have magic numbers for a few specific divisors.
-  // Details and proofs can be found in:
-  // - Hacker's Delight, Henry S. Warren, Jr.
-  // - The PowerPC Compiler Writer’s Guide
-  // and probably many others.
-  //
-  // We handle
-  //   <divisor with magic numbers> * <power of 2>
-  // but not
-  //   <divisor with magic numbers> * <other divisor with magic numbers>
-  int32_t power_of_2_factor =
-    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
-  DivMagicNumbers magic_numbers =
-    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
-  if (magic_numbers.M != InvalidDivMagicNumber.M) return true;
 
-  return false;
+LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LOperand* temp =
+      ((divisor > 0 && !instr->CheckFlag(HValue::kLeftCanBeNegative)) ||
+       (divisor < 0 && !instr->CheckFlag(HValue::kLeftCanBePositive))) ?
+      NULL : TempRegister();
+  LInstruction* result = DefineAsRegister(
+      new(zone()) LFlooringDivByConstI(dividend, divisor, temp));
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  // LMathFloorOfDiv  can only handle  a subset  of divisors, so fall
-  // back to a flooring division in all other cases.
-  HValue* right = instr->right();
-  if (!right->IsInteger32Constant() ||
-      (!CpuFeatures::IsSupported(SUDIV) &&
-       !HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()))) {
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegister(right);
-    LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
-    LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
-    return AssignEnvironment(DefineAsRegister(div));
+  if (instr->RightIsPowerOf2()) {
+    return DoFlooringDivByPowerOf2I(instr);
+  } else if (instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);
+  } else {
+    return DoDivI(instr);
   }
+}
 
+
+LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
+          dividend, divisor));
+  if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
-  LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
-      ? UseRegister(right)
-      : UseOrConstant(right);
-  LOperand* remainder = TempRegister();
-  return AssignEnvironment(DefineAsRegister(
-          new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LModByConstI(
+          dividend, divisor));
+  if (divisor == 0 || instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoModI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d10);
+  LOperand* temp2 = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d11);
+  LInstruction* result = DefineAsRegister(new(zone()) LModI(
+          dividend, divisor, temp, temp2));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
-  HValue* left = instr->left();
-  HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
-      ASSERT(!right->CanBeZero());
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseConstant(right));
-      LInstruction* result = DefineAsRegister(mod);
-      return (left->CanBeNegative() &&
-              instr->CheckFlag(HValue::kBailoutOnMinusZero))
-          ? AssignEnvironment(result)
-          : result;
-    } else if (CpuFeatures::IsSupported(SUDIV)) {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegister(right));
-      LInstruction* result = DefineAsRegister(mod);
-      return (right->CanBeZero() ||
-              (left->RangeCanInclude(kMinInt) &&
-               right->RangeCanInclude(-1) &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
-              (left->CanBeNegative() &&
-               instr->CanBeZero() &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)))
-          ? AssignEnvironment(result)
-          : result;
+      return DoModByPowerOf2I(instr);
+    } else if (instr->right()->IsConstant()) {
+      return DoModByConstI(instr);
     } else {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegister(right),
-                                     FixedTemp(d10),
-                                     FixedTemp(d11));
-      LInstruction* result = DefineAsRegister(mod);
-      return (right->CanBeZero() ||
-              (left->CanBeNegative() &&
-               instr->CanBeZero() &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)))
-          ? AssignEnvironment(result)
-          : result;
+      return DoModI(instr);
     }
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MOD, instr);
@@ -1846,25 +1903,27 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegisterAtStart(val);
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        LNumberTagU* result = new(zone()) LNumberTagU(value);
-        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
-      } else if (val->HasRange() && val->range()->IsInSmiRange()) {
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
         return DefineAsRegister(new(zone()) LSmiTag(value));
+      } else if (val->CheckFlag(HInstruction::kUint32)) {
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = TempRegister();
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       } else {
-        LNumberTagI* result = new(zone()) LNumberTagI(value);
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = TempRegister();
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       }
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
-          ? DefineAsRegister(new(zone()) LUint32ToSmi(value))
-          : DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-      if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return result;
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
@@ -1936,6 +1995,20 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     LClampTToUint8* result = new(zone()) LClampTToUint8(reg, FixedTemp(d11));
     return AssignEnvironment(DefineAsRegister(result));
   }
+}
+
+
+LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
+  HValue* value = instr->value();
+  ASSERT(value->representation().IsDouble());
+  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
+}
+
+
+LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
+  LOperand* lo = UseRegister(instr->lo());
+  LOperand* hi = UseRegister(instr->hi());
+  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
 }
 
 
@@ -2195,11 +2268,9 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   LOperand* val;
-  if (needs_write_barrier ||
-      (FLAG_track_fields && instr->field_representation().IsSmi())) {
+  if (needs_write_barrier || instr->field_representation().IsSmi()) {
     val = UseTempRegister(instr->value());
-  } else if (FLAG_track_double_fields &&
-             instr->field_representation().IsDouble()) {
+  } else if (instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());
   } else {
     val = UseRegister(instr->value());
@@ -2209,8 +2280,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
   LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (FLAG_track_heap_object_fields &&
-      instr->field_representation().IsHeapObject()) {
+  if (instr->field_representation().IsHeapObject()) {
     if (!instr->value()->type().IsHeapObject()) {
       return AssignEnvironment(result);
     }

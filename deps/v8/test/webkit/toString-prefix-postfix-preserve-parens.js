@@ -25,6 +25,8 @@ description(
 "This test checks that toString() round-trip on a function that has prefix, postfix and typeof operators applied to group expression will not remove the grouping. Also checks that evaluation of such a expression produces run-time exception"
 );
 
+/* These have become obsolete, since they are not syntactically well-formed ES5+.
+
 function postfix_should_preserve_parens(x, y, z) {
     (x, y)++;
     return y;
@@ -78,6 +80,7 @@ function postfix_should_preserve_parens_multi2(x, y, z) {
     (((x), y) ,z)++;
     return x;
 }
+*/
 
 // if these return a variable (such as y) instead of
 // the result of typeof, this means that the parenthesis
@@ -138,6 +141,7 @@ function testToStringAndReturn(fn, p1, p2, retval)
 }
 
 
+/*
 testToStringAndRTFailure("prefix_should_preserve_parens");
 testToStringAndRTFailure("postfix_should_preserve_parens");
 testToStringAndRTFailure("both_should_preserve_parens");
@@ -147,6 +151,7 @@ testToStringAndRTFailure("prefix_should_preserve_parens_multi1");
 testToStringAndRTFailure("postfix_should_preserve_parens_multi1");
 testToStringAndRTFailure("prefix_should_preserve_parens_multi2");
 testToStringAndRTFailure("postfix_should_preserve_parens_multi2");
+*/
 
 testToStringAndReturn("typeof_should_preserve_parens", "'a'", 1, "'number'");
 testToStringAndReturn("typeof_should_preserve_parens1", "'a'", 1, "'number'");

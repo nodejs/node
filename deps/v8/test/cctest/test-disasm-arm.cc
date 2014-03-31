@@ -272,10 +272,10 @@ TEST(Type0) {
     // We only disassemble one instruction so the eor instruction is not here.
     COMPARE(eor(r5, r4, Operand(0x1234), LeaveCC, ne),
             "1301c234       movwne ip, #4660");
-    // Movw can't do setcc so we don't get that here.  Mov immediate with setcc
-    // is pretty strange anyway.
+    // Movw can't do setcc, so first move to ip, then the following instruction
+    // moves to r5.  Mov immediate with setcc is pretty strange anyway.
     COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
-            "159fc000       ldrne ip, [pc, #+0]");
+            "1301c234       movwne ip, #4660");
     // Emit a literal pool now, otherwise this could be dumped later, in the
     // middle of a different test.
     EMIT_PENDING_LITERALS();
@@ -410,6 +410,8 @@ TEST(Type3) {
             "e6843895       pkhbt r3, r4, r5, lsl #17");
     COMPARE(pkhtb(r3, r4, Operand(r5, ASR, 17)),
             "e68438d5       pkhtb r3, r4, r5, asr #17");
+    COMPARE(uxtb(r9, Operand(r10, ROR, 0)),
+            "e6ef907a       uxtb r9, r10");
     COMPARE(uxtb(r3, Operand(r4, ROR, 8)),
             "e6ef3474       uxtb r3, r4, ror #8");
     COMPARE(uxtab(r3, r4, Operand(r5, ROR, 8)),
@@ -687,8 +689,10 @@ TEST(Neon) {
               "f421420f       vld1.8 {d4, d5, d6, d7}, [r1]");
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
+      COMPARE(vmovl(NeonU8, q3, d1),
+              "f3886a11       vmovl.u8 q3, d1");
       COMPARE(vmovl(NeonU8, q4, d2),
-              "f3884a12       vmovl.u8 q4, d2");
+              "f3888a12       vmovl.u8 q4, d2");
   }
 
   VERIFY_RUN();

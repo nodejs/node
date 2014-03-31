@@ -1,3 +1,402 @@
+2014-03-28: Version 3.25.30
+
+        NativeContext::map_cache reference should be strong in heap snapshots
+        (Chromium issue 357060).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.27
+
+        Promise constructor should not be enumerable (Chromium issue 352597).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.26
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.25
+
+        Roll ICU 239289:258359 and add support for external ICU data tables
+        (issue 3142, Chromium issue 72633).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.24
+
+        Add support for per-isolate private symbols.
+
+        No longer OOM on invalid string length (issue 3060).
+
+        Remove Failure::OutOfMemory propagation and
+        V8::IgnoreOutOfMemoryException (issue 3060).
+
+        Tentative Windows dll build fix: Don't V8_EXPORT ScriptCompiler::Source
+        (issue 3228).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-24: Version 3.25.23
+
+        Rename A64 port to ARM64 port (Chromium issue 354405).
+
+        Fix missing access check in Runtime_SetPrototype (Chromium issue
+        354123).
+
+        Fix polymorphic hydrogen handling of SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 354391).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.22
+
+        Increase the "local variables in a function" limit (issue 3205).
+
+        Implement ES6 symbol registry and predefined symbols.
+
+        Throw exception on invalid string length instead of OOM (Chromium issue
+        349329).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.20
+
+        Fix polymorphic keyed loads for SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 350867).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-18: Version 3.25.16
+
+        Apply numeric casts correctly in typed arrays and related code (Chromium
+        issue 353004).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-18: Version 3.25.15
+
+        Don't generate keyed store ICs for global proxies (Chromium issue
+        352983).
+
+        MIPS: Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Add Promises/A+ Compliance Test Suite (Chromium issue 347095).
+
+        Split Promise API into Promise/Resolver.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-17: Version 3.25.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-17: Version 3.25.13
+
+        Move profiler callback interfaces from v8.h to v8-profiler.h.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.12
+
+        PromiseCoerce should deal with an error during accessing "then"
+        (Chromium issue 347095).
+
+        Propagate updated offsets in BoundsCheckBbData (Chromium issue 350863).
+
+        Add regression test for range analysis bug (issue 3204).
+
+        Continued fix for 351257. Reusing the feedback vector is too complex
+        (Chromium issue 351257).
+
+        StopCpuProfiling should return non-const CpuProfile (issue 3213).
+
+        Allow for compiling with xcode 5.1 (which doesn't have gcc anymore).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.11
+
+        MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        MIPS: Remove uses of RangeCanInclude() in flooring division by power of
+        2 (issue 3204).
+
+        MIPS: Fix uses of range analysis results in HChange (issue 3204).
+
+        Make translation of modulus operation '--stress-opt'-proof (Chromium
+        issue 352059).
+
+        Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        Remove uses of RangeCanInclude() in flooring division by power of 2
+        (issue 3204).
+
+        Fix uses of range analysis results in HChange (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.10
+
+        This version was not committed due to script failures.
+
+
+2014-03-13: Version 3.25.9
+
+        Reland "Enable Object.observe by default" again (issue 2409).
+
+        Use intrinsics for builtin ArrayBuffer property accesses (Chromium issue
+        351787).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-12: Version 3.25.8
+
+        Fix HIsSmiAndBranch::KnownSuccessorBlock() by deleting it (Chromium
+        issue 351320).
+
+        Fix handling of polymorphic array accesses with constant index (Chromium
+        issue 351319).
+
+        Fix lazy deopt after tagged binary ops (Chromium issue 350434).
+
+        MIPS: Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        Fix issue with getOwnPropertySymbols and hidden properties (Chromium
+        issue 350864).
+
+        Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        PromiseCoerce should ignore primitive values (Chromium issue 347095).
+
+        Use a per-isolate cache for the date object JS bits (Chromium issue
+        348856).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-11: Version 3.25.7
+
+        Promise.all and Promise.race should reject non-array parameter (Chromium
+        issue 347453).
+
+        Promise.all and Promise race should use "then" rather than "chain"
+        (Chromium issue 347427).
+
+        Merge the "Compute Minus Zero Checks" phase into the range analysis
+        (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-10: Version 3.25.6
+
+        Replace the recursion in PropagateMinusZeroChecks() with a loop and a
+        worklist (issue 3204).
+
+        Reland "Enable Object.observe by default" (issue 2409).
+
+        Enable Object.observe by default (issue 2409).
+
+        AllocationTracker now maintains a map from address range to stack trace
+        that allocated the range. When snapshot is generated the map is used to
+        find construction stack trace for an object using its address (Chromium
+        issue 277984).
+
+        Introduce Runtime_GetAllScopesDetails to get all scopes at once for a
+        frame (Chromium issue 340285).
+
+        Reduce heavy runtime calls from debug mirrors (Chromium issue 340285).
+
+        Check and clear date cache in DateCurrentTime, DateLocalTimezone and
+        getTimezoneOffset (Chromium issue 142141).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-06: Version 3.25.5
+
+        Fix HConstants with Smi-ranged HeapNumber values (Chromium issue
+        349878).
+
+        Fix issues with JSON stringify replacer array (issues 3200, 3201).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-05: Version 3.25.4
+
+        x64: Fix LMathMinMax for constant Smi right-hand operands (Chromium
+        issue 349079).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-04: Version 3.25.3
+
+        Clear optimized code cache in shared function info when code gets
+        deoptimized (Chromium issue 343609).
+
+        Fixed constant folding for Math.clz32 (Chromium issue 347906).
+
+        Fix JSObject::PrintTransitions (Chromium issue 347912).
+
+        Fix handling of constant global variable assignments (Chromium issue
+        347904).
+
+        Removed bogus ASSERT (Chromium issue 347542).
+
+        Mark HCompareMap as having Tagged representation (Chromium issue
+        346636).
+
+        Fix crasher in Object.getOwnPropertySymbols (Chromium issue 346141).
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-25: Version 3.25.2
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Revert r19455 "Load target types and handlers before IC computation."
+        (Chromium issue 346149).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Fix for a smi stores optimization on x64 with a regression test
+        (Chromium issue 345715).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        negative bounds checking on realm calls (Chromium issue 344285).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Fix optimistic BCE to back off after deopt (issue 3176).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-21: Version 3.25.1
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.25.0
+
+        ES6: Tighten up Object.prototype.__proto__ (issue 3064).
+
+        Fix Hydrogen bounds check elimination (Chromium issue 344186).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.24.40
+
+        A64: Let the MacroAssembler resolve branches to distant targets (issue
+        3148).
+
+        Fixed and improved code for integral division. Fixed and extended tests
+        (issue 3151).
+
+        MIPS: Fix assignment of function name constant (issue 3138).
+
+        Fix assignment of function name constant (issue 3138).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-14: Version 3.24.39
+
+        Introduce --job-based-sweeping flag and use individual jobs for sweeping
+        if set (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-13: Version 3.24.38
+
+        Merge experimental/a64 to bleeding_edge (issue 3113).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-12: Version 3.24.37
+
+        Fix spec violations in JSON.stringify wrt replacer array (issue 3135).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-11: Version 3.24.36
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-10: Version 3.24.35
 
         Fix inconsistencies wrt whitespaces (issue 3109).

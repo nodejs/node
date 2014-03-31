@@ -127,9 +127,11 @@ Handle<String> URIUnescape::UnescapeSlow(
 
   int dest_position = 0;
   Handle<String> second_part;
+  ASSERT(unescaped_length <= String::kMaxLength);
   if (one_byte) {
     Handle<SeqOneByteString> dest =
         isolate->factory()->NewRawOneByteString(unescaped_length);
+    ASSERT(!dest.is_null());
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -142,6 +144,7 @@ Handle<String> URIUnescape::UnescapeSlow(
   } else {
     Handle<SeqTwoByteString> dest =
         isolate->factory()->NewRawTwoByteString(unescaped_length);
+    ASSERT(!dest.is_null());
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -263,10 +266,7 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
 
       // We don't allow strings that are longer than a maximal length.
       ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
-      if (escaped_length > String::kMaxLength) {
-        isolate->context()->mark_out_of_memory();
-        return Handle<String>::null();
-      }
+      if (escaped_length > String::kMaxLength) break;  // Provoke exception.
     }
   }
 
@@ -275,6 +275,7 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
 
   Handle<SeqOneByteString> dest =
       isolate->factory()->NewRawOneByteString(escaped_length);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, dest, Handle<String>());
   int dest_position = 0;
 
   { DisallowHeapAllocation no_allocation;

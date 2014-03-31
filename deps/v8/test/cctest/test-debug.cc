@@ -114,7 +114,7 @@ class DebugLocalContext {
     v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
         Handle<Object>(debug->debug_context()->global_proxy(), isolate),
         DONT_ENUM,
-        ::v8::internal::kNonStrictMode);
+        ::v8::internal::SLOPPY);
   }
 
  private:
@@ -581,24 +581,6 @@ const char* frame_script_name_source =
 v8::Local<v8::Function> frame_script_name;
 
 
-// Source for the JavaScript function which picks out the script data for the
-// top frame.
-const char* frame_script_data_source =
-    "function frame_script_data(exec_state) {"
-    "  return exec_state.frame(0).func().script().data();"
-    "}";
-v8::Local<v8::Function> frame_script_data;
-
-
-// Source for the JavaScript function which picks out the script data from
-// AfterCompile event
-const char* compiled_script_data_source =
-    "function compiled_script_data(event_data) {"
-    "  return event_data.script().data();"
-    "}";
-v8::Local<v8::Function> compiled_script_data;
-
-
 // Source for the JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
@@ -610,10 +592,8 @@ v8::Handle<v8::Function> frame_count;
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
 
-// Global variable to store the name and data for last script hit - used by some
-// tests.
+// Global variable to store the name for last script hit - used by some tests.
 char last_script_name_hit[80];
-char last_script_data_hit[80];
 
 // Global variables to store the last source position - used by some tests.
 int last_source_line = -1;
@@ -626,7 +606,6 @@ static void DebugEventBreakPointHitCount(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Handle<v8::Object> event_data = event_details.GetEventData();
   v8::internal::Isolate* isolate = CcTest::i_isolate();
   Debug* debug = isolate->debug();
   // When hitting a debug event listener there must be a break set.
@@ -687,39 +666,10 @@ static void DebugEventBreakPointHitCount(
       }
     }
 
-    if (!frame_script_data.IsEmpty()) {
-      // Get the script data of the function script.
-      const int argc = 1;
-      v8::Handle<v8::Value> argv[argc] = { exec_state };
-      v8::Handle<v8::Value> result = frame_script_data->Call(exec_state,
-                                                             argc, argv);
-      if (result->IsUndefined()) {
-        last_script_data_hit[0] = '\0';
-      } else {
-        result = result->ToString();
-        CHECK(result->IsString());
-        v8::Handle<v8::String> script_data(result->ToString());
-        script_data->WriteUtf8(last_script_data_hit);
-      }
-    }
-
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
       i::Deoptimizer::DeoptimizeAll(isolate);
-    }
-  } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
-    const int argc = 1;
-    v8::Handle<v8::Value> argv[argc] = { event_data };
-    v8::Handle<v8::Value> result = compiled_script_data->Call(exec_state,
-                                                              argc, argv);
-    if (result->IsUndefined()) {
-      last_script_data_hit[0] = '\0';
-    } else {
-      result = result->ToString();
-      CHECK(result->IsString());
-      v8::Handle<v8::String> script_data(result->ToString());
-      script_data->WriteUtf8(last_script_data_hit);
     }
   }
 }
@@ -2268,8 +2218,7 @@ TEST(ScriptBreakPointLineTopLevel) {
   v8::Local<v8::Function> f;
   {
     v8::HandleScope scope(env->GetIsolate());
-    v8::Script::Compile(
-        script, v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))->Run();
+    CompileRunWithOrigin(script, "test.html");
   }
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
@@ -2285,8 +2234,7 @@ TEST(ScriptBreakPointLineTopLevel) {
 
   // Recompile and run script and check that break point was hit.
   break_point_hit_count = 0;
-  v8::Script::Compile(
-      script, v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))->Run();
+  CompileRunWithOrigin(script, "test.html");
   CHECK_EQ(1, break_point_hit_count);
 
   // Call f and check that there are still no break points.
@@ -2321,9 +2269,7 @@ TEST(ScriptBreakPointTopLevelCrash) {
   {
     v8::HandleScope scope(env->GetIsolate());
     break_point_hit_count = 0;
-    v8::Script::Compile(script_source,
-                        v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))
-        ->Run();
+    CompileRunWithOrigin(script_source, "test.html");
     CHECK_EQ(1, break_point_hit_count);
   }
 
@@ -6249,12 +6195,6 @@ TEST(ScriptNameAndData) {
   frame_script_name = CompileFunction(&env,
                                       frame_script_name_source,
                                       "frame_script_name");
-  frame_script_data = CompileFunction(&env,
-                                      frame_script_data_source,
-                                      "frame_script_data");
-  compiled_script_data = CompileFunction(&env,
-                                         compiled_script_data_source,
-                                         "compiled_script_data");
 
   v8::Debug::SetDebugEventListener2(DebugEventBreakPointHitCount);
 
@@ -6267,7 +6207,6 @@ TEST(ScriptNameAndData) {
   v8::ScriptOrigin origin1 =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "name"));
   v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
-  script1->SetData(v8::String::NewFromUtf8(env->GetIsolate(), "data"));
   script1->Run();
   v8::Local<v8::Function> f;
   f = v8::Local<v8::Function>::Cast(
@@ -6276,7 +6215,6 @@ TEST(ScriptNameAndData) {
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
-  CHECK_EQ("data", last_script_data_hit);
 
   // Compile the same script again without setting data. As the compilation
   // cache is disabled when debugging expect the data to be missing.
@@ -6286,7 +6224,6 @@ TEST(ScriptNameAndData) {
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
-  CHECK_EQ("", last_script_data_hit);  // Undefined results in empty string.
 
   v8::Local<v8::String> data_obj_source = v8::String::NewFromUtf8(
       env->GetIsolate(),
@@ -6294,29 +6231,23 @@ TEST(ScriptNameAndData) {
       "  b: 123,\n"
       "  toString: function() { return this.a + ' ' + this.b; }\n"
       "})\n");
-  v8::Local<v8::Value> data_obj = v8::Script::Compile(data_obj_source)->Run();
+  v8::Script::Compile(data_obj_source)->Run();
   v8::ScriptOrigin origin2 =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "new name"));
   v8::Handle<v8::Script> script2 = v8::Script::Compile(script, &origin2);
   script2->Run();
-  script2->SetData(data_obj->ToString());
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
-  CHECK_EQ("abc 123", last_script_data_hit);
 
-  v8::Handle<v8::Script> script3 = v8::Script::Compile(
-      script, &origin2, NULL,
-      v8::String::NewFromUtf8(env->GetIsolate(), "in compile"));
-  CHECK_EQ("in compile", last_script_data_hit);
+  v8::Handle<v8::Script> script3 = v8::Script::Compile(script, &origin2);
   script3->Run();
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(4, break_point_hit_count);
-  CHECK_EQ("in compile", last_script_data_hit);
 }
 
 
@@ -7052,7 +6983,7 @@ TEST(Backtrace) {
 
   v8::Handle<v8::String> void0 =
       v8::String::NewFromUtf8(env->GetIsolate(), "void(0)");
-  v8::Handle<v8::Script> script = v8::Script::Compile(void0, void0);
+  v8::Handle<v8::Script> script = CompileWithOrigin(void0, void0);
 
   // Check backtrace from "void(0)" script.
   BacktraceData::frame_counter = -10;
@@ -7072,18 +7003,20 @@ TEST(Backtrace) {
 
 TEST(GetMirror) {
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::Value> obj =
-      v8::Debug::GetMirror(v8::String::NewFromUtf8(env->GetIsolate(), "hodja"));
-  v8::Handle<v8::Function> run_test =
-      v8::Handle<v8::Function>::Cast(v8::Script::New(
-          v8::String::NewFromUtf8(
-              env->GetIsolate(),
-              "function runTest(mirror) {"
-              "  return mirror.isString() && (mirror.length() == 5);"
-              "}"
-              ""
-              "runTest;"))->Run());
+      v8::Debug::GetMirror(v8::String::NewFromUtf8(isolate, "hodja"));
+  v8::ScriptCompiler::Source source(v8_str(
+      "function runTest(mirror) {"
+      "  return mirror.isString() && (mirror.length() == 5);"
+      "}"
+      ""
+      "runTest;"));
+  v8::Handle<v8::Function> run_test = v8::Handle<v8::Function>::Cast(
+      v8::ScriptCompiler::CompileUnbound(isolate, &source)
+          ->BindToCurrentContext()
+          ->Run());
   v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
   CHECK(result->IsTrue());
 }
@@ -7697,6 +7630,41 @@ TEST(LiveEditDisabled) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Debug::SetLiveEditEnabled(false, env->GetIsolate());
   CompileRun("%LiveEditCompareStrings('', '')");
+}
+
+
+TEST(PrecompiledFunction) {
+  // Regression test for crbug.com/346207. If we have preparse data, parsing the
+  // function in the presence of the debugger (and breakpoints) should still
+  // succeed. The bug was that preparsing was done lazily and parsing was done
+  // eagerly, so, the symbol streams didn't match.
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  env.ExposeDebug();
+  v8::Debug::SetDebugEventListener2(DebugBreakInlineListener);
+
+  v8::Local<v8::Function> break_here =
+      CompileFunction(&env, "function break_here(){}", "break_here");
+  SetBreakPoint(break_here, 0);
+
+  const char* source =
+      "var a = b = c = 1;              \n"
+      "function this_is_lazy() {       \n"
+      // This symbol won't appear in the preparse data.
+      "  var a;                        \n"
+      "}                               \n"
+      "function bar() {                \n"
+      "  return \"bar\";               \n"
+      "};                              \n"
+      "a = b = c = 2;                  \n"
+      "bar();                          \n";
+  v8::Local<v8::Value> result = PreCompileCompileRun(source);
+  CHECK(result->IsString());
+  v8::String::Utf8Value utf8(result);
+  CHECK_EQ("bar", *utf8);
+
+  v8::Debug::SetDebugEventListener2(NULL);
+  CheckDebuggerUnloaded();
 }
 
 

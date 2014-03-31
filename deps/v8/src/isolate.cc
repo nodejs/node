@@ -80,10 +80,6 @@ int ThreadId::GetCurrentThreadId() {
 
 ThreadLocalTop::ThreadLocalTop() {
   InitializeInternal();
-  // This flag may be set using v8::V8::IgnoreOutOfMemoryException()
-  // before an isolate is initialized. The initialize methods below do
-  // not touch it to preserve its value.
-  ignore_out_of_memory_ = false;
 }
 
 
@@ -453,10 +449,10 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   // If the caller parameter is a function we skip frames until we're
   // under it before starting to collect.
   bool seen_caller = !caller->IsJSFunction();
-  // First element is reserved to store the number of non-strict frames.
+  // First element is reserved to store the number of sloppy frames.
   int cursor = 1;
   int frames_seen = 0;
-  int non_strict_frames = 0;
+  int sloppy_frames = 0;
   bool encountered_strict_function = false;
   for (StackFrameIterator iter(this);
        !iter.done() && frames_seen < limit;
@@ -487,13 +483,13 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
         // The stack trace API should not expose receivers and function
         // objects on frames deeper than the top-most one with a strict
-        // mode function.  The number of non-strict frames is stored as
+        // mode function.  The number of sloppy frames is stored as
         // first element in the result array.
         if (!encountered_strict_function) {
-          if (!fun->shared()->is_classic_mode()) {
+          if (fun->shared()->strict_mode() == STRICT) {
             encountered_strict_function = true;
           } else {
-            non_strict_frames++;
+            sloppy_frames++;
           }
         }
         elements->set(cursor++, *recv);
@@ -503,7 +499,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
     }
   }
-  elements->set(0, Smi::FromInt(non_strict_frames));
+  elements->set(0, Smi::FromInt(sloppy_frames));
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
   return result;
@@ -778,7 +774,7 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 
 bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
                              v8::AccessType type) {
-  ASSERT(receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
   // The callers of this method are not expecting a GC.
   DisallowHeapAllocation no_gc;
@@ -829,7 +825,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
 bool Isolate::MayIndexedAccess(JSObject* receiver,
                                uint32_t index,
                                v8::AccessType type) {
-  ASSERT(receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
   ASSERT(context());
@@ -946,7 +942,14 @@ Failure* Isolate::ReThrow(MaybeObject* exception) {
 
 
 Failure* Isolate::ThrowIllegalOperation() {
+  if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
   return Throw(heap_.illegal_access_string());
+}
+
+
+Failure* Isolate::ThrowInvalidStringLength() {
+  return Throw(*factory()->NewRangeError(
+      "invalid_string_length", HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -1122,8 +1125,6 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
     // while the bootstrapper is active since the infrastructure may not have
     // been properly initialized.
     if (!bootstrapping) {
-      Handle<String> stack_trace;
-      if (FLAG_trace_exception) stack_trace = StackTraceString();
       Handle<JSArray> stack_trace_object;
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
@@ -1163,7 +1164,6 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           "uncaught_exception",
           location,
           HandleVector<Object>(&exception_arg, 1),
-          stack_trace,
           stack_trace_object);
       thread_local_top()->pending_message_obj_ = *message_obj;
       if (location != NULL) {
@@ -1269,14 +1269,8 @@ void Isolate::ReportPendingMessages() {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // If the pending exception is OutOfMemoryException set out_of_memory in
-  // the native context.  Note: We have to mark the native context here
-  // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
-  // set it.
   HandleScope scope(this);
-  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
-    context()->mark_out_of_memory();
-  } else if (thread_local_top_.pending_exception_ ==
+  if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     // Do nothing: if needed, the exception has been already propagated to
     // v8::TryCatch.
@@ -1307,8 +1301,7 @@ void Isolate::ReportPendingMessages() {
 MessageLocation Isolate::GetMessageLocation() {
   ASSERT(has_pending_exception());
 
-  if (!thread_local_top_.pending_exception_->IsOutOfMemory() &&
-      thread_local_top_.pending_exception_ != heap()->termination_exception() &&
+  if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
       thread_local_top_.has_pending_message_ &&
       !thread_local_top_.pending_message_obj_->IsTheHole() &&
       !thread_local_top_.pending_message_obj_->IsTheHole()) {
@@ -1327,39 +1320,36 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // Always reschedule out of memory exceptions.
-  if (!is_out_of_memory()) {
-    bool is_termination_exception =
-        pending_exception() == heap_.termination_exception();
+  bool is_termination_exception =
+      pending_exception() == heap_.termination_exception();
 
-    // Do not reschedule the exception if this is the bottom call.
-    bool clear_exception = is_bottom_call;
+  // Do not reschedule the exception if this is the bottom call.
+  bool clear_exception = is_bottom_call;
 
-    if (is_termination_exception) {
-      if (is_bottom_call) {
-        thread_local_top()->external_caught_exception_ = false;
-        clear_pending_exception();
-        return false;
-      }
-    } else if (thread_local_top()->external_caught_exception_) {
-      // If the exception is externally caught, clear it if there are no
-      // JavaScript frames on the way to the C++ frame that has the
-      // external handler.
-      ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
-      Address external_handler_address =
-          thread_local_top()->try_catch_handler_address();
-      JavaScriptFrameIterator it(this);
-      if (it.done() || (it.frame()->sp() > external_handler_address)) {
-        clear_exception = true;
-      }
-    }
-
-    // Clear the exception if needed.
-    if (clear_exception) {
+  if (is_termination_exception) {
+    if (is_bottom_call) {
       thread_local_top()->external_caught_exception_ = false;
       clear_pending_exception();
       return false;
     }
+  } else if (thread_local_top()->external_caught_exception_) {
+    // If the exception is externally caught, clear it if there are no
+    // JavaScript frames on the way to the C++ frame that has the
+    // external handler.
+    ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
+    Address external_handler_address =
+        thread_local_top()->try_catch_handler_address();
+    JavaScriptFrameIterator it(this);
+    if (it.done() || (it.frame()->sp() > external_handler_address)) {
+      clear_exception = true;
+    }
+  }
+
+  // Clear the exception if needed.
+  if (clear_exception) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_pending_exception();
+    return false;
   }
 
   // Reschedule the exception.
@@ -1376,23 +1366,6 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   capture_stack_trace_for_uncaught_exceptions_ = capture;
   stack_trace_for_uncaught_exceptions_frame_limit_ = frame_limit;
   stack_trace_for_uncaught_exceptions_options_ = options;
-}
-
-
-bool Isolate::is_out_of_memory() {
-  if (has_pending_exception()) {
-    MaybeObject* e = pending_exception();
-    if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
-      return true;
-    }
-  }
-  if (has_scheduled_exception()) {
-    MaybeObject* e = scheduled_exception();
-    if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -1462,6 +1435,13 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
   // cleanly dispose all Isolates before disposing v8, so we are conservative
   // and leave it out for now.
   // ASSERT_EQ(NULL, list_);
+}
+
+
+Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
+#if defined(USE_SIMULATOR)
+  delete simulator_;
+#endif
 }
 
 
@@ -1545,7 +1525,6 @@ Isolate::Isolate()
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
-      fp_stubs_generated_(false),
       has_installed_extensions_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
@@ -1565,8 +1544,8 @@ Isolate::Isolate()
       optimizing_compiler_thread_(NULL),
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
-      max_available_threads_(0),
-      stress_deopt_count_(0) {
+      stress_deopt_count_(0),
+      next_optimization_id_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1581,18 +1560,9 @@ Isolate::Isolate()
   thread_manager_ = new ThreadManager();
   thread_manager_->isolate_ = this;
 
-#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  simulator_initialized_ = false;
-  simulator_i_cache_ = NULL;
-  simulator_redirection_ = NULL;
-#endif
-
 #ifdef DEBUG
   // heap_histograms_ initializes itself.
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
-  memset(code_kind_statistics_, 0,
-         sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1672,6 +1642,10 @@ void Isolate::Deinit() {
     delete[] sweeper_thread_;
     sweeper_thread_ = NULL;
 
+    if (FLAG_job_based_sweeping &&
+        heap_.mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+      heap_.mark_compact_collector()->WaitUntilSweepingCompleted();
+    }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -1846,9 +1820,7 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
 
   if (!external_caught) return;
 
-  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
-    // Do not propagate OOM exception: we should kill VM asap.
-  } else if (thread_local_top_.pending_exception_ ==
+  if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
     try_catch_handler()->has_terminated_ = true;
@@ -1919,7 +1891,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   // The initialization process does not handle memory exhaustion.
-  DisallowAllocationFailure disallow_allocation_failure;
+  DisallowAllocationFailure disallow_allocation_failure(this);
 
   InitializeLoggingAndCounters();
 
@@ -1967,7 +1939,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS
   Simulator::Initialize(this);
 #endif
 #endif
@@ -2005,6 +1977,12 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
+  if (FLAG_log_internal_timer_events) {
+    set_event_logger(Logger::LogInternalEvents);
+  } else {
+    set_event_logger(Logger::EmptyLogInternalEvents);
+  }
+
   // Set default value if not yet set.
   // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
   // once ResourceConstraints becomes an argument to the Isolate constructor.
@@ -2013,7 +1991,10 @@ bool Isolate::Init(Deserializer* des) {
     max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
   }
 
-  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
+  if (!FLAG_job_based_sweeping) {
+    num_sweeper_threads_ =
+        SweeperThread::NumberOfThreads(max_available_threads_);
+  }
 
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
@@ -2099,17 +2080,14 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    // TODO(mstarzinger): The following is an ugly hack to make sure the
-    // interface descriptor is initialized even when stubs have been
-    // deserialized out of the snapshot without the graph builder.
-    FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
-                                   DONT_TRACK_ALLOCATION_SITE, 0);
-    stub.InitializeInterfaceDescriptor(
-        this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    // Ensure interface descriptors are initialized even when stubs have been
+    // deserialized out of the snapshot without using the graph builder.
+    FastCloneShallowArrayStub::InstallDescriptors(this);
     BinaryOpICStub::InstallDescriptors(this);
     BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
-    CompareNilICStub::InitializeForIsolate(this);
-    ToBooleanStub::InitializeForIsolate(this);
+    CompareNilICStub::InstallDescriptors(this);
+    ToBooleanStub::InstallDescriptors(this);
+    ToNumberStub::InstallDescriptors(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
@@ -2317,5 +2295,26 @@ ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
 ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
+
+
+Handle<JSObject> Isolate::GetSymbolRegistry() {
+  if (heap()->symbol_registry()->IsUndefined()) {
+    Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
+    heap()->set_symbol_registry(*registry);
+
+    static const char* nested[] = {
+      "for", "for_api", "for_intern", "keyFor", "private_api", "private_intern"
+    };
+    for (unsigned i = 0; i < ARRAY_SIZE(nested); ++i) {
+      Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
+      Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
+      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
+      JSObject::SetProperty(registry, name, obj, NONE, STRICT);
+    }
+  }
+  return Handle<JSObject>::cast(factory()->symbol_registry());
+}
+
 
 } }  // namespace v8::internal

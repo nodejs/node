@@ -51,7 +51,7 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
 
   if (IS_NULL_OR_UNDEFINED(thisArg)) {
     thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else if (!IS_SPEC_OBJECT(thisArg) && %IsClassicModeFunction(predicate)) {
+  } else if (!IS_SPEC_OBJECT(thisArg) && %IsSloppyModeFunction(predicate)) {
     thisArg = ToObject(thisArg);
   }
 
@@ -86,7 +86,7 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
 
   if (IS_NULL_OR_UNDEFINED(thisArg)) {
     thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else if (!IS_SPEC_OBJECT(thisArg) && %IsClassicModeFunction(predicate)) {
+  } else if (!IS_SPEC_OBJECT(thisArg) && %IsSloppyModeFunction(predicate)) {
     thisArg = ToObject(thisArg);
   }
 

@@ -95,7 +95,6 @@ class MessageHandler {
       const char* type,
       MessageLocation* loc,
       Vector< Handle<Object> > args,
-      Handle<String> stack_trace,
       Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).

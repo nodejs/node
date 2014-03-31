@@ -110,8 +110,7 @@ class Marking {
     markbit.Next().Set();
   }
 
-  // Returns true if the the object whose mark is transferred is marked black.
-  bool TransferMark(Address old_start, Address new_start);
+  void TransferMark(Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {
@@ -690,10 +689,14 @@ class MarkCompactCollector {
   void RecordCodeEntrySlot(Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
 
-  INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object));
+  INLINE(void RecordSlot(Object** anchor_slot,
+                         Object** slot,
+                         Object* object,
+                         SlotsBuffer::AdditionMode mode =
+                             SlotsBuffer::FAIL_ON_OVERFLOW));
 
-  void MigrateObject(Address dst,
-                     Address src,
+  void MigrateObject(HeapObject* dst,
+                     HeapObject* src,
                      int size,
                      AllocationSpace to_old_space);
 
@@ -744,6 +747,8 @@ class MarkCompactCollector {
   void MarkAllocationSite(AllocationSite* site);
 
  private:
+  class SweeperTask;
+
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
@@ -790,6 +795,8 @@ class MarkCompactCollector {
 
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_pending_;
+
+  Semaphore pending_sweeper_jobs_semaphore_;
 
   bool sequential_sweeping_;
 
@@ -939,6 +946,12 @@ class MarkCompactCollector {
   void EvacuateNewSpaceAndCandidates();
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
+
+  // Finalizes the parallel sweeping phase. Marks all the pages that were
+  // swept in parallel.
+  void ParallelSweepSpacesComplete();
+
+  void ParallelSweepSpaceComplete(PagedSpace* space);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;

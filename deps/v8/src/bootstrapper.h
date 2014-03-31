@@ -73,6 +73,7 @@ class SourceCodeCache BASE_EMBEDDED {
     cache_->CopyTo(0, *new_array, 0, cache_->length());
     cache_ = *new_array;
     Handle<String> str = factory->NewStringFromAscii(name, TENURED);
+    ASSERT(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
     Script::cast(shared->script())->set_type(Smi::FromInt(type_));

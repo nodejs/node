@@ -35,13 +35,11 @@
 namespace v8 {
 namespace internal {
 
-// ----------------------------------------------------------------------------
-// ParserRecorder - Logging of preparser data.
 
 // Abstract interface for preparse data recorder.
 class ParserRecorder {
  public:
-  ParserRecorder() { }
+  ParserRecorder() : should_log_symbols_(false) { }
   virtual ~ParserRecorder() { }
 
   // Logs the scope and some details of a function literal in the source.
@@ -49,11 +47,7 @@ class ParserRecorder {
                            int end,
                            int literals,
                            int properties,
-                           LanguageMode language_mode) = 0;
-
-  // Logs a symbol creation of a literal or identifier.
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
+                           StrictMode strict_mode) = 0;
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -63,38 +57,121 @@ class ParserRecorder {
                           const char* message,
                           const char* argument_opt) = 0;
 
-  virtual int function_position() = 0;
+  // Logs a symbol creation of a literal or identifier.
+  bool ShouldLogSymbols() { return should_log_symbols_; }
+  // The following functions are only callable on CompleteParserRecorder
+  // and are guarded by calls to ShouldLogSymbols.
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) {
+    UNREACHABLE();
+  }
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) {
+    UNREACHABLE();
+  }
+  virtual void PauseRecording() { UNREACHABLE(); }
+  virtual void ResumeRecording() { UNREACHABLE(); }
 
-  virtual int symbol_position() = 0;
+ protected:
+  bool should_log_symbols_;
 
-  virtual int symbol_ids() = 0;
-
-  virtual Vector<unsigned> ExtractData() = 0;
-
-  virtual void PauseRecording() = 0;
-
-  virtual void ResumeRecording() = 0;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
 };
 
 
-// ----------------------------------------------------------------------------
-// FunctionLoggingParserRecorder - Record only function entries
-
-class FunctionLoggingParserRecorder : public ParserRecorder {
+class SingletonLogger : public ParserRecorder {
  public:
-  FunctionLoggingParserRecorder();
-  virtual ~FunctionLoggingParserRecorder() {}
+  SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }
+  virtual ~SingletonLogger() { }
+
+  void Reset() { has_error_ = false; }
 
   virtual void LogFunction(int start,
                            int end,
                            int literals,
                            int properties,
-                           LanguageMode language_mode) {
+                           StrictMode strict_mode) {
+    ASSERT(!has_error_);
+    start_ = start;
+    end_ = end;
+    literals_ = literals;
+    properties_ = properties;
+    strict_mode_ = strict_mode;
+  };
+
+  // Logs an error message and marks the log as containing an error.
+  // Further logging will be ignored, and ExtractData will return a vector
+  // representing the error only.
+  virtual void LogMessage(int start,
+                          int end,
+                          const char* message,
+                          const char* argument_opt) {
+    if (has_error_) return;
+    has_error_ = true;
+    start_ = start;
+    end_ = end;
+    message_ = message;
+    argument_opt_ = argument_opt;
+  }
+
+  bool has_error() { return has_error_; }
+
+  int start() { return start_; }
+  int end() { return end_; }
+  int literals() {
+    ASSERT(!has_error_);
+    return literals_;
+  }
+  int properties() {
+    ASSERT(!has_error_);
+    return properties_;
+  }
+  StrictMode strict_mode() {
+    ASSERT(!has_error_);
+    return strict_mode_;
+  }
+  const char* message() {
+    ASSERT(has_error_);
+    return message_;
+  }
+  const char* argument_opt() {
+    ASSERT(has_error_);
+    return argument_opt_;
+  }
+
+ private:
+  bool has_error_;
+  int start_;
+  int end_;
+  // For function entries.
+  int literals_;
+  int properties_;
+  StrictMode strict_mode_;
+  // For error messages.
+  const char* message_;
+  const char* argument_opt_;
+};
+
+
+class CompleteParserRecorder : public ParserRecorder {
+ public:
+  struct Key {
+    bool is_one_byte;
+    Vector<const byte> literal_bytes;
+  };
+
+  CompleteParserRecorder();
+  virtual ~CompleteParserRecorder() {}
+
+  virtual void LogFunction(int start,
+                           int end,
+                           int literals,
+                           int properties,
+                           StrictMode strict_mode) {
     function_store_.Add(start);
     function_store_.Add(end);
     function_store_.Add(literals);
     function_store_.Add(properties);
-    function_store_.Add(language_mode);
+    function_store_.Add(strict_mode);
   }
 
   // Logs an error message and marks the log as containing an error.
@@ -105,118 +182,44 @@ class FunctionLoggingParserRecorder : public ParserRecorder {
                           const char* message,
                           const char* argument_opt);
 
-  virtual int function_position() { return function_store_.size(); }
-
-
-  virtual Vector<unsigned> ExtractData() = 0;
-
   virtual void PauseRecording() {
-    pause_count_++;
-    is_recording_ = false;
+    ASSERT(should_log_symbols_);
+    should_log_symbols_ = false;
   }
 
   virtual void ResumeRecording() {
-    ASSERT(pause_count_ > 0);
-    if (--pause_count_ == 0) is_recording_ = !has_error();
+    ASSERT(!should_log_symbols_);
+    should_log_symbols_ = !has_error();
   }
 
- protected:
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal);
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal);
+  Vector<unsigned> ExtractData();
+
+ private:
   bool has_error() {
     return static_cast<bool>(preamble_[PreparseDataConstants::kHasErrorOffset]);
   }
 
-  bool is_recording() {
-    return is_recording_;
-  }
-
   void WriteString(Vector<const char> str);
+
+  // For testing. Defined in test-parsing.cc.
+  friend struct CompleteParserRecorderFriend;
+
+  void LogSymbol(int start,
+                 int hash,
+                 bool is_one_byte,
+                 Vector<const byte> literal);
+
+  // Write a non-negative number to the symbol store.
+  void WriteNumber(int number);
 
   Collector<unsigned> function_store_;
   unsigned preamble_[PreparseDataConstants::kHeaderSize];
-  bool is_recording_;
-  int pause_count_;
 
 #ifdef DEBUG
   int prev_start_;
 #endif
-};
-
-
-// ----------------------------------------------------------------------------
-// PartialParserRecorder - Record only function entries
-
-class PartialParserRecorder : public FunctionLoggingParserRecorder {
- public:
-  PartialParserRecorder() : FunctionLoggingParserRecorder() { }
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
-  virtual ~PartialParserRecorder() { }
-  virtual Vector<unsigned> ExtractData();
-  virtual int symbol_position() { return 0; }
-  virtual int symbol_ids() { return 0; }
-};
-
-
-// ----------------------------------------------------------------------------
-// CompleteParserRecorder -  Record both function entries and symbols.
-
-class CompleteParserRecorder: public FunctionLoggingParserRecorder {
- public:
-  CompleteParserRecorder();
-  virtual ~CompleteParserRecorder() { }
-
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) {
-    if (!is_recording_) return;
-    int hash = vector_hash(literal);
-    LogSymbol(start, hash, true, Vector<const byte>::cast(literal));
-  }
-
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) {
-    if (!is_recording_) return;
-    int hash = vector_hash(literal);
-    LogSymbol(start, hash, false, Vector<const byte>::cast(literal));
-  }
-
-  virtual Vector<unsigned> ExtractData();
-
-  virtual int symbol_position() { return symbol_store_.size(); }
-  virtual int symbol_ids() { return symbol_id_; }
-
- private:
-  struct Key {
-    bool is_ascii;
-    Vector<const byte> literal_bytes;
-  };
-
-  virtual void LogSymbol(int start,
-                         int hash,
-                         bool is_ascii,
-                         Vector<const byte> literal);
-
-  template <typename Char>
-  static int vector_hash(Vector<const Char> string) {
-    int hash = 0;
-    for (int i = 0; i < string.length(); i++) {
-      int c = static_cast<int>(string[i]);
-      hash += c;
-      hash += (hash << 10);
-      hash ^= (hash >> 6);
-    }
-    return hash;
-  }
-
-  static bool vector_compare(void* a, void* b) {
-    Key* string1 = reinterpret_cast<Key*>(a);
-    Key* string2 = reinterpret_cast<Key*>(b);
-    if (string1->is_ascii != string2->is_ascii) return false;
-    int length = string1->literal_bytes.length();
-    if (string2->literal_bytes.length() != length) return false;
-    return memcmp(string1->literal_bytes.start(),
-                  string2->literal_bytes.start(), length) == 0;
-  }
-
-  // Write a non-negative number to the symbol store.
-  void WriteNumber(int number);
 
   Collector<byte> literal_chars_;
   Collector<byte> symbol_store_;

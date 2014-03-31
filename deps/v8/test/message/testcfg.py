@@ -73,7 +73,7 @@ class MessageTestSuite(testsuite.TestSuite):
       return f.read()
 
   def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output and Android output."""
+    """Ignore empty lines, valgrind output, Android output."""
     if not string: return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or

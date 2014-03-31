@@ -37,7 +37,7 @@ struct PreparseDataConstants {
  public:
   // Layout and constants of the preparse data exchange format.
   static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 7;
+  static const unsigned kCurrentVersion = 8;
 
   static const int kMagicOffset = 0;
   static const int kVersionOffset = 1;

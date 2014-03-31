@@ -509,10 +509,12 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
 // be marked with a free space or filler.  Because the free space and filler
 // maps do not move we can always recognize these even after a compaction.
 // Normal objects like FixedArrays and JSObjects should not contain references
-// to these maps.  The special garbage section (see comment in spaces.h) is
-// skipped since it can contain absolutely anything.  Any objects that are
-// allocated during iteration may or may not be visited by the iteration, but
-// they will not be partially visited.
+// to these maps.  Constant pool array objects may contain references to these
+// maps, however, constant pool arrays cannot contain pointers to new space
+// objects, therefore they are skipped.  The special garbage section (see
+// comment in spaces.h) is skipped since it can contain absolutely anything.
+// Any objects that are allocated during iteration may or may not be visited by
+// the iteration, but they will not be partially visited.
 void StoreBuffer::FindPointersToNewSpaceOnPage(
     PagedSpace* space,
     Page* page,
@@ -526,13 +528,17 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
 
   Object* free_space_map = heap_->free_space_map();
   Object* two_pointer_filler_map = heap_->two_pointer_filler_map();
+  Object* constant_pool_array_map = heap_->constant_pool_array_map();
 
   while (visitable_end < end_of_page) {
     Object* o = *reinterpret_cast<Object**>(visitable_end);
-    // Skip fillers but not things that look like fillers in the special
-    // garbage section which can contain anything.
+    // Skip fillers or constant pool arrays (which never contain new-space
+    // pointers but can contain pointers which can be confused for fillers)
+    // but not things that look like fillers in the special garbage section
+    // which can contain anything.
     if (o == free_space_map ||
         o == two_pointer_filler_map ||
+        o == constant_pool_array_map ||
         (visitable_end == space->top() && visitable_end != space->limit())) {
       if (visitable_start != visitable_end) {
         // After calling this the special garbage section may have moved.
@@ -549,12 +555,12 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
       if (visitable_end == space->top() && visitable_end != space->limit()) {
         visitable_start = visitable_end = space->limit();
       } else {
-        // At this point we are either at the start of a filler or we are at
-        // the point where the space->top() used to be before the
-        // visit_pointer_region call above.  Either way we can skip the
-        // object at the current spot:  We don't promise to visit objects
-        // allocated during heap traversal, and if space->top() moved then it
-        // must be because an object was allocated at this point.
+        // At this point we are either at the start of a filler, a
+        // constant pool array, or we are at the point where the space->top()
+        // used to be before the visit_pointer_region call above.  Either way we
+        // can skip the object at the current spot:  We don't promise to visit
+        // objects allocated during heap traversal, and if space->top() moved
+        // then it must be because an object was allocated at this point.
         visitable_start =
             visitable_end + HeapObject::FromAddress(visitable_end)->Size();
         visitable_end = visitable_start;
@@ -562,6 +568,7 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
     } else {
       ASSERT(o != free_space_map);
       ASSERT(o != two_pointer_filler_map);
+      ASSERT(o != constant_pool_array_map);
       ASSERT(visitable_end < space->top() || visitable_end >= space->limit());
       visitable_end += kPointerSize;
     }

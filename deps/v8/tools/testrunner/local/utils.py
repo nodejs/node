@@ -81,7 +81,7 @@ def GuessOS():
 def UseSimulator(arch):
   machine = platform.machine()
   return (machine and
-      (arch == "mipsel" or arch == "arm") and
+      (arch == "mipsel" or arch == "arm" or arch == "arm64") and
       not arch.startswith(machine))
 
 

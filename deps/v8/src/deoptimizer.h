@@ -134,7 +134,7 @@ class Deoptimizer : public Malloced {
 
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
-  struct JumpTableEntry {
+  struct JumpTableEntry : public ZoneObject {
     inline JumpTableEntry(Address entry,
                           Deoptimizer::BailoutType type,
                           bool frame)
@@ -507,6 +507,8 @@ class FrameDescription {
   void SetCallerPc(unsigned offset, intptr_t value);
 
   void SetCallerFp(unsigned offset, intptr_t value);
+
+  void SetCallerConstantPool(unsigned offset, intptr_t value);
 
   intptr_t GetRegister(unsigned n) const {
 #if DEBUG

@@ -108,6 +108,7 @@ class ObjectTemplate;
 class Platform;
 class Primitive;
 class RawOperationDescriptor;
+class Script;
 class Signature;
 class StackFrame;
 class StackTrace;
@@ -127,10 +128,12 @@ template<class T> class PersistentBase;
 template<class T,
          class M = NonCopyablePersistentTraits<T> > class Persistent;
 template<class T> class UniquePersistent;
+template<class K, class V, class T> class PersistentValueMap;
 template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
+template<typename T> class FunctionCallbackInfo;
 template<typename T> class PropertyCallbackInfo;
 class StackTrace;
 class StackFrame;
@@ -140,6 +143,7 @@ class ObjectOperationDescriptor;
 class RawOperationDescriptor;
 class CallHandlerHelper;
 class EscapableHandleScope;
+template<typename T> class ReturnValue;
 
 namespace internal {
 class Arguments;
@@ -412,6 +416,7 @@ template <class T> class Local : public Handle<T> {
   template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
   friend class EscapableHandleScope;
+  template<class F1, class F2, class F3> friend class PersistentValueMap;
 
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
 };
@@ -527,7 +532,11 @@ template <class T> class PersistentBase {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
-  V8_INLINE void ClearWeak();
+  template<typename P>
+  V8_INLINE P* ClearWeak();
+
+  // TODO(dcarney): remove this.
+  V8_INLINE void ClearWeak() { ClearWeak<void>(); }
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -576,6 +585,8 @@ template <class T> class PersistentBase {
   template<class F> friend class UniquePersistent;
   template<class F> friend class PersistentBase;
   template<class F> friend class ReturnValue;
+  template<class F1, class F2, class F3> friend class PersistentValueMap;
+  friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
   PersistentBase(PersistentBase& other); // NOLINT
@@ -743,7 +754,7 @@ class UniquePersistent : public PersistentBase<T> {
   };
 
  public:
-    /**
+  /**
    * A UniquePersistent with no storage cell.
    */
   V8_INLINE UniquePersistent() : PersistentBase<T>(0) { }
@@ -781,6 +792,7 @@ class UniquePersistent : public PersistentBase<T> {
   template<class S>
   V8_INLINE UniquePersistent& operator=(UniquePersistent<S> rhs) {
     TYPE_CHECK(T, S);
+    this->Reset();
     this->val_ = rhs.val_;
     rhs.val_ = 0;
     return *this;
@@ -998,105 +1010,16 @@ class ScriptOrigin {
 
 
 /**
- * A compiled JavaScript script.
+ * A compiled JavaScript script, not yet tied to a Context.
  */
-class V8_EXPORT Script {
+class V8_EXPORT UnboundScript {
  public:
   /**
-   * Compiles the specified script (context-independent).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when New() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when New() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but allows data to be
-   *   available to compile event handlers.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
+   * Binds the script to the currently entered context.
    */
-  static Local<Script> New(Handle<String> source,
-                           ScriptOrigin* origin = NULL,
-                           ScriptData* pre_data = NULL,
-                           Handle<String> script_data = Handle<String>());
+  Local<Script> BindToCurrentContext();
 
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name file name object (typically a string) to be used
-   *   as the script's origin.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
-   */
-  static Local<Script> New(Handle<String> source,
-                           Handle<Value> file_name);
-
-  /**
-   * Compiles the specified script (bound to current context).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when Compile() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when Compile() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL,
-                               Handle<String> script_data = Handle<String>());
-
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name File name to use as script's origin
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name,
-                               Handle<String> script_data = Handle<String>());
-
-  /**
-   * Runs the script returning the resulting value.  If the script is
-   * context independent (created using ::New) it will be run in the
-   * currently entered context.  If it is context specific (created
-   * using ::Compile) it will be run in the context in which it was
-   * compiled.
-   */
-  Local<Value> Run();
-
-  /**
-   * Returns the script id.
-   */
   int GetId();
-
-  /**
-   * Associate an additional data object with the script. This is mainly used
-   * with the debugger as this data object is only available through the
-   * debugger API.
-   */
-  void SetData(Handle<String> data);
-
-  /**
-   * Returns the name value of one Script.
-   */
   Handle<Value> GetScriptName();
 
   /**
@@ -1106,6 +1029,169 @@ class V8_EXPORT Script {
   int GetLineNumber(int code_pos);
 
   static const int kNoScriptId = 0;
+};
+
+
+/**
+ * A compiled JavaScript script, tied to a Context which was active when the
+ * script was compiled.
+ */
+class V8_EXPORT Script {
+ public:
+  /**
+   * A shorthand for ScriptCompiler::Compile().
+   * The ScriptData parameter will be deprecated; use ScriptCompiler::Compile if
+   * you want to pass it.
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               ScriptOrigin* origin = NULL,
+                               ScriptData* script_data = NULL);
+
+  // To be decprecated, use the Compile above.
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<String> file_name);
+
+  /**
+   * Runs the script returning the resulting value. It will be run in the
+   * context in which it was created (ScriptCompiler::CompileBound or
+   * UnboundScript::BindToGlobalContext()).
+   */
+  Local<Value> Run();
+
+  /**
+   * Returns the corresponding context-unbound script.
+   */
+  Local<UnboundScript> GetUnboundScript();
+
+  // To be deprecated; use GetUnboundScript()->GetId();
+  int GetId() {
+    return GetUnboundScript()->GetId();
+  }
+
+  // Use GetUnboundScript()->GetId();
+  V8_DEPRECATED("Use GetUnboundScript()->GetId()",
+                Handle<Value> GetScriptName()) {
+    return GetUnboundScript()->GetScriptName();
+  }
+
+  /**
+   * Returns zero based line number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  V8_DEPRECATED("Use GetUnboundScript()->GetLineNumber()",
+                int GetLineNumber(int code_pos)) {
+    return GetUnboundScript()->GetLineNumber(code_pos);
+  }
+};
+
+
+/**
+ * For compiling scripts.
+ */
+class V8_EXPORT ScriptCompiler {
+ public:
+  /**
+   * Compilation data that the embedder can cache and pass back to speed up
+   * future compilations. The data is produced if the CompilerOptions passed to
+   * the compilation functions in ScriptCompiler contains produce_data_to_cache
+   * = true. The data to cache can then can be retrieved from
+   * UnboundScript.
+   */
+  struct V8_EXPORT CachedData {
+    enum BufferPolicy {
+      BufferNotOwned,
+      BufferOwned
+    };
+
+    CachedData() : data(NULL), length(0), buffer_policy(BufferNotOwned) {}
+
+    // If buffer_policy is BufferNotOwned, the caller keeps the ownership of
+    // data and guarantees that it stays alive until the CachedData object is
+    // destroyed. If the policy is BufferOwned, the given data will be deleted
+    // (with delete[]) when the CachedData object is destroyed.
+    CachedData(const uint8_t* data, int length,
+               BufferPolicy buffer_policy = BufferNotOwned);
+    ~CachedData();
+    // TODO(marja): Async compilation; add constructors which take a callback
+    // which will be called when V8 no longer needs the data.
+    const uint8_t* data;
+    int length;
+    BufferPolicy buffer_policy;
+
+  private:
+     // Prevent copying. Not implemented.
+     CachedData(const CachedData&);
+     CachedData& operator=(const CachedData&);
+  };
+
+  /**
+   * Source code which can be then compiled to a UnboundScript or
+   * BoundScript.
+   */
+  class Source {
+   public:
+    // Source takes ownership of CachedData.
+    V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
+           CachedData* cached_data = NULL);
+    V8_INLINE Source(Local<String> source_string,
+                     CachedData* cached_data = NULL);
+    V8_INLINE ~Source();
+
+    // Ownership of the CachedData or its buffers is *not* transferred to the
+    // caller. The CachedData object is alive as long as the Source object is
+    // alive.
+    V8_INLINE const CachedData* GetCachedData() const;
+
+   private:
+    friend class ScriptCompiler;
+     // Prevent copying. Not implemented.
+    Source(const Source&);
+    Source& operator=(const Source&);
+
+    Local<String> source_string;
+
+    // Origin information
+    Handle<Value> resource_name;
+    Handle<Integer> resource_line_offset;
+    Handle<Integer> resource_column_offset;
+    Handle<Boolean> resource_is_shared_cross_origin;
+
+    // Cached data from previous compilation (if any), or generated during
+    // compilation (if the generate_cached_data flag is passed to
+    // ScriptCompiler).
+    CachedData* cached_data;
+  };
+
+  enum CompileOptions {
+    kNoCompileOptions,
+    kProduceDataToCache = 1 << 0
+  };
+
+  /**
+   * Compiles the specified script (context-independent).
+   *
+   * \param source Script source code.
+   * \return Compiled script object (context independent; for running it must be
+   *   bound to a context).
+   */
+  static Local<UnboundScript> CompileUnbound(
+      Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions);
+
+  /**
+   * Compiles the specified script (bound to current context).
+   *
+   * \param source Script source code.
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when this function returns.
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called. When run it will always use this
+   *   context.
+   */
+  static Local<Script> Compile(
+      Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions);
 };
 
 
@@ -1430,6 +1516,11 @@ class V8_EXPORT Value : public Data {
    */
   bool IsRegExp() const;
 
+  /**
+   * Returns true if this value is a Promise.
+   * This is an experimental feature.
+   */
+  bool IsPromise() const;
 
   /**
    * Returns true if this value is an ArrayBuffer.
@@ -1911,9 +2002,20 @@ class V8_EXPORT Symbol : public Primitive {
   // Returns the print name string of the symbol, or undefined if none.
   Local<Value> Name() const;
 
-  // Create a symbol. If data is not NULL, it will be used as a print name.
+  // Create a symbol. If name is not empty, it will be used as the description.
   static Local<Symbol> New(
-      Isolate *isolate, const char* data = NULL, int length = -1);
+      Isolate *isolate, Local<String> name = Local<String>());
+
+  // Access global symbol registry.
+  // Note that symbols created this way are never collected, so
+  // they should only be used for statically fixed properties.
+  // Also, there is only one global name space for the names used as keys.
+  // To minimize the potential for clashes, use qualified names as keys.
+  static Local<Symbol> For(Isolate *isolate, Local<String> name);
+
+  // Retrieve a global symbol. Similar to |For|, but using a separate
+  // registry that is not accessible by (and cannot clash with) JavaScript code.
+  static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
  private:
@@ -1932,9 +2034,18 @@ class V8_EXPORT Private : public Data {
   // Returns the print name string of the private symbol, or undefined if none.
   Local<Value> Name() const;
 
-  // Create a private symbol. If data is not NULL, it will be the print name.
+  // Create a private symbol. If name is not empty, it will be the description.
   static Local<Private> New(
-      Isolate *isolate, const char* data = NULL, int length = -1);
+      Isolate *isolate, Local<String> name = Local<String>());
+
+  // Retrieve a global private symbol. If a symbol with this name has not
+  // been retrieved in the same isolate before, it is created.
+  // Note that private symbols created this way are never collected, so
+  // they should only be used for statically fixed properties.
+  // Also, there is only one global name space for the names used as keys.
+  // To minimize the potential for clashes, use qualified names as keys,
+  // e.g., "Class#property".
+  static Local<Private> ForApi(Isolate *isolate, Local<String> name);
 
  private:
   Private();
@@ -2118,6 +2229,12 @@ class V8_EXPORT Object : public Value {
                            PropertyAttribute attribute = None,
                            AccessControl settings = DEFAULT);
 
+  void SetAccessorProperty(Local<String> name,
+                           Local<Function> getter,
+                           Handle<Function> setter = Handle<Function>(),
+                           PropertyAttribute attribute = None,
+                           AccessControl settings = DEFAULT);
+
   /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.
@@ -2185,6 +2302,12 @@ class V8_EXPORT Object : public Value {
   /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
 
+  /** Same as above, but works for Persistents */
+  V8_INLINE static int InternalFieldCount(
+      const PersistentBase<Object>& object) {
+    return object.val_->InternalFieldCount();
+  }
+
   /** Gets the value from an internal field. */
   V8_INLINE Local<Value> GetInternalField(int index);
 
@@ -2197,6 +2320,12 @@ class V8_EXPORT Object : public Value {
    * leads to undefined behavior.
    */
   V8_INLINE void* GetAlignedPointerFromInternalField(int index);
+
+  /** Same as above, but works for Persistents */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const PersistentBase<Object>& object, int index) {
+    return object.val_->GetAlignedPointerFromInternalField(index);
+  }
 
   /**
    * Sets a 2-byte-aligned native pointer in an internal field. To retrieve such
@@ -2389,6 +2518,8 @@ class ReturnValue {
   template<class F> friend class ReturnValue;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
+  template<class F, class G, class H> friend class PersistentValueMap;
+  V8_INLINE void SetInternal(internal::Object* value) { *value_ = value; }
   V8_INLINE internal::Object* GetDefaultValue();
   V8_INLINE explicit ReturnValue(internal::Object** slot);
   internal::Object** value_;
@@ -2541,6 +2672,56 @@ class V8_EXPORT Function : public Object {
   Function();
   static void CheckCast(Value* obj);
 };
+
+
+/**
+ * An instance of the built-in Promise constructor (ES6 draft).
+ * This API is experimental. Only works with --harmony flag.
+ */
+class V8_EXPORT Promise : public Object {
+ public:
+  class V8_EXPORT Resolver : public Object {
+   public:
+    /**
+     * Create a new resolver, along with an associated promise in pending state.
+     */
+    static Local<Resolver> New(Isolate* isolate);
+
+    /**
+     * Extract the associated promise.
+     */
+    Local<Promise> GetPromise();
+
+    /**
+     * Resolve/reject the associated promise with a given value.
+     * Ignored if the promise is no longer pending.
+     */
+    void Resolve(Handle<Value> value);
+    void Reject(Handle<Value> value);
+
+    V8_INLINE static Resolver* Cast(Value* obj);
+
+   private:
+    Resolver();
+    static void CheckCast(Value* obj);
+  };
+
+  /**
+   * Register a resolution/rejection handler with a promise.
+   * The handler is given the respective resolution/rejection value as
+   * an argument. If the promise is already resolved/rejected, the handler is
+   * invoked at the end of turn.
+   */
+  Local<Promise> Chain(Handle<Function> handler);
+  Local<Promise> Catch(Handle<Function> handler);
+
+  V8_INLINE static Promise* Cast(Value* obj);
+
+ private:
+  Promise();
+  static void CheckCast(Value* obj);
+};
+
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
 // The number of required internal fields can be defined by embedder.
@@ -3805,6 +3986,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
+// --- Tracing ---
+
+typedef void (*LogEventCallback)(const char* name, int event);
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -3957,6 +4141,46 @@ class V8_EXPORT Isolate {
     // Prevent copying of Scope objects.
     Scope(const Scope&);
     Scope& operator=(const Scope&);
+  };
+
+
+  /**
+   * Assert that no Javascript code is invoked.
+   */
+  class DisallowJavascriptExecutionScope {
+   public:
+    enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
+
+    DisallowJavascriptExecutionScope(Isolate* isolate, OnFailure on_failure);
+    ~DisallowJavascriptExecutionScope();
+
+   private:
+    bool on_failure_;
+    void* internal_;
+
+    // Prevent copying of Scope objects.
+    DisallowJavascriptExecutionScope(const DisallowJavascriptExecutionScope&);
+    DisallowJavascriptExecutionScope& operator=(
+        const DisallowJavascriptExecutionScope&);
+  };
+
+
+  /**
+   * Introduce exception to DisallowJavascriptExecutionScope.
+   */
+  class AllowJavascriptExecutionScope {
+   public:
+    explicit AllowJavascriptExecutionScope(Isolate* isolate);
+    ~AllowJavascriptExecutionScope();
+
+   private:
+    void* internal_throws_;
+    void* internal_assert_;
+
+    // Prevent copying of Scope objects.
+    AllowJavascriptExecutionScope(const AllowJavascriptExecutionScope&);
+    AllowJavascriptExecutionScope& operator=(
+        const AllowJavascriptExecutionScope&);
   };
 
   /**
@@ -4127,13 +4351,12 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification before a
-   * garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects. It is possible
-   * to specify the GCType filter for your callback. But it is not possible to
-   * register the same callback function two times with different
-   * GCType filters.
+   * garbage collection. Allocations are allowed in the callback function,
+   * but the callback is not re-entrant: if the allocation inside it will
+   * trigger the garbage collection, the callback won't be called again.
+   * It is possible to specify the GCType filter for your callback. But it is
+   * not possible to register the same callback function two times with
+   * different GCType filters.
    */
   void AddGCPrologueCallback(
       GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
@@ -4146,13 +4369,12 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification after a
-   * garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects. It is possible
-   * to specify the GCType filter for your callback. But it is not possible to
-   * register the same callback function two times with different
-   * GCType filters.
+   * garbage collection. Allocations are allowed in the callback function,
+   * but the callback is not re-entrant: if the allocation inside it will
+   * trigger the garbage collection, the callback won't be called again.
+   * It is possible to specify the GCType filter for your callback. But it is
+   * not possible to register the same callback function two times with
+   * different GCType filters.
    */
   void AddGCEpilogueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
@@ -4191,7 +4413,14 @@ class V8_EXPORT Isolate {
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
+  /**
+   * Set the callback to invoke for logging event.
+   */
+  void SetEventLogger(LogEventCallback that);
+
  private:
+  template<class K, class V, class Traits> friend class PersistentValueMap;
+
   Isolate();
   Isolate(const Isolate&);
   ~Isolate();
@@ -4411,20 +4640,6 @@ class V8_EXPORT V8 {
   static void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator);
 
   /**
-   * Ignore out-of-memory exceptions.
-   *
-   * V8 running out of memory is treated as a fatal error by default.
-   * This means that the fatal error handler is called and that V8 is
-   * terminated.
-   *
-   * IgnoreOutOfMemoryException can be used to not treat an
-   * out-of-memory situation as a fatal error.  This way, the contexts
-   * that did not cause the out of memory problem might be able to
-   * continue execution.
-   */
-  static void IgnoreOutOfMemoryException();
-
-  /**
    * Check if V8 is dead and therefore unusable.  This is the case after
    * fatal errors such as out-of-memory situations.
    */
@@ -4577,6 +4792,22 @@ class V8_EXPORT V8 {
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
+
+  /**
+   * Experimental: Runs the Microtask Work Queue until empty
+   */
+  static void RunMicrotasks(Isolate* isolate);
+
+  /**
+   * Experimental: Enqueues the callback to the Microtask Work Queue
+   */
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
+
+   /**
+   * Experimental: Controls whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to
@@ -4744,8 +4975,11 @@ class V8_EXPORT V8 {
   /**
    * Initialize the ICU library bundled with V8. The embedder should only
    * invoke this method when using the bundled ICU. Returns true on success.
+   *
+   * If V8 was compiled with the ICU data in an external file, the location
+   * of the data file has to be provided.
    */
-  static bool InitializeICU();
+  static bool InitializeICU(const char* icu_data_file = NULL);
 
   /**
    * Sets the v8::Platform to use. This should be invoked before V8 is
@@ -4770,7 +5004,7 @@ class V8_EXPORT V8 {
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        WeakCallback weak_callback);
-  static void ClearWeak(internal::Object** global_handle);
+  static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
                          int* index);
@@ -5013,7 +5247,7 @@ class V8_EXPORT Context {
   void Exit();
 
   /** Returns true if the context has experienced an out of memory situation. */
-  bool HasOutOfMemoryException();
+  bool HasOutOfMemoryException() { return false; }
 
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();
@@ -5227,67 +5461,6 @@ class V8_EXPORT Locker {
 };
 
 
-/**
- * A struct for exporting HeapStats data from V8, using "push" model.
- */
-struct HeapStatsUpdate;
-
-
-/**
- * An interface for exporting data from V8, using "push" model.
- */
-class V8_EXPORT OutputStream {  // NOLINT
- public:
-  enum OutputEncoding {
-    kAscii = 0  // 7-bit ASCII.
-  };
-  enum WriteResult {
-    kContinue = 0,
-    kAbort = 1
-  };
-  virtual ~OutputStream() {}
-  /** Notify about the end of stream. */
-  virtual void EndOfStream() = 0;
-  /** Get preferred output chunk size. Called only once. */
-  virtual int GetChunkSize() { return 1024; }
-  /** Get preferred output encoding. Called only once. */
-  virtual OutputEncoding GetOutputEncoding() { return kAscii; }
-  /**
-   * Writes the next chunk of snapshot data into the stream. Writing
-   * can be stopped by returning kAbort as function result. EndOfStream
-   * will not be called in case writing was aborted.
-   */
-  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
-  /**
-   * Writes the next chunk of heap stats data into the stream. Writing
-   * can be stopped by returning kAbort as function result. EndOfStream
-   * will not be called in case writing was aborted.
-   */
-  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
-    return kAbort;
-  };
-};
-
-
-/**
- * An interface for reporting progress and controlling long-running
- * activities.
- */
-class V8_EXPORT ActivityControl {  // NOLINT
- public:
-  enum ControlOption {
-    kContinue = 0,
-    kAbort = 1
-  };
-  virtual ~ActivityControl() {}
-  /**
-   * Notify about current progress. The activity can be stopped by
-   * returning kAbort as the callback result.
-   */
-  virtual ControlOption ReportProgressValue(int done, int total) = 0;
-};
-
-
 // --- Implementation ---
 
 
@@ -5398,7 +5571,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 147;
+  static const int kEmptyStringRootIndex = 154;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5683,8 +5856,10 @@ void PersistentBase<T>::SetWeak(
 
 
 template <class T>
-void PersistentBase<T>::ClearWeak() {
-  V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_));
+template<typename P>
+P* PersistentBase<T>::ClearWeak() {
+  return reinterpret_cast<P*>(
+    V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
 }
 
 
@@ -5922,6 +6097,32 @@ Handle<Integer> ScriptOrigin::ResourceColumnOffset() const {
 
 Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
   return resource_is_shared_cross_origin_;
+}
+
+
+ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
+                               CachedData* data)
+    : source_string(string),
+      resource_name(origin.ResourceName()),
+      resource_line_offset(origin.ResourceLineOffset()),
+      resource_column_offset(origin.ResourceColumnOffset()),
+      resource_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin()),
+      cached_data(data) {}
+
+
+ScriptCompiler::Source::Source(Local<String> string,
+                               CachedData* data)
+    : source_string(string), cached_data(data) {}
+
+
+ScriptCompiler::Source::~Source() {
+  delete cached_data;
+}
+
+
+const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
+    const {
+  return cached_data;
 }
 
 
@@ -6168,6 +6369,22 @@ Array* Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Array*>(value);
+}
+
+
+Promise* Promise::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Promise*>(value);
+}
+
+
+Promise::Resolver* Promise::Resolver::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Promise::Resolver*>(value);
 }
 
 

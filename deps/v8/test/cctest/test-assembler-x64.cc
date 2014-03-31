@@ -99,15 +99,15 @@ TEST(AssemblerX64StackOperations) {
   // Assemble a simple function that copies argument 2 and returns it.
   // We compile without stack frame pointers, so the gdb debugger shows
   // incorrect stack frames when debugging this function (which has them).
-  __ push(rbp);
+  __ pushq(rbp);
   __ movq(rbp, rsp);
-  __ push(arg2);  // Value at (rbp - 8)
-  __ push(arg2);  // Value at (rbp - 16)
-  __ push(arg1);  // Value at (rbp - 24)
-  __ pop(rax);
-  __ pop(rax);
-  __ pop(rax);
-  __ pop(rbp);
+  __ pushq(arg2);  // Value at (rbp - 8)
+  __ pushq(arg2);  // Value at (rbp - 16)
+  __ pushq(arg1);  // Value at (rbp - 24)
+  __ popq(rax);
+  __ popq(rax);
+  __ popq(rax);
+  __ popq(rbp);
   __ nop();
   __ ret(0);
 
@@ -153,7 +153,7 @@ TEST(AssemblerX64ImulOperation) {
   // Assemble a simple function that multiplies arguments returning the high
   // word.
   __ movq(rax, arg2);
-  __ imul(arg1);
+  __ imulq(arg1);
   __ movq(rax, rdx);
   __ ret(0);
 
@@ -330,19 +330,19 @@ TEST(AssemblerX64MemoryOperands) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
-  __ push(rbp);
+  __ pushq(rbp);
   __ movq(rbp, rsp);
 
-  __ push(arg2);  // Value at (rbp - 8)
-  __ push(arg2);  // Value at (rbp - 16)
-  __ push(arg1);  // Value at (rbp - 24)
+  __ pushq(arg2);  // Value at (rbp - 8)
+  __ pushq(arg2);  // Value at (rbp - 16)
+  __ pushq(arg1);  // Value at (rbp - 24)
 
   const int kStackElementSize = 8;
   __ movq(rax, Operand(rbp, -3 * kStackElementSize));
-  __ pop(arg2);
-  __ pop(arg2);
-  __ pop(arg2);
-  __ pop(rbp);
+  __ popq(arg2);
+  __ popq(arg2);
+  __ popq(arg2);
+  __ popq(rbp);
   __ nop();
   __ ret(0);
 
@@ -364,7 +364,7 @@ TEST(AssemblerX64ControlFlow) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 1 and returns it.
-  __ push(rbp);
+  __ pushq(rbp);
 
   __ movq(rbp, rsp);
   __ movq(rax, arg1);
@@ -372,7 +372,7 @@ TEST(AssemblerX64ControlFlow) {
   __ jmp(&target);
   __ movq(rax, arg2);
   __ bind(&target);
-  __ pop(rbp);
+  __ popq(rbp);
   __ ret(0);
 
   CodeDesc desc;
@@ -496,11 +496,11 @@ TEST(AssemblerMultiByteNop) {
   byte buffer[1024];
   Isolate* isolate = CcTest::i_isolate();
   Assembler assm(isolate, buffer, sizeof(buffer));
-  __ push(rbx);
-  __ push(rcx);
-  __ push(rdx);
-  __ push(rdi);
-  __ push(rsi);
+  __ pushq(rbx);
+  __ pushq(rcx);
+  __ pushq(rdx);
+  __ pushq(rdi);
+  __ pushq(rsi);
   __ movq(rax, Immediate(1));
   __ movq(rbx, Immediate(2));
   __ movq(rcx, Immediate(3));
@@ -527,19 +527,19 @@ TEST(AssemblerMultiByteNop) {
   __ cmpq(rsi, Immediate(6));
   __ j(not_equal, &fail);
   __ movq(rax, Immediate(42));
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rdx);
-  __ pop(rcx);
-  __ pop(rbx);
+  __ popq(rsi);
+  __ popq(rdi);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
   __ ret(0);
   __ bind(&fail);
   __ movq(rax, Immediate(13));
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rdx);
-  __ pop(rcx);
-  __ pop(rbx);
+  __ popq(rsi);
+  __ popq(rdi);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
   __ ret(0);
 
   CodeDesc desc;
@@ -571,14 +571,14 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Assembler assm(isolate, buffer, sizeof(buffer));
 
   // Remove return address from the stack for fix stack frame alignment.
-  __ pop(rcx);
+  __ popq(rcx);
 
   // Store input vector on the stack.
   for (int i = 0; i < ELEMENT_COUNT; i++) {
     __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
     __ shl(rax, Immediate(0x20));
-    __ or_(rax, Immediate(vec->Get(++i)->Int32Value()));
-    __ push(rax);
+    __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
+    __ pushq(rax);
   }
 
   // Read vector into a xmm register.
@@ -590,7 +590,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Remove unused data from the stack.
   __ addq(rsp, Immediate(ELEMENT_COUNT * sizeof(int32_t)));
   // Restore return address.
-  __ push(rcx);
+  __ pushq(rcx);
 
   __ ret(0);
 

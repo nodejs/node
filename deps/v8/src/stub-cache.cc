@@ -116,9 +116,9 @@ Handle<Code> StubCache::FindIC(Handle<Name> name,
 Handle<Code> StubCache::FindHandler(Handle<Name> name,
                                     Handle<Map> stub_holder,
                                     Code::Kind kind,
-                                    InlineCacheHolderFlag cache_holder) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL, kind);
+                                    InlineCacheHolderFlag cache_holder,
+                                    Code::StubType type) {
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder);
 
   Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -127,11 +127,11 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(
+    Code::Kind kind,
     Handle<Name> name,
     Handle<HeapType> type,
     Handle<Code> handler,
     ExtraICState extra_ic_state) {
-  Code::Kind kind = handler->handler_kind();
   InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
 
   Handle<Map> stub_holder;
@@ -179,7 +179,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   // therefore the stub will be specific to the name.
   Handle<Map> current_map = stub_holder;
   Handle<Name> cache_name = current_map->is_dictionary_map()
-      ? name : Handle<Name>::cast(isolate()->factory()->empty_string());
+      ? name : Handle<Name>::cast(isolate()->factory()->nonexistent_symbol());
   Handle<Object> next(current_map->prototype(), isolate());
   Handle<JSObject> last = Handle<JSObject>::null();
   while (!next->IsNull()) {
@@ -192,8 +192,10 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
   Handle<Code> handler = FindHandler(
-      cache_name, stub_holder, Code::LOAD_IC, flag);
-  if (!handler.is_null()) return handler;
+      cache_name, stub_holder, Code::LOAD_IC, flag, Code::FAST);
+  if (!handler.is_null()) {
+    return handler;
+  }
 
   LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);
@@ -220,7 +222,7 @@ Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
 
 Handle<Code> StubCache::ComputeKeyedStoreElement(
     Handle<Map> receiver_map,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     KeyedAccessStoreMode store_mode) {
   ExtraICState extra_state =
       KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
@@ -331,8 +333,9 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
     if (!cached_ic.is_null()) return cached_ic;
   }
 
-  Handle<Code> ic = stub.GetCodeCopyFromTemplate(isolate_);
-  ic->ReplaceNthObject(1, isolate_->heap()->meta_map(), *receiver_map);
+  Code::FindAndReplacePattern pattern;
+  pattern.Add(isolate_->factory()->meta_map(), receiver_map);
+  Handle<Code> ic = stub.GetCodeCopy(isolate_, pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);
@@ -369,14 +372,13 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
 
 Handle<Code> StubCache::ComputePolymorphicIC(
+    Code::Kind kind,
     TypeHandleList* types,
     CodeHandleList* handlers,
     int number_of_valid_types,
     Handle<Name> name,
     ExtraICState extra_ic_state) {
-
   Handle<Code> handler = handlers->at(0);
-  Code::Kind kind = handler->handler_kind();
   Code::StubType type = number_of_valid_types == 1 ? handler->type()
                                                    : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
@@ -395,7 +397,7 @@ Handle<Code> StubCache::ComputePolymorphicIC(
 Handle<Code> StubCache::ComputeStoreElementPolymorphic(
     MapHandleList* receiver_maps,
     KeyedAccessStoreMode store_mode,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   ASSERT(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
@@ -662,10 +664,14 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
-  JSObject* receiver = JSObject::cast(args[0]);
+  HandleScope scope(isolate);
+  Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
-  return receiver->GetElementWithInterceptor(receiver, index);
+  Handle<Object> result =
+      JSObject::GetElementWithInterceptor(receiver, receiver, index);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -690,9 +696,7 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  ContextualMode mode = LoadIC::GetContextualMode(extra_state);
-  LoadIC::GenerateMegamorphic(masm(), mode);
+  LoadIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
@@ -723,7 +727,7 @@ Handle<Code> StubCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
 
 Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_state);
+  StrictMode strict_mode = StoreIC::GetStrictMode(extra_state);
   StoreIC::GenerateRuntimeSetProperty(masm(), strict_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(),
@@ -734,8 +738,7 @@ Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  StoreIC::GenerateMegamorphic(masm(), extra_state);
+  StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
@@ -951,8 +954,10 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   ASSERT(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
   CallbackHandlerFrontend(type, receiver(), holder, name, callback);
-  GenerateLoadCallback(call_optimization, IC::TypeToMap(*type, isolate()));
-
+  Handle<Map>receiver_map = IC::TypeToMap(*type, isolate());
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch1(), false, 0, NULL);
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
 }
@@ -1118,6 +1123,30 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreArrayLength(Handle<JSObject> object,
+                                                        LookupResult* lookup,
+                                                        Handle<Name> name) {
+  // This accepts as a receiver anything JSArray::SetElementsLength accepts
+  // (currently anything except for external arrays which means anything with
+  // elements of FixedArray type).  Value must be a number, but only smis are
+  // accepted as the most common case.
+  Label miss;
+
+  // Check that value is a smi.
+  __ JumpIfNotSmi(value(), &miss);
+
+  // Generate tail call to StoreIC_ArrayLength.
+  GenerateStoreArrayLength();
+
+  // Handle miss case.
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
+
+  // Return the generated code.
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSObject> object,
     Handle<JSObject> holder,
@@ -1125,8 +1154,24 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSFunction> setter) {
   Handle<HeapType> type = IC::CurrentTypeOf(object, isolate());
   HandlerFrontend(type, receiver(), holder, name);
-  GenerateStoreViaSetter(masm(), type, setter);
+  GenerateStoreViaSetter(masm(), type, receiver(), setter);
 
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
+                  receiver(), holder, name);
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch1(), true, 1, values);
+  // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -1236,8 +1281,8 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_state(), type, kind, cache_holder_);
+  ASSERT_EQ(kNoExtraICState, extra_state());
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
@@ -1265,6 +1310,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
+      } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
+        cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = KeyedLoadDictionaryElementStub().GetCode(isolate());

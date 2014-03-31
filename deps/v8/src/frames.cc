@@ -531,6 +531,10 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
+  if (FLAG_enable_ool_constant_pool) {
+    state->constant_pool_address = reinterpret_cast<Address*>(
+        fp() + ExitFrameConstants::kConstantPoolOffset);
+  }
 }
 
 
@@ -574,6 +578,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
+  state->constant_pool_address =
+      reinterpret_cast<Address*>(fp + ExitFrameConstants::kConstantPoolOffset);
 }
 
 
@@ -610,6 +616,8 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->constant_pool_address =
+      reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
 
 

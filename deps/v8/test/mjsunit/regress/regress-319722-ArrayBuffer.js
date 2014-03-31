@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
-var maxSize = %MaxSmi() + 1;
+var maxSize = %_MaxSmi() + 1;
 var ab;
 
 // Allocate the largest ArrayBuffer we can on this architecture.

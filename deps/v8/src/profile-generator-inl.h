@@ -47,7 +47,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       line_number_(line_number),
       column_number_(column_number),
       shared_id_(0),
-      script_id_(v8::Script::kNoScriptId),
+      script_id_(v8::UnboundScript::kNoScriptId),
       no_frame_ranges_(NULL),
       bailout_reason_(kEmptyBailoutReason) { }
 

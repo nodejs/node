@@ -159,6 +159,9 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 #endif  // V8_NO_FAST_TLS
 
 
+class TimezoneCache;
+
+
 // ----------------------------------------------------------------------------
 // OS
 //
@@ -182,16 +185,20 @@ class OS {
   // 00:00:00 UTC, January 1, 1970.
   static double TimeCurrentMillis();
 
+  static TimezoneCache* CreateTimezoneCache();
+  static void DisposeTimezoneCache(TimezoneCache* cache);
+  static void ClearTimezoneCache(TimezoneCache* cache);
+
   // Returns a string identifying the current time zone. The
   // timestamp is used for determining if DST is in effect.
-  static const char* LocalTimezone(double time);
+  static const char* LocalTimezone(double time, TimezoneCache* cache);
 
   // Returns the local time offset in milliseconds east of UTC without
   // taking daylight savings time into account.
-  static double LocalTimeOffset();
+  static double LocalTimeOffset(TimezoneCache* cache);
 
   // Returns the daylight savings offset for the given time.
-  static double DaylightSavingsOffset(double time);
+  static double DaylightSavingsOffset(double time, TimezoneCache* cache);
 
   // Returns last OS error.
   static int GetLastError();

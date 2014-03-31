@@ -72,7 +72,7 @@ function createHandler(obj) {
     hasOwn: function(name) { return ({}).hasOwnProperty.call(obj, name); },
     get: function(receiver, name) { return obj[name]; },
     set: function(receiver, name, val) {
-      obj[name] = val;  // bad behavior when set fails in non-strict mode
+      obj[name] = val;  // bad behavior when set fails in sloppy mode
       return true;
     },
     enumerate: function() {

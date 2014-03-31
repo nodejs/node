@@ -226,9 +226,6 @@ struct Lowercase {
 struct Letter {
   static bool Is(uchar c);
 };
-struct Space {
-  static bool Is(uchar c);
-};
 struct Number {
   static bool Is(uchar c);
 };

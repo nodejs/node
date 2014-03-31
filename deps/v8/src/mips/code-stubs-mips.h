@@ -367,7 +367,7 @@ class RecordWriteStub: public PlatformCodeStub {
       MacroAssembler* masm,
       OnNoNeedToInformIncrementalMarker on_no_need,
       Mode mode);
-  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 

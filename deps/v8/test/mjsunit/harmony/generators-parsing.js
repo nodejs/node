@@ -68,7 +68,7 @@ function* yield() { (yield 3) + (yield 4); }
 assertThrows("function* yield() { \"use strict\"; (yield 3) + (yield 4); }",
              SyntaxError);
 
-// In classic mode, yield is a normal identifier, outside of generators.
+// In sloppy mode, yield is a normal identifier, outside of generators.
 function yield(yield) { yield: yield (yield + yield (0)); }
 
 // Yield is always valid as a key in an object literal.
@@ -76,7 +76,7 @@ function yield(yield) { yield: yield (yield + yield (0)); }
 function* g() { yield ({ yield: 1 }) }
 function* g() { yield ({ get yield() { return 1; }}) }
 
-// Checks that yield is a valid label in classic mode, but not valid in a strict
+// Checks that yield is a valid label in sloppy mode, but not valid in a strict
 // mode or in generators.
 function f() { yield: 1 }
 assertThrows("function f() { \"use strict\"; yield: 1 }", SyntaxError)

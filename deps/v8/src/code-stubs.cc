@@ -86,9 +86,11 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
-Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
+Handle<Code> CodeStub::GetCodeCopy(Isolate* isolate,
+                                   const Code::FindAndReplacePattern& pattern) {
   Handle<Code> ic = GetCode(isolate);
   ic = isolate->factory()->CopyCode(ic);
+  ic->FindAndReplace(pattern);
   RecordCodeGeneration(*ic, isolate);
   return ic;
 }
@@ -119,8 +121,7 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(),
-      GetStubFlags());
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -562,7 +563,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -573,8 +574,8 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
   stream->Add("ArgumentsAccessStub_");
   switch (type_) {
     case READ_ELEMENT: stream->Add("ReadElement"); break;
-    case NEW_NON_STRICT_FAST: stream->Add("NewNonStrictFast"); break;
-    case NEW_NON_STRICT_SLOW: stream->Add("NewNonStrictSlow"); break;
+    case NEW_SLOPPY_FAST: stream->Add("NewSloppyFast"); break;
+    case NEW_SLOPPY_SLOW: stream->Add("NewSloppySlow"); break;
     case NEW_STRICT: stream->Add("NewStrict"); break;
   }
 }
@@ -737,13 +738,21 @@ void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
 
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(STRICT_MODE, false);
+  FastNewClosureStub stub(STRICT, false);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
   FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
+  FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                 DONT_TRACK_ALLOCATION_SITE, 0);
   InstallDescriptor(isolate, &stub);
 }
 

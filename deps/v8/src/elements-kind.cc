@@ -66,7 +66,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       return kPointerSizeLog2;
   }
   UNREACHABLE();
@@ -142,14 +142,27 @@ int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
 }
 
 
+ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+    case TYPE##_ELEMENTS: return EXTERNAL_##TYPE##_ELEMENTS;
+
+    TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
+#undef FIXED_TYPED_ARRAY_CASE
+    default: {
+      int index = GetSequenceIndexFromFastElementsKind(kind);
+      return GetFastElementsKindFromSequenceIndex(index + 1);
+    }
+  }
+}
+
+
 ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
                                                 bool allow_only_packed) {
   ASSERT(IsFastElementsKind(elements_kind));
   ASSERT(elements_kind != TERMINAL_FAST_ELEMENTS_KIND);
   while (true) {
-    int index =
-        GetSequenceIndexFromFastElementsKind(elements_kind) + 1;
-    elements_kind = GetFastElementsKindFromSequenceIndex(index);
+    elements_kind = GetNextTransitionElementsKind(elements_kind);
     if (!IsFastHoleyElementsKind(elements_kind) || !allow_only_packed) {
       return elements_kind;
     }

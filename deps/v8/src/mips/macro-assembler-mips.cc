@@ -3440,8 +3440,8 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   bind(&is_nan);
   // Load canonical NaN for storing into the double array.
   LoadRoot(at, Heap::kNanValueRootIndex);
-  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
-  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kValueOffset + 4));
+  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kMantissaOffset));
+  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kExponentOffset));
   jmp(&have_double_value);
 
   bind(&smi_value);
@@ -3986,7 +3986,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   {
     FrameScope frame(this, StackFrame::INTERNAL);
     CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+        ExternalReference(Runtime::kHiddenPromoteScheduledException, isolate()),
         0);
   }
   jmp(&exception_handled);
@@ -4346,16 +4346,8 @@ void MacroAssembler::Check(Condition cc, BailoutReason reason,
 void MacroAssembler::Abort(BailoutReason reason) {
   Label abort_start;
   bind(&abort_start);
-  // We want to pass the msg string like a smi to avoid GC
-  // problems, however msg is not guaranteed to be aligned
-  // properly. Instead, we pass an aligned pointer that is
-  // a proper v8 smi, but also pass the alignment difference
-  // from the real pointer as a smi.
-  const char* msg = GetBailoutReason(reason);
-  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
-  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
-  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
 #ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -4367,18 +4359,16 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  li(a0, Operand(p0));
-  push(a0);
-  li(a0, Operand(Smi::FromInt(p1 - p0)));
+  li(a0, Operand(Smi::FromInt(reason)));
   push(a0);
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   } else {
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   }
   // Will not return here.
   if (is_trampoline_pool_blocked()) {
@@ -4386,8 +4376,8 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // instructions generated, we insert padding here to keep the size
     // of the Abort macro constant.
     // Currently in debug mode with debug_code enabled the number of
-    // generated instructions is 14, so we use this as a maximum value.
-    static const int kExpectedAbortInstructions = 14;
+    // generated instructions is 10, so we use this as a maximum value.
+    static const int kExpectedAbortInstructions = 10;
     int abort_instructions = InstructionsGeneratedSince(&abort_start);
     ASSERT(abort_instructions <= kExpectedAbortInstructions);
     while (abort_instructions++ < kExpectedAbortInstructions) {
@@ -4440,31 +4430,6 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 }
 
 
-void MacroAssembler::LoadInitialArrayMap(
-    Register function_in, Register scratch,
-    Register map_out, bool can_have_holes) {
-  ASSERT(!function_in.is(map_out));
-  Label done;
-  lw(map_out, FieldMemOperand(function_in,
-                              JSFunction::kPrototypeOrInitialMapOffset));
-  if (!FLAG_smi_only_arrays) {
-    ElementsKind kind = can_have_holes ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                        kind,
-                                        map_out,
-                                        scratch,
-                                        &done);
-  } else if (can_have_holes) {
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                        FAST_HOLEY_SMI_ELEMENTS,
-                                        map_out,
-                                        scratch,
-                                        &done);
-  }
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   lw(function,
@@ -4474,19 +4439,6 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
                                GlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   lw(function, MemOperand(function, Context::SlotOffset(index)));
-}
-
-
-void MacroAssembler::LoadArrayFunction(Register function) {
-  // Load the global or builtins object from the current context.
-  lw(function,
-     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  // Load the global context from the global or builtins object.
-  lw(function,
-     FieldMemOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the array function from the native context.
-  lw(function,
-     MemOperand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 
@@ -4861,6 +4813,23 @@ void MacroAssembler::AssertName(Register object) {
     lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
     Check(le, kOperandIsNotAName, object, Operand(LAST_NAME_TYPE));
     pop(object);
+  }
+}
+
+
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
+                                                     Register scratch) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+    Branch(&done_checking, eq, object, Operand(scratch));
+    push(object);
+    lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    LoadRoot(scratch, Heap::kAllocationSiteMapRootIndex);
+    Assert(eq, kExpectedUndefinedOrCell, object, Operand(scratch));
+    pop(object);
+    bind(&done_checking);
   }
 }
 
@@ -5482,9 +5451,9 @@ void MacroAssembler::Throw(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   } else {
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   }
   // will not return here
   if (is_trampoline_pool_blocked()) {
@@ -5751,6 +5720,28 @@ void CodePatcher::ChangeBranchCondition(Condition cond) {
   opcode = (cond == eq) ? BEQ : BNE;
   instr = (instr & ~kOpcodeMask) | opcode;
   masm_.emit(instr);
+}
+
+
+void MacroAssembler::TruncatingDiv(Register result,
+                                   Register dividend,
+                                   int32_t divisor) {
+  ASSERT(!dividend.is(result));
+  ASSERT(!dividend.is(at));
+  ASSERT(!result.is(at));
+  MultiplierAndShift ms(divisor);
+  li(at, Operand(ms.multiplier()));
+  Mult(dividend, Operand(at));
+  mfhi(result);
+  if (divisor > 0 && ms.multiplier() < 0) {
+    Addu(result, result, Operand(dividend));
+  }
+  if (divisor < 0 && ms.multiplier() > 0) {
+    Subu(result, result, Operand(dividend));
+  }
+  if (ms.shift() > 0) sra(result, result, ms.shift());
+  srl(at, dividend, 31);
+  Addu(result, result, Operand(at));
 }
 
 

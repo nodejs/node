@@ -36,6 +36,8 @@
 #include "ia32/frames-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/frames-x64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/frames-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/frames-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -196,6 +198,11 @@ inline Address StandardFrame::caller_pc() const {
 
 inline Address StandardFrame::ComputePCAddress(Address fp) {
   return fp + StandardFrameConstants::kCallerPCOffset;
+}
+
+
+inline Address StandardFrame::ComputeConstantPoolAddress(Address fp) {
+  return fp + StandardFrameConstants::kConstantPoolOffset;
 }
 
 

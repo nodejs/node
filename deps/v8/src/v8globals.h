@@ -133,6 +133,7 @@ class Heap;
 class HeapObject;
 class IC;
 class InterceptorInfo;
+class Isolate;
 class JSReceiver;
 class JSArray;
 class JSFunction;
@@ -465,11 +466,11 @@ enum VariableMode {
   // User declared variables:
   VAR,             // declared via 'var', and 'function' declarations
 
-  CONST,           // declared via 'const' declarations
+  CONST_LEGACY,    // declared via legacy 'const' declarations
 
   LET,             // declared via 'let' declarations (first lexical)
 
-  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
+  CONST,           // declared via 'const' declarations
 
   MODULE,          // declared via 'module' declaration (last lexical)
 
@@ -510,7 +511,7 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
+  return (mode >= CONST && mode <= MODULE) || mode == CONST_LEGACY;
 }
 
 

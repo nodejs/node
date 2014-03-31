@@ -796,6 +796,10 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 }
 
 
+Simulator::~Simulator() {
+}
+
+
 // When the generated code calls an external reference we need to catch that in
 // the simulator.  The external reference will be a function compiled for the
 // host architecture.  We need to call that function instead of trying to
@@ -3466,7 +3470,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl signed
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         if ((imm3 != 1) && (imm3 != 2) && (imm3 != 4)) UNIMPLEMENTED();
@@ -3489,7 +3494,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl unsigned
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         if ((imm3 != 1) && (imm3 != 2) && (imm3 != 4)) UNIMPLEMENTED();

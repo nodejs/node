@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <assert.h>
-#include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,52 +34,17 @@
 #include "v8.h"
 
 #include "api.h"
-#include "ast.h"
-#include "char-predicates-inl.h"
 #include "messages.h"
 #include "platform.h"
 #include "runtime.h"
 #include "scanner-character-streams.h"
 #include "scopeinfo.h"
+#include "shell-utils.h"
 #include "string-stream.h"
 #include "scanner.h"
 
 
 using namespace v8::internal;
-
-enum Encoding {
-  LATIN1,
-  UTF8,
-  UTF16
-};
-
-
-const byte* ReadFile(const char* name, Isolate* isolate,
-                     int* size, int repeat) {
-  FILE* file = fopen(name, "rb");
-  *size = 0;
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  int file_size = ftell(file);
-  rewind(file);
-
-  *size = file_size * repeat;
-
-  byte* chars = new byte[*size + 1];
-  for (int i = 0; i < file_size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
-    i += read;
-  }
-  fclose(file);
-
-  for (int i = file_size; i < *size; i++) {
-    chars[i] = chars[i - file_size];
-  }
-  chars[*size] = 0;
-
-  return chars;
-}
 
 
 class BaselineScanner {
@@ -92,7 +56,7 @@ class BaselineScanner {
                   int repeat)
       : stream_(NULL) {
     int length = 0;
-    source_ = ReadFile(fname, isolate, &length, repeat);
+    source_ = ReadFileAndRepeat(fname, &length, repeat);
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
     switch (encoding) {
@@ -104,6 +68,7 @@ class BaselineScanner {
             Vector<const uint16_t>(
                 reinterpret_cast<const uint16_t*>(source_),
                 length / 2));
+        CHECK_NOT_EMPTY_HANDLE(isolate, result);
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
@@ -111,6 +76,7 @@ class BaselineScanner {
       case LATIN1: {
         Handle<String> result = isolate->factory()->NewStringFromOneByte(
             Vector<const uint8_t>(source_, length));
+        CHECK_NOT_EMPTY_HANDLE(isolate, result);
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;

@@ -66,7 +66,7 @@ for i = 1, #arg do
    end
 end
 
-local ARCHS = ARGS[1] and { ARGS[1] } or { 'ia32', 'arm', 'x64' }
+local ARCHS = ARGS[1] and { ARGS[1] } or { 'ia32', 'arm', 'x64', 'arm64' }
 
 local io = require "io"
 local os = require "os"
@@ -196,7 +196,9 @@ local ARCHITECTURES = {
    arm = config { triple = "i586-unknown-linux",
                   arch_define = "V8_TARGET_ARCH_ARM" },
    x64 = config { triple = "x86_64-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_X64" }
+                  arch_define = "V8_TARGET_ARCH_X64" },
+   arm64 = config { triple = "x86_64-unknown-linux",
+                    arch_define = "V8_TARGET_ARCH_ARM64" },
 }
 
 -------------------------------------------------------------------------------

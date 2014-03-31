@@ -136,7 +136,16 @@ endif
 # deprecation_warnings=on
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
-endif 
+endif
+# asan=/path/to/clang++
+ifneq ($(strip $(asan)),)
+  GYPFLAGS += -Dasan=1
+  export CXX="$(asan)"
+  export CXX_host="$(asan)"
+  export LINK="$(asan)"
+  export ASAN_SYMBOLIZER_PATH="$(dir $(asan))llvm-symbolizer"
+endif
+
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
@@ -223,11 +232,11 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm mipsel
+ARCHES = ia32 x64 arm arm64 mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_mipsel
+ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
@@ -247,13 +256,15 @@ NACL_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(NACL_ARCHES)))
 # Generates corresponding test targets, e.g. "ia32.release.check".
 CHECKS = $(addsuffix .check,$(BUILDS))
+QUICKCHECKS = $(addsuffix .quickcheck,$(BUILDS))
 ANDROID_CHECKS = $(addsuffix .check,$(ANDROID_BUILDS))
 NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
 .PHONY: all check clean dependencies $(ENVFILE).new native \
-        qc quickcheck \
+        qc quickcheck $(QUICKCHECKS) \
+        $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
@@ -332,6 +343,18 @@ $(CHECKS): $$(basename $$@)
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
 
+$(addsuffix .quickcheck,$(MODES)): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --mode=$(basename $@) $(TESTFLAGS) --quickcheck
+
+$(addsuffix .quickcheck,$(ARCHES)): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch=$(basename $@) $(TESTFLAGS) --quickcheck
+
+$(QUICKCHECKS): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(basename $@) $(TESTFLAGS) --quickcheck
+
 $(addsuffix .sync, $(ANDROID_BUILDS)): $$(basename $$@)
 	@tools/android-sync.sh $(basename $@) $(OUTDIR) \
 	                       $(shell pwd) $(ANDROID_V8)
@@ -358,12 +381,17 @@ native.check: native
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
 
-FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug
+SUPERFASTTESTMODES = ia32.release
+FASTTESTMODES = $(SUPERFASTTESTMODES),x64.release,ia32.optdebug,x64.optdebug,arm.optdebug,arm64.release
+FASTCOMPILEMODES = $(FASTTESTMODES),arm64.optdebug
 
 COMMA = ,
 EMPTY =
 SPACE = $(EMPTY) $(EMPTY)
-quickcheck: $(subst $(COMMA),$(SPACE),$(FASTTESTMODES))
+quickcheck: $(subst $(COMMA),$(SPACE),$(FASTCOMPILEMODES))
+	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(SUPERFASTTESTMODES) $(TESTFLAGS) --quickcheck \
+	    --download-data mozilla webkit
 	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(FASTTESTMODES) $(TESTFLAGS) --quickcheck
 qc: quickcheck
@@ -392,7 +420,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(subst .,,$(suffix $(basename $@))) \
-	              -Dv8_optimized_debug=$(if $(findstring optdebug,$@),2,0) \
+	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
@@ -446,4 +474,4 @@ dependencies:
 	    --revision 1831
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 239289
+	    third_party/icu --revision 258359

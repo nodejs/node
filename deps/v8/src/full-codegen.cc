@@ -345,7 +345,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                         info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
-  cgen.PopulateTypeFeedbackCells(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -387,6 +386,18 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
+void FullCodeGenerator::InitializeFeedbackVector() {
+  int length = info_->function()->slot_count();
+  feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
+  Handle<Object> sentinel = TypeFeedbackInfo::UninitializedSentinel(isolate());
+  // Ensure that it's safe to set without using a write barrier.
+  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(), *sentinel);
+  for (int i = 0; i < length; i++) {
+    feedback_vector_->set(i, *sentinel, SKIP_WRITE_BARRIER);
+  }
+}
+
+
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
@@ -405,6 +416,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
+  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
@@ -425,21 +437,6 @@ void FullCodeGenerator::Initialize() {
 }
 
 
-void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
-  if (type_feedback_cells_.is_empty()) return;
-  int length = type_feedback_cells_.length();
-  int array_size = TypeFeedbackCells::LengthOfFixedArray(length);
-  Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
-      isolate()->factory()->NewFixedArray(array_size, TENURED));
-  for (int i = 0; i < length; i++) {
-    cache->SetAstId(i, type_feedback_cells_[i].ast_id);
-    cache->SetCell(i, *type_feedback_cells_[i].cell);
-  }
-  TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
-      *cache);
-}
-
-
 void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
   PrepareForBailoutForId(node->id(), state);
 }
@@ -449,13 +446,13 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
                                    TypeFeedbackId id) {
   ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode);
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), extra_state);
-  CallIC(ic, contextual_mode, id);
+  CallIC(ic, id);
 }
 
 
-void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
+void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
-  CallIC(ic, mode, id);
+  CallIC(ic, id);
 }
 
 
@@ -487,13 +484,6 @@ void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
   ASSERT(!prepared_bailout_ids_.Contains(id.ToInt()));
   prepared_bailout_ids_.Add(id.ToInt(), zone());
   bailout_entries_.Add(entry, zone());
-}
-
-
-void FullCodeGenerator::RecordTypeFeedbackCell(
-    TypeFeedbackId id, Handle<Cell> cell) {
-  TypeFeedbackCellEntry entry = { id, cell };
-  type_feedback_cells_.Add(entry, zone());
 }
 
 
@@ -634,7 +624,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
         ASSERT(scope->interface()->Index() >= 0);
         __ Push(Smi::FromInt(scope->interface()->Index()));
         __ Push(scope->GetScopeInfo());
-        __ CallRuntime(Runtime::kPushModuleContext, 2);
+        __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
         StoreToFrameField(StandardFrameConstants::kContextOffset,
                           context_register());
 
@@ -774,7 +764,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   ASSERT(interface->Index() >= 0);
   __ Push(Smi::FromInt(interface->Index()));
   __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kPushModuleContext, 2);
+  __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   {
@@ -825,10 +815,10 @@ void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  ASSERT(DeclareGlobalsLanguageMode::is_valid(language_mode()));
+  ASSERT(DeclareGlobalsStrictMode::is_valid(strict_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
       DeclareGlobalsNativeFlag::encode(is_native()) |
-      DeclareGlobalsLanguageMode::encode(language_mode());
+      DeclareGlobalsStrictMode::encode(strict_mode());
 }
 
 
@@ -893,7 +883,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, pos);
+  CodeGenerator::RecordPositions(masm_, expr->position());
 #endif
 }
 
@@ -918,7 +908,6 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 const FullCodeGenerator::InlineFunctionGenerator
   FullCodeGenerator::kInlineFunctionGenerators[] = {
     INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-    INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
   };
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
@@ -1102,7 +1091,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
     { Comment cmnt(masm_, "[ Extend block context");
       __ Push(scope_->GetScopeInfo());
       PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      __ CallRuntime(Runtime::kHiddenPushBlockContext, 2);
 
       // Replace the context stored in the frame.
       StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -1134,7 +1123,7 @@ void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
 
   __ Push(Smi::FromInt(stmt->proxy()->interface()->Index()));
   __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kPushModuleContext, 2);
+  __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
   StoreToFrameField(
       StandardFrameConstants::kContextOffset, context_register());
 
@@ -1273,7 +1262,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
 
   VisitForStackValue(stmt->expression());
   PushFunctionArgumentForContextAllocation();
-  __ CallRuntime(Runtime::kPushWithContext, 2);
+  __ CallRuntime(Runtime::kHiddenPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   Scope* saved_scope = scope();
@@ -1426,7 +1415,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     __ Push(stmt->variable()->name());
     __ Push(result_register());
     PushFunctionArgumentForContextAllocation();
-    __ CallRuntime(Runtime::kPushCatchContext, 3);
+    __ CallRuntime(Runtime::kHiddenPushCatchContext, 3);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }
@@ -1490,7 +1479,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // rethrow the exception if it returns.
   __ Call(&finally_entry);
   __ Push(result_register());
-  __ CallRuntime(Runtime::kReThrow, 1);
+  __ CallRuntime(Runtime::kHiddenReThrow, 1);
 
   // Finally block implementation.
   __ bind(&finally_entry);
@@ -1616,7 +1605,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
-  __ CallRuntime(Runtime::kThrow, 1);
+  __ CallRuntime(Runtime::kHiddenThrow, 1);
   // Never returns here.
 }
 

@@ -98,3 +98,12 @@ def CheckChangeOnCommit(input_api, output_api):
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
   return results
+
+
+def GetPreferredTryMasters(project, change):
+  return {
+    'tryserver.v8': {
+      'v8_mac_rel': set(['defaulttests']),
+      'v8_win_rel': set(['defaulttests']),
+    },
+  }

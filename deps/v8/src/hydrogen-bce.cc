@@ -30,6 +30,7 @@
 namespace v8 {
 namespace internal {
 
+
 // We try to "factor up" HBoundsCheck instructions towards the root of the
 // dominator tree.
 // For now we handle checks where the index is like "exp + int32value".
@@ -135,7 +136,7 @@ class BoundsCheckBbData: public ZoneObject {
   void UpdateUpperOffsets(HBoundsCheck* check, int32_t offset) {
     BoundsCheckBbData* data = FatherInDominatorTree();
     while (data != NULL && data->UpperCheck() == check) {
-      ASSERT(data->upper_offset_ <= offset);
+      ASSERT(data->upper_offset_ < offset);
       data->upper_offset_ = offset;
       data = data->FatherInDominatorTree();
     }
@@ -173,7 +174,7 @@ class BoundsCheckBbData: public ZoneObject {
         keep_new_check = true;
         upper_check_ = new_check;
       } else {
-        TightenCheck(upper_check_, new_check);
+        TightenCheck(upper_check_, new_check, new_offset);
         UpdateUpperOffsets(upper_check_, upper_offset_);
       }
     } else if (new_offset < lower_offset_) {
@@ -182,7 +183,7 @@ class BoundsCheckBbData: public ZoneObject {
         keep_new_check = true;
         lower_check_ = new_check;
       } else {
-        TightenCheck(lower_check_, new_check);
+        TightenCheck(lower_check_, new_check, new_offset);
         UpdateLowerOffsets(lower_check_, lower_offset_);
       }
     } else {
@@ -191,12 +192,20 @@ class BoundsCheckBbData: public ZoneObject {
     }
 
     if (!keep_new_check) {
+      if (FLAG_trace_bce) {
+        OS::Print("Eliminating check #%d after tightening\n",
+                  new_check->id());
+      }
       new_check->block()->graph()->isolate()->counters()->
           bounds_checks_eliminated()->Increment();
       new_check->DeleteAndReplaceWith(new_check->ActualValue());
     } else {
       HBoundsCheck* first_check = new_check == lower_check_ ? upper_check_
                                                             : lower_check_;
+      if (FLAG_trace_bce) {
+        OS::Print("Moving second check #%d after first check #%d\n",
+                  new_check->id(), first_check->id());
+      }
       // The length is guaranteed to be live at first_check.
       ASSERT(new_check->length() == first_check->length());
       HInstruction* old_position = new_check->next();
@@ -275,11 +284,16 @@ class BoundsCheckBbData: public ZoneObject {
   }
 
   void TightenCheck(HBoundsCheck* original_check,
-                    HBoundsCheck* tighter_check) {
+                    HBoundsCheck* tighter_check,
+                    int32_t new_offset) {
     ASSERT(original_check->length() == tighter_check->length());
     MoveIndexIfNecessary(tighter_check->index(), original_check, tighter_check);
     original_check->ReplaceAllUsesWith(original_check->index());
     original_check->SetOperandAt(0, tighter_check->index());
+    if (FLAG_trace_bce) {
+      OS::Print("Tightened check #%d with offset %d from #%d\n",
+                original_check->id(), new_offset, tighter_check->id());
+    }
   }
 
   DISALLOW_COPY_AND_ASSIGN(BoundsCheckBbData);
@@ -389,11 +403,32 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
                                                    bb_data_list,
                                                    NULL);
       *data_p = bb_data_list;
+      if (FLAG_trace_bce) {
+        OS::Print("Fresh bounds check data for block #%d: [%d]\n",
+                  bb->block_id(), offset);
+      }
     } else if (data->OffsetIsCovered(offset)) {
       bb->graph()->isolate()->counters()->
           bounds_checks_eliminated()->Increment();
+      if (FLAG_trace_bce) {
+        OS::Print("Eliminating bounds check #%d, offset %d is covered\n",
+                  check->id(), offset);
+      }
       check->DeleteAndReplaceWith(check->ActualValue());
     } else if (data->BasicBlock() == bb) {
+      // TODO(jkummerow): I think the following logic would be preferable:
+      // if (data->Basicblock() == bb ||
+      //     graph()->use_optimistic_licm() ||
+      //     bb->IsLoopSuccessorDominator()) {
+      //   data->CoverCheck(check, offset)
+      // } else {
+      //   /* add pristine BCBbData like in (data == NULL) case above */
+      // }
+      // Even better would be: distinguish between read-only dominator-imposed
+      // knowledge and modifiable upper/lower checks.
+      // What happens currently is that the first bounds check in a dominated
+      // block will stay around while any further checks are hoisted out,
+      // which doesn't make sense. Investigate/fix this in a future CL.
       data->CoverCheck(check, offset);
     } else if (graph()->use_optimistic_licm() ||
                bb->IsLoopSuccessorDominator()) {
@@ -411,6 +446,10 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
                                                    data->UpperCheck(),
                                                    bb_data_list,
                                                    data);
+      if (FLAG_trace_bce) {
+        OS::Print("Updated bounds check data for block #%d: [%d - %d]\n",
+                  bb->block_id(), new_lower_offset, new_upper_offset);
+      }
       table_.Insert(key, bb_data_list, zone());
     }
   }

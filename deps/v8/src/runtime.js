@@ -75,11 +75,8 @@ function EQUALS(y) {
         y = %ToPrimitive(y, NO_HINT);
       }
     } else if (IS_SYMBOL(x)) {
-      while (true) {
-        if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
-        if (!IS_SPEC_OBJECT(y)) return 1;  // not equal
-        y = %ToPrimitive(y, NO_HINT);
-      }
+      if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+      return 1; // not equal
     } else if (IS_BOOLEAN(x)) {
       if (IS_BOOLEAN(y)) return %_ObjectEquals(x, y) ? 0 : 1;
       if (IS_NULL_OR_UNDEFINED(y)) return 1;
@@ -97,6 +94,7 @@ function EQUALS(y) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
       if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+      if (IS_SYMBOL(y)) return 1;  // not equal
       if (IS_BOOLEAN(y)) y = %ToNumber(y);
       x = %ToPrimitive(x, NO_HINT);
     }
@@ -501,7 +499,7 @@ function ToPrimitive(x, hint) {
   if (IS_STRING(x)) return x;
   // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
-  if (IS_SYMBOL_WRAPPER(x)) return %_ValueOf(x);
+  if (IS_SYMBOL_WRAPPER(x)) throw MakeTypeError('symbol_to_primitive', []);
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
 }
@@ -548,6 +546,7 @@ function ToString(x) {
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
+  if (IS_SYMBOL(x)) throw %MakeTypeError('symbol_to_string', []);
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
 }
 
@@ -555,6 +554,7 @@ function NonStringToString(x) {
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
+  if (IS_SYMBOL(x)) throw %MakeTypeError('symbol_to_string', []);
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
 }
 
@@ -568,9 +568,9 @@ function ToName(x) {
 // ECMA-262, section 9.9, page 36.
 function ToObject(x) {
   if (IS_STRING(x)) return new $String(x);
-  if (IS_SYMBOL(x)) return new $Symbol(x);
   if (IS_NUMBER(x)) return new $Number(x);
   if (IS_BOOLEAN(x)) return new $Boolean(x);
+  if (IS_SYMBOL(x)) return %NewSymbolWrapper(x);
   if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {
     throw %MakeTypeError('undefined_or_null_to_object', []);
   }

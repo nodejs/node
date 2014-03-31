@@ -62,9 +62,7 @@ void HistogramTimer::Start() {
   if (Enabled()) {
     timer_.Start();
   }
-  if (FLAG_log_internal_timer_events) {
-    LOG(isolate(), TimerEvent(Logger::START, name()));
-  }
+  isolate()->event_logger()(name(), Logger::START);
 }
 
 
@@ -75,9 +73,7 @@ void HistogramTimer::Stop() {
     AddSample(static_cast<int>(timer_.Elapsed().InMilliseconds()));
     timer_.Stop();
   }
-  if (FLAG_log_internal_timer_events) {
-    LOG(isolate(), TimerEvent(Logger::END, name()));
-  }
+  isolate()->event_logger()(name(), Logger::END);
 }
 
 } }  // namespace v8::internal

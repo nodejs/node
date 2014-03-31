@@ -27,7 +27,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import BaseHTTPServer
 import bisect
+import cgi
 import cmd
 import codecs
 import ctypes
@@ -37,10 +39,15 @@ import mmap
 import optparse
 import os
 import re
-import struct
 import sys
 import types
+import urllib
+import urlparse
 import v8heapconst
+import webbrowser
+
+PORT_NUMBER = 8081
+
 
 USAGE="""usage: %prog [OPTIONS] [DUMP-FILE]
 
@@ -701,6 +708,20 @@ class MinidumpReader(object):
                             reader.FormatIntPtr(word))
     self.ForEachMemoryRegion(search_inside_region)
 
+  def FindWordList(self, word):
+    aligned_res = []
+    unaligned_res = []
+    def search_inside_region(reader, start, size, location):
+      for loc in xrange(location, location + size - self.PointerSize()):
+        if reader._ReadWord(loc) == word:
+          slot = start + (loc - location)
+          if slot % self.PointerSize() == 0:
+            aligned_res.append(slot)
+          else:
+            unaligned_res.append(slot)
+    self.ForEachMemoryRegion(search_inside_region)
+    return (aligned_res, unaligned_res)
+
   def FindLocation(self, address):
     offset = 0
     if self.memory_list64 is not None:
@@ -930,8 +951,9 @@ class HeapObject(object):
 
   def SmiField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
-    assert (field_value & 1) == 0
-    return field_value / 2
+    if (field_value & 1) == 0:
+      return field_value / 2
+    return None
 
 
 class Map(HeapObject):
@@ -1348,7 +1370,9 @@ class JSFunction(HeapObject):
     if not self.shared.script.Is(Script): return source
     script_source = self.shared.script.source
     if not script_source.Is(String): return source
-    return script_source.GetChars()[start:end]
+    if start and end:
+      source = script_source.GetChars()[start:end]
+    return source
 
 
 class SharedFunctionInfo(HeapObject):
@@ -1382,7 +1406,10 @@ class SharedFunctionInfo(HeapObject):
     else:
       start_position_and_type = \
           self.SmiField(self.StartPositionAndTypeOffset())
-      self.start_position = start_position_and_type >> 2
+      if start_position_and_type:
+        self.start_position = start_position_and_type >> 2
+      else:
+        self.start_position = None
       self.end_position = \
           self.SmiField(self.EndPositionOffset())
 
@@ -1561,6 +1588,79 @@ class KnownMap(HeapObject):
     return "<%s>" % self.known_name
 
 
+COMMENT_RE = re.compile(r"^C (0x[0-9a-fA-F]+) (.*)$")
+PAGEADDRESS_RE = re.compile(
+    r"^P (mappage|pointerpage|datapage) (0x[0-9a-fA-F]+)$")
+
+
+class InspectionInfo(object):
+  def __init__(self, minidump_name, reader):
+    self.comment_file = minidump_name + ".comments"
+    self.address_comments = {}
+    self.page_address = {}
+    if os.path.exists(self.comment_file):
+      with open(self.comment_file, "r") as f:
+        lines = f.readlines()
+        f.close()
+
+        for l in lines:
+          m = COMMENT_RE.match(l)
+          if m:
+            self.address_comments[int(m.group(1), 0)] = m.group(2)
+          m = PAGEADDRESS_RE.match(l)
+          if m:
+            self.page_address[m.group(1)] = int(m.group(2), 0)
+    self.reader = reader
+    self.styles = {}
+    self.color_addresses()
+    return
+
+  def get_page_address(self, page_kind):
+    return self.page_address.get(page_kind, 0)
+
+  def save_page_address(self, page_kind, address):
+    with open(self.comment_file, "a") as f:
+      f.write("P %s 0x%x\n" % (page_kind, address))
+      f.close()
+
+  def color_addresses(self):
+    # Color all stack addresses.
+    exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
+    stack_top = self.reader.ExceptionSP()
+    stack_bottom = exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size
+    frame_pointer = self.reader.ExceptionFP()
+    self.styles[frame_pointer] = "frame"
+    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+      self.styles[slot] = "stackaddress"
+    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+      maybe_address = self.reader.ReadUIntPtr(slot)
+      self.styles[maybe_address] = "stackval"
+      if slot == frame_pointer:
+        self.styles[slot] = "frame"
+        frame_pointer = maybe_address
+    self.styles[self.reader.ExceptionIP()] = "pc"
+
+  def get_style_class(self, address):
+    return self.styles.get(address, None)
+
+  def get_style_class_string(self, address):
+    style = self.get_style_class(address)
+    if style != None:
+      return " class=\"%s\" " % style
+    else:
+      return ""
+
+  def set_comment(self, address, comment):
+    self.address_comments[address] = comment
+    with open(self.comment_file, "a") as f:
+      f.write("C 0x%x %s\n" % (address, comment))
+      f.close()
+
+  def get_comment(self, address):
+    return self.address_comments.get(address, "")
+
+
 class InspectionPadawan(object):
   """The padawan can improve annotations by sensing well-known objects."""
   def __init__(self, reader, heap):
@@ -1653,6 +1753,1033 @@ class InspectionPadawan(object):
           self.reader.FormatIntPtr(self.known_first_data_page),
           self.reader.FormatIntPtr(self.known_first_pointer_page))
 
+WEB_HEADER = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type">
+<style media="screen" type="text/css">
+
+.code {
+  font-family: monospace;
+}
+
+.dmptable {
+  border-collapse : collapse;
+  border-spacing : 0px;
+}
+
+.codedump {
+  border-collapse : collapse;
+  border-spacing : 0px;
+}
+
+.addrcomments {
+  border : 0px;
+}
+
+.register {
+  padding-right : 1em;
+}
+
+.header {
+  clear : both;
+}
+
+.header .navigation {
+  float : left;
+}
+
+.header .dumpname {
+  float : right;
+}
+
+tr.highlight-line {
+  background-color : yellow;
+}
+
+.highlight {
+  background-color : magenta;
+}
+
+tr.inexact-highlight-line {
+  background-color : pink;
+}
+
+input {
+  background-color: inherit;
+  border: 1px solid LightGray;
+}
+
+.dumpcomments {
+  border : 1px solid LightGray;
+  width : 32em;
+}
+
+.regions td {
+  padding:0 15px 0 15px;
+}
+
+.stackframe td {
+  background-color : cyan;
+}
+
+.stackaddress {
+  background-color : LightGray;
+}
+
+.stackval {
+  background-color : LightCyan;
+}
+
+.frame {
+  background-color : cyan;
+}
+
+.commentinput {
+  width : 20em;
+}
+
+a.nodump:visited {
+  color : black;
+  text-decoration : none;
+}
+
+a.nodump:link {
+  color : black;
+  text-decoration : none;
+}
+
+a:visited {
+  color : blueviolet;
+}
+
+a:link {
+  color : blue;
+}
+
+.disasmcomment {
+  color : DarkGreen;
+}
+
+</style>
+
+<script type="application/javascript">
+
+var address_str = "address-";
+var address_len = address_str.length;
+
+function comment() {
+  var s = event.srcElement.id;
+  var index = s.indexOf(address_str);
+  if (index >= 0) {
+    send_comment(s.substring(index + address_len), event.srcElement.value);
+  }
+}
+
+function send_comment(address, comment) {
+  xmlhttp = new XMLHttpRequest();
+  address = encodeURIComponent(address)
+  comment = encodeURIComponent(comment)
+  xmlhttp.open("GET",
+      "setcomment?%(query_dump)s&address=" + address +
+      "&comment=" + comment, true);
+  xmlhttp.send();
+}
+
+var dump_str = "dump-";
+var dump_len = dump_str.length;
+
+function dump_comment() {
+  var s = event.srcElement.id;
+  var index = s.indexOf(dump_str);
+  if (index >= 0) {
+    send_dump_desc(s.substring(index + dump_len), event.srcElement.value);
+  }
+}
+
+function send_dump_desc(name, desc) {
+  xmlhttp = new XMLHttpRequest();
+  name = encodeURIComponent(name)
+  desc = encodeURIComponent(desc)
+  xmlhttp.open("GET",
+      "setdumpdesc?dump=" + name +
+      "&description=" + desc, true);
+  xmlhttp.send();
+}
+
+function onpage(kind, address) {
+  xmlhttp = new XMLHttpRequest();
+  kind = encodeURIComponent(kind)
+  address = encodeURIComponent(address)
+  xmlhttp.onreadystatechange = function() {
+    if (xmlhttp.readyState==4 && xmlhttp.status==200) {
+      location.reload(true)
+    }
+  };
+  xmlhttp.open("GET",
+      "setpageaddress?%(query_dump)s&kind=" + kind +
+      "&address=" + address);
+  xmlhttp.send();
+}
+
+</script>
+
+<title>Dump %(dump_name)s</title>
+</head>
+
+<body>
+  <div class="header">
+    <form class="navigation" action="search.html">
+      <a href="summary.html?%(query_dump)s">Context info</a>&nbsp;&nbsp;&nbsp;
+      <a href="info.html?%(query_dump)s">Dump info</a>&nbsp;&nbsp;&nbsp;
+      <a href="modules.html?%(query_dump)s">Modules</a>&nbsp;&nbsp;&nbsp;
+      &nbsp;
+      <input type="search" name="val">
+      <input type="submit" name="search" value="Search">
+      <input type="hidden" name="dump" value="%(dump_name)s">
+    </form>
+    <form class="navigation" action="disasm.html#highlight">
+      &nbsp;
+      &nbsp;
+      &nbsp;
+      <input type="search" name="val">
+      <input type="submit" name="disasm" value="Disasm">
+      &nbsp;
+      &nbsp;
+      &nbsp;
+      <a href="dumps.html">Dumps...</a>
+    </form>
+  </div>
+  <br>
+  <hr>
+"""
+
+
+WEB_FOOTER = """
+</body>
+</html>
+"""
+
+
+class WebParameterError(Exception):
+  def __init__(self, message):
+    Exception.__init__(self, message)
+
+
+class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+  def formatter(self, query_components):
+    name = query_components.get("dump", [None])[0]
+    return self.server.get_dump_formatter(name)
+
+  def send_success_html_headers(self):
+    self.send_response(200)
+    self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+    self.send_header("Pragma", "no-cache")
+    self.send_header("Expires", "0")
+    self.send_header('Content-type','text/html')
+    self.end_headers()
+    return
+
+  def do_GET(self):
+    try:
+      parsedurl = urlparse.urlparse(self.path)
+      query_components = urlparse.parse_qs(parsedurl.query)
+      if parsedurl.path == "/dumps.html":
+        self.send_success_html_headers()
+        self.server.output_dumps(self.wfile)
+      elif parsedurl.path == "/summary.html":
+        self.send_success_html_headers()
+        self.formatter(query_components).output_summary(self.wfile)
+      elif parsedurl.path == "/info.html":
+        self.send_success_html_headers()
+        self.formatter(query_components).output_info(self.wfile)
+      elif parsedurl.path == "/modules.html":
+        self.send_success_html_headers()
+        self.formatter(query_components).output_modules(self.wfile)
+      elif parsedurl.path == "/search.html":
+        address = query_components.get("val", [])
+        if len(address) != 1:
+          self.send_error(404, "Invalid params")
+          return
+        self.send_success_html_headers()
+        self.formatter(query_components).output_search_res(
+            self.wfile, address[0])
+      elif parsedurl.path == "/disasm.html":
+        address = query_components.get("val", [])
+        exact = query_components.get("exact", ["on"])
+        if len(address) != 1:
+          self.send_error(404, "Invalid params")
+          return
+        self.send_success_html_headers()
+        self.formatter(query_components).output_disasm(
+            self.wfile, address[0], exact[0])
+      elif parsedurl.path == "/data.html":
+        address = query_components.get("val", [])
+        datakind = query_components.get("type", ["address"])
+        if len(address) == 1 and len(datakind) == 1:
+          self.send_success_html_headers()
+          self.formatter(query_components).output_data(
+              self.wfile, address[0], datakind[0])
+        else:
+          self.send_error(404,'Invalid params')
+      elif parsedurl.path == "/setdumpdesc":
+        name = query_components.get("dump", [""])
+        description = query_components.get("description", [""])
+        if len(name) == 1 and len(description) == 1:
+          name = name[0]
+          description = description[0]
+          if self.server.set_dump_desc(name, description):
+            self.send_success_html_headers()
+            self.wfile.write("OK")
+            return
+        self.send_error(404,'Invalid params')
+      elif parsedurl.path == "/setcomment":
+        address = query_components.get("address", [])
+        comment = query_components.get("comment", [""])
+        if len(address) == 1 and len(comment) == 1:
+          address = address[0]
+          comment = comment[0]
+          self.formatter(query_components).set_comment(address, comment)
+          self.send_success_html_headers()
+          self.wfile.write("OK")
+        else:
+          self.send_error(404,'Invalid params')
+      elif parsedurl.path == "/setpageaddress":
+        kind = query_components.get("kind", [])
+        address = query_components.get("address", [""])
+        if len(kind) == 1 and len(address) == 1:
+          kind = kind[0]
+          address = address[0]
+          self.formatter(query_components).set_page_address(kind, address)
+          self.send_success_html_headers()
+          self.wfile.write("OK")
+        else:
+          self.send_error(404,'Invalid params')
+      else:
+        self.send_error(404,'File Not Found: %s' % self.path)
+
+    except IOError:
+      self.send_error(404,'File Not Found: %s' % self.path)
+
+    except WebParameterError as e:
+      self.send_error(404, 'Web parameter error: %s' % e.message)
+
+
+HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span>\n"
+
+
+class InspectionWebFormatter(object):
+  CONTEXT_FULL = 0
+  CONTEXT_SHORT = 1
+
+  def __init__(self, switches, minidump_name, http_server):
+    self.dumpfilename = os.path.split(minidump_name)[1]
+    self.encfilename = urllib.urlencode({ 'dump' : self.dumpfilename })
+    self.reader = MinidumpReader(switches, minidump_name)
+    self.server = http_server
+
+    # Set up the heap
+    exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
+    stack_top = self.reader.ExceptionSP()
+    stack_bottom = exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size
+    stack_map = {self.reader.ExceptionIP(): -1}
+    for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
+      maybe_address = self.reader.ReadUIntPtr(slot)
+      if not maybe_address in stack_map:
+        stack_map[maybe_address] = slot
+    self.heap = V8Heap(self.reader, stack_map)
+
+    self.padawan = InspectionPadawan(self.reader, self.heap)
+    self.comments = InspectionInfo(minidump_name, self.reader)
+    self.padawan.known_first_data_page = (
+        self.comments.get_page_address("datapage"))
+    self.padawan.known_first_map_page = (
+        self.comments.get_page_address("mappage"))
+    self.padawan.known_first_pointer_page = (
+        self.comments.get_page_address("pointerpage"))
+
+  def set_comment(self, straddress, comment):
+    try:
+      address = int(straddress, 0)
+      self.comments.set_comment(address, comment)
+    except ValueError:
+      print "Invalid address"
+
+  def set_page_address(self, kind, straddress):
+    try:
+      address = int(straddress, 0)
+      if kind == "datapage":
+        self.padawan.known_first_data_page = address
+      elif kind == "mappage":
+        self.padawan.known_first_map_page = address
+      elif kind == "pointerpage":
+        self.padawan.known_first_pointer_page = address
+      self.comments.save_page_address(kind, address)
+    except ValueError:
+      print "Invalid address"
+
+  def td_from_address(self, f, address):
+    f.write("<td %s>" % self.comments.get_style_class_string(address))
+
+  def format_address(self, maybeaddress, straddress = None):
+    if maybeaddress is None:
+      return "not in dump"
+    else:
+      if straddress is None:
+        straddress = "0x" + self.reader.FormatIntPtr(maybeaddress)
+      style_class = ""
+      if not self.reader.IsValidAddress(maybeaddress):
+        style_class = " class=\"nodump\""
+      return ("<a %s href=\"search.html?%s&amp;val=%s\">%s</a>" %
+              (style_class, self.encfilename, straddress, straddress))
+
+  def output_header(self, f):
+    f.write(WEB_HEADER %
+        { "query_dump" : self.encfilename,
+          "dump_name"  : cgi.escape(self.dumpfilename) })
+
+  def output_footer(self, f):
+    f.write(WEB_FOOTER)
+
+  MAX_CONTEXT_STACK = 4096
+
+  def output_summary(self, f):
+    self.output_header(f)
+    f.write('<div class="code">')
+    self.output_context(f, InspectionWebFormatter.CONTEXT_SHORT)
+    self.output_disasm_pc(f)
+
+    # Output stack
+    exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
+    stack_bottom = exception_thread.stack.start + \
+        min(exception_thread.stack.memory.data_size, self.MAX_CONTEXT_STACK)
+    stack_top = self.reader.ExceptionSP()
+    self.output_words(f, stack_top - 16, stack_bottom, stack_top, "Stack")
+
+    f.write('</div>')
+    self.output_footer(f)
+    return
+
+  def output_info(self, f):
+    self.output_header(f)
+    f.write("<h3>Dump info</h3>\n")
+    f.write("Description: ")
+    self.server.output_dump_desc_field(f, self.dumpfilename)
+    f.write("<br>\n")
+    f.write("Filename: ")
+    f.write("<span class=\"code\">%s</span><br>\n" % (self.dumpfilename))
+    dt = datetime.datetime.fromtimestamp(self.reader.header.time_date_stampt)
+    f.write("Timestamp: %s<br>\n" % dt.strftime('%Y-%m-%d %H:%M:%S'))
+    self.output_context(f, InspectionWebFormatter.CONTEXT_FULL)
+    self.output_address_ranges(f)
+    self.output_footer(f)
+    return
+
+  def output_address_ranges(self, f):
+    regions = {}
+    def print_region(_reader, start, size, _location):
+      regions[start] = size
+    self.reader.ForEachMemoryRegion(print_region)
+    f.write("<h3>Available memory regions</h3>\n")
+    f.write('<div class="code">')
+    f.write("<table class=\"regions\">\n")
+    f.write("<thead><tr>")
+    f.write("<th>Start address</th>")
+    f.write("<th>End address</th>")
+    f.write("<th>Number of bytes</th>")
+    f.write("</tr></thead>\n")
+    for start in sorted(regions):
+      size = regions[start]
+      f.write("<tr>")
+      f.write("<td>%s</td>" % self.format_address(start))
+      f.write("<td>&nbsp;%s</td>" % self.format_address(start + size))
+      f.write("<td>&nbsp;%d</td>" % size)
+      f.write("</tr>\n")
+    f.write("</table>\n")
+    f.write('</div>')
+    return
+
+  def output_module_details(self, f, module):
+    f.write("<b>%s</b>" % GetModuleName(self.reader, module))
+    file_version = GetVersionString(module.version_info.dwFileVersionMS,
+                                    module.version_info.dwFileVersionLS)
+    product_version = GetVersionString(module.version_info.dwProductVersionMS,
+                                       module.version_info.dwProductVersionLS)
+    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("base: %s" % self.reader.FormatIntPtr(module.base_of_image))
+    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("  end: %s" % self.reader.FormatIntPtr(module.base_of_image +
+                                            module.size_of_image))
+    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("  file version: %s" % file_version)
+    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("  product version: %s" % product_version)
+    f.write("<br>&nbsp;&nbsp;\n")
+    time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
+    f.write("  timestamp: %s" % time_date_stamp)
+    f.write("<br>\n");
+
+  def output_modules(self, f):
+    self.output_header(f)
+    f.write('<div class="code">')
+    for module in self.reader.module_list.modules:
+      self.output_module_details(f, module)
+    f.write("</div>")
+    self.output_footer(f)
+    return
+
+  def output_context(self, f, details):
+    exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
+    f.write("<h3>Exception context</h3>")
+    f.write('<div class="code">\n')
+    f.write("Thread id: %d" % exception_thread.id)
+    f.write("&nbsp;&nbsp; Exception code: %08X\n" %
+            self.reader.exception.exception.code)
+    if details == InspectionWebFormatter.CONTEXT_FULL:
+      if self.reader.exception.exception.parameter_count > 0:
+        f.write("&nbsp;&nbsp; Exception parameters: \n")
+        for i in xrange(0, self.reader.exception.exception.parameter_count):
+          f.write("%08x" % self.reader.exception.exception.information[i])
+        f.write("<br><br>\n")
+
+    for r in CONTEXT_FOR_ARCH[self.reader.arch]:
+      f.write(HTML_REG_FORMAT %
+              (r, self.format_address(self.reader.Register(r))))
+    # TODO(vitalyr): decode eflags.
+    if self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
+      f.write("<b>cpsr</b>: %s" % bin(self.reader.exception_context.cpsr)[2:])
+    else:
+      f.write("<b>eflags</b>: %s" %
+              bin(self.reader.exception_context.eflags)[2:])
+    f.write('</div>\n')
+    return
+
+  def align_down(self, a, size):
+    alignment_correction = a % size
+    return a - alignment_correction
+
+  def align_up(self, a, size):
+    alignment_correction = (size - 1) - ((a + size - 1) % size)
+    return a + alignment_correction
+
+  def format_object(self, address):
+    heap_object = self.padawan.SenseObject(address)
+    return cgi.escape(str(heap_object or ""))
+
+  def output_data(self, f, straddress, datakind):
+    try:
+      self.output_header(f)
+      address = int(straddress, 0)
+      if not self.reader.IsValidAddress(address):
+        f.write("<h3>Address 0x%x not found in the dump.</h3>" % address)
+        return
+      region = self.reader.FindRegion(address)
+      if datakind == "address":
+        self.output_words(f, region[0], region[0] + region[1], address, "Dump")
+      elif datakind == "ascii":
+        self.output_ascii(f, region[0], region[0] + region[1], address)
+      self.output_footer(f)
+
+    except ValueError:
+      f.write("<h3>Unrecognized address format \"%s\".</h3>" % straddress)
+    return
+
+  def output_words(self, f, start_address, end_address,
+                   highlight_address, desc):
+    region = self.reader.FindRegion(highlight_address)
+    if region is None:
+      f.write("<h3>Address 0x%x not found in the dump.</h3>\n" %
+              (highlight_address))
+      return
+    size = self.heap.PointerSize()
+    start_address = self.align_down(start_address, size)
+    low = self.align_down(region[0], size)
+    high = self.align_up(region[0] + region[1], size)
+    if start_address < low:
+      start_address = low
+    end_address = self.align_up(end_address, size)
+    if end_address > high:
+      end_address = high
+
+    expand = ""
+    if start_address != low or end_address != high:
+      expand = ("(<a href=\"data.html?%s&amp;val=0x%x#highlight\">"
+                " more..."
+                " </a>)" %
+                (self.encfilename, highlight_address))
+
+    f.write("<h3>%s 0x%x - 0x%x, "
+            "highlighting <a href=\"#highlight\">0x%x</a> %s</h3>\n" %
+            (desc, start_address, end_address, highlight_address, expand))
+    f.write('<div class="code">')
+    f.write("<table class=\"codedump\">\n")
+
+    for slot in xrange(start_address, end_address, size):
+      heap_object = ""
+      maybe_address = None
+      end_region = region[0] + region[1]
+      if slot < region[0] or slot + size > end_region:
+        straddress = "0x"
+        for i in xrange(end_region, slot + size):
+          straddress += "??"
+        for i in reversed(
+            xrange(max(slot, region[0]), min(slot + size, end_region))):
+          straddress += "%02x" % self.reader.ReadU8(i)
+        for i in xrange(slot, region[0]):
+          straddress += "??"
+      else:
+        maybe_address = self.reader.ReadUIntPtr(slot)
+        straddress = self.format_address(maybe_address)
+        if maybe_address:
+          heap_object = self.format_object(maybe_address)
+
+      address_fmt = "%s&nbsp;</td>\n"
+      if slot == highlight_address:
+        f.write("<tr class=\"highlight-line\">\n")
+        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+      elif slot < highlight_address and highlight_address < slot + size:
+        f.write("<tr class=\"inexact-highlight-line\">\n")
+        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+      else:
+        f.write("<tr>\n")
+
+      f.write("  <td>")
+      self.output_comment_box(f, "da-", slot)
+      f.write("</td>\n")
+      f.write("  ")
+      self.td_from_address(f, slot)
+      f.write(address_fmt % self.format_address(slot))
+      f.write("  ")
+      self.td_from_address(f, maybe_address)
+      f.write(":&nbsp; %s &nbsp;</td>\n" % straddress)
+      f.write("  <td>")
+      if maybe_address != None:
+        self.output_comment_box(
+            f, "sv-" + self.reader.FormatIntPtr(slot), maybe_address)
+      f.write("  </td>\n")
+      f.write("  <td>%s</td>\n" % (heap_object or ''))
+      f.write("</tr>\n")
+    f.write("</table>\n")
+    f.write("</div>")
+    return
+
+  def output_ascii(self, f, start_address, end_address, highlight_address):
+    region = self.reader.FindRegion(highlight_address)
+    if region is None:
+      f.write("<h3>Address %x not found in the dump.</h3>" %
+          highlight_address)
+      return
+    if start_address < region[0]:
+      start_address = region[0]
+    if end_address > region[0] + region[1]:
+      end_address = region[0] + region[1]
+
+    expand = ""
+    if start_address != region[0] or end_address != region[0] + region[1]:
+      link = ("data.html?%s&amp;val=0x%x&amp;type=ascii#highlight" %
+              (self.encfilename, highlight_address))
+      expand = "(<a href=\"%s\">more...</a>)" % link
+
+    f.write("<h3>ASCII dump 0x%x - 0x%x, highlighting 0x%x %s</h3>" %
+            (start_address, end_address, highlight_address, expand))
+
+    line_width = 64
+
+    f.write('<div class="code">')
+
+    start = self.align_down(start_address, line_width)
+
+    for address in xrange(start, end_address):
+      if address % 64 == 0:
+        if address != start:
+          f.write("<br>")
+        f.write("0x%08x:&nbsp;" % address)
+      if address < start_address:
+        f.write("&nbsp;")
+      else:
+        if address == highlight_address:
+          f.write("<span class=\"highlight\">")
+        code = self.reader.ReadU8(address)
+        if code < 127 and code >= 32:
+          f.write("&#")
+          f.write(str(code))
+          f.write(";")
+        else:
+          f.write("&middot;")
+        if address == highlight_address:
+          f.write("</span>")
+    f.write("</div>")
+    return
+
+  def output_disasm(self, f, straddress, strexact):
+    try:
+      self.output_header(f)
+      address = int(straddress, 0)
+      if not self.reader.IsValidAddress(address):
+        f.write("<h3>Address 0x%x not found in the dump.</h3>" % address)
+        return
+      region = self.reader.FindRegion(address)
+      self.output_disasm_range(
+          f, region[0], region[0] + region[1], address, strexact == "on")
+      self.output_footer(f)
+    except ValueError:
+      f.write("<h3>Unrecognized address format \"%s\".</h3>" % straddress)
+    return
+
+  def output_disasm_range(
+      self, f, start_address, end_address, highlight_address, exact):
+    region = self.reader.FindRegion(highlight_address)
+    if start_address < region[0]:
+      start_address = region[0]
+    if end_address > region[0] + region[1]:
+      end_address = region[0] + region[1]
+    count = end_address - start_address
+    lines = self.reader.GetDisasmLines(start_address, count)
+    found = False
+    if exact:
+      for line in lines:
+        if line[0] + start_address == highlight_address:
+          found = True
+          break
+      if not found:
+        start_address = highlight_address
+        count = end_address - start_address
+        lines = self.reader.GetDisasmLines(highlight_address, count)
+    expand = ""
+    if start_address != region[0] or end_address != region[0] + region[1]:
+      exactness = ""
+      if exact and not found and end_address == region[0] + region[1]:
+        exactness = "&amp;exact=off"
+      expand = ("(<a href=\"disasm.html?%s%s"
+                "&amp;val=0x%x#highlight\">more...</a>)" %
+                (self.encfilename, exactness, highlight_address))
+
+    f.write("<h3>Disassembling 0x%x - 0x%x, highlighting 0x%x %s</h3>" %
+            (start_address, end_address, highlight_address, expand))
+    f.write('<div class="code">')
+    f.write("<table class=\"codedump\">\n");
+    for i in xrange(0, len(lines)):
+      line = lines[i]
+      next_address = count
+      if i + 1 < len(lines):
+        next_line = lines[i + 1]
+        next_address = next_line[0]
+      self.format_disasm_line(
+          f, start_address, line, next_address, highlight_address)
+    f.write("</table>\n")
+    f.write("</div>")
+    return
+
+  def annotate_disasm_addresses(self, line):
+    extra = []
+    for m in ADDRESS_RE.finditer(line):
+      maybe_address = int(m.group(0), 16)
+      formatted_address = self.format_address(maybe_address, m.group(0))
+      line = line.replace(m.group(0), formatted_address)
+      object_info = self.padawan.SenseObject(maybe_address)
+      if not object_info:
+        continue
+      extra.append(cgi.escape(str(object_info)))
+    if len(extra) == 0:
+      return line
+    return ("%s <span class=\"disasmcomment\">;; %s</span>" %
+            (line, ", ".join(extra)))
+
+  def format_disasm_line(
+      self, f, start, line, next_address, highlight_address):
+    line_address = start + line[0]
+    address_fmt = "  <td>%s</td>\n"
+    if line_address == highlight_address:
+      f.write("<tr class=\"highlight-line\">\n")
+      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+    elif (line_address < highlight_address and
+          highlight_address < next_address + start):
+      f.write("<tr class=\"inexact-highlight-line\">\n")
+      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+    else:
+      f.write("<tr>\n")
+    num_bytes = next_address - line[0]
+    stack_slot = self.heap.stack_map.get(line_address)
+    marker = ""
+    if stack_slot:
+      marker = "=>"
+    op_offset = 3 * num_bytes - 1
+
+    code = line[1]
+    # Compute the actual call target which the disassembler is too stupid
+    # to figure out (it adds the call offset to the disassembly offset rather
+    # than the absolute instruction address).
+    if self.heap.reader.arch == MD_CPU_ARCHITECTURE_X86:
+      if code.startswith("e8"):
+        words = code.split()
+        if len(words) > 6 and words[5] == "call":
+          offset = int(words[4] + words[3] + words[2] + words[1], 16)
+          target = (line_address + offset + 5) & 0xFFFFFFFF
+          code = code.replace(words[6], "0x%08x" % target)
+    # TODO(jkummerow): port this hack to ARM and x64.
+
+    opcodes = code[:op_offset]
+    code = self.annotate_disasm_addresses(code[op_offset:])
+    f.write("  <td>")
+    self.output_comment_box(f, "codel-", line_address)
+    f.write("</td>\n")
+    f.write(address_fmt % marker)
+    f.write("  ")
+    self.td_from_address(f, line_address)
+    f.write("%s (+0x%x)</td>\n" %
+            (self.format_address(line_address), line[0]))
+    f.write("  <td>:&nbsp;%s&nbsp;</td>\n" % opcodes)
+    f.write("  <td>%s</td>\n" % code)
+    f.write("</tr>\n")
+
+  def output_comment_box(self, f, prefix, address):
+    f.write("<input type=\"text\" class=\"commentinput\" "
+            "id=\"%s-address-0x%s\" onchange=\"comment()\" value=\"%s\">" %
+            (prefix,
+             self.reader.FormatIntPtr(address),
+             cgi.escape(self.comments.get_comment(address)) or ""))
+
+  MAX_FOUND_RESULTS = 100
+
+  def output_find_results(self, f, results):
+    f.write("Addresses")
+    toomany = len(results) > self.MAX_FOUND_RESULTS
+    if toomany:
+      f.write("(found %i results, displaying only first %i)" %
+              (len(results), self.MAX_FOUND_RESULTS))
+    f.write(": \n")
+    results = sorted(results)
+    results = results[:min(len(results), self.MAX_FOUND_RESULTS)]
+    for address in results:
+      f.write("<span %s>%s</span>\n" %
+              (self.comments.get_style_class_string(address),
+               self.format_address(address)))
+    if toomany:
+      f.write("...\n")
+
+
+  def output_page_info(self, f, page_kind, page_address, my_page_address):
+    if my_page_address == page_address and page_address != 0:
+      f.write("Marked first %s page.\n" % page_kind)
+    else:
+      f.write("<span id=\"%spage\" style=\"display:none\">" % page_kind)
+      f.write("Marked first %s page." % page_kind)
+      f.write("</span>\n")
+      f.write("<button onclick=\"onpage('%spage', '0x%x')\">" %
+              (page_kind, my_page_address))
+      f.write("Mark as first %s page</button>\n" % page_kind)
+    return
+
+  def output_search_res(self, f, straddress):
+    try:
+      self.output_header(f)
+      f.write("<h3>Search results for %s</h3>" % straddress)
+
+      address = int(straddress, 0)
+
+      f.write("Comment: ")
+      self.output_comment_box(f, "search-", address)
+      f.write("<br>\n")
+
+      page_address = address & ~self.heap.PageAlignmentMask()
+
+      f.write("Page info: \n")
+      self.output_page_info(f, "data", self.padawan.known_first_data_page, \
+                            page_address)
+      self.output_page_info(f, "map", self.padawan.known_first_map_page, \
+                            page_address)
+      self.output_page_info(f, "pointer", \
+                            self.padawan.known_first_pointer_page, \
+                            page_address)
+
+      if not self.reader.IsValidAddress(address):
+        f.write("<h3>The contents at address %s not found in the dump.</h3>" % \
+                straddress)
+      else:
+        # Print as words
+        self.output_words(f, address - 8, address + 32, address, "Dump")
+
+        # Print as ASCII
+        f.write("<hr>\n")
+        self.output_ascii(f, address, address + 256, address)
+
+        # Print as code
+        f.write("<hr>\n")
+        self.output_disasm_range(f, address - 16, address + 16, address, True)
+
+      aligned_res, unaligned_res = self.reader.FindWordList(address)
+
+      if len(aligned_res) > 0:
+        f.write("<h3>Occurrences of 0x%x at aligned addresses</h3>\n" %
+                address)
+        self.output_find_results(f, aligned_res)
+
+      if len(unaligned_res) > 0:
+        f.write("<h3>Occurrences of 0x%x at unaligned addresses</h3>\n" % \
+                address)
+        self.output_find_results(f, unaligned_res)
+
+      if len(aligned_res) + len(unaligned_res) == 0:
+        f.write("<h3>No occurences of 0x%x found in the dump</h3>\n" % address)
+
+      self.output_footer(f)
+
+    except ValueError:
+      f.write("<h3>Unrecognized address format \"%s\".</h3>" % straddress)
+    return
+
+  def output_disasm_pc(self, f):
+    address = self.reader.ExceptionIP()
+    if not self.reader.IsValidAddress(address):
+      return
+    self.output_disasm_range(f, address - 16, address + 16, address, True)
+
+
+WEB_DUMPS_HEADER = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type">
+<style media="screen" type="text/css">
+
+.dumplist {
+  border-collapse : collapse;
+  border-spacing : 0px;
+  font-family: monospace;
+}
+
+.dumpcomments {
+  border : 1px solid LightGray;
+  width : 32em;
+}
+
+</style>
+
+<script type="application/javascript">
+
+var dump_str = "dump-";
+var dump_len = dump_str.length;
+
+function dump_comment() {
+  var s = event.srcElement.id;
+  var index = s.indexOf(dump_str);
+  if (index >= 0) {
+    send_dump_desc(s.substring(index + dump_len), event.srcElement.value);
+  }
+}
+
+function send_dump_desc(name, desc) {
+  xmlhttp = new XMLHttpRequest();
+  name = encodeURIComponent(name)
+  desc = encodeURIComponent(desc)
+  xmlhttp.open("GET",
+      "setdumpdesc?dump=" + name +
+      "&description=" + desc, true);
+  xmlhttp.send();
+}
+
+</script>
+
+<title>Dump list</title>
+</head>
+
+<body>
+"""
+
+WEB_DUMPS_FOOTER = """
+</body>
+</html>
+"""
+
+DUMP_FILE_RE = re.compile(r"[-_0-9a-zA-Z][-\._0-9a-zA-Z]*\.dmp$")
+
+
+class InspectionWebServer(BaseHTTPServer.HTTPServer):
+  def __init__(self, port_number, switches, minidump_name):
+    BaseHTTPServer.HTTPServer.__init__(
+        self, ('', port_number), InspectionWebHandler)
+    splitpath = os.path.split(minidump_name)
+    self.dumppath = splitpath[0]
+    self.dumpfilename = splitpath[1]
+    self.default_formatter = InspectionWebFormatter(
+        switches, minidump_name, self)
+    self.formatters = { self.dumpfilename : self.default_formatter }
+    self.switches = switches
+
+  def output_dump_desc_field(self, f, name):
+    try:
+      descfile = open(os.path.join(self.dumppath, name + ".desc"), "r")
+      desc = descfile.readline()
+      descfile.close()
+    except IOError:
+      desc = ""
+    f.write("<input type=\"text\" class=\"dumpcomments\" "
+            "id=\"dump-%s\" onchange=\"dump_comment()\" value=\"%s\">\n" %
+            (cgi.escape(name), desc))
+
+  def set_dump_desc(self, name, description):
+    if not DUMP_FILE_RE.match(name):
+      return False
+    fname = os.path.join(self.dumppath, name)
+    if not os.path.isfile(fname):
+      return False
+    fname = fname + ".desc"
+    descfile = open(fname, "w")
+    descfile.write(description)
+    descfile.close()
+    return True
+
+  def get_dump_formatter(self, name):
+    if name is None:
+      return self.default_formatter
+    else:
+      if not DUMP_FILE_RE.match(name):
+        raise WebParameterError("Invalid name '%s'" % name)
+      formatter = self.formatters.get(name, None)
+      if formatter is None:
+        try:
+          formatter = InspectionWebFormatter(
+              self.switches, os.path.join(self.dumppath, name), self)
+          self.formatters[name] = formatter
+        except IOError:
+          raise WebParameterError("Could not open dump '%s'" % name)
+      return formatter
+
+  def output_dumps(self, f):
+    f.write(WEB_DUMPS_HEADER)
+    f.write("<h3>List of available dumps</h3>")
+    f.write("<table class=\"dumplist\">\n")
+    f.write("<thead><tr>")
+    f.write("<th>Name</th>")
+    f.write("<th>File time</th>")
+    f.write("<th>Comment</th>")
+    f.write("</tr></thead>")
+    dumps_by_time = {}
+    for fname in os.listdir(self.dumppath):
+      if DUMP_FILE_RE.match(fname):
+        mtime = os.stat(os.path.join(self.dumppath, fname)).st_mtime
+        fnames = dumps_by_time.get(mtime, [])
+        fnames.append(fname)
+        dumps_by_time[mtime] = fnames
+
+    for mtime in sorted(dumps_by_time, reverse=True):
+      fnames = dumps_by_time[mtime]
+      for fname in fnames:
+        f.write("<tr>\n")
+        f.write("<td><a href=\"summary.html?%s\">%s</a></td>\n" % (
+            (urllib.urlencode({ 'dump' : fname }), fname)))
+        f.write("<td>&nbsp;&nbsp;&nbsp;")
+        f.write(datetime.datetime.fromtimestamp(mtime))
+        f.write("</td>")
+        f.write("<td>&nbsp;&nbsp;&nbsp;")
+        self.output_dump_desc_field(f, fname)
+        f.write("</td>")
+        f.write("</tr>\n")
+    f.write("</table>\n")
+    f.write(WEB_DUMPS_FOOTER)
+    return
 
 class InspectionShell(cmd.Cmd):
   def __init__(self, reader, heap):
@@ -1996,6 +3123,8 @@ if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
   parser.add_option("-s", "--shell", dest="shell", action="store_true",
                     help="start an interactive inspector shell")
+  parser.add_option("-w", "--web", dest="web", action="store_true",
+                    help="start a web server on localhost:%i" % PORT_NUMBER)
   parser.add_option("-c", "--command", dest="command", default="",
                     help="run an interactive inspector shell command and exit")
   parser.add_option("-f", "--full", dest="full", action="store_true",
@@ -2014,4 +3143,14 @@ if __name__ == "__main__":
   if len(args) != 1:
     parser.print_help()
     sys.exit(1)
-  AnalyzeMinidump(options, args[0])
+  if options.web:
+    try:
+      server = InspectionWebServer(PORT_NUMBER, options, args[0])
+      print 'Started httpserver on port ' , PORT_NUMBER
+      webbrowser.open('http://localhost:%i/summary.html' % PORT_NUMBER)
+      server.serve_forever()
+    except KeyboardInterrupt:
+      print '^C received, shutting down the web server'
+      server.socket.close()
+  else:
+    AnalyzeMinidump(options, args[0])

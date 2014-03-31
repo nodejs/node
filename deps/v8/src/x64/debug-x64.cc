@@ -121,7 +121,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       Register reg = { r };
       ASSERT(!reg.is(kScratchRegister));
       if ((object_regs & (1 << r)) != 0) {
-        __ push(reg);
+        __ Push(reg);
       }
       if ((non_object_regs & (1 << r)) != 0) {
         __ PushInt64AsTwoSmis(reg);
@@ -145,7 +145,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         __ Set(reg, kDebugZapValue);
       }
       if ((object_regs & (1 << r)) != 0) {
-        __ pop(reg);
+        __ Pop(reg);
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
@@ -154,9 +154,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     }
 
     // Read current padding counter and skip corresponding number of words.
-    __ pop(kScratchRegister);
+    __ Pop(kScratchRegister);
     __ SmiToInteger32(kScratchRegister, kScratchRegister);
-    __ lea(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
+    __ leap(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
 
     // Get rid of the internal frame.
   }
@@ -164,7 +164,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ addq(rsp, Immediate(kPCOnStackSize));
+    __ addp(rsp, Immediate(kPCOnStackSize));
   }
 
   // Now that the break point has been handled, resume normal execution by
@@ -173,7 +173,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
   __ Move(kScratchRegister, after_break_target);
-  __ jmp(Operand(kScratchRegister, 0));
+  __ Jump(Operand(kScratchRegister, 0));
 }
 
 
@@ -261,9 +261,11 @@ void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-x64.cc).
   // ----------- S t a t e -------------
   //  -- rdi : function
-  //  -- rbx: cache cell for call target
+  //  -- rbx: feedback array
+  //  -- rdx: slot in feedback array
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
+                                0, false);
 }
 
 
@@ -285,10 +287,12 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // above IC call.
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
-  //  -- rbx: cache cell for call target
+  //  -- rbx: feedback array
+  //  -- rdx: feedback slot (smi)
   // -----------------------------------
   // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), rax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
+                                rax.bit(), false);
 }
 
 
@@ -323,10 +327,10 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ movp(Operand(rax, 0), Immediate(0));
 
   // We do not know our frame height, but set rsp based on rbp.
-  __ lea(rsp, Operand(rbp, -1 * kPointerSize));
+  __ leap(rsp, Operand(rbp, -1 * kPointerSize));
 
-  __ pop(rdi);  // Function.
-  __ pop(rbp);
+  __ Pop(rdi);  // Function.
+  __ popq(rbp);
 
   // Load context from the function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
@@ -334,7 +338,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Get function code.
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ leap(rdx, FieldOperand(rdx, Code::kHeaderSize));
 
   // Re-run JSFunction, rdi is function, rsi is context.
   __ jmp(rdx);

@@ -262,14 +262,6 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           bool can_have_holes);
-
-  void LoadGlobalContext(Register global_context);
-
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 
@@ -295,7 +287,7 @@ class MacroAssembler: public Assembler {
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
-      Set(result, Immediate(object));
+      Move(result, Immediate(object));
     }
   }
 
@@ -358,9 +350,6 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
-
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
@@ -369,7 +358,7 @@ class MacroAssembler: public Assembler {
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
-  void SafeSet(Register dst, const Immediate& x);
+  void SafeMove(Register dst, const Immediate& x);
   void SafePush(const Immediate& x);
 
   // Compare object type for heap object.
@@ -556,6 +545,10 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
+
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -851,6 +844,13 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, const Immediate& x);
+  void Move(const Operand& dst, const Immediate& x);
+
+  // Move an immediate into an XMM register.
+  void Move(XMMRegister dst, double val);
+
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
@@ -862,6 +862,10 @@ class MacroAssembler: public Assembler {
 
   // Insert code to verify that the x87 stack has the specified depth (0-7)
   void VerifyX87StackDepth(uint32_t depth);
+
+  // Emit code for a truncating division by a constant. The dividend register is
+  // unchanged, the result is in edx, and eax gets clobbered.
+  void TruncatingDiv(Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

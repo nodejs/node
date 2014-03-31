@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // When calling user-defined accessors on strings, booleans or
-// numbers, we should create a wrapper object in classic-mode.
+// numbers, we should create a wrapper object in sloppy mode.
 
 // Flags: --allow-natives-syntax
 

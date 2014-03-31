@@ -530,6 +530,7 @@ assertThrows(function() { ArrayBuffer.apply(null, [1000]); }, TypeError);
 assertThrows(function() { Float32Array.apply(null, [b, 128, 1]); }, TypeError);
 
 // Test array.set in different combinations.
+var b = new ArrayBuffer(4)
 
 function assertArrayPrefix(expected, array) {
   for (var i = 0; i < expected.length; ++i) {

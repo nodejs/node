@@ -38,8 +38,12 @@ class CcTestSuite(testsuite.TestSuite):
 
   def __init__(self, name, root):
     super(CcTestSuite, self).__init__(name, root)
+    if utils.IsWindows():
+      build_dir = "build"
+    else:
+      build_dir = "out"
     self.serdes_dir = os.path.normpath(
-        os.path.join(root, "..", "..", "out", ".serdes"))
+        os.path.join(root, "..", "..", build_dir, ".serdes"))
     if os.path.exists(self.serdes_dir):
       shutil.rmtree(self.serdes_dir, True)
     os.makedirs(self.serdes_dir)

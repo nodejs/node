@@ -234,9 +234,9 @@ TEST(HeapSnapshotObjectSizes) {
   CHECK_NE(NULL, x2);
 
   // Test sizes.
-  CHECK_NE(0, x->GetSelfSize());
-  CHECK_NE(0, x1->GetSelfSize());
-  CHECK_NE(0, x2->GetSelfSize());
+  CHECK_NE(0, static_cast<int>(x->GetShallowSize()));
+  CHECK_NE(0, static_cast<int>(x1->GetShallowSize()));
+  CHECK_NE(0, static_cast<int>(x2->GetShallowSize()));
 }
 
 
@@ -2067,7 +2067,8 @@ TEST(AllocationSitesAreVisible) {
                   "elements");
   CHECK_NE(NULL, elements);
   CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3), elements->GetSelfSize());
+  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
+           static_cast<int>(elements->GetShallowSize()));
 
   v8::Handle<v8::Value> array_val =
       heap_profiler->FindObjectById(transition_info->GetId());
@@ -2215,8 +2216,9 @@ static AllocationTraceNode* FindNode(
     Vector<AllocationTraceNode*> children = node->children();
     node = NULL;
     for (int j = 0; j < children.length(); j++) {
-      v8::SnapshotObjectId id = children[j]->function_id();
-      AllocationTracker::FunctionInfo* info = tracker->GetFunctionInfo(id);
+      unsigned index = children[j]->function_info_index();
+      AllocationTracker::FunctionInfo* info =
+          tracker->function_info_list()[index];
       if (info && strcmp(info->name, name) == 0) {
         node = children[j];
         break;
@@ -2363,6 +2365,34 @@ TEST(TrackBumpPointerAllocations) {
 }
 
 
+TEST(TrackV8ApiAllocation) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  const char* names[] = { "(V8 API)" };
+  heap_profiler->StartTrackingHeapObjects(true);
+
+  v8::Handle<v8::Object> o1 = v8::Object::New(env->GetIsolate());
+  o1->Clone();
+
+  AllocationTracker* tracker =
+      reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
+  CHECK_NE(NULL, tracker);
+  // Resolve all function locations.
+  tracker->PrepareForSerialization();
+  // Print for better diagnostics in case of failure.
+  tracker->trace_tree()->Print(tracker);
+
+  AllocationTraceNode* node =
+      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+  CHECK_NE(NULL, node);
+  CHECK_GE(node->allocation_count(), 2);
+  CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
+  heap_profiler->StopTrackingHeapObjects();
+}
+
+
 TEST(ArrayBufferAndArrayBufferView) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2381,6 +2411,71 @@ TEST(ArrayBufferAndArrayBufferView) {
   const v8::HeapGraphNode* first_view =
       GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "weak_first_view");
   CHECK_NE(NULL, first_view);
+  const v8::HeapGraphNode* backing_store =
+      GetProperty(arr1_buffer, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, backing_store);
+  CHECK_EQ(400, static_cast<int>(backing_store->GetShallowSize()));
+}
+
+
+static int GetRetainersCount(const v8::HeapSnapshot* snapshot,
+                             const v8::HeapGraphNode* node) {
+  int count = 0;
+  for (int i = 0, l = snapshot->GetNodesCount(); i < l; ++i) {
+    const v8::HeapGraphNode* parent = snapshot->GetNode(i);
+    for (int j = 0, l2 = parent->GetChildrenCount(); j < l2; ++j) {
+      if (parent->GetChild(j)->GetToNode() == node) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+
+TEST(ArrayBufferSharedBackingStore) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
+  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
+  CHECK(!ab->IsExternal());
+  v8::ArrayBuffer::Contents ab_contents = ab->Externalize();
+  CHECK(ab->IsExternal());
+
+  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
+  void* data = ab_contents.Data();
+  ASSERT(data != NULL);
+  v8::Local<v8::ArrayBuffer> ab2 =
+      v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
+  CHECK(ab2->IsExternal());
+  env->Global()->Set(v8_str("ab1"), ab);
+  env->Global()->Set(v8_str("ab2"), ab2);
+
+  v8::Handle<v8::Value> result = CompileRun("ab2.byteLength");
+  CHECK_EQ(1024, result->Int32Value());
+
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* ab1_node =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab1");
+  CHECK_NE(NULL, ab1_node);
+  const v8::HeapGraphNode* ab1_data =
+      GetProperty(ab1_node, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, ab1_data);
+  const v8::HeapGraphNode* ab2_node =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab2");
+  CHECK_NE(NULL, ab2_node);
+  const v8::HeapGraphNode* ab2_data =
+      GetProperty(ab2_node, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, ab2_data);
+  CHECK_EQ(ab1_data, ab2_data);
+  CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
+  free(data);
 }
 
 
@@ -2410,4 +2505,64 @@ TEST(BoxObject) {
   const v8::HeapGraphNode* box_value =
       GetProperty(box_node, v8::HeapGraphEdge::kInternal, "value");
   CHECK_NE(NULL, box_value);
+}
+
+
+static inline i::Address ToAddress(int n) {
+  return reinterpret_cast<i::Address>(n);
+}
+
+
+TEST(AddressToTraceMap) {
+  i::AddressToTraceMap map;
+
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(150)));
+
+  // [0x100, 0x200) -> 1
+  map.AddRange(ToAddress(0x100), 0x100, 1U);
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x50)));
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x100)));
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x150)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x100 + 0x100)));
+  CHECK_EQ(1, static_cast<int>(map.size()));
+
+  // [0x100, 0x200) -> 1, [0x200, 0x300) -> 2
+  map.AddRange(ToAddress(0x200), 0x100, 2U);
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x2a0)));
+  CHECK_EQ(2, static_cast<int>(map.size()));
+
+  // [0x100, 0x180) -> 1, [0x180, 0x280) -> 3, [0x280, 0x300) -> 2
+  map.AddRange(ToAddress(0x180), 0x100, 3U);
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x17F)));
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x280)));
+  CHECK_EQ(3, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(3, static_cast<int>(map.size()));
+
+  // [0x100, 0x180) -> 1, [0x180, 0x280) -> 3, [0x280, 0x300) -> 2,
+  // [0x400, 0x500) -> 4
+  map.AddRange(ToAddress(0x400), 0x100, 4U);
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x17F)));
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x280)));
+  CHECK_EQ(3, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(4, map.GetTraceNodeId(ToAddress(0x450)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x500)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x350)));
+  CHECK_EQ(4, static_cast<int>(map.size()));
+
+  // [0x100, 0x180) -> 1, [0x180, 0x200) -> 3, [0x200, 0x600) -> 5
+  map.AddRange(ToAddress(0x200), 0x400, 5U);
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x200)));
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x400)));
+  CHECK_EQ(3, static_cast<int>(map.size()));
+
+  // [0x100, 0x180) -> 1, [0x180, 0x200) -> 7, [0x200, 0x600) ->5
+  map.AddRange(ToAddress(0x180), 0x80, 6U);
+  map.AddRange(ToAddress(0x180), 0x80, 7U);
+  CHECK_EQ(7, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x200)));
+  CHECK_EQ(3, static_cast<int>(map.size()));
+
+  map.Clear();
+  CHECK_EQ(0, static_cast<int>(map.size()));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x400)));
 }

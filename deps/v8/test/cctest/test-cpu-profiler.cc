@@ -1495,20 +1495,16 @@ TEST(FunctionDetails) {
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
 
-  v8::Handle<v8::Script> script_a = v8::Script::Compile(
-      v8::String::NewFromUtf8(
-          env->GetIsolate(),
+  v8::Handle<v8::Script> script_a = CompileWithOrigin(
           "    function foo\n() { try { bar(); } catch(e) {} }\n"
-          " function bar() { startProfiling(); }\n"),
-      v8::String::NewFromUtf8(env->GetIsolate(), "script_a"));
+          " function bar() { startProfiling(); }\n",
+          "script_a");
   script_a->Run();
-  v8::Handle<v8::Script> script_b = v8::Script::Compile(
-      v8::String::NewFromUtf8(
-          env->GetIsolate(),
+  v8::Handle<v8::Script> script_b = CompileWithOrigin(
           "\n\n   function baz() { try { foo(); } catch(e) {} }\n"
           "\n\nbaz();\n"
-          "stopProfiling();\n"),
-      v8::String::NewFromUtf8(env->GetIsolate(), "script_b"));
+          "stopProfiling();\n",
+          "script_b");
   script_b->Run();
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();

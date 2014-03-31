@@ -161,7 +161,7 @@ class GlobalHandles {
   }
 
   // Clear the weakness of a global handle.
-  static void ClearWeakness(Object** location);
+  static void* ClearWeakness(Object** location);
 
   // Clear the weakness of a global handle.
   static void MarkIndependent(Object** location);
@@ -340,6 +340,7 @@ class EternalHandles {
   enum SingletonHandle {
     I18N_TEMPLATE_ONE,
     I18N_TEMPLATE_TWO,
+    DATE_CACHE_VERSION,
 
     NUMBER_OF_SINGLETON_HANDLES
   };

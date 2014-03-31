@@ -110,7 +110,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   bool IsFinished() const { return end_ != NULL; }
   void AddPhi(HPhi* phi);
   void RemovePhi(HPhi* phi);
-  void AddInstruction(HInstruction* instr, int position);
+  void AddInstruction(HInstruction* instr, HSourcePosition position);
   bool Dominates(HBasicBlock* other) const;
   bool EqualToOrDominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
@@ -137,7 +137,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   HPhi* AddNewPhi(int merged_index);
   HSimulate* AddNewSimulate(BailoutId ast_id,
-                            int position,
+                            HSourcePosition position,
                             RemovableSimulate removable = FIXED_SIMULATE) {
     HSimulate* instr = CreateSimulate(ast_id, removable);
     AddInstruction(instr, position);
@@ -174,6 +174,8 @@ class HBasicBlock V8_FINAL : public ZoneObject {
     dominates_loop_successors_ = true;
   }
 
+  void MarkSuccEdgeUnreachable(int succ);
+
   inline Zone* zone() const;
 
 #ifdef DEBUG
@@ -184,13 +186,13 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   friend class HGraphBuilder;
 
   HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
-  void Finish(HControlInstruction* last, int position);
-  void FinishExit(HControlInstruction* instruction, int position);
+  void Finish(HControlInstruction* last, HSourcePosition position);
+  void FinishExit(HControlInstruction* instruction, HSourcePosition position);
   void Goto(HBasicBlock* block,
-            int position,
+            HSourcePosition position,
             FunctionState* state = NULL,
             bool add_simulate = true);
-  void GotoNoSimulate(HBasicBlock* block, int position) {
+  void GotoNoSimulate(HBasicBlock* block, HSourcePosition position) {
     Goto(block, position, NULL, false);
   }
 
@@ -198,7 +200,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value,
                        FunctionState* state,
-                       int position);
+                       HSourcePosition position);
 
  private:
   void RegisterPredecessor(HBasicBlock* pred);
@@ -469,6 +471,16 @@ class HGraph V8_FINAL : public ZoneObject {
   void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
   bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
 
+  // If we are tracking source positions then this function assigns a unique
+  // identifier to each inlining and dumps function source if it was inlined
+  // for the first time during the current optimization.
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                           HSourcePosition position);
+
+  // Converts given HSourcePosition to the absolute offset from the start of
+  // the corresponding script.
+  int SourcePositionToScriptPosition(HSourcePosition position);
+
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -513,6 +525,23 @@ class HGraph V8_FINAL : public ZoneObject {
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
+
+  class InlinedFunctionInfo {
+   public:
+    explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
+      : shared_(shared), start_position_(shared->start_position()) {
+    }
+
+    Handle<SharedFunctionInfo> shared() const { return shared_; }
+    int start_position() const { return start_position_; }
+
+   private:
+    Handle<SharedFunctionInfo> shared_;
+    int start_position_;
+  };
+
+  int next_inline_id_;
+  ZoneList<InlinedFunctionInfo> inlined_functions_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -880,7 +909,8 @@ class FunctionState V8_FINAL {
  public:
   FunctionState(HOptimizedGraphBuilder* owner,
                 CompilationInfo* info,
-                InliningKind inlining_kind);
+                InliningKind inlining_kind,
+                int inlining_id);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
@@ -910,6 +940,8 @@ class FunctionState V8_FINAL {
 
   bool arguments_pushed() { return arguments_elements() != NULL; }
 
+  int inlining_id() const { return inlining_id_; }
+
  private:
   HOptimizedGraphBuilder* owner_;
 
@@ -938,6 +970,9 @@ class FunctionState V8_FINAL {
 
   HArgumentsObject* arguments_object_;
   HArgumentsElements* arguments_elements_;
+
+  int inlining_id_;
+  HSourcePosition outer_source_position_;
 
   FunctionState* outer_;
 };
@@ -996,6 +1031,8 @@ class HAllocationMode V8_FINAL BASE_EMBEDDED {
       : current_site_(current_site), pretenure_flag_(NOT_TENURED) {}
   explicit HAllocationMode(PretenureFlag pretenure_flag)
       : current_site_(NULL), pretenure_flag_(pretenure_flag) {}
+  HAllocationMode()
+      : current_site_(NULL), pretenure_flag_(NOT_TENURED) {}
 
   HValue* current_site() const { return current_site_; }
   Handle<AllocationSite> feedback_site() const { return feedback_site_; }
@@ -1022,7 +1059,8 @@ class HGraphBuilder {
       : info_(info),
         graph_(NULL),
         current_block_(NULL),
-        position_(RelocInfo::kNoPosition) {}
+        position_(HSourcePosition::Unknown()),
+        start_position_(0) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -1052,7 +1090,7 @@ class HGraphBuilder {
             HBasicBlock* target,
             FunctionState* state = NULL,
             bool add_simulate = true) {
-    from->Goto(target, position_, state, add_simulate);
+    from->Goto(target, source_position(), state, add_simulate);
   }
   void Goto(HBasicBlock* target,
             FunctionState* state = NULL,
@@ -1068,7 +1106,7 @@ class HGraphBuilder {
   void AddLeaveInlined(HBasicBlock* block,
                        HValue* return_value,
                        FunctionState* state) {
-    block->AddLeaveInlined(return_value, state, position_);
+    block->AddLeaveInlined(return_value, state, source_position());
   }
   void AddLeaveInlined(HValue* return_value, FunctionState* state) {
     return AddLeaveInlined(current_block(), return_value, state);
@@ -1274,8 +1312,6 @@ class HGraphBuilder {
 
   void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
 
-  int position() const { return position_; }
-
  protected:
   virtual bool BuildGraph() = 0;
 
@@ -1294,7 +1330,7 @@ class HGraphBuilder {
                                     HValue* length,
                                     HValue* key,
                                     bool is_js_array,
-                                    bool is_store);
+                                    PropertyAccessType access_type);
 
   HValue* BuildCopyElementsOnWrite(HValue* object,
                                    HValue* elements,
@@ -1336,6 +1372,10 @@ class HGraphBuilder {
                                HValue* dst_offset,
                                String::Encoding dst_encoding,
                                HValue* length);
+
+  // Align an object size to object alignment boundary
+  HValue* BuildObjectSizeAlignment(HValue* unaligned_size, int header_size);
+
   // Both operands are non-empty strings.
   HValue* BuildUncheckedStringAdd(HValue* left,
                                   HValue* right,
@@ -1351,7 +1391,7 @@ class HGraphBuilder {
       HValue* val,
       bool is_js_array,
       ElementsKind elements_kind,
-      bool is_store,
+      PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
@@ -1361,11 +1401,9 @@ class HGraphBuilder {
       HValue* val,
       HValue* dependency,
       ElementsKind elements_kind,
-      bool is_store,
+      PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 
-  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
-  HInstruction* AddLoadNamedField(HValue* object, HObjectAccess access);
   HInstruction* AddLoadStringInstanceType(HValue* string);
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
@@ -1404,8 +1442,7 @@ class HGraphBuilder {
   HValue* EnforceNumberType(HValue* number, Type* expected);
   HValue* TruncateToNumber(HValue* value, Type** expected);
 
-  void FinishExitWithHardDeoptimization(const char* reason,
-                                        HBasicBlock* continuation);
+  void FinishExitWithHardDeoptimization(const char* reason);
 
   void AddIncrementCounter(StatsCounter* counter);
 
@@ -1777,6 +1814,27 @@ class HGraphBuilder {
  protected:
   void SetSourcePosition(int position) {
     ASSERT(position != RelocInfo::kNoPosition);
+    position_.set_position(position - start_position_);
+  }
+
+  void EnterInlinedSource(int start_position, int id) {
+    if (FLAG_hydrogen_track_positions) {
+      start_position_ = start_position;
+      position_.set_inlining_id(id);
+    }
+  }
+
+  // Convert the given absolute offset from the start of the script to
+  // the HSourcePosition assuming that this position corresponds to the
+  // same function as current position_.
+  HSourcePosition ScriptPositionToSourcePosition(int position) {
+    HSourcePosition pos = position_;
+    pos.set_position(position - start_position_);
+    return pos;
+  }
+
+  HSourcePosition source_position() { return position_; }
+  void set_source_position(HSourcePosition position) {
     position_ = position;
   }
 
@@ -1796,9 +1854,6 @@ class HGraphBuilder {
       HValue* mask,
       int current_probe);
 
-  void PadEnvironmentForContinuation(HBasicBlock* from,
-                                     HBasicBlock* continuation);
-
   template <class I>
   I* AddInstructionTyped(I* instr) {
     return I::cast(AddInstruction(instr));
@@ -1807,7 +1862,8 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
-  int position_;
+  HSourcePosition position_;
+  int start_position_;
 };
 
 
@@ -2059,9 +2115,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  StrictModeFlag function_strict_mode_flag() {
-    return function_state()->compilation_info()->is_classic_mode()
-        ? kNonStrictMode : kStrictMode;
+  StrictMode function_strict_mode() {
+    return function_state()->compilation_info()->strict_mode();
   }
 
   // Generators for inline runtime functions.
@@ -2069,7 +2124,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void Generate##Name(CallRuntime* call);
 
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
-  INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
+  INLINE_OPTIMIZED_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
   void VisitDelete(UnaryOperation* expr);
@@ -2164,11 +2219,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument subexpression and emit a push to the outgoing arguments.
-  void VisitArgument(Expression* expr);
-
-  void VisitArgumentList(ZoneList<Expression*>* arguments);
-
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
 
@@ -2187,8 +2237,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
 
  private:
-  enum PropertyAccessType { LOAD, STORE };
-
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
     kUseCell,
@@ -2196,7 +2244,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   };
   GlobalPropertyAccess LookupGlobalProperty(Variable* var,
                                             LookupResult* lookup,
-                                            bool is_store);
+                                            PropertyAccessType access_type);
 
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
@@ -2213,7 +2261,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                  HValue* implicit_return_value,
                  BailoutId ast_id,
                  BailoutId return_id,
-                 InliningKind inlining_kind);
+                 InliningKind inlining_kind,
+                 HSourcePosition position);
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
@@ -2277,12 +2326,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                          SmallMapList* types,
                                          Handle<String> name);
 
-  void VisitTypedArrayInitialize(CallRuntime* expr);
+  HValue* BuildAllocateExternalElements(
+      ExternalArrayType array_type,
+      bool is_zero_byte_offset,
+      HValue* buffer, HValue* byte_offset, HValue* length);
+  HValue* BuildAllocateFixedTypedArray(
+      ExternalArrayType array_type, size_t element_size,
+      ElementsKind fixed_elements_kind,
+      HValue* byte_length, HValue* length);
 
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
-
-  void VisitDataViewInitialize(CallRuntime* expr);
 
   class PropertyAccessInfo {
    public:
@@ -2416,23 +2470,27 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void HandleLiteralCompareNil(CompareOperation* expr,
                                Expression* sub_expr,
                                NilValue nil);
-  HControlInstruction* BuildCompareInstruction(Token::Value op,
-                                               HValue* left,
-                                               HValue* right,
-                                               Type* left_type,
-                                               Type* right_type,
-                                               Type* combined_type,
-                                               int left_position,
-                                               int right_position,
-                                               BailoutId bailout_id);
-
-  HInstruction* BuildStringCharCodeAt(HValue* string,
-                                      HValue* index);
 
   enum PushBeforeSimulateBehavior {
     PUSH_BEFORE_SIMULATE,
     NO_PUSH_BEFORE_SIMULATE
   };
+
+  HControlInstruction* BuildCompareInstruction(
+      Token::Value op,
+      HValue* left,
+      HValue* right,
+      Type* left_type,
+      Type* right_type,
+      Type* combined_type,
+      HSourcePosition left_position,
+      HSourcePosition right_position,
+      PushBeforeSimulateBehavior push_sim_result,
+      BailoutId bailout_id);
+
+  HInstruction* BuildStringCharCodeAt(HValue* string,
+                                      HValue* index);
+
   HValue* BuildBinaryOperation(
       BinaryOperation* expr,
       HValue* left,
@@ -2440,8 +2498,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
-  HInstruction* BuildLoadKeyedGeneric(HValue* object,
-                                      HValue* key);
+  HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
+                                  HValue* object,
+                                  HValue* key,
+                                  HValue* value);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
                                                 HValue* key,
@@ -2455,14 +2515,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                               HValue* val,
                                               HValue* dependency,
                                               Handle<Map> map,
-                                              bool is_store,
+                                              PropertyAccessType access_type,
                                               KeyedAccessStoreMode store_mode);
 
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
                                          HValue* val,
                                          SmallMapList* maps,
-                                         bool is_store,
+                                         PropertyAccessType access_type,
                                          KeyedAccessStoreMode store_mode,
                                          bool* has_side_effects);
 
@@ -2470,12 +2530,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    HValue* key,
                                    HValue* val,
                                    Expression* expr,
-                                   bool is_store,
+                                   PropertyAccessType access_type,
                                    bool* has_side_effects);
 
-  HInstruction* BuildLoadNamedGeneric(HValue* object,
-                                      Handle<String> name,
-                                      bool is_uninitialized = false);
+  HInstruction* BuildNamedGeneric(PropertyAccessType access,
+                                  HValue* object,
+                                  Handle<String> name,
+                                  HValue* value,
+                                  bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
@@ -2499,16 +2561,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                   BailoutId return_id,
                   bool is_uninitialized = false);
 
+  HInstruction* BuildLoadNamedField(PropertyAccessInfo* info,
+                                    HValue* checked_object);
   HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
                                      HValue* checked_object,
                                      HValue* value);
-  HInstruction* BuildStoreNamedGeneric(HValue* object,
-                                       Handle<String> name,
-                                       HValue* value,
-                                       bool is_uninitialized = false);
-  HInstruction* BuildStoreKeyedGeneric(HValue* object,
-                                       HValue* key,
-                                       HValue* value);
 
   HValue* BuildContextChainWalk(Variable* var);
 

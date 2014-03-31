@@ -2,13 +2,15 @@ This directory contains code for binding the test262 test suite
 into the v8 test harness. To use the tests check out the test262
 tests from
 
-  http://hg.ecmascript.org/tests/test262
+  https://github.com/tc39/test262
 
-at revision 365 as 'data' in this directory.  Using later version
-may be possible but the tests are only known to pass (and indeed run)
+at revision 365 (hash fbba29f) as 'data' in this directory.  Using later
+version may be possible but the tests are only known to pass (and indeed run)
 with that revision.
 
-hg clone -r 365 http://hg.ecmascript.org/tests/test262 data
+  git clone https://github.com/tc39/test262 data
+  cd data
+  git checkout fbba29f
 
 If you do update to a newer revision you may have to change the test
 harness adapter code since it uses internal functionality from the

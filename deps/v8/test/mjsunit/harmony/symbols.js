@@ -30,27 +30,35 @@
 
 var symbols = []
 
-// Test different forms of constructor calls, all equivalent.
+
+// Returns true if the string is a valid
+// serialization of Symbols added to the 'symbols'
+// array. Adjust if you extend 'symbols' with other
+// values.
+function isValidSymbolString(s) {
+  return ["Symbol(66)", "Symbol()"].indexOf(s) >= 0;
+}
+
+
+// Test different forms of constructor calls.
 function TestNew() {
-  function IndirectSymbol() { return new Symbol }
-  function indirect() { return new IndirectSymbol() }
+  function indirectSymbol() { return Symbol() }
+  function indirect() { return indirectSymbol() }
   for (var i = 0; i < 2; ++i) {
     for (var j = 0; j < 5; ++j) {
       symbols.push(Symbol())
       symbols.push(Symbol(undefined))
       symbols.push(Symbol("66"))
       symbols.push(Symbol(66))
-      symbols.push(Symbol(Symbol()))
-      symbols.push((new Symbol).valueOf())
-      symbols.push((new Symbol()).valueOf())
-      symbols.push((new Symbol(Symbol())).valueOf())
-      symbols.push(Object(Symbol()).valueOf())
-      symbols.push((indirect()).valueOf())
+      symbols.push(Symbol().valueOf())
+      symbols.push(indirect())
     }
     %OptimizeFunctionOnNextCall(indirect)
     indirect()  // Call once before GC throws away type feedback.
     gc()        // Promote existing symbols and then allocate some more.
   }
+  assertThrows(function () { Symbol(Symbol()) }, TypeError)
+  assertThrows(function () { new Symbol(66) }, TypeError)
 }
 TestNew()
 
@@ -61,7 +69,6 @@ function TestType() {
     assertTrue(typeof symbols[i] === "symbol")
     assertFalse(%SymbolIsPrivate(symbols[i]))
     assertEquals(null, %_ClassOf(symbols[i]))
-    assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
     assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
@@ -71,10 +78,6 @@ TestType()
 function TestPrototype() {
   assertSame(Object.prototype, Symbol.prototype.__proto__)
   assertSame(Symbol.prototype, Symbol().__proto__)
-  assertSame(Symbol.prototype, Symbol(Symbol()).__proto__)
-  assertSame(Symbol.prototype, (new Symbol).__proto__)
-  assertSame(Symbol.prototype, (new Symbol()).__proto__)
-  assertSame(Symbol.prototype, (new Symbol(Symbol())).__proto__)
   assertSame(Symbol.prototype, Object(Symbol()).__proto__)
   for (var i in symbols) {
     assertSame(Symbol.prototype, symbols[i].__proto__)
@@ -84,14 +87,11 @@ TestPrototype()
 
 
 function TestConstructor() {
+  assertSame(Function.prototype, Symbol.__proto__)
   assertFalse(Object === Symbol.prototype.constructor)
   assertFalse(Symbol === Object.prototype.constructor)
   assertSame(Symbol, Symbol.prototype.constructor)
   assertSame(Symbol, Symbol().__proto__.constructor)
-  assertSame(Symbol, Symbol(Symbol()).__proto__.constructor)
-  assertSame(Symbol, (new Symbol).__proto__.constructor)
-  assertSame(Symbol, (new Symbol()).__proto__.constructor)
-  assertSame(Symbol, (new Symbol(Symbol())).__proto__.constructor)
   assertSame(Symbol, Object(Symbol()).__proto__.constructor)
   for (var i in symbols) {
     assertSame(Symbol, symbols[i].__proto__.constructor)
@@ -100,23 +100,26 @@ function TestConstructor() {
 TestConstructor()
 
 
-function TestName() {
+function TestValueOf() {
   for (var i in symbols) {
-    var name = symbols[i].name
-    assertTrue(name === undefined || name === "66")
+    assertTrue(symbols[i] === symbols[i].valueOf())
+    assertTrue(Symbol.prototype.valueOf.call(symbols[i]) === symbols[i])
   }
 }
-TestName()
+TestValueOf()
 
 
 function TestToString() {
   for (var i in symbols) {
     assertThrows(function() { String(symbols[i]) }, TypeError)
     assertThrows(function() { symbols[i] + "" }, TypeError)
-    assertThrows(function() { symbols[i].toString() }, TypeError)
-    assertThrows(function() { (new Symbol(symbols[i])).toString() }, TypeError)
-    assertThrows(function() { Object(symbols[i]).toString() }, TypeError)
-    assertEquals("[object Symbol]", Object.prototype.toString.call(symbols[i]))
+    assertTrue(isValidSymbolString(String(Object(symbols[i]))))
+    assertTrue(isValidSymbolString(symbols[i].toString()))
+    assertTrue(isValidSymbolString(Object(symbols[i]).toString()))
+    assertTrue(
+      isValidSymbolString(Symbol.prototype.toString.call(symbols[i])))
+    assertEquals(
+      "[object Symbol]", Object.prototype.toString.call(symbols[i]))
   }
 }
 TestToString()
@@ -156,10 +159,16 @@ function TestEquality() {
     assertTrue(Object.is(symbols[i], symbols[i]))
     assertTrue(symbols[i] === symbols[i])
     assertTrue(symbols[i] == symbols[i])
-    assertFalse(symbols[i] === new Symbol(symbols[i]))
-    assertFalse(new Symbol(symbols[i]) === symbols[i])
-    assertTrue(symbols[i] == new Symbol(symbols[i]))
-    assertTrue(new Symbol(symbols[i]) == symbols[i])
+    assertFalse(symbols[i] === Object(symbols[i]))
+    assertFalse(Object(symbols[i]) === symbols[i])
+    assertFalse(symbols[i] == Object(symbols[i]))
+    assertFalse(Object(symbols[i]) == symbols[i])
+    assertTrue(symbols[i] === symbols[i].valueOf())
+    assertTrue(symbols[i].valueOf() === symbols[i])
+    assertTrue(symbols[i] == symbols[i].valueOf())
+    assertTrue(symbols[i].valueOf() == symbols[i])
+    assertFalse(Object(symbols[i]) === Object(symbols[i]))
+    assertEquals(Object(symbols[i]).valueOf(), Object(symbols[i]).valueOf())
   }
 
   // All symbols should be distinct.
@@ -187,7 +196,7 @@ TestEquality()
 
 function TestGet() {
   for (var i in symbols) {
-    assertThrows(function() { symbols[i].toString() }, TypeError)
+    assertTrue(isValidSymbolString(symbols[i].toString()))
     assertEquals(symbols[i], symbols[i].valueOf())
     assertEquals(undefined, symbols[i].a)
     assertEquals(undefined, symbols[i]["a" + "b"])
@@ -201,7 +210,7 @@ TestGet()
 function TestSet() {
   for (var i in symbols) {
     symbols[i].toString = 0
-    assertThrows(function() { symbols[i].toString() }, TypeError)
+    assertTrue(isValidSymbolString(symbols[i].toString()))
     symbols[i].valueOf = 0
     assertEquals(symbols[i], symbols[i].valueOf())
     symbols[i].a = 0
@@ -213,6 +222,18 @@ function TestSet() {
   }
 }
 TestSet()
+
+
+// Test Symbol wrapping/boxing over non-builtins.
+Symbol.prototype.getThisProto = function () {
+  return Object.getPrototypeOf(this);
+}
+function TestCall() {
+  for (var i in symbols) {
+    assertTrue(symbols[i].getThisProto() === Symbol.prototype)
+  }
+}
+TestCall()
 
 
 function TestCollections() {
@@ -309,7 +330,7 @@ function TestGetOwnPropertySymbols(obj) {
 
 function TestKeyDescriptor(obj) {
   for (var i in symbols) {
-    var desc = Object.getOwnPropertyDescriptor(obj, symbols[i]);
+    var desc = Object.getOwnPropertyDescriptor(obj, symbols[i])
     assertEquals(i|0, desc.value)
     assertTrue(desc.configurable)
     assertEquals(i % 2 == 0, desc.writable)
@@ -389,15 +410,59 @@ function TestGetOwnPropertySymbolsWithProto() {
 TestGetOwnPropertySymbolsWithProto()
 
 
-function TestGetOwnPropertySymbolsWithPrivateSymbols() {
-  var privateSymbol = %CreatePrivateSymbol("private")
-  var publicSymbol = Symbol()
-  var publicSymbol2 = Symbol()
-  var obj = {}
-  obj[publicSymbol] = 1
-  obj[privateSymbol] = 2
-  obj[publicSymbol2] = 3
-  var syms = Object.getOwnPropertySymbols(obj)
-  assertEquals(syms, [publicSymbol, publicSymbol2])
+function TestWellKnown() {
+  var symbols = [
+    "create", "hasInstance", "isConcatSpreadable", "isRegExp",
+    "iterator", "toStringTag", "unscopables"
+  ]
+
+  for (var i in symbols) {
+    var name = symbols[i]
+    var desc = Object.getOwnPropertyDescriptor(Symbol, name)
+    assertSame("symbol", typeof desc.value)
+    assertSame("Symbol(Symbol." + name + ")", desc.value.toString())
+    assertFalse(desc.writable)
+    assertFalse(desc.configurable)
+    assertFalse(desc.enumerable)
+
+    assertFalse(Symbol.for("Symbol." + name) === desc.value)
+    assertTrue(Symbol.keyFor(desc.value) === undefined)
+  }
 }
-TestGetOwnPropertySymbolsWithPrivateSymbols()
+TestWellKnown()
+
+
+function TestRegistry() {
+  var symbol1 = Symbol.for("x1")
+  var symbol2 = Symbol.for("x2")
+  assertFalse(symbol1 === symbol2)
+
+  assertSame(symbol1, Symbol.for("x1"))
+  assertSame(symbol2, Symbol.for("x2"))
+  assertSame("x1", Symbol.keyFor(symbol1))
+  assertSame("x2", Symbol.keyFor(symbol2))
+
+  assertSame(Symbol.for("1"), Symbol.for(1))
+  assertThrows(function() { Symbol.keyFor("bla") }, TypeError)
+  assertThrows(function() { Symbol.keyFor({}) }, TypeError)
+
+  var realm = Realm.create()
+  assertFalse(Symbol === Realm.eval(realm, "Symbol"))
+  assertFalse(Symbol.for === Realm.eval(realm, "Symbol.for"))
+  assertFalse(Symbol.keyFor === Realm.eval(realm, "Symbol.keyFor"))
+  assertSame(Symbol.create, Realm.eval(realm, "Symbol.create"))
+  assertSame(Symbol.iterator, Realm.eval(realm, "Symbol.iterator"))
+
+  assertSame(symbol1, Realm.eval(realm, "Symbol.for")("x1"))
+  assertSame(symbol1, Realm.eval(realm, "Symbol.for('x1')"))
+  assertSame("x1", Realm.eval(realm, "Symbol.keyFor")(symbol1))
+  Realm.shared = symbol1
+  assertSame("x1", Realm.eval(realm, "Symbol.keyFor(Realm.shared)"))
+
+  var symbol3 = Realm.eval(realm, "Symbol.for('x3')")
+  assertFalse(symbol1 === symbol3)
+  assertFalse(symbol2 === symbol3)
+  assertSame(symbol3, Symbol.for("x3"))
+  assertSame("x3", Symbol.keyFor(symbol3))
+}
+TestRegistry()

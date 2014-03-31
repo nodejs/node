@@ -37,13 +37,40 @@
 namespace v8 {
 namespace internal {
 
-// ----------------------------------------------------------------------------
-// FunctionLoggingParserRecorder
 
-FunctionLoggingParserRecorder::FunctionLoggingParserRecorder()
+template <typename Char>
+static int vector_hash(Vector<const Char> string) {
+  int hash = 0;
+  for (int i = 0; i < string.length(); i++) {
+    int c = static_cast<int>(string[i]);
+    hash += c;
+    hash += (hash << 10);
+    hash ^= (hash >> 6);
+  }
+  return hash;
+}
+
+
+static bool vector_compare(void* a, void* b) {
+  CompleteParserRecorder::Key* string1 =
+      reinterpret_cast<CompleteParserRecorder::Key*>(a);
+  CompleteParserRecorder::Key* string2 =
+      reinterpret_cast<CompleteParserRecorder::Key*>(b);
+  if (string1->is_one_byte != string2->is_one_byte) return false;
+  int length = string1->literal_bytes.length();
+  if (string2->literal_bytes.length() != length) return false;
+  return memcmp(string1->literal_bytes.start(),
+                string2->literal_bytes.start(), length) == 0;
+}
+
+
+CompleteParserRecorder::CompleteParserRecorder()
     : function_store_(0),
-      is_recording_(true),
-      pause_count_(0) {
+      literal_chars_(0),
+      symbol_store_(0),
+      symbol_keys_(0),
+      string_table_(vector_compare),
+      symbol_id_(0) {
   preamble_[PreparseDataConstants::kMagicOffset] =
       PreparseDataConstants::kMagicNumber;
   preamble_[PreparseDataConstants::kVersionOffset] =
@@ -56,10 +83,11 @@ FunctionLoggingParserRecorder::FunctionLoggingParserRecorder()
 #ifdef DEBUG
   prev_start_ = -1;
 #endif
+  should_log_symbols_ = true;
 }
 
 
-void FunctionLoggingParserRecorder::LogMessage(int start_pos,
+void CompleteParserRecorder::LogMessage(int start_pos,
                                                int end_pos,
                                                const char* message,
                                                const char* arg_opt) {
@@ -75,11 +103,11 @@ void FunctionLoggingParserRecorder::LogMessage(int start_pos,
   STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 3);
   WriteString(CStrVector(message));
   if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
-  is_recording_ = false;
+  should_log_symbols_ = false;
 }
 
 
-void FunctionLoggingParserRecorder::WriteString(Vector<const char> str) {
+void CompleteParserRecorder::WriteString(Vector<const char> str) {
   function_store_.Add(str.length());
   for (int i = 0; i < str.length(); i++) {
     function_store_.Add(str[i]);
@@ -87,43 +115,27 @@ void FunctionLoggingParserRecorder::WriteString(Vector<const char> str) {
 }
 
 
-// ----------------------------------------------------------------------------
-// PartialParserRecorder -  Record both function entries and symbols.
-
-Vector<unsigned> PartialParserRecorder::ExtractData() {
-  int function_size = function_store_.size();
-  int total_size = PreparseDataConstants::kHeaderSize + function_size;
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
-  preamble_[PreparseDataConstants::kFunctionsSizeOffset] = function_size;
-  preamble_[PreparseDataConstants::kSymbolCountOffset] = 0;
-  OS::MemCopy(data.start(), preamble_, sizeof(preamble_));
-  int symbol_start = PreparseDataConstants::kHeaderSize + function_size;
-  if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(PreparseDataConstants::kHeaderSize,
-                                           symbol_start));
-  }
-  return data;
+void CompleteParserRecorder::LogOneByteSymbol(int start,
+                                              Vector<const uint8_t> literal) {
+  ASSERT(should_log_symbols_);
+  int hash = vector_hash(literal);
+  LogSymbol(start, hash, true, literal);
 }
 
 
-// ----------------------------------------------------------------------------
-// CompleteParserRecorder -  Record both function entries and symbols.
-
-CompleteParserRecorder::CompleteParserRecorder()
-    : FunctionLoggingParserRecorder(),
-      literal_chars_(0),
-      symbol_store_(0),
-      symbol_keys_(0),
-      string_table_(vector_compare),
-      symbol_id_(0) {
+void CompleteParserRecorder::LogTwoByteSymbol(int start,
+                                              Vector<const uint16_t> literal) {
+  ASSERT(should_log_symbols_);
+  int hash = vector_hash(literal);
+  LogSymbol(start, hash, false, Vector<const byte>::cast(literal));
 }
 
 
 void CompleteParserRecorder::LogSymbol(int start,
                                        int hash,
-                                       bool is_ascii,
+                                       bool is_one_byte,
                                        Vector<const byte> literal_bytes) {
-  Key key = { is_ascii, literal_bytes };
+  Key key = { is_one_byte, literal_bytes };
   HashMap::Entry* entry = string_table_.Lookup(&key, hash, true);
   int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   if (id == 0) {
@@ -167,16 +179,26 @@ Vector<unsigned> CompleteParserRecorder::ExtractData() {
 
 
 void CompleteParserRecorder::WriteNumber(int number) {
+  // Split the number into chunks of 7 bits. Write them one after another (the
+  // most significant first). Use the MSB of each byte for signalling that the
+  // number continues. See ScriptDataImpl::ReadNumber for the reading side.
   ASSERT(number >= 0);
 
   int mask = (1 << 28) - 1;
-  for (int i = 28; i > 0; i -= 7) {
-    if (number > mask) {
-      symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
-      number &= mask;
-    }
+  int i = 28;
+  // 26 million symbols ought to be enough for anybody.
+  ASSERT(number <= mask);
+  while (number < mask) {
     mask >>= 7;
+    i -= 7;
   }
+  while (i > 0) {
+    symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
+    number &= mask;
+    mask >>= 7;
+    i -= 7;
+  }
+  ASSERT(number < (1 << 7));
   symbol_store_.Add(static_cast<byte>(number));
 }
 
