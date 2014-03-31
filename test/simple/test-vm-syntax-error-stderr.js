@@ -45,5 +45,5 @@ p.stdout.on('data', function(data) {
 process.on('exit', function() {
   assert(/BEGIN CERT/.test(output));
   assert(/^\s+\^/m.test(output));
-  assert(/Unexpected identifier/.test(output));
+  assert(/Invalid left-hand side expression in prefix operation/.test(output));
 });

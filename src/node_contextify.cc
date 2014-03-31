@@ -51,8 +51,11 @@ using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyCallbackInfo;
 using v8::Script;
+using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::String;
 using v8::TryCatch;
+using v8::UnboundScript;
 using v8::V8;
 using v8::Value;
 using v8::WeakCallbackData;
@@ -430,7 +433,7 @@ class ContextifyContext {
 
 class ContextifyScript : public BaseObject {
  private:
-  Persistent<Script> script_;
+  Persistent<UnboundScript> script_;
 
  public:
   static void Init(Environment* env, Local<Object> target) {
@@ -473,10 +476,10 @@ class ContextifyScript : public BaseObject {
       return;
     }
 
-    Local<Context> context = env->context();
-    Context::Scope context_scope(context);
-
-    Local<Script> v8_script = Script::New(code, filename);
+    ScriptOrigin origin(filename);
+    ScriptCompiler::Source source(code, origin);
+    Local<UnboundScript> v8_script =
+        ScriptCompiler::CompileUnbound(env->isolate(), &source);
 
     if (v8_script.IsEmpty()) {
       if (display_errors) {
@@ -639,8 +642,9 @@ class ContextifyScript : public BaseObject {
 
     ContextifyScript* wrapped_script =
         Unwrap<ContextifyScript>(args.This());
-    Local<Script> script = PersistentToLocal(env->isolate(),
-                                             wrapped_script->script_);
+    Local<UnboundScript> unbound_script =
+        PersistentToLocal(env->isolate(), wrapped_script->script_);
+    Local<Script> script = unbound_script->BindToCurrentContext();
 
     Local<Value> result;
     if (timeout != -1) {

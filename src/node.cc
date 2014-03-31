@@ -1491,7 +1491,7 @@ static void ReportException(Environment* env, const TryCatch& try_catch) {
 // Executes a str within the current v8 context.
 static Local<Value> ExecuteString(Environment* env,
                                   Handle<String> source,
-                                  Handle<Value> filename) {
+                                  Handle<String> filename) {
   EscapableHandleScope scope(env->isolate());
   TryCatch try_catch;
 
