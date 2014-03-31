@@ -160,7 +160,7 @@
         'ARCH="<(target_arch)"',
         'PLATFORM="<(OS)"',
         'NODE_TAG="<(node_tag)"',
-        'NODE_V8_OPTIONS=<(node_v8_options)',
+        'NODE_V8_OPTIONS="<(node_v8_options)"',
       ],
 
       'conditions': [
