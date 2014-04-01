@@ -132,6 +132,24 @@ class BoundsCheckBbData: public ZoneObject {
 
   bool HasSingleCheck() { return lower_check_ == upper_check_; }
 
+  void UpdateUpperOffsets(HBoundsCheck* check, int32_t offset) {
+    BoundsCheckBbData* data = FatherInDominatorTree();
+    while (data != NULL && data->UpperCheck() == check) {
+      ASSERT(data->upper_offset_ <= offset);
+      data->upper_offset_ = offset;
+      data = data->FatherInDominatorTree();
+    }
+  }
+
+  void UpdateLowerOffsets(HBoundsCheck* check, int32_t offset) {
+    BoundsCheckBbData* data = FatherInDominatorTree();
+    while (data != NULL && data->LowerCheck() == check) {
+      ASSERT(data->lower_offset_ > offset);
+      data->lower_offset_ = offset;
+      data = data->FatherInDominatorTree();
+    }
+  }
+
   // The goal of this method is to modify either upper_offset_ or
   // lower_offset_ so that also new_offset is covered (the covered
   // range grows).
@@ -156,6 +174,7 @@ class BoundsCheckBbData: public ZoneObject {
         upper_check_ = new_check;
       } else {
         TightenCheck(upper_check_, new_check);
+        UpdateUpperOffsets(upper_check_, upper_offset_);
       }
     } else if (new_offset < lower_offset_) {
       lower_offset_ = new_offset;
@@ -164,6 +183,7 @@ class BoundsCheckBbData: public ZoneObject {
         lower_check_ = new_check;
       } else {
         TightenCheck(lower_check_, new_check);
+        UpdateLowerOffsets(lower_check_, lower_offset_);
       }
     } else {
       // Should never have called CoverCheck() in this case.

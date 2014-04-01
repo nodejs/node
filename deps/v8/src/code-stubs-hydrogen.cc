@@ -618,7 +618,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                               GetParameter(1),
                               casted_stub()->from_kind(),
                               casted_stub()->to_kind(),
-                              true);
+                              casted_stub()->is_js_array());
 
   return GetParameter(0);
 }

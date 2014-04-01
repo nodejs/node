@@ -2009,9 +2009,11 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
   TransitionElementsKindStub(ElementsKind from_kind,
-                             ElementsKind to_kind) {
+                             ElementsKind to_kind,
+                             bool is_js_array) {
     bit_field_ = FromKindBits::encode(from_kind) |
-        ToKindBits::encode(to_kind);
+                 ToKindBits::encode(to_kind) |
+                 IsJSArrayBits::encode(is_js_array);
   }
 
   ElementsKind from_kind() const {
@@ -2020,6 +2022,10 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
   ElementsKind to_kind() const {
     return ToKindBits::decode(bit_field_);
+  }
+
+  bool is_js_array() const {
+    return IsJSArrayBits::decode(bit_field_);
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -2031,6 +2037,7 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
  private:
   class FromKindBits: public BitField<ElementsKind, 8, 8> {};
   class ToKindBits: public BitField<ElementsKind, 0, 8> {};
+  class IsJSArrayBits: public BitField<bool, 16, 1> {};
   uint32_t bit_field_;
 
   Major MajorKey() { return TransitionElementsKind; }

@@ -191,6 +191,7 @@ class LCodeGen: public LCodeGenBase {
 
   // Code generation passes.  Returns true if code generation should
   // continue.
+  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();

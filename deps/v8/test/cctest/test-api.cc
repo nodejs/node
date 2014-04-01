@@ -21965,3 +21965,48 @@ TEST(TestFunctionCallOptimization) {
   checker.Run(true, false);
   checker.Run(false, false);
 }
+
+
+TEST(Regress354123) {
+  LocalContext current;
+  v8::Isolate* isolate = current->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetAccessCheckCallbacks(NamedAccessCounter, IndexedAccessCounter);
+  current->Global()->Set(v8_str("friend"), templ->NewInstance());
+
+  // Test access using __proto__ from the prototype chain.
+  named_access_count = 0;
+  CompileRun("friend.__proto__ = {};");
+  CHECK_EQ(2, named_access_count);
+  CompileRun("friend.__proto__;");
+  CHECK_EQ(4, named_access_count);
+
+  // Test access using __proto__ as a hijacked function (A).
+  named_access_count = 0;
+  CompileRun("var p = Object.prototype;"
+             "var f = Object.getOwnPropertyDescriptor(p, '__proto__').set;"
+             "f.call(friend, {});");
+  CHECK_EQ(1, named_access_count);
+  CompileRun("var p = Object.prototype;"
+             "var f = Object.getOwnPropertyDescriptor(p, '__proto__').get;"
+             "f.call(friend);");
+  CHECK_EQ(2, named_access_count);
+
+  // Test access using __proto__ as a hijacked function (B).
+  named_access_count = 0;
+  CompileRun("var f = Object.prototype.__lookupSetter__('__proto__');"
+             "f.call(friend, {});");
+  CHECK_EQ(1, named_access_count);
+  CompileRun("var f = Object.prototype.__lookupGetter__('__proto__');"
+             "f.call(friend);");
+  CHECK_EQ(2, named_access_count);
+
+  // Test access using Object.setPrototypeOf reflective method.
+  named_access_count = 0;
+  CompileRun("Object.setPrototypeOf(friend, {});");
+  CHECK_EQ(1, named_access_count);
+  CompileRun("Object.getPrototypeOf(friend);");
+  CHECK_EQ(2, named_access_count);
+}
