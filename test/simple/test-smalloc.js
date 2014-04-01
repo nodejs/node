@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var os = require('os');
 
 // first grab js api's
 var smalloc = require('smalloc');
@@ -150,8 +151,13 @@ for (var i = 0; i < 6; i++) {
 
 var b = alloc(1, Types.Double);
 var c = alloc(2, Types.Uint32);
-c[0] = 2576980378;
-c[1] = 1069128089;
+if (os.endianness() === 'LE') {
+  c[0] = 2576980378;
+  c[1] = 1069128089;
+} else {
+  c[0] = 1069128089;
+  c[1] = 2576980378;
+}
 copyOnto(c, 0, b, 0, 2);
 assert.equal(b[0], 0.1);
 
