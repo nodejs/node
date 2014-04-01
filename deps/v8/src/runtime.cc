@@ -796,6 +796,24 @@ bool Runtime::SetupArrayBufferAllocatingData(
 }
 
 
+void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
+  Isolate* isolate = array_buffer->GetIsolate();
+  for (Handle<Object> view_obj(array_buffer->weak_first_view(), isolate);
+       !view_obj->IsUndefined();) {
+    Handle<JSArrayBufferView> view(JSArrayBufferView::cast(*view_obj));
+    if (view->IsJSTypedArray()) {
+      JSTypedArray::cast(*view)->Neuter();
+    } else if (view->IsJSDataView()) {
+      JSDataView::cast(*view)->Neuter();
+    } else {
+      UNREACHABLE();
+    }
+    view_obj = handle(view->weak_next(), isolate);
+  }
+  array_buffer->Neuter();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -849,7 +867,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
-  ASSERT(NumberToSize(isolate, source->byte_length()) - target_length >= start);
+  size_t source_byte_length = NumberToSize(isolate, source->byte_length());
+  CHECK(start <= source_byte_length);
+  CHECK(source_byte_length - start >= target_length);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
@@ -864,6 +884,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
   return object->IsJSArrayBufferView()
     ? isolate->heap()->true_value()
     : isolate->heap()->false_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferNeuter) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+  ASSERT(!array_buffer->is_external());
+  void* backing_store = array_buffer->backing_store();
+  size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
+  array_buffer->set_is_external(true);
+  Runtime::NeuterArrayBuffer(array_buffer);
+  V8::ArrayBufferAllocator()->Free(backing_store, byte_length);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -910,7 +943,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
   size_t byte_length = NumberToSize(isolate, *byte_length_object);
-  ASSERT(byte_length % element_size == 0);
+  size_t array_buffer_byte_length =
+      NumberToSize(isolate, buffer->byte_length());
+  CHECK(byte_offset <= array_buffer_byte_length);
+  CHECK(array_buffer_byte_length - byte_offset >= byte_length);
+
+  CHECK_EQ(0, static_cast<int>(byte_length % element_size));
   size_t length = byte_length / element_size;
 
   if (length > static_cast<unsigned>(Smi::kMaxValue)) {
@@ -1645,6 +1683,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  if (obj->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccessWrapper(obj,
+                                      isolate->factory()->proto_string(),
+                                      v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(*obj, v8::ACCESS_SET);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return isolate->heap()->undefined_value();
+  }
   if (FLAG_harmony_observation && obj->map()->is_observed()) {
     Handle<Object> old_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);

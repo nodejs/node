@@ -9764,6 +9764,15 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
       pretenure_flag, instance_type, site_context->current());
 
+  // If allocation folding reaches Page::kMaxRegularHeapObjectSize the
+  // elements array may not get folded into the object. Hence, we set the
+  // elements pointer to empty fixed array and let store elimination remove
+  // this store in the folding case.
+  HConstant* empty_fixed_array = Add<HConstant>(
+      isolate()->factory()->empty_fixed_array());
+  Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+      empty_fixed_array, INITIALIZING_STORE);
+
   BuildEmitObjectHeader(boilerplate_object, object);
 
   Handle<FixedArrayBase> elements(boilerplate_object->elements());

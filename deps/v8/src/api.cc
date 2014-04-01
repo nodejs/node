@@ -5805,20 +5805,7 @@ void v8::ArrayBuffer::Neuter() {
                   "Only externalized ArrayBuffers can be neutered");
   LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
   ENTER_V8(isolate);
-
-  for (i::Handle<i::Object> view_obj(obj->weak_first_view(), isolate);
-       !view_obj->IsUndefined();) {
-    i::Handle<i::JSArrayBufferView> view(i::JSArrayBufferView::cast(*view_obj));
-    if (view->IsJSTypedArray()) {
-      i::JSTypedArray::cast(*view)->Neuter();
-    } else if (view->IsJSDataView()) {
-      i::JSDataView::cast(*view)->Neuter();
-    } else {
-      UNREACHABLE();
-    }
-    view_obj = i::handle(view->weak_next(), isolate);
-  }
-  obj->Neuter();
+  i::Runtime::NeuterArrayBuffer(obj);
 }
 
 

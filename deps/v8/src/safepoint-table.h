@@ -219,6 +219,9 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // Record deoptimization index for lazy deoptimization for the last
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
+  void BumpLastLazySafepointIndex() {
+    last_lazy_safepoint_ = deopt_index_list_.length();
+  }
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.

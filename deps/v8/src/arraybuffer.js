@@ -56,6 +56,9 @@ function ArrayBufferSlice(start, end) {
   }
 
   var relativeStart = TO_INTEGER(start);
+  if (!IS_UNDEFINED(end)) {
+    end = TO_INTEGER(end);
+  }
   var first;
   var byte_length = %ArrayBufferGetByteLength(this);
   if (relativeStart < 0) {
@@ -63,7 +66,7 @@ function ArrayBufferSlice(start, end) {
   } else {
     first = MathMin(relativeStart, byte_length);
   }
-  var relativeEnd = IS_UNDEFINED(end) ? byte_length : TO_INTEGER(end);
+  var relativeEnd = IS_UNDEFINED(end) ? byte_length : end;
   var fin;
   if (relativeEnd < 0) {
     fin = MathMax(byte_length + relativeEnd, 0);

@@ -590,6 +590,9 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
   if (FLAG_deopt_every_n_garbage_collections > 0) {
+    // TODO(jkummerow/ulan/jarin): This is not safe! We can't assume that
+    // the topmost optimized frame can be deoptimized safely, because it
+    // might not have a lazy bailout point right after its current PC.
     if (++gcs_since_last_deopt_ == FLAG_deopt_every_n_garbage_collections) {
       Deoptimizer::DeoptimizeAll(isolate());
       gcs_since_last_deopt_ = 0;
