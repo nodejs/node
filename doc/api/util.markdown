@@ -167,6 +167,8 @@ formatted according to the returned Object. This is similar to how
 
 ## util.isArray(object)
 
+Internal alias for Array.isArray.
+
 Returns `true` if the given "object" is an `Array`. `false` otherwise.
 
     var util = require('util');
