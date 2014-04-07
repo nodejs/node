@@ -249,6 +249,6 @@ void uv_process_timers(uv_loop_t* loop) {
       uv__handle_stop(timer);
     }
 
-    timer->timer_cb((uv_timer_t*) timer, 0);
+    timer->timer_cb((uv_timer_t*) timer);
   }
 }

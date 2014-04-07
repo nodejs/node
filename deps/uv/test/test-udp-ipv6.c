@@ -90,7 +90,7 @@ static void ipv6_recv_ok(uv_udp_t* handle,
 }
 
 
-static void timeout_cb(uv_timer_t* timer, int status) {
+static void timeout_cb(uv_timer_t* timer) {
   uv_close((uv_handle_t*)&server, close_cb);
   uv_close((uv_handle_t*)&client, close_cb);
   uv_close((uv_handle_t*)&timeout, close_cb);

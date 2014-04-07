@@ -45,13 +45,12 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void do_accept(uv_timer_t* timer_handle, int status) {
+static void do_accept(uv_timer_t* timer_handle) {
   uv_tcp_t* server;
   uv_tcp_t* accepted_handle = (uv_tcp_t*)malloc(sizeof *accepted_handle);
   int r;
 
   ASSERT(timer_handle != NULL);
-  ASSERT(status == 0);
   ASSERT(accepted_handle != NULL);
 
   r = uv_tcp_init(uv_default_loop(), accepted_handle);

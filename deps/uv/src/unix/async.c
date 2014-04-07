@@ -85,7 +85,7 @@ static void uv__async_event(uv_loop_t* loop,
 
     if (h->async_cb == NULL)
       continue;
-    h->async_cb(h, 0);
+    h->async_cb(h);
   }
 }
 

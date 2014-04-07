@@ -79,7 +79,7 @@ typedef struct {
 static void eof_timer_init(uv_pipe_t* pipe);
 static void eof_timer_start(uv_pipe_t* pipe);
 static void eof_timer_stop(uv_pipe_t* pipe);
-static void eof_timer_cb(uv_timer_t* timer, int status);
+static void eof_timer_cb(uv_timer_t* timer);
 static void eof_timer_destroy(uv_pipe_t* pipe);
 static void eof_timer_close_cb(uv_handle_t* handle);
 
@@ -1347,7 +1347,7 @@ static void uv_pipe_read_eof(uv_loop_t* loop, uv_pipe_t* handle,
   handle->flags &= ~UV_HANDLE_READABLE;
   uv_read_stop((uv_stream_t*) handle);
 
-  handle->read_cb((uv_stream_t*) handle, UV_EOF, &uv_null_buf_);
+  handle->read_cb((uv_stream_t*) handle, UV_EOF, &buf);
 }
 
 
@@ -1505,7 +1505,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
           break;
         }
       } else {
-        uv_pipe_read_error_or_eof(loop, handle, GetLastError(), uv_null_buf_);
+        uv_pipe_read_error_or_eof(loop, handle, GetLastError(), buf);
         break;
       }
     }
@@ -1695,11 +1695,10 @@ static void eof_timer_stop(uv_pipe_t* pipe) {
 }
 
 
-static void eof_timer_cb(uv_timer_t* timer, int status) {
+static void eof_timer_cb(uv_timer_t* timer) {
   uv_pipe_t* pipe = (uv_pipe_t*) timer->data;
   uv_loop_t* loop = timer->loop;
 
-  assert(status == 0); /* timers can't fail */
   assert(pipe->type == UV_NAMED_PIPE);
 
   /* This should always be true, since we start the timer only */

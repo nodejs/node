@@ -31,7 +31,7 @@ static int check_cb_called;
 static int timer_cb_called;
 
 
-static void prepare_cb(uv_prepare_t* handle, int status) {
+static void prepare_cb(uv_prepare_t* handle) {
   ASSERT(0 == uv_prepare_stop(&prepare_handle));
   ASSERT(0 == prepare_cb_called);
   ASSERT(1 == check_cb_called);
@@ -40,7 +40,7 @@ static void prepare_cb(uv_prepare_t* handle, int status) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(0 == uv_timer_stop(&timer_handle));
   ASSERT(1 == prepare_cb_called);
   ASSERT(1 == check_cb_called);
@@ -49,7 +49,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void check_cb(uv_check_t* handle, int status) {
+static void check_cb(uv_check_t* handle) {
   ASSERT(0 == uv_check_stop(&check_handle));
   ASSERT(0 == uv_timer_stop(&timer_handle));  /* Runs before timer_cb. */
   ASSERT(0 == uv_timer_start(&timer_handle, timer_cb, 50, 0));

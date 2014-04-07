@@ -106,6 +106,7 @@ endif  # WINNT
 
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
+test_run_tests_CFLAGS =
 test_run_tests_SOURCES = test/blackhole-server.c \
                          test/dns-server.c \
                          test/echo-server.c \
@@ -199,10 +200,13 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-timer-from-check.c \
                          test/test-timer.c \
                          test/test-tty.c \
+                         test/test-udp-bind.c \
                          test/test-udp-dgram-too-big.c \
                          test/test-udp-ipv6.c \
                          test/test-udp-multicast-interface.c \
+                         test/test-udp-multicast-interface6.c \
                          test/test-udp-multicast-join.c \
+                         test/test-udp-multicast-join6.c \
                          test/test-udp-multicast-ttl.c \
                          test/test-udp-open.c \
                          test/test-udp-options.c \
@@ -219,11 +223,23 @@ test_run_tests_SOURCES += test/runner-unix.c \
                           test/runner-unix.h
 endif
 
+if AIX
+test_run_tests_CFLAGS += -D_ALL_SOURCE -D_XOPEN_SOURCE=500
+endif
+
+if SUNOS
+test_run_tests_CFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
+endif
 
 
 if AIX
 libuv_la_CFLAGS += -D_ALL_SOURCE -D_XOPEN_SOURCE=500
 libuv_la_SOURCES += src/unix/aix.c
+endif
+
+if ANDROID
+include_HEADERS += include/android-ifaddrs.h
+libuv_la_SOURCES += src/unix/android-ifaddrs.c
 endif
 
 if DARWIN
@@ -269,6 +285,9 @@ endif
 if HAVE_DTRACE
 BUILT_SOURCES = include/uv-dtrace.h
 CLEANFILES += include/uv-dtrace.h
+if FREEBSD
+libuv_la_LDFLAGS += -lelf
+endif
 endif
 
 if DTRACE_NEEDS_OBJECTS

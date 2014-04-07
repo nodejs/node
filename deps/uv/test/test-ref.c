@@ -153,9 +153,8 @@ TEST_IMPL(check_ref) {
 }
 
 
-static void prepare_cb(uv_prepare_t* h, int status) {
+static void prepare_cb(uv_prepare_t* h) {
   ASSERT(h != NULL);
-  ASSERT(status == 0);
   uv_unref((uv_handle_t*)h);
 }
 

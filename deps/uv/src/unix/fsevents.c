@@ -177,7 +177,7 @@ static void (*pFSEventStreamStop)(FSEventStreamRef);
 
 
 /* Runs in UV loop's thread, when there're events to report to handle */
-static void uv__fsevents_cb(uv_async_t* cb, int status) {
+static void uv__fsevents_cb(uv_async_t* cb) {
   uv_fs_event_t* handle;
 
   handle = cb->data;

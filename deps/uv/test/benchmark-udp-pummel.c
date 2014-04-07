@@ -132,7 +132,7 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void timeout_cb(uv_timer_t* timer, int status) {
+static void timeout_cb(uv_timer_t* timer) {
   int i;
 
   exiting = 1;

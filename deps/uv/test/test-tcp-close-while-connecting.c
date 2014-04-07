@@ -43,14 +43,14 @@ static void connect_cb(uv_connect_t* req, int status) {
 }
 
 
-static void timer1_cb(uv_timer_t* handle, int status) {
+static void timer1_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*)handle, close_cb);
   uv_close((uv_handle_t*)&tcp_handle, close_cb);
   timer1_cb_called++;
 }
 
 
-static void timer2_cb(uv_timer_t* handle, int status) {
+static void timer2_cb(uv_timer_t* handle) {
   ASSERT(0 && "should not be called");
 }
 

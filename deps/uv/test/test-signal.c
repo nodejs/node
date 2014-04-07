@@ -65,7 +65,7 @@ static void signal_cb(uv_signal_t* handle, int signum) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   struct timer_ctx* ctx = container_of(handle, struct timer_ctx, handle);
 
   raise(ctx->signum);

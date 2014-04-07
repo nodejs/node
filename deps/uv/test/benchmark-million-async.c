@@ -50,13 +50,13 @@ static void thread_cb(void* arg) {
 }
 
 
-static void async_cb(uv_async_t* handle, int status) {
+static void async_cb(uv_async_t* handle) {
   container->async_events++;
   handle->data = handle;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   unsigned i;
 
   done = 1;

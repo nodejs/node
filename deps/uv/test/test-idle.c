@@ -38,9 +38,8 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer_handle);
-  ASSERT(status == 0);
 
   uv_close((uv_handle_t*) &idle_handle, close_cb);
   uv_close((uv_handle_t*) &check_handle, close_cb);
@@ -51,18 +50,16 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   ASSERT(handle == &idle_handle);
-  ASSERT(status == 0);
 
   idle_cb_called++;
   LOGF("idle_cb %d\n", idle_cb_called);
 }
 
 
-static void check_cb(uv_check_t* handle, int status) {
+static void check_cb(uv_check_t* handle) {
   ASSERT(handle == &check_handle);
-  ASSERT(status == 0);
 
   check_cb_called++;
   LOGF("check_cb %d\n", check_cb_called);

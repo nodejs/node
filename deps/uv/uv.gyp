@@ -217,6 +217,7 @@
             'src/unix/linux-syscalls.c',
             'src/unix/linux-syscalls.h',
             'src/unix/pthread-fixes.c',
+            'src/unix/android-ifaddrs.c'
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],
@@ -238,7 +239,6 @@
           },
         }],
         [ 'OS=="aix"', {
-          'include_dirs': [ 'src/ares/config_aix' ],
           'sources': [ 'src/unix/aix.c' ],
           'defines': [
             '_ALL_SOURCE',
@@ -383,17 +383,20 @@
         'test/test-timer-from-check.c',
         'test/test-timer.c',
         'test/test-tty.c',
+        'test/test-udp-bind.c',
         'test/test-udp-dgram-too-big.c',
         'test/test-udp-ipv6.c',
         'test/test-udp-open.c',
         'test/test-udp-options.c',
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
+        'test/test-udp-multicast-join6.c',
         'test/test-dlerror.c',
         'test/test-udp-multicast-ttl.c',
         'test/test-ip4-addr.c',
         'test/test-ip6-addr.c',
         'test/test-udp-multicast-interface.c',
+        'test/test-udp-multicast-interface6.c',
       ],
       'conditions': [
         [ 'OS=="win"', {

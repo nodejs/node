@@ -33,12 +33,12 @@ static uv_connect_t connect_req;
 static unsigned long ticks; /* event loop ticks */
 
 
-static void check_cb(uv_check_t* handle, int status) {
+static void check_cb(uv_check_t* handle) {
   ticks++;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*) &check_handle, NULL);
   uv_close((uv_handle_t*) &timer_handle, NULL);
   uv_close((uv_handle_t*) &server_handle, NULL);

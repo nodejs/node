@@ -46,8 +46,7 @@ static void timer_close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
-  ASSERT(status == 0);
+static void timer_cb(uv_timer_t* handle) {
   timer_cb_calls++;
 
   /*

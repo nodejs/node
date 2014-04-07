@@ -28,7 +28,7 @@ static int timer_cb_called;
 static int close_cb_called;
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   timer_cb_called++;
 }
 

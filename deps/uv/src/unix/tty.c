@@ -39,6 +39,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
   int newfd;
   int r;
 
+  flags = 0;
   newfd = -1;
 
   uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
@@ -54,10 +55,16 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
    * other processes.
    */
   if (isatty(fd)) {
-    newfd = uv__open_cloexec("/dev/tty", O_RDWR);
+    r = uv__open_cloexec("/dev/tty", O_RDWR);
 
-    if (newfd == -1)
-      return -errno;
+    if (r < 0) {
+      /* fallback to using blocking writes */
+      if (!readable)
+        flags |= UV_STREAM_BLOCKING;
+      goto skip;
+    }
+
+    newfd = r;
 
     r = uv__dup2_cloexec(newfd, fd);
     if (r < 0 && r != -EINVAL) {
@@ -72,6 +79,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
     fd = newfd;
   }
 
+skip:
 #if defined(__APPLE__)
   r = uv__stream_try_select((uv_stream_t*) tty, &fd);
   if (r) {
@@ -82,11 +90,13 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
 #endif
 
   if (readable)
-    flags = UV_STREAM_READABLE;
+    flags |= UV_STREAM_READABLE;
   else
-    flags = UV_STREAM_WRITABLE;
+    flags |= UV_STREAM_WRITABLE;
 
-  uv__nonblock(fd, 1);
+  if (!(flags & UV_STREAM_BLOCKING))
+    uv__nonblock(fd, 1);
+
   uv__stream_open((uv_stream_t*) tty, fd, flags);
   tty->mode = 0;
 

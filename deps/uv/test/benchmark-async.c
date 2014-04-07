@@ -40,7 +40,7 @@ struct ctx {
 };
 
 
-static void worker_async_cb(uv_async_t* handle, int status) {
+static void worker_async_cb(uv_async_t* handle) {
   struct ctx* ctx = container_of(handle, struct ctx, worker_async);
 
   ASSERT(0 == uv_async_send(&ctx->main_async));
@@ -52,7 +52,7 @@ static void worker_async_cb(uv_async_t* handle, int status) {
 }
 
 
-static void main_async_cb(uv_async_t* handle, int status) {
+static void main_async_cb(uv_async_t* handle) {
   struct ctx* ctx = container_of(handle, struct ctx, main_async);
 
   ASSERT(0 == uv_async_send(&ctx->worker_async));

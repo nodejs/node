@@ -33,7 +33,7 @@ static uv_timer_t timer;
 static uv_tcp_t conn;
 
 static void connect_cb(uv_connect_t* req, int status);
-static void timer_cb(uv_timer_t* handle, int status);
+static void timer_cb(uv_timer_t* handle);
 static void close_cb(uv_handle_t* handle);
 
 
@@ -44,7 +44,7 @@ static void connect_cb(uv_connect_t* req, int status) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer);
   uv_close((uv_handle_t*)&conn, close_cb);
   uv_close((uv_handle_t*)&timer, close_cb);

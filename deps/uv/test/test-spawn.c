@@ -26,8 +26,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#include <unistd.h>
+#ifdef _WIN32
+# if defined(__MINGW32__)
+#  include <basetyps.h>
+# endif
+# include <shellapi.h>
+#else
+# include <unistd.h>
 #endif
 
 
@@ -146,13 +151,13 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_process_kill(&process, /* SIGTERM */ 15);
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
 
-static void timer_counter_cb(uv_timer_t* handle, int status) {
+static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
 
@@ -674,6 +679,38 @@ TEST_IMPL(spawn_same_stdout_stderr) {
 
   ASSERT(exit_cb_called == 1);
   ASSERT(strcmp(output, "TEST") == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(spawn_closed_process_io) {
+  uv_pipe_t in;
+  uv_write_t write_req;
+  uv_buf_t buf;
+  uv_stdio_container_t stdio[2];
+  static char buffer[] = "hello-from-spawn_stdin";
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &in, 0);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*) &in;
+  options.stdio_count = 1;
+
+  close(0); /* Close process stdin. */
+
+  ASSERT(0 == uv_spawn(uv_default_loop(), &process, &options));
+
+  buf = uv_buf_init(buffer, sizeof(buffer));
+  ASSERT(0 == uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb));
+
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2); /* process, child stdin */
 
   MAKE_VALGRIND_HAPPY();
   return 0;
