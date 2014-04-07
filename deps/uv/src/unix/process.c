@@ -316,7 +316,7 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (fd <= 2)
       uv__nonblock(fd, 0);
 
-    if (close_fd != -1)
+    if (close_fd >= stdio_count)
       uv__close(close_fd);
   }
 

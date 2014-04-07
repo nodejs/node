@@ -41,9 +41,8 @@ static void walk_cb(uv_handle_t* handle, void* arg) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer);
-  ASSERT(status == 0);
 
   uv_walk(handle->loop, walk_cb, magic_cookie);
   uv_close((uv_handle_t*)handle, NULL);

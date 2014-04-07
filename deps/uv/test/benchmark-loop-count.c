@@ -32,18 +32,18 @@ static uv_idle_t idle_handle;
 static uv_timer_t timer_handle;
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   if (++ticks == NUM_TICKS)
     uv_idle_stop(handle);
 }
 
 
-static void idle2_cb(uv_idle_t* handle, int status) {
+static void idle2_cb(uv_idle_t* handle) {
   ticks++;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_idle_stop(&idle_handle);
   uv_timer_stop(&timer_handle);
 }

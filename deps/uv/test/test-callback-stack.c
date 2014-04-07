@@ -105,9 +105,8 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer);
-  ASSERT(status == 0);
   ASSERT(nested == 0 && "timer_cb must be called from a fresh stack");
 
   puts("Timeout complete. Now read data...");

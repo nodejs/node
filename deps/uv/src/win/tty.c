@@ -1815,7 +1815,7 @@ void uv_tty_close(uv_tty_t* handle) {
 
 
 void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
-  if (!(handle->flags && UV_HANDLE_TTY_READABLE) &&
+  if (!(handle->flags & UV_HANDLE_TTY_READABLE) &&
       handle->shutdown_req != NULL &&
       handle->write_reqs_pending == 0) {
     UNREGISTER_HANDLE_REQ(loop, handle, handle->shutdown_req);

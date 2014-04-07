@@ -90,7 +90,7 @@ static void ipc_alloc_cb(uv_handle_t* handle,
                          size_t suggested_size,
                          uv_buf_t* buf);
 
-static void sv_async_cb(uv_async_t* handle, int status);
+static void sv_async_cb(uv_async_t* handle);
 static void sv_connection_cb(uv_stream_t* server_handle, int status);
 static void sv_read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf);
 static void sv_alloc_cb(uv_handle_t* handle,
@@ -98,7 +98,7 @@ static void sv_alloc_cb(uv_handle_t* handle,
                         uv_buf_t* buf);
 
 static void cl_connect_cb(uv_connect_t* req, int status);
-static void cl_idle_cb(uv_idle_t* handle, int status);
+static void cl_idle_cb(uv_idle_t* handle);
 static void cl_close_cb(uv_handle_t* handle);
 
 static struct sockaddr_in listen_addr;
@@ -275,7 +275,7 @@ static void server_cb(void *arg) {
 }
 
 
-static void sv_async_cb(uv_async_t* handle, int status) {
+static void sv_async_cb(uv_async_t* handle) {
   struct server_ctx* ctx;
   ctx = container_of(handle, struct server_ctx, async_handle);
   uv_close((uv_handle_t*) &ctx->server_handle, NULL);
@@ -330,7 +330,7 @@ static void cl_connect_cb(uv_connect_t* req, int status) {
 }
 
 
-static void cl_idle_cb(uv_idle_t* handle, int status) {
+static void cl_idle_cb(uv_idle_t* handle) {
   struct client_ctx* ctx = container_of(handle, struct client_ctx, idle_handle);
   uv_close((uv_handle_t*) &ctx->client_handle, cl_close_cb);
   uv_idle_stop(&ctx->idle_handle);

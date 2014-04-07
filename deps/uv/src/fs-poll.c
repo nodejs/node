@@ -41,7 +41,7 @@ struct poll_ctx {
 
 static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b);
 static void poll_cb(uv_fs_t* req);
-static void timer_cb(uv_timer_t* timer, int status);
+static void timer_cb(uv_timer_t* timer);
 static void timer_close_cb(uv_handle_t* handle);
 
 static uv_stat_t zero_statbuf;
@@ -148,7 +148,7 @@ void uv__fs_poll_close(uv_fs_poll_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* timer, int status) {
+static void timer_cb(uv_timer_t* timer) {
   struct poll_ctx* ctx;
 
   ctx = container_of(timer, struct poll_ctx, timer_handle);

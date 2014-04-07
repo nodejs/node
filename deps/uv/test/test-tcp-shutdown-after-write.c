@@ -58,7 +58,7 @@ static void alloc_cb(uv_handle_t* handle,
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_buf_t buf;
   int r;
 

@@ -123,7 +123,7 @@ static void timer_close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer);
   uv_close((uv_handle_t*) handle, timer_close_cb);
 

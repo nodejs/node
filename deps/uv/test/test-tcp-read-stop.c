@@ -38,7 +38,7 @@ static void write_cb(uv_write_t* req, int status) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_buf_t buf = uv_buf_init("PING", 4);
   ASSERT(0 == uv_write(&write_req,
                        (uv_stream_t*) &tcp_handle,

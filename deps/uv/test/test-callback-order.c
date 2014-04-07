@@ -30,7 +30,7 @@ static uv_timer_t timer_handle;
 
 
 /* idle_cb should run before timer_cb */
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   ASSERT(idle_cb_called == 0);
   ASSERT(timer_cb_called == 0);
   uv_idle_stop(handle);
@@ -38,7 +38,7 @@ static void idle_cb(uv_idle_t* handle, int status) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(idle_cb_called == 1);
   ASSERT(timer_cb_called == 0);
   uv_timer_stop(handle);
@@ -46,7 +46,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void next_tick(uv_idle_t* handle, int status) {
+static void next_tick(uv_idle_t* handle) {
   uv_loop_t* loop = handle->loop;
   uv_idle_stop(handle);
   uv_idle_init(loop, &idle_handle);

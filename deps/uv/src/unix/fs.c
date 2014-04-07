@@ -217,9 +217,17 @@ skip:
 static ssize_t uv__fs_read(uv_fs_t* req) {
   ssize_t result;
 
-  if (req->off < 0)
-    result = readv(req->file, (struct iovec*) req->bufs, req->nbufs);
-  else {
+  if (req->off < 0) {
+    if (req->nbufs == 1)
+      result = read(req->file, req->bufs[0].base, req->bufs[0].len);
+    else
+      result = readv(req->file, (struct iovec*) req->bufs, req->nbufs);
+  } else {
+    if (req->nbufs == 1) {
+      result = pread(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
+      goto done;
+    }
+
 #if HAVE_PREADV
     result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
@@ -265,6 +273,8 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
 # endif
 #endif
   }
+
+done:
   if (req->bufs != req->bufsml)
     free(req->bufs);
   return result;
@@ -583,9 +593,16 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
   pthread_mutex_lock(&lock);
 #endif
 
-  if (req->off < 0)
-    r = writev(req->file, (struct iovec*) req->bufs, req->nbufs);
-  else {
+  if (req->off < 0) {
+    if (req->nbufs == 1)
+      r = write(req->file, req->bufs[0].base, req->bufs[0].len);
+    else
+      r = writev(req->file, (struct iovec*) req->bufs, req->nbufs);
+  } else {
+    if (req->nbufs == 1) {
+      r = pwrite(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
+      goto done;
+    }
 #if HAVE_PREADV
     r = pwritev(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
@@ -632,6 +649,7 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
 #endif
   }
 
+done:
 #if defined(__APPLE__)
   pthread_mutex_unlock(&lock);
 #endif

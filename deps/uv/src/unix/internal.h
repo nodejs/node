@@ -136,7 +136,8 @@ enum {
   UV_STREAM_READ_EOF      = 0x200,  /* read(2) read EOF. */
   UV_TCP_NODELAY          = 0x400,  /* Disable Nagle. */
   UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
-  UV_TCP_SINGLE_ACCEPT    = 0x1000  /* Only accept() when idle. */
+  UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
+  UV_HANDLE_IPV6          = 0x2000  /* Handle is bound to a IPv6 socket. */
 };
 
 typedef enum {
@@ -214,7 +215,7 @@ void uv__work_submit(uv_loop_t* loop,
                      struct uv__work *w,
                      void (*work)(struct uv__work *w),
                      void (*done)(struct uv__work *w, int status));
-void uv__work_done(uv_async_t* handle, int status);
+void uv__work_done(uv_async_t* handle);
 
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);

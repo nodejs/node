@@ -29,18 +29,16 @@ static int timer_called = 0;
 static int num_ticks = 10;
 
 
-static void prepare_cb(uv_prepare_t* handle, int status) {
+static void prepare_cb(uv_prepare_t* handle) {
   ASSERT(handle == &prepare_handle);
-  ASSERT(status == 0);
   prepare_called++;
   if (prepare_called == num_ticks)
     uv_prepare_stop(handle);
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer_handle);
-  ASSERT(status == 0);
   timer_called++;
   if (timer_called == 1)
     uv_stop(uv_default_loop());

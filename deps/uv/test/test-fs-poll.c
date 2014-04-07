@@ -26,7 +26,7 @@
 
 #define FIXTURE "testfile"
 
-static void timer_cb(uv_timer_t* handle, int status);
+static void timer_cb(uv_timer_t* handle);
 static void close_cb(uv_handle_t* handle);
 static void poll_cb(uv_fs_poll_t* handle,
                     int status,
@@ -71,7 +71,7 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   touch_file(FIXTURE);
   timer_cb_called++;
 }

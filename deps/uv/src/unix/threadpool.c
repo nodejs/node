@@ -191,7 +191,7 @@ static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
 }
 
 
-void uv__work_done(uv_async_t* handle, int status) {
+void uv__work_done(uv_async_t* handle) {
   struct uv__work* w;
   uv_loop_t* loop;
   QUEUE* q;

@@ -1,4 +1,64 @@
-2014.03.11, Version 0.11.22 (Unstable)
+2014.04.07, Version 0.11.23 (Unstable)
+
+Changes since version 0.11.22:
+
+* fs: avoid using readv/writev where possible (Fedor Indutny)
+
+* mingw: fix build with autotools (Saúl Ibarra Corretgé)
+
+* bsd: support IPv6 qualified link-local addresses (Saúl Ibarra Corretgé)
+
+* unix: add UV_HANDLE_IPV6 flag to tcp and udp handles (Saúl Ibarra Corretgé)
+
+* unix, windows: do not set SO_REUSEADDR by default on udp (Saúl Ibarra
+  Corretgé)
+
+* windows: fix check in uv_tty_endgame() (Maks Naumov)
+
+* unix, windows: add IPv6 support for uv_udp_multicast_interface (Saúl Ibarra
+  Corretgé)
+
+* unix: fallback to blocking writes if reopening a tty fails (Saúl Ibarra
+  Corretgé)
+
+* unix: fix handling uv__open_cloexec failure (Saúl Ibarra Corretgé)
+
+* unix, windows: add IPv6 support to uv_udp_set_membership (Saúl Ibarra
+  Corretgé)
+
+* unix, windows: removed unused status parameter (Saúl Ibarra Corretgé)
+
+* android: add support of ifaddrs in android (Javier Hernández)
+
+* build: fix SunOS and AIX build with autotools (Saúl Ibarra Corretgé)
+
+* build: freebsd link with libelf if dtrace enabled (Saúl Ibarra Corretgé)
+
+* stream: do not leak `alloc_cb` buffers on error (Fedor Indutny)
+
+* unix: fix setting written size on uv_wd (Saúl Ibarra Corretgé)
+
+
+2014.04.07, Version 0.10.26 (Stable), d864907611c25ec986c5e77d4d6d6dee88f26926
+
+Changes since version 0.10.25:
+
+* process: don't close stdio fds during spawn (Tonis Tiigi)
+
+* build, windows: do not fail on Windows SDK Prompt (Marc Schlaich)
+
+* build, windows: fix x64 configuration issue (Marc Schlaich)
+
+* win: fix buffer leak on error in pipe.c (Fedor Indutny)
+
+* kqueue: invalidate fd in uv_fs_event_t (Fedor Indutny)
+
+* linux: always deregister closing fds from epoll (Geoffry Song)
+
+* error: add ENXIO for O_NONBLOCK FIFO open() (Fedor Indutny)
+
+
+2014.03.11, Version 0.11.22 (Unstable), cd0c19b1d3c56acf0ade7687006e12e75fbda36d
 
 Changes since version 0.11.21:
 

@@ -22,58 +22,71 @@
 #include "uv.h"
 #include "task.h"
 
-static int check_cb_called;
-static int timer_cb_called;
-static int close_cb_called;
-
-static uv_check_t check_handle;
-static uv_timer_t timer_handle1;
-static uv_timer_t timer_handle2;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 
-static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
-  close_cb_called++;
-}
-
-
-/* check_cb should run before any close_cb */
-static void check_cb(uv_check_t* handle) {
-  ASSERT(check_cb_called == 0);
-  ASSERT(timer_cb_called == 1);
-  ASSERT(close_cb_called == 0);
-  uv_close((uv_handle_t*) handle, close_cb);
-  uv_close((uv_handle_t*) &timer_handle2, close_cb);
-  check_cb_called++;
-}
-
-
-static void timer_cb(uv_timer_t* handle) {
-  uv_close((uv_handle_t*) handle, close_cb);
-  timer_cb_called++;
-}
-
-
-TEST_IMPL(close_order) {
+TEST_IMPL(udp_bind) {
+  struct sockaddr_in addr;
   uv_loop_t* loop;
+  uv_udp_t h1, h2;
+  int r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+
   loop = uv_default_loop();
 
-  uv_check_init(loop, &check_handle);
-  uv_check_start(&check_handle, check_cb);
-  uv_timer_init(loop, &timer_handle1);
-  uv_timer_start(&timer_handle1, timer_cb, 0, 0);
-  uv_timer_init(loop, &timer_handle2);
-  uv_timer_start(&timer_handle2, timer_cb, 100000, 0);
+  r = uv_udp_init(loop, &h1);
+  ASSERT(r == 0);
 
-  ASSERT(check_cb_called == 0);
-  ASSERT(close_cb_called == 0);
-  ASSERT(timer_cb_called == 0);
+  r = uv_udp_init(loop, &h2);
+  ASSERT(r == 0);
 
-  uv_run(loop, UV_RUN_DEFAULT);
+  r = uv_udp_bind(&h1, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
 
-  ASSERT(check_cb_called == 1);
-  ASSERT(close_cb_called == 3);
-  ASSERT(timer_cb_called == 1);
+  r = uv_udp_bind(&h2, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == UV_EADDRINUSE);
+
+  uv_close((uv_handle_t*) &h1, NULL);
+  uv_close((uv_handle_t*) &h2, NULL);
+
+  r = uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(udp_bind_reuseaddr) {
+  struct sockaddr_in addr;
+  uv_loop_t* loop;
+  uv_udp_t h1, h2;
+  int r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+
+  loop = uv_default_loop();
+
+  r = uv_udp_init(loop, &h1);
+  ASSERT(r == 0);
+
+  r = uv_udp_init(loop, &h2);
+  ASSERT(r == 0);
+
+  r = uv_udp_bind(&h1, (const struct sockaddr*) &addr, UV_UDP_REUSEADDR);
+  ASSERT(r == 0);
+
+  r = uv_udp_bind(&h2, (const struct sockaddr*) &addr, UV_UDP_REUSEADDR);
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*) &h1, NULL);
+  uv_close((uv_handle_t*) &h2, NULL);
+
+  r = uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

@@ -90,14 +90,14 @@ static void embed_thread_runner(void* arg) {
 }
 
 
-static void embed_cb(uv_async_t* async, int status) {
+static void embed_cb(uv_async_t* async) {
   uv_run(uv_default_loop(), UV_RUN_ONCE);
 
   uv_sem_post(&embed_sem);
 }
 
 
-static void embed_timer_cb(uv_timer_t* timer, int status) {
+static void embed_timer_cb(uv_timer_t* timer) {
   embed_timer_called++;
   embed_closed = 1;
 

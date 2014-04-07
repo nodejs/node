@@ -89,8 +89,11 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   errno = 0;
   if (bind(tcp->io_watcher.fd, addr, addrlen) && errno != EADDRINUSE)
     return -errno;
-
   tcp->delayed_error = -errno;
+
+  if (addr->sa_family == AF_INET6)
+    tcp->flags |= UV_HANDLE_IPV6;
+
   return 0;
 }
 

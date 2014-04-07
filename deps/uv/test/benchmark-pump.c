@@ -85,7 +85,7 @@ static double gbit(int64_t bytes, int64_t passed_ms) {
 }
 
 
-static void show_stats(uv_timer_t* handle, int status) {
+static void show_stats(uv_timer_t* handle) {
   int64_t diff;
   int i;
 

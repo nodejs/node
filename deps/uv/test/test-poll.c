@@ -61,7 +61,7 @@ typedef struct server_context_s {
 } server_context_t;
 
 
-static void delay_timer_cb(uv_timer_t* timer, int status);
+static void delay_timer_cb(uv_timer_t* timer);
 
 
 static test_mode_t test_mode = DUPLEX;
@@ -413,7 +413,7 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
 }
 
 
-static void delay_timer_cb(uv_timer_t* timer, int status) {
+static void delay_timer_cb(uv_timer_t* timer) {
   connection_context_t* context = (connection_context_t*) timer->data;
   int r;
 

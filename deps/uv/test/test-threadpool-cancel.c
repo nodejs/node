@@ -138,7 +138,7 @@ static void done2_cb(uv_work_t* req, int status) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   struct cancel_info* ci;
   uv_req_t* req;
   unsigned i;

@@ -24,59 +24,75 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#define CHECK_HANDLE(handle) \
+  ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
 
-static int close_cb_called = 0;
+static uv_udp_t server;
+static uv_udp_t client;
+
+static int sv_send_cb_called;
+static int close_cb_called;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  CHECK_HANDLE(handle);
   close_cb_called++;
 }
 
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT(0 && "timer_cb should not have been called");
+static void sv_send_cb(uv_udp_send_t* req, int status) {
+  ASSERT(req != NULL);
+  ASSERT(status == 0);
+  CHECK_HANDLE(req->handle);
+
+  sv_send_cb_called++;
+
+  uv_close((uv_handle_t*) req->handle, close_cb);
 }
 
 
-TEST_IMPL(active) {
+TEST_IMPL(udp_multicast_interface6) {
   int r;
-  uv_timer_t timer;
+  uv_udp_send_t req;
+  uv_buf_t buf;
+  struct sockaddr_in6 addr;
+  struct sockaddr_in6 baddr;
 
-  r = uv_timer_init(uv_default_loop(), &timer);
+  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
+
+  r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  /* uv_is_active() and uv_is_closing() should always return either 0 or 1. */
-  ASSERT(0 == uv_is_active((uv_handle_t*) &timer));
-  ASSERT(0 == uv_is_closing((uv_handle_t*) &timer));
-
-  r = uv_timer_start(&timer, timer_cb, 1000, 0);
+  ASSERT(0 == uv_ip6_addr("::", 0, &baddr));
+  r = uv_udp_bind(&server, (const struct sockaddr*)&baddr, 0);
   ASSERT(r == 0);
 
-  ASSERT(1 == uv_is_active((uv_handle_t*) &timer));
-  ASSERT(0 == uv_is_closing((uv_handle_t*) &timer));
-
-  r = uv_timer_stop(&timer);
+#if defined(__APPLE__)
+  r = uv_udp_set_multicast_interface(&server, "::1%lo0");
+#else
+  r = uv_udp_set_multicast_interface(&server, NULL);
+#endif
   ASSERT(r == 0);
 
-  ASSERT(0 == uv_is_active((uv_handle_t*) &timer));
-  ASSERT(0 == uv_is_closing((uv_handle_t*) &timer));
-
-  r = uv_timer_start(&timer, timer_cb, 1000, 0);
+  /* server sends "PING" */
+  buf = uv_buf_init("PING", 4);
+  r = uv_udp_send(&req,
+                  &server,
+                  &buf,
+                  1,
+                  (const struct sockaddr*)&addr,
+                  sv_send_cb);
   ASSERT(r == 0);
 
-  ASSERT(1 == uv_is_active((uv_handle_t*) &timer));
-  ASSERT(0 == uv_is_closing((uv_handle_t*) &timer));
+  ASSERT(close_cb_called == 0);
+  ASSERT(sv_send_cb_called == 0);
 
-  uv_close((uv_handle_t*) &timer, close_cb);
+  /* run the loop till all events are processed */
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(0 == uv_is_active((uv_handle_t*) &timer));
-  ASSERT(1 == uv_is_closing((uv_handle_t*) &timer));
-
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-
+  ASSERT(sv_send_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
   MAKE_VALGRIND_HAPPY();

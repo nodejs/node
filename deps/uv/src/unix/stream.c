@@ -224,7 +224,7 @@ static void uv__stream_osx_select(void* arg) {
 }
 
 
-static void uv__stream_osx_select_cb(uv_async_t* handle, int status) {
+static void uv__stream_osx_select_cb(uv_async_t* handle) {
   uv__stream_select_t* s;
   uv_stream_t* stream;
   int events;
@@ -1127,7 +1127,7 @@ static void uv__read(uv_stream_t* stream) {
       if (is_ipc) {
         err = uv__stream_recv_cmsg(stream, &msg);
         if (err != 0) {
-          stream->read_cb(stream, err, NULL);
+          stream->read_cb(stream, err, &buf);
           return;
         }
       }

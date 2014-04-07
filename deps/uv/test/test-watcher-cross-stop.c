@@ -73,7 +73,9 @@ TEST_IMPL(watcher_cross_stop) {
 
   for (i = 0; i < ARRAY_SIZE(sockets); i++) {
     ASSERT(0 == uv_udp_init(loop, &sockets[i]));
-    ASSERT(0 == uv_udp_bind(&sockets[i], (const struct sockaddr*) &addr, 0));
+    ASSERT(0 == uv_udp_bind(&sockets[i],
+                            (const struct sockaddr*) &addr,
+                            UV_UDP_REUSEADDR));
     ASSERT(0 == uv_udp_recv_start(&sockets[i], alloc_cb, recv_cb));
     ASSERT(0 == uv_udp_send(&reqs[i],
                             &sockets[i],

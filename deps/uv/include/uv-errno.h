@@ -400,4 +400,10 @@
 # define UV__ENXIO (-4033)
 #endif
 
+#if defined(EMLINK) && !defined(_WIN32)
+# define UV__EMLINK (-EMLINK)
+#else
+# define UV__EMLINK (-4032)
+#endif
+
 #endif /* UV_ERRNO_H_ */

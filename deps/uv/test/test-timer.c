@@ -44,11 +44,10 @@ static void once_close_cb(uv_handle_t* handle) {
 }
 
 
-static void once_cb(uv_timer_t* handle, int status) {
+static void once_cb(uv_timer_t* handle) {
   printf("ONCE_CB %d\n", once_cb_called);
 
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
   ASSERT(0 == uv_is_active((uv_handle_t*) handle));
 
   once_cb_called++;
@@ -69,11 +68,10 @@ static void repeat_close_cb(uv_handle_t* handle) {
 }
 
 
-static void repeat_cb(uv_timer_t* handle, int status) {
+static void repeat_cb(uv_timer_t* handle) {
   printf("REPEAT_CB\n");
 
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
   ASSERT(1 == uv_is_active((uv_handle_t*) handle));
 
   repeat_cb_called++;
@@ -84,7 +82,7 @@ static void repeat_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void never_cb(uv_timer_t* handle, int status) {
+static void never_cb(uv_timer_t* handle) {
   FATAL("never_cb should never be called");
 }
 
@@ -170,12 +168,12 @@ TEST_IMPL(timer_init) {
 }
 
 
-static void order_cb_a(uv_timer_t *handle, int status) {
+static void order_cb_a(uv_timer_t *handle) {
   ASSERT(order_cb_called++ == *(int*)handle->data);
 }
 
 
-static void order_cb_b(uv_timer_t *handle, int status) {
+static void order_cb_b(uv_timer_t *handle) {
   ASSERT(order_cb_called++ == *(int*)handle->data);
 }
 
@@ -219,7 +217,7 @@ TEST_IMPL(timer_order) {
 }
 
 
-static void tiny_timer_cb(uv_timer_t* handle, int status) {
+static void tiny_timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &tiny_timer);
   uv_close((uv_handle_t*) &tiny_timer, NULL);
   uv_close((uv_handle_t*) &huge_timer1, NULL);
@@ -240,7 +238,7 @@ TEST_IMPL(timer_huge_timeout) {
 }
 
 
-static void huge_repeat_cb(uv_timer_t* handle, int status) {
+static void huge_repeat_cb(uv_timer_t* handle) {
   static int ncalls;
 
   if (ncalls == 0)
@@ -269,7 +267,7 @@ TEST_IMPL(timer_huge_repeat) {
 static unsigned int timer_run_once_timer_cb_called;
 
 
-static void timer_run_once_timer_cb(uv_timer_t* handle, int status) {
+static void timer_run_once_timer_cb(uv_timer_t* handle) {
   timer_run_once_timer_cb_called++;
 }
 

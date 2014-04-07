@@ -605,7 +605,7 @@ int uv_cwd(char* buffer, size_t* size) {
   if (getcwd(buffer, *size) == NULL)
     return -errno;
 
-  *size = strlen(buffer);
+  *size = strlen(buffer) + 1;
   return 0;
 }
 

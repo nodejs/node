@@ -159,7 +159,7 @@ void uv__run_timers(uv_loop_t* loop) {
 
     uv_timer_stop(handle);
     uv_timer_again(handle);
-    handle->timer_cb(handle, 0);
+    handle->timer_cb(handle);
   }
 }
 
