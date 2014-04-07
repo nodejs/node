@@ -78,7 +78,7 @@ Pass `true` as the third argument to treat `//foo/bar` as
 Take a parsed URL object, and return a formatted URL string.
 
 * `href` will be ignored.
-* `protocol`is treated the same with or without the trailing `:` (colon).
+* `protocol` is treated the same with or without the trailing `:` (colon).
   * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be
     postfixed with `://` (colon-slash-slash).
   * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will
