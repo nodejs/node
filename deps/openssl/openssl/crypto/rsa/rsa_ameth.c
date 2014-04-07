@@ -351,27 +351,27 @@ static int rsa_pss_param_print(BIO *bp, RSA_PSS_PARAMS *pss,
 
 	if (!BIO_indent(bp, indent, 128))
 		goto err;
-	if (BIO_puts(bp, "Salt Length: ") <= 0)
+	if (BIO_puts(bp, "Salt Length: 0x") <= 0)
 			goto err;
 	if (pss->saltLength)
 		{
 		if (i2a_ASN1_INTEGER(bp, pss->saltLength) <= 0)
 			goto err;
 		}
-	else if (BIO_puts(bp, "20 (default)") <= 0)
+	else if (BIO_puts(bp, "0x14 (default)") <= 0)
 		goto err;
 	BIO_puts(bp, "\n");
 
 	if (!BIO_indent(bp, indent, 128))
 		goto err;
-	if (BIO_puts(bp, "Trailer Field: ") <= 0)
+	if (BIO_puts(bp, "Trailer Field: 0x") <= 0)
 			goto err;
 	if (pss->trailerField)
 		{
 		if (i2a_ASN1_INTEGER(bp, pss->trailerField) <= 0)
 			goto err;
 		}
-	else if (BIO_puts(bp, "0xbc (default)") <= 0)
+	else if (BIO_puts(bp, "BC (default)") <= 0)
 		goto err;
 	BIO_puts(bp, "\n");
 	

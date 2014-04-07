@@ -17,7 +17,7 @@ EVP_BytesToKey - password based encryption routine
 
 EVP_BytesToKey() derives a key and IV from various parameters. B<type> is
 the cipher to derive the key and IV for. B<md> is the message digest to use.
-The B<salt> paramter is used as a salt in the derivation: it should point to
+The B<salt> parameter is used as a salt in the derivation: it should point to
 an 8 byte buffer or NULL if no salt is used. B<data> is a buffer containing
 B<datal> bytes which is used to derive the keying data. B<count> is the
 iteration count to use. The derived key and IV will be written to B<key>

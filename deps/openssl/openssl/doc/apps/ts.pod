@@ -352,7 +352,7 @@ switch always overrides the settings in the config file.
 
 This is the main section and it specifies the name of another section
 that contains all the options for the B<-reply> command. This default
-section can be overriden with the B<-section> command line switch. (Optional)
+section can be overridden with the B<-section> command line switch. (Optional)
 
 =item B<oid_file>
 
@@ -453,7 +453,7 @@ included. Default is no. (Optional)
 =head1 ENVIRONMENT VARIABLES
 
 B<OPENSSL_CONF> contains the path of the configuration file and can be
-overriden by the B<-config> command line option.
+overridden by the B<-config> command line option.
 
 =head1 EXAMPLES
 

@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 		goto err;
 
 	/* Decrypt S/MIME message */
-	if (!CMS_decrypt(cms, rkey, rcert, out, NULL, 0))
+	if (!CMS_decrypt(cms, rkey, rcert, NULL, out, 0))
 		goto err;
 
 	ret = 0;

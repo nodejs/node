@@ -232,7 +232,14 @@ int SHA384_Update (SHA512_CTX *c, const void *data, size_t len)
 {   return SHA512_Update (c,data,len);   }
 
 void SHA512_Transform (SHA512_CTX *c, const unsigned char *data)
-{   sha512_block_data_order (c,data,1);  }
+	{
+#ifndef SHA512_BLOCK_CAN_MANAGE_UNALIGNED_DATA
+	if ((size_t)data%sizeof(c->u.d[0]) != 0)
+		memcpy(c->u.p,data,sizeof(c->u.p)),
+		data = c->u.p;
+#endif
+	sha512_block_data_order (c,data,1);
+	}
 
 unsigned char *SHA384(const unsigned char *d, size_t n, unsigned char *md)
 	{

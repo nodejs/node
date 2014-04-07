@@ -83,9 +83,9 @@
 # Add decryption procedure. Performance in CPU cycles spent to decrypt
 # one byte out of 4096-byte buffer with 128-bit key is:
 #
-# Core 2	11.0
-# Nehalem	9.16
-# Atom		20.9
+# Core 2	9.83
+# Nehalem	7.74
+# Atom		19.0
 #
 # November 2011.
 #
@@ -456,6 +456,7 @@ sub MixColumns {
 # modified to emit output in order suitable for feeding back to aesenc[last]
 my @x=@_[0..7];
 my @t=@_[8..15];
+my $inv=@_[16];	# optional
 $code.=<<___;
 	pshufd	\$0x93, @x[0], @t[0]	# x0 <<< 32
 	pshufd	\$0x93, @x[1], @t[1]
@@ -497,7 +498,8 @@ $code.=<<___;
 	pxor	@t[4], @t[0]
 	 pshufd	\$0x4E, @x[2], @x[6]
 	pxor	@t[5], @t[1]
-
+___
+$code.=<<___ if (!$inv);
 	pxor	@t[3], @x[4]
 	pxor	@t[7], @x[5]
 	pxor	@t[6], @x[3]
@@ -505,9 +507,20 @@ $code.=<<___;
 	pxor	@t[2], @x[6]
 	 movdqa	@t[1], @x[7]
 ___
+$code.=<<___ if ($inv);
+	pxor	@x[4], @t[3]
+	pxor	@t[7], @x[5]
+	pxor	@x[3], @t[6]
+	 movdqa	@t[0], @x[3]
+	pxor	@t[2], @x[6]
+	 movdqa	@t[6], @x[2]
+	 movdqa	@t[1], @x[7]
+	 movdqa	@x[6], @x[4]
+	 movdqa	@t[3], @x[6]
+___
 }
 
-sub InvMixColumns {
+sub InvMixColumns_orig {
 my @x=@_[0..7];
 my @t=@_[8..15];
 
@@ -659,6 +672,54 @@ $code.=<<___;
 	movdqa	@t[6],@XMM[6]
 	movdqa	@t[7],@XMM[7]
 ___
+}
+
+sub InvMixColumns {
+my @x=@_[0..7];
+my @t=@_[8..15];
+
+# Thanks to Jussi Kivilinna for providing pointer to
+#
+# | 0e 0b 0d 09 |   | 02 03 01 01 |   | 05 00 04 00 |
+# | 09 0e 0b 0d | = | 01 02 03 01 | x | 00 05 00 04 |
+# | 0d 09 0e 0b |   | 01 01 02 03 |   | 04 00 05 00 |
+# | 0b 0d 09 0e |   | 03 01 01 02 |   | 00 04 00 05 |
+
+$code.=<<___;
+	# multiplication by 0x05-0x00-0x04-0x00
+	pshufd	\$0x4E, @x[0], @t[0]
+	pshufd	\$0x4E, @x[6], @t[6]
+	pxor	@x[0], @t[0]
+	pshufd	\$0x4E, @x[7], @t[7]
+	pxor	@x[6], @t[6]
+	pshufd	\$0x4E, @x[1], @t[1]
+	pxor	@x[7], @t[7]
+	pshufd	\$0x4E, @x[2], @t[2]
+	pxor	@x[1], @t[1]
+	pshufd	\$0x4E, @x[3], @t[3]
+	pxor	@x[2], @t[2]
+	 pxor	@t[6], @x[0]
+	 pxor	@t[6], @x[1]
+	pshufd	\$0x4E, @x[4], @t[4]
+	pxor	@x[3], @t[3]
+	 pxor	@t[0], @x[2]
+	 pxor	@t[1], @x[3]
+	pshufd	\$0x4E, @x[5], @t[5]
+	pxor	@x[4], @t[4]
+	 pxor	@t[7], @x[1]
+	 pxor	@t[2], @x[4]
+	pxor	@x[5], @t[5]
+
+	 pxor	@t[7], @x[2]
+	 pxor	@t[6], @x[3]
+	 pxor	@t[6], @x[4]
+	 pxor	@t[3], @x[5]
+	 pxor	@t[4], @x[6]
+	 pxor	@t[7], @x[4]
+	 pxor	@t[7], @x[5]
+	 pxor	@t[5], @x[7]
+___
+	&MixColumns	(@x,@t,1);	# flipped 2<->3 and 4<->6
 }
 
 sub aesenc {				# not used
@@ -2028,6 +2089,8 @@ ___
 #	const unsigned char iv[16]);
 #
 my ($twmask,$twres,$twtmp)=@XMM[13..15];
+$arg6=~s/d$//;
+
 $code.=<<___;
 .globl	bsaes_xts_encrypt
 .type	bsaes_xts_encrypt,\@abi-omnipotent

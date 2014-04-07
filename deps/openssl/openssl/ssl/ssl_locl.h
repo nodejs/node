@@ -621,6 +621,8 @@ extern SSL3_ENC_METHOD TLSv1_enc_data;
 extern SSL3_ENC_METHOD SSLv3_enc_data;
 extern SSL3_ENC_METHOD DTLSv1_enc_data;
 
+#define SSL_IS_DTLS(s) (s->method->version == DTLS1_VERSION)
+
 #define IMPLEMENT_tls_meth_func(version, func_name, s_accept, s_connect, \
 				s_get_meth) \
 const SSL_METHOD *func_name(void)  \
@@ -847,6 +849,7 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher);
 STACK_OF(SSL_CIPHER) *ssl_get_ciphers_by_id(SSL *s);
 int ssl_verify_alarm_type(long type);
 void ssl_load_ciphers(void);
+int ssl_fill_hello_random(SSL *s, int server, unsigned char *field, int len);
 
 int ssl2_enc_init(SSL *s, int client);
 int ssl2_generate_key_material(SSL *s);

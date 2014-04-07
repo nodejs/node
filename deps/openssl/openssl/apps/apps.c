@@ -586,12 +586,12 @@ int password_callback(char *buf, int bufsiz, int verify,
 
 		if (ok >= 0)
 			ok = UI_add_input_string(ui,prompt,ui_flags,buf,
-				PW_MIN_LENGTH,BUFSIZ-1);
+				PW_MIN_LENGTH,bufsiz-1);
 		if (ok >= 0 && verify)
 			{
 			buff = (char *)OPENSSL_malloc(bufsiz);
 			ok = UI_add_verify_string(ui,prompt,ui_flags,buff,
-				PW_MIN_LENGTH,BUFSIZ-1, buf);
+				PW_MIN_LENGTH,bufsiz-1, buf);
 			}
 		if (ok >= 0)
 			do
@@ -2841,7 +2841,7 @@ double app_tminterval(int stop,int usertime)
 
 	if (proc==NULL)
 		{
-		if (GetVersion() < 0x80000000)
+		if (check_winnt())
 			proc = OpenProcess(PROCESS_QUERY_INFORMATION,FALSE,
 						GetCurrentProcessId());
 		if (proc==NULL) proc = (HANDLE)-1;

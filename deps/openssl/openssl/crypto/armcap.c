@@ -23,7 +23,7 @@ unsigned int _armv7_tick(void);
 
 unsigned int OPENSSL_rdtsc(void)
 	{
-	if (OPENSSL_armcap_P|ARMV7_TICK)
+	if (OPENSSL_armcap_P & ARMV7_TICK)
 		return _armv7_tick();
 	else
 		return 0;

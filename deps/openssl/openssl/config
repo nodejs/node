@@ -739,7 +739,7 @@ case "$GUESSOS" in
 			    libc=/usr/lib/libc.so
 			else					# OpenBSD
 			    # ld searches for highest libc.so.* and so do we
-			    libc=`(ls /usr/lib/libc.so.* | tail -1) 2>/dev/null`
+			    libc=`(ls /usr/lib/libc.so.* /lib/libc.so.* | tail -1) 2>/dev/null`
 			fi
 			case "`(file -L $libc) 2>/dev/null`" in
 			*ELF*)	OUT="BSD-x86-elf" ;;

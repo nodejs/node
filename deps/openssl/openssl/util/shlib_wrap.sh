@@ -90,4 +90,8 @@ fi
 
 cmd="$1${EXE_EXT}"
 shift
-exec "$cmd" "$@"
+if [ $# -eq 0 ]; then
+	exec "$cmd"	# old sh, such as Tru64 4.x, fails to expand empty "$@"
+else
+	exec "$cmd" "$@"
+fi

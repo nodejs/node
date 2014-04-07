@@ -307,7 +307,8 @@ L\$opts
 	.STRINGZ "RC4 for PA-RISC, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/cmpib,\*/comib,/gm if ($SIZE_T==4);
+$code =~ s/cmpib,\*/comib,/gm	if ($SIZE_T==4);
+$code =~ s/\bbv\b/bve/gm	if ($SIZE_T==8);
 
 print $code;
 close STDOUT;

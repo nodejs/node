@@ -78,6 +78,7 @@ static ERR_STRING_DATA RAND_str_functs[]=
 
 static ERR_STRING_DATA RAND_str_reasons[]=
 	{
+{ERR_REASON(RAND_R_DUAL_EC_DRBG_DISABLED),"dual ec drbg disabled"},
 {ERR_REASON(RAND_R_ERROR_INITIALISING_DRBG),"error initialising drbg"},
 {ERR_REASON(RAND_R_ERROR_INSTANTIATING_DRBG),"error instantiating drbg"},
 {ERR_REASON(RAND_R_NO_FIPS_RANDOM_METHOD_SET),"no fips random method set"},

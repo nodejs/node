@@ -169,8 +169,8 @@ that will always continue the TLS/SSL handshake regardless of verification
 failure, if wished. The callback realizes a verification depth limit with
 more informational output.
 
-All verification errors are printed, informations about the certificate chain
-are printed on request.
+All verification errors are printed; information about the certificate chain
+is printed on request.
 The example is realized for a server that does allow but not require client
 certificates.
 

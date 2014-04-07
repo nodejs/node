@@ -688,15 +688,23 @@
           # Enable asm
           'defines': [
             'AES_ASM',
+            'VPAES_ASM',
             'BF_ASM',
             'BNCO_ASM',
             'BN_ASM',
             'CPUID_ASM',
             'DES_ASM',
             'LIB_BN_ASM',
+            'MD5_ASM',
             'OPENSSL_BN_ASM',
+            'OPENSSL_BN_ASM_MONT',
             'OPENSSL_CPUID_OBJ',
             'RIP_ASM',
+            'RMD160_ASM',
+            'SHA1_ASM',
+            'SHA256_ASM',
+            'SHA512_ASM',
+            'GHASH_ASM',
             'WHIRLPOOL_ASM',
             'WP_ASM'
           ],
@@ -705,6 +713,7 @@
               'sources': [
                 'asm/x86-elf-gas/aes/aes-586.s',
                 'asm/x86-elf-gas/aes/aesni-x86.s',
+                'asm/x86-elf-gas/aes/vpaes-x86.s',
                 'asm/x86-elf-gas/bf/bf-686.s',
                 'asm/x86-elf-gas/bn/x86-mont.s',
                 'asm/x86-elf-gas/bn/x86.s',
@@ -720,24 +729,37 @@
                 'asm/x86-elf-gas/sha/sha256-586.s',
                 'asm/x86-elf-gas/sha/sha512-586.s',
                 'asm/x86-elf-gas/whrlpool/wp-mmx.s',
+                'asm/x86-elf-gas/modes/ghash-x86.s',
                 'asm/x86-elf-gas/x86cpuid.s',
                 'openssl/crypto/whrlpool/wp_block.c'
               ]
             }],
             ['OS!="win" and OS!="mac" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+                'OPENSSL_IA32_SSE2',
+                'BSAES_ASM',
+              ],
               'sources': [
                 'asm/x64-elf-gas/aes/aes-x86_64.s',
                 'asm/x64-elf-gas/aes/aesni-x86_64.s',
+                'asm/x64-elf-gas/aes/vpaes-x86_64.s',
+                'asm/x64-elf-gas/aes/bsaes-x86_64.s',
                 'asm/x64-elf-gas/aes/aesni-sha1-x86_64.s',
                 'asm/x64-elf-gas/bn/modexp512-x86_64.s',
                 'asm/x64-elf-gas/bn/x86_64-mont.s',
+                'asm/x64-elf-gas/bn/x86_64-mont5.s',
+                'asm/x64-elf-gas/bn/x86_64-gf2m.s',
                 'asm/x64-elf-gas/camellia/cmll-x86_64.s',
                 'asm/x64-elf-gas/md5/md5-x86_64.s',
                 'asm/x64-elf-gas/rc4/rc4-x86_64.s',
                 'asm/x64-elf-gas/rc4/rc4-md5-x86_64.s',
                 'asm/x64-elf-gas/sha/sha1-x86_64.s',
+                'asm/x64-elf-gas/sha/sha256-x86_64.s',
                 'asm/x64-elf-gas/sha/sha512-x86_64.s',
                 'asm/x64-elf-gas/whrlpool/wp-x86_64.s',
+                'asm/x64-elf-gas/modes/ghash-x86_64.s',
                 'asm/x64-elf-gas/x86_64cpuid.s',
                 # Non-generated asm
                 'openssl/crypto/bn/asm/x86_64-gcc.c',
@@ -753,6 +775,7 @@
               'sources': [
                 'asm/x86-macosx-gas/aes/aes-586.s',
                 'asm/x86-macosx-gas/aes/aesni-x86.s',
+                'asm/x86-macosx-gas/aes/vpaes-x86.s',
                 'asm/x86-macosx-gas/bf/bf-686.s',
                 'asm/x86-macosx-gas/bn/x86-mont.s',
                 'asm/x86-macosx-gas/bn/x86.s',
@@ -768,24 +791,37 @@
                 'asm/x86-macosx-gas/sha/sha256-586.s',
                 'asm/x86-macosx-gas/sha/sha512-586.s',
                 'asm/x86-macosx-gas/whrlpool/wp-mmx.s',
+                'asm/x86-macosx-gas/modes/ghash-x86.s',
                 'asm/x86-macosx-gas/x86cpuid.s',
                 'openssl/crypto/whrlpool/wp_block.c'
               ]
             }],
             ['OS=="mac" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+                'OPENSSL_IA32_SSE2',
+                'BSAES_ASM',
+              ],
               'sources': [
                 'asm/x64-macosx-gas/aes/aes-x86_64.s',
                 'asm/x64-macosx-gas/aes/aesni-x86_64.s',
+                'asm/x64-macosx-gas/aes/vpaes-x86_64.s',
+                'asm/x64-macosx-gas/aes/bsaes-x86_64.s',
                 'asm/x64-macosx-gas/aes/aesni-sha1-x86_64.s',
                 'asm/x64-macosx-gas/bn/modexp512-x86_64.s',
                 'asm/x64-macosx-gas/bn/x86_64-mont.s',
+                'asm/x64-macosx-gas/bn/x86_64-mont5.s',
+                'asm/x64-macosx-gas/bn/x86_64-gf2m.s',
                 'asm/x64-macosx-gas/camellia/cmll-x86_64.s',
                 'asm/x64-macosx-gas/md5/md5-x86_64.s',
                 'asm/x64-macosx-gas/rc4/rc4-x86_64.s',
                 'asm/x64-macosx-gas/rc4/rc4-md5-x86_64.s',
                 'asm/x64-macosx-gas/sha/sha1-x86_64.s',
+                'asm/x64-macosx-gas/sha/sha256-x86_64.s',
                 'asm/x64-macosx-gas/sha/sha512-x86_64.s',
                 'asm/x64-macosx-gas/whrlpool/wp-x86_64.s',
+                'asm/x64-macosx-gas/modes/ghash-x86_64.s',
                 'asm/x64-macosx-gas/x86_64cpuid.s',
                 # Non-generated asm
                 'openssl/crypto/bn/asm/x86_64-gcc.c',
@@ -801,6 +837,7 @@
               'sources': [
                 'asm/x86-win32-masm/aes/aes-586.asm',
                 'asm/x86-win32-masm/aes/aesni-x86.asm',
+                'asm/x86-win32-masm/aes/vpaes-x86.asm',
                 'asm/x86-win32-masm/bf/bf-686.asm',
                 'asm/x86-win32-masm/bn/x86-mont.asm',
                 'asm/x86-win32-masm/bn/x86.asm',
@@ -816,6 +853,7 @@
                 'asm/x86-win32-masm/sha/sha256-586.asm',
                 'asm/x86-win32-masm/sha/sha512-586.asm',
                 'asm/x86-win32-masm/whrlpool/wp-mmx.asm',
+                'asm/x86-win32-masm/modes/ghash-x86.asm',
                 'asm/x86-win32-masm/x86cpuid.asm',
                 'openssl/crypto/whrlpool/wp_block.c'
               ],
@@ -840,19 +878,31 @@
               ]
             }],
             ['OS=="win" and target_arch=="x64"', {
+              'defines': [
+                'OPENSSL_BN_ASM_MONT5',
+                'OPENSSL_BN_ASM_GF2m',
+                'OPENSSL_IA32_SSE2',
+                'BSAES_ASM',
+              ],
               'sources': [
                 'asm/x64-win32-masm/aes/aes-x86_64.asm',
                 'asm/x64-win32-masm/aes/aesni-x86_64.asm',
+                'asm/x64-win32-masm/aes/vpaes-x86_64.asm',
+                'asm/x64-win32-masm/aes/bsaes-x86_64.asm',
                 'asm/x64-win32-masm/aes/aesni-sha1-x86_64.asm',
                 'asm/x64-win32-masm/bn/modexp512-x86_64.asm',
                 'asm/x64-win32-masm/bn/x86_64-mont.asm',
+                'asm/x64-win32-masm/bn/x86_64-mont5.asm',
+                'asm/x64-win32-masm/bn/x86_64-gf2m.asm',
                 'asm/x64-win32-masm/camellia/cmll-x86_64.asm',
                 'asm/x64-win32-masm/md5/md5-x86_64.asm',
                 'asm/x64-win32-masm/rc4/rc4-x86_64.asm',
                 'asm/x64-win32-masm/rc4/rc4-md5-x86_64.asm',
                 'asm/x64-win32-masm/sha/sha1-x86_64.asm',
+                'asm/x64-win32-masm/sha/sha256-x86_64.asm',
                 'asm/x64-win32-masm/sha/sha512-x86_64.asm',
                 'asm/x64-win32-masm/whrlpool/wp-x86_64.asm',
+                'asm/x64-win32-masm/modes/ghash-x86_64.asm',
                 'asm/x64-win32-masm/x86_64cpuid.asm',
                 # Non-generated asm
                 'openssl/crypto/bn/asm/x86_64-win32-masm.asm',

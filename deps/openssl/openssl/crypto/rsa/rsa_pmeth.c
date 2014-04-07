@@ -611,6 +611,8 @@ static int pkey_rsa_ctrl_str(EVP_PKEY_CTX *ctx,
 			pm = RSA_NO_PADDING;
 		else if (!strcmp(value, "oeap"))
 			pm = RSA_PKCS1_OAEP_PADDING;
+		else if (!strcmp(value, "oaep"))
+			pm = RSA_PKCS1_OAEP_PADDING;
 		else if (!strcmp(value, "x931"))
 			pm = RSA_X931_PADDING;
 		else if (!strcmp(value, "pss"))

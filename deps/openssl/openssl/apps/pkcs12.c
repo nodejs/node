@@ -112,7 +112,7 @@ int MAIN(int argc, char **argv)
     int maciter = PKCS12_DEFAULT_ITER;
     int twopass = 0;
     int keytype = 0;
-    int cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
+    int cert_pbe;
     int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int ret = 1;
     int macver = 1;
@@ -129,6 +129,13 @@ int MAIN(int argc, char **argv)
 #endif
 
     apps_startup();
+
+#ifdef OPENSSL_FIPS
+    if (FIPS_mode())
+	cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+    else
+#endif
+    cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
 
     enc = EVP_des_ede3_cbc();
     if (bio_err == NULL ) bio_err = BIO_new_fp (stderr, BIO_NOCLOSE);

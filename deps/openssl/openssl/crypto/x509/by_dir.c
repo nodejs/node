@@ -218,7 +218,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 
 	s=dir;
 	p=s;
-	for (;;p++)
+	do
 		{
 		if ((*p == LIST_SEPARATOR_CHAR) || (*p == '\0'))
 			{
@@ -264,9 +264,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 				return 0;
 				}
 			}
-		if (*p == '\0')
-			break;
-		}
+		} while (*p++ != '\0');
 	return 1;
 	}
 

@@ -60,6 +60,7 @@ L_OPENSSL_ia32_cpuid_begin:
 	movzbl	%cl,%esi
 	incl	%esi
 	movl	$1,%eax
+	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	btl	$28,%edx
 	jnc	L002generic
@@ -81,6 +82,7 @@ L001intel:
 	andl	$4095,%edi
 L003nocacheinfo:
 	movl	$1,%eax
+	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	andl	$3220176895,%edx
 	cmpl	$0,%ebp

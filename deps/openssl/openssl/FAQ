@@ -768,6 +768,9 @@ openssl-security@openssl.org if you don't get a prompt reply at least
 acknowledging receipt then resend or mail it directly to one of the
 more active team members (e.g. Steve).
 
+Note that bugs only present in the openssl utility are not in general
+considered to be security issues. 
+
 [PROG] ========================================================================
 
 * Is OpenSSL thread-safe?

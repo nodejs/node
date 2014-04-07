@@ -138,6 +138,7 @@ void ERR_load_RAND_strings(void);
 #define RAND_F_SSLEAY_RAND_BYTES			 100
 
 /* Reason codes. */
+#define RAND_R_DUAL_EC_DRBG_DISABLED			 104
 #define RAND_R_ERROR_INITIALISING_DRBG			 102
 #define RAND_R_ERROR_INSTANTIATING_DRBG			 103
 #define RAND_R_NO_FIPS_RANDOM_METHOD_SET		 101

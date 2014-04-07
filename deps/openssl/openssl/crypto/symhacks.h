@@ -204,6 +204,12 @@
 #define SSL_CTX_set_next_protos_advertised_cb	SSL_CTX_set_next_protos_adv_cb
 #undef SSL_CTX_set_next_proto_select_cb
 #define SSL_CTX_set_next_proto_select_cb	SSL_CTX_set_next_proto_sel_cb
+#undef ssl3_cbc_record_digest_supported
+#define ssl3_cbc_record_digest_supported        ssl3_cbc_record_digest_support
+#undef ssl_check_clienthello_tlsext_late
+#define ssl_check_clienthello_tlsext_late       ssl_check_clihello_tlsext_late
+#undef ssl_check_clienthello_tlsext_early
+#define ssl_check_clienthello_tlsext_early      ssl_check_clihello_tlsext_early
 
 /* Hack some long ENGINE names */
 #undef ENGINE_get_default_BN_mod_exp_crt

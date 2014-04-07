@@ -201,7 +201,7 @@ handle PKCS#8 format encrypted and unencrypted keys too.
 PEM_write_bio_PKCS8PrivateKey() and PEM_write_PKCS8PrivateKey()
 write a private key in an EVP_PKEY structure in PKCS#8
 EncryptedPrivateKeyInfo format using PKCS#5 v2.0 password based encryption
-algorithms. The B<cipher> argument specifies the encryption algoritm to
+algorithms. The B<cipher> argument specifies the encryption algorithm to
 use: unlike all other PEM routines the encryption is applied at the
 PKCS#8 level and not in the PEM headers. If B<cipher> is NULL then no
 encryption is used and a PKCS#8 PrivateKeyInfo structure is used instead.

@@ -785,6 +785,8 @@ foreach (split("\n",$code)) {
 
 	s/cmpb,\*/comb,/ if ($SIZE_T==4);
 
+	s/\bbv\b/bve/    if ($SIZE_T==8);
+
 	print $_,"\n";
 }
 

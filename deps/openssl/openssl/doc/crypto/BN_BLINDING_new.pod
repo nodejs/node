@@ -48,7 +48,7 @@ necessary parameters are set, by re-creating the blinding parameters.
 
 BN_BLINDING_convert_ex() multiplies B<n> with the blinding factor B<A>.
 If B<r> is not NULL a copy the inverse blinding factor B<Ai> will be
-returned in B<r> (this is useful if a B<RSA> object is shared amoung
+returned in B<r> (this is useful if a B<RSA> object is shared among
 several threads). BN_BLINDING_invert_ex() multiplies B<n> with the
 inverse blinding factor B<Ai>. If B<r> is not NULL it will be used as
 the inverse blinding.
