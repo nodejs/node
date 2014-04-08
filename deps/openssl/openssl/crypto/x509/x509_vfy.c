@@ -1462,10 +1462,9 @@ static int cert_crl(X509_STORE_CTX *ctx, X509_CRL *crl, X509 *x)
 	 * a certificate was revoked. This has since been changed since 
 	 * critical extension can change the meaning of CRL entries.
 	 */
-	if (crl->flags & EXFLAG_CRITICAL)
+	if (!(ctx->param->flags & X509_V_FLAG_IGNORE_CRITICAL)
+		&& (crl->flags & EXFLAG_CRITICAL))
 		{
-		if (ctx->param->flags & X509_V_FLAG_IGNORE_CRITICAL)
-			return 1;
 		ctx->error = X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION;
 		ok = ctx->verify_cb(0, ctx);
 		if(!ok)

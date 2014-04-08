@@ -264,7 +264,7 @@ static int b64_read(BIO *b, char *out, int outl)
 				}
 
 			/* we fell off the end without starting */
-			if (j == i)
+			if ((j == i) && (num == 0))
 				{
 				/* Is this is one long chunk?, if so, keep on
 				 * reading until a new line. */

@@ -465,8 +465,6 @@ int CMS_add0_cert(CMS_ContentInfo *cms, X509 *cert)
 	pcerts = cms_get0_certificate_choices(cms);
 	if (!pcerts)
 		return 0;
-	if (!pcerts)
-		return 0;
 	for (i = 0; i < sk_CMS_CertificateChoices_num(*pcerts); i++)
 		{
 		cch = sk_CMS_CertificateChoices_value(*pcerts, i);

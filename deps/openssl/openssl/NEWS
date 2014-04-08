@@ -5,8 +5,15 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1f and OpenSSL 1.0.1g [7 Apr 2014]
+
+      o Fix for CVE-2014-0160
+      o Add TLS padding extension workaround for broken servers.
+      o Fix for CVE-2014-0076
+
   Major changes between OpenSSL 1.0.1e and OpenSSL 1.0.1f [6 Jan 2014]
 
+      o Don't include gmt_unix_time in TLS server and client random values
       o Fix for TLS record tampering bug CVE-2013-4353
       o Fix for TLS version checking bug CVE-2013-6449
       o Fix for DTLS retransmission bug CVE-2013-6450

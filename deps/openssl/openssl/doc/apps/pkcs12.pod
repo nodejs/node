@@ -67,7 +67,7 @@ by default.
 The filename to write certificates and private keys to, standard output by
 default.  They are all written in PEM format.
 
-=item B<-pass arg>, B<-passin arg>
+=item B<-passin arg>
 
 the PKCS#12 file (i.e. input file) password source. For more information about
 the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
@@ -75,9 +75,14 @@ L<openssl(1)|openssl(1)>.
 
 =item B<-passout arg>
 
-pass phrase source to encrypt any outputed private keys with. For more
+pass phrase source to encrypt any outputted private keys with. For more
 information about the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section
 in L<openssl(1)|openssl(1)>.
+
+=item B<-password arg>
+
+With -export, -password is equivalent to -passout.
+Otherwise, -password is equivalent to -passin.
 
 =item B<-noout>
 

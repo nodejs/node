@@ -245,7 +245,7 @@ static int MS_CALLBACK slg_puts(BIO *bp, const char *str)
 
 static void xopenlog(BIO* bp, char* name, int level)
 {
-	if (GetVersion() < 0x80000000)
+	if (check_winnt())
 		bp->ptr = RegisterEventSourceA(NULL,name);
 	else
 		bp->ptr = NULL;

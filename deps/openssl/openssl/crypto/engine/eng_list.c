@@ -408,6 +408,7 @@ ENGINE *ENGINE_by_id(const char *id)
 				!ENGINE_ctrl_cmd_string(iterator, "DIR_LOAD", "2", 0) ||
 				!ENGINE_ctrl_cmd_string(iterator, "DIR_ADD",
 					load_dir, 0) ||
+				!ENGINE_ctrl_cmd_string(iterator, "LIST_ADD", "1", 0) ||
 				!ENGINE_ctrl_cmd_string(iterator, "LOAD", NULL, 0))
 				goto notfound;
 		return iterator;
