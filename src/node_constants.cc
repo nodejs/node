@@ -1071,12 +1071,17 @@ void DefineSystemConstants(Handle<Object> target) {
 #endif
 }
 
+void DefineUVConstants(Handle<Object> target) {
+  NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
+}
+
 void DefineConstants(Handle<Object> target) {
   DefineErrnoConstants(target);
   DefineWindowsErrorConstants(target);
   DefineSignalConstants(target);
   DefineOpenSSLConstants(target);
   DefineSystemConstants(target);
+  DefineUVConstants(target);
 }
 
 }  // namespace node
