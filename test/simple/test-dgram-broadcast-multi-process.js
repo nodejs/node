@@ -157,7 +157,10 @@ if (process.argv[2] !== 'child') {
     })(x);
   }
 
-  var sendSocket = dgram.createSocket('udp4');
+  var sendSocket = dgram.createSocket({
+    type: 'udp4',
+    reuseAddr: true
+  });
 
   // bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
@@ -201,7 +204,10 @@ if (process.argv[2] !== 'child') {
 
 if (process.argv[2] === 'child') {
   var receivedMessages = [];
-  var listenSocket = dgram.createSocket('udp4');
+  var listenSocket = dgram.createSocket({
+    type: 'udp4',
+    reuseAddr: true
+  });
 
   listenSocket.on('message', function(buf, rinfo) {
     // receive udp messages only sent from parent

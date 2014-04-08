@@ -22,8 +22,13 @@ You have to change it to this:
 
 
 ## dgram.createSocket(type, [callback])
+## dgram.createSocket(options, [callback])
 
 * `type` String. Either 'udp4' or 'udp6'
+* `options` Object. Should contain a `type` property and could contain
+  `reuseAddr` property. `false` by default.
+  When `reuseAddr` is `true` - `socket.bind()` will reuse address, even if the
+  other process has already bound a socket on it.
 * `callback` Function. Attached as a listener to `message` events.
   Optional
 * Returns: Socket object
@@ -41,7 +46,7 @@ with `socket.address().address` and `socket.address().port`.
 ## Class: dgram.Socket
 
 The dgram Socket class encapsulates the datagram functionality.  It
-should be created via `dgram.createSocket(type, [callback])`.
+should be created via `dgram.createSocket(...)`
 
 ### Event: 'message'
 
