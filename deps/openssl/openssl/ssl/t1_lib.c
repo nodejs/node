@@ -662,6 +662,36 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
                 }
 #endif
 
+#ifdef TLSEXT_TYPE_padding
+	/* Add padding to workaround bugs in F5 terminators.
+	 * See https://tools.ietf.org/html/draft-agl-tls-padding-03
+	 *
+	 * NB: because this code works out the length of all existing
+	 * extensions it MUST always appear last.
+	 */
+	{
+	int hlen = ret - (unsigned char *)s->init_buf->data;
+	/* The code in s23_clnt.c to build ClientHello messages includes the
+	 * 5-byte record header in the buffer, while the code in s3_clnt.c does
+	 * not. */
+	if (s->state == SSL23_ST_CW_CLNT_HELLO_A)
+		hlen -= 5;
+	if (hlen > 0xff && hlen < 0x200)
+		{
+		hlen = 0x200 - hlen;
+		if (hlen >= 4)
+			hlen -= 4;
+		else
+			hlen = 0;
+
+		s2n(TLSEXT_TYPE_padding, ret);
+		s2n(hlen, ret);
+		memset(ret, 0, hlen);
+		ret += hlen;
+		}
+	}
+#endif
+
 	if ((extdatalen = ret-p-2)== 0) 
 		return p;
 
@@ -1261,7 +1291,7 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				}
 			}
 		else if (type == TLSEXT_TYPE_status_request &&
-		         s->version != DTLS1_VERSION && s->ctx->tlsext_status_cb)
+		         s->version != DTLS1_VERSION)
 			{
 		
 			if (size < 5) 
@@ -2558,15 +2588,19 @@ tls1_process_heartbeat(SSL *s)
 	unsigned int payload;
 	unsigned int padding = 16; /* Use minimum padding */
 
-	/* Read type and payload length first */
-	hbtype = *p++;
-	n2s(p, payload);
-	pl = p;
-
 	if (s->msg_callback)
 		s->msg_callback(0, s->version, TLS1_RT_HEARTBEAT,
 			&s->s3->rrec.data[0], s->s3->rrec.length,
 			s, s->msg_callback_arg);
+
+	/* Read type and payload length first */
+	if (1 + 2 + 16 > s->s3->rrec.length)
+		return 0; /* silently discard */
+	hbtype = *p++;
+	n2s(p, payload);
+	if (1 + 2 + payload + 16 > s->s3->rrec.length)
+		return 0; /* silently discard per RFC 6520 sec. 4 */
+	pl = p;
 
 	if (hbtype == TLS1_HB_REQUEST)
 		{

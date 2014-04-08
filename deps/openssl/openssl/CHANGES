@@ -2,6 +2,35 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1f and 1.0.1g [7 Apr 2014]
+
+  *) A missing bounds check in the handling of the TLS heartbeat extension
+     can be used to reveal up to 64k of memory to a connected client or
+     server.
+
+     Thanks for Neel Mehta of Google Security for discovering this bug and to
+     Adam Langley <agl@chromium.org> and Bodo Moeller <bmoeller@acm.org> for
+     preparing the fix (CVE-2014-0160)
+     [Adam Langley, Bodo Moeller]
+
+  *) Fix for the attack described in the paper "Recovering OpenSSL
+     ECDSA Nonces Using the FLUSH+RELOAD Cache Side-channel Attack"
+     by Yuval Yarom and Naomi Benger. Details can be obtained from:
+     http://eprint.iacr.org/2014/140
+
+     Thanks to Yuval Yarom and Naomi Benger for discovering this
+     flaw and to Yuval Yarom for supplying a fix (CVE-2014-0076)
+     [Yuval Yarom and Naomi Benger]
+
+  *) TLS pad extension: draft-agl-tls-padding-03
+
+     Workaround for the "TLS hang bug" (see FAQ and PR#2771): if the
+     TLS client Hello record length value would otherwise be > 255 and
+     less that 512 pad with a dummy extension containing zeroes so it
+     is at least 512 bytes long.
+
+     [Adam Langley, Steve Henson]
+
  Changes between 1.0.1e and 1.0.1f [6 Jan 2014]
 
   *) Fix for TLS record tampering bug. A carefully crafted invalid 

@@ -41,7 +41,7 @@ PKCS#8 private key format use the B<pkcs8> command.
 
 This specifies the input format. The B<DER> option with a private key uses
 an ASN.1 DER encoded SEC1 private key. When used with a public key it
-uses the SubjectPublicKeyInfo structur as specified in RFC 3280.
+uses the SubjectPublicKeyInfo structure as specified in RFC 3280.
 The B<PEM> form is the default format: it consists of the B<DER> format base64
 encoded with additional header and footer lines. In the case of a private key
 PKCS#8 format is also accepted.

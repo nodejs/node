@@ -427,9 +427,9 @@ int MAIN(int argc, char **argv)
 			goto end;
 			}
 		if (do_verify)
-			r = EVP_DigestVerifyInit(mctx, &pctx, md, e, sigkey);
+			r = EVP_DigestVerifyInit(mctx, &pctx, md, NULL, sigkey);
 		else
-			r = EVP_DigestSignInit(mctx, &pctx, md, e, sigkey);
+			r = EVP_DigestSignInit(mctx, &pctx, md, NULL, sigkey);
 		if (!r)
 			{
 			BIO_printf(bio_err, "Error setting context\n");

@@ -1830,7 +1830,7 @@ int ssl3_send_server_key_exchange(SSL *s)
 			SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE,SSL_R_UNKNOWN_KEY_EXCHANGE_TYPE);
 			goto f_err;
 			}
-		for (i=0; r[i] != NULL && i<4; i++)
+		for (i=0; i < 4 && r[i] != NULL; i++)
 			{
 			nr[i]=BN_num_bytes(r[i]);
 #ifndef OPENSSL_NO_SRP
@@ -1866,7 +1866,7 @@ int ssl3_send_server_key_exchange(SSL *s)
 		d=(unsigned char *)s->init_buf->data;
 		p= &(d[4]);
 
-		for (i=0; r[i] != NULL && i<4; i++)
+		for (i=0; i < 4 && r[i] != NULL; i++)
 			{
 #ifndef OPENSSL_NO_SRP
 			if ((i == 2) && (type & SSL_kSRP))

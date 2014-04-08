@@ -198,6 +198,9 @@ static void ssleay_rand_add(const void *buf, int num, double add)
 	EVP_MD_CTX m;
 	int do_not_lock;
 
+	if (!num)
+		return;
+
 	/*
 	 * (Based on the rand(3) manpage)
 	 *

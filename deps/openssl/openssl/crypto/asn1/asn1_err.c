@@ -305,7 +305,7 @@ static ERR_STRING_DATA ASN1_str_reasons[]=
 {ERR_REASON(ASN1_R_UNKNOWN_PUBLIC_KEY_TYPE),"unknown public key type"},
 {ERR_REASON(ASN1_R_UNKNOWN_SIGNATURE_ALGORITHM),"unknown signature algorithm"},
 {ERR_REASON(ASN1_R_UNKNOWN_TAG)          ,"unknown tag"},
-{ERR_REASON(ASN1_R_UNKOWN_FORMAT)        ,"unkown format"},
+{ERR_REASON(ASN1_R_UNKOWN_FORMAT)        ,"unknown format"},
 {ERR_REASON(ASN1_R_UNSUPPORTED_ANY_DEFINED_BY_TYPE),"unsupported any defined by type"},
 {ERR_REASON(ASN1_R_UNSUPPORTED_CIPHER)   ,"unsupported cipher"},
 {ERR_REASON(ASN1_R_UNSUPPORTED_ENCRYPTION_ALGORITHM),"unsupported encryption algorithm"},

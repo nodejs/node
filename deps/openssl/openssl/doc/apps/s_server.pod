@@ -111,7 +111,7 @@ by using an appropriate certificate.
 
 =item B<-dcertform format>, B<-dkeyform format>, B<-dpass arg>
 
-addtional certificate and private key format and passphrase respectively.
+additional certificate and private key format and passphrase respectively.
 
 =item B<-nocert>
 

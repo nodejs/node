@@ -8,11 +8,11 @@ The `tls` module uses OpenSSL to provide Transport Layer Security and/or
 Secure Socket Layer: encrypted stream communication.
 
 TLS/SSL is a public/private key infrastructure. Each client and each
-server must have a private key. A private key is created like this
+server must have a private key. A private key is created like this:
 
     openssl genrsa -out ryans-key.pem 1024
 
-All severs and some clients need to have a certificate. Certificates are public
+All servers and some clients need to have a certificate. Certificates are public
 keys signed by a Certificate Authority or self-signed. The first step to
 getting a certificate is to create a "Certificate Signing Request" (CSR)
 file. This is done with:
@@ -291,7 +291,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
     are ignored.
 
   - `pfx`: A string or `Buffer` containing the private key, certificate and
-    CA certs of the server in PFX or PKCS12 format.
+    CA certs of the client in PFX or PKCS12 format.
 
   - `key`: A string or `Buffer` containing the private key of the client in
     PEM format.

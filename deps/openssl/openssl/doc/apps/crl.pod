@@ -62,6 +62,11 @@ don't output the encoded version of the CRL.
 output a hash of the issuer name. This can be use to lookup CRLs in
 a directory by issuer name.
 
+=item B<-hash_old>
+
+outputs the "hash" of the CRL issuer name using the older algorithm
+as used by OpenSSL versions before 1.0.0.
+
 =item B<-issuer>
 
 output the issuer name.
