@@ -60,6 +60,7 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 
 // TODO(indunty): move to a separate test eventually
 try {
+  var tls = require('tls');
   var context = tls.createSecureContext({
     key: keyPem,
     cert: certPem,
@@ -82,7 +83,7 @@ assert.throws(function() {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  crypto.createSecureContext({pfx:certPfx, passphrase:'sample'});
+  tls.createSecureContext({pfx:certPfx, passphrase:'sample'});
 });
 
 assert.throws(function() {
