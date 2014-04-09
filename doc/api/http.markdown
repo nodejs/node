@@ -845,6 +845,18 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
+### request.flush()
+
+Flush the request headers.
+
+For effiency reasons, node.js normally buffers the request headers until you
+call `request.end()` or write the first chunk of request data.  It then tries
+hard to pack the request headers and data into a single TCP packet.
+
+That's usually what you want (it saves a TCP round-trip) but not when the first
+data isn't sent until possibly much later.  `request.flush()` lets you bypass
+the optimization and kickstart the request.
+
 ### request.write(chunk, [encoding])
 
 Sends a chunk of the body.  By calling this method
