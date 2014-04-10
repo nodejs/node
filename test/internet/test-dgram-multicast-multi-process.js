@@ -189,7 +189,10 @@ if (process.argv[2] !== 'child') {
 
 if (process.argv[2] === 'child') {
   var receivedMessages = [];
-  var listenSocket = dgram.createSocket('udp4');
+  var listenSocket = dgram.createSocket({
+    type: 'udp4',
+    reuseAddr: true
+  });
 
   listenSocket.on('message', function(buf, rinfo) {
     console.error('[CHILD] %s received %s from %j', process.pid,
