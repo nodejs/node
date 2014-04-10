@@ -26,6 +26,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_root_certs.h"
+#include "util.h"
 
 #include <string.h>
 #ifdef _MSC_VER
@@ -181,7 +182,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
   OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
-    String::Utf8Value sslmethod(args[0]);
+    node::Utf8Value sslmethod(args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
@@ -245,7 +246,7 @@ static BIO* LoadBIO (Handle<Value> v) {
   int r = -1;
 
   if (v->IsString()) {
-    String::Utf8Value s(v);
+    node::Utf8Value s(v);
     r = BIO_write(bio, *s, s.length());
   } else if (Buffer::HasInstance(v)) {
     Local<Object> buffer_obj = v->ToObject();
@@ -298,7 +299,7 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
   BIO *bio = LoadBIO(args[0]);
   if (!bio) return False();
 
-  String::Utf8Value passphrase(args[1]);
+  node::Utf8Value passphrase(args[1]);
 
   EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, NULL, NULL,
                                           len == 1 ? NULL : *passphrase);
@@ -532,7 +533,7 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
-  String::Utf8Value ciphers(args[0]);
+  node::Utf8Value ciphers(args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
 
   return True();
@@ -563,7 +564,7 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
-  String::Utf8Value sessionIdContext(args[0]);
+  node::Utf8Value sessionIdContext(args[0]);
   const unsigned char* sid_ctx = (const unsigned char*) *sessionIdContext;
   unsigned int sid_ctx_len = sessionIdContext.length();
 
@@ -1023,7 +1024,7 @@ Handle<Value> Connection::New(const Arguments& args) {
   if (is_server) {
     SSL_CTX_set_tlsext_servername_callback(sc->ctx_, SelectSNIContextCallback_);
   } else {
-    String::Utf8Value servername(args[2]);
+    node::Utf8Value servername(args[2]);
     SSL_set_tlsext_host_name(p->ssl_, *servername);
   }
 #endif
@@ -2132,7 +2133,7 @@ class Cipher : public ObjectWrap {
     ssize_t key_written = DecodeWrite(key_buf, key_buf_len, args[1], BINARY);
     assert(key_written == key_buf_len);
 
-    String::Utf8Value cipherType(args[0]);
+    node::Utf8Value cipherType(args[0]);
 
     bool r = cipher->CipherInit(*cipherType, key_buf, key_buf_len);
 
@@ -2186,7 +2187,7 @@ class Cipher : public ObjectWrap {
     ssize_t iv_written = DecodeWrite(iv_buf, iv_len, args[2], BINARY);
     assert(iv_written == iv_len);
 
-    String::Utf8Value cipherType(args[0]);
+    node::Utf8Value cipherType(args[0]);
 
     bool r = cipher->CipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
@@ -2548,7 +2549,7 @@ class Decipher : public ObjectWrap {
     ssize_t key_written = DecodeWrite(key_buf, key_len, args[1], BINARY);
     assert(key_written == key_len);
 
-    String::Utf8Value cipherType(args[0]);
+    node::Utf8Value cipherType(args[0]);
 
     bool r = cipher->DecipherInit(*cipherType, key_buf,key_len);
 
@@ -2602,7 +2603,7 @@ class Decipher : public ObjectWrap {
     ssize_t iv_written = DecodeWrite(iv_buf, iv_len, args[2], BINARY);
     assert(iv_written == iv_len);
 
-    String::Utf8Value cipherType(args[0]);
+    node::Utf8Value cipherType(args[0]);
 
     bool r = cipher->DecipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
@@ -2900,7 +2901,7 @@ class Hmac : public ObjectWrap {
       return ThrowException(exception);
     }
 
-    String::Utf8Value hashType(args[0]);
+    node::Utf8Value hashType(args[0]);
 
     bool r;
 
@@ -3060,7 +3061,7 @@ class Hash : public ObjectWrap {
         "Must give hashtype string as argument")));
     }
 
-    String::Utf8Value hashType(args[0]);
+    node::Utf8Value hashType(args[0]);
 
     Hash *hash = new Hash();
     if (!hash->HashInit(*hashType)) {
@@ -3253,7 +3254,7 @@ class Sign : public ObjectWrap {
         "Must give signtype string as argument")));
     }
 
-    String::Utf8Value signType(args[0]);
+    node::Utf8Value signType(args[0]);
 
     bool r = sign->SignInit(*signType);
 
@@ -3506,7 +3507,7 @@ class Verify : public ObjectWrap {
         "Must give verifytype string as argument")));
     }
 
-    String::Utf8Value verifyType(args[0]);
+    node::Utf8Value verifyType(args[0]);
 
     bool r = verify->VerifyInit(*verifyType);
 
@@ -3705,7 +3706,7 @@ class DiffieHellman : public ObjectWrap {
           String::New("No group name given")));
     }
 
-    String::Utf8Value group_name(args[0]);
+    node::Utf8Value group_name(args[0]);
 
     modp_group* it = modp_groups;
 

@@ -80,6 +80,8 @@ typedef int mode_t;
 #include "node_script.h"
 #include "v8_typed_array.h"
 
+#include "util.h"
+
 using namespace v8;
 
 # ifdef __APPLE__
@@ -989,7 +991,7 @@ MakeCallback(const Handle<Object> object,
 
   Local<Value> callback_v = object->Get(symbol);
   if (!callback_v->IsFunction()) {
-    String::Utf8Value method(symbol);
+    node::Utf8Value method(symbol);
     // XXX: If the object has a domain attached, handle it there?
     // At least, would be good to get *some* sort of indication
     // of how we got here, even if it's not catchable.
@@ -1082,7 +1084,7 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
 
   if (!encoding_v->IsString()) return _default;
 
-  String::Utf8Value encoding(encoding_v);
+  node::Utf8Value encoding(encoding_v);
 
   if (strcasecmp(*encoding, "utf8") == 0) {
     return UTF8;
@@ -1258,12 +1260,12 @@ void DisplayExceptionLine (TryCatch &try_catch) {
 
   if (!message.IsEmpty()) {
     // Print (filename):(line number): (message).
-    String::Utf8Value filename(message->GetScriptResourceName());
+    node::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = *filename;
     int linenum = message->GetLineNumber();
     fprintf(stderr, "%s:%i\n", filename_string, linenum);
     // Print line of source code.
-    String::Utf8Value sourceline(message->GetSourceLine());
+    node::Utf8Value sourceline(message->GetSourceLine());
     const char* sourceline_string = *sourceline;
 
     // Because of how node modules work, all scripts are wrapped with a
@@ -1310,7 +1312,7 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
 
   if (show_line) DisplayExceptionLine(try_catch);
 
-  String::Utf8Value trace(try_catch.StackTrace());
+  node::Utf8Value trace(try_catch.StackTrace());
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !try_catch.StackTrace()->IsUndefined()) {
@@ -1325,11 +1327,11 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
       !(er->ToObject()->Get(String::New("name"))->IsUndefined());
 
     if (isErrorObject) {
-      String::Utf8Value name(er->ToObject()->Get(String::New("name")));
+      node::Utf8Value name(er->ToObject()->Get(String::New("name")));
       fprintf(stderr, "%s: ", *name);
     }
 
-    String::Utf8Value msg(!isErrorObject ? er
+    node::Utf8Value msg(!isErrorObject ? er
                          : er->ToObject()->Get(String::New("message")));
     fprintf(stderr, "%s\n", *msg);
   }
@@ -1411,7 +1413,7 @@ static Handle<Value> Chdir(const Arguments& args) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
-  String::Utf8Value path(args[0]);
+  node::Utf8Value path(args[0]);
 
   uv_err_t r = uv_chdir(*path);
 
@@ -1462,7 +1464,7 @@ static Handle<Value> Umask(const Arguments& args) {
       oct = args[0]->Uint32Value();
     } else {
       oct = 0;
-      String::Utf8Value str(args[0]);
+      node::Utf8Value str(args[0]);
 
       // Parse the octal string.
       for (int i = 0; i < str.length(); i++) {
@@ -1511,7 +1513,7 @@ static Handle<Value> SetGid(const Arguments& args) {
   if (args[0]->IsNumber()) {
     gid = args[0]->Int32Value();
   } else if (args[0]->IsString()) {
-    String::Utf8Value grpnam(args[0]);
+    node::Utf8Value grpnam(args[0]);
     struct group grp, *grpp = NULL;
     int err;
 
@@ -1552,7 +1554,7 @@ static Handle<Value> SetUid(const Arguments& args) {
   if (args[0]->IsNumber()) {
     uid = args[0]->Int32Value();
   } else if (args[0]->IsString()) {
-    String::Utf8Value pwnam(args[0]);
+    node::Utf8Value pwnam(args[0]);
     struct passwd pwd, *pwdp = NULL;
     int err;
 
@@ -1760,7 +1762,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     return ThrowException(exception);
   }
 
-  String::Utf8Value filename(args[0]); // Cast
+  node::Utf8Value filename(args[0]); // Cast
   Local<Object> target = args[1]->ToObject(); // Cast
 
   if (uv_dlopen(*filename, &lib)) {
@@ -1772,7 +1774,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     return ThrowException(Exception::Error(errmsg));
   }
 
-  String::Utf8Value path(args[0]);
+  node::Utf8Value path(args[0]);
   base = *path;
 
   /* Find the shared library filename within the full path. */
@@ -1905,7 +1907,7 @@ static Handle<Value> Binding(const Arguments& args) {
   HandleScope scope;
 
   Local<String> module = args[0]->ToString();
-  String::Utf8Value module_v(module);
+  node::Utf8Value module_v(module);
   node_module_struct* modp;
 
   if (binding_cache.IsEmpty()) {
@@ -1969,7 +1971,7 @@ static void ProcessTitleSetter(Local<String> property,
                                Local<Value> value,
                                const AccessorInfo& info) {
   HandleScope scope;
-  String::Utf8Value title(value);
+  node::Utf8Value title(value);
   // TODO: protect with a lock
   uv_set_process_title(*title);
 }
@@ -1979,7 +1981,7 @@ static Handle<Value> EnvGetter(Local<String> property,
                                const AccessorInfo& info) {
   HandleScope scope;
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   const char* val = getenv(*key);
   if (val) {
     return scope.Close(String::New(val));
@@ -2008,8 +2010,8 @@ static Handle<Value> EnvSetter(Local<String> property,
                                const AccessorInfo& info) {
   HandleScope scope;
 #ifdef __POSIX__
-  String::Utf8Value key(property);
-  String::Utf8Value val(value);
+  node::Utf8Value key(property);
+  node::Utf8Value val(value);
   setenv(*key, *val, 1);
 #else  // _WIN32
   String::Value key(property);
@@ -2029,7 +2031,7 @@ static Handle<Integer> EnvQuery(Local<String> property,
                                 const AccessorInfo& info) {
   HandleScope scope;
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   if (getenv(*key)) {
     return scope.Close(Integer::New(None));
   }
@@ -2057,7 +2059,7 @@ static Handle<Boolean> EnvDeleter(Local<String> property,
                                   const AccessorInfo& info) {
   HandleScope scope;
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   if (!getenv(*key)) return False();
   unsetenv(*key); // can't check return value, it's void on some platforms
   return True();

@@ -34,6 +34,8 @@
 # include <arpa/inet.h> // htons, htonl
 #endif
 
+#include "util.h"
+
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define BUFFER_CLASS_ID (0xBABE)
@@ -100,7 +102,7 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
   if (enc == UTF8) {
     return string->Utf8Length();
   } else if (enc == BASE64) {
-    String::Utf8Value v(string);
+    node::Utf8Value v(string);
     return base64_decoded_size(*v, v.length());
   } else if (enc == UCS2) {
     return string->Length() * 2;
