@@ -2447,6 +2447,13 @@ static Handle<Object> GetFeatures(Environment* env) {
 #endif
   obj->Set(env->tls_sni_string(), tls_sni);
 
+#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
+  Local<Boolean> tls_ocsp = True(env->isolate());
+#else
+  Local<Boolean> tls_ocsp = False(env->isolate());
+#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
+  obj->Set(env->tls_ocsp_string(), tls_ocsp);
+
   obj->Set(env->tls_string(),
            Boolean::New(env->isolate(), get_builtin_module("crypto") != NULL));
 

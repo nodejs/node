@@ -123,6 +123,7 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   hello.session_id_ = session_id_;
   hello.session_size_ = session_size_;
   hello.has_ticket_ = tls_ticket_ != NULL && tls_ticket_size_ != 0;
+  hello.ocsp_request_ = ocsp_request_;
   hello.servername_ = servername_;
   hello.servername_size_ = servername_size_;
   onhello_cb_(cb_arg_, hello);
@@ -158,6 +159,18 @@ void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
           offset += name_len;
         }
       }
+      break;
+    case kStatusRequest:
+      // We are ignoring any data, just indicating the presence of extension
+      if (len < kMinStatusRequestSize)
+        return;
+
+      // Unknown type, ignore it
+      if (data[0] != kStatusRequestOCSP)
+        break;
+
+      // Ignore extensions, they won't work with caching on backend anyway
+      ocsp_request_ = 1;
       break;
     case kTLSSessionTicket:
       tls_ticket_size_ = len;

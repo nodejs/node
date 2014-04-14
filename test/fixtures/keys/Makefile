@@ -30,6 +30,8 @@ agent1-csr.pem: agent1.cnf agent1-key.pem
 
 agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
+		-extfile agent1.cnf \
+		-extensions v3_ca \
 		-days 9999 \
 		-passin "pass:password" \
 		-in agent1-csr.pem \
