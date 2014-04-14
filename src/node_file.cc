@@ -400,6 +400,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
     uid,
     gid,
     rdev,
+    blksize,
     ino,
     size,
     blocks,
