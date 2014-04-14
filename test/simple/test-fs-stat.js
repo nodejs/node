@@ -36,6 +36,11 @@ fs.stat('.', function(err, stats) {
   assert(this === global);
 });
 
+fs.stat('.', function(err, stats) {
+  assert.ok(stats.hasOwnProperty('blksize'));
+  assert.ok(stats.hasOwnProperty('blocks'));
+});
+
 fs.lstat('.', function(err, stats) {
   if (err) {
     got_error = true;
