@@ -111,6 +111,7 @@ namespace node {
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
   V(immediate_callback_string, "_immediateCallback")                          \
+  V(infoaccess_string, "infoAccess")                                          \
   V(inherit_string, "inherit")                                                \
   V(ino_string, "ino")                                                        \
   V(input_string, "input")                                                    \
@@ -136,6 +137,7 @@ namespace node {
   V(nice_string, "nice")                                                      \
   V(nlink_string, "nlink")                                                    \
   V(nsname_string, "nsname")                                                  \
+  V(ocsp_request_string, "OCSPRequest")                                       \
   V(offset_string, "offset")                                                  \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
@@ -149,6 +151,7 @@ namespace node {
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onnewsessiondone_string, "onnewsessiondone")                              \
+  V(onocspresponse_string, "onocspresponse")                                  \
   V(onread_string, "onread")                                                  \
   V(onselect_string, "onselect")                                              \
   V(onsignal_string, "onsignal")                                              \
@@ -207,6 +210,7 @@ namespace node {
   V(timestamp_string, "timestamp")                                            \
   V(title_string, "title")                                                    \
   V(tls_npn_string, "tls_npn")                                                \
+  V(tls_ocsp_string, "tls_ocsp")                                              \
   V(tls_sni_string, "tls_sni")                                                \
   V(tls_string, "tls")                                                        \
   V(tls_ticket_string, "tlsTicket")                                           \

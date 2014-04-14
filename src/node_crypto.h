@@ -53,6 +53,9 @@
 
 #define EVP_F_EVP_DECRYPTFINAL 101
 
+#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
+# define NODE__HAVE_TLSEXT_STATUS_CB
+#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
 
 namespace node {
 namespace crypto {
@@ -74,6 +77,8 @@ class SecureContext : public BaseObject {
 
   X509_STORE* ca_store_;
   SSL_CTX* ctx_;
+  X509* cert_;
+  X509* issuer_;
 
   static const int kMaxSessionSize = 10 * 1024;
 
@@ -98,10 +103,15 @@ class SecureContext : public BaseObject {
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  template <bool primary>
+  static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         ca_store_(NULL),
-        ctx_(NULL) {
+        ctx_(NULL),
+        cert_(NULL),
+        issuer_(NULL) {
     MakeWeak<SecureContext>(this);
   }
 
@@ -115,8 +125,14 @@ class SecureContext : public BaseObject {
         ctx_->cert_store = NULL;
       }
       SSL_CTX_free(ctx_);
+      if (cert_ != NULL)
+        X509_free(cert_);
+      if (issuer_ != NULL)
+        X509_free(issuer_);
       ctx_ = NULL;
       ca_store_ = NULL;
+      cert_ = NULL;
+      issuer_ = NULL;
     } else {
       assert(ca_store_ == NULL);
     }
@@ -157,6 +173,9 @@ class SSLWrap {
     npn_protos_.Reset();
     selected_npn_proto_.Reset();
 #endif
+#ifdef NODE__HAVE_TLSEXT_STATUS_CB
+    ocsp_response_.Reset();
+#endif // NODE__HAVE_TLSEXT_STATUS_CB
   }
 
   inline SSL* ssl() const { return ssl_; }
@@ -191,6 +210,8 @@ class SSLWrap {
   static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTLSTicket(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void NewSessionDone(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetOCSPResponse(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RequestOCSP(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(
@@ -212,6 +233,7 @@ class SSLWrap {
                                      unsigned int inlen,
                                      void* arg);
 #endif  // OPENSSL_NPN_NEGOTIATED
+  static int TLSExtStatusCallback(SSL* s, void* arg);
 
   inline Environment* ssl_env() const {
     return env_;
@@ -224,6 +246,10 @@ class SSLWrap {
   bool session_callbacks_;
   bool new_session_wait_;
   ClientHelloParser hello_parser_;
+
+#ifdef NODE__HAVE_TLSEXT_STATUS_CB
+  v8::Persistent<v8::Object> ocsp_response_;
+#endif  // NODE__HAVE_TLSEXT_STATUS_CB
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   v8::Persistent<v8::Object> npn_protos_;

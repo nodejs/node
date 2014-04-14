@@ -34,7 +34,14 @@ class ClientHelloParser {
   ClientHelloParser() : state_(kEnded),
                         onhello_cb_(NULL),
                         onend_cb_(NULL),
-                        cb_arg_(NULL) {
+                        cb_arg_(NULL),
+                        session_size_(0),
+                        session_id_(NULL),
+                        servername_size_(0),
+                        servername_(NULL),
+                        ocsp_request_(0),
+                        tls_ticket_size_(0),
+                        tls_ticket_(NULL) {
     Reset();
   }
 
@@ -48,6 +55,7 @@ class ClientHelloParser {
     inline bool has_ticket() const { return has_ticket_; }
     inline uint8_t servername_size() const { return servername_size_; }
     inline const uint8_t* servername() const { return servername_; }
+    inline int ocsp_request() const { return ocsp_request_; }
 
    private:
     uint8_t session_size_;
@@ -55,6 +63,7 @@ class ClientHelloParser {
     bool has_ticket_;
     uint8_t servername_size_;
     const uint8_t* servername_;
+    int ocsp_request_;
 
     friend class ClientHelloParser;
   };
@@ -76,6 +85,8 @@ class ClientHelloParser {
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
+  static const uint8_t kStatusRequestOCSP = 1;
+  static const size_t kMinStatusRequestSize = 5;
 
   enum ParseState {
     kWaiting,
@@ -99,6 +110,7 @@ class ClientHelloParser {
 
   enum ExtensionType {
     kServerName = 0,
+    kStatusRequest = 5,
     kTLSSessionTicket = 35
   };
 
@@ -123,6 +135,7 @@ class ClientHelloParser {
   const uint8_t* session_id_;
   uint16_t servername_size_;
   const uint8_t* servername_;
+  uint8_t ocsp_request_;
   uint16_t tls_ticket_size_;
   const uint8_t* tls_ticket_;
 };
