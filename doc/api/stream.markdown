@@ -1082,6 +1082,12 @@ Writable.  It is thus up to the user to implement both the lowlevel
   * `allowHalfOpen` {Boolean} Default=true.  If set to `false`, then
     the stream will automatically end the readable side when the
     writable side ends and vice versa.
+  * `readableObjectMode` {Boolean} Default=false. Sets `objectMode`
+    for readable side of the stream. Has no effect if `objectMode`
+    is `true`.
+  * `writableObjectMode` {Boolean} Default=false. Sets `objectMode`
+    for writable side of the stream. Has no effect if `objectMode`
+    is `true`.
 
 In classes that extend the Duplex class, make sure to call the
 constructor so that the buffering settings can be properly
@@ -1420,17 +1426,10 @@ used by userland streaming libraries.
 You should set `objectMode` in your stream child class constructor on
 the options object.  Setting `objectMode` mid-stream is not safe.
 
-### State Objects
-
-[Readable][] streams have a member object called `_readableState`.
-[Writable][] streams have a member object called `_writableState`.
-[Duplex][] streams have both.
-
-**These objects should generally not be modified in child classes.**
-However, if you have a Duplex or Transform stream that should be in
-`objectMode` on the readable side, and not in `objectMode` on the
-writable side, then you may do this in the constructor by setting the
-flag explicitly on the appropriate state object.
+For Duplex streams `objectMode` can be set exclusively for readable or
+writable side with `readableObjectMode` and `writableObjectMode`
+respectivly. These options can be used to implement parsers and
+serializers with Transform streams.
 
 ```javascript
 var util = require('util');
@@ -1439,13 +1438,12 @@ var Transform = require('stream').Transform;
 util.inherits(JSONParseStream, Transform);
 
 // Gets \n-delimited JSON string data, and emits the parsed objects
-function JSONParseStream(options) {
+function JSONParseStream() {
   if (!(this instanceof JSONParseStream))
-    return new JSONParseStream(options);
+    return new JSONParseStream();
 
-  Transform.call(this, options);
-  this._writableState.objectMode = false;
-  this._readableState.objectMode = true;
+  Transform.call(this, { readableObjectMode : true });
+
   this._buffer = '';
   this._decoder = new StringDecoder('utf8');
 }
@@ -1486,11 +1484,6 @@ JSONParseStream.prototype._flush = function(cb) {
   cb();
 };
 ```
-
-The state objects contain other useful information for debugging the
-state of streams in your programs.  It is safe to look at them, but
-beyond setting option flags in the constructor, it is **not** safe to
-modify them.
 
 
 [EventEmitter]: events.html#events_class_events_eventemitter
