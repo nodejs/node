@@ -53,11 +53,13 @@ case $dest in
     exit $?
     ;;
   *.html)
+    url=${dest/html\//}
     (cat html/dochead.html && \
      ./node_modules/.bin/ronn -f $src &&
      cat html/docfoot.html)\
     | sed "s|@NAME@|$name|g" \
     | sed "s|@DATE@|$date|g" \
+    | sed "s|@URL@|$url|g" \
     | sed "s|@VERSION@|$version|g" \
     | perl -pi -e 's/<h1>([^\(]*\([0-9]\)) -- (.*?)<\/h1>/<h1>\1<\/h1> <p>\2<\/p>/g' \
     | perl -pi -e 's/npm-npm/npm/g' \

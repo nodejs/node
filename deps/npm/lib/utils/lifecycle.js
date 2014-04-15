@@ -1,4 +1,3 @@
-
 exports = module.exports = lifecycle
 exports.cmd = cmd
 
@@ -161,7 +160,9 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
   var user = unsafe ? null : npm.config.get("user")
     , group = unsafe ? null : npm.config.get("group")
 
-  console.log(note)
+  if (log.level !== 'silent') {
+    console.log(note)
+  }
   log.verbose("unsafe-perm in lifecycle", unsafe)
 
   if (process.platform === "win32") {

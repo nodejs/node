@@ -334,10 +334,13 @@ function findUnmet (obj, opts) {
       dependency = obj.parent.dependencies && obj.parent.dependencies[d]
     }
 
-    if (!dependency) return
-
-    if (!semver.satisfies(dependency.version, peerDeps[d], true)) {
+    if (!dependency) {
+      // mark as a missing dep!
+      obj.dependencies[d] = peerDeps[d]
+    } else if (!semver.satisfies(dependency.version, peerDeps[d], true)) {
       dependency.peerInvalid = true
+    } else {
+      dependency.extraneous = false
     }
   })
 

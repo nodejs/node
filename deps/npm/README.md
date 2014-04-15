@@ -1,6 +1,6 @@
 npm(1) -- node package manager
 ==============================
-
+[![Build Status](https://img.shields.io/travis/npm/npm/master.svg)](https://travis-ci.org/npm/npm)
 ## SYNOPSIS
 
 This is just enough info to get you up and running.

@@ -188,6 +188,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "save-dev" : false
     , "save-exact" : false
     , "save-optional" : false
+    , "save-prefix": "^"
     , searchopts: ""
     , searchexclude: null
     , searchsort: "name"
@@ -290,6 +291,7 @@ exports.types =
   , "save-dev" : Boolean
   , "save-exact" : Boolean
   , "save-optional" : Boolean
+  , "save-prefix": String
   , searchopts : String
   , searchexclude: [null, String]
   , searchsort: [ "name", "-name"
