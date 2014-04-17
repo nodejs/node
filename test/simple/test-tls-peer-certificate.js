@@ -33,8 +33,9 @@ var join = require('path').join;
 var spawn = require('child_process').spawn;
 
 var options = {
-  key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),
-  cert: fs.readFileSync(join(common.fixturesDir, 'alice.crt'))
+  key: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-key.pem')),
+  cert: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-cert.pem')),
+  ca: [ fs.readFileSync(join(common.fixturesDir, 'keys', 'ca1-cert.pem')) ]
 };
 var verified = false;
 
@@ -47,10 +48,21 @@ server.listen(common.PORT, function() {
     rejectUnauthorized: false
   }, function() {
     var peerCert = socket.getPeerCertificate();
+    assert.ok(!peerCert.issuerCertificate);
+
+    // Verify that detailed return value has all certs
+    peerCert = socket.getPeerCertificate(true);
+    assert.ok(peerCert.issuerCertificate);
+
     common.debug(util.inspect(peerCert));
-    assert.equal(peerCert.subject.subjectAltName,
-        'uniformResourceIdentifier:http://localhost:8000/alice.foaf#me');
-    assert.equal(peerCert.serialNumber, 'B9B0D332A1AA5635');
+    assert.equal(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
+    assert.equal(peerCert.serialNumber, '9A84ABCFB8A72ABE');
+    assert.deepEqual(peerCert.infoAccess['OCSP - URI'],
+                     [ 'http://ocsp.nodejs.org/' ]);
+
+    var issuer = peerCert.issuerCertificate;
+    assert.ok(issuer.issuerCertificate === issuer);
+    assert.equal(issuer.serialNumber, 'B5090C899FC2FF93');
     verified = true;
     server.close();
   });

@@ -76,6 +76,7 @@ namespace crypto {
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::False;
 using v8::FunctionCallbackInfo;
@@ -471,17 +472,35 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
+  int ret;
+
+  X509_STORE* store = SSL_CTX_get_cert_store(ctx);
+  X509_STORE_CTX store_ctx;
+
+  ret = X509_STORE_CTX_init(&store_ctx, store, NULL, NULL);
+  if (!ret)
+    goto end;
+
+  ret = X509_STORE_CTX_get1_issuer(issuer, &store_ctx, cert);
+  X509_STORE_CTX_cleanup(&store_ctx);
+
+end:
+  return ret;
+}
+
+
 // Read a file that contains our certificate in "PEM" format,
 // possibly followed by a sequence of CA certificates that should be
 // sent to the peer in the Certificate message.
 //
 // Taken from OpenSSL - editted for style.
-int SSL_CTX_use_certificate_chain(SSL_CTX *ctx,
-                                  BIO *in,
+int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
+                                  BIO* in,
                                   X509** cert,
                                   X509** issuer) {
   int ret = 0;
-  X509 *x = NULL;
+  X509* x = NULL;
 
   x = PEM_read_bio_X509_AUX(in, NULL, CryptoPemCallback, NULL);
 
@@ -542,16 +561,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX *ctx,
   // Try getting issuer from a cert store
   if (ret) {
     if (*issuer == NULL) {
-      X509_STORE* store = SSL_CTX_get_cert_store(ctx);
-      X509_STORE_CTX store_ctx;
-
-      ret = X509_STORE_CTX_init(&store_ctx, store, NULL, NULL);
-      if (!ret)
-        goto end;
-
-      ret = X509_STORE_CTX_get1_issuer(issuer, &store_ctx, x);
-      X509_STORE_CTX_cleanup(&store_ctx);
-
+      ret = SSL_CTX_get_issuer(ctx, x, issuer);
       ret = ret < 0 ? 0 : 1;
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
@@ -1081,6 +1091,158 @@ void SSLWrap<Base>::OnClientHello(void* arg,
 }
 
 
+static Local<Object> X509ToObject(Environment* env, X509* cert) {
+  EscapableHandleScope scope(env->isolate());
+
+  Local<Object> info = Object::New(env->isolate());
+
+  BIO* bio = BIO_new(BIO_s_mem());
+  BUF_MEM* mem;
+  if (X509_NAME_print_ex(bio,
+                         X509_get_subject_name(cert),
+                         0,
+                         X509_NAME_FLAGS) > 0) {
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(env->subject_string(),
+              OneByteString(env->isolate(), mem->data, mem->length));
+  }
+  (void) BIO_reset(bio);
+
+  X509_NAME* issuer_name = X509_get_issuer_name(cert);
+  if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(env->issuer_string(),
+              OneByteString(env->isolate(), mem->data, mem->length));
+  }
+  (void) BIO_reset(bio);
+
+  int nids[] = { NID_subject_alt_name, NID_info_access };
+  Local<String> keys[] = { env->subjectaltname_string(),
+                           env->infoaccess_string() };
+  CHECK_EQ(ARRAY_SIZE(nids), ARRAY_SIZE(keys));
+  for (unsigned int i = 0; i < ARRAY_SIZE(nids); i++) {
+    int index = X509_get_ext_by_NID(cert, nids[i], -1);
+    if (index < 0)
+      continue;
+
+    X509_EXTENSION* ext;
+    int rv;
+
+    ext = X509_get_ext(cert, index);
+    assert(ext != NULL);
+
+    rv = X509V3_EXT_print(bio, ext, 0, 0);
+    assert(rv == 1);
+
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(keys[i],
+              OneByteString(env->isolate(), mem->data, mem->length));
+
+    (void) BIO_reset(bio);
+  }
+
+  EVP_PKEY* pkey = X509_get_pubkey(cert);
+  RSA* rsa = NULL;
+  if (pkey != NULL)
+    rsa = EVP_PKEY_get1_RSA(pkey);
+
+  if (rsa != NULL) {
+      BN_print(bio, rsa->n);
+      BIO_get_mem_ptr(bio, &mem);
+      info->Set(env->modulus_string(),
+                OneByteString(env->isolate(), mem->data, mem->length));
+      (void) BIO_reset(bio);
+
+      BN_print(bio, rsa->e);
+      BIO_get_mem_ptr(bio, &mem);
+      info->Set(env->exponent_string(),
+                OneByteString(env->isolate(), mem->data, mem->length));
+      (void) BIO_reset(bio);
+  }
+
+  if (pkey != NULL) {
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+  }
+  if (rsa != NULL) {
+    RSA_free(rsa);
+    rsa = NULL;
+  }
+
+  ASN1_TIME_print(bio, X509_get_notBefore(cert));
+  BIO_get_mem_ptr(bio, &mem);
+  info->Set(env->valid_from_string(),
+            OneByteString(env->isolate(), mem->data, mem->length));
+  (void) BIO_reset(bio);
+
+  ASN1_TIME_print(bio, X509_get_notAfter(cert));
+  BIO_get_mem_ptr(bio, &mem);
+  info->Set(env->valid_to_string(),
+            OneByteString(env->isolate(), mem->data, mem->length));
+  BIO_free_all(bio);
+
+  unsigned int md_size, i;
+  unsigned char md[EVP_MAX_MD_SIZE];
+  if (X509_digest(cert, EVP_sha1(), md, &md_size)) {
+    const char hex[] = "0123456789ABCDEF";
+    char fingerprint[EVP_MAX_MD_SIZE * 3];
+
+    // TODO(indutny): Unify it with buffer's code
+    for (i = 0; i < md_size; i++) {
+      fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
+      fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
+      fingerprint[(3*i)+2] = ':';
+    }
+
+    if (md_size > 0) {
+      fingerprint[(3*(md_size-1))+2] = '\0';
+    } else {
+      fingerprint[0] = '\0';
+    }
+
+    info->Set(env->fingerprint_string(),
+              OneByteString(env->isolate(), fingerprint));
+  }
+
+  STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
+      X509_get_ext_d2i(cert, NID_ext_key_usage, NULL, NULL));
+  if (eku != NULL) {
+    Local<Array> ext_key_usage = Array::New(env->isolate());
+    char buf[256];
+
+    int j = 0;
+    for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
+      if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku, i), 1) >= 0)
+        ext_key_usage->Set(j++, OneByteString(env->isolate(), buf));
+    }
+
+    sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
+    info->Set(env->ext_key_usage_string(), ext_key_usage);
+  }
+
+  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
+    if (BIGNUM* bn = ASN1_INTEGER_to_BN(serial_number, NULL)) {
+      if (char* buf = BN_bn2hex(bn)) {
+        info->Set(env->serial_number_string(),
+                  OneByteString(env->isolate(), buf));
+        OPENSSL_free(buf);
+      }
+      BN_free(bn);
+    }
+  }
+
+  // Raw DER certificate
+  int size = i2d_X509(cert, NULL);
+  Local<Object> buff = Buffer::New(env, size);
+  unsigned char* serialized = reinterpret_cast<unsigned char*>(
+      Buffer::Data(buff));
+  i2d_X509(cert, &serialized);
+  info->Set(env->raw_string(), buff);
+
+  return scope.Escape(info);
+}
+
+
 // TODO(indutny): Split it into multiple smaller functions
 template <class Base>
 void SSLWrap<Base>::GetPeerCertificate(
@@ -1093,148 +1255,96 @@ void SSLWrap<Base>::GetPeerCertificate(
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence unused variable warning.
 
-  Local<Object> info = Object::New(env->isolate());
-  X509* peer_cert = SSL_get_peer_certificate(w->ssl_);
-  if (peer_cert != NULL) {
-    BIO* bio = BIO_new(BIO_s_mem());
-    BUF_MEM* mem;
-    if (X509_NAME_print_ex(bio,
-                           X509_get_subject_name(peer_cert),
-                           0,
-                           X509_NAME_FLAGS) > 0) {
-      BIO_get_mem_ptr(bio, &mem);
-      info->Set(env->subject_string(),
-                OneByteString(args.GetIsolate(), mem->data, mem->length));
-    }
-    (void) BIO_reset(bio);
+  Local<Object> result;
+  Local<Object> info;
+  X509* cert;
 
-    X509_NAME* issuer_name = X509_get_issuer_name(peer_cert);
-    if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
-      BIO_get_mem_ptr(bio, &mem);
-      info->Set(env->issuer_string(),
-                OneByteString(args.GetIsolate(), mem->data, mem->length));
-    }
-    (void) BIO_reset(bio);
+  STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(w->ssl_);
+  STACK_OF(X509)* peer_certs = NULL;
+  if (ssl_certs == NULL)
+    goto done;
 
-    int nids[] = { NID_subject_alt_name, NID_info_access };
-    Local<String> keys[] = { env->subjectaltname_string(),
-                             env->infoaccess_string() };
-    CHECK_EQ(ARRAY_SIZE(nids), ARRAY_SIZE(keys));
-    for (unsigned int i = 0; i < ARRAY_SIZE(nids); i++) {
-      int index = X509_get_ext_by_NID(peer_cert, nids[i], -1);
-      if (index < 0)
-        continue;
-
-      X509_EXTENSION* ext;
-      int rv;
-
-      ext = X509_get_ext(peer_cert, index);
-      assert(ext != NULL);
-
-      rv = X509V3_EXT_print(bio, ext, 0, 0);
-      assert(rv == 1);
-
-      BIO_get_mem_ptr(bio, &mem);
-      info->Set(keys[i],
-                OneByteString(args.GetIsolate(), mem->data, mem->length));
-
-      (void) BIO_reset(bio);
-    }
-
-    EVP_PKEY* pkey = X509_get_pubkey(peer_cert);
-    RSA* rsa = NULL;
-    if (pkey != NULL)
-      rsa = EVP_PKEY_get1_RSA(pkey);
-
-    if (rsa != NULL) {
-        BN_print(bio, rsa->n);
-        BIO_get_mem_ptr(bio, &mem);
-        info->Set(env->modulus_string(),
-                  OneByteString(args.GetIsolate(), mem->data, mem->length));
-        (void) BIO_reset(bio);
-
-        BN_print(bio, rsa->e);
-        BIO_get_mem_ptr(bio, &mem);
-        info->Set(env->exponent_string(),
-                  OneByteString(args.GetIsolate(), mem->data, mem->length));
-        (void) BIO_reset(bio);
-    }
-
-    if (pkey != NULL) {
-      EVP_PKEY_free(pkey);
-      pkey = NULL;
-    }
-    if (rsa != NULL) {
-      RSA_free(rsa);
-      rsa = NULL;
-    }
-
-    ASN1_TIME_print(bio, X509_get_notBefore(peer_cert));
-    BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->valid_from_string(),
-              OneByteString(args.GetIsolate(), mem->data, mem->length));
-    (void) BIO_reset(bio);
-
-    ASN1_TIME_print(bio, X509_get_notAfter(peer_cert));
-    BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->valid_to_string(),
-              OneByteString(args.GetIsolate(), mem->data, mem->length));
-    BIO_free_all(bio);
-
-    unsigned int md_size, i;
-    unsigned char md[EVP_MAX_MD_SIZE];
-    if (X509_digest(peer_cert, EVP_sha1(), md, &md_size)) {
-      const char hex[] = "0123456789ABCDEF";
-      char fingerprint[EVP_MAX_MD_SIZE * 3];
-
-      // TODO(indutny): Unify it with buffer's code
-      for (i = 0; i < md_size; i++) {
-        fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
-        fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
-        fingerprint[(3*i)+2] = ':';
-      }
-
-      if (md_size > 0) {
-        fingerprint[(3*(md_size-1))+2] = '\0';
-      } else {
-        fingerprint[0] = '\0';
-      }
-
-      info->Set(env->fingerprint_string(),
-                OneByteString(args.GetIsolate(), fingerprint));
-    }
-
-    STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
-        X509_get_ext_d2i(peer_cert, NID_ext_key_usage, NULL, NULL));
-    if (eku != NULL) {
-      Local<Array> ext_key_usage = Array::New(env->isolate());
-      char buf[256];
-
-      int j = 0;
-      for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
-        if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku, i), 1) >= 0)
-          ext_key_usage->Set(j++, OneByteString(args.GetIsolate(), buf));
-      }
-
-      sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
-      info->Set(env->ext_key_usage_string(), ext_key_usage);
-    }
-
-    if (ASN1_INTEGER* serial_number = X509_get_serialNumber(peer_cert)) {
-      if (BIGNUM* bn = ASN1_INTEGER_to_BN(serial_number, NULL)) {
-        if (char* buf = BN_bn2hex(bn)) {
-          info->Set(env->serial_number_string(),
-                    OneByteString(args.GetIsolate(), buf));
-          OPENSSL_free(buf);
-        }
-        BN_free(bn);
-      }
-    }
-
-    X509_free(peer_cert);
+  if (sk_X509_num(ssl_certs) == 0) {
+    goto done;
   }
 
-  args.GetReturnValue().Set(info);
+  // Short result requested
+  if (args.Length() < 1 || !args[0]->IsTrue()) {
+    result = X509ToObject(env, sk_X509_value(ssl_certs, 0));
+    goto done;
+  }
+
+  // Clone `ssl_certs`, because we are going to destruct it
+  peer_certs = sk_X509_new(NULL);
+  for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
+    cert = X509_dup(sk_X509_value(ssl_certs, i));
+    if (cert == NULL)
+      goto done;
+    if (!sk_X509_push(peer_certs, cert))
+      goto done;
+  }
+
+  // First and main certificate
+  cert = sk_X509_value(peer_certs, 0);
+  result = X509ToObject(env, cert);
+  info = result;
+
+  // Put issuer inside the object
+  cert = sk_X509_delete(peer_certs, 0);
+  while (sk_X509_num(peer_certs) > 0) {
+    int i;
+    for (i = 0; i < sk_X509_num(peer_certs); i++) {
+      X509* ca = sk_X509_value(peer_certs, i);
+      if (X509_check_issued(ca, cert) != X509_V_OK)
+        continue;
+
+      Local<Object> ca_info = X509ToObject(env, ca);
+      info->Set(env->issuercert_string(), ca_info);
+      info = ca_info;
+
+      // NOTE: Intentionally freeing cert that is not used anymore
+      X509_free(cert);
+
+      // Delete cert and continue aggregating issuers
+      cert = sk_X509_delete(peer_certs, i);
+      break;
+    }
+
+    // Issuer not found, break out of the loop
+    if (i == sk_X509_num(peer_certs))
+      break;
+  }
+
+  // Last certificate should be self-signed
+  while (X509_check_issued(cert, cert) != X509_V_OK) {
+    X509* ca;
+    if (SSL_CTX_get_issuer(w->ssl_->ctx, cert, &ca) <= 0)
+      break;
+
+    Local<Object> ca_info = X509ToObject(env, ca);
+    info->Set(env->issuercert_string(), ca_info);
+    info = ca_info;
+
+    // NOTE: Intentionally freeing cert that is not used anymore
+    X509_free(cert);
+
+    // Delete cert and continue aggregating issuers
+    cert = ca;
+  }
+
+  // Self-issued certificate
+  if (X509_check_issued(cert, cert) == X509_V_OK)
+    info->Set(env->issuercert_string(), info);
+
+  CHECK_NE(cert, NULL);
+  X509_free(cert);
+
+done:
+  if (peer_certs != NULL)
+    sk_X509_pop_free(peer_certs, X509_free);
+  if (result.IsEmpty())
+    result = Object::New(env->isolate());
+  args.GetReturnValue().Set(result);
 }
 
 

@@ -120,6 +120,7 @@ namespace node {
   V(ipv6_lc_string, "ipv6")                                                   \
   V(ipv6_string, "IPv6")                                                      \
   V(issuer_string, "issuer")                                                  \
+  V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
   V(mac_string, "mac")                                                        \
   V(mark_sweep_compact_string, "mark-sweep-compact")                          \
@@ -169,6 +170,7 @@ namespace node {
   V(priority_string, "priority")                                              \
   V(processed_string, "processed")                                            \
   V(prototype_string, "prototype")                                            \
+  V(raw_string, "raw")                                                        \
   V(rdev_string, "rdev")                                                      \
   V(readable_string, "readable")                                              \
   V(received_shutdown_string, "receivedShutdown")                             \
