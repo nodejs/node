@@ -1257,25 +1257,29 @@ void SSLWrap<Base>::GetPeerCertificate(
 
   Local<Object> result;
   Local<Object> info;
-  X509* cert;
 
+  // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
+  // contains the `peer_certificate`, but on server it doesn't
+  X509* cert = w->is_server() ? SSL_get_peer_certificate(w->ssl_) : NULL;
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(w->ssl_);
   STACK_OF(X509)* peer_certs = NULL;
-  if (ssl_certs == NULL)
+  if (cert == NULL && ssl_certs == NULL)
     goto done;
 
-  if (sk_X509_num(ssl_certs) == 0) {
+  if (cert == NULL && sk_X509_num(ssl_certs) == 0)
     goto done;
-  }
 
   // Short result requested
   if (args.Length() < 1 || !args[0]->IsTrue()) {
-    result = X509ToObject(env, sk_X509_value(ssl_certs, 0));
+    result = X509ToObject(env,
+                          cert == NULL ? sk_X509_value(ssl_certs, 0) : cert);
     goto done;
   }
 
   // Clone `ssl_certs`, because we are going to destruct it
   peer_certs = sk_X509_new(NULL);
+  if (cert != NULL)
+    sk_X509_push(peer_certs, cert);
   for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
     cert = X509_dup(sk_X509_value(ssl_certs, i));
     if (cert == NULL)
