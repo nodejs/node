@@ -485,7 +485,7 @@ int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   ret = X509_STORE_CTX_get1_issuer(issuer, &store_ctx, cert);
   X509_STORE_CTX_cleanup(&store_ctx);
 
-end:
+ end:
   return ret;
 }
 
@@ -1339,7 +1339,7 @@ void SSLWrap<Base>::GetPeerCertificate(
   CHECK_NE(cert, NULL);
   X509_free(cert);
 
-done:
+ done:
   if (peer_certs != NULL)
     sk_X509_pop_free(peer_certs, X509_free);
   if (result.IsEmpty())

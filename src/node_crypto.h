@@ -175,7 +175,7 @@ class SSLWrap {
 #endif
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
     ocsp_response_.Reset();
-#endif // NODE__HAVE_TLSEXT_STATUS_CB
+#endif  // NODE__HAVE_TLSEXT_STATUS_CB
   }
 
   inline SSL* ssl() const { return ssl_; }
