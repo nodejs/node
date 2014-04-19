@@ -150,6 +150,7 @@ def files(action):
     'src/node_internals.h',
     'src/node_object_wrap.h',
     'src/node_version.h',
+    'src/smalloc.h',
   ], 'include/node/')
 
   if 'false' == variables.get('node_shared_cares'):
