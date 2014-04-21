@@ -511,6 +511,11 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
   if (uv_loop_ != NULL) {
     CloseStdioPipes();
     CloseKillTimer();
+    // Close the process handle when ExitCallback was not called.
+    uv_handle_t* uv_process_handle =
+        reinterpret_cast<uv_handle_t*>(&uv_process_);
+    if (!uv_is_closing(uv_process_handle))
+      uv_close(uv_process_handle, NULL);
 
     // Give closing watchers a chance to finish closing and get their close
     // callbacks called.

@@ -39,6 +39,10 @@ console.log('sleep started');
 var ret = spawnSync('sleep', ['1']);
 console.log('sleep exited');
 
+// Error test when command does not exist
+var ret_err = spawnSync('command_does_not_exist');
+assert.strictEqual(ret_err.error.code, 'ENOENT');
+
 process.on('exit', function() {
   assert.strictEqual(ret.status, 0);
 
