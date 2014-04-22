@@ -195,26 +195,17 @@ static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
 }
 
 
-void ThrowCryptoErrorHelper(Environment* env,
-                            unsigned long err,
-                            bool is_type_error) {
+void ThrowCryptoError(Environment* env,
+                      unsigned long err,
+                      const char* default_message = NULL) {
   HandleScope scope(env->isolate());
-  char errmsg[128];
-  ERR_error_string_n(err, errmsg, sizeof(errmsg));
-  if (is_type_error)
-    env->ThrowTypeError(errmsg);
-  else
+  if (err != 0 || default_message == NULL) {
+    char errmsg[128] = { 0 };
+    ERR_error_string_n(err, errmsg, sizeof(errmsg));
     env->ThrowError(errmsg);
-}
-
-
-void ThrowCryptoError(Environment* env, unsigned long err) {
-  ThrowCryptoErrorHelper(env, err, false);
-}
-
-
-void ThrowCryptoTypeError(Environment* env, unsigned long err) {
-  ThrowCryptoErrorHelper(env, err, true);
+  } else {
+    env->ThrowError(default_message);
+  }
 }
 
 
@@ -2689,7 +2680,6 @@ bool CipherBase::SetAAD(const char* data, unsigned int len) {
                         &outlen,
                         reinterpret_cast<const unsigned char*>(data),
                         len)) {
-    ThrowCryptoTypeError(env(), ERR_get_error());
     return false;
   }
   return true;
@@ -2771,7 +2761,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   if (!r) {
     delete[] out;
-    return ThrowCryptoTypeError(env, ERR_get_error());
+    return ThrowCryptoError(env,
+                            ERR_get_error(),
+                            "Trying to add data in unsupported state");
   }
 
   Local<Object> buf = Buffer::New(env, reinterpret_cast<char*>(out), out_len);
@@ -2840,8 +2832,15 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     delete[] out_value;
     out_value = NULL;
     out_len = 0;
-    if (!r)
-      return ThrowCryptoTypeError(env, ERR_get_error());
+    if (!r) {
+      const char* msg = cipher->IsAuthenticatedMode() ?
+          "Unsupported state or unable to authenticate data" :
+          "Unsupported state";
+
+      return ThrowCryptoError(env,
+                              ERR_get_error(),
+                              msg);
+    }
   }
 
   args.GetReturnValue().Set(
