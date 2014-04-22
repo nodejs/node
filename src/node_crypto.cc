@@ -2846,6 +2846,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(
       Buffer::New(env, reinterpret_cast<char*>(out_value), out_len));
+  delete[] out_value;
 }
 
 
