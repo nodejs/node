@@ -98,7 +98,7 @@ for (var i in TEST_CASES) {
       assert.equal(msg, test.plain);
     } else {
       // assert that final throws if input data could not be verified!
-      assert.throws(function() { decrypt.final('ascii'); });
+      assert.throws(function() { decrypt.final('ascii'); }, / auth/);
     }
   })();
 
@@ -115,26 +115,28 @@ for (var i in TEST_CASES) {
       'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
     encrypt.update('blah', 'ascii');
     encrypt.final();
-    assert.throws(function() { encrypt.getAuthTag(); });
+    assert.throws(function() { encrypt.getAuthTag(); }, / state/);
+    assert.throws(function() {
+      encrypt.setAAD(new Buffer('123', 'ascii')); }, / state/);
   })();
 
   (function() {
     // trying to get tag before inputting all data:
     var encrypt = crypto.createCipheriv(test.algo, test.key, test.iv);
     encrypt.update('blah', 'ascii');
-    assert.throws(function() { encrypt.getAuthTag(); });
+    assert.throws(function() { encrypt.getAuthTag(); }, / state/);
   })();
 
   (function() {
     // trying to set tag on encryption object:
     var encrypt = crypto.createCipheriv(test.algo, test.key, test.iv);
     assert.throws(function() {
-      encrypt.setAuthTag(new Buffer(test.tag, 'hex')); });
+      encrypt.setAuthTag(new Buffer(test.tag, 'hex')); }, / state/);
   })();
 
   (function() {
     // trying to read tag from decryption object:
     var decrypt = crypto.createDecipheriv(test.algo, test.key, test.iv);
-    assert.throws(function() { decrypt.getAuthTag(); });
+    assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   })();
 }
