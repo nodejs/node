@@ -188,19 +188,37 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 
 
 double OS::TimeCurrentMillis() {
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0) return 0.0;
-  return (static_cast<double>(tv.tv_sec) * 1000) +
-         (static_cast<double>(tv.tv_usec) / 1000);
+  return static_cast<double>(Ticks()) / 1000;
 }
 
 
 int64_t OS::Ticks() {
+#if defined(__linux__)
+  static clockid_t clock_id = static_cast<clockid_t>(-1);
+  struct timespec spec;
+  if (clock_id == static_cast<clockid_t>(-1)) {
+    // CLOCK_REALTIME_COARSE may not be defined by the system headers but
+    // might still be supported by the kernel so use the clock id directly.
+    // Only use CLOCK_REALTIME_COARSE when its granularity <= 1 ms.
+    const clockid_t clock_realtime_coarse = 5;
+    if (clock_getres(clock_realtime_coarse, &spec) == 0 &&
+        spec.tv_nsec <= 1000 * 1000) {
+      clock_id = clock_realtime_coarse;
+    } else {
+      clock_id = CLOCK_REALTIME;
+    }
+  }
+  if (clock_gettime(clock_id, &spec) != 0) {
+    return 0;  // Not really possible.
+  }
+  return static_cast<int64_t>(spec.tv_sec) * 1000000 + (spec.tv_nsec / 1000);
+#else
   // gettimeofday has microsecond resolution.
   struct timeval tv;
   if (gettimeofday(&tv, NULL) < 0)
     return 0;
   return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
+#endif
 }
 
 
