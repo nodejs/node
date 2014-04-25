@@ -362,6 +362,8 @@ class Environment {
   void StartGarbageCollectionTracking(v8::Local<v8::Function> callback);
   void StopGarbageCollectionTracking();
 
+  void AssignToContext(v8::Local<v8::Context> context);
+
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
   inline bool has_async_listener() const;

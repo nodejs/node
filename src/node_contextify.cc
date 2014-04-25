@@ -231,6 +231,9 @@ class ContextifyContext {
     Local<Context> ctx = Context::New(env->isolate(), NULL, object_template);
     if (!ctx.IsEmpty())
       ctx->SetSecurityToken(env->context()->GetSecurityToken());
+
+    env->AssignToContext(ctx);
+
     return scope.Escape(ctx);
   }
 
