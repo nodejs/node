@@ -190,8 +190,12 @@ inline void Environment::TickInfo::set_last_threw(bool value) {
 
 inline Environment* Environment::New(v8::Local<v8::Context> context) {
   Environment* env = new Environment(context);
-  context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, env);
+  env->AssignToContext(context);
   return env;
+}
+
+inline void Environment::AssignToContext(v8::Local<v8::Context> context) {
+  context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
 }
 
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
