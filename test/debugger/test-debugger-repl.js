@@ -74,4 +74,13 @@ addTest('c', [
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
-addTest('quit', []);
+// REPL and process.env regression
+addTest('repl', [
+  /Ctrl/
+]);
+
+addTest('for (var i in process.env) delete process.env[i]', []);
+
+addTest('process.env', [
+  /\{\}/
+]);

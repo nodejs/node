@@ -3093,6 +3093,9 @@ static void EnableDebug(Isolate* isolate, bool wait_connect) {
   if (env == NULL)
     return;  // Still starting up.
 
+  // Assign environment to the debugger's context
+  env->AssignToContext(v8::Debug::GetDebugContext());
+
   Context::Scope context_scope(env->context());
   Local<Object> message = Object::New(env->isolate());
   message->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "cmd"),
@@ -3594,6 +3597,11 @@ int Start(int argc, char** argv) {
     Locker locker(node_isolate);
     Environment* env =
         CreateEnvironment(node_isolate, argc, argv, exec_argc, exec_argv);
+    // Assign env to the debugger's context
+    if (debugger_running) {
+      HandleScope scope(env->isolate());
+      env->AssignToContext(v8::Debug::GetDebugContext());
+    }
     // This Context::Scope is here so EnableDebug() can look up the current
     // environment with Environment::GetCurrentChecked().
     // TODO(bnoordhuis) Reorder the debugger initialization logic so it can
