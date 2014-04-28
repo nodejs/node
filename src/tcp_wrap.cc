@@ -246,7 +246,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  int fd = args[0]->IntegerValue();
+  int fd = static_cast<int>(args[0]->IntegerValue());
   uv_tcp_open(&wrap->handle_, fd);
 }
 

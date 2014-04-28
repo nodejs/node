@@ -125,7 +125,7 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   hello.has_ticket_ = tls_ticket_ != NULL && tls_ticket_size_ != 0;
   hello.ocsp_request_ = ocsp_request_;
   hello.servername_ = servername_;
-  hello.servername_size_ = servername_size_;
+  hello.servername_size_ = static_cast<uint8_t>(servername_size_);
   onhello_cb_(cb_arg_, hello);
 }
 
