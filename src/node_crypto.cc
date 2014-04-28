@@ -761,7 +761,7 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
     return sc->env()->ThrowTypeError("Bad parameter");
   }
 
-  SSL_CTX_set_options(sc->ctx_, args[0]->IntegerValue());
+  SSL_CTX_set_options(sc->ctx_, static_cast<long>(args[0]->IntegerValue()));
 }
 
 
@@ -4516,7 +4516,7 @@ void Certificate::VerifySpkac(const FunctionCallbackInfo<Value>& args) {
   char* data = Buffer::Data(args[0]);
   assert(data != NULL);
 
-  i = certificate->VerifySpkac(data, length) > 0;
+  i = certificate->VerifySpkac(data, length);
 
   args.GetReturnValue().Set(i);
 }
