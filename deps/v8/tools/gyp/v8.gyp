@@ -643,6 +643,12 @@
                   '../../src/platform-linux.cc',
                   '../../src/platform-posix.cc'
                 ],
+                # XXX(bnoordhuis) Pull in definitions for clock_getres()
+                # and clock_gettime() with glibc < 2.17.
+                'libraries': [ '-lrt' ],
+                'direct_dependent_settings': {
+                  'libraries': [ '-lrt' ],
+                },
               }
             ],
             ['OS=="android"', {
