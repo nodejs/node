@@ -228,3 +228,22 @@ assert.equal(0xeb, b[16]);
 assert.equal(0xd8, b[17]);
 assert.equal(0xa2, b[18]);
 assert.equal(0xe6, b[19]);
+
+
+// Test custom decode
+function demoDecode(str) {
+  return str + str;
+}
+assert.deepEqual(
+  qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
+  { aa: 'aa', bb: 'bb', cc: 'cc' });
+
+
+// Test custom encode
+function demoEncode(str) {
+  return str[0];
+}
+var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
+assert.equal(
+  qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
+  'a=a&b=b&c=c');
