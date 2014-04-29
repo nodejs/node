@@ -621,8 +621,20 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
   size_t cmp_length = MIN(obj_a_len, obj_b_len);
 
   int32_t val = memcmp(obj_a_data, obj_b_data, cmp_length);
-  if (!val)
-    val = obj_a_len - obj_b_len;
+
+  // Normalize val to be an integer in the range of [1, -1] since
+  // implementations of memcmp() can vary by platform.
+  if (val == 0) {
+    if (obj_a_len > obj_b_len)
+      val = 1;
+    else if (obj_a_len < obj_b_len)
+      val = -1;
+  } else {
+    if (val > 0)
+      val = 1;
+    else
+      val = -1;
+  }
 
   args.GetReturnValue().Set(val);
 }
