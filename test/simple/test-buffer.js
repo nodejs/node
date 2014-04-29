@@ -1043,13 +1043,13 @@ var b = new Buffer(1).fill('a');
 var c = new Buffer(1).fill('c');
 var d = new Buffer(2).fill('aa');
 
-assert.equal(b.compare(c), -2);
-assert.equal(c.compare(d), 2);
+assert.equal(b.compare(c), -1);
+assert.equal(c.compare(d), 1);
 assert.equal(d.compare(b), 1);
 assert.equal(b.compare(d), -1);
 
-assert.equal(Buffer.compare(b, c), 2);
-assert.equal(Buffer.compare(c, d), -2);
+assert.equal(Buffer.compare(b, c), 1);
+assert.equal(Buffer.compare(c, d), -1);
 assert.equal(Buffer.compare(d, b), -1);
 assert.equal(Buffer.compare(b, d), 1);
 
