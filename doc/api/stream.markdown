@@ -1428,7 +1428,7 @@ the options object.  Setting `objectMode` mid-stream is not safe.
 
 For Duplex streams `objectMode` can be set exclusively for readable or
 writable side with `readableObjectMode` and `writableObjectMode`
-respectivly. These options can be used to implement parsers and
+respectively. These options can be used to implement parsers and
 serializers with Transform streams.
 
 ```javascript
