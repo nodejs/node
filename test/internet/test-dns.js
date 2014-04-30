@@ -26,6 +26,7 @@ var assert = require('assert'),
     isIP = net.isIP,
     isIPv4 = net.isIPv4,
     isIPv6 = net.isIPv6;
+var util = require('util');
 
 var expected = 0,
     completed = 0,
@@ -301,7 +302,8 @@ TEST(function test_resolveTxt(done) {
   var req = dns.resolveTxt('google.com', function(err, records) {
     if (err) throw err;
     assert.equal(records.length, 1);
-    assert.equal(records[0].indexOf('v=spf1'), 0);
+    assert.ok(util.isArray(records[0]));
+    assert.equal(records[0][0].indexOf('v=spf1'), 0);
     done();
   });
 
