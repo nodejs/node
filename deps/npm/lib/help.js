@@ -30,8 +30,11 @@ function help (args, cb) {
   var section = npm.deref(args[0]) || args[0]
 
   // npm help <noargs>:  show basic usage
-  if (!section)
-    return npmUsage(cb)
+  if (!section) {
+    var valid = argv[0] === 'help' ? 0 : 1
+    return npmUsage(valid, cb)
+  }
+
 
   // npm <cmd> -h: show command usage
   if ( npm.config.get("usage")
@@ -147,7 +150,7 @@ function htmlMan (man) {
   return path.resolve(__dirname, "..", "html", "doc", sect, f)
 }
 
-function npmUsage (cb) {
+function npmUsage (valid, cb) {
   npm.config.set("loglevel", "silent")
   log.level = "silent"
   console.log
@@ -170,7 +173,7 @@ function npmUsage (cb) {
       , ""
       , "npm@" + npm.version + " " + path.dirname(__dirname)
       ].join("\n"))
-  cb()
+  cb(valid)
 }
 
 function usages () {

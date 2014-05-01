@@ -1,6 +1,7 @@
 module.exports = normalize
 
 var fixer = require("./fixer")
+var makeWarning = require("./make_warning")
 
 var fieldsToFix = ['name','version','description','repository','modules','scripts'
                   ,'files','bin','man','bugs','keywords','readme','homepage']
@@ -24,7 +25,7 @@ function normalize (data, warn, strict) {
       !data.scripts.preinstall) {
     data.gypfile = true
   }
-  fixer.warn = warn
+  fixer.warn = function() { warn(makeWarning.apply(null, arguments)) }
   thingsToFix.forEach(function(thingName) {
     fixer["fix" + ucFirst(thingName)](data, strict)
   })

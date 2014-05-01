@@ -648,6 +648,19 @@ devDependencies hash.
 
 Only works if there is already a package.json file present.
 
+### save-prefix
+
+* Default: '^'
+* Type: String
+
+Configure how versions of packages installed to a package.json file via 
+`--save` or `--save-dev` get prefixed.
+
+For example if a package has version `1.2.3`, by default it's version is
+set to `^1.2.3` which allows minor upgrades for that package, but after  
+`npm config set save-prefix='~'` it would be set to `~1.2.3` which only allows
+patch upgrades.
+
 ### searchopts
 
 * Default: ""

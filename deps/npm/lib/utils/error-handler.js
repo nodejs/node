@@ -146,9 +146,10 @@ function errorHandler (er) {
 
   case "E404":
     er.code = "E404"
+    var msg = [er.message]
     if (er.pkgid && er.pkgid !== "-") {
-      var msg = ["'"+er.pkgid+"' is not in the npm registry."
-                ,"You should bug the author to publish it"]
+      msg.push("", "'"+er.pkgid+"' is not in the npm registry."
+              ,"You should bug the author to publish it")
       if (er.parent) {
         msg.push("It was specified as a dependency of '"+er.parent+"'")
       }
@@ -161,8 +162,8 @@ function errorHandler (er) {
       }
       msg.push("\nNote that you can also install from a"
               ,"tarball, folder, or http url, or git url.")
-      log.error("404", msg.join("\n"))
     }
+    log.error("404", msg.join("\n"))
     break
 
   case "EPUBLISHCONFLICT":
@@ -278,7 +279,7 @@ function errorHandler (er) {
 
   var os = require("os")
   // just a line break
-  console.error("")
+  if (log.levels[log.level] <= log.levels.error) console.error("")
   log.error("System", os.type() + " " + os.release())
   log.error("command", process.argv
             .map(JSON.stringify).join(" "))

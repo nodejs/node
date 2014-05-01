@@ -58,13 +58,24 @@ function view (args, silent, cb) {
   // get the data about this package
   registry.get(name, function (er, data) {
     if (er) return cb(er)
-    if (data["dist-tags"].hasOwnProperty(version)) {
+    if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
       version = data["dist-tags"][version]
     }
+
+    if (data.time && data.time.unpublished) {
+      var u = data.time.unpublished
+      var er = new Error("Unpublished by " + u.name + " on " + u.time)
+      er.statusCode = 404
+      er.code = "E404"
+      er.pkgid = data._id
+      return cb(er, data)
+    }
+
+
     var results = []
       , error = null
-      , versions = data.versions
-    data.versions = Object.keys(data.versions).sort(semver.compareLoose)
+      , versions = data.versions || {}
+    data.versions = Object.keys(versions).sort(semver.compareLoose)
     if (!args.length) args = [""]
 
     // remove readme unless we asked for it

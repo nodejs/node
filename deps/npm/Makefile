@@ -169,7 +169,6 @@ publish: link doc
 	git push origin &&\
 	git push origin --tags &&\
 	npm publish &&\
-	npm tag npm@$(shell npm -v) $(shell npm -v | awk -F. '{print $$1 "." $$2}') &&\
 	make doc-publish &&\
 	make zip-publish
 

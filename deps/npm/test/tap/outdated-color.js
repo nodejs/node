@@ -5,6 +5,7 @@ var mkdirp = require("mkdirp")
 var rimraf = require("rimraf")
 var mr = require("npm-registry-mock")
 var exec = require('child_process').exec
+var mr = require("npm-registry-mock")
 
 var pkg = __dirname + '/outdated'
 var NPM_BIN = __dirname + '/../../bin/npm-cli.js'
@@ -25,12 +26,15 @@ function ansiTrim (str) {
 // it's not running in a tty
 test("does not use ansi styling", function (t) {
   t.plan(3)
-  exec('node ' + NPM_BIN + ' outdated --color false', {
-    cwd: pkg
-  }, function(err, stdout) {
-    t.ifError(err)
-    t.ok(stdout, stdout.length)
-    t.ok(!hasControlCodes(stdout)) 
+  mr(common.port, function (s) { // create mock registry.
+    exec('node ' + NPM_BIN + ' outdated --registry ' + common.registry + ' --color false underscore', {
+      cwd: pkg
+    }, function(err, stdout) {
+      t.ifError(err)
+      t.ok(stdout, stdout.length)
+      t.ok(!hasControlCodes(stdout))
+      s.close()
+    })
   })
 })
 
@@ -38,4 +42,3 @@ test("cleanup", function (t) {
   rimraf.sync(pkg + "/cache")
   t.end()
 })
-

@@ -7,6 +7,7 @@ var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var pkg = path.resolve(__dirname, '404-parent')
+var mr = require("npm-registry-mock")
 
 test('404-parent: if parent exists, specify parent in error message', function(t) {
   setup()
@@ -41,9 +42,12 @@ function setup() {
 }
 
 function performInstall(cb) {
-  npm.load(function() {
-    npm.commands.install(pkg, [], function(err) {
-      cb(err)
+  mr(common.port, function (s) { // create mock registry.
+    npm.load({registry: common.registry}, function() {
+      npm.commands.install(pkg, [], function(err) {
+        cb(err)
+        s.close() // shutdown mock npm server.
+      })
     })
   })
 }

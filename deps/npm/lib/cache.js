@@ -84,6 +84,7 @@ var mkdir = require("mkdirp")
   , which = require("which")
   , isGitUrl = require("./utils/is-git-url.js")
   , pathIsInside = require("path-is-inside")
+  , http = require("http")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -241,8 +242,9 @@ function add (args, cb) {
 
   log.verbose("cache add", "name=%j spec=%j args=%j", name, spec, args)
 
-
   if (!name && !spec) return cb(usage)
+
+  cb = afterAdd([name, spec], cb)
 
   // see if the spec is a url
   // otherwise, treat as name@version
@@ -264,6 +266,23 @@ function add (args, cb) {
 
   add_(name, spec, p, cb)
 }
+
+function afterAdd (arg, cb) { return function (er, data) {
+  if (er || !data || !data.name || !data.version) {
+    return cb(er, data)
+  }
+
+  // Save the resolved, shasum, etc. into the data so that the next
+  // time we load from this cached data, we have all the same info.
+  var name = data.name
+  var ver = data.version
+  var pj = path.join(npm.cache, name, ver, "package", "package.json")
+  fs.writeFile(pj, JSON.stringify(data), "utf8", function (er) {
+    cb(er, data)
+  })
+}}
+
+
 
 function maybeFile (spec, p, cb) {
   fs.stat(spec, function (er, stat) {
@@ -316,7 +335,15 @@ function fetchAndShaCheck (u, tmp, shasum, cb) {
       log.error("fetch failed", u)
       return cb(er, response)
     }
-    if (!shasum) return cb(null, response)
+
+    if (!shasum) {
+      // Well, we weren't given a shasum, so at least sha what we have
+      // in case we want to compare it to something else later
+      return sha.get(tmp, function (er, shasum) {
+        cb(er, response, shasum)
+      })
+    }
+
     // validate that the url we just downloaded matches the expected shasum.
     sha.check(tmp, shasum, function (er) {
       if (er != null && er.message) {
@@ -331,7 +358,8 @@ function fetchAndShaCheck (u, tmp, shasum, cb) {
 // Only have a single download action at once for a given url
 // additional calls stack the callbacks.
 var inFlightURLs = {}
-function addRemoteTarball (u, shasum, name, cb_) {
+function addRemoteTarball (u, shasum, name, version, cb_) {
+  if (typeof cb_ !== "function") cb_ = version, version = ""
   if (typeof cb_ !== "function") cb_ = name, name = ""
   if (typeof cb_ !== "function") cb_ = shasum, shasum = null
 
@@ -343,6 +371,7 @@ function addRemoteTarball (u, shasum, name, cb_) {
   function cb (er, data) {
     if (data) {
       data._from = u
+      data._shasum = data._shasum || shasum
       data._resolved = u
     }
     unlock(u, function () {
@@ -366,7 +395,7 @@ function addRemoteTarball (u, shasum, name, cb_) {
 
   function done (er, resp, shasum) {
     if (er) return cb(er)
-    addLocalTarball(tmp, name, shasum, cb)
+    addLocalTarball(tmp, name, version, shasum, cb)
   }
 }
 
@@ -681,6 +710,9 @@ function addNameTag (name, tag, data, cb_) {
   }
 
   registry.get(name, function (er, data, json, response) {
+    if (!er) {
+      er = errorResponse(name, resp)
+    }
     if (er) return cb(er)
     engineFilter(data)
     if (data["dist-tags"] && data["dist-tags"][tag]
@@ -716,6 +748,16 @@ function engineFilter (data) {
   })
 }
 
+function errorResponse (name, response) {
+  if (response.statusCode >= 400) {
+    var er = new Error(http.STATUS_CODES[response.statusCode])
+    er.statusCode = response.statusCode
+    er.code = "E" + er.statusCode
+    er.pkgid = name
+  }
+  return er
+}
+
 function addNameRange (name, range, data, cb) {
   if (typeof cb !== "function") cb = data, data = null
 
@@ -727,6 +769,9 @@ function addNameRange (name, range, data, cb) {
 
   if (data) return next()
   registry.get(name, function (er, d, json, response) {
+    if (!er) {
+      er = errorResponse(name, response)
+    }
     if (er) return cb(er)
     data = d
     next()
@@ -791,9 +836,18 @@ function addNameVersion (name, v, data, cb) {
     response = null
     return next()
   }
-  registry.get(name + "/" + ver, function (er, d, json, resp) {
+  registry.get(name, function (er, d, json, resp) {
+    if (!er) {
+      er = errorResponse(name, resp)
+    }
     if (er) return cb(er)
-    data = d
+    data = d && d.versions[ver]
+    if (!data) {
+      er = new Error('version not found: ' + name + '@' + ver)
+      er.package = name
+      er.statusCode = 404
+      return cb(er)
+    }
     response = resp
     next()
   })
@@ -823,6 +877,10 @@ function addNameVersion (name, v, data, cb) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR")
             return cb(er)
           if (er) return fetchit()
+          // check the SHA of the package we have, to ensure it wasn't installed
+          // from somewhere other than the registry (eg, a fork)
+          if (data._shasum && dist.shasum && data._shasum !== dist.shasum)
+            return fetchit()
           return cb(null, data)
         })
       } else return fetchit()
@@ -853,7 +911,8 @@ function addNameVersion (name, v, data, cb) {
       }
       return addRemoteTarball( tb
                              , dist.shasum
-                             , name+"-"+ver
+                             , name
+                             , ver
                              , cb )
     }
   }
@@ -924,13 +983,23 @@ function maybeGithub (p, name, er, cb) {
   }
 }
 
-function addLocalTarball (p, name, shasum, cb_) {
+function addLocalTarball (p, name, version, shasum, cb_) {
   if (typeof cb_ !== "function") cb_ = shasum, shasum = null
+  if (typeof cb_ !== "function") cb_ = version, version = ""
   if (typeof cb_ !== "function") cb_ = name, name = ""
+
+  // If we don't have a shasum yet, then get the shasum now.
+  if (!shasum) {
+    return sha.get(p, function (er, shasum) {
+      if (er) return cb_(er)
+      addLocalTarball(p, name, version, shasum, cb_)
+    })
+  }
+
   // if it's a tar, and not in place,
   // then unzip to .tmp, add the tmp folder, and clean up tmp
   if (pathIsInside(p, npm.tmp))
-    return addTmpTarball(p, name, shasum, cb_)
+    return addTmpTarball(p, name, version, shasum, cb_)
 
   if (pathIsInside(p, npm.cache)) {
     if (path.basename(p) !== "package.tgz") return cb_(new Error(
@@ -939,7 +1008,10 @@ function addLocalTarball (p, name, shasum, cb_) {
   }
 
   function cb (er, data) {
-    if (data) data._resolved = p
+    if (data) {
+      data._resolved = p
+      data._shasum = data._shasum || shasum
+    }
     return cb_(er, data)
   }
 
@@ -962,7 +1034,7 @@ function addLocalTarball (p, name, shasum, cb_) {
       log.verbose("chmod", tmp, npm.modes.file.toString(8))
       fs.chmod(tmp, npm.modes.file, function (er) {
         if (er) return cb(er)
-        addTmpTarball(tmp, name, shasum, cb)
+        addTmpTarball(tmp, name, null, shasum, cb)
       })
     })
     from.pipe(to)
@@ -1188,6 +1260,10 @@ function addLocalDirectory (p, name, shasum, cb) {
                              , data.version, "package.tgz" )
       , placeDirect = path.basename(p) === "package"
       , tgz = placeDirect ? placed : tmptgz
+      , version = data.version
+
+    name = data.name
+
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(tgz), function (er, made) {
         if (er) return cb(er)
@@ -1207,7 +1283,7 @@ function addLocalDirectory (p, name, shasum, cb) {
 
           chownr(made || tgz, cs.uid, cs.gid, function (er) {
             if (er) return cb(er)
-            addLocalTarball(tgz, name, shasum, cb)
+            addLocalTarball(tgz, name, version, shasum, cb)
           })
         })
       })
@@ -1215,21 +1291,75 @@ function addLocalDirectory (p, name, shasum, cb) {
   })
 }
 
-function addTmpTarball (tgz, name, shasum, cb) {
-  if (!cb) cb = name, name = ""
+// XXX This is where it should be fixed
+// Right now it's unpacking to a "package" folder, and then
+// adding that local folder, for historical reasons.
+// Instead, unpack to the *cache* folder, and then copy the
+// tgz into place in the cache, so the shasum doesn't change.
+function addTmpTarball (tgz, name, version, shasum, cb) {
+  // Just have a placeholder here so we can move it into place after.
+  var tmp = false
+  if (!version) {
+    tmp = true
+    version = 'tmp_' + crypto.randomBytes(6).toString('hex')
+  }
+  if (!name) {
+    tmp = true
+    name = 'tmp_' + crypto.randomBytes(6).toString('hex')
+  }
+  if (!tmp) {
+    var pdir = path.resolve(npm.cache, name, version, "package")
+  } else {
+    var pdir = path.resolve(npm.cache, name + version + "package")
+  }
+
   getCacheStat(function (er, cs) {
     if (er) return cb(er)
-    var contents = path.dirname(tgz)
-    tar.unpack( tgz, path.resolve(contents, "package")
-              , null, null
-              , cs.uid, cs.gid
-              , function (er) {
-      if (er) {
-        return cb(er)
-      }
-      addLocalDirectory(path.resolve(contents, "package"), name, shasum, cb)
-    })
+    tar.unpack(tgz, pdir, null, null, cs.uid, cs.gid, next)
   })
+
+  function next (er) {
+    if (er) return cb(er)
+    // it MUST be able to get a version now!
+    var pj = path.resolve(pdir, "package.json")
+    readJson(pj, function (er, data) {
+      if (er) return cb(er)
+      if (version === data.version && name === data.name && !tmp) {
+        addTmpTarball_(tgz, data, name, version, shasum, cb)
+      } else {
+        var old = pdir
+        name = data.name
+        version = data.version
+        pdir = path.resolve(npm.cache, name, version, "package")
+        mkdir(path.dirname(pdir), function(er) {
+          if (er) return cb(er)
+          rm(pdir, function(er) {
+            if (er) return cb(er)
+            fs.rename(old, pdir, function(er) {
+              if (er) return cb(er)
+              rm(old, function(er) {
+                if (er) return cb(er)
+                addTmpTarball_(tgz, data, name, version, shasum, cb)
+              })
+            })
+          })
+        })
+      }
+    })
+  }
+}
+
+function addTmpTarball_ (tgz, data, name, version, shasum, cb) {
+  cb = once(cb)
+  var target = path.resolve(npm.cache, name, version, "package.tgz")
+  var read = fs.createReadStream(tgz)
+  var write = fs.createWriteStream(target)
+  read.on("error", cb).pipe(write).on("error", cb).on("close", done)
+
+  function done() {
+    data._shasum = data._shasum || shasum
+    cb(null, data)
+  }
 }
 
 function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {

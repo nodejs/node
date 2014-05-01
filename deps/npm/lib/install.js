@@ -337,6 +337,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
   }
 
   var saveBundle = npm.config.get('save-bundle')
+  var savePrefix = npm.config.get('save-prefix') || "^";
 
   // each item in the tree is a top-level thing that should be saved
   // to the package.json file.
@@ -353,7 +354,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
         var rangeDescriptor = semver.valid(k[1], true) &&
                               semver.gte(k[1], "0.1.0", true) &&
                               !npm.config.get("save-exact")
-                            ? "^" : ""
+                            ? savePrefix : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
       }, {})
@@ -447,7 +448,7 @@ function prettify (tree, installed) {
                      if (g) g = " (" + g + ")"
                      return c.what + g
                    })
-                 })
+                 }, "", { unicode: npm.config.get("unicode") })
   }).join("\n")
 }
 

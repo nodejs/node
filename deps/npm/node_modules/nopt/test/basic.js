@@ -15,6 +15,14 @@ test("Empty String results in empty string, not true", function (t) {
   t.end()
 })
 
+test("~ path is resolved to $HOME", function (t) {
+  var path = require("path")
+  if (!process.env.HOME) process.env.HOME = "/tmp"
+  var parsed = nopt({key: path}, {}, ["--key=~/val"], 0)
+  t.same(parsed.key, path.resolve(process.env.HOME, "val"))
+  t.end()
+})
+
 test("other tests", function (t) {
 
   var util = require("util")
