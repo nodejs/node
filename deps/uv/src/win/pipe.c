@@ -223,20 +223,43 @@ int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
 }
 
 
-static int uv_set_pipe_handle(uv_loop_t* loop, uv_pipe_t* handle,
-    HANDLE pipeHandle, DWORD duplex_flags) {
+static int uv_set_pipe_handle(uv_loop_t* loop,
+                              uv_pipe_t* handle,
+                              HANDLE pipeHandle,
+                              DWORD duplex_flags) {
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
   FILE_MODE_INFORMATION mode_info;
   DWORD mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
+  DWORD current_mode = 0;
+  DWORD err = 0;
 
   if (!SetNamedPipeHandleState(pipeHandle, &mode, NULL, NULL)) {
-    /* If this returns ERROR_INVALID_PARAMETER we probably opened something */
-    /* that is not a pipe. */
-    if (GetLastError() == ERROR_INVALID_PARAMETER) {
-      SetLastError(WSAENOTSOCK);
+    err = GetLastError();
+    if (err == ERROR_ACCESS_DENIED) {
+      /*
+       * SetNamedPipeHandleState can fail if the handle doesn't have either
+       * GENERIC_WRITE  or FILE_WRITE_ATTRIBUTES.
+       * But if the handle already has the desired wait and blocking modes
+       * we can continue.
+       */
+      if (!GetNamedPipeHandleState(pipeHandle, &current_mode, NULL, NULL,
+                                   NULL, NULL, 0)) {
+        return -1;
+      } else if (current_mode != mode) {
+        SetLastError(ERROR_ACCESS_DENIED);
+        return -1;
+      } else {
+        duplex_flags &= ~UV_HANDLE_WRITABLE;
+      }
+    } else {
+      /* If this returns ERROR_INVALID_PARAMETER we probably opened
+       * something that is not a pipe. */
+      if (err == ERROR_INVALID_PARAMETER) {
+        SetLastError(WSAENOTSOCK);
+      }
+      return -1;
     }
-    return -1;
   }
 
   /* Check if the pipe was created with FILE_FLAG_OVERLAPPED. */
@@ -1749,15 +1772,14 @@ static void eof_timer_close_cb(uv_handle_t* handle) {
 
 int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   HANDLE os_handle = uv__get_osfhandle(file);
+  DWORD duplex_flags = UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
 
   if (os_handle == INVALID_HANDLE_VALUE ||
-      uv_set_pipe_handle(pipe->loop, pipe, os_handle, 0) == -1) {
+      uv_set_pipe_handle(pipe->loop, pipe, os_handle, duplex_flags) == -1) {
     return UV_EINVAL;
   }
 
   uv_pipe_connection_init(pipe);
-  pipe->handle = os_handle;
-  pipe->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
 
   if (pipe->ipc) {
     assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));

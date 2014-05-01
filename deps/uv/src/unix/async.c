@@ -26,6 +26,7 @@
 #include "internal.h"
 
 #include <errno.h>
+#include <stdio.h>  /* snprintf() */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -217,8 +218,28 @@ int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
     pipefd[0] = err;
     pipefd[1] = -1;
   }
-  else if (err == -ENOSYS)
+  else if (err == -ENOSYS) {
     err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
+#if defined(__linux__)
+    /* Save a file descriptor by opening one of the pipe descriptors as
+     * read/write through the procfs.  That file descriptor can then
+     * function as both ends of the pipe.
+     */
+    if (err == 0) {
+      char buf[32];
+      int fd;
+
+      snprintf(buf, sizeof(buf), "/proc/self/fd/%d", pipefd[0]);
+      fd = uv__open_cloexec(buf, O_RDWR);
+      if (fd != -1) {
+        uv__close(pipefd[0]);
+        uv__close(pipefd[1]);
+        pipefd[0] = fd;
+        pipefd[1] = fd;
+      }
+    }
+#endif
+  }
 
   if (err < 0)
     return err;
@@ -236,14 +257,15 @@ void uv__async_stop(uv_loop_t* loop, struct uv__async* wa) {
   if (wa->io_watcher.fd == -1)
     return;
 
+  if (wa->wfd != -1) {
+    if (wa->wfd != wa->io_watcher.fd)
+      uv__close(wa->wfd);
+    wa->wfd = -1;
+  }
+
   uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
   uv__close(wa->io_watcher.fd);
   wa->io_watcher.fd = -1;
-
-  if (wa->wfd != -1) {
-    uv__close(wa->wfd);
-    wa->wfd = -1;
-  }
 }
 
 

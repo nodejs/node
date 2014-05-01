@@ -126,6 +126,7 @@ TEST_IMPL(getaddrinfo_concurrent) {
     callback_counts[i] = 0;
 
     data = (int*)malloc(sizeof(int));
+    ASSERT(data != NULL);
     *data = i;
     getaddrinfo_handles[i].data = data;
 

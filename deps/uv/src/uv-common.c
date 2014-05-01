@@ -142,12 +142,12 @@ int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr) {
 }
 
 
-int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size) {
+int uv_ip4_name(const struct sockaddr_in* src, char* dst, size_t size) {
   return uv_inet_ntop(AF_INET, &src->sin_addr, dst, size);
 }
 
 
-int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
+int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size) {
   return uv_inet_ntop(AF_INET6, &src->sin6_addr, dst, size);
 }
 
@@ -384,7 +384,7 @@ void uv_stop(uv_loop_t* loop) {
 }
 
 
-uint64_t uv_now(uv_loop_t* loop) {
+uint64_t uv_now(const uv_loop_t* loop) {
   return loop->time;
 }
 

@@ -155,8 +155,10 @@ static void tcp_pinger_v6_new(void) {
   struct sockaddr_in6 server_addr;
   pinger_t *pinger;
 
+
   ASSERT(0 ==uv_ip6_addr("::1", TEST_PORT, &server_addr));
   pinger = malloc(sizeof(*pinger));
+  ASSERT(pinger != NULL);
   pinger->state = 0;
   pinger->pongs = 0;
 
@@ -185,6 +187,7 @@ static void tcp_pinger_new(void) {
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
   pinger = malloc(sizeof(*pinger));
+  ASSERT(pinger != NULL);
   pinger->state = 0;
   pinger->pongs = 0;
 
@@ -211,6 +214,7 @@ static void pipe_pinger_new(void) {
   pinger_t *pinger;
 
   pinger = (pinger_t*)malloc(sizeof(*pinger));
+  ASSERT(pinger != NULL);
   pinger->state = 0;
   pinger->pongs = 0;
 

@@ -13,9 +13,10 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [0.11.23], [https://github.com/joyent/libuv/issues])
+AC_INIT([libuv], [0.11.25], [https://github.com/joyent/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
+m4_include([m4/as_case.m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects] UV_EXTRA_AUTOMAKE_FLAGS)
 AC_CANONICAL_HOST
 AC_ENABLE_SHARED

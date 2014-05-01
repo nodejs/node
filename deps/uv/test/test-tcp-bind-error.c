@@ -185,6 +185,23 @@ TEST_IMPL(tcp_bind_localhost_ok) {
 }
 
 
+TEST_IMPL(tcp_bind_invalid_flags) {
+  struct sockaddr_in addr;
+  uv_tcp_t server;
+  int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
+  r = uv_tcp_init(uv_default_loop(), &server);
+  ASSERT(r == 0);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, UV_TCP_IPV6ONLY);
+  ASSERT(r == UV_EINVAL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(tcp_listen_without_bind) {
   int r;
   uv_tcp_t server;

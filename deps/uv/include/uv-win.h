@@ -428,7 +428,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     void* queue[2];                                                           \
     int queue_len;                                                            \
   } pending_ipc_info;                                                         \
-  uv_write_t* non_overlapped_writes_tail;
+  uv_write_t* non_overlapped_writes_tail;                                     \
+  void* reserved;
 
 #define UV_PIPE_PRIVATE_FIELDS                                                \
   HANDLE handle;                                                              \

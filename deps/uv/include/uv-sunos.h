@@ -41,4 +41,6 @@
 
 #endif /* defined(PORT_SOURCE_FILE) */
 
+#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
+
 #endif /* UV_SUNOS_H */

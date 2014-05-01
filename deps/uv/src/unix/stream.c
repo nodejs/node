@@ -1482,8 +1482,8 @@ int uv_is_writable(const uv_stream_t* stream) {
 
 
 #if defined(__APPLE__)
-int uv___stream_fd(uv_stream_t* handle) {
-  uv__stream_select_t* s;
+int uv___stream_fd(const uv_stream_t* handle) {
+  const uv__stream_select_t* s;
 
   assert(handle->type == UV_TCP ||
          handle->type == UV_TTY ||

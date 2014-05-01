@@ -345,7 +345,7 @@ UV_EXTERN void uv_update_time(uv_loop_t*);
  *
  * Use uv_hrtime() if you need sub-millisecond granularity.
  */
-UV_EXTERN uint64_t uv_now(uv_loop_t*);
+UV_EXTERN uint64_t uv_now(const uv_loop_t*);
 
 /*
  * Get backend file descriptor. Only kqueue, epoll and event ports are
@@ -695,9 +695,8 @@ UV_EXTERN int uv_write2(uv_write_t* req,
  * Same as `uv_write()`, but won't queue write request if it can't be completed
  * immediately.
  * Will return either:
- * - positive number of bytes written
- * - zero - if queued write is needed
- * - negative error code
+ * - >= 0: number of bytes written (can be less than the supplied buffer size)
+ * - < 0: negative error code
  */
 UV_EXTERN int uv_try_write(uv_stream_t* handle,
                            const uv_buf_t bufs[],
@@ -809,10 +808,12 @@ enum uv_tcp_flags {
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
                           const struct sockaddr* addr,
                           unsigned int flags);
-UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
-    int* namelen);
-UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
-    int* namelen);
+UV_EXTERN int uv_tcp_getsockname(const uv_tcp_t* handle,
+                                 struct sockaddr* name,
+                                 int* namelen);
+UV_EXTERN int uv_tcp_getpeername(const uv_tcp_t* handle,
+                                 struct sockaddr* name,
+                                 int* namelen);
 
 /*
  * Establish an IPv4 or IPv6 TCP connection.  Provide an initialized TCP handle
@@ -873,8 +874,8 @@ typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
  *          discard or repurpose the read buffer.
  *          < 0 if a transmission error was detected.
  *  buf     uv_buf_t with the received data.
- *  addr    struct sockaddr_in or struct sockaddr_in6.
- *          Valid for the duration of the callback only.
+ *  addr    struct sockaddr* containing the address of the sender.
+ *          Can be NULL. Valid for the duration of the callback only.
  *  flags   One or more OR'ed UV_UDP_* constants.
  *          Right now only UV_UDP_PARTIAL is used.
  */
@@ -2055,8 +2056,8 @@ UV_EXTERN int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr);
 UV_EXTERN int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr);
 
 /* Convert binary addresses to strings */
-UV_EXTERN int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size);
-UV_EXTERN int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
+UV_EXTERN int uv_ip4_name(const struct sockaddr_in* src, char* dst, size_t size);
+UV_EXTERN int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size);
 
 /* Cross-platform IPv6-capable implementation of the 'standard' inet_ntop */
 /* and inet_pton functions. On success they return 0. If an error */
