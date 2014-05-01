@@ -359,10 +359,10 @@ fallback:
 void uv__fs_event_close(uv_fs_event_t* handle) {
 #if defined(__APPLE__)
   if (uv__fsevents_close(handle))
-    uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
-#else
-  uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
 #endif /* defined(__APPLE__) */
+  {
+    uv__io_close(handle->loop, &handle->event_watcher);
+  }
 
   uv__handle_stop(handle);
 

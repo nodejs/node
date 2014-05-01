@@ -129,8 +129,10 @@ static uv_err_t uv__signal_register_control_handler() {
 
   /* If the console control handler has already been hooked, just add a */
   /* reference. */
-  if (uv__signal_control_handler_refs > 0)
+  if (uv__signal_control_handler_refs > 0) {
+    uv__signal_control_handler_refs++;
     return uv_ok_;
+  }
 
   if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
     return uv__new_sys_error(GetLastError());

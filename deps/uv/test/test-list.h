@@ -163,6 +163,7 @@ TEST_DECLARE   (spawn_setgid_fails)
 TEST_DECLARE   (spawn_stdout_to_file)
 TEST_DECLARE   (spawn_stdout_and_stderr_to_file)
 TEST_DECLARE   (spawn_auto_unref)
+TEST_DECLARE   (spawn_closed_process_io)
 TEST_DECLARE   (fs_poll)
 TEST_DECLARE   (kill)
 TEST_DECLARE   (fs_file_noent)
@@ -226,6 +227,7 @@ TEST_DECLARE   (spawn_setuid_setgid)
 TEST_DECLARE   (we_get_signal)
 TEST_DECLARE   (we_get_signals)
 TEST_DECLARE   (signal_multiple_loops)
+TEST_DECLARE   (closed_fd_events)
 #endif
 #ifdef __APPLE__
 TEST_DECLARE   (osx_select)
@@ -442,6 +444,7 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_stdout_to_file)
   TEST_ENTRY  (spawn_stdout_and_stderr_to_file)
   TEST_ENTRY  (spawn_auto_unref)
+  TEST_ENTRY  (spawn_closed_process_io)
   TEST_ENTRY  (fs_poll)
   TEST_ENTRY  (kill)
 
@@ -458,6 +461,7 @@ TASK_LIST_START
   TEST_ENTRY  (we_get_signal)
   TEST_ENTRY  (we_get_signals)
   TEST_ENTRY  (signal_multiple_loops)
+  TEST_ENTRY  (closed_fd_events)
 #endif
 
 #ifdef __APPLE__

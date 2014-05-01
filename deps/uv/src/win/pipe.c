@@ -1240,9 +1240,9 @@ static void uv_pipe_read_eof(uv_loop_t* loop, uv_pipe_t* handle,
 
   uv__set_artificial_error(loop, UV_EOF);
   if (handle->read2_cb) {
-    handle->read2_cb(handle, -1, uv_null_buf_, UV_UNKNOWN_HANDLE);
+    handle->read2_cb(handle, -1, buf, UV_UNKNOWN_HANDLE);
   } else {
-    handle->read_cb((uv_stream_t*) handle, -1, uv_null_buf_);
+    handle->read_cb((uv_stream_t*) handle, -1, buf);
   }
 }
 
@@ -1404,7 +1404,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
           break;
         }
       } else {
-        uv_pipe_read_error_or_eof(loop, handle, GetLastError(), uv_null_buf_);
+        uv_pipe_read_error_or_eof(loop, handle, GetLastError(), buf);
         break;
       }
     }

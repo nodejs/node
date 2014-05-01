@@ -302,7 +302,6 @@ static void uv__process_child_init(uv_process_options_t options,
 
         if (use_fd == -1) {
           uv__write_int(error_fd, errno);
-          perror("failed to open stdio");
           _exit(127);
         }
       }
@@ -316,7 +315,7 @@ static void uv__process_child_init(uv_process_options_t options,
     if (fd <= 2)
       uv__nonblock(fd, 0);
 
-    if (close_fd != -1)
+    if (close_fd >= stdio_count)
       close(close_fd);
   }
 
@@ -329,19 +328,16 @@ static void uv__process_child_init(uv_process_options_t options,
 
   if (options.cwd && chdir(options.cwd)) {
     uv__write_int(error_fd, errno);
-    perror("chdir()");
     _exit(127);
   }
 
   if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {
     uv__write_int(error_fd, errno);
-    perror("setgid()");
     _exit(127);
   }
 
   if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {
     uv__write_int(error_fd, errno);
-    perror("setuid()");
     _exit(127);
   }
 
@@ -351,7 +347,6 @@ static void uv__process_child_init(uv_process_options_t options,
 
   execvp(options.file, options.args);
   uv__write_int(error_fd, errno);
-  perror("execvp()");
   _exit(127);
 }
 
