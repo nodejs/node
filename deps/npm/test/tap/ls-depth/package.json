@@ -1,0 +1,8 @@
+{
+  "author": "Rocko Artischocko",
+  "name": "ls-depth",
+  "version": "0.0.0",
+  "dependencies": {
+    "test-package-with-one-dep": "0.0.0"
+  }
+}

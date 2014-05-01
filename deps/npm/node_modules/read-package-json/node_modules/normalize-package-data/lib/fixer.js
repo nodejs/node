@@ -6,8 +6,6 @@ var url = require("url")
 var typos = require("./typos")
 var coreModuleNames = require("./core_module_names")
 var githubUserRepo = require("github-url-from-username-repo")
-var warningMessages = require('./warning_messages.json')
-var format = require('util').format
 
 var fixer = module.exports = {
   // default warning function
@@ -15,10 +13,10 @@ var fixer = module.exports = {
 
   fixRepositoryField: function(data) {
     if (data.repositories) {
-      this.warn(warningMessages.repositories);
+      this.warn("repositories");
       data.repository = data.repositories[0]
     }
-    if (!data.repository) return this.warn(warningMessages.missingRepository)
+    if (!data.repository) return this.warn("missingRepository")
     if (typeof data.repository === "string") {
       data.repository = {
         type: "git",
@@ -37,14 +35,14 @@ var fixer = module.exports = {
     }
 
     if (r.match(/github.com\/[^\/]+\/[^\/]+\.git\.git$/)) {
-      this.warn(format(warningMessages.brokenGitUrl, r))
+      this.warn("brokenGitUrl", r)
     }
   }
 
 , fixTypos: function(data) {
     Object.keys(typos.topLevel).forEach(function (d) {
       if (data.hasOwnProperty(d)) {
-        this.warn(makeTypoWarning(d, typos.topLevel[d]))
+        this.warn("typo", d, typos.topLevel[d])
       }
     }, this)
   }
@@ -52,15 +50,15 @@ var fixer = module.exports = {
 , fixScriptsField: function(data) {
     if (!data.scripts) return
     if (typeof data.scripts !== "object") {
-      this.warn(warningMessages.nonObjectScripts)
+      this.warn("nonObjectScripts")
       delete data.scripts
     }
     Object.keys(data.scripts).forEach(function (k) {
       if (typeof data.scripts[k] !== "string") {
-        this.warn(warningMessages.nonStringScript)
+        this.warn("nonStringScript")
         delete data.scripts[k]
       } else if (typos.script[k]) {
-        this.warn(makeTypoWarning(k, typos.script[k], "scripts"))
+        this.warn("typo", k, typos.script[k], "scripts")
       }
     }, this)
   }
@@ -68,12 +66,12 @@ var fixer = module.exports = {
 , fixFilesField: function(data) {
     var files = data.files
     if (files && !Array.isArray(files)) {
-      this.warn(warningMessages.nonArrayFiles)
+      this.warn("nonArrayFiles")
       delete data.files
     } else if (data.files) {
       data.files = data.files.filter(function(file) {
         if (!file || typeof file !== "string") {
-          this.warn(format(warningMessages.invalidFilename, file))
+          this.warn("invalidFilename", file)
           return false
         } else {
           return true
@@ -105,12 +103,12 @@ var fixer = module.exports = {
       delete data[bdd]
     }
     if (data[bd] && !Array.isArray(data[bd])) {
-      this.warn(warningMessages.nonArrayBundleDependencies)
+      this.warn("nonArrayBundleDependencies")
       delete data[bd]
     } else if (data[bd]) {
       data[bd] = data[bd].filter(function(bd) {
         if (!bd || typeof bd !== 'string') {
-          this.warn(format(warningMessages.nonStringBundleDependency, bd))
+          this.warn("nonStringBundleDependency", bd)
           return false
         } else {
           return true
@@ -128,14 +126,14 @@ var fixer = module.exports = {
     ;['dependencies','devDependencies'].forEach(function(deps) {
       if (!(deps in data)) return
       if (!data[deps] || typeof data[deps] !== "object") {
-        this.warn(format(warningMessages.nonObjectDependencies, deps))
+        this.warn("nonObjectDependencies", deps)
         delete data[deps]
         return
       }
       Object.keys(data[deps]).forEach(function (d) {
         var r = data[deps][d]
         if (typeof r !== 'string') {
-          this.warn(format(warningMessages.nonStringDependency, d, JSON.stringify(r)))
+          this.warn("nonStringDependency", d, JSON.stringify(r))
           delete data[deps][d]
         }
         // "/" is not allowed as packagename for publishing, but for git-urls
@@ -149,7 +147,7 @@ var fixer = module.exports = {
 
 , fixModulesField: function (data) {
     if (data.modules) {
-      this.warn(warningMessages.deprecatedModules)
+      this.warn("deprecatedModules")
       delete data.modules
     }
   }
@@ -160,11 +158,11 @@ var fixer = module.exports = {
     }
     if (data.keywords && !Array.isArray(data.keywords)) {
       delete data.keywords
-      this.warn(warningMessages.nonArrayKeywords)
+      this.warn("nonArrayKeywords")
     } else if (data.keywords) {
       data.keywords = data.keywords.filter(function(kw) {
         if (typeof kw !== "string" || !kw) {
-          this.warn(warningMessages.nonStringKeyword);
+          this.warn("nonStringKeyword");
           return false
         } else {
           return true
@@ -205,24 +203,24 @@ var fixer = module.exports = {
       data.name = data.name.trim()
     ensureValidName(data.name, strict)
     if (coreModuleNames.indexOf(data.name) !== -1)
-      this.warn(format(warningMessages.conflictingName, data.name))
+      this.warn("conflictingName", data.name)
   }
 
 
 , fixDescriptionField: function (data) {
     if (data.description && typeof data.description !== 'string') {
-      this.warn(warningMessages.nonStringDescription)
+      this.warn("nonStringDescription")
       delete data.description
     }
     if (data.readme && !data.description)
       data.description = extractDescription(data.readme)
       if(data.description === undefined) delete data.description;
-    if (!data.description) this.warn(warningMessages.missingDescription)
+    if (!data.description) this.warn("missingDescription")
   }
 
 , fixReadmeField: function (data) {
     if (!data.readme) {
-      this.warn(warningMessages.missingReadme)
+      this.warn("missingReadme")
       data.readme = "ERROR: No README data found!"
     }
   }
@@ -245,7 +243,7 @@ var fixer = module.exports = {
         else if(url.parse(data.bugs).protocol)
           data.bugs = {url: data.bugs}
         else
-          this.warn(warningMessages.nonEmailUrlBugsString)
+          this.warn("nonEmailUrlBugsString")
       }
       else {
         bugsTypos(data.bugs, this.warn)
@@ -255,18 +253,18 @@ var fixer = module.exports = {
           if(typeof(oldBugs.url) == "string" && url.parse(oldBugs.url).protocol)
             data.bugs.url = oldBugs.url
           else
-            this.warn(warningMessages.nonUrlBugsUrlField)
+            this.warn("nonUrlBugsUrlField")
         }
         if(oldBugs.email) {
           if(typeof(oldBugs.email) == "string" && emailRe.test(oldBugs.email))
             data.bugs.email = oldBugs.email
           else
-            this.warn(warningMessages.nonEmailBugsEmailField)
+            this.warn("nonEmailBugsEmailField")
         }
       }
       if(!data.bugs.email && !data.bugs.url) {
         delete data.bugs
-        this.warn(warningMessages.emptyNormalizedBugs)
+        this.warn("emptyNormalizedBugs")
       }
     }
   }
@@ -282,11 +280,11 @@ var fixer = module.exports = {
       return true
 
     if(typeof data.homepage !== "string") {
-      this.warn(warningMessages.nonUrlHomepage)
+      this.warn("nonUrlHomepage")
       return delete data.homepage
     }
     if(!url.parse(data.homepage).protocol) {
-      this.warn(warningMessages.missingProtocolHomepage)
+      this.warn("missingProtocolHomepage")
       data.homepage = "http://" + data.homepage
     }
   }
@@ -350,7 +348,7 @@ function depObjectify (deps, type, warn) {
     deps = deps.trim().split(/[\n\r\s\t ,]+/)
   }
   if (!Array.isArray(deps)) return deps
-  warn(format(warningMessages.deprecatedArrayDependencies, type))
+  warn("deprecatedArrayDependencies", type)
   var o = {}
   deps.filter(function (d) {
     return typeof d === "string"
@@ -376,17 +374,9 @@ function bugsTypos(bugs, warn) {
   if (!bugs) return
   Object.keys(bugs).forEach(function (k) {
     if (typos.bugs[k]) {
-      warn(makeTypoWarning(k, typos.bugs[k], "bugs"))
+      warn("typo", k, typos.bugs[k], "bugs")
       bugs[typos.bugs[k]] = bugs[k]
       delete bugs[k]
     }
   })
-}
-
-function makeTypoWarning (providedName, probableName, field) {
-  if (field) {
-    providedName = field + "['" + providedName + "']"
-    probableName = field + "['" + probableName + "']"
-  }
-  return format(warningMessages.typo, providedName, probableName)
 }

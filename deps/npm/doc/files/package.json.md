@@ -311,6 +311,7 @@ See semver(7) for more details about specifying version ranges.
 * `<version`
 * `<=version`
 * `~version` "Approximately equivalent to version"  See semver(7)
+* `^version` "Compatible with version"  See semver(7)
 * `1.2.x` 1.2.0, 1.2.1, etc., but not 1.3.0
 * `http://...` See 'URLs as Dependencies' below
 * `*` Matches any version

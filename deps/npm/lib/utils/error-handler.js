@@ -279,7 +279,7 @@ function errorHandler (er) {
 
   var os = require("os")
   // just a line break
-  console.error("")
+  if (log.levels[log.level] <= log.levels.error) console.error("")
   log.error("System", os.type() + " " + os.release())
   log.error("command", process.argv
             .map(JSON.stringify).join(" "))

@@ -288,6 +288,14 @@ function load (npm, cli, cb) {
     npmconf.load(cli, builtin, function (er, config) {
       if (er === config) er = null
 
+      // Include npm-version and node-version in user-agent
+      var ua = config.get("user-agent") || ""
+      ua = ua.replace(/\{node-version\}/gi, process.version)
+      ua = ua.replace(/\{npm-version\}/gi, npm.version)
+      ua = ua.replace(/\{platform\}/gi, process.platform)
+      ua = ua.replace(/\{arch\}/gi, process.arch)
+      config.set("user-agent", ua)
+
       npm.config = config
 
       var color = config.get("color")

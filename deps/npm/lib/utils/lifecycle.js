@@ -1,5 +1,6 @@
 exports = module.exports = lifecycle
 exports.cmd = cmd
+exports.makeEnv = makeEnv
 
 var log = require("npmlog")
   , spawn = require("child_process").spawn
@@ -314,6 +315,7 @@ function makeEnv (data, prefix, env) {
     var value = npm.config.get(i)
     if (value instanceof Stream || Array.isArray(value)) return
     if (!value) value = ""
+    else if (typeof value === "number") value = "" + value
     else if (typeof value !== "string") value = JSON.stringify(value)
 
     value = -1 !== value.indexOf("\n")

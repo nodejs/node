@@ -84,6 +84,7 @@ var mkdir = require("mkdirp")
   , which = require("which")
   , isGitUrl = require("./utils/is-git-url.js")
   , pathIsInside = require("path-is-inside")
+  , http = require("http")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -709,6 +710,9 @@ function addNameTag (name, tag, data, cb_) {
   }
 
   registry.get(name, function (er, data, json, response) {
+    if (!er) {
+      er = errorResponse(name, resp)
+    }
     if (er) return cb(er)
     engineFilter(data)
     if (data["dist-tags"] && data["dist-tags"][tag]
@@ -744,6 +748,16 @@ function engineFilter (data) {
   })
 }
 
+function errorResponse (name, response) {
+  if (response.statusCode >= 400) {
+    var er = new Error(http.STATUS_CODES[response.statusCode])
+    er.statusCode = response.statusCode
+    er.code = "E" + er.statusCode
+    er.pkgid = name
+  }
+  return er
+}
+
 function addNameRange (name, range, data, cb) {
   if (typeof cb !== "function") cb = data, data = null
 
@@ -755,6 +769,9 @@ function addNameRange (name, range, data, cb) {
 
   if (data) return next()
   registry.get(name, function (er, d, json, response) {
+    if (!er) {
+      er = errorResponse(name, response)
+    }
     if (er) return cb(er)
     data = d
     next()
@@ -820,6 +837,9 @@ function addNameVersion (name, v, data, cb) {
     return next()
   }
   registry.get(name, function (er, d, json, resp) {
+    if (!er) {
+      er = errorResponse(name, resp)
+    }
     if (er) return cb(er)
     data = d && d.versions[ver]
     if (!data) {
@@ -857,6 +877,10 @@ function addNameVersion (name, v, data, cb) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR")
             return cb(er)
           if (er) return fetchit()
+          // check the SHA of the package we have, to ensure it wasn't installed
+          // from somewhere other than the registry (eg, a fork)
+          if (data._shasum && dist.shasum && data._shasum !== dist.shasum)
+            return fetchit()
           return cb(null, data)
         })
       } else return fetchit()

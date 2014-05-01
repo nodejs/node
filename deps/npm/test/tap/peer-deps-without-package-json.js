@@ -1,53 +1,37 @@
 var common = require('../common-tap.js')
 var fs = require("fs")
+var path = require("path")
 var test = require("tap").test
 var rimraf = require("rimraf")
 var npm = require("../../")
 var mr = require("npm-registry-mock")
-var http = require("http")
+var pkg = __dirname + "/peer-deps-without-package-json"
 
-
-var js = new Buffer(
-'/**package\n' +
-' * { "name": "npm-test-peer-deps-file"\n' +
-' * , "main": "index.js"\n' +
-' * , "version": "1.2.3"\n' +
-' * , "description":"No package.json in sight!"\n' +
-' * , "peerDependencies": { "underscore": "1.3.1" }\n' +
-' * , "dependencies": { "mkdirp": "0.3.5" }\n' +
-' * }\n' +
-' **/\n' +
-'\n' +
-'module.exports = "I\'m just a lonely index, naked as the day I was born."\n')
-
-var server
-test("setup", function(t) {
-  server = http.createServer(function (q, s) {
-    s.setHeader('content-type', 'application/javascript')
-    s.end(js)
-  })
-  server.listen(common.port, function () {
-    t.pass('listening')
-    t.end()
-  })
-})
-
+var js = fs.readFileSync(path.join(pkg, "file-js.js"), "utf8")
 test("installing a peerDependencies-using package without a package.json present (GH-3049)", function (t) {
 
-  rimraf.sync(__dirname + "/peer-deps-without-package-json/node_modules")
-  fs.mkdirSync(__dirname + "/peer-deps-without-package-json/node_modules")
-  process.chdir(__dirname + "/peer-deps-without-package-json")
+  rimraf.sync(pkg + "/node_modules")
+  rimraf.sync(pkg + "/cache")
 
-  // we're already listening on common.port,
-  // use an alternative port for this test.
-  mr(1331, function (s) { // create mock registry.
-    npm.load({registry: 'http://localhost:1331'}, function () {
-      npm.install(common.registry, function (err) {
+  fs.mkdirSync(pkg + "/node_modules")
+  process.chdir(pkg)
+
+  var customMocks = {
+    "get": {
+      "/ok.js": [200, js],
+    }
+  }
+  mr({port: common.port, mocks: customMocks}, function (s) { // create mock registry.
+    npm.load({
+      registry: common.registry,
+      cache: pkg + "/cache"
+    }, function () {
+      npm.install(common.registry + "/ok.js", function (err) {
         if (err) {
           t.fail(err)
         } else {
-          t.ok(fs.existsSync(__dirname + "/peer-deps-without-package-json/node_modules/npm-test-peer-deps-file"))
-          t.ok(fs.existsSync(__dirname + "/peer-deps-without-package-json/node_modules/underscore"))
+          t.ok(fs.existsSync(pkg + "/node_modules/npm-test-peer-deps-file"))
+          t.ok(fs.existsSync(pkg + "/node_modules/underscore"))
         }
         t.end()
         s.close() // shutdown mock registry.
@@ -57,8 +41,7 @@ test("installing a peerDependencies-using package without a package.json present
 })
 
 test("cleanup", function (t) {
-  server.close(function() {
-    t.pass("closed")
-    t.end()
-  })
+  rimraf.sync(pkg + "/node_modules")
+  rimraf.sync(pkg + "/cache")
+  t.end()
 })

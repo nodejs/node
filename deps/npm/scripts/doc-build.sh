@@ -63,7 +63,7 @@ case $dest in
     | sed "s|@VERSION@|$version|g" \
     | perl -pi -e 's/<h1>([^\(]*\([0-9]\)) -- (.*?)<\/h1>/<h1>\1<\/h1> <p>\2<\/p>/g' \
     | perl -pi -e 's/npm-npm/npm/g' \
-    | perl -pi -e 's/([^"-])(npm-)?README(\(1\))?/\1<a href="..\/..\/doc\/README.html">README<\/a>/g' \
+    | perl -pi -e 's/([^"-])(npm-)?README(?!\.html)(\(1\))?/\1<a href="..\/..\/doc\/README.html">README<\/a>/g' \
     | perl -pi -e 's/<title><a href="[^"]+README.html">README<\/a><\/title>/<title>README<\/title>/g' \
     | perl -pi -e 's/([^"-])([^\(> ]+)(\(1\))/\1<a href="..\/cli\/\2.html">\2\3<\/a>/g' \
     | perl -pi -e 's/([^"-])([^\(> ]+)(\(3\))/\1<a href="..\/api\/\2.html">\2\3<\/a>/g' \

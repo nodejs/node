@@ -177,9 +177,10 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
-    , "user-agent" : "node/" + process.version
-                     + ' ' + process.platform
-                     + ' ' + process.arch
+    , "user-agent" : "npm/{npm-version} "
+                     + "node/{node-version} "
+                     + "{platform} "
+                     + "{arch}"
     , "rebuild-bundle" : true
     , registry : "https://registry.npmjs.org/"
     , rollback : true
