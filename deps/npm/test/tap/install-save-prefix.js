@@ -25,13 +25,13 @@ test('"npm install --save with default save-prefix should install local pkg vers
       registry: common.registry }, function(err) {
         t.ifError(err)
         npm.config.set('save', true)
-        npm.commands.install(['underscore@1.3.1'], function(err) {
+        npm.commands.install(['underscore@latest'], function(err) {
           t.ifError(err)
           var p = path.resolve(pkg, 'node_modules/underscore/package.json')
           t.ok(JSON.parse(fs.readFileSync(p)))
           var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
           t.deepEqual(pkgJson.dependencies, {
-            'underscore': '^1.3.1'
+            'underscore': '^1.5.1'
           }, 'Underscore dependency should specify ^1.3.1')
           npm.config.set('save', undefined)
           s.close()

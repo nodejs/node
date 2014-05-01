@@ -191,20 +191,38 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     if (c === "la" || c === "ll") {
       npm.config.set("long", true)
     }
+
     npm.command = c
     if (commandCache[a]) return commandCache[a]
+
     var cmd = require(__dirname+"/"+a+".js")
+
     commandCache[a] = function () {
       var args = Array.prototype.slice.call(arguments, 0)
       if (typeof args[args.length - 1] !== "function") {
         args.push(defaultCb)
       }
       if (args.length === 1) args.unshift([])
+
+      npm.registry.refer = [a].concat(args[0]).map(function (arg) {
+        // exclude anything that might be a URL, path, or private module
+        // Those things will always have a slash in them somewhere
+        if (arg && arg.match && arg.match(/\/|\\/)) {
+          return "[REDACTED]"
+        } else {
+          return arg
+        }
+      }).filter(function (arg) {
+        return arg && arg.match
+      }).join(" ")
+
       cmd.apply(npm, args)
     }
+
     Object.keys(cmd).forEach(function (k) {
       commandCache[a][k] = cmd[k]
     })
+
     return commandCache[a]
   }, enumerable: fullList.indexOf(c) !== -1 })
 
