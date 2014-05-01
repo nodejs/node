@@ -1,4 +1,61 @@
-2014.03.11, Version 0.11.12 (Unstable)
+2014.05.01, Version 0.11.13 (Unstable)
+
+* v8: upgrade to 3.24.35.22
+
+* buffer: add compare and equals methods (Sean McArthur)
+
+* buffer: improve {read,write}{U}Int* methods (Nick Apperson)
+
+* buffer: return uint if MSB is 1 in readUInt32 (goussardg)
+
+* buffer: truncate buffer after string decode (Fedor Indutny)
+
+* child_process: fix assertion error in spawnSync (Shigeki Ohtsu)
+
+* crypto: fix memory leak in CipherBase::Final (Fedor Indutny)
+
+* crypto: improve error messages (Ingmar Runge)
+
+* crypto: move `createCredentials` to tls (Fedor Indutny)
+
+* crypto: work around OpenSSL oddness (Fedor Indutny)
+
+* dgram: introduce `reuseAddr` option (Fedor Indutny)
+
+* domain: don't crash on "throw null" (Alex Kocharin)
+
+* events: check if _events is an own property (Vladimir Kurchatkin)
+
+* fs: improve performance of all stat functions (James Pickard)
+
+* fs: return blksize on stats object (Trevor Norris)
+
+* http: add request.flush() method (Ben Noordhuis)
+
+* http: better client "protocol not supported" error (Nathan Rajlich)
+
+* http: use defaultAgent.protocol in protocol check (Nathan Rajlich)
+
+* main: Handle SIGINT properly. (Geir Hauge)
+
+* net: bind to `::` TCP address by default (Fedor Indutny)
+
+* readline: consider newlines for cursor position (Yazhong Liu)
+
+* stream: split `objectMode` for Duplex (Vladimir Kurchatkin)
+
+* tls: `getPeerCertificate(detailed)` (Fedor Indutny)
+
+* tls: do not call SNICallback unless present (Fedor Indutny)
+
+* tls: force readable/writable to `true` (Fedor Indutny)
+
+* tls: support OCSP on client and server (Fedor Indutny)
+
+* util: made util.isArray a direct alias for Array.isArray (Evan Carroll)
+
+
+2014.03.11, Version 0.11.12 (Unstable), 7d6b8db40f32e817ff145b7cfe6b3aec3179fba7
 
 * uv: Upgrade to v0.11.22 (Timothy J Fontaine)
 
