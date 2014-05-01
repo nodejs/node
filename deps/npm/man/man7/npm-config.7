@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "7" "March 2014" "" ""
+.TH "NPM\-CONFIG" "7" "May 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- More than you probably want to know about npm configuration
@@ -1136,6 +1136,27 @@ devDependencies hash\.
 .
 .P
 Only works if there is already a package\.json file present\.
+.
+.SS "save\-prefix"
+.
+.IP "\(bu" 4
+Default: \'^\'
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+Configure how versions of packages installed to a package\.json file via  \fB\-\-save\fR or \fB\-\-save\-dev\fR get prefixed\.
+.
+.P
+For example if a package has version \fB1\.2\.3\fR, by default it\'s version is
+set to \fB^1\.2\.3\fR which allows minor upgrades for that package, but after
+.
+.br
+\fBnpm config set save\-prefix=\'~\'\fR it would be set to \fB~1\.2\.3\fR which only allows
+patch upgrades\.
 .
 .SS "searchopts"
 .

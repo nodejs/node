@@ -35,7 +35,7 @@ var scripts = [
 ]
 
 scripts.forEach(function(script) {
-  test("ignore-scripts: run-script"+script+" using the option", function(t) {
+  test("ignore-scripts: run-script "+script+" using the option", function(t) {
     createChild([npm, "--ignore-scripts", "run-script", script])
       .on("close", function(code) {
         t.equal(code, 0)
@@ -57,7 +57,8 @@ function createChild (args) {
   var env = {
     HOME: process.env.HOME,
     Path: process.env.PATH,
-    PATH: process.env.PATH
+    PATH: process.env.PATH,
+    npm_config_loglevel: "silent"
   }
 
   if (process.platform === "win32")

@@ -21,6 +21,9 @@ test("setup", function (t) {
 
 test("git-cache-locking: install a git dependency", function (t) {
 
+  // disable git integration tests on Travis.
+  if (process.env.TRAVIS) return t.end()
+
   // package c depends on a.git#master and b.git#master
   // package b depends on a.git#master
   var child = spawn(node, [npm, "install", "git://github.com/nigelzor/npm-4503-c.git"], {

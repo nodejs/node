@@ -59,7 +59,7 @@ function shrinkwrap_ (pkginfo, silent, dev, cb) {
 function save (pkginfo, silent, cb) {
   // copy the keys over in a well defined order
   // because javascript objects serialize arbitrarily
-  pkginfo.dependencies = sortedObject(pkginfo.dependencies)
+  pkginfo.dependencies = sortedObject(pkginfo.dependencies || {})
   try {
     var swdata = JSON.stringify(pkginfo, null, 2) + "\n"
   } catch (er) {

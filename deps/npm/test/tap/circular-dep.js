@@ -4,9 +4,12 @@ var test = require("tap").test
   , existsSync = fs.existsSync || path.existsSync
   , npm = require("../../")
   , rimraf = require("rimraf")
+  , osenv = require("osenv")
   , mr = require("npm-registry-mock")
   , common = require("../common-tap.js")
   , server
+
+var pkg = path.resolve(__dirname, "circular-dep")
 
 test("installing a package that depends on the current package", function (t) {
   t.plan(1)
@@ -16,8 +19,8 @@ test("installing a package that depends on the current package", function (t) {
       if (err) return t.fail(err)
       npm.dedupe(function(err) {
         if (err) return t.fail(err)
-        t.ok(existsSync(path.join(__dirname,
-          "circular-dep", "minimist", "node_modules", "optimist",
+        t.ok(existsSync(path.resolve(pkg,
+          "minimist", "node_modules", "optimist",
           "node_modules", "minimist"
         )))
         cleanup()
@@ -28,22 +31,22 @@ test("installing a package that depends on the current package", function (t) {
 })
 
 function setup (cb) {
-  process.chdir(path.join(__dirname, "circular-dep", "minimist"))
   cleanup()
-  fs.mkdirSync(path.join(__dirname,
-    "circular-dep", "minimist", "node_modules"))
+  process.chdir(path.resolve(pkg, "minimist"))
+
+  fs.mkdirSync(path.resolve(pkg, "minimist/node_modules"))
   mr(common.port, function (s) {
     server = s
     npm.load({
+      loglevel: "silent",
       registry: common.registry,
-      cache: path.resolve(__dirname, "circular-dep", "cache")
+      cache: path.resolve(pkg, "cache")
     }, cb)
   })
 }
 
 function cleanup() {
-  rimraf.sync(path.join(__dirname,
-    "circular-dep", "minimist", "node_modules"))
-  rimraf.sync(path.join(__dirname,
-    "circular-dep", "cache"))
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(path.resolve(pkg, "minimist/node_modules"))
+  rimraf.sync(path.resolve(pkg, "cache"))
 }

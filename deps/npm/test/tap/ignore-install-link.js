@@ -68,7 +68,6 @@ function clone (cb) {
     if (c !== 0)
       return cb(new Error('Failed to init the git repository'))
 
-    console.log('Successfully inited the git repository')
     process.chdir(linkDir)
     performLink(cb)
   })
@@ -80,7 +79,6 @@ function performLink (cb) {
     if (c !== 0)
       return cb(new Error('Failed to link ' + linkDir + ' globally'))
 
-    console.log('Successfully linked ' + linkDir + ' globally')
     performLink2(cb)
   })
 }
@@ -91,7 +89,6 @@ function performLink2 (cb) {
     if (c !== 0)
       return cb(new Error('Failed to link ' + linkDir + ' to local node_modules'))
 
-    console.log('Successfully linked ' + linkDir + ' to local node_modules')
     performInstall(cb)
   })
 }
@@ -102,7 +99,6 @@ function performInstall (cb) {
     if (c !== 0)
       return cb(new Error('Failed to install'))
 
-    console.log('Successfully installed')
     cb()
   })
 }
@@ -111,7 +107,8 @@ function createChild (cwd, cmd, args) {
   var env = {
     HOME: process.env.HOME,
     Path: process.env.PATH,
-    PATH: process.env.PATH
+    PATH: process.env.PATH,
+    npm_config_loglevel: "silent"
   }
 
   if (process.platform === "win32")
@@ -119,7 +116,7 @@ function createChild (cwd, cmd, args) {
 
   return spawn(cmd, args, {
     cwd: cwd,
-    stdio: "inherit",
+    stdio: "pipe",
     env: env
   })
 }

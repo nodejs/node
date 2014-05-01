@@ -4,7 +4,7 @@ npm(3) -- node package manager
 ## SYNOPSIS
 
     var npm = require("npm")
-    npm.load([configObject], function (er, npm) {
+    npm.load([configObject, ]function (er, npm) {
       // use the npm object, now that it's loaded.
 
       npm.config.set(key, val)

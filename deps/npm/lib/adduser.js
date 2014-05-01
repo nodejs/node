@@ -66,13 +66,22 @@ function readUsername (c, u, cb) {
 function readPassword (c, u, cb) {
   var v = userValidate.pw
 
-  if (!c.changed) {
-    u.p = c.p
-    return cb()
+  var prompt
+  if (c.p && !c.changed) {
+    prompt = "Password: (or leave unchanged) "
+  } else {
+    prompt = "Password: "
   }
-  read({prompt: "Password: ", silent: true}, function (er, pw) {
+
+  read({prompt: prompt, silent: true}, function (er, pw) {
     if (er) {
       return cb(er.message === "cancelled" ? er.message : er)
+    }
+
+    if (!c.changed && pw === "") {
+      // when the username was not changed,
+      // empty response means "use the old value"
+      pw = c.p
     }
 
     if (!pw) {
@@ -85,6 +94,7 @@ function readPassword (c, u, cb) {
       return readPassword(c, u, cb)
     }
 
+    c.changed = c.changed || c.p != pw
     u.p = pw
     cb(er)
   })

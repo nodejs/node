@@ -1,6 +1,6 @@
 npm(1) -- node package manager
 ==============================
-
+[![Build Status](https://img.shields.io/travis/npm/npm/master.svg)](https://travis-ci.org/npm/npm)
 ## SYNOPSIS
 
 This is just enough info to get you up and running.
@@ -37,6 +37,10 @@ paths, etc.) then read on.
 
 There's a pretty robust install script at
 <https://www.npmjs.org/install.sh>.  You can download that and run it.
+
+Here's an example using curl:
+
+    curl -L https://npmjs.org/install.sh | sh
 
 ### Slightly Fancier
 

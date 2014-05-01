@@ -77,7 +77,7 @@ npm will not help you do something that is known to be a bad idea.
 
 Mikeal Rogers answered this question very well:
 
-<http://www.mikealrogers.com/posts/nodemodules-in-git.html>
+<http://www.futurealoof.com/posts/nodemodules-in-git.html>
 
 tl;dr
 

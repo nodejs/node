@@ -1,77 +1,46 @@
 var common = require('../common-tap.js')
 var fs = require("fs")
+var path = require("path")
 var test = require("tap").test
 var rimraf = require("rimraf")
 var npm = require("../../")
-var http = require("http")
+var mr = require("npm-registry-mock")
+var pkg = __dirname + "/peer-deps-invalid"
 
-var okFile = new Buffer(
-'/**package\n' + 
-' * { "name": "npm-test-peer-deps-file"\n' + 
-' * , "main": "index.js"\n' + 
-' * , "version": "1.2.3"\n' + 
-' * , "description":"No package.json in sight!"\n' + 
-' * , "peerDependencies": { "dict": "1.1.0" }\n' + 
-' * , "dependencies": { "opener": "1.3.0" }\n' + 
-' * }\n' + 
-' **/\n' + 
-'\n' + 
-'module.exports = "I\'m just a lonely index, naked as the day I was born."\n'
-)
+var okFile = fs.readFileSync(path.join(pkg, "file-ok.js"), "utf8")
+var failFile = fs.readFileSync(path.join(pkg, "file-fail.js"), "utf8")
 
-var failFile = new Buffer(
-'/**package\n' +
-' * { "name": "npm-test-peer-deps-file-invalid"\n' +
-' * , "main": "index.js"\n' +
-' * , "version": "1.2.3"\n' +
-' * , "description":"This one should conflict with the other one"\n' +
-' * , "peerDependencies": { "dict": "1.0.0" }\n' +
-' * }\n' +
-' **/\n' +
-'\n' +
-'module.exports = "I\'m just a lonely index, naked as the day I was born."\n'
-)
+test("installing dependencies that have conflicting peerDependencies", function (t) {
+  rimraf.sync(pkg + "/node_modules")
+  rimraf.sync(pkg + "/cache")
+  process.chdir(pkg)
 
-var server
-test("setup", function(t) {
-  server = http.createServer(function (req, res) {
-    res.setHeader('content-type', 'application/javascript')
-    switch (req.url) {
-      case "/ok.js":
-        return res.end(okFile)
-      default:
-        return res.end(failFile)
+  var customMocks = {
+    "get": {
+      "/ok.js": [200, okFile],
+      "/invalid.js": [200, failFile]
     }
-  })
-  server.listen(common.port, function() {
-    t.pass("listening")
-    t.end()
-  })
-})
-
-
-
-test("installing dependencies that having conflicting peerDependencies", function (t) {
-  rimraf.sync(__dirname + "/peer-deps-invalid/node_modules")
-  process.chdir(__dirname + "/peer-deps-invalid")
-
-  npm.load(function () {
-    console.error('back from load')
-    npm.commands.install([], function (err) {
-      console.error('back from install')
-      if (!err) {
-        t.fail("No error!")
-      } else {
-        t.equal(err.code, "EPEERINVALID")
-      }
-      t.end()
+  }
+  mr({port: common.port, mocks: customMocks}, function (s) { // create mock registry.
+    npm.load({
+      cache: pkg + "/cache",
+      registry: common.registry
+    }, function () {
+      npm.commands.install([], function (err) {
+        if (!err) {
+          t.fail("No error!")
+        } else {
+          t.equal(err.code, "EPEERINVALID")
+        }
+        t.end()
+        s.close() // shutdown mock registry.
+      })
     })
   })
 })
 
-test("shutdown", function(t) {
-  server.close(function() {
-    t.pass("closed")
-    t.end()
-  })
+test("cleanup", function (t) {
+  rimraf.sync(pkg + "/node_modules")
+  rimraf.sync(pkg + "/cache")
+  t.end()
 })

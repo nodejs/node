@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-RUN\-SCRIPT" "1" "March 2014" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "May 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-run-script\fR \-\- Run arbitrary package scripts
@@ -9,12 +9,14 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm run\-script <script> <name>
+npm run\-script [<pkg>] <command>
 .
 .fi
 .
 .SH "DESCRIPTION"
-This runs an arbitrary command from a package\'s "scripts" object\.
+This runs an arbitrary command from a package\'s \fB"scripts"\fR object\.
+If no package name is provided, it will search for a \fBpackage\.json\fR
+in the current folder and use its \fB"scripts"\fR object\.
 .
 .P
 It is used by the test, start, restart, and stop commands, but can be

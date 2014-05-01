@@ -126,6 +126,11 @@ function validateString (data, k, val) {
 
 function validatePath (data, k, val) {
   if (val === true) return false
+  val = String(val)
+  var homePattern = process.platform === 'win32' ? /^~(\/|\\)/ : /^~\//
+  if (val.match(homePattern) && process.env.HOME) {
+    val = path.resolve(process.env.HOME, val.substr(2))
+  }
   data[k] = path.resolve(String(val))
   return true
 }

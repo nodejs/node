@@ -9,41 +9,19 @@ var common = require('../common-tap')
   , tmp = pkg + '/tmp'
   , node = process.execPath
   , npm = path.resolve(__dirname, '../../cli.js')
+  , opts = { cwd: pkg }
 
-function run (command, t, parse) {
-  var c = ''
-    , e = ''
-    , node = process.execPath
-    , child = spawn(node, [npm, command], {
-      cwd: pkg
-    })
+function testOutput (t, command, er, code, stdout, stderr) {
+  if (er)
+    throw er
 
-    child.stderr.on('data', function (chunk) {
-      e += chunk
-    })
+  if (stderr)
+    throw new Error('npm ' + command + ' stderr: ' + stderr.toString())
 
-    child.stdout.on('data', function (chunk) {
-      c += chunk
-    })
-
-    child.stdout.on('end', function () {
-      if (e) {
-        throw new Error('npm ' + command + ' stderr: ' + e.toString())
-      }
-      if (parse) {
-        // custom parsing function
-        c = parse(c)
-        t.equal(c.actual, c.expected)
-        t.end()
-        return
-      }
-
-      c = c.trim().split('\n')
-      c = c[c.length - 1]
-      t.equal(c, command)
-      t.end()
-    })
-
+  stdout = stdout.trim().split('\n')
+  stdout = stdout[stdout.length - 1]
+  t.equal(stdout, command)
+  t.end()
 }
 
 function cleanup () {
@@ -56,23 +34,27 @@ test('setup', function (t) {
   mkdirp.sync(pkg + '/cache')
   mkdirp.sync(pkg + '/tmp')
   t.end()
-
 })
 
 test('npm start', function (t) {
-  run('start', t)
+  common.npm(['start'], opts, testOutput.bind(null, t, "start"))
 })
 
 test('npm stop', function (t) {
-  run('stop', t)
+  common.npm(['stop'], opts, testOutput.bind(null, t, "stop"))
 })
 
 test('npm restart', function (t) {
-  run ('restart', t, function (output) {
-    output = output.split('\n').filter(function (val) {
+  common.npm(['restart'], opts, function (er, c, stdout, stderr) {
+    if (er)
+      throw er
+
+    var output = stdout.split('\n').filter(function (val) {
       return val.match(/^s/)
     })
-    return {actual: output, expected: output}
+
+    t.same(output.sort(), ['start', 'stop'].sort())
+    t.end()
   })
 })
 
