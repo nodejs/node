@@ -452,6 +452,7 @@ int uv_get_process_title(char* buffer, size_t size) {
    * we must query it with getConsoleTitleW
    */
   if (!process_title && uv__get_process_title() == -1) {
+    LeaveCriticalSection(&process_title_lock);
     return uv_translate_sys_error(GetLastError());
   }
 

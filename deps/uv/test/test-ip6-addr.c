@@ -97,3 +97,45 @@ TEST_IMPL(ip6_addr_link_local) {
   RETURN_SKIP("Qualified link-local addresses are not supported.");
 #endif
 }
+
+
+#define GOOD_ADDR_LIST(X)                                                     \
+    X("::")                                                                   \
+    X("::1")                                                                  \
+    X("fe80::1")                                                              \
+    X("fe80::")                                                               \
+    X("fe80::2acf:daff:fedd:342a")                                            \
+    X("fe80:0:0:0:2acf:daff:fedd:342a")                                       \
+    X("fe80:0:0:0:2acf:daff:1.2.3.4")                                         \
+
+#define BAD_ADDR_LIST(X)                                                      \
+    X(":::1")                                                                 \
+    X("abcde::1")                                                             \
+    X("fe80:0:0:0:2acf:daff:fedd:342a:5678")                                  \
+    X("fe80:0:0:0:2acf:daff:abcd:1.2.3.4")                                    \
+    X("fe80:0:0:2acf:daff:1.2.3.4.5")                                         \
+
+#define TEST_GOOD(ADDR)                                                       \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR, &addr));                         \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%en1", &addr));                  \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%%%%", &addr));                  \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%en1:1.2.3.4", &addr));          \
+
+#define TEST_BAD(ADDR)                                                        \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR, &addr));                         \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%en1", &addr));                  \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%%%%", &addr));                  \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%en1:1.2.3.4", &addr));          \
+
+TEST_IMPL(ip6_pton) {
+  struct in6_addr addr;
+
+  GOOD_ADDR_LIST(TEST_GOOD)
+  BAD_ADDR_LIST(TEST_BAD)
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#undef GOOD_ADDR_LIST
+#undef BAD_ADDR_LIST

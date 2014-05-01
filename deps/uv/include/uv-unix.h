@@ -218,8 +218,8 @@ typedef struct {
   uv_buf_t bufsml[4];                                                         \
 
 #define UV_HANDLE_PRIVATE_FIELDS                                              \
-  int flags;                                                                  \
   uv_handle_t* next_closing;                                                  \
+  unsigned int flags;                                                         \
 
 #define UV_STREAM_PRIVATE_FIELDS                                              \
   uv_connect_t *connect_req;                                                  \

@@ -378,7 +378,7 @@ static WCHAR* search_path(const WCHAR *file,
       }
 
       /* Skip the separator that dir_end now points to */
-      if (dir_end != path) {
+      if (dir_end != path || *path == L';') {
         dir_end++;
       }
 
