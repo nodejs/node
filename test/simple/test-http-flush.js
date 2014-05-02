@@ -26,11 +26,11 @@ var http = require('http');
 http.createServer(function(req, res) {
   res.end('ok');
   this.close();
-}).listen(function() {
+}).listen(common.PORT, '127.0.0.1', function() {
   var req = http.request({
     method: 'POST',
-    host: this.address().address,
-    port: this.address().port,
+    host: '127.0.0.1',
+    port: common.PORT,
   });
   req.flush();  // Flush the request headers.
   req.flush();  // Should be idempotent.
