@@ -8,11 +8,16 @@ var url = require("url")
   , Stream = require("stream").Stream
   , request = require("request")
   , retry = require("retry")
+  , crypto = require("crypto")
 
 function regRequest (method, where, what, etag, nofollow, cb_) {
   if (typeof cb_ !== "function") cb_ = nofollow, nofollow = false
   if (typeof cb_ !== "function") cb_ = etag, etag = null
   if (typeof cb_ !== "function") cb_ = what, what = null
+
+  if (!this.sessionToken) {
+    this.sessionToken = crypto.randomBytes(8).toString("hex")
+  }
 
   var registry = this.conf.get('registry')
   if (!registry) return cb(new Error(
@@ -141,6 +146,12 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb_) {
   if (etag) {
     this.log.verbose("etag", etag)
     headers[method === "GET" ? "if-none-match" : "if-match"] = etag
+  }
+
+  headers['npm-session'] = this.sessionToken
+
+  if (this.refer) {
+    headers.referer = this.refer
   }
 
   headers.accept = "application/json"
