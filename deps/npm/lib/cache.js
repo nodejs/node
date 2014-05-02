@@ -711,7 +711,7 @@ function addNameTag (name, tag, data, cb_) {
 
   registry.get(name, function (er, data, json, response) {
     if (!er) {
-      er = errorResponse(name, resp)
+      er = errorResponse(name, response)
     }
     if (er) return cb(er)
     engineFilter(data)
