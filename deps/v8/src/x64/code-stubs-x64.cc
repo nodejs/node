@@ -5580,7 +5580,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     __ subq(rdx, rax);
     __ j(no_overflow, &done, Label::kNear);
     // Correct sign of result in case of overflow.
-    __ SmiNot(rdx, rdx);
+    __ not_(rdx);
     __ bind(&done);
     __ movq(rax, rdx);
   }
