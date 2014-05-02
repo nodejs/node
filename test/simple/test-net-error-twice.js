@@ -23,7 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var buf = new Buffer(2 * 1024 * 1024);
+var buf = new Buffer(10 * 1024 * 1024);
 
 buf.fill(0x62);
 
