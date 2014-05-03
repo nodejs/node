@@ -1048,10 +1048,10 @@ assert.equal(c.compare(d), 1);
 assert.equal(d.compare(b), 1);
 assert.equal(b.compare(d), -1);
 
-assert.equal(Buffer.compare(b, c), 1);
-assert.equal(Buffer.compare(c, d), -1);
-assert.equal(Buffer.compare(d, b), -1);
-assert.equal(Buffer.compare(b, d), 1);
+assert.equal(Buffer.compare(b, c), -1);
+assert.equal(Buffer.compare(c, d), 1);
+assert.equal(Buffer.compare(d, b), 1);
+assert.equal(Buffer.compare(b, d), -1);
 
 assert.throws(function() {
   var b = new Buffer(1);
