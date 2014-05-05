@@ -823,6 +823,40 @@ var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
 var bad_dh = crypto.createDiffieHellman(p, 'hex');
 assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
 
+// Test RSA encryption/decryption
+(function() {
+  var input = 'I AM THE WALRUS';
+  var bufferToEncrypt = new Buffer(input);
+
+  var encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
+
+  var decryptedBuffer = crypto.privateDecrypt(rsaKeyPem, encryptedBuffer);
+  assert.equal(input, decryptedBuffer.toString());
+
+  var decryptedBufferWithPassword = crypto.privateDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: 'password'
+  }, encryptedBuffer);
+  assert.equal(input, decryptedBufferWithPassword.toString());
+
+  encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
+
+  decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
+  assert.equal(input, decryptedBuffer.toString());
+
+  encryptedBuffer = crypto.publicEncrypt(keyPem, bufferToEncrypt);
+
+  decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
+  assert.equal(input, decryptedBuffer.toString());
+
+  assert.throws(function() {
+    crypto.privateDecrypt({
+      key: rsaKeyPemEncrypted,
+      passphrase: 'wrong'
+    }, encryptedBuffer);
+  });
+})();
+
 // Test RSA key signing/verification
 var rsaSign = crypto.createSign('RSA-SHA1');
 var rsaVerify = crypto.createVerify('RSA-SHA1');

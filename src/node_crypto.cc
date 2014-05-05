@@ -65,6 +65,9 @@ static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
 static const char PUBRSA_KEY_PFX[] =  "-----BEGIN RSA PUBLIC KEY-----";
 static const int PUBRSA_KEY_PFX_LEN = sizeof(PUBRSA_KEY_PFX) - 1;
+static const char CERTIFICATE_PFX[] =  "-----BEGIN CERTIFICATE-----";
+static const int CERTIFICATE_PFX_LEN = sizeof(CERTIFICATE_PFX) - 1;
+
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | ASN1_STRFLGS_ESC_MSB
                                  | XN_FLAG_SEP_MULTILINE
@@ -3544,6 +3547,139 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <PublicKeyCipher::Operation operation,
+          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+bool PublicKeyCipher::Cipher(const char* key_pem,
+                             int key_pem_len,
+                             const char* passphrase,
+                             const unsigned char* data,
+                             int len,
+                             unsigned char** out,
+                             size_t* out_len) {
+  EVP_PKEY* pkey = NULL;
+  EVP_PKEY_CTX* ctx = NULL;
+  BIO* bp = NULL;
+  X509* x509 = NULL;
+  bool fatal = true;
+
+  bp = BIO_new(BIO_s_mem());
+  if (bp == NULL)
+    goto exit;
+
+  if (!BIO_write(bp, key_pem, key_pem_len))
+    goto exit;
+
+  // Check if this is a PKCS#8 or RSA public key before trying as X.509 and
+  // private key.
+  if (operation == kEncrypt &&
+      strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
+    pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
+    if (pkey == NULL)
+      goto exit;
+  } else if (operation == kEncrypt &&
+             strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+    if (rsa) {
+      pkey = EVP_PKEY_new();
+      if (pkey)
+        EVP_PKEY_set1_RSA(pkey, rsa);
+      RSA_free(rsa);
+    }
+    if (pkey == NULL)
+      goto exit;
+  } else if (operation == kEncrypt &&
+             strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
+    x509 = PEM_read_bio_X509(bp, NULL, CryptoPemCallback, NULL);
+    if (x509 == NULL)
+      goto exit;
+
+    pkey = X509_get_pubkey(x509);
+    if (pkey == NULL)
+      goto exit;
+  } else {
+    pkey = PEM_read_bio_PrivateKey(bp,
+                                   NULL,
+                                   CryptoPemCallback,
+                                   const_cast<char*>(passphrase));
+    if (pkey == NULL)
+      goto exit;
+  }
+
+  ctx = EVP_PKEY_CTX_new(pkey, NULL);
+  if (!ctx)
+    goto exit;
+  if (EVP_PKEY_cipher_init(ctx) <= 0)
+    goto exit;
+  if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0)
+    goto exit;
+  if (EVP_PKEY_cipher(ctx, NULL, out_len, data, len) <= 0)
+    goto exit;
+
+  *out = new unsigned char[*out_len];
+
+  if (EVP_PKEY_cipher(ctx, *out, out_len, data, len) <= 0)
+    goto exit;
+
+  fatal = false;
+
+ exit:
+  if (pkey != NULL)
+    EVP_PKEY_free(pkey);
+  if (bp != NULL)
+    BIO_free_all(bp);
+  if (ctx != NULL)
+    EVP_PKEY_CTX_free(ctx);
+
+  return !fatal;
+}
+
+
+template <PublicKeyCipher::Operation operation,
+          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ASSERT_IS_BUFFER(args[0]);
+  char* kbuf = Buffer::Data(args[0]);
+  ssize_t klen = Buffer::Length(args[0]);
+
+  ASSERT_IS_BUFFER(args[1]);
+  char* buf = Buffer::Data(args[1]);
+  ssize_t len = Buffer::Length(args[1]);
+
+  String::Utf8Value passphrase(args[2]);
+
+  unsigned char* out_value = NULL;
+  size_t out_len = -1;
+
+  bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
+      kbuf,
+      klen,
+      args.Length() >= 3 && !args[2]->IsNull() ? *passphrase : NULL,
+      reinterpret_cast<const unsigned char*>(buf),
+      len,
+      &out_value,
+      &out_len);
+
+  if (out_len <= 0 || !r) {
+    delete[] out_value;
+    out_value = NULL;
+    out_len = 0;
+    if (!r) {
+      return ThrowCryptoError(env,
+        ERR_get_error());
+    }
+  }
+
+  args.GetReturnValue().Set(
+      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len));
+  delete[] out_value;
+}
+
+
 void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
 
@@ -4730,6 +4866,16 @@ void InitCrypto(Handle<Object> target,
   NODE_SET_METHOD(target, "getSSLCiphers", GetSSLCiphers);
   NODE_SET_METHOD(target, "getCiphers", GetCiphers);
   NODE_SET_METHOD(target, "getHashes", GetHashes);
+  NODE_SET_METHOD(target,
+                  "publicEncrypt",
+                  PublicKeyCipher::Cipher<PublicKeyCipher::kEncrypt,
+                                          EVP_PKEY_encrypt_init,
+                                          EVP_PKEY_encrypt>);
+  NODE_SET_METHOD(target,
+                  "privateDecrypt",
+                  PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
+                                          EVP_PKEY_decrypt_init,
+                                          EVP_PKEY_decrypt>);
 }
 
 }  // namespace crypto

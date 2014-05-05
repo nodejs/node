@@ -593,6 +593,22 @@ Exports the encoded public key from the supplied SPKAC.
 
 Exports the encoded challenge associated with the SPKAC.
 
+## crypto.publicEncrypt(public_key, buffer)
+
+Encrypts `buffer` with `public_key`. Only RSA is currently supported.
+
+## crypto.privateDecrypt(private_key, buffer)
+
+Decrypts `buffer` with `private_key`.
+
+`private_key` can be an object or a string. If `private_key` is a string, it is
+treated as the key with no passphrase.
+
+`private_key`:
+
+* `key` : A string holding the PEM encoded private key
+* `passphrase` : A string of passphrase for the private key
+
 ## crypto.DEFAULT_ENCODING
 
 The default encoding to use for functions that can take either strings
