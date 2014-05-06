@@ -61,7 +61,18 @@ server.listen(common.PORT, function() {
   req.on('error', function(er) {
     assert(!gotError);
     gotError = true;
-    assert(er.code === 'ECONNRESET', 'Expected ECONNRESET, got ' + er.code + ' ' + er.syscall);
+    switch (er.code) {
+      // This is the expected case
+      case 'ECONNRESET':
+      // On windows this sometimes manifests as ECONNABORTED
+      case 'ECONNABORTED':
+        break;
+      default:
+        assert.strictEqual(er.code,
+          'ECONNRESET',
+          'Writing to a torn down client should RESET or ABORT');
+        break;
+    }
     clearTimeout(timer);
     console.log('ECONNRESET was raised after %d writes', writes);
     test();
