@@ -391,3 +391,15 @@ test('finish does not come before sync _write cb', function(t) {
   });
   w.end();
 });
+
+test('finish is emitted if last chunk is empty', function(t) {
+  var w = new W();
+  w._write = function(chunk, e, cb) {
+    process.nextTick(cb);
+  };
+  w.on('finish', function() {
+    t.end();
+  });
+  w.write(Buffer(1));
+  w.end(Buffer(0));
+});
