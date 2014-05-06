@@ -32,7 +32,7 @@ test('"npm install --save with default save-prefix should install local pkg vers
           var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
           t.deepEqual(pkgJson.dependencies, {
             'underscore': '^1.5.1'
-          }, 'Underscore dependency should specify ^1.3.1')
+          }, 'Underscore dependency should specify ^1.5.1')
           npm.config.set('save', undefined)
           s.close()
           t.end()

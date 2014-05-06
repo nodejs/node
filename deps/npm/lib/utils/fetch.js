@@ -12,6 +12,7 @@ var request = require("request")
   , chownr = require("chownr")
   , regHost
   , once = require("once")
+  , crypto = require("crypto")
 
 module.exports = fetch
 
@@ -78,12 +79,24 @@ function makeRequest (remote, fstr, headers) {
     proxy = npm.config.get("proxy")
   }
 
+  var sessionToken = npm.registry.sessionToken
+  if (!sessionToken) {
+    sessionToken = crypto.randomBytes(8).toString("hex")
+    npm.registry.sessionToken = sessionToken
+  }
+
+  var ca = remote.host === regHost ? npm.config.get("ca") : undefined
   var opts = { url: remote
              , proxy: proxy
              , strictSSL: npm.config.get("strict-ssl")
              , rejectUnauthorized: npm.config.get("strict-ssl")
-             , ca: remote.host === regHost ? npm.config.get("ca") : undefined
-             , headers: { "user-agent": npm.config.get("user-agent") }}
+             , ca: ca
+             , headers:
+               { "user-agent": npm.config.get("user-agent")
+               , "npm-session": sessionToken
+               , referer: npm.registry.refer
+               }
+             }
   var req = request(opts)
   req.on("error", function (er) {
     fstr.emit("error", er)
