@@ -35,6 +35,14 @@ FakeInput.prototype.pause = function() {};
 FakeInput.prototype.write = function() {};
 FakeInput.prototype.end = function() {};
 
+function isWarned(emitter) {
+  for (var name in emitter) {
+    var listeners = emitter[name];
+    if (listeners.warned) return true;
+  }
+  return false;
+}
+
 [ true, false ].forEach(function(terminal) {
   var fi;
   var rli;
@@ -262,4 +270,17 @@ FakeInput.prototype.end = function() {};
   assert.equal(readline.getStringWidth('> '), 2);
 
   assert.deepEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
+
+  // check EventEmitter memory leak
+  for (var i=0; i<12; i++) {
+    var rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.close();
+    assert.equal(isWarned(process.stdin._events), false);
+    assert.equal(isWarned(process.stdout._events), false);
+  }
+
 });
+
