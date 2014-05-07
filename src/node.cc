@@ -2930,6 +2930,8 @@ static void PrintHelp() {
          "  -i, --interactive    always enter the REPL even if stdin\n"
          "                       does not appear to be a terminal\n"
          "  --no-deprecation     silence deprecation warnings\n"
+         "  --throw-deprecation  throw an exception anytime a deprecated "
+         "function is used\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
