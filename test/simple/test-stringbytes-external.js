@@ -72,3 +72,63 @@ for (var i = 0; i < c_bin.length; i++) {
 assert.equal(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
 assert.equal(c_bin.toString('binary'), ucs2_control);
 assert.equal(c_ucs.toString('binary'), ucs2_control);
+
+
+
+// now let's test BASE64 and HEX ecoding/decoding
+var RADIOS = 2;
+var PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
+var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
+
+(function () {
+  for (var j = 0; j < RADIOS * 2; j += 1) {
+    var datum = b;
+    var slice = datum.slice(0, PRE_HALF_APEX + j);
+    var slice2 = datum.slice(0, PRE_HALF_APEX + j + 2);
+    var pumped_string = slice.toString('hex');
+    var pumped_string2 = slice2.toString('hex');
+    var decoded = new Buffer(pumped_string, 'hex');
+
+    var metadata = "\nEXTERN_APEX=1031913 - pumped_string.length="
+    metadata += pumped_string.length + '\n';
+
+    // the string are the same?
+    for (var k = 0; k < pumped_string.length; ++k) {
+      assert.equal(pumped_string[k], pumped_string2[k],
+                   metadata + 'chars should be the same at ' + k);
+    }
+
+    // the recoded buffer is the same?
+    for (var i = 0; i < decoded.length; ++i) {
+      assert.equal(datum[i], decoded[i],
+                   metadata + 'bytes should be the same at ' + i);
+    }
+  }
+})();
+
+(function () {
+  for (var j = 0; j < RADIOS * 2; j += 1) {
+    var datum = b;
+    var slice = datum.slice(0, PRE_3OF4_APEX + j);
+    var slice2 = datum.slice(0, PRE_3OF4_APEX + j + 2);
+    var pumped_string = slice.toString('base64');
+    var pumped_string2 = slice2.toString('base64');
+    var decoded = new Buffer(pumped_string, 'base64');
+
+    var metadata = "\nEXTERN_APEX=1031913 - data=" + slice.length
+    metadata += " pumped_string.length=" + pumped_string.length + '\n';
+
+    // the string are the same?
+    for (var k = 0; k < pumped_string.length - 3; ++k) {
+      assert.equal(pumped_string[k], pumped_string2[k],
+                   metadata + 'chars should be the same for two slices at '
+                   + k + ' ' + pumped_string[k] + ' ' + pumped_string2[k]);
+    }
+
+    // the recoded buffer is the same?
+    for (var i = 0; i < decoded.length; ++i) {
+      assert.equal(datum[i], decoded[i],
+                   metadata + 'bytes should be the same at ' + i);
+    }
+  }
+})();
