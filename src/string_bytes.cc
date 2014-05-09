@@ -300,6 +300,7 @@ size_t StringBytes::Write(Isolate* isolate,
   const char* data = NULL;
   size_t len = 0;
   bool is_extern = GetExternalParts(isolate, val, &data, &len);
+  size_t extlen = len;
 
   CHECK(val->IsString() == true);
   Local<String> str = val.As<String>();
@@ -342,7 +343,7 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case BASE64:
       if (is_extern) {
-        base64_decode(buf, buflen, data, len);
+        len = base64_decode(buf, buflen, data, extlen);
       } else {
         String::Value value(str);
         len = base64_decode(buf, buflen, *value, value.length());
@@ -354,7 +355,7 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case HEX:
       if (is_extern) {
-        hex_decode(buf, buflen, data, len);
+        len = hex_decode(buf, buflen, data, extlen);
       } else {
         String::Value value(str);
         len = hex_decode(buf, buflen, *value, value.length());
