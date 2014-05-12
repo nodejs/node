@@ -2781,14 +2781,6 @@ void SetupProcessObject(Environment* env,
   NODE_SET_METHOD(process, "_setupNextTick", SetupNextTick);
   NODE_SET_METHOD(process, "_setupDomainUse", SetupDomainUse);
 
-  // values use to cross communicate with processNextTick
-  Local<Object> tick_info_obj = Object::New(env->isolate());
-  tick_info_obj->SetIndexedPropertiesToExternalArrayData(
-      env->tick_info()->fields(),
-      kExternalUnsignedIntArray,
-      env->tick_info()->fields_count());
-  process->Set(env->tick_info_string(), tick_info_obj);
-
   // pre-set _events object for faster emit checks
   process->Set(env->events_string(), Object::New(env->isolate()));
 }
