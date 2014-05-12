@@ -68,17 +68,13 @@
   'd8-performance-now': [PASS, NO_VARIANTS],
 
   ##############################################################################
-  # These use a built-in that's only present in debug mode. They take
-  # too long to run in debug mode on ARM and MIPS.
-  'fuzz-natives-part*': [PASS, ['mode == release or arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel', SKIP]],
-
   'big-object-literal': [PASS, ['arch == arm or arch == android_arm or arch == android_arm64', SKIP]],
 
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips', TIMEOUT]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work
@@ -93,7 +89,11 @@
   # This test sets the umask on a per-process basis and hence cannot be
   # used in multi-threaded runs.
   # On android there is no /tmp directory.
-  'd8-os': [PASS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  # Currently d8-os generates a temporary directory name using Math.random(), so
+  # we cannot run several variants of d8-os simultaneously, since all of them
+  # get the same random seed and would generate the same directory name. Besides
+  # that, it doesn't make sense to run several variants of d8-os anyways.
+  'd8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
   'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
@@ -118,6 +118,11 @@
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32 or arch == arm and simulator == True', PASS]],
+
+  # Skip endain dependent test for mips due to different typed views of the same
+  # array buffer.
+  'nans': [PASS, ['arch == mips', SKIP]],
+
 }],  # ALWAYS
 
 ##############################################################################
@@ -288,7 +293,7 @@
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
-['arch == mipsel', {
+['arch == mipsel or arch == mips', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
@@ -324,7 +329,7 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
-}],  # 'arch == mipsel'
+}],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
 # Native Client uses the ARM simulator so will behave similarly to arm
@@ -341,11 +346,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-
-  # This test dumps core for arm.debug, so no reason to expect it to work
-  # for NaCl. The other three fuzz-natives tests seem to run fine.
-  # As noted above none of them are run in the arm.debug case.
-  'fuzz-natives-part4': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786
@@ -367,6 +367,10 @@
 
   # Lead to OOM:
   'string-oom-*': [SKIP],
+
+  # Crashes.
+  'harmony/private': [SKIP],
+  'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################

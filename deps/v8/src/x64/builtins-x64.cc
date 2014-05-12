@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -163,13 +140,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     if (FLAG_inline_new) {
       Label undo_allocation;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ Move(kScratchRegister, debug_step_in_fp);
       __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
       __ j(not_equal, &rt_call);
-#endif
 
       // Verified that the constructor is a JSFunction.
       // Load the initial map and verify that it is in fact a map.
@@ -214,7 +189,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Now allocate the JSObject on the heap.
       __ movzxbp(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
-      __ shl(rdi, Immediate(kPointerSizeLog2));
+      __ shlp(rdi, Immediate(kPointerSizeLog2));
       if (create_memento) {
         __ addp(rdi, Immediate(AllocationMemento::kSize));
       }
@@ -600,7 +575,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       // No type feedback cell is available
       __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
       // Expects rdi to hold function pointer.
-      CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
+      CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
       ParameterCount actual(rax);
@@ -749,7 +724,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
-  __ Pop(MemOperand(rsp, 0));  // Ignore state offset
+  __ DropUnderReturnAddress(1);  // Ignore state offset
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -926,12 +901,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&shift_arguments);
   { Label loop;
     __ movp(rcx, rax);
+    StackArgumentsAccessor args(rsp, rcx);
     __ bind(&loop);
-    __ movp(rbx, Operand(rsp, rcx, times_pointer_size, 0));
-    __ movp(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
+    __ movp(rbx, args.GetArgumentOperand(1));
+    __ movp(args.GetArgumentOperand(0), rbx);
     __ decp(rcx);
-    __ j(not_sign, &loop);  // While non-negative (to copy return address).
-    __ popq(rbx);  // Discard copy of return address.
+    __ j(not_zero, &loop);  // While non-zero.
+    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
     __ decp(rax);  // One fewer argument (first argument is new receiver).
   }
 
@@ -963,9 +939,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     expected arguments matches what we're providing.  If so, jump
   //     (tail-call) to the code in register edx without checking arguments.
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movsxlq(rbx,
-             FieldOperand(rdx,
-                          SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadSharedFunctionInfoSpecialField(rbx, rdx,
+      SharedFunctionInfo::kFormalParameterCountOffset);
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpp(rax, rbx);
   __ j(not_equal,
@@ -1018,7 +993,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(rax);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     __ bind(&okay);
     // End of stack check.
 
@@ -1323,6 +1298,32 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
+static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
+                                       Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- rax : actual number of arguments
+  //  -- rbx : expected number of arguments
+  //  -- rdi: function (passed through to callee)
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(rdx, Heap::kRealStackLimitRootIndex);
+  __ movp(rcx, rsp);
+  // Make rcx the space we have left. The stack might already be overflowed
+  // here which will cause rcx to become negative.
+  __ subp(rcx, rdx);
+  // Make rdx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ movp(rdx, rbx);
+  __ shlp(rdx, Immediate(kPointerSizeLog2));
+  // Check if the arguments will overflow the stack.
+  __ cmpp(rcx, rdx);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pushq(rbp);
   __ movp(rbp, rsp);
@@ -1367,6 +1368,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label invoke, dont_adapt_arguments;
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->arguments_adaptors(), 1);
+
+  Label stack_overflow;
+  ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
   Label enough, too_few;
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
@@ -1440,6 +1444,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ jmp(rdx);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ int3();
+  }
 }
 
 

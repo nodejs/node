@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "hydrogen-check-elimination.h"
 #include "hydrogen-alias-analysis.h"
@@ -44,7 +21,7 @@
 namespace v8 {
 namespace internal {
 
-typedef UniqueSet<Map>* MapSet;
+typedef const UniqueSet<Map>* MapSet;
 
 struct HCheckTableEntry {
   HValue* object_;  // The object being approximated. NULL => invalid entry.
@@ -57,7 +34,7 @@ struct HCheckTableEntry {
 // set of known maps for each object.
 class HCheckTable : public ZoneObject {
  public:
-  static const int kMaxTrackedObjects = 10;
+  static const int kMaxTrackedObjects = 16;
 
   explicit HCheckTable(HCheckEliminationPhase* phase)
     : phase_(phase),
@@ -70,10 +47,6 @@ class HCheckTable : public ZoneObject {
     switch (instr->opcode()) {
       case HValue::kCheckMaps: {
         ReduceCheckMaps(HCheckMaps::cast(instr));
-        break;
-      }
-      case HValue::kCheckValue: {
-        ReduceCheckValue(HCheckValue::cast(instr));
         break;
       }
       case HValue::kLoadNamedField: {
@@ -97,17 +70,14 @@ class HCheckTable : public ZoneObject {
             HTransitionElementsKind::cast(instr));
         break;
       }
-      case HValue::kCheckMapValue: {
-        ReduceCheckMapValue(HCheckMapValue::cast(instr));
-        break;
-      }
       case HValue::kCheckHeapObject: {
         ReduceCheckHeapObject(HCheckHeapObject::cast(instr));
         break;
       }
       default: {
         // If the instruction changes maps uncontrollably, drop everything.
-        if (instr->CheckChangesFlag(kMaps) ||
+        if (instr->CheckChangesFlag(kElementsKind) ||
+            instr->CheckChangesFlag(kMaps) ||
             instr->CheckChangesFlag(kOsrEntries)) {
           Kill();
         }
@@ -154,13 +124,13 @@ class HCheckTable : public ZoneObject {
  private:
   // Copy state to successor block.
   HCheckTable* Copy(HBasicBlock* succ, HBasicBlock* from_block, Zone* zone) {
-    HCheckTable* copy = new(phase_->zone()) HCheckTable(phase_);
+    HCheckTable* copy = new(zone) HCheckTable(phase_);
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* old_entry = &entries_[i];
       ASSERT(old_entry->maps_->size() > 0);
       HCheckTableEntry* new_entry = &copy->entries_[i];
       new_entry->object_ = old_entry->object_;
-      new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
+      new_entry->maps_ = old_entry->maps_;
       // Keep the check if the existing check's block dominates the successor.
       if (old_entry->check_ != NULL &&
           old_entry->check_->block()->Dominates(succ)) {
@@ -186,7 +156,7 @@ class HCheckTable : public ZoneObject {
         HCheckTableEntry* pred_entry = copy->Find(phi_operand);
         if (pred_entry != NULL) {
           // Create an entry for a phi in the table.
-          copy->Insert(phi, NULL, pred_entry->maps_->Copy(phase_->zone()));
+          copy->Insert(phi, NULL, pred_entry->maps_);
         }
       }
     }
@@ -206,15 +176,15 @@ class HCheckTable : public ZoneObject {
           if (entry == NULL) {
             copy->Insert(object, cmp, cmp->map());
           } else {
-            MapSet list = new(phase_->zone()) UniqueSet<Map>();
-            list->Add(cmp->map(), phase_->zone());
-            entry->maps_ = list;
+            entry->maps_ = new(zone) UniqueSet<Map>(cmp->map(), zone);
             entry->check_ = cmp;
           }
         } else {
           // Learn on the false branch of if(CompareMap(x)).
           if (entry != NULL) {
-            entry->maps_->Remove(cmp->map());
+            UniqueSet<Map>* maps = entry->maps_->Copy(zone);
+            maps->Remove(cmp->map());
+            entry->maps_ = maps;
           }
         }
         learned = true;
@@ -228,14 +198,12 @@ class HCheckTable : public ZoneObject {
         HCheckTableEntry* re = copy->Find(right);
         if (le == NULL) {
           if (re != NULL) {
-            copy->Insert(left, NULL, re->maps_->Copy(zone));
+            copy->Insert(left, NULL, re->maps_);
           }
         } else if (re == NULL) {
-          copy->Insert(right, NULL, le->maps_->Copy(zone));
+          copy->Insert(right, NULL, le->maps_);
         } else {
-          MapSet intersect = le->maps_->Intersect(re->maps_, zone);
-          le->maps_ = intersect;
-          re->maps_ = intersect->Copy(zone);
+          le->maps_ = re->maps_ = le->maps_->Intersect(re->maps_, zone);
         }
         learned = true;
       }
@@ -281,7 +249,7 @@ class HCheckTable : public ZoneObject {
           compact = true;
         } else {
           this_entry->maps_ =
-              this_entry->maps_->Union(that_entry->maps_, phase_->zone());
+              this_entry->maps_->Union(that_entry->maps_, zone);
           if (this_entry->check_ != that_entry->check_) {
             this_entry->check_ = NULL;
           }
@@ -305,7 +273,7 @@ class HCheckTable : public ZoneObject {
     if (entry != NULL) {
       // entry found;
       MapSet a = entry->maps_;
-      MapSet i = instr->map_set().Copy(phase_->zone());
+      const UniqueSet<Map>* i = instr->maps();
       if (a->IsSubset(i)) {
         // The first check is more strict; the second is redundant.
         if (entry->check_ != NULL) {
@@ -324,7 +292,8 @@ class HCheckTable : public ZoneObject {
         }
         return;
       }
-      MapSet intersection = i->Intersect(a, phase_->zone());
+      HGraph* graph = instr->block()->graph();
+      MapSet intersection = i->Intersect(a, graph->zone());
       if (intersection->size() == 0) {
         // Intersection is empty; probably megamorphic, which is likely to
         // deopt anyway, so just leave things as they are.
@@ -334,7 +303,6 @@ class HCheckTable : public ZoneObject {
         entry->maps_ = intersection;
         if (intersection->size() != i->size()) {
           // Narrow set of maps in the second check maps instruction.
-          HGraph* graph = instr->block()->graph();
           if (entry->check_ != NULL &&
               entry->check_->block() == instr->block() &&
               entry->check_->IsCheckMaps()) {
@@ -344,7 +312,7 @@ class HCheckTable : public ZoneObject {
             TRACE(("CheckMaps #%d at B%d narrowed\n", check->id(),
                 check->block()->block_id()));
             // Update map set and ensure that the check is alive.
-            check->set_map_set(intersection, graph->zone());
+            check->set_maps(intersection);
             check->ClearFlag(HValue::kIsDead);
             TRACE(("Replacing redundant CheckMaps #%d at B%d with #%d\n",
                 instr->id(), instr->block()->block_id(), entry->check_->id()));
@@ -352,7 +320,7 @@ class HCheckTable : public ZoneObject {
           } else {
             TRACE(("CheckMaps #%d at B%d narrowed\n", instr->id(),
                 instr->block()->block_id()));
-            instr->set_map_set(intersection, graph->zone());
+            instr->set_maps(intersection);
             entry->check_ = instr;
           }
 
@@ -364,25 +332,21 @@ class HCheckTable : public ZoneObject {
       }
     } else {
       // No entry; insert a new one.
-      Insert(object, instr, instr->map_set().Copy(phase_->zone()));
-    }
-  }
-
-  void ReduceCheckValue(HCheckValue* instr) {
-    // Canonicalize HCheckValues; they might have their values load-eliminated.
-    HValue* value = instr->Canonicalize();
-    if (value == NULL) {
-      instr->DeleteAndReplaceWith(instr->value());
-      INC_STAT(removed_);
-    } else if (value != instr) {
-      instr->DeleteAndReplaceWith(value);
-      INC_STAT(redundant_);
+      Insert(object, instr, instr->maps());
     }
   }
 
   void ReduceLoadNamedField(HLoadNamedField* instr) {
     // Reduce a load of the map field when it is known to be a constant.
-    if (!IsMapAccess(instr->access())) return;
+    if (!instr->access().IsMap()) {
+      // Check if we introduce field maps here.
+      MapSet maps = instr->maps();
+      if (maps != NULL) {
+        ASSERT_NE(0, maps->size());
+        Insert(instr, NULL, maps);
+      }
+      return;
+    }
 
     HValue* object = instr->object()->ActualValue();
     MapSet maps = FindMaps(object);
@@ -393,41 +357,6 @@ class HCheckTable : public ZoneObject {
         instr->block()->graph()->zone(), map, true, instr);
     instr->DeleteAndReplaceWith(constant);
     INC_STAT(loads_);
-  }
-
-  void ReduceCheckMapValue(HCheckMapValue* instr) {
-    if (!instr->map()->IsConstant()) return;  // Nothing to learn.
-
-    HValue* object = instr->value()->ActualValue();
-    // Match a HCheckMapValue(object, HConstant(map))
-    Unique<Map> map = MapConstant(instr->map());
-
-    HCheckTableEntry* entry = Find(object);
-    if (entry != NULL) {
-      MapSet maps = entry->maps_;
-      if (maps->Contains(map)) {
-        if (maps->size() == 1) {
-          // Object is known to have exactly this map.
-          if (entry->check_ != NULL) {
-            instr->DeleteAndReplaceWith(entry->check_);
-          } else {
-            // Mark check as dead but leave it in the graph as a checkpoint for
-            // subsequent checks.
-            instr->SetFlag(HValue::kIsDead);
-            entry->check_ = instr;
-          }
-          INC_STAT(removed_);
-        } else {
-          // Only one map survives the check.
-          maps->Clear();
-          maps->Add(map, phase_->zone());
-          entry->check_ = instr;
-        }
-      }
-    } else {
-      // No prior information.
-      Insert(object, instr, map);
-    }
   }
 
   void ReduceCheckHeapObject(HCheckHeapObject* instr) {
@@ -443,12 +372,12 @@ class HCheckTable : public ZoneObject {
     if (instr->has_transition()) {
       // This store transitions the object to a new map.
       Kill(object);
-      Insert(object, NULL, MapConstant(instr->transition()));
-    } else if (IsMapAccess(instr->access())) {
+      Insert(object, NULL, HConstant::cast(instr->transition())->MapValue());
+    } else if (instr->access().IsMap()) {
       // This is a store directly to the map field of the object.
       Kill(object);
       if (!instr->value()->IsConstant()) return;
-      Insert(object, NULL, MapConstant(instr->value()));
+      Insert(object, NULL, HConstant::cast(instr->value())->MapValue());
     } else {
       // If the instruction changes maps, it should be handled above.
       CHECK(!instr->CheckChangesFlag(kMaps));
@@ -488,7 +417,7 @@ class HCheckTable : public ZoneObject {
     if (maps_left == NULL) return;
     MapSet maps_right = FindMaps(instr->right()->ActualValue());
     if (maps_right == NULL) return;
-    MapSet intersection = maps_left->Intersect(maps_right, phase_->zone());
+    MapSet intersection = maps_left->Intersect(maps_right, zone());
     if (intersection->size() > 0) return;
 
     TRACE(("Marking redundant CompareObjectEqAndBranch #%d at B%d as false\n",
@@ -501,13 +430,15 @@ class HCheckTable : public ZoneObject {
   }
 
   void ReduceTransitionElementsKind(HTransitionElementsKind* instr) {
-    MapSet maps = FindMaps(instr->object()->ActualValue());
+    HCheckTableEntry* entry = Find(instr->object()->ActualValue());
     // Can only learn more about an object that already has a known set of maps.
-    if (maps == NULL) return;
-    if (maps->Contains(instr->original_map())) {
+    if (entry == NULL) return;
+    if (entry->maps_->Contains(instr->original_map())) {
       // If the object has the original map, it will be transitioned.
+      UniqueSet<Map>* maps = entry->maps_->Copy(zone());
       maps->Remove(instr->original_map());
-      maps->Add(instr->transitioned_map(), phase_->zone());
+      maps->Add(instr->transitioned_map(), zone());
+      entry->maps_ = maps;
     } else {
       // Object does not have the given map, thus the transition is redundant.
       instr->DeleteAndReplaceWith(instr->object());
@@ -608,9 +539,7 @@ class HCheckTable : public ZoneObject {
   }
 
   void Insert(HValue* object, HInstruction* check, Unique<Map> map) {
-    MapSet list = new(phase_->zone()) UniqueSet<Map>();
-    list->Add(map, phase_->zone());
-    Insert(object, check, list);
+    Insert(object, check, new(zone()) UniqueSet<Map>(map, zone()));
   }
 
   void Insert(HValue* object, HInstruction* check, MapSet maps) {
@@ -623,13 +552,7 @@ class HCheckTable : public ZoneObject {
     if (size_ < kMaxTrackedObjects) size_++;
   }
 
-  bool IsMapAccess(HObjectAccess access) {
-    return access.IsInobject() && access.offset() == JSObject::kMapOffset;
-  }
-
-  Unique<Map> MapConstant(HValue* value) {
-    return Unique<Map>::cast(HConstant::cast(value)->GetUnique());
-  }
+  Zone* zone() const { return phase_->zone(); }
 
   friend class HCheckMapsEffects;
   friend class HCheckEliminationPhase;
@@ -647,26 +570,28 @@ class HCheckTable : public ZoneObject {
 class HCheckMapsEffects : public ZoneObject {
  public:
   explicit HCheckMapsEffects(Zone* zone)
-    : maps_stored_(false),
-      stores_(5, zone) { }
+      : objects_(0, zone), maps_stored_(false) {}
 
-  inline bool Disabled() {
-    return false;  // Effects are _not_ disabled.
-  }
+  // Effects are _not_ disabled.
+  inline bool Disabled() const { return false; }
 
   // Process a possibly side-effecting instruction.
   void Process(HInstruction* instr, Zone* zone) {
     switch (instr->opcode()) {
       case HValue::kStoreNamedField: {
-        stores_.Add(HStoreNamedField::cast(instr), zone);
+        HStoreNamedField* store = HStoreNamedField::cast(instr);
+        if (store->access().IsMap() && store->has_transition()) {
+          objects_.Add(store->object(), zone);
+        }
         break;
       }
-      case HValue::kOsrEntry: {
-        // Kill everything. Loads must not be hoisted past the OSR entry.
-        maps_stored_ = true;
+      case HValue::kTransitionElementsKind: {
+        objects_.Add(HTransitionElementsKind::cast(instr)->object(), zone);
+        break;
       }
       default: {
         maps_stored_ |= (instr->CheckChangesFlag(kMaps) |
+                         instr->CheckChangesFlag(kOsrEntries) |
                          instr->CheckChangesFlag(kElementsKind));
       }
     }
@@ -680,26 +605,23 @@ class HCheckMapsEffects : public ZoneObject {
       return;
     }
 
-    // Kill maps for each store contained in these effects.
-    for (int i = 0; i < stores_.length(); i++) {
-      HStoreNamedField* s = stores_[i];
-      if (table->IsMapAccess(s->access()) || s->has_transition()) {
-        table->Kill(s->object()->ActualValue());
-      }
+    // Kill maps for each object contained in these effects.
+    for (int i = 0; i < objects_.length(); ++i) {
+      table->Kill(objects_[i]->ActualValue());
     }
   }
 
   // Union these effects with the other effects.
   void Union(HCheckMapsEffects* that, Zone* zone) {
     maps_stored_ |= that->maps_stored_;
-    for (int i = 0; i < that->stores_.length(); i++) {
-      stores_.Add(that->stores_[i], zone);
+    for (int i = 0; i < that->objects_.length(); ++i) {
+      objects_.Add(that->objects_[i], zone);
     }
   }
 
  private:
+  ZoneList<HValue*> objects_;
   bool maps_stored_ : 1;
-  ZoneList<HStoreNamedField*> stores_;
 };
 
 

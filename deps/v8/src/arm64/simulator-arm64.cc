@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <stdlib.h>
 #include <cmath>
@@ -80,11 +57,11 @@ TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
 
 
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
-void PRINTF_CHECKING TraceSim(const char* format, ...) {
+void Simulator::TraceSim(const char* format, ...) {
   if (FLAG_trace_sim) {
     va_list arguments;
     va_start(arguments, format);
-    OS::VPrint(format, arguments);
+    OS::VFPrint(stream_, format, arguments);
     va_end(arguments);
   }
 }
@@ -392,7 +369,7 @@ Simulator::Simulator()
       last_debugger_input_(NULL),
       log_parameters_(NO_PARAM),
       isolate_(NULL) {
-  Init(NULL);
+  Init(stdout);
   CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
 }
 
@@ -593,7 +570,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
 
     case ExternalReference::BUILTIN_CALL: {
-      // MaybeObject* f(v8::internal::Arguments).
+      // Object* f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
       SimulatorRuntimeCall target =
         reinterpret_cast<SimulatorRuntimeCall>(external);
@@ -1001,7 +978,8 @@ void Simulator::FPCompare(double val0, double val1) {
 void Simulator::SetBreakpoint(Instruction* location) {
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if (breakpoints_.at(i).location == location) {
-      PrintF("Existing breakpoint at %p was %s\n",
+      PrintF(stream_,
+             "Existing breakpoint at %p was %s\n",
              reinterpret_cast<void*>(location),
              breakpoints_.at(i).enabled ? "disabled" : "enabled");
       breakpoints_.at(i).enabled = !breakpoints_.at(i).enabled;
@@ -1010,14 +988,15 @@ void Simulator::SetBreakpoint(Instruction* location) {
   }
   Breakpoint new_breakpoint = {location, true};
   breakpoints_.push_back(new_breakpoint);
-  PrintF("Set a breakpoint at %p\n", reinterpret_cast<void*>(location));
+  PrintF(stream_,
+         "Set a breakpoint at %p\n", reinterpret_cast<void*>(location));
 }
 
 
 void Simulator::ListBreakpoints() {
-  PrintF("Breakpoints:\n");
+  PrintF(stream_, "Breakpoints:\n");
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
-    PrintF("%p  : %s\n",
+    PrintF(stream_, "%p  : %s\n",
            reinterpret_cast<void*>(breakpoints_.at(i).location),
            breakpoints_.at(i).enabled ? "enabled" : "disabled");
   }
@@ -1035,7 +1014,7 @@ void Simulator::CheckBreakpoints() {
     }
   }
   if (hit_a_breakpoint) {
-    PrintF("Hit and disabled a breakpoint at %p.\n",
+    PrintF(stream_, "Hit and disabled a breakpoint at %p.\n",
            reinterpret_cast<void*>(pc_));
     Debug();
   }
@@ -2000,7 +1979,8 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
   if (shift_op != NO_SHIFT) {
     // Shift distance encoded in the least-significant five/six bits of the
     // register.
-    int mask = (instr->SixtyFourBits() == 1) ? 0x3f : 0x1f;
+    int mask = (instr->SixtyFourBits() == 1) ? kShiftAmountXRegMask
+                                             : kShiftAmountWRegMask;
     unsigned shift = wreg(instr->Rm()) & mask;
     result = ShiftOperand(reg_size, reg(reg_size, instr->Rn()), shift_op,
                           shift);
@@ -2108,8 +2088,9 @@ void Simulator::VisitBitfield(Instruction* instr) {
   // Rotate source bitfield into place.
   int64_t result = (static_cast<uint64_t>(src) >> R) | (src << (reg_size - R));
   // Determine the sign extension.
-  int64_t topbits = ((1L << (reg_size - diff - 1)) - 1) << (diff + 1);
-  int64_t signbits = extend && ((src >> S) & 1) ? topbits : 0;
+  int64_t topbits_preshift = (1L << (reg_size - diff - 1)) - 1;
+  int64_t signbits = (extend && ((src >> S) & 1) ? topbits_preshift : 0)
+                     << (diff + 1);
 
   // Merge sign extension, dest/zero and bitfield.
   result = signbits | (result & mask) | (dst & ~mask);
@@ -2389,6 +2370,10 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
     case FSQRT_d: set_dreg(fd, FPSqrt(dreg(fn))); break;
     case FRINTA_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieAway)); break;
     case FRINTA_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieAway)); break;
+    case FRINTM_s:
+        set_sreg(fd, FPRoundInt(sreg(fn), FPNegativeInfinity)); break;
+    case FRINTM_d:
+        set_dreg(fd, FPRoundInt(dreg(fn), FPNegativeInfinity)); break;
     case FRINTN_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieEven)); break;
     case FRINTN_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieEven)); break;
     case FRINTZ_s: set_sreg(fd, FPRoundInt(sreg(fn), FPZero)); break;
@@ -2655,17 +2640,27 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
   double error = value - int_result;
   switch (round_mode) {
     case FPTieAway: {
-      // If the error is greater than 0.5, or is equal to 0.5 and the integer
-      // result is positive, round up.
-      if ((error > 0.5) || ((error == 0.5) && (int_result >= 0.0))) {
+      // Take care of correctly handling the range ]-0.5, -0.0], which must
+      // yield -0.0.
+      if ((-0.5 < value) && (value < 0.0)) {
+        int_result = -0.0;
+
+      } else if ((error > 0.5) || ((error == 0.5) && (int_result >= 0.0))) {
+        // If the error is greater than 0.5, or is equal to 0.5 and the integer
+        // result is positive, round up.
         int_result++;
       }
       break;
     }
     case FPTieEven: {
+      // Take care of correctly handling the range [-0.5, -0.0], which must
+      // yield -0.0.
+      if ((-0.5 <= value) && (value < 0.0)) {
+        int_result = -0.0;
+
       // If the error is greater than 0.5, or is equal to 0.5 and the integer
       // result is odd, round up.
-      if ((error > 0.5) ||
+      } else if ((error > 0.5) ||
           ((error == 0.5) && (fmod(int_result, 2) != 0))) {
         int_result++;
       }
@@ -3166,12 +3161,12 @@ bool Simulator::GetValue(const char* desc, int64_t* value) {
 bool Simulator::PrintValue(const char* desc) {
   if (strcmp(desc, "csp") == 0) {
     ASSERT(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF("%s csp:%s 0x%016" PRIx64 "%s\n",
+    PrintF(stream_, "%s csp:%s 0x%016" PRIx64 "%s\n",
         clr_reg_name, clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   } else if (strcmp(desc, "wcsp") == 0) {
     ASSERT(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF("%s wcsp:%s 0x%08" PRIx32 "%s\n",
+    PrintF(stream_, "%s wcsp:%s 0x%08" PRIx32 "%s\n",
         clr_reg_name, clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   }
@@ -3181,7 +3176,7 @@ bool Simulator::PrintValue(const char* desc) {
   if (i < 0 || static_cast<unsigned>(i) >= kNumberOfFPRegisters) return false;
 
   if (desc[0] == 'v') {
-    PrintF("%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
+    PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
         clr_fpreg_name, VRegNameForCode(i),
         clr_fpreg_value, double_to_rawbits(dreg(i)),
         clr_normal,
@@ -3192,25 +3187,25 @@ bool Simulator::PrintValue(const char* desc) {
         clr_normal);
     return true;
   } else if (desc[0] == 'd') {
-    PrintF("%s %s:%s %g%s\n",
+    PrintF(stream_, "%s %s:%s %g%s\n",
         clr_fpreg_name, DRegNameForCode(i),
         clr_fpreg_value, dreg(i),
         clr_normal);
     return true;
   } else if (desc[0] == 's') {
-    PrintF("%s %s:%s %g%s\n",
+    PrintF(stream_, "%s %s:%s %g%s\n",
         clr_fpreg_name, SRegNameForCode(i),
         clr_fpreg_value, sreg(i),
         clr_normal);
     return true;
   } else if (desc[0] == 'w') {
-    PrintF("%s %s:%s 0x%08" PRIx32 "%s\n",
+    PrintF(stream_, "%s %s:%s 0x%08" PRIx32 "%s\n",
         clr_reg_name, WRegNameForCode(i), clr_reg_value, wreg(i), clr_normal);
     return true;
   } else {
     // X register names have a wide variety of starting characters, but anything
     // else will be an X register.
-    PrintF("%s %s:%s 0x%016" PRIx64 "%s\n",
+    PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s\n",
         clr_reg_name, XRegNameForCode(i), clr_reg_value, xreg(i), clr_normal);
     return true;
   }
@@ -3529,14 +3524,16 @@ void Simulator::VisitException(Instruction* instr) {
         // terms of speed.
         if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
           if (message != NULL) {
-            PrintF("%sDebugger hit %d: %s%s%s\n",
+            PrintF(stream_,
+                   "%sDebugger hit %d: %s%s%s\n",
                    clr_debug_number,
                    code,
                    clr_debug_message,
                    message,
                    clr_normal);
           } else {
-            PrintF("%sDebugger hit %d.%s\n",
+            PrintF(stream_,
+                   "%sDebugger hit %d.%s\n",
                    clr_debug_number,
                    code,
                    clr_normal);

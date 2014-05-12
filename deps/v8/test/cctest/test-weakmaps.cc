@@ -43,14 +43,12 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   Handle<Map> map = factory->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
   Handle<JSObject> weakmap_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
   // Do not use handles for the hash table, it would make entries strong.
-  Object* table_obj = ObjectHashTable::Allocate(heap, 1)->ToObjectChecked();
-  ObjectHashTable* table = ObjectHashTable::cast(table_obj);
-  weakmap->set_table(table);
+  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+  weakmap->set_table(*table);
   weakmap->set_next(Smi::FromInt(0));
   return weakmap;
 }
@@ -180,14 +178,15 @@ TEST(Shrinking) {
 // Test that weak map values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST(Regress2060a) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      factory->NewFunction(factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+      factory->function_string(), factory->null_value());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
@@ -215,6 +214,7 @@ TEST(Regress2060a) {
 // Test that weak map keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST(Regress2060b) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
@@ -225,8 +225,8 @@ TEST(Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      factory->NewFunction(factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+      factory->function_string(), factory->null_value());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();

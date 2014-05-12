@@ -399,6 +399,30 @@ function assertAsyncDone(iteration) {
 (function() {
   var deferred = Promise.defer()
   var p1 = deferred.promise
+  var p2 = p1.then(1, 2)
+  p2.then(
+    function(x) { assertAsync(x === 5, "then/resolve-non-function") },
+    assertUnreachable
+  )
+  deferred.resolve(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var p1 = deferred.promise
+  var p2 = p1.then(1, 2)
+  p2.then(
+    assertUnreachable,
+    function(x) { assertAsync(x === 5, "then/reject-non-function") }
+  )
+  deferred.reject(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var p1 = deferred.promise
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var p3 = Promise.accept(p2)
   p3.chain(

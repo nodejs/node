@@ -1516,7 +1516,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ Move(rcx, Smi::FromInt(x));
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
     ASSERT(index.reg.is(rcx) || index.reg.is(rdx));
-    __ shl(index.reg, Immediate(index.scale));
+    __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
@@ -1524,7 +1524,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToIndex(rcx, rcx, i);
     ASSERT(index.reg.is(rcx));
-    __ shl(rcx, Immediate(index.scale));
+    __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);
     __ j(not_equal, exit);
@@ -1533,7 +1533,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToNegativeIndex(rdx, rcx, i);
     ASSERT(index.reg.is(rcx) || index.reg.is(rdx));
-    __ shl(index.reg, Immediate(index.scale));
+    __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
     __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
@@ -1541,7 +1541,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToNegativeIndex(rcx, rcx, i);
     ASSERT(index.reg.is(rcx));
-    __ shl(rcx, Immediate(index.scale));
+    __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
     __ cmpq(rcx, r8);
     __ j(not_equal, exit);

@@ -148,8 +148,7 @@ TEST(CodeEvents) {
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = factory->NewStringFromAscii(
-      i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
+  i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
   profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code, *aaa_name);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
@@ -355,33 +354,33 @@ TEST(DeleteCpuProfile) {
 
   CHECK_EQ(0, iprofiler->GetProfilesCount());
   v8::Local<v8::String> name1 = v8::String::NewFromUtf8(env->GetIsolate(), "1");
-  cpu_profiler->StartCpuProfiling(name1);
-  const v8::CpuProfile* p1 = cpu_profiler->StopCpuProfiling(name1);
+  cpu_profiler->StartProfiling(name1);
+  v8::CpuProfile* p1 = cpu_profiler->StopProfiling(name1);
   CHECK_NE(NULL, p1);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   CHECK(FindCpuProfile(cpu_profiler, p1));
-  const_cast<v8::CpuProfile*>(p1)->Delete();
+  p1->Delete();
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 
   v8::Local<v8::String> name2 = v8::String::NewFromUtf8(env->GetIsolate(), "2");
-  cpu_profiler->StartCpuProfiling(name2);
-  const v8::CpuProfile* p2 = cpu_profiler->StopCpuProfiling(name2);
+  cpu_profiler->StartProfiling(name2);
+  v8::CpuProfile* p2 = cpu_profiler->StopProfiling(name2);
   CHECK_NE(NULL, p2);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   CHECK(FindCpuProfile(cpu_profiler, p2));
   v8::Local<v8::String> name3 = v8::String::NewFromUtf8(env->GetIsolate(), "3");
-  cpu_profiler->StartCpuProfiling(name3);
-  const v8::CpuProfile* p3 = cpu_profiler->StopCpuProfiling(name3);
+  cpu_profiler->StartProfiling(name3);
+  v8::CpuProfile* p3 = cpu_profiler->StopProfiling(name3);
   CHECK_NE(NULL, p3);
   CHECK_EQ(2, iprofiler->GetProfilesCount());
   CHECK_NE(p2, p3);
   CHECK(FindCpuProfile(cpu_profiler, p3));
   CHECK(FindCpuProfile(cpu_profiler, p2));
-  const_cast<v8::CpuProfile*>(p2)->Delete();
+  p2->Delete();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   CHECK(!FindCpuProfile(cpu_profiler, p2));
   CHECK(FindCpuProfile(cpu_profiler, p3));
-  const_cast<v8::CpuProfile*>(p3)->Delete();
+  p3->Delete();
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 }
 
@@ -393,21 +392,21 @@ TEST(ProfileStartEndTime) {
 
   v8::Local<v8::String> profile_name =
       v8::String::NewFromUtf8(env->GetIsolate(), "test");
-  cpu_profiler->StartCpuProfiling(profile_name);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name);
+  const v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK(profile->GetStartTime() <= profile->GetEndTime());
 }
 
 
-static const v8::CpuProfile* RunProfiler(
+static v8::CpuProfile* RunProfiler(
     v8::Handle<v8::Context> env, v8::Handle<v8::Function> function,
     v8::Handle<v8::Value> argv[], int argc,
-    unsigned min_js_samples) {
+    unsigned min_js_samples, bool collect_samples = false) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   v8::Local<v8::String> profile_name =
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile");
 
-  cpu_profiler->StartCpuProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name, collect_samples);
 
   i::Sampler* sampler =
       reinterpret_cast<i::Isolate*>(env->GetIsolate())->logger()->sampler();
@@ -416,12 +415,11 @@ static const v8::CpuProfile* RunProfiler(
     function->Call(env->Global(), argc, argv);
   } while (sampler->js_and_external_sample_count() < min_js_samples);
 
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+  v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
 
   CHECK_NE(NULL, profile);
   // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
 
   return profile;
 }
@@ -553,7 +551,7 @@ TEST(CollectCpuProfile) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
   function->Call(env->Global(), ARRAY_SIZE(args), args);
 
@@ -585,9 +583,40 @@ TEST(CollectCpuProfile) {
   CheckSimpleBranch(env->GetIsolate(), fooNode, delayBranch,
                     ARRAY_SIZE(delayBranch));
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
+
+TEST(CollectCpuProfileSamples) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
+                                              cpu_profiler_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+
+  int32_t profiling_interval_ms = 200;
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
+  };
+  v8::CpuProfile* profile =
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200, true);
+
+  CHECK_LE(200, profile->GetSamplesCount());
+  uint64_t end_time = profile->GetEndTime();
+  uint64_t current_time = profile->GetStartTime();
+  CHECK_LE(current_time, end_time);
+  for (int i = 0; i < profile->GetSamplesCount(); i++) {
+    CHECK_NE(NULL, profile->GetSample(i));
+    uint64_t timestamp = profile->GetSampleTimestamp(i);
+    CHECK_LE(current_time, timestamp);
+    CHECK_LE(timestamp, end_time);
+    current_time = timestamp;
+  }
+
+  profile->Delete();
+}
 
 
 static const char* cpu_profiler_test_source2 = "function loop() {}\n"
@@ -627,7 +656,7 @@ TEST(SampleWhenFrameIsNotSetup) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), repeat_count)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -654,7 +683,7 @@ TEST(SampleWhenFrameIsNotSetup) {
     }
   }
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -747,7 +776,7 @@ TEST(NativeAccessorUninitializedIC) {
 
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 180);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -756,7 +785,7 @@ TEST(NativeAccessorUninitializedIC) {
   GetChild(isolate, startNode, "get foo");
   GetChild(isolate, startNode, "set foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -804,7 +833,7 @@ TEST(NativeAccessorMonomorphicIC) {
 
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -813,7 +842,7 @@ TEST(NativeAccessorMonomorphicIC) {
   GetChild(isolate, startNode, "get foo");
   GetChild(isolate, startNode, "set foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -858,7 +887,7 @@ TEST(NativeMethodUninitializedIC) {
 
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -866,7 +895,7 @@ TEST(NativeMethodUninitializedIC) {
       GetChild(isolate, root, "start");
   GetChild(isolate, startNode, "fooMethod");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -915,7 +944,7 @@ TEST(NativeMethodMonomorphicIC) {
 
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -924,7 +953,7 @@ TEST(NativeMethodMonomorphicIC) {
       GetChild(isolate, root, "start");
   GetChild(isolate, startNode, "fooMethod");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -956,7 +985,7 @@ TEST(BoundFunctionCall) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -973,7 +1002,7 @@ TEST(BoundFunctionCall) {
       GetChild(env->GetIsolate(), root, "start");
   GetChild(env->GetIsolate(), startNode, "foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1017,7 +1046,7 @@ TEST(FunctionCallSample) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -1056,7 +1085,7 @@ TEST(FunctionCallSample) {
     CheckChildrenNames(unresolvedNode, names);
   }
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1100,7 +1129,7 @@ TEST(FunctionApplySample) {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
 
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -1145,7 +1174,7 @@ TEST(FunctionApplySample) {
     }
   }
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1207,7 +1236,7 @@ TEST(JsNativeJsSample) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -1234,7 +1263,7 @@ TEST(JsNativeJsSample) {
   CHECK_EQ(1, barNode->GetChildrenCount());
   GetChild(env->GetIsolate(), barNode, "foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1292,7 +1321,7 @@ TEST(JsNativeJsRuntimeJsSample) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -1317,7 +1346,7 @@ TEST(JsNativeJsRuntimeJsSample) {
   CHECK_EQ(1, barNode->GetChildrenCount());
   GetChild(env->GetIsolate(), barNode, "foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1386,7 +1415,7 @@ TEST(JsNative1JsNative2JsSample) {
   v8::Handle<v8::Value> args[] = {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
-  const v8::CpuProfile* profile =
+  v8::CpuProfile* profile =
       RunProfiler(env, function, args, ARRAY_SIZE(args), 10);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
@@ -1415,7 +1444,7 @@ TEST(JsNative1JsNative2JsSample) {
   CHECK_EQ(1, nativeNode2->GetChildrenCount());
   GetChild(env->GetIsolate(), nativeNode2, "foo");
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1430,7 +1459,7 @@ TEST(IdleTime) {
 
   v8::Local<v8::String> profile_name =
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile");
-  cpu_profiler->StartCpuProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name);
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::ProfilerEventsProcessor* processor = isolate->cpu_profiler()->processor();
@@ -1446,11 +1475,10 @@ TEST(IdleTime) {
   processor->AddCurrentStack(isolate);
 
 
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+  v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK_NE(NULL, profile);
   // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   ScopedVector<v8::Handle<v8::String> > names(3);
@@ -1472,7 +1500,7 @@ TEST(IdleTime) {
   CHECK_EQ(0, idleNode->GetChildrenCount());
   CHECK_GE(idleNode->GetHitCount(), 3);
 
-  const_cast<v8::CpuProfile*>(profile)->Delete();
+  profile->Delete();
 }
 
 
@@ -1545,24 +1573,24 @@ TEST(DontStopOnFinishedProfileDelete) {
 
   CHECK_EQ(0, iprofiler->GetProfilesCount());
   v8::Handle<v8::String> outer = v8::String::NewFromUtf8(isolate, "outer");
-  profiler->StartCpuProfiling(outer);
+  profiler->StartProfiling(outer);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 
   v8::Handle<v8::String> inner = v8::String::NewFromUtf8(isolate, "inner");
-  profiler->StartCpuProfiling(inner);
+  profiler->StartProfiling(inner);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 
-  const v8::CpuProfile* inner_profile = profiler->StopCpuProfiling(inner);
+  v8::CpuProfile* inner_profile = profiler->StopProfiling(inner);
   CHECK(inner_profile);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
-  const_cast<v8::CpuProfile*>(inner_profile)->Delete();
+  inner_profile->Delete();
   inner_profile = NULL;
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 
-  const v8::CpuProfile* outer_profile = profiler->StopCpuProfiling(outer);
+  v8::CpuProfile* outer_profile = profiler->StopProfiling(outer);
   CHECK(outer_profile);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
-  const_cast<v8::CpuProfile*>(outer_profile)->Delete();
+  outer_profile->Delete();
   outer_profile = NULL;
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 }

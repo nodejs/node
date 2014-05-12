@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_ASSEMBLER_ARM64_H_
 #define V8_ARM64_ASSEMBLER_ARM64_H_
@@ -285,9 +262,9 @@ struct FPRegister : public CPURegister {
   static const unsigned kAllocatableLowRangeBegin = 0;
   static const unsigned kAllocatableLowRangeEnd = 14;
   static const unsigned kAllocatableHighRangeBegin = 16;
-  static const unsigned kAllocatableHighRangeEnd = 29;
+  static const unsigned kAllocatableHighRangeEnd = 28;
 
-  static const RegList kAllocatableFPRegisters = 0x3fff7fff;
+  static const RegList kAllocatableFPRegisters = 0x1fff7fff;
 
   // Gap between low and high ranges.
   static const int kAllocatableRangeGapSize =
@@ -316,12 +293,12 @@ struct FPRegister : public CPURegister {
     ASSERT((kAllocatableLowRangeBegin == 0) &&
            (kAllocatableLowRangeEnd == 14) &&
            (kAllocatableHighRangeBegin == 16) &&
-           (kAllocatableHighRangeEnd == 29));
+           (kAllocatableHighRangeEnd == 28));
     const char* const names[] = {
       "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
       "d8", "d9", "d10", "d11", "d12", "d13", "d14",
       "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-      "d24", "d25", "d26", "d27", "d28", "d29"
+      "d24", "d25", "d26", "d27", "d28"
     };
     return names[index];
   }
@@ -420,9 +397,11 @@ ALIAS_REGISTER(Register, wzr, w31);
 // Keeps the 0 double value.
 ALIAS_REGISTER(FPRegister, fp_zero, d15);
 // Crankshaft double scratch register.
-ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d30);
-// MacroAssembler double scratch register.
-ALIAS_REGISTER(FPRegister, fp_scratch, d31);
+ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d29);
+// MacroAssembler double scratch registers.
+ALIAS_REGISTER(FPRegister, fp_scratch, d30);
+ALIAS_REGISTER(FPRegister, fp_scratch1, d30);
+ALIAS_REGISTER(FPRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
 
@@ -514,8 +493,8 @@ class CPURegList {
   void Combine(const CPURegList& other);
 
   // Remove every register in the other CPURegList from this one. Registers that
-  // do not exist in this list are ignored. The type and size of the registers
-  // in the 'other' list must match those in this list.
+  // do not exist in this list are ignored. The type of the registers in the
+  // 'other' list must match those in this list.
   void Remove(const CPURegList& other);
 
   // Variants of Combine and Remove which take CPURegisters.
@@ -670,7 +649,7 @@ class Operand {
   // Relocation information.
   RelocInfo::Mode rmode() const { return rmode_; }
   void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
-  bool NeedsRelocation() const;
+  bool NeedsRelocation(Isolate* isolate) const;
 
   // Helpers
   inline static Operand UntagSmi(Register smi);
@@ -690,6 +669,7 @@ class Operand {
 // MemOperand represents a memory operand in a load or store instruction.
 class MemOperand {
  public:
+  inline explicit MemOperand();
   inline explicit MemOperand(Register base,
                              ptrdiff_t offset = 0,
                              AddrMode addrmode = Offset);
@@ -1499,8 +1479,9 @@ class Assembler : public AssemblerBase {
   enum NopMarkerTypes {
     DEBUG_BREAK_NOP,
     INTERRUPT_CODE_NOP,
+    ADR_FAR_NOP,
     FIRST_NOP_MARKER = DEBUG_BREAK_NOP,
-    LAST_NOP_MARKER = INTERRUPT_CODE_NOP
+    LAST_NOP_MARKER = ADR_FAR_NOP
   };
 
   void nop(NopMarkerTypes n) {
@@ -1581,6 +1562,9 @@ class Assembler : public AssemblerBase {
 
   // FP round to integer (nearest with ties to away).
   void frinta(const FPRegister& fd, const FPRegister& fn);
+
+  // FP round to integer (toward minus infinity).
+  void frintm(const FPRegister& fd, const FPRegister& fn);
 
   // FP round to integer (nearest with ties to even).
   void frintn(const FPRegister& fd, const FPRegister& fn);
@@ -1688,6 +1672,10 @@ class Assembler : public AssemblerBase {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
   }
 
+  ptrdiff_t InstructionOffset(Instruction* instr) const {
+    return reinterpret_cast<byte*>(instr) - buffer_;
+  }
+
   // Register encoding.
   static Instr Rd(CPURegister rd) {
     ASSERT(rd.code() != kSPRegInternalCode);
@@ -1761,6 +1749,13 @@ class Assembler : public AssemblerBase {
   inline static Instr ImmCondCmp(unsigned imm);
   inline static Instr Nzcv(StatusFlags nzcv);
 
+  static bool IsImmAddSub(int64_t immediate);
+  static bool IsImmLogical(uint64_t value,
+                           unsigned width,
+                           unsigned* n,
+                           unsigned* imm_s,
+                           unsigned* imm_r);
+
   // MemOperand offset encoding.
   inline static Instr ImmLSUnsigned(int imm12);
   inline static Instr ImmLS(int imm9);
@@ -1805,7 +1800,7 @@ class Assembler : public AssemblerBase {
   void CheckConstPool(bool force_emit, bool require_jump);
 
   // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
 
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);
@@ -1874,11 +1869,6 @@ class Assembler : public AssemblerBase {
                         unsigned imm_s,
                         unsigned imm_r,
                         LogicalOp op);
-  static bool IsImmLogical(uint64_t value,
-                           unsigned width,
-                           unsigned* n,
-                           unsigned* imm_s,
-                           unsigned* imm_r);
 
   void ConditionalCompare(const Register& rn,
                           const Operand& operand,
@@ -1909,7 +1899,6 @@ class Assembler : public AssemblerBase {
               const Operand& operand,
               FlagsUpdate S,
               AddSubOp op);
-  static bool IsImmAddSub(int64_t immediate);
 
   static bool IsImmFP32(float imm);
   static bool IsImmFP64(double imm);
@@ -2034,6 +2023,7 @@ class Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
+  void CheckBufferSpace();
   void CheckBuffer();
 
   // Pc offset of the next constant pool check.
@@ -2176,6 +2166,11 @@ class Assembler : public AssemblerBase {
   // not later attempt (likely unsuccessfully) to patch it to branch directly to
   // the label.
   void DeleteUnresolvedBranchInfoForLabel(Label* label);
+  // This function deletes the information related to the label by traversing
+  // the label chain, and for each PC-relative instruction in the chain checking
+  // if pending unresolved information exists. Its complexity is proportional to
+  // the length of the label chain.
+  void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
  private:
   PositionsRecorder positions_recorder_;
@@ -2218,13 +2213,21 @@ class PatchingAssembler : public Assembler {
     size_t length = buffer_size_ - kGap;
     CPU::FlushICache(buffer_, length);
   }
+
+  static const int kMovInt64NInstrs = 4;
+  void MovInt64(const Register& rd, int64_t imm);
+
+  // See definition of PatchAdrFar() for details.
+  static const int kAdrFarPatchableNNops = kMovInt64NInstrs - 1;
+  static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 3;
+  void PatchAdrFar(Instruction* target);
 };
 
 
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
+    assembler->CheckBufferSpace();
   }
 };
 

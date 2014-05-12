@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -35,8 +12,6 @@
 
 namespace v8 {
 namespace internal {
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
 
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return Debug::IsDebugBreakAtReturn(rinfo());
@@ -50,7 +25,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   ASSERT(Assembler::kJSReturnSequenceLength >=
          Assembler::kCallInstructionLength);
   rinfo()->PatchCodeWithCall(
-      debug_info_->GetIsolate()->debug()->debug_break_return()->entry(),
+      debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
@@ -81,7 +56,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   Isolate* isolate = debug_info_->GetIsolate();
   rinfo()->PatchCodeWithCall(
-      isolate->debug()->debug_break_slot()->entry(),
+      isolate->builtins()->Slot_DebugBreak()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
 }
 
@@ -141,7 +116,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
-    CEntryStub ceb(1);
+    CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
 
     // Automatically find register that could be used after register restore.
@@ -194,6 +169,17 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
   __ jmp(Operand::StaticVariable(after_break_target));
+}
+
+
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- edx    : type feedback slot (smi)
+  //  -- edi    : function
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, edx.bit() | edi.bit(),
+                                0, false);
 }
 
 
@@ -250,15 +236,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Register state for keyed IC call call (from ic-ia32.cc)
-  // ----------- S t a t e -------------
-  //  -- ecx: name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit(), 0, false);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-ia32.cc).
   // ----------- S t a t e -------------
@@ -274,18 +251,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- edi: function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, edi.bit(), 0, false);
-}
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-ia32.cc).
-  // ----------- S t a t e -------------
-  //  -- ebx: feedback array
-  //  -- edx: slot in feedback array
-  //  -- edi: function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ebx.bit() | edx.bit() | edi.bit(),
-                                0, false);
 }
 
 
@@ -368,8 +333,6 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 const bool Debug::kFrameDropperSupported = true;
 
 #undef __
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
 

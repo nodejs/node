@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -67,21 +44,13 @@ UnaryMathFunction CreateExpFunction() {
     Register temp2 = t1;
     Register temp3 = t2;
 
-    if (!IsMipsSoftFloatABI) {
-      // Input value is in f12 anyway, nothing to do.
-    } else {
-      __ Move(input, a0, a1);
-    }
+    __ MovFromFloatParameter(input);
     __ Push(temp3, temp2, temp1);
     MathExpGenerator::EmitMathExp(
         &masm, input, result, double_scratch1, double_scratch2,
         temp1, temp2, temp3);
     __ Pop(temp3, temp2, temp1);
-    if (!IsMipsSoftFloatABI) {
-      // Result is already in f0, nothing to do.
-    } else {
-      __ Move(v0, v1, result);
-    }
+    __ MovToFloatResult(result);
     __ Ret();
   }
 
@@ -103,14 +72,10 @@ UnaryMathFunction CreateExpFunction() {
 
 #if defined(V8_HOST_ARCH_MIPS)
 OS::MemCopyUint8Function CreateMemCopyUint8Function(
-      OS::MemCopyUint8Function stub) {
+    OS::MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (Serializer::enabled()) {
-     return stub;
-  }
-
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(3 * KB, &actual_size, true));
   if (buffer == NULL) return stub;
@@ -167,11 +132,17 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     __ beq(a3, zero_reg, &aligned);  // Already aligned.
     __ subu(a2, a2, a3);  // In delay slot. a2 is the remining bytes count.
 
-    __ lwr(t8, MemOperand(a1));
-    __ addu(a1, a1, a3);
-    __ swr(t8, MemOperand(a0));
-    __ addu(a0, a0, a3);
-
+    if (kArchEndian == kLittle) {
+      __ lwr(t8, MemOperand(a1));
+      __ addu(a1, a1, a3);
+      __ swr(t8, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    } else {
+      __ lwl(t8, MemOperand(a1));
+      __ addu(a1, a1, a3);
+      __ swl(t8, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    }
     // Now dst/src are both aligned to (word) aligned addresses. Set a2 to
     // count how many bytes we have to copy after all the 64 byte chunks are
     // copied and a3 to the dst pointer after all the 64 byte chunks have been
@@ -323,12 +294,21 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     __ beq(a3, zero_reg, &ua_chk16w);
     __ subu(a2, a2, a3);  // In delay slot.
 
-    __ lwr(v1, MemOperand(a1));
-    __ lwl(v1,
-           MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
-    __ addu(a1, a1, a3);
-    __ swr(v1, MemOperand(a0));
-    __ addu(a0, a0, a3);
+    if (kArchEndian == kLittle) {
+      __ lwr(v1, MemOperand(a1));
+      __ lwl(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ addu(a1, a1, a3);
+      __ swr(v1, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    } else {
+      __ lwl(v1, MemOperand(a1));
+      __ lwr(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ addu(a1, a1, a3);
+      __ swl(v1, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    }
 
     // Now the dst (but not the source) is aligned. Set a2 to count how many
     // bytes we have to copy after all the 64 byte chunks are copied and a3 to
@@ -357,40 +337,77 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 
     __ bind(&ua_loop16w);
     __ Pref(pref_hint_load, MemOperand(a1, 3 * pref_chunk));
-    __ lwr(t0, MemOperand(a1));
-    __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
-    __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1));
+      __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
 
-    if (pref_hint_store == kPrefHintPrepareForStore) {
-      __ sltu(v1, t9, a0);
-      __ Branch(USE_DELAY_SLOT, &ua_skip_pref, gt, v1, Operand(zero_reg));
+      if (pref_hint_store == kPrefHintPrepareForStore) {
+        __ sltu(v1, t9, a0);
+        __ Branch(USE_DELAY_SLOT, &ua_skip_pref, gt, v1, Operand(zero_reg));
+      }
+      __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));  // Maybe in delay slot.
+
+      __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
+
+      __ bind(&ua_skip_pref);
+      __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1));
+      __ lwl(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 2, loadstore_chunk));
+
+      if (pref_hint_store == kPrefHintPrepareForStore) {
+        __ sltu(v1, t9, a0);
+        __ Branch(USE_DELAY_SLOT, &ua_skip_pref, gt, v1, Operand(zero_reg));
+      }
+      __ lwl(t3, MemOperand(a1, 3, loadstore_chunk));  // Maybe in delay slot.
+
+      __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
+
+      __ bind(&ua_skip_pref);
+      __ lwl(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
     }
-    __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));  // Maybe in delay slot.
-
-    __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
-    __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
-
-    __ bind(&ua_skip_pref);
-    __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
-    __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
-    __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
-    __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
-    __ lwl(t0,
-           MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t1,
-           MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t2,
-           MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t3,
-           MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t4,
-           MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t5,
-           MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t6,
-           MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t7,
-           MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
     __ Pref(pref_hint_load, MemOperand(a1, 4 * pref_chunk));
     __ sw(t0, MemOperand(a0));
     __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
@@ -400,30 +417,57 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     __ sw(t5, MemOperand(a0, 5, loadstore_chunk));
     __ sw(t6, MemOperand(a0, 6, loadstore_chunk));
     __ sw(t7, MemOperand(a0, 7, loadstore_chunk));
-    __ lwr(t0, MemOperand(a1, 8, loadstore_chunk));
-    __ lwr(t1, MemOperand(a1, 9, loadstore_chunk));
-    __ lwr(t2, MemOperand(a1, 10, loadstore_chunk));
-    __ lwr(t3, MemOperand(a1, 11, loadstore_chunk));
-    __ lwr(t4, MemOperand(a1, 12, loadstore_chunk));
-    __ lwr(t5, MemOperand(a1, 13, loadstore_chunk));
-    __ lwr(t6, MemOperand(a1, 14, loadstore_chunk));
-    __ lwr(t7, MemOperand(a1, 15, loadstore_chunk));
-    __ lwl(t0,
-           MemOperand(a1, 9, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t1,
-           MemOperand(a1, 10, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t2,
-           MemOperand(a1, 11, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t3,
-           MemOperand(a1, 12, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t4,
-           MemOperand(a1, 13, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t5,
-           MemOperand(a1, 14, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t6,
-           MemOperand(a1, 15, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t7,
-           MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1, 8, loadstore_chunk));
+      __ lwr(t1, MemOperand(a1, 9, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 10, loadstore_chunk));
+      __ lwr(t3, MemOperand(a1, 11, loadstore_chunk));
+      __ lwr(t4, MemOperand(a1, 12, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 13, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 14, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 15, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 9, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 10, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 11, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 12, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 13, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 14, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 15, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1, 8, loadstore_chunk));
+      __ lwl(t1, MemOperand(a1, 9, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 10, loadstore_chunk));
+      __ lwl(t3, MemOperand(a1, 11, loadstore_chunk));
+      __ lwl(t4, MemOperand(a1, 12, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 13, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 14, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 15, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 9, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 10, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 11, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 12, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 13, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 14, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 15, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
+    }
     __ Pref(pref_hint_load, MemOperand(a1, 5 * pref_chunk));
     __ sw(t0, MemOperand(a0, 8, loadstore_chunk));
     __ sw(t1, MemOperand(a0, 9, loadstore_chunk));
@@ -447,30 +491,57 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 
     __ beq(a2, t8, &ua_chk1w);
     __ nop();  // In delay slot.
-    __ lwr(t0, MemOperand(a1));
-    __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
-    __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
-    __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));
-    __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
-    __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
-    __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
-    __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
-    __ lwl(t0,
-           MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t1,
-           MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t2,
-           MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t3,
-           MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t4,
-           MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t5,
-           MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t6,
-           MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
-    __ lwl(t7,
-           MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1));
+      __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
+      __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));
+      __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1));
+      __ lwl(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 2, loadstore_chunk));
+      __ lwl(t3, MemOperand(a1, 3, loadstore_chunk));
+      __ lwl(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    }
     __ addiu(a1, a1, 8 * loadstore_chunk);
     __ sw(t0, MemOperand(a0));
     __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
@@ -491,9 +562,15 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     __ addu(a3, a0, a3);
 
     __ bind(&ua_wordCopy_loop);
-    __ lwr(v1, MemOperand(a1));
-    __ lwl(v1,
-           MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+    if (kArchEndian == kLittle) {
+      __ lwr(v1, MemOperand(a1));
+      __ lwl(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(v1, MemOperand(a1));
+      __ lwr(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+    }
     __ addiu(a0, a0, loadstore_chunk);
     __ addiu(a1, a1, loadstore_chunk);
     __ bne(a0, a3, &ua_wordCopy_loop);
@@ -722,8 +799,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Assert(eq, kObjectFoundInSmiOnlyArray, at, Operand(t5));
   }
-  __ sw(t0, MemOperand(t3));  // mantissa
-  __ sw(t1, MemOperand(t3, kIntSize));  // exponent
+  __ sw(t0, MemOperand(t3, Register::kMantissaOffset));  // mantissa
+  __ sw(t1, MemOperand(t3, Register::kExponentOffset));  // exponent
   __ Addu(t3, t3, kDoubleSize);
 
   __ bind(&entry);
@@ -773,7 +850,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ sw(t5, MemOperand(t2, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
-  __ Addu(t0, t0, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
+  __ Addu(t0, t0, Operand(
+        FixedDoubleArray::kHeaderSize - kHeapObjectTag
+        + Register::kExponentOffset));
   __ Addu(a3, t2, Operand(FixedArray::kHeaderSize));
   __ Addu(t2, t2, Operand(kHeapObjectTag));
   __ sll(t1, t1, 1);
@@ -782,7 +861,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ LoadRoot(t5, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses.
   // a3: begin of destination FixedArray element fields, not tagged
-  // t0: begin of source FixedDoubleArray element fields, not tagged, +4
+  // t0: begin of source FixedDoubleArray element fields, not tagged,
+  //     points to the exponent
   // t1: end of destination FixedArray, not tagged
   // t2: destination FixedArray
   // t3: the-hole pointer
@@ -805,7 +885,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Non-hole double, copy value into a heap number.
   __ AllocateHeapNumber(a2, a0, t6, t5, &gc_required);
   // a2: new heap number
-  __ lw(a0, MemOperand(t0, -12));
+  // Load mantissa of current element, t0 point to exponent of next element.
+  __ lw(a0, MemOperand(t0, (Register::kMantissaOffset
+      - Register::kExponentOffset - kDoubleSize)));
   __ sw(a0, FieldMemOperand(a2, HeapNumber::kMantissaOffset));
   __ sw(a1, FieldMemOperand(a2, HeapNumber::kExponentOffset));
   __ mov(a0, a3);
@@ -1010,8 +1092,8 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
   __ sll(at, temp2, 3);
   __ Addu(temp3, temp3, Operand(at));
-  __ lw(temp2, MemOperand(temp3, 0));
-  __ lw(temp3, MemOperand(temp3, kPointerSize));
+  __ lw(temp2, MemOperand(temp3, Register::kMantissaOffset));
+  __ lw(temp3, MemOperand(temp3, Register::kExponentOffset));
   // The first word is loaded is the lower number register.
   if (temp2.code() < temp3.code()) {
     __ sll(at, temp1, 20);
@@ -1040,42 +1122,42 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 static const uint32_t kCodeAgePatchFirstInstruction = 0x00010180;
 #endif
 
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  // The sequence of instructions that is patched out for aging code is the
-  // following boilerplate stack-building prologue that is found in FUNCTIONS
-  static bool initialized = false;
-  static uint32_t sequence[kNoCodeAgeSequenceLength];
-  byte* byte_sequence = reinterpret_cast<byte*>(sequence);
-  *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
-  if (!initialized) {
-    // Since patcher is a large object, allocate it dynamically when needed,
-    // to avoid overloading the stack in stress conditions.
-    SmartPointer<CodePatcher>
-        patcher(new CodePatcher(byte_sequence, kNoCodeAgeSequenceLength));
-    PredictableCodeSizeScope scope(patcher->masm(), *length);
-    patcher->masm()->Push(ra, fp, cp, a1);
-    patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-    patcher->masm()->Addu(
-        fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-    initialized = true;
-  }
-  return byte_sequence;
+
+CodeAgingHelper::CodeAgingHelper() {
+  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  // Since patcher is a large object, allocate it dynamically when needed,
+  // to avoid overloading the stack in stress conditions.
+  // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
+  // the process, before MIPS simulator ICache is setup.
+  SmartPointer<CodePatcher> patcher(
+      new CodePatcher(young_sequence_.start(),
+                      young_sequence_.length() / Assembler::kInstrSize,
+                      CodePatcher::DONT_FLUSH));
+  PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
+  patcher->masm()->Push(ra, fp, cp, a1);
+  patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
+  patcher->masm()->Addu(
+      fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = !memcmp(sequence, young_sequence, young_length);
-  ASSERT(result ||
-         Memory::uint32_at(sequence) == kCodeAgePatchFirstInstruction);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return Memory::uint32_at(candidate) == kCodeAgePatchFirstInstruction;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
+  if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
@@ -1091,10 +1173,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
-    CopyBytes(sequence, young_sequence, young_length);
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);

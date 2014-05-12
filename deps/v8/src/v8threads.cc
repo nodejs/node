@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -74,10 +51,6 @@ void Locker::Initialize(v8::Isolate* isolate) {
       isolate_->stack_guard()->ClearThread(access);
       isolate_->stack_guard()->InitThread(access);
     }
-    if (isolate_->IsDefaultIsolate()) {
-      // This only enters if not yet entered.
-      internal::Isolate::EnterDefaultIsolate();
-    }
   }
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
 }
@@ -98,9 +71,6 @@ bool Locker::IsActive() {
 Locker::~Locker() {
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
   if (has_lock_) {
-    if (isolate_->IsDefaultIsolate()) {
-      isolate_->Exit();
-    }
     if (top_level_) {
       isolate_->thread_manager()->FreeThreadResources();
     } else {
@@ -115,9 +85,6 @@ void Unlocker::Initialize(v8::Isolate* isolate) {
   ASSERT(isolate != NULL);
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
-  if (isolate_->IsDefaultIsolate()) {
-    isolate_->Exit();
-  }
   isolate_->thread_manager()->ArchiveThread();
   isolate_->thread_manager()->Unlock();
 }
@@ -127,9 +94,6 @@ Unlocker::~Unlocker() {
   ASSERT(!isolate_->thread_manager()->IsLockedByCurrentThread());
   isolate_->thread_manager()->Lock();
   isolate_->thread_manager()->RestoreThread();
-  if (isolate_->IsDefaultIsolate()) {
-    isolate_->Enter();
-  }
 }
 
 
@@ -175,9 +139,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->handle_scope_implementer()->RestoreThread(from);
   from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(isolate_, from);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   from = isolate_->debug()->RestoreDebug(from);
-#endif
   from = isolate_->stack_guard()->RestoreStackGuard(from);
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
@@ -209,9 +171,7 @@ void ThreadManager::Unlock() {
 static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
                         Isolate::ArchiveSpacePerThread() +
-#ifdef ENABLE_DEBUGGER_SUPPORT
                           Debug::ArchiveSpacePerThread() +
-#endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
                    Bootstrapper::ArchiveSpacePerThread() +
@@ -337,9 +297,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->handle_scope_implementer()->ArchiveThread(to);
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(isolate_, to);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   to = isolate_->debug()->ArchiveDebug(to);
-#endif
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
@@ -351,9 +309,7 @@ void ThreadManager::EagerlyArchiveThread() {
 void ThreadManager::FreeThreadResources() {
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->FreeThreadResources();
-#endif
   isolate_->stack_guard()->FreeThreadResources();
   isolate_->regexp_stack()->FreeThreadResources();
   isolate_->bootstrapper()->FreeThreadResources();

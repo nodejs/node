@@ -141,8 +141,8 @@
   'ecma/Date/15.9.5.28-1': [PASS, FAIL],
 
   # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
-  'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel', FAIL]],
-  'ecma/Date/15.9.5.22-2': [PASS, ['arch == arm or arch == mipsel', FAIL]],
+  'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
+  'ecma/Date/15.9.5.22-2': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
 
   # Flaky test that fails due to what appears to be a bug in the test.
   # Occurs depending on current time
@@ -873,6 +873,25 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel'
+
+['arch == mips', {
+
+  # BUG(3251229): Times out when running new crankshaft test script.
+  'ecma_3/RegExp/regress-311414': [SKIP],
+  'ecma/Date/15.9.5.8': [SKIP],
+  'ecma/Date/15.9.5.10-2': [SKIP],
+  'ecma/Date/15.9.5.11-2': [SKIP],
+  'ecma/Date/15.9.5.12-2': [SKIP],
+  'js1_5/Array/regress-99120-02': [SKIP],
+  'js1_5/extensions/regress-371636': [SKIP],
+  'js1_5/Regress/regress-203278-1': [SKIP],
+  'js1_5/Regress/regress-404755': [SKIP],
+  'js1_5/Regress/regress-451322': [SKIP],
+
+
+  # BUG(1040): Allow this test to timeout.
+  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+}],  # 'arch == mips'
 
 ['arch == arm64 and simulator_run == True', {
 

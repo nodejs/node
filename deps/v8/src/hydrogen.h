@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_HYDROGEN_H_
 #define V8_HYDROGEN_H_
@@ -438,9 +415,11 @@ class HGraph V8_FINAL : public ZoneObject {
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
     if (depends_on_empty_array_proto_elements_) return;
-    isolate()->initial_object_prototype()->map()->AddDependentCompilationInfo(
+    Map::AddDependentCompilationInfo(
+        handle(isolate()->initial_object_prototype()->map()),
         DependentCode::kElementsCantBeAddedGroup, info());
-    isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
+    Map::AddDependentCompilationInfo(
+        handle(isolate()->initial_array_prototype()->map()),
         DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
   }
@@ -1319,7 +1298,6 @@ class HGraphBuilder {
   HBasicBlock* CreateLoopHeaderBlock();
 
   HValue* BuildCheckHeapObject(HValue* object);
-  HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
   HValue* BuildCheckString(HValue* string);
   HValue* BuildWrapReceiver(HValue* object, HValue* function);
 
@@ -1802,8 +1780,7 @@ class HGraphBuilder {
                                     HValue* previous_object_size,
                                     HValue* payload);
 
-  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
-                                      CompilationInfo* info);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant);
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                         Handle<JSObject> holder);
 
@@ -2349,6 +2326,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
           access_type_(access_type),
           type_(type),
           name_(name),
+          field_type_(HType::Tagged()),
           access_(HObjectAccess::ForMap()) { }
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
@@ -2378,7 +2356,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         context = context->native_context();
         return handle(context->string_function()->initial_map());
       } else {
-        return type_->AsClass();
+        return type_->AsClass()->Map();
       }
     }
     Type* type() const { return type_; }
@@ -2393,10 +2371,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       int offset;
       if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
         if (type_->Is(Type::String())) {
-          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
         } else if (type_->Is(Type::Array())) {
-          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         } else {
           *access = HObjectAccess::ForMapAndOffset(map(), offset);
@@ -2414,14 +2392,19 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
     Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
+    SmallMapList* field_maps() { return &field_maps_; }
+    HType field_type() const { return field_type_; }
     HObjectAccess access() { return access_; }
 
    private:
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
+    Zone* zone() { return builder_->zone(); }
     Isolate* isolate() { return lookup_.isolate(); }
+    CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool LoadResult(Handle<Map> map);
+    void LoadFieldMaps(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsCompatible(PropertyAccessInfo* other);
@@ -2440,6 +2423,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor_;
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
+    SmallMapList field_maps_;
+    HType field_type_;
     HObjectAccess access_;
   };
 

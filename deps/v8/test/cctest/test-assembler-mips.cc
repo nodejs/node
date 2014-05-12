@@ -61,12 +61,9 @@ TEST(MIPS0) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0xabc, res);
@@ -100,12 +97,9 @@ TEST(MIPS1) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 50, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1275, res);
@@ -241,12 +235,9 @@ TEST(MIPS2) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0x31415926, res);
@@ -314,12 +305,9 @@ TEST(MIPS3) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.a = 1.5e14;
   t.b = 2.75e11;
   t.c = 0.0;
@@ -382,12 +370,9 @@ TEST(MIPS4) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.a = 1.5e22;
   t.b = 2.75e11;
   t.c = 17.17;
@@ -448,12 +433,9 @@ TEST(MIPS5) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.a = 1.5e4;
   t.b = 2.75e8;
   t.i = 12345678;
@@ -521,23 +503,30 @@ TEST(MIPS6) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.ui = 0x11223344;
   t.si = 0x99aabbcc;
   Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(0x11223344, t.r1);
+#if __BYTE_ORDER == __LITTLE_ENDIAN
   CHECK_EQ(0x3344, t.r2);
   CHECK_EQ(0xffffbbcc, t.r3);
   CHECK_EQ(0x0000bbcc, t.r4);
   CHECK_EQ(0xffffffcc, t.r5);
   CHECK_EQ(0x3333bbcc, t.r6);
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  CHECK_EQ(0x1122, t.r2);
+  CHECK_EQ(0xffff99aa, t.r3);
+  CHECK_EQ(0x000099aa, t.r4);
+  CHECK_EQ(0xffffff99, t.r5);
+  CHECK_EQ(0x99aa3333, t.r6);
+#else
+#error Unknown endianness
+#endif
 }
 
 
@@ -598,12 +587,9 @@ TEST(MIPS7) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.a = 1.5e14;
   t.b = 2.75e11;
   t.c = 2.0;
@@ -697,12 +683,9 @@ TEST(MIPS8) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.input = 0x12345678;
   Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
   USE(dummy);
@@ -745,11 +728,8 @@ TEST(MIPS9) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 }
 
 
@@ -799,12 +779,9 @@ TEST(MIPS10) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = CcTest::heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
     t.b_word = 0x0ff00ff0;       // 0x0FF00FF0 -> 0x as double.
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
@@ -930,18 +907,16 @@ TEST(MIPS11) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.reg_init = 0xaabbccdd;
   t.mem_init = 0x11223344;
 
   Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
   USE(dummy);
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
   CHECK_EQ(0x44bbccdd, t.lwl_0);
   CHECK_EQ(0x3344ccdd, t.lwl_1);
   CHECK_EQ(0x223344dd, t.lwl_2);
@@ -961,6 +936,29 @@ TEST(MIPS11) {
   CHECK_EQ(0xbbccdd44, t.swr_1);
   CHECK_EQ(0xccdd3344, t.swr_2);
   CHECK_EQ(0xdd223344, t.swr_3);
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  CHECK_EQ(0x11223344, t.lwl_0);
+  CHECK_EQ(0x223344dd, t.lwl_1);
+  CHECK_EQ(0x3344ccdd, t.lwl_2);
+  CHECK_EQ(0x44bbccdd, t.lwl_3);
+
+  CHECK_EQ(0xaabbcc11, t.lwr_0);
+  CHECK_EQ(0xaabb1122, t.lwr_1);
+  CHECK_EQ(0xaa112233, t.lwr_2);
+  CHECK_EQ(0x11223344, t.lwr_3);
+
+  CHECK_EQ(0xaabbccdd, t.swl_0);
+  CHECK_EQ(0x11aabbcc, t.swl_1);
+  CHECK_EQ(0x1122aabb, t.swl_2);
+  CHECK_EQ(0x112233aa, t.swl_3);
+
+  CHECK_EQ(0xdd223344, t.swr_0);
+  CHECK_EQ(0xccdd3344, t.swr_1);
+  CHECK_EQ(0xbbccdd44, t.swr_2);
+  CHECK_EQ(0xaabbccdd, t.swr_3);
+#else
+#error Unknown endianness
+#endif
 }
 
 
@@ -1035,12 +1033,9 @@ TEST(MIPS12) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.x = 1;
   t.y = 2;
   t.y1 = 3;
@@ -1092,12 +1087,9 @@ TEST(MIPS13) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
 
   t.cvt_big_in = 0xFFFFFFFF;
   t.cvt_small_in  = 333;
@@ -1213,12 +1205,9 @@ TEST(MIPS14) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
 
   t.round_up_in = 123.51;
   t.round_down_in = 123.49;

@@ -44,15 +44,9 @@
 
 using namespace v8::internal;
 
-enum TestMode {
-  PreParseAndParse,
-  PreParse,
-  Parse
-};
-
 std::pair<TimeDelta, TimeDelta> RunBaselineParser(
     const char* fname, Encoding encoding, int repeat, v8::Isolate* isolate,
-    v8::Handle<v8::Context> context, TestMode test_mode) {
+    v8::Handle<v8::Context> context) {
   int length = 0;
   const byte* source = ReadFileAndRepeat(fname, &length, repeat);
   v8::Handle<v8::String> source_handle;
@@ -73,42 +67,41 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
       break;
     }
   }
-  v8::ScriptData* cached_data = NULL;
-  TimeDelta preparse_time, parse_time;
-  if (test_mode == PreParseAndParse || test_mode == PreParse) {
-    ElapsedTimer timer;
-    timer.Start();
-    cached_data = v8::ScriptData::PreCompile(source_handle);
-    preparse_time = timer.Elapsed();
-    if (cached_data == NULL || cached_data->HasError()) {
-      fprintf(stderr, "Preparsing failed\n");
-      return std::make_pair(TimeDelta(), TimeDelta());
-    }
-  }
-  if (test_mode == PreParseAndParse || test_mode == Parse) {
-    Handle<String> str = v8::Utils::OpenHandle(*source_handle);
-    i::Isolate* internal_isolate = str->GetIsolate();
-    Handle<Script> script = internal_isolate->factory()->NewScript(str);
+  TimeDelta parse_time1, parse_time2;
+  Handle<Script> script = Isolate::Current()->factory()->NewScript(
+      v8::Utils::OpenHandle(*source_handle));
+  i::ScriptData* cached_data_impl = NULL;
+  // First round of parsing (produce data to cache).
+  {
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
-    i::ScriptDataImpl* cached_data_impl =
-        static_cast<i::ScriptDataImpl*>(cached_data);
-    if (test_mode == PreParseAndParse) {
-      info.SetCachedData(&cached_data_impl,
-                         i::CONSUME_CACHED_DATA);
-    }
-    info.SetContext(v8::Utils::OpenHandle(*context));
+    info.SetCachedData(&cached_data_impl, i::PRODUCE_CACHED_DATA);
     ElapsedTimer timer;
     timer.Start();
-    // Allow lazy parsing; otherwise the preparse data won't help.
+    // Allow lazy parsing; otherwise we won't produce cached data.
     bool success = Parser::Parse(&info, true);
-    parse_time = timer.Elapsed();
+    parse_time1 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
       return std::make_pair(TimeDelta(), TimeDelta());
     }
   }
-  return std::make_pair(preparse_time, parse_time);
+  // Second round of parsing (consume cached data).
+  {
+    CompilationInfoWithZone info(script);
+    info.MarkAsGlobal();
+    info.SetCachedData(&cached_data_impl, i::CONSUME_CACHED_DATA);
+    ElapsedTimer timer;
+    timer.Start();
+    // Allow lazy parsing; otherwise cached data won't help.
+    bool success = Parser::Parse(&info, true);
+    parse_time2 = timer.Elapsed();
+    if (!success) {
+      fprintf(stderr, "Parsing failed\n");
+      return std::make_pair(TimeDelta(), TimeDelta());
+    }
+  }
+  return std::make_pair(parse_time1, parse_time2);
 }
 
 
@@ -116,7 +109,6 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
-  TestMode test_mode = PreParseAndParse;
   std::vector<std::string> fnames;
   std::string benchmark;
   int repeat = 1;
@@ -127,12 +119,6 @@ int main(int argc, char* argv[]) {
       encoding = UTF8;
     } else if (strcmp(argv[i], "--utf16") == 0) {
       encoding = UTF16;
-    } else if (strcmp(argv[i], "--preparse-and-parse") == 0) {
-      test_mode = PreParseAndParse;
-    } else if (strcmp(argv[i], "--preparse") == 0) {
-      test_mode = PreParse;
-    } else if (strcmp(argv[i], "--parse") == 0) {
-      test_mode = Parse;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
@@ -150,20 +136,19 @@ int main(int argc, char* argv[]) {
     ASSERT(!context.IsEmpty());
     {
       v8::Context::Scope scope(context);
-      double preparse_total = 0;
-      double parse_total = 0;
+      double first_parse_total = 0;
+      double second_parse_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> time = RunBaselineParser(
-            fnames[i].c_str(), encoding, repeat, isolate, context, test_mode);
-        preparse_total += time.first.InMillisecondsF();
-        parse_total += time.second.InMillisecondsF();
+            fnames[i].c_str(), encoding, repeat, isolate, context);
+        first_parse_total += time.first.InMillisecondsF();
+        second_parse_total += time.second.InMillisecondsF();
       }
       if (benchmark.empty()) benchmark = "Baseline";
-      printf("%s(PreParseRunTime): %.f ms\n", benchmark.c_str(),
-             preparse_total);
-      printf("%s(ParseRunTime): %.f ms\n", benchmark.c_str(), parse_total);
-      printf("%s(RunTime): %.f ms\n", benchmark.c_str(),
-             preparse_total + parse_total);
+      printf("%s(FirstParseRunTime): %.f ms\n", benchmark.c_str(),
+             first_parse_total);
+      printf("%s(SecondParseRunTime): %.f ms\n", benchmark.c_str(),
+             second_parse_total);
     }
   }
   v8::V8::Dispose();

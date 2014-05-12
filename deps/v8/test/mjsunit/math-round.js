@@ -38,6 +38,16 @@ function testRound(expect, input) {
   assertEquals(expect, doRound(input));
   %OptimizeFunctionOnNextCall(doRound);
   assertEquals(expect, doRound(input));
+
+  // Force the Math.round() representation to double to exercise the associated
+  // optimized code.
+  var doRoundToDouble = new Function('input',
+                                     '"' + (test_id++) + '";return Math.round(input) + -0.0');
+  assertEquals(expect, doRoundToDouble(input));
+  assertEquals(expect, doRoundToDouble(input));
+  assertEquals(expect, doRoundToDouble(input));
+  %OptimizeFunctionOnNextCall(doRoundToDouble);
+  assertEquals(expect, doRoundToDouble(input));
 }
 
 testRound(0, 0);

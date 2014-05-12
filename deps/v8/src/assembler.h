@@ -107,6 +107,22 @@ class AssemblerBase: public Malloced {
 };
 
 
+// Avoids emitting debug code during the lifetime of this scope object.
+class DontEmitDebugCodeScope BASE_EMBEDDED {
+ public:
+  explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
+      : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
+    assembler_->set_emit_debug_code(false);
+  }
+  ~DontEmitDebugCodeScope() {
+    assembler_->set_emit_debug_code(old_value_);
+  };
+ private:
+  AssemblerBase* assembler_;
+  bool old_value_;
+};
+
+
 // Avoids using instructions that vary in size in unpredictable ways between the
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
@@ -142,10 +158,11 @@ class CpuFeatureScope BASE_EMBEDDED {
 // different CPU.
 class PlatformFeatureScope BASE_EMBEDDED {
  public:
-  explicit PlatformFeatureScope(CpuFeature f);
+  PlatformFeatureScope(Isolate* isolate, CpuFeature f);
   ~PlatformFeatureScope();
 
  private:
+  Isolate* isolate_;
   uint64_t old_cross_compile_;
 };
 
@@ -237,7 +254,7 @@ enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
 // describe a property of the datum. Such rmodes are useful for GC
 // and nice disassembly output.
 
-class RelocInfo BASE_EMBEDDED {
+class RelocInfo {
  public:
   // The constant kNoPosition is used with the collecting of source positions
   // in the relocation information. Two types of source positions are collected
@@ -503,7 +520,7 @@ class RelocInfo BASE_EMBEDDED {
   void Print(Isolate* isolate, FILE* out);
 #endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
-  void Verify();
+  void Verify(Isolate* isolate);
 #endif
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
@@ -653,9 +670,7 @@ class RelocIterator: public Malloced {
 //----------------------------------------------------------------------------
 class IC_Utility;
 class SCTableReference;
-#ifdef ENABLE_DEBUGGER_SUPPORT
 class Debug_Address;
-#endif
 
 
 // An ExternalReference represents a C++ address used in the generated
@@ -668,7 +683,7 @@ class ExternalReference BASE_EMBEDDED {
   // Used in the simulator to support different native api calls.
   enum Type {
     // Builtin call.
-    // MaybeObject* f(v8::internal::Arguments).
+    // Object* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
 
     // Builtin that takes float arguments and returns an int.
@@ -725,9 +740,7 @@ class ExternalReference BASE_EMBEDDED {
 
   ExternalReference(const IC_Utility& ic_utility, Isolate* isolate);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference(const Debug_Address& debug_address, Isolate* isolate);
-#endif
 
   explicit ExternalReference(StatsCounter* counter);
 
@@ -747,8 +760,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
   static ExternalReference flush_icache_function(Isolate* isolate);
-  static ExternalReference perform_gc_function(Isolate* isolate);
-  static ExternalReference out_of_memory_function(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
 
   static ExternalReference get_date_field_function(Isolate* isolate);
@@ -850,15 +861,17 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference cpu_features();
 
+  static ExternalReference is_profiling_address(Isolate* isolate);
+  static ExternalReference invoke_function_callback(Isolate* isolate);
+  static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
+
   Address address() const { return reinterpret_cast<Address>(address_); }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Function Debug::Break()
   static ExternalReference debug_break(Isolate* isolate);
 
   // Used to check if single stepping is enabled in generated code.
   static ExternalReference debug_step_in_fp_address(Isolate* isolate);
-#endif
 
 #ifndef V8_INTERPRETED_REGEXP
   // C functions called from RegExp generated code.

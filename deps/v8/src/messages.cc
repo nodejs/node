@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -78,7 +55,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   if (loc) {
     start = loc->start_pos();
     end = loc->end_pos();
-    script_handle = GetScriptWrapper(loc->script());
+    script_handle = Script::GetWrapper(loc->script());
   }
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()
@@ -107,7 +84,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   // We pass the exception object into the message handler callback though.
   Object* exception_object = isolate->heap()->undefined_value();
   if (isolate->has_pending_exception()) {
-    isolate->pending_exception()->ToObject(&exception_object);
+    exception_object = isolate->pending_exception();
   }
   Handle<Object> exception_handle(exception_object, isolate);
 
@@ -154,24 +131,16 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<String> fmt_str =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("FormatMessage"));
-  Handle<JSFunction> fun =
-      Handle<JSFunction>(
-          JSFunction::cast(
-              isolate->js_builtins_object()->
-              GetPropertyNoExceptionThrown(*fmt_str)));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
+          isolate->js_builtins_object(), fmt_str).ToHandleChecked());
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
                             Handle<Object>(message->arguments(), isolate) };
 
-  bool caught_exception;
-  Handle<Object> result =
-      Execution::TryCall(fun,
-                         isolate->js_builtins_object(),
-                         ARRAY_SIZE(argv),
-                         argv,
-                         &caught_exception);
-
-  if (caught_exception || !result->IsString()) {
+  MaybeHandle<Object> maybe_result = Execution::TryCall(
+      fun, isolate->js_builtins_object(), ARRAY_SIZE(argv), argv);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);
@@ -180,7 +149,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   // here to improve the efficiency of converting it to a C string and
   // other operations that are likely to take place (see GetLocalizedMessage
   // for example).
-  FlattenString(result_string);
+  result_string = String::Flatten(result_string);
   return result_string;
 }
 

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
@@ -102,8 +79,6 @@ class CodeGenerator {
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
 
-  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
-
   static bool RecordPositions(MacroAssembler* masm,
                               int pos,
                               bool right_here = false);
@@ -120,6 +95,18 @@ typedef double (*UnaryMathFunction)(double x);
 
 UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
+
+
+double modulo(double x, double y);
+
+// Custom implementation of math functions.
+double fast_exp(double input);
+double fast_sqrt(double input);
+#ifdef _WIN64
+void init_modulo_function();
+#endif
+void lazily_initialize_fast_exp();
+void init_fast_sqrt_function();
 
 
 class ElementsTransitionGenerator : public AllStatic {
@@ -142,6 +129,33 @@ class ElementsTransitionGenerator : public AllStatic {
 
 static const int kNumberDictionaryProbes = 4;
 
+
+class CodeAgingHelper {
+ public:
+  CodeAgingHelper();
+
+  uint32_t young_sequence_length() const { return young_sequence_.length(); }
+  bool IsYoung(byte* candidate) const {
+    return memcmp(candidate,
+                  young_sequence_.start(),
+                  young_sequence_.length()) == 0;
+  }
+  void CopyYoungSequenceTo(byte* new_buffer) const {
+    CopyBytes(new_buffer, young_sequence_.start(), young_sequence_.length());
+  }
+
+#ifdef DEBUG
+  bool IsOld(byte* candidate) const;
+#endif
+
+ protected:
+  const EmbeddedVector<byte, kNoCodeAgeSequenceLength> young_sequence_;
+#ifdef DEBUG
+#ifdef V8_TARGET_ARCH_ARM64
+  const EmbeddedVector<byte, kNoCodeAgeSequenceLength> old_sequence_;
+#endif
+#endif
+};
 
 } }  // namespace v8::internal
 

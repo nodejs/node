@@ -103,6 +103,13 @@ def CheckChangeOnCommit(input_api, output_api):
 def GetPreferredTryMasters(project, change):
   return {
     'tryserver.v8': {
+      'v8_linux_rel': set(['defaulttests']),
+      'v8_linux_dbg': set(['defaulttests']),
+      'v8_linux_nosnap_rel': set(['defaulttests']),
+      'v8_linux_nosnap_dbg': set(['defaulttests']),
+      'v8_linux64_rel': set(['defaulttests']),
+      'v8_linux_arm_dbg': set(['defaulttests']),
+      'v8_linux_arm64_rel': set(['defaulttests']),
       'v8_mac_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
     },

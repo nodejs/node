@@ -85,7 +85,6 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, TEST_NAME,
                             'lib', 'tests', testcase.path + '.js')
-    return 'print("FAIL: fail");'
     with open(filename) as f:
       return f.read()
 

@@ -28,6 +28,11 @@
 
 import re
 
+
+class GitFailedException(Exception):
+  pass
+
+
 def Strip(f):
   def new_f(*args, **kwargs):
     return f(*args, **kwargs).strip()
@@ -59,6 +64,13 @@ class GitRecipesMixin(object):
     assert name
     self.Git(MakeArgs(["branch -D", name]))
 
+  def GitReset(self, name):
+    assert name
+    self.Git(MakeArgs(["reset --hard", name]))
+
+  def GitRemotes(self):
+    return map(str.strip, self.Git(MakeArgs(["branch -r"])).splitlines())
+
   def GitCheckout(self, name):
     assert name
     self.Git(MakeArgs(["checkout -f", name]))
@@ -67,6 +79,26 @@ class GitRecipesMixin(object):
     assert name
     assert branch_or_hash
     self.Git(MakeArgs(["checkout -f", branch_or_hash, "--", name]))
+
+  def GitCheckoutFileSafe(self, name, branch_or_hash):
+    try:
+      self.GitCheckoutFile(name, branch_or_hash)
+    except GitFailedException:  # pragma: no cover
+      # The file doesn't exist in that revision.
+      return False
+    return True
+
+  def GitChangedFiles(self, git_hash):
+    assert git_hash
+    try:
+      files = self.Git(MakeArgs(["diff --name-only",
+                                 git_hash,
+                                 "%s^" % git_hash]))
+      return map(str.strip, files.splitlines())
+    except GitFailedException:  # pragma: no cover
+      # Git fails using "^" at branch roots.
+      return []
+
 
   @Strip
   def GitCurrentBranch(self):
@@ -85,7 +117,7 @@ class GitRecipesMixin(object):
     if format:
       args.append("--format=%s" % format)
     if grep:
-      args.append("--grep=\"%s\"" % grep)
+      args.append("--grep=\"%s\"" % grep.replace("\"", "\\\""))
     if reverse:
       args.append("--reverse")
     if git_hash:
@@ -99,6 +131,7 @@ class GitRecipesMixin(object):
     assert git_hash
     return self.Git(MakeArgs(["log", "-1", "-p", git_hash]))
 
+  # TODO(machenbach): Unused? Remove.
   def GitAdd(self, name):
     assert name
     self.Git(MakeArgs(["add", Quoted(name)]))
@@ -147,6 +180,7 @@ class GitRecipesMixin(object):
   def GitSVNFetch(self):
     self.Git("svn fetch")
 
+  # TODO(machenbach): Unused? Remove.
   @Strip
   def GitSVNLog(self):
     return self.Git("svn log -1 --oneline")

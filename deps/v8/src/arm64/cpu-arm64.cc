@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // CPU specific code for arm independent of OS goes here.
 
@@ -41,28 +18,36 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
 
-// Initialise to smallest possible cache size.
-unsigned CpuFeatures::dcache_line_size_ = 1;
-unsigned CpuFeatures::icache_line_size_ = 1;
 
+class CacheLineSizes {
+ public:
+  CacheLineSizes() {
+#ifdef USE_SIMULATOR
+    cache_type_register_ = 0;
+#else
+    // Copy the content of the cache type register to a core register.
+    __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
+                          : [ctr] "=r" (cache_type_register_));
+#endif
+  };
 
-void CPU::SetUp() {
-  CpuFeatures::Probe();
-}
+  uint32_t icache_line_size() const { return ExtractCacheLineSize(0); }
+  uint32_t dcache_line_size() const { return ExtractCacheLineSize(16); }
 
+ private:
+  uint32_t ExtractCacheLineSize(int cache_line_size_shift) const {
+    // The cache type register holds the size of the caches as a power of two.
+    return 1 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
+  }
 
-bool CPU::SupportsCrankshaft() {
-  return true;
-}
+  uint32_t cache_type_register_;
+};
 
 
 void CPU::FlushICache(void* address, size_t length) {
-  if (length == 0) {
-    return;
-  }
+  if (length == 0) return;
 
 #ifdef USE_SIMULATOR
   // TODO(all): consider doing some cache simulation to ensure every address
@@ -76,8 +61,9 @@ void CPU::FlushICache(void* address, size_t length) {
 
   uintptr_t start = reinterpret_cast<uintptr_t>(address);
   // Sizes will be used to generate a mask big enough to cover a pointer.
-  uintptr_t dsize = static_cast<uintptr_t>(CpuFeatures::dcache_line_size());
-  uintptr_t isize = static_cast<uintptr_t>(CpuFeatures::icache_line_size());
+  CacheLineSizes sizes;
+  uintptr_t dsize = sizes.dcache_line_size();
+  uintptr_t isize = sizes.icache_line_size();
   // Cache line sizes are always a power of 2.
   ASSERT(CountSetBits(dsize, 64) == 1);
   ASSERT(CountSetBits(isize, 64) == 1);
@@ -139,26 +125,7 @@ void CPU::FlushICache(void* address, size_t length) {
 }
 
 
-void CpuFeatures::Probe() {
-  // Compute I and D cache line size. The cache type register holds
-  // information about the caches.
-  uint32_t cache_type_register = GetCacheType();
-
-  static const int kDCacheLineSizeShift = 16;
-  static const int kICacheLineSizeShift = 0;
-  static const uint32_t kDCacheLineSizeMask = 0xf << kDCacheLineSizeShift;
-  static const uint32_t kICacheLineSizeMask = 0xf << kICacheLineSizeShift;
-
-  // The cache type register holds the size of the I and D caches as a power of
-  // two.
-  uint32_t dcache_line_size_power_of_two =
-      (cache_type_register & kDCacheLineSizeMask) >> kDCacheLineSizeShift;
-  uint32_t icache_line_size_power_of_two =
-      (cache_type_register & kICacheLineSizeMask) >> kICacheLineSizeShift;
-
-  dcache_line_size_ = 1 << dcache_line_size_power_of_two;
-  icache_line_size_ = 1 << icache_line_size_power_of_two;
-
+void CpuFeatures::Probe(bool serializer_enabled) {
   // AArch64 has no configuration options, no further probing is required.
   supported_ = 0;
 
@@ -167,32 +134,6 @@ void CpuFeatures::Probe() {
 #endif
 }
 
-
-unsigned CpuFeatures::dcache_line_size() {
-  ASSERT(initialized_);
-  return dcache_line_size_;
-}
-
-
-unsigned CpuFeatures::icache_line_size() {
-  ASSERT(initialized_);
-  return icache_line_size_;
-}
-
-
-uint32_t CpuFeatures::GetCacheType() {
-#ifdef USE_SIMULATOR
-  // This will lead to a cache with 1 byte long lines, which is fine since the
-  // simulator will not need this information.
-  return 0;
-#else
-  uint32_t cache_type_register;
-  // Copy the content of the cache type register to a core register.
-  __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
-                        : [ctr] "=r" (cache_type_register));
-  return cache_type_register;
-#endif
-}
 
 } }  // namespace v8::internal
 

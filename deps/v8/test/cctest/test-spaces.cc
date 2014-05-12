@@ -328,9 +328,8 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
-    Object* obj =
-        new_space.AllocateRaw(Page::kMaxRegularHeapObjectSize)->
-        ToObjectUnchecked();
+    Object* obj = new_space.AllocateRaw(
+        Page::kMaxRegularHeapObjectSize).ToObjectChecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -359,7 +358,7 @@ TEST(OldSpace) {
   CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRaw(Page::kMaxRegularHeapObjectSize)->ToObjectUnchecked();
+    s->AllocateRaw(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
   }
 
   s->TearDown();
@@ -377,7 +376,7 @@ TEST(LargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE)->ToObjectUnchecked();
+  Object* obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE).ToObjectChecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
@@ -390,15 +389,15 @@ TEST(LargeObjectSpace) {
 
   while (true) {
     intptr_t available = lo->Available();
-    { MaybeObject* maybe_obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
-      if (!maybe_obj->ToObject(&obj)) break;
+    { AllocationResult allocation = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
+      if (allocation.IsRetry()) break;
     }
     CHECK(lo->Available() < available);
   };
 
   CHECK(!lo->IsEmpty());
 
-  CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE)->IsFailure());
+  CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
 }
 
 

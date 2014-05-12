@@ -508,3 +508,347 @@ for (var i = 9; i >= 0; i--) {
   assertEquals('minus', m.get(0));
   assertEquals('minus', m.get(-0));
 })();
+
+
+(function TestSetForEachInvalidTypes() {
+  assertThrows(function() {
+    Set.prototype.set.forEach.call({});
+  }, TypeError);
+
+  var set = new Set();
+  assertThrows(function() {
+    set.forEach({});
+  }, TypeError);
+})();
+
+
+(function TestSetForEach() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  var receiver = {};
+  set.forEach(function(v, k, s) {
+    assertSame(v, k);
+    assertSame(set, s);
+    assertSame(this, receiver);
+    buffer += v;
+    if (v === 'a') {
+      set.delete('b');
+      set.add('d');
+      set.add('e');
+      set.add('f');
+    } else if (v === 'c') {
+      set.add('b');
+      set.delete('e');
+    }
+  }, receiver);
+
+  assertEquals('acdfb', buffer);
+})();
+
+
+(function TestSetForEachAddAtEnd() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+
+  var buffer = '';
+  set.forEach(function(v) {
+    buffer += v;
+    if (v === 'b') {
+      set.add('c');
+    }
+  });
+
+  assertEquals('abc', buffer);
+})();
+
+
+(function TestSetForEachDeleteNext() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  set.forEach(function(v) {
+    buffer += v;
+    if (v === 'b') {
+      set.delete('c');
+    }
+  });
+
+  assertEquals('ab', buffer);
+})();
+
+
+(function TestSetForEachDeleteVisitedAndAddAgain() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  set.forEach(function(v) {
+    buffer += v;
+    if (v === 'b') {
+      set.delete('a');
+    } else if (v === 'c') {
+      set.add('a');
+    }
+  });
+
+  assertEquals('abca', buffer);
+})();
+
+
+(function TestSetForEachClear() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  set.forEach(function(v) {
+    buffer += v;
+    if (v === 'a') {
+      set.clear();
+      set.add('d');
+      set.add('e');
+    }
+  });
+
+  assertEquals('ade', buffer);
+})();
+
+
+(function TestSetForEachNested() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  set.forEach(function(v) {
+    buffer += v;
+    set.forEach(function(v) {
+      buffer += v;
+      if (v === 'a') {
+        set.delete('b');
+      }
+    });
+  });
+
+  assertEquals('aaccac', buffer);
+})();
+
+
+(function TestSetForEachEarlyExit() {
+  var set = new Set();
+  set.add('a');
+  set.add('b');
+  set.add('c');
+
+  var buffer = '';
+  var ex = {};
+  try {
+    set.forEach(function(v) {
+      buffer += v;
+      throw ex;
+    });
+  } catch (e) {
+    assertEquals(ex, e);
+  }
+  assertEquals('a', buffer);
+})();
+
+
+(function TestSetForEachGC() {
+  var set = new Set();
+  for (var i = 0; i < 100; i++) {
+    set.add(i);
+  }
+
+  var accumulated = 0;
+  set.forEach(function(v) {
+    accumulated += v;
+    if (v % 10 === 0) {
+      gc();
+    }
+  });
+  assertEquals(4950, accumulated);
+})();
+
+(function TestMapForEachInvalidTypes() {
+  assertThrows(function() {
+    Map.prototype.map.forEach.call({});
+  }, TypeError);
+
+  var map = new Map();
+  assertThrows(function() {
+    map.forEach({});
+  }, TypeError);
+})();
+
+
+(function TestMapForEach() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  var receiver = {};
+  map.forEach(function(v, k, m) {
+    assertEquals(map, m);
+    assertEquals(this, receiver);
+    buffer.push(k, v);
+    if (k === 0) {
+      map.delete(1);
+      map.set(3, 'd');
+      map.set(4, 'e');
+      map.set(5, 'f');
+    } else if (k === 2) {
+      map.set(1, 'B');
+      map.delete(4);
+    }
+  }, receiver);
+
+  assertArrayEquals([0, 'a', 2, 'c', 3, 'd', 5, 'f', 1, 'B'], buffer);
+})();
+
+
+(function TestMapForEachAddAtEnd() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+
+  var buffer = [];
+  map.forEach(function(v, k) {
+    buffer.push(k, v);
+    if (k === 1) {
+      map.set(2, 'c');
+    }
+  });
+
+  assertArrayEquals([0, 'a', 1, 'b', 2, 'c'], buffer);
+})();
+
+
+(function TestMapForEachDeleteNext() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  map.forEach(function(v, k) {
+    buffer.push(k, v);
+    if (k === 1) {
+      map.delete(2);
+    }
+  });
+
+  assertArrayEquals([0, 'a', 1, 'b'], buffer);
+})();
+
+
+(function TestSetForEachDeleteVisitedAndAddAgain() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  map.forEach(function(v, k) {
+    buffer.push(k, v);
+    if (k === 1) {
+      map.delete(0);
+    } else if (k === 2) {
+      map.set(0, 'a');
+    }
+  });
+
+  assertArrayEquals([0, 'a', 1, 'b', 2, 'c', 0, 'a'], buffer);
+})();
+
+
+(function TestMapForEachClear() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  map.forEach(function(v, k) {
+    buffer.push(k, v);
+    if (k === 0) {
+      map.clear();
+      map.set(3, 'd');
+      map.set(4, 'e');
+    }
+  });
+
+  assertArrayEquals([0, 'a', 3, 'd', 4, 'e'], buffer);
+})();
+
+
+(function TestMapForEachNested() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  map.forEach(function(v, k) {
+    buffer.push(k, v);
+    map.forEach(function(v, k) {
+      buffer.push(k, v);
+      if (k === 0) {
+        map.delete(1);
+      }
+    });
+  });
+
+  assertArrayEquals([0, 'a', 0, 'a', 2, 'c', 2, 'c', 0, 'a', 2, 'c'], buffer);
+})();
+
+
+(function TestMapForEachEarlyExit() {
+  var map = new Map();
+  map.set(0, 'a');
+  map.set(1, 'b');
+  map.set(2, 'c');
+
+  var buffer = [];
+  var ex = {};
+  try {
+    map.forEach(function(v, k) {
+      buffer.push(k, v);
+      throw ex;
+    });
+  } catch (e) {
+    assertEquals(ex, e);
+  }
+  assertArrayEquals([0, 'a'], buffer);
+})();
+
+
+(function TestMapForEachGC() {
+  var map = new Map();
+  for (var i = 0; i < 100; i++) {
+    map.set(i, i);
+  }
+
+  var accumulated = 0;
+  map.forEach(function(v) {
+    accumulated += v;
+    if (v % 10 === 0) {
+      gc();
+    }
+  });
+  assertEquals(4950, accumulated);
+})();

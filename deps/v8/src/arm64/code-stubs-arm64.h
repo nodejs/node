@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_CODE_STUBS_ARM64_H_
 #define V8_ARM64_CODE_STUBS_ARM64_H_
@@ -39,8 +16,8 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
-  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
+  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
+      : PlatformCodeStub(isolate), save_doubles_(save_fp) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -79,8 +56,8 @@ class StringHelper : public AllStatic {
 
 class StoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
-      : save_doubles_(with_fp) {}
+  StoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
+      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
 
   static Register to_be_pushed_lr() { return ip0; }
   static void GenerateAheadOfTime(Isolate* isolate);
@@ -95,8 +72,8 @@ class StoreRegistersStateStub: public PlatformCodeStub {
 
 class RestoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
-      : save_doubles_(with_fp) {}
+  RestoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
+      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
@@ -113,12 +90,14 @@ class RecordWriteStub: public PlatformCodeStub {
   // Stub to record the write of 'value' at 'address' in 'object'.
   // Typically 'address' = 'object' + <some offset>.
   // See MacroAssembler::RecordWriteField() for example.
-  RecordWriteStub(Register object,
+  RecordWriteStub(Isolate* isolate,
+                  Register object,
                   Register value,
                   Register address,
                   RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
-      : object_(object),
+      : PlatformCodeStub(isolate),
+        object_(object),
         value_(value),
         address_(address),
         remembered_set_action_(remembered_set_action),
@@ -210,8 +189,14 @@ class RecordWriteStub: public PlatformCodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch),
-          saved_regs_(kCallerSaved)  {
+          saved_regs_(kCallerSaved),
+          saved_fp_regs_(kCallerSavedFP) {
       ASSERT(!AreAliased(scratch, object, address));
+
+      // The SaveCallerSaveRegisters method needs to save caller-saved
+      // registers, but we don't bother saving MacroAssembler scratch registers.
+      saved_regs_.Remove(MacroAssembler::DefaultTmpList());
+      saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
 
       // We would like to require more scratch registers for this stub,
       // but the number of registers comes down to the ones used in
@@ -222,12 +207,6 @@ class RecordWriteStub: public PlatformCodeStub {
       pool_available.Remove(used_regs);
       scratch1_ = Register(pool_available.PopLowestIndex());
       scratch2_ = Register(pool_available.PopLowestIndex());
-
-      // SaveCallerRegisters method needs to save caller saved register, however
-      // we don't bother saving ip0 and ip1 because they are used as scratch
-      // registers by the MacroAssembler.
-      saved_regs_.Remove(ip0);
-      saved_regs_.Remove(ip1);
 
       // The scratch registers will be restored by other means so we don't need
       // to save them with the other caller saved registers.
@@ -253,7 +232,7 @@ class RecordWriteStub: public PlatformCodeStub {
       // register will need to be preserved. Can we improve this?
       masm->PushCPURegList(saved_regs_);
       if (mode == kSaveFPRegs) {
-        masm->PushCPURegList(kCallerSavedFP);
+        masm->PushCPURegList(saved_fp_regs_);
       }
     }
 
@@ -261,7 +240,7 @@ class RecordWriteStub: public PlatformCodeStub {
       // TODO(all): This can be very expensive, and it is likely that not every
       // register will need to be preserved. Can we improve this?
       if (mode == kSaveFPRegs) {
-        masm->PopCPURegList(kCallerSavedFP);
+        masm->PopCPURegList(saved_fp_regs_);
       }
       masm->PopCPURegList(saved_regs_);
     }
@@ -279,6 +258,7 @@ class RecordWriteStub: public PlatformCodeStub {
     Register scratch1_;
     Register scratch2_;
     CPURegList saved_regs_;
+    CPURegList saved_fp_regs_;
 
     // TODO(all): We should consider moving this somewhere else.
     static CPURegList GetValidRegistersForAllocation() {
@@ -296,10 +276,7 @@ class RecordWriteStub: public PlatformCodeStub {
       CPURegList list(CPURegister::kRegister, kXRegSizeInBits, 0, 25);
 
       // We also remove MacroAssembler's scratch registers.
-      list.Remove(ip0);
-      list.Remove(ip1);
-      list.Remove(x8);
-      list.Remove(x9);
+      list.Remove(MacroAssembler::DefaultTmpList());
 
       return list;
     }
@@ -372,7 +349,7 @@ class RecordWriteStub: public PlatformCodeStub {
 // the exit frame before doing the call with GenerateCall.
 class DirectCEntryStub: public PlatformCodeStub {
  public:
-  DirectCEntryStub() {}
+  explicit DirectCEntryStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
   void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, Register target);
 
@@ -388,7 +365,8 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  explicit NameDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
+  NameDictionaryLookupStub(Isolate* isolate, LookupMode mode)
+      : PlatformCodeStub(isolate), mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -436,7 +414,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
 class SubStringStub: public PlatformCodeStub {
  public:
-  SubStringStub() {}
+  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
   Major MajorKey() { return SubString; }
@@ -448,7 +426,7 @@ class SubStringStub: public PlatformCodeStub {
 
 class StringCompareStub: public PlatformCodeStub {
  public:
-  StringCompareStub() { }
+  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
 
   // Compares two flat ASCII strings and returns result in x0.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,

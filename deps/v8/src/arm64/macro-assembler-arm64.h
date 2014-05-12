@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_ARM64_MACRO_ASSEMBLER_ARM64_H_
@@ -255,8 +232,16 @@ class MacroAssembler : public Assembler {
   void Load(const Register& rt, const MemOperand& addr, Representation r);
   void Store(const Register& rt, const MemOperand& addr, Representation r);
 
+  enum AdrHint {
+    // The target must be within the immediate range of adr.
+    kAdrNear,
+    // The target may be outside of the immediate range of adr. Additional
+    // instructions may be emitted.
+    kAdrFar
+  };
+  void Adr(const Register& rd, Label* label, AdrHint = kAdrNear);
+
   // Remaining instructions are simple pass-through calls to the assembler.
-  inline void Adr(const Register& rd, Label* label);
   inline void Asr(const Register& rd, const Register& rn, unsigned shift);
   inline void Asr(const Register& rd, const Register& rn, const Register& rm);
 
@@ -387,6 +372,7 @@ class MacroAssembler : public Assembler {
                      const FPRegister& fm,
                      const FPRegister& fa);
   inline void Frinta(const FPRegister& fd, const FPRegister& fn);
+  inline void Frintm(const FPRegister& fd, const FPRegister& fn);
   inline void Frintn(const FPRegister& fd, const FPRegister& fn);
   inline void Frintz(const FPRegister& fd, const FPRegister& fn);
   inline void Fsqrt(const FPRegister& fd, const FPRegister& fn);
@@ -502,7 +488,8 @@ class MacroAssembler : public Assembler {
   // Pseudo-instructions ------------------------------------------------------
 
   // Compute rd = abs(rm).
-  // This function clobbers the condition flags.
+  // This function clobbers the condition flags. On output the overflow flag is
+  // set iff the negation overflowed.
   //
   // If rm is the minimum representable value, the result is not representable.
   // Handlers for each case can be specified using the relevant labels.
@@ -801,8 +788,15 @@ class MacroAssembler : public Assembler {
   // Root register.
   inline void InitializeRootRegister();
 
+  void AssertFPCRState(Register fpcr = NoReg);
+  void ConfigureFPCR();
+  void CanonicalizeNaN(const FPRegister& dst, const FPRegister& src);
+  void CanonicalizeNaN(const FPRegister& reg) {
+    CanonicalizeNaN(reg, reg);
+  }
+
   // Load an object from the root table.
-  void LoadRoot(Register destination,
+  void LoadRoot(CPURegister destination,
                 Heap::RootListIndex index);
   // Store an object to the root table.
   void StoreRoot(Register source,
@@ -883,6 +877,9 @@ class MacroAssembler : public Assembler {
   void AssertNotSmi(Register object, BailoutReason reason = kOperandIsASmi);
   void AssertSmi(Register object, BailoutReason reason = kOperandIsNotASmi);
 
+  inline void ObjectTag(Register tagged_obj, Register obj);
+  inline void ObjectUntag(Register untagged_obj, Register obj);
+
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
@@ -932,34 +929,34 @@ class MacroAssembler : public Assembler {
                           DoubleRegister input,
                           DoubleRegister dbl_scratch);
 
-  // Try to convert a double to a signed 32-bit int.
+  // Try to represent a double as a signed 32-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are converted to 0 and handled as a success.
+  // are represented as 0 and handled as a success.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt32(Register as_int,
-                               FPRegister value,
-                               FPRegister scratch_d,
-                               Label* on_successful_conversion = NULL,
-                               Label* on_failed_conversion = NULL) {
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt32(Register as_int,
+                                 FPRegister value,
+                                 FPRegister scratch_d,
+                                 Label* on_successful_conversion = NULL,
+                                 Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is32Bits());
-    TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
-                          on_failed_conversion);
+    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
+                            on_failed_conversion);
   }
 
-  // Try to convert a double to a signed 64-bit int.
+  // Try to represent a double as a signed 64-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are converted to 0 and handled as a success.
+  // are represented as 0 and handled as a success.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt64(Register as_int,
-                               FPRegister value,
-                               FPRegister scratch_d,
-                               Label* on_successful_conversion = NULL,
-                               Label* on_failed_conversion = NULL) {
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt64(Register as_int,
+                                 FPRegister value,
+                                 FPRegister scratch_d,
+                                 Label* on_successful_conversion = NULL,
+                                 Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is64Bits());
-    TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
-                          on_failed_conversion);
+    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
+                            on_failed_conversion);
   }
 
   // ---- Object Utilities ----
@@ -1055,7 +1052,7 @@ class MacroAssembler : public Assembler {
   void Throw(BailoutReason reason);
 
   // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cc, BailoutReason reason);
+  void ThrowIf(Condition cond, BailoutReason reason);
 
   // Throw a message string as an exception if the value is a smi.
   void ThrowIfSmi(const Register& value, BailoutReason reason);
@@ -1265,12 +1262,11 @@ class MacroAssembler : public Assembler {
     MacroAssembler* masm_;
   };
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
+
   // ---------------------------------------------------------------------------
   // Exception handling
 
@@ -1354,13 +1350,8 @@ class MacroAssembler : public Assembler {
                           Label* gc_required,
                           Register scratch1,
                           Register scratch2,
-                          Register heap_number_map = NoReg);
-  void AllocateHeapNumberWithValue(Register result,
-                                   DoubleRegister value,
-                                   Label* gc_required,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Register heap_number_map = NoReg);
+                          CPURegister value = NoFPReg,
+                          CPURegister heap_number_map = NoReg);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -1549,7 +1540,6 @@ class MacroAssembler : public Assembler {
                                    Register elements_reg,
                                    Register scratch1,
                                    FPRegister fpscratch1,
-                                   FPRegister fpscratch2,
                                    Label* fail,
                                    int elements_offset = 0);
 
@@ -1919,6 +1909,9 @@ class MacroAssembler : public Assembler {
   CPURegList* TmpList() { return &tmp_list_; }
   CPURegList* FPTmpList() { return &fptmp_list_; }
 
+  static CPURegList DefaultTmpList();
+  static CPURegList DefaultFPTmpList();
+
   // Like printf, but print at run-time from generated code.
   //
   // The caller must ensure that arguments for floating-point placeholders
@@ -1938,10 +1931,6 @@ class MacroAssembler : public Assembler {
   // a problem, preserve the important registers manually and then call
   // PrintfNoPreserve. Callee-saved registers are not used by Printf, and are
   // implicitly preserved.
-  //
-  // Unlike many MacroAssembler functions, x8 and x9 are guaranteed to be
-  // preserved, and can be printed. This allows Printf to be used during debug
-  // code.
   //
   // This function assumes (and asserts) that the current stack pointer is
   // callee-saved, not caller-saved. This is most likely the case anyway, as a
@@ -1998,13 +1987,7 @@ class MacroAssembler : public Assembler {
   // Return true if the sequence is a young sequence geneated by
   // EmitFrameSetupForCodeAgePatching. Otherwise, this method asserts that the
   // sequence is a code age sequence (emitted by EmitCodeAgeSequence).
-  static bool IsYoungSequence(byte* sequence);
-
-#ifdef DEBUG
-  // Return true if the sequence is a code age sequence generated by
-  // EmitCodeAgeSequence.
-  static bool IsCodeAgeSequence(byte* sequence);
-#endif
+  static bool IsYoungSequence(Isolate* isolate, byte* sequence);
 
   // Jumps to found label if a prototype map has dictionary elements.
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
@@ -2067,7 +2050,7 @@ class MacroAssembler : public Assembler {
                   Condition cond,  // eq for new space, ne otherwise.
                   Label* branch);
 
-  // Try to convert a double to an int so that integer fast-paths may be
+  // Try to represent a double as an int so that integer fast-paths may be
   // used. Not every valid integer value is guaranteed to be caught.
   // It supports both 32-bit and 64-bit integers depending whether 'as_int'
   // is a W or X register.
@@ -2075,12 +2058,12 @@ class MacroAssembler : public Assembler {
   // This does not distinguish between +0 and -0, so if this distinction is
   // important it must be checked separately.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt(Register as_int,
-                             FPRegister value,
-                             FPRegister scratch_d,
-                             Label* on_successful_conversion = NULL,
-                             Label* on_failed_conversion = NULL);
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt(Register as_int,
+                               FPRegister value,
+                               FPRegister scratch_d,
+                               Label* on_successful_conversion = NULL,
+                               Label* on_failed_conversion = NULL);
 
   bool generating_stub_;
 #if DEBUG

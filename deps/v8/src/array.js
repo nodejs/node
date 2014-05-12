@@ -1,29 +1,8 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+"use strict";
 
 // This file relies on the fact that the following declarations have been made
 // in runtime.js:
@@ -378,17 +357,18 @@ function ArrayToLocaleString() {
 function ArrayJoin(separator) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
 
-  var length = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var length = TO_UINT32(array.length);
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
     separator = NonStringToString(separator);
   }
 
-  var result = %_FastAsciiArrayJoin(this, separator);
+  var result = %_FastAsciiArrayJoin(array, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  return Join(this, length, separator, ConvertToString);
+  return Join(array, length, separator, ConvertToString);
 }
 
 
@@ -413,24 +393,20 @@ function ObservedArrayPop(n) {
 function ArrayPop() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.pop");
 
-  var n = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var n = TO_UINT32(array.length);
   if (n == 0) {
-    this.length = n;
+    array.length = n;
     return;
   }
 
-  if ($Object.isSealed(this)) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.pop"]);
-  }
-
-  if (%IsObserved(this))
-    return ObservedArrayPop.call(this, n);
+  if (%IsObserved(array))
+    return ObservedArrayPop.call(array, n);
 
   n--;
-  var value = this[n];
-  Delete(this, ToName(n), true);
-  this.length = n;
+  var value = array[n];
+  Delete(array, ToName(n), true);
+  array.length = n;
   return value;
 }
 
@@ -444,13 +420,14 @@ function ObservedArrayPush() {
     for (var i = 0; i < m; i++) {
       this[i+n] = %_Arguments(i);
     }
-    this.length = n + m;
+    var new_length = n + m;
+    this.length = new_length;
   } finally {
     EndPerformSplice(this);
     EnqueueSpliceRecord(this, n, [], m);
   }
 
-  return this.length;
+  return new_length;
 }
 
 // Appends the arguments to the end of the array and returns the new
@@ -458,21 +435,22 @@ function ObservedArrayPush() {
 function ArrayPush() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.push");
 
-  var n = TO_UINT32(this.length);
-  var m = %_ArgumentsLength();
-  if (m > 0 && $Object.isSealed(this)) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.push"]);
-  }
-
   if (%IsObserved(this))
     return ObservedArrayPush.apply(this, arguments);
 
+  var array = TO_OBJECT_INLINE(this);
+  var n = TO_UINT32(array.length);
+  var m = %_ArgumentsLength();
+
   for (var i = 0; i < m; i++) {
-    this[i+n] = %_Arguments(i);
+    // Use SetProperty rather than a direct keyed store to ensure that the store
+    // site doesn't become poisened with an elements transition KeyedStoreIC.
+    %SetProperty(array, i+n, %_Arguments(i), 0, kStrictMode);
   }
-  this.length = n + m;
-  return this.length;
+
+  var new_length = n + m;
+  array.length = new_length;
+  return new_length;
 }
 
 
@@ -541,33 +519,34 @@ function SparseReverse(array, len) {
 function ArrayReverse() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
 
-  var j = TO_UINT32(this.length) - 1;
+  var array = TO_OBJECT_INLINE(this);
+  var j = TO_UINT32(array.length) - 1;
 
-  if (UseSparseVariant(this, j, IS_ARRAY(this))) {
-    SparseReverse(this, j+1);
-    return this;
+  if (UseSparseVariant(array, j, IS_ARRAY(array))) {
+    SparseReverse(array, j+1);
+    return array;
   }
 
   for (var i = 0; i < j; i++, j--) {
-    var current_i = this[i];
-    if (!IS_UNDEFINED(current_i) || i in this) {
-      var current_j = this[j];
-      if (!IS_UNDEFINED(current_j) || j in this) {
-        this[i] = current_j;
-        this[j] = current_i;
+    var current_i = array[i];
+    if (!IS_UNDEFINED(current_i) || i in array) {
+      var current_j = array[j];
+      if (!IS_UNDEFINED(current_j) || j in array) {
+        array[i] = current_j;
+        array[j] = current_i;
       } else {
-        this[j] = current_i;
-        delete this[i];
+        array[j] = current_i;
+        delete array[i];
       }
     } else {
-      var current_j = this[j];
-      if (!IS_UNDEFINED(current_j) || j in this) {
-        this[i] = current_j;
-        delete this[j];
+      var current_j = array[j];
+      if (!IS_UNDEFINED(current_j) || j in array) {
+        array[i] = current_j;
+        delete array[j];
       }
     }
   }
-  return this;
+  return array;
 }
 
 
@@ -589,30 +568,31 @@ function ObservedArrayShift(len) {
 function ArrayShift() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.shift");
 
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
 
   if (len === 0) {
-    this.length = 0;
+    array.length = 0;
     return;
   }
 
-  if ($Object.isSealed(this)) {
+  if (ObjectIsSealed(array)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.shift"]);
   }
 
-  if (%IsObserved(this))
-    return ObservedArrayShift.call(this, len);
+  if (%IsObserved(array))
+    return ObservedArrayShift.call(array, len);
 
-  var first = this[0];
+  var first = array[0];
 
-  if (IS_ARRAY(this)) {
-    SmartMove(this, 0, 1, len, 0);
+  if (IS_ARRAY(array)) {
+    SmartMove(array, 0, 1, len, 0);
   } else {
-    SimpleMove(this, 0, 1, len, 0);
+    SimpleMove(array, 0, 1, len, 0);
   }
 
-  this.length = len - 1;
+  array.length = len - 1;
 
   return first;
 }
@@ -627,61 +607,48 @@ function ObservedArrayUnshift() {
     for (var i = 0; i < num_arguments; i++) {
       this[i] = %_Arguments(i);
     }
-    this.length = len + num_arguments;
+    var new_length = len + num_arguments;
+    this.length = new_length;
   } finally {
     EndPerformSplice(this);
     EnqueueSpliceRecord(this, 0, [], num_arguments);
   }
 
-  return len + num_arguments;
+  return new_length;
 }
 
 function ArrayUnshift(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.unshift");
 
-  var len = TO_UINT32(this.length);
-  var num_arguments = %_ArgumentsLength();
-  var is_sealed = $Object.isSealed(this);
-
-  if (num_arguments > 0 && is_sealed) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.unshift"]);
-  }
-
   if (%IsObserved(this))
     return ObservedArrayUnshift.apply(this, arguments);
 
-  if (IS_ARRAY(this) && !is_sealed) {
-    SmartMove(this, 0, 0, len, num_arguments);
-  } else {
-    if (num_arguments == 0 && $Object.isFrozen(this)) {
-      // In the zero argument case, values from the prototype come into the
-      // object. This can't be allowed on frozen arrays.
-      for (var i = 0; i < len; i++) {
-        if (!this.hasOwnProperty(i) && !IS_UNDEFINED(this[i])) {
-          throw MakeTypeError("array_functions_on_frozen",
-                              ["Array.prototype.shift"]);
-        }
-      }
-    }
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
+  var num_arguments = %_ArgumentsLength();
+  var is_sealed = ObjectIsSealed(array);
 
-    SimpleMove(this, 0, 0, len, num_arguments);
+  if (IS_ARRAY(array) && !is_sealed) {
+    SmartMove(array, 0, 0, len, num_arguments);
+  } else {
+    SimpleMove(array, 0, 0, len, num_arguments);
   }
 
   for (var i = 0; i < num_arguments; i++) {
-    this[i] = %_Arguments(i);
+    array[i] = %_Arguments(i);
   }
 
-  this.length = len + num_arguments;
-
-  return this.length;
+  var new_length = len + num_arguments;
+  array.length = new_length;
+  return new_length;
 }
 
 
 function ArraySlice(start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.slice");
 
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
 
@@ -705,13 +672,13 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(this) &&
-      !%IsObserved(this) &&
+  if (IS_ARRAY(array) &&
+      !%IsObserved(array) &&
       (end_i > 1000) &&
-      (%EstimateNumberOfElements(this) < end_i)) {
-    SmartSlice(this, start_i, end_i - start_i, len, result);
+      (%EstimateNumberOfElements(array) < end_i)) {
+    SmartSlice(array, start_i, end_i - start_i, len, result);
   } else {
-    SimpleSlice(this, start_i, end_i - start_i, len, result);
+    SimpleSlice(array, start_i, end_i - start_i, len, result);
   }
 
   result.length = end_i - start_i;
@@ -799,7 +766,8 @@ function ArraySplice(start, delete_count) {
     return ObservedArraySplice.apply(this, arguments);
 
   var num_arguments = %_ArgumentsLength();
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
@@ -807,32 +775,32 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && $Object.isSealed(this)) {
+  if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.splice"]);
-  } else if (del_count > 0 && $Object.isFrozen(this)) {
+  } else if (del_count > 0 && ObjectIsFrozen(array)) {
     throw MakeTypeError("array_functions_on_frozen",
                         ["Array.prototype.splice"]);
   }
 
   var use_simple_splice = true;
-  if (IS_ARRAY(this) &&
+  if (IS_ARRAY(array) &&
       num_elements_to_add !== del_count) {
     // If we are only deleting/moving a few things near the end of the
     // array then the simple version is going to be faster, because it
     // doesn't touch most of the array.
-    var estimated_non_hole_elements = %EstimateNumberOfElements(this);
+    var estimated_non_hole_elements = %EstimateNumberOfElements(array);
     if (len > 20 && (estimated_non_hole_elements >> 2) < (len - start_i)) {
       use_simple_splice = false;
     }
   }
 
   if (use_simple_splice) {
-    SimpleSlice(this, start_i, del_count, len, deleted_elements);
-    SimpleMove(this, start_i, del_count, len, num_elements_to_add);
+    SimpleSlice(array, start_i, del_count, len, deleted_elements);
+    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
   } else {
-    SmartSlice(this, start_i, del_count, len, deleted_elements);
-    SmartMove(this, start_i, del_count, len, num_elements_to_add);
+    SmartSlice(array, start_i, del_count, len, deleted_elements);
+    SmartMove(array, start_i, del_count, len, num_elements_to_add);
   }
 
   // Insert the arguments into the resulting array in
@@ -841,9 +809,9 @@ function ArraySplice(start, delete_count) {
   var arguments_index = 2;
   var arguments_length = %_ArgumentsLength();
   while (arguments_index < arguments_length) {
-    this[i++] = %_Arguments(arguments_index++);
+    array[i++] = %_Arguments(arguments_index++);
   }
-  this.length = len - del_count + num_elements_to_add;
+  array.length = len - del_count + num_elements_to_add;
 
   // Return the deleted elements.
   return deleted_elements;
@@ -1160,28 +1128,16 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
-  if (%DebugCallbackSupportsStepping(f)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(f);
-        if (%_CallFunction(receiver, element, i, array, f)) {
-          accumulator[accumulator_length++] = element;
-        }
+  var stepping = %_DebugCallbackSupportsStepping(f);
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(f);
+      if (%_CallFunction(receiver, element, i, array, f)) {
+        accumulator[accumulator_length++] = element;
       }
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        if (%_CallFunction(receiver, element, i, array, f)) {
-          accumulator[accumulator_length++] = element;
-        }
-      }
-    }
-    // End of duplicate.
   }
   %MoveArrayContents(accumulator, result);
   return result;
@@ -1205,24 +1161,14 @@ function ArrayForEach(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  if (%DebugCallbackSupportsStepping(f)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(f);
-        %_CallFunction(receiver, element, i, array, f);
-      }
+  var stepping = %_DebugCallbackSupportsStepping(f);
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(f);
+      %_CallFunction(receiver, element, i, array, f);
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        %_CallFunction(receiver, element, i, array, f);
-      }
-    }
-    // End of duplicate.
   }
 }
 
@@ -1246,24 +1192,14 @@ function ArraySome(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  if (%DebugCallbackSupportsStepping(f)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(f);
-        if (%_CallFunction(receiver, element, i, array, f)) return true;
-      }
+  var stepping = %_DebugCallbackSupportsStepping(f);
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(f);
+      if (%_CallFunction(receiver, element, i, array, f)) return true;
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        if (%_CallFunction(receiver, element, i, array, f)) return true;
-      }
-    }
-    // End of duplicate.
   }
   return false;
 }
@@ -1286,24 +1222,14 @@ function ArrayEvery(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  if (%DebugCallbackSupportsStepping(f)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(f);
-        if (!%_CallFunction(receiver, element, i, array, f)) return false;
-      }
+  var stepping = %_DebugCallbackSupportsStepping(f);
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(f);
+      if (!%_CallFunction(receiver, element, i, array, f)) return false;
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        if (!%_CallFunction(receiver, element, i, array, f)) return false;
-      }
-    }
-    // End of duplicate.
   }
   return true;
 }
@@ -1327,24 +1253,14 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
-  if (%DebugCallbackSupportsStepping(f)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(f);
-        accumulator[i] = %_CallFunction(receiver, element, i, array, f);
-      }
+  var stepping = %_DebugCallbackSupportsStepping(f);
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(f);
+      accumulator[i] = %_CallFunction(receiver, element, i, array, f);
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        accumulator[i] = %_CallFunction(receiver, element, i, array, f);
-      }
-    }
-    // End of duplicate.
   }
   %MoveArrayContents(accumulator, result);
   return result;
@@ -1484,27 +1400,14 @@ function ArrayReduce(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-
-  if (%DebugCallbackSupportsStepping(callback)) {
-    for (; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(callback);
-        current =
-          %_CallFunction(receiver, current, element, i, array, callback);
-      }
+  var stepping = %_DebugCallbackSupportsStepping(callback);
+  for (; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(callback);
+      current = %_CallFunction(receiver, current, element, i, array, callback);
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        current =
-          %_CallFunction(receiver, current, element, i, array, callback);
-      }
-    }
-    // End of duplicate.
   }
   return current;
 }
@@ -1534,27 +1437,14 @@ function ArrayReduceRight(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-
-  if (%DebugCallbackSupportsStepping(callback)) {
-    for (; i >= 0; i--) {
-      if (i in array) {
-        var element = array[i];
-        // Prepare break slots for debugger step in.
-        %DebugPrepareStepInIfStepping(callback);
-        current =
-          %_CallFunction(receiver, current, element, i, array, callback);
-      }
+  var stepping = %_DebugCallbackSupportsStepping(callback);
+  for (; i >= 0; i--) {
+    if (i in array) {
+      var element = array[i];
+      // Prepare break slots for debugger step in.
+      if (stepping) %DebugPrepareStepInIfStepping(callback);
+      current = %_CallFunction(receiver, current, element, i, array, callback);
     }
-  } else {
-    // This is a duplicate of the previous loop sans debug stepping.
-    for (; i >= 0; i--) {
-      if (i in array) {
-        var element = array[i];
-        current =
-          %_CallFunction(receiver, current, element, i, array, callback);
-      }
-    }
-    // End of duplicate.
   }
   return current;
 }

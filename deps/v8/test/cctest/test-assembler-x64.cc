@@ -141,6 +141,37 @@ TEST(AssemblerX64ArithmeticOperations) {
 }
 
 
+TEST(AssemblerX64CmpbOperation) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  // Assemble a function that compare argument byte returing 1 if equal else 0.
+  // On Windows, it compares rcx with rdx which does not require REX prefix;
+  // on Linux, it compares rdi with rsi which requires REX prefix.
+
+  Label done;
+  __ movq(rax, Immediate(1));
+  __ cmpb(arg1, arg2);
+  __ j(equal, &done);
+  __ movq(rax, Immediate(0));
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2002);
+  CHECK_EQ(1, result);
+  result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2003);
+  CHECK_EQ(0, result);
+}
+
+
 TEST(AssemblerX64ImulOperation) {
   // Allocate an executable page of memory.
   size_t actual_size;
@@ -544,11 +575,8 @@ TEST(AssemblerMultiByteNop) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
@@ -576,7 +604,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Store input vector on the stack.
   for (int i = 0; i < ELEMENT_COUNT; i++) {
     __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
-    __ shl(rax, Immediate(0x20));
+    __ shlq(rax, Immediate(0x20));
     __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
     __ pushq(rax);
   }
@@ -596,11 +624,8 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
@@ -661,16 +686,13 @@ TEST(AssemblerX64Extractps) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
@@ -700,16 +722,15 @@ TEST(AssemblerX64SSE) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
+  Handle<Code> code = isolate->factory()->NewCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+      Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F6 f = FUNCTION_CAST<F6>(Code::cast(code)->entry());
+  F6 f = FUNCTION_CAST<F6>(code->entry());
   CHECK_EQ(2, f(1.0, 2.0));
 }
 #undef __

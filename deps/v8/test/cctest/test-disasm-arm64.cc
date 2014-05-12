@@ -1605,13 +1605,13 @@ TEST_(debug) {
 
   // All debug codes should produce the same instruction, and the debug code
   // can be any uint32_t.
-  COMPARE(debug("message", 0, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 1, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 0xffff, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x10000, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x7fffffff, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 0x80000000u, NO_PARAM), "hlt #0xdeb0");
-  COMPARE(debug("message", 0xffffffffu, NO_PARAM), "hlt #0xdeb0");
+  COMPARE(debug("message", 0, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 1, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 0xffff, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 0x10000, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 0x7fffffff, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 0x80000000u, BREAK), "hlt #0xdeb0");
+  COMPARE(debug("message", 0xffffffffu, BREAK), "hlt #0xdeb0");
 
   CLEANUP();
 }

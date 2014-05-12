@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -335,7 +312,7 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
 
   Code::FindAndReplacePattern pattern;
   pattern.Add(isolate_->factory()->meta_map(), receiver_map);
-  Handle<Code> ic = stub.GetCodeCopy(isolate_, pattern);
+  Handle<Code> ic = stub.GetCodeCopy(pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);
@@ -478,7 +455,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 // StubCompiler implementation.
 
 
-RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
+RUNTIME_FUNCTION(StoreCallbackProperty) {
   JSObject* receiver = JSObject::cast(args[0]);
   JSObject* holder = JSObject::cast(args[1]);
   ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[2]);
@@ -499,7 +476,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   PropertyCallbackArguments
       custom_args(isolate, callback->data(), receiver, holder);
   custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
 
@@ -511,7 +488,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
  * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
  * provide any value for the given name.
  */
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   ASSERT(args.length() == StubCache::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args.at<Name>(StubCache::kInterceptorArgsNameIndex);
@@ -539,7 +516,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
     HandleScope scope(isolate);
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       Handle<Object> result = v8::Utils::OpenHandle(*r);
       result->VerifyApiCallResultType();
@@ -551,7 +528,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
 }
 
 
-static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
+static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here.
   HandleScope scope(isolate);
@@ -569,8 +546,9 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
 }
 
 
-static Handle<Object> LoadWithInterceptor(Arguments* args,
-                                          PropertyAttributes* attrs) {
+MUST_USE_RESULT static MaybeHandle<Object> LoadWithInterceptor(
+    Arguments* args,
+    PropertyAttributes* attrs) {
   ASSERT(args->length() == StubCache::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args->at<Name>(StubCache::kInterceptorArgsNameIndex);
@@ -604,7 +582,7 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
     // Use the interceptor getter.
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!r.IsEmpty()) {
       *attrs = NONE;
       Handle<Object> result = v8::Utils::OpenHandle(*r);
@@ -613,9 +591,8 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
     }
   }
 
-  Handle<Object> result = JSObject::GetPropertyPostInterceptor(
+  return JSObject::GetPropertyPostInterceptor(
       holder_handle, receiver_handle, name_handle, attrs);
-  return result;
 }
 
 
@@ -623,11 +600,12 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
   HandleScope scope(isolate);
-  Handle<Object> result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, LoadWithInterceptor(&args, &attr));
 
   // If the property is present, return it.
   if (attr != ABSENT) return *result;
@@ -635,11 +613,12 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
   HandleScope scope(isolate);
-  Handle<Object> result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, LoadWithInterceptor(&args, &attr));
   // This is call IC. In this case, we simply return the undefined result which
   // will lead to an exception when trying to invoke the result as a
   // function.
@@ -647,7 +626,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
+RUNTIME_FUNCTION(StoreInterceptorProperty) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -656,21 +635,24 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   Handle<Object> value = args.at<Object>(2);
   ASSERT(receiver->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Handle<Object> result = JSObject::SetPropertyWithInterceptor(
-      receiver, name, value, attr, ic.strict_mode());
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::SetPropertyWithInterceptor(
+          receiver, name, value, attr, ic.strict_mode()));
   return *result;
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
-  Handle<Object> result =
-      JSObject::GetElementWithInterceptor(receiver, receiver, index);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::GetElementWithInterceptor(receiver, receiver, index));
   return *result;
 }
 
@@ -777,10 +759,10 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
 void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          Handle<Name> name,
                                          LookupResult* lookup) {
-  holder->LocalLookupRealNamedProperty(*name, lookup);
+  holder->LocalLookupRealNamedProperty(name, lookup);
   if (lookup->IsFound()) return;
   if (holder->GetPrototype()->IsNull()) return;
-  holder->GetPrototype()->Lookup(*name, lookup);
+  holder->GetPrototype()->Lookup(name, lookup);
 }
 
 
@@ -802,9 +784,6 @@ Register LoadStubCompiler::HandlerFrontendHeader(
   } else if (type->Is(HeapType::Number())) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
   } else if (type->Is(HeapType::Boolean())) {
-    // Booleans use the generic oddball map, so an additional check is needed to
-    // ensure the receiver is really a boolean.
-    GenerateBooleanCheck(object_reg, miss);
     function_index = Context::BOOLEAN_FUNCTION_INDEX;
   } else {
     check_type = SKIP_RECEIVER;
@@ -886,7 +865,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
       name = factory()->InternalizeString(Handle<String>::cast(name));
     }
     ASSERT(last.is_null() ||
-           last->property_dictionary()->FindEntry(*name) ==
+           last->property_dictionary()->FindEntry(name) ==
                NameDictionary::kNotFound);
     GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
                                      scratch2(), scratch3());
@@ -896,7 +875,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
   // check that the global property cell is empty.
   if (last_map->IsJSGlobalObjectMap()) {
     Handle<JSGlobalObject> global = last.is_null()
-        ? Handle<JSGlobalObject>::cast(type->AsConstant())
+        ? Handle<JSGlobalObject>::cast(type->AsConstant()->Value())
         : Handle<JSGlobalObject>::cast(last);
     GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
   }
@@ -1183,13 +1162,14 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
+        isolate(),
         receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode(isolate());
+        elements_kind).GetCode();
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   } else {
     Handle<Code> stub = FLAG_compiled_keyed_dictionary_loads
-        ? KeyedLoadDictionaryElementStub().GetCode(isolate())
-        : KeyedLoadDictionaryElementPlatformStub().GetCode(isolate());
+        ? KeyedLoadDictionaryElementStub(isolate()).GetCode()
+        : KeyedLoadDictionaryElementPlatformStub(isolate()).GetCode();
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   }
 
@@ -1209,13 +1189,15 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
     stub = KeyedStoreFastElementStub(
+        isolate(),
         is_jsarray,
         elements_kind,
-        store_mode()).GetCode(isolate());
+        store_mode()).GetCode();
   } else {
-    stub = KeyedStoreElementStub(is_jsarray,
+    stub = KeyedStoreElementStub(isolate(),
+                                 is_jsarray,
                                  elements_kind,
-                                 store_mode()).GetCode(isolate());
+                                 store_mode()).GetCode();
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
@@ -1272,6 +1254,7 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
                                                   InlineCacheState state) {
   Code::Flags flags = Code::ComputeFlags(kind, state, extra_state(), type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
+  IC::RegisterWeakMapDependency(code);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
   return code;
@@ -1308,13 +1291,15 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
           IsExternalArrayElementsKind(elements_kind) ||
           IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub =
-            KeyedLoadFastElementStub(is_js_array,
-                                     elements_kind).GetCode(isolate());
+            KeyedLoadFastElementStub(isolate(),
+                                     is_js_array,
+                                     elements_kind).GetCode();
       } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
         cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub = KeyedLoadDictionaryElementStub().GetCode(isolate());
+        cached_stub =
+            KeyedLoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 
@@ -1343,10 +1328,11 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
     ElementsKind elements_kind = receiver_map->elements_kind();
     if (!transitioned_map.is_null()) {
       cached_stub = ElementsTransitionAndStoreStub(
+          isolate(),
           elements_kind,
           transitioned_map->elements_kind(),
           is_js_array,
-          store_mode()).GetCode(isolate());
+          store_mode()).GetCode();
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
@@ -1354,14 +1340,16 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           receiver_map->has_external_array_elements() ||
           receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
+            isolate(),
             is_js_array,
             elements_kind,
-            store_mode()).GetCode(isolate());
+            store_mode()).GetCode();
       } else {
         cached_stub = KeyedStoreElementStub(
+            isolate(),
             is_js_array,
             elements_kind,
-            store_mode()).GetCode(isolate());
+            store_mode()).GetCode();
       }
     }
     ASSERT(!cached_stub.is_null());

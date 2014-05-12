@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <stdarg.h>
 
@@ -1150,7 +1127,8 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
   Log::MessageBuilder msg(log_);
 
-  Handle<Object> source = GetProperty(regexp, "source");
+  Handle<Object> source = Object::GetProperty(
+      isolate_, regexp, "source").ToHandleChecked();
   if (!source->IsString()) {
     msg.Append("no source");
     return;
@@ -1168,17 +1146,20 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   msg.Append('/');
 
   // global flag
-  Handle<Object> global = GetProperty(regexp, "global");
+  Handle<Object> global = Object::GetProperty(
+      isolate_, regexp, "global").ToHandleChecked();
   if (global->IsTrue()) {
     msg.Append('g');
   }
   // ignorecase flag
-  Handle<Object> ignorecase = GetProperty(regexp, "ignoreCase");
+  Handle<Object> ignorecase = Object::GetProperty(
+      isolate_, regexp, "ignoreCase").ToHandleChecked();
   if (ignorecase->IsTrue()) {
     msg.Append('i');
   }
   // multiline flag
-  Handle<Object> multiline = GetProperty(regexp, "multiline");
+  Handle<Object> multiline = Object::GetProperty(
+      isolate_, regexp, "multiline").ToHandleChecked();
   if (multiline->IsTrue()) {
     msg.Append('m');
   }
@@ -1193,47 +1174,6 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
   msg.Append("regexp-compile,");
   LogRegExpSource(regexp);
   msg.Append(in_cache ? ",hit\n" : ",miss\n");
-  msg.WriteToLogFile();
-}
-
-
-void Logger::LogRuntime(Vector<const char> format,
-                        Handle<JSArray> args) {
-  if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  Log::MessageBuilder msg(log_);
-  for (int i = 0; i < format.length(); i++) {
-    char c = format[i];
-    if (c == '%' && i <= format.length() - 2) {
-      i++;
-      ASSERT('0' <= format[i] && format[i] <= '9');
-      // No exception expected when getting an element from an array literal.
-      Handle<Object> obj =
-          Object::GetElementNoExceptionThrown(isolate_, args, format[i] - '0');
-      i++;
-      switch (format[i]) {
-        case 's':
-          msg.AppendDetailed(String::cast(*obj), false);
-          break;
-        case 'S':
-          msg.AppendDetailed(String::cast(*obj), true);
-          break;
-        case 'r':
-          Logger::LogRegExpSource(Handle<JSRegExp>::cast(obj));
-          break;
-        case 'x':
-          msg.Append("0x%x", Smi::cast(*obj)->value());
-          break;
-        case 'i':
-          msg.Append("%i", Smi::cast(*obj)->value());
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      msg.Append(c);
-    }
-  }
-  msg.Append('\n');
   msg.WriteToLogFile();
 }
 
@@ -1872,6 +1812,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A load IC from the snapshot";
       tag = Logger::LOAD_IC_TAG;
       break;
+    case Code::CALL_IC:
+      description = "A call IC from the snapshot";
+      tag = Logger::CALL_IC_TAG;
+      break;
     case Code::STORE_IC:
       description = "A store IC from the snapshot";
       tag = Logger::STORE_IC_TAG;
@@ -1904,9 +1848,9 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   Handle<String> func_name(shared->DebugName());
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
-    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
     int column_num =
-        GetScriptColumnNumber(script, shared->start_position()) + 1;
+        Script::GetColumnNumber(script, shared->start_position()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
       if (line_num > 0) {

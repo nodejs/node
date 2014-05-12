@@ -322,13 +322,15 @@ Object.freeze(obj);
 // sufficient.
 assertTrue(Object.isSealed(obj));
 
-assertDoesNotThrow(function() { obj.push(); });
-assertDoesNotThrow(function() { obj.unshift(); });
-assertDoesNotThrow(function() { obj.splice(0,0); });
+// Verify that the length can't be written by builtins.
+assertThrows(function() { obj.push(); }, TypeError);
+assertThrows(function() { obj.unshift(); }, TypeError);
+assertThrows(function() { obj.splice(0,0); }, TypeError);
 assertTrue(Object.isFrozen(obj));
 
 // Verify that an item can't be changed with splice.
 assertThrows(function() { obj.splice(0,1,1); }, TypeError);
+assertTrue(Object.isFrozen(obj));
 
 // Verify that unshift() with no arguments will fail if it reifies from
 // the prototype into the object.

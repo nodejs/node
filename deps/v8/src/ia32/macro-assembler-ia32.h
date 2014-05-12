@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_IA32_MACRO_ASSEMBLER_IA32_H_
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
@@ -221,12 +198,10 @@ class MacroAssembler: public Assembler {
       Register scratch2,
       SaveFPRegsMode save_fp);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
 
   // Generates function and stub prologue code.
   void Prologue(PrologueFrameMode frame_mode);
@@ -727,10 +702,6 @@ class MacroAssembler: public Assembler {
                                Label* miss,
                                bool miss_on_bound_function = false);
 
-  // Generates code for reporting that an illegal operation has
-  // occurred.
-  void IllegalOperation(int num_arguments);
-
   // Picks out an array index from the hash field.
   // Register use:
   //   hash - holds the index's hash. Clobbered.
@@ -809,7 +780,7 @@ class MacroAssembler: public Assembler {
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
   void CallApiFunctionAndReturn(Register function_address,
-                                Address thunk_address,
+                                ExternalReference thunk_ref,
                                 Operand thunk_last_arg,
                                 int stack_space,
                                 Operand return_value_operand,
@@ -1011,13 +982,6 @@ class MacroAssembler: public Assembler {
   void UpdateAllocationTopHelper(Register result_end,
                                  Register scratch,
                                  AllocationFlags flags);
-
-  // Helper for PopHandleScope.  Allowed to perform a GC and returns
-  // NULL if gc_allowed.  Does not perform a GC if !gc_allowed, and
-  // possibly returns a failure object indicating an allocation failure.
-  MUST_USE_RESULT MaybeObject* PopHandleScopeHelper(Register saved,
-                                                    Register scratch,
-                                                    bool gc_allowed);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object,

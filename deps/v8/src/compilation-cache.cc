@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -65,18 +42,11 @@ CompilationCache::CompilationCache(Isolate* isolate)
 CompilationCache::~CompilationCache() {}
 
 
-static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
-  CALL_HEAP_FUNCTION(isolate,
-                     CompilationCacheTable::Allocate(isolate->heap(), size),
-                     CompilationCacheTable);
-}
-
-
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   ASSERT(generation < generations_);
   Handle<CompilationCacheTable> result;
   if (tables_[generation]->IsUndefined()) {
-    result = AllocateTable(isolate(), kInitialCacheSize);
+    result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
     CompilationCacheTable* table =
@@ -161,7 +131,8 @@ bool CompilationCacheScript::HasOrigin(
   // Were both scripts tagged by the embedder as being shared cross-origin?
   if (is_shared_cross_origin != script->is_shared_cross_origin()) return false;
   // Compare the two name strings for equality.
-  return String::cast(*name)->Equals(String::cast(script->name()));
+  return String::Equals(Handle<String>::cast(name),
+                        Handle<String>(String::cast(script->name())));
 }
 
 
@@ -184,7 +155,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
-      Handle<Object> probe(table->Lookup(*source, *context), isolate());
+      Handle<Object> probe = table->Lookup(source, context);
       if (probe->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> function_info =
             Handle<SharedFunctionInfo>::cast(probe);
@@ -239,87 +210,44 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
 }
 
 
-MaybeObject* CompilationCacheScript::TryTablePut(
-    Handle<String> source,
-    Handle<Context> context,
-    Handle<SharedFunctionInfo> function_info) {
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  return table->Put(*source, *context, *function_info);
-}
-
-
-Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
-    Handle<String> source,
-    Handle<Context> context,
-    Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     TryTablePut(source, context, function_info),
-                     CompilationCacheTable);
-}
-
-
 void CompilationCacheScript::Put(Handle<String> source,
                                  Handle<Context> context,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
-  SetFirstTable(TablePut(source, context, function_info));
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  SetFirstTable(
+      CompilationCacheTable::Put(table, source, context, function_info));
 }
 
 
-Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
+MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     Handle<String> source,
     Handle<Context> context,
     StrictMode strict_mode,
     int scope_position) {
+  HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
-  Object* result = NULL;
+  Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
-  { HandleScope scope(isolate());
-    for (generation = 0; generation < generations(); generation++) {
-      Handle<CompilationCacheTable> table = GetTable(generation);
-      result = table->LookupEval(
-          *source, *context, strict_mode, scope_position);
-      if (result->IsSharedFunctionInfo()) {
-        break;
-      }
-    }
+  for (generation = 0; generation < generations(); generation++) {
+    Handle<CompilationCacheTable> table = GetTable(generation);
+    result = table->LookupEval(source, context, strict_mode, scope_position);
+    if (result->IsSharedFunctionInfo()) break;
   }
   if (result->IsSharedFunctionInfo()) {
-    Handle<SharedFunctionInfo>
-        function_info(SharedFunctionInfo::cast(result), isolate());
+    Handle<SharedFunctionInfo> function_info =
+        Handle<SharedFunctionInfo>::cast(result);
     if (generation != 0) {
       Put(source, context, function_info, scope_position);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
-    return function_info;
+    return scope.CloseAndEscape(function_info);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
-    return Handle<SharedFunctionInfo>::null();
+    return MaybeHandle<SharedFunctionInfo>();
   }
-}
-
-
-MaybeObject* CompilationCacheEval::TryTablePut(
-    Handle<String> source,
-    Handle<Context> context,
-    Handle<SharedFunctionInfo> function_info,
-    int scope_position) {
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  return table->PutEval(*source, *context, *function_info, scope_position);
-}
-
-
-Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
-    Handle<String> source,
-    Handle<Context> context,
-    Handle<SharedFunctionInfo> function_info,
-    int scope_position) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     TryTablePut(
-                         source, context, function_info, scope_position),
-                     CompilationCacheTable);
 }
 
 
@@ -328,56 +256,38 @@ void CompilationCacheEval::Put(Handle<String> source,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
   HandleScope scope(isolate());
-  SetFirstTable(TablePut(source, context, function_info, scope_position));
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  table = CompilationCacheTable::PutEval(table, source, context,
+                                         function_info, scope_position);
+  SetFirstTable(table);
 }
 
 
-Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
-                                                  JSRegExp::Flags flags) {
+MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(
+    Handle<String> source,
+    JSRegExp::Flags flags) {
+  HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
-  Object* result = NULL;
+  Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
-  { HandleScope scope(isolate());
-    for (generation = 0; generation < generations(); generation++) {
-      Handle<CompilationCacheTable> table = GetTable(generation);
-      result = table->LookupRegExp(*source, flags);
-      if (result->IsFixedArray()) {
-        break;
-      }
-    }
+  for (generation = 0; generation < generations(); generation++) {
+    Handle<CompilationCacheTable> table = GetTable(generation);
+    result = table->LookupRegExp(source, flags);
+    if (result->IsFixedArray()) break;
   }
   if (result->IsFixedArray()) {
-    Handle<FixedArray> data(FixedArray::cast(result), isolate());
+    Handle<FixedArray> data = Handle<FixedArray>::cast(result);
     if (generation != 0) {
       Put(source, flags, data);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
-    return data;
+    return scope.CloseAndEscape(data);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
-    return Handle<FixedArray>::null();
+    return MaybeHandle<FixedArray>();
   }
-}
-
-
-MaybeObject* CompilationCacheRegExp::TryTablePut(
-    Handle<String> source,
-    JSRegExp::Flags flags,
-    Handle<FixedArray> data) {
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  return table->PutRegExp(*source, flags, *data);
-}
-
-
-Handle<CompilationCacheTable> CompilationCacheRegExp::TablePut(
-    Handle<String> source,
-    JSRegExp::Flags flags,
-    Handle<FixedArray> data) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     TryTablePut(source, flags, data),
-                     CompilationCacheTable);
 }
 
 
@@ -385,7 +295,8 @@ void CompilationCacheRegExp::Put(Handle<String> source,
                                  JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
   HandleScope scope(isolate());
-  SetFirstTable(TablePut(source, flags, data));
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  SetFirstTable(CompilationCacheTable::PutRegExp(table, source, flags, data));
 }
 
 
@@ -398,36 +309,28 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 }
 
 
-Handle<SharedFunctionInfo> CompilationCache::LookupScript(
+MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source,
     Handle<Object> name,
     int line_offset,
     int column_offset,
     bool is_shared_cross_origin,
     Handle<Context> context) {
-  if (!IsEnabled()) {
-    return Handle<SharedFunctionInfo>::null();
-  }
+  if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
-  return script_.Lookup(source,
-                        name,
-                        line_offset,
-                        column_offset,
-                        is_shared_cross_origin,
-                        context);
+  return script_.Lookup(source, name, line_offset, column_offset,
+                        is_shared_cross_origin, context);
 }
 
 
-Handle<SharedFunctionInfo> CompilationCache::LookupEval(
+MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
     Handle<String> source,
     Handle<Context> context,
     StrictMode strict_mode,
     int scope_position) {
-  if (!IsEnabled()) {
-    return Handle<SharedFunctionInfo>::null();
-  }
+  if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
-  Handle<SharedFunctionInfo> result;
+  MaybeHandle<SharedFunctionInfo> result;
   if (context->IsNativeContext()) {
     result = eval_global_.Lookup(
         source, context, strict_mode, scope_position);
@@ -440,11 +343,9 @@ Handle<SharedFunctionInfo> CompilationCache::LookupEval(
 }
 
 
-Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
+MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
                                                   JSRegExp::Flags flags) {
-  if (!IsEnabled()) {
-    return Handle<FixedArray>::null();
-  }
+  if (!IsEnabled()) return MaybeHandle<FixedArray>();
 
   return reg_exp_.Lookup(source, flags);
 }

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
@@ -134,6 +111,16 @@ enum BindingFlags {
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun) \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
+  V(INT8_ARRAY_EXTERNAL_MAP_INDEX, Map, int8_array_external_map) \
+  V(UINT8_ARRAY_EXTERNAL_MAP_INDEX, Map, uint8_array_external_map) \
+  V(INT16_ARRAY_EXTERNAL_MAP_INDEX, Map, int16_array_external_map) \
+  V(UINT16_ARRAY_EXTERNAL_MAP_INDEX, Map, uint16_array_external_map) \
+  V(INT32_ARRAY_EXTERNAL_MAP_INDEX, Map, int32_array_external_map) \
+  V(UINT32_ARRAY_EXTERNAL_MAP_INDEX, Map, uint32_array_external_map) \
+  V(FLOAT32_ARRAY_EXTERNAL_MAP_INDEX, Map, float32_array_external_map) \
+  V(FLOAT64_ARRAY_EXTERNAL_MAP_INDEX, Map, float64_array_external_map) \
+  V(UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX, Map, \
+      uint8_clamped_array_external_map) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map) \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map) \
@@ -168,7 +155,7 @@ enum BindingFlags {
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object, \
     error_message_for_code_gen_from_strings) \
   V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
-  V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
+  V(ENQUEUE_MICROTASK_INDEX, JSFunction, enqueue_microtask) \
   V(IS_PROMISE_INDEX, JSFunction, is_promise) \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create) \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve) \
@@ -187,11 +174,19 @@ enum BindingFlags {
     observers_begin_perform_splice) \
   V(OBSERVERS_END_SPLICE_INDEX, JSFunction, \
     observers_end_perform_splice) \
+  V(NATIVE_OBJECT_OBSERVE_INDEX, JSFunction, \
+    native_object_observe) \
+  V(NATIVE_OBJECT_GET_NOTIFIER_INDEX, JSFunction, \
+    native_object_get_notifier) \
+  V(NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE, JSFunction, \
+    native_object_notifier_perform_change) \
   V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map) \
   V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map) \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
     generator_object_prototype_map) \
-  V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map)
+  V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map) \
+  V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map) \
+  V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -309,6 +304,15 @@ class Context: public FixedArray {
     FLOAT32_ARRAY_FUN_INDEX,
     FLOAT64_ARRAY_FUN_INDEX,
     UINT8_CLAMPED_ARRAY_FUN_INDEX,
+    INT8_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT8_ARRAY_EXTERNAL_MAP_INDEX,
+    INT16_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT16_ARRAY_EXTERNAL_MAP_INDEX,
+    INT32_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT32_ARRAY_EXTERNAL_MAP_INDEX,
+    FLOAT32_ARRAY_EXTERNAL_MAP_INDEX,
+    FLOAT64_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX,
     DATA_VIEW_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
@@ -328,7 +332,7 @@ class Context: public FixedArray {
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
-    ENQUEUE_EXTERNAL_MICROTASK_INDEX,
+    ENQUEUE_MICROTASK_INDEX,
     IS_PROMISE_INDEX,
     PROMISE_CREATE_INDEX,
     PROMISE_RESOLVE_INDEX,
@@ -344,10 +348,15 @@ class Context: public FixedArray {
     OBSERVERS_ENQUEUE_SPLICE_INDEX,
     OBSERVERS_BEGIN_SPLICE_INDEX,
     OBSERVERS_END_SPLICE_INDEX,
+    NATIVE_OBJECT_OBSERVE_INDEX,
+    NATIVE_OBJECT_GET_NOTIFIER_INDEX,
+    NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE,
     SLOPPY_GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
-    GENERATOR_RESULT_MAP_INDEX,
+    ITERATOR_RESULT_MAP_INDEX,
+    MAP_ITERATOR_MAP_INDEX,
+    SET_ITERATOR_MAP_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

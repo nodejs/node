@@ -285,14 +285,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-  #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -314,14 +312,12 @@ void RelocInfo::Visit(Heap* heap) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

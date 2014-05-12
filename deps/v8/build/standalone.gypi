@@ -55,8 +55,8 @@
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
                                        s/x86_64/x64/;\
                                        s/amd64/x64/;\
-                                       s/aarch64/arm64/;\
                                        s/arm.*/arm/;\
+                                       s/aarch64/arm64/;\
                                        s/mips.*/mipsel/")',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
@@ -135,8 +135,14 @@
     },
     'default_configuration': 'Debug',
     'configurations': {
-      'Debug': {
+      'DebugBaseCommon': {
         'cflags': [ '-g', '-O0' ],
+      },
+      'Optdebug': {
+        'inherit_from': [ 'DebugBaseCommon', 'DebugBase2' ],
+      },
+      'Debug': {
+        # Xcode insists on this empty entry.
       },
       'Release': {
         # Xcode insists on this empty entry.
@@ -321,7 +327,6 @@
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
-          'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'GCC_WARN_NON_VIRTUAL_DESTRUCTOR': 'YES', # -Wnon-virtual-dtor
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -230,7 +207,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ Pop(Operand(rbx, offset));
+    __ PopQuad(Operand(rbx, offset));
   }
 
   // Fill in the double input registers.
@@ -307,13 +284,13 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push state, pc, and continuation from the last output frame.
   __ Push(Operand(rbx, FrameDescription::state_offset()));
-  __ Push(Operand(rbx, FrameDescription::pc_offset()));
-  __ Push(Operand(rbx, FrameDescription::continuation_offset()));
+  __ PushQuad(Operand(rbx, FrameDescription::pc_offset()));
+  __ PushQuad(Operand(rbx, FrameDescription::continuation_offset()));
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ Push(Operand(rbx, offset));
+    __ PushQuad(Operand(rbx, offset));
   }
 
   // Restore the registers from the stack.
@@ -352,11 +329,19 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+  if (kPCOnStackSize == 2 * kPointerSize) {
+    // Zero out the high-32 bit of PC for x32 port.
+    SetFrameSlot(offset + kPointerSize, 0);
+  }
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+  if (kFPOnStackSize == 2 * kPointerSize) {
+    // Zero out the high-32 bit of FP for x32 port.
+    SetFrameSlot(offset + kPointerSize, 0);
+  }
   SetFrameSlot(offset, value);
 }
 

@@ -95,7 +95,7 @@ TEST(MicrotaskPerIsolateState) {
   HarmonyIsolate isolate;
   HandleScope scope(isolate.GetIsolate());
   LocalContext context1(isolate.GetIsolate());
-  V8::SetAutorunMicrotasks(isolate.GetIsolate(), false);
+  isolate.GetIsolate()->SetAutorunMicrotasks(false);
   CompileRun(
       "var obj = { calls: 0 };");
   Handle<Value> obj = CompileRun("obj");
@@ -129,7 +129,7 @@ TEST(MicrotaskPerIsolateState) {
     LocalContext context4(isolate.GetIsolate());
     context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             obj);
-    V8::RunMicrotasks(isolate.GetIsolate());
+    isolate.GetIsolate()->RunMicrotasks();
     CHECK_EQ(2, CompileRun("obj.calls")->Int32Value());
   }
 }

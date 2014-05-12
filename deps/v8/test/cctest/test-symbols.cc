@@ -33,7 +33,7 @@ TEST(Create) {
     symbols[i]->Print();
 #endif
 #if VERIFY_HEAP
-    symbols[i]->Verify();
+    symbols[i]->ObjectVerify();
 #endif
   }
 

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_STUB_CACHE_H_
 #define V8_STUB_CACHE_H_
@@ -288,15 +265,15 @@ class StubCache {
 
 
 // Support functions for IC stubs for callbacks.
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty);
+DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
 
 
 // Support functions for IC stubs for interceptors.
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall);
+DECLARE_RUNTIME_FUNCTION(StoreInterceptorProperty);
+DECLARE_RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor);
 
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
@@ -309,7 +286,7 @@ class StubCompiler BASE_EMBEDDED {
   explicit StubCompiler(Isolate* isolate,
                         ExtraICState extra_ic_state = kNoExtraICState)
       : isolate_(isolate), extra_ic_state_(extra_ic_state),
-        masm_(isolate, NULL, 256), failure_(NULL) { }
+        masm_(isolate, NULL, 256) { }
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
   Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
@@ -399,8 +376,6 @@ class StubCompiler BASE_EMBEDDED {
                            Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
-  void GenerateBooleanCheck(Register object, Label* miss);
-
   static void GenerateFastApiCall(MacroAssembler* masm,
                                   const CallOptimization& optimization,
                                   Handle<Map> receiver_map,
@@ -417,7 +392,6 @@ class StubCompiler BASE_EMBEDDED {
   ExtraICState extra_state() { return extra_ic_state_; }
 
   MacroAssembler* masm() { return &masm_; }
-  void set_failure(Failure* failure) { failure_ = failure; }
 
   static void LookupPostInterceptor(Handle<JSObject> holder,
                                     Handle<Name> name,
@@ -433,7 +407,6 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate_;
   const ExtraICState extra_ic_state_;
   MacroAssembler masm_;
-  Failure* failure_;
 };
 
 

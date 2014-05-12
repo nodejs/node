@@ -39,7 +39,6 @@ CONFIG = {
   BRANCHNAME: "prepare-push",
   TRUNKBRANCH: "trunk-push",
   PERSISTFILE_BASENAME: "/tmp/v8-push-to-trunk-tempfile",
-  TEMP_BRANCH: "prepare-push-temporary-branch-created-by-script",
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
@@ -58,6 +57,11 @@ class Preparation(Step):
   def RunStep(self):
     self.InitialEnvironmentChecks()
     self.CommonPrepare()
+
+    if(self["current_branch"] == self.Config(TRUNKBRANCH)
+       or self["current_branch"] == self.Config(BRANCHNAME)):
+      print "Warning: Script started on branch %s" % self["current_branch"]
+
     self.PrepareBranch()
     self.DeleteBranch(self.Config(TRUNKBRANCH))
 

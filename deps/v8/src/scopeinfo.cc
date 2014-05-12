@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <stdlib.h>
 
@@ -278,6 +255,17 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
 }
 
 
+bool ScopeInfo::LocalIsSynthetic(int var) {
+  ASSERT(0 <= var && var < LocalCount());
+  // There's currently no flag stored on the ScopeInfo to indicate that a
+  // variable is a compiler-introduced temporary. However, to avoid conflict
+  // with user declarations, the current temporaries like .generator_object and
+  // .result start with a dot, so we can use that as a flag. It's a hack!
+  Handle<String> name(LocalName(var));
+  return name->length() > 0 && name->Get(0) == '.';
+}
+
+
 int ScopeInfo::StackSlotIndex(String* name) {
   ASSERT(name->IsInternalizedString());
   if (length() > 0) {
@@ -293,35 +281,40 @@ int ScopeInfo::StackSlotIndex(String* name) {
 }
 
 
-int ScopeInfo::ContextSlotIndex(String* name,
+int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
+                                Handle<String> name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag) {
   ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
-  if (length() > 0) {
-    ContextSlotCache* context_slot_cache = GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(this, name, mode, init_flag);
+  if (scope_info->length() > 0) {
+    ContextSlotCache* context_slot_cache =
+        scope_info->GetIsolate()->context_slot_cache();
+    int result =
+        context_slot_cache->Lookup(*scope_info, *name, mode, init_flag);
     if (result != ContextSlotCache::kNotFound) {
-      ASSERT(result < ContextLength());
+      ASSERT(result < scope_info->ContextLength());
       return result;
     }
 
-    int start = ContextLocalNameEntriesIndex();
-    int end = ContextLocalNameEntriesIndex() + ContextLocalCount();
+    int start = scope_info->ContextLocalNameEntriesIndex();
+    int end = scope_info->ContextLocalNameEntriesIndex() +
+        scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
-      if (name == get(i)) {
+      if (*name == scope_info->get(i)) {
         int var = i - start;
-        *mode = ContextLocalMode(var);
-        *init_flag = ContextLocalInitFlag(var);
+        *mode = scope_info->ContextLocalMode(var);
+        *init_flag = scope_info->ContextLocalInitFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(this, name, *mode, *init_flag, result);
-        ASSERT(result < ContextLength());
+        context_slot_cache->Update(scope_info, name, *mode, *init_flag, result);
+        ASSERT(result < scope_info->ContextLength());
         return result;
       }
     }
     // Cache as not found. Mode and init flag don't matter.
-    context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
+    context_slot_cache->Update(
+        scope_info, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
 }
@@ -368,18 +361,21 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
   int local_count = scope_info->ContextLocalCount();
   if (local_count == 0) return true;
   // Fill all context locals to the context extension.
+  int first_context_var = scope_info->StackLocalCount();
   int start = scope_info->ContextLocalNameEntriesIndex();
-  int end = start + local_count;
-  for (int i = start; i < end; ++i) {
-    int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
-    Handle<Object> result = Runtime::SetObjectProperty(
+  for (int i = 0; i < local_count; ++i) {
+    if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
+    int context_index = Context::MIN_CONTEXT_SLOTS + i;
+    RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        scope_object,
-        Handle<String>(String::cast(scope_info->get(i))),
-        Handle<Object>(context->get(context_index), isolate),
-        ::NONE,
-        SLOPPY);
-    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, false);
+        Runtime::SetObjectProperty(
+            isolate,
+            scope_object,
+            Handle<String>(String::cast(scope_info->get(i + start))),
+            Handle<Object>(context->get(context_index), isolate),
+            ::NONE,
+            SLOPPY),
+        false);
   }
   return true;
 }
@@ -435,19 +431,20 @@ int ContextSlotCache::Lookup(Object* data,
 }
 
 
-void ContextSlotCache::Update(Object* data,
-                              String* name,
+void ContextSlotCache::Update(Handle<Object> data,
+                              Handle<String> name,
                               VariableMode mode,
                               InitializationFlag init_flag,
                               int slot_index) {
-  String* internalized_name;
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, internalized_name);
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *internalized_name);
     Key& key = keys_[index];
-    key.data = data;
-    key.name = internalized_name;
+    key.data = *data;
+    key.name = *internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
@@ -464,18 +461,19 @@ void ContextSlotCache::Clear() {
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Object* data,
-                                     String* name,
+void ContextSlotCache::ValidateEntry(Handle<Object> data,
+                                     Handle<String> name,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
                                      int slot_index) {
-  String* internalized_name;
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, name);
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *name);
     Key& key = keys_[index];
-    ASSERT(key.data == data);
-    ASSERT(key.name->Equals(name));
+    ASSERT(key.data == *data);
+    ASSERT(key.name->Equals(*name));
     Value result(values_[index]);
     ASSERT(result.mode() == mode);
     ASSERT(result.initialization_flag() == init_flag);

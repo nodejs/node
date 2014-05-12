@@ -46,6 +46,9 @@ shell_g
 /test/mozilla/CHECKED_OUT_VERSION
 /test/mozilla/data
 /test/mozilla/downloaded_*
+/test/promises-aplus/promises-tests
+/test/promises-aplus/promises-tests.tar.gz
+/test/promises-aplus/sinon
 /test/test262/data
 /test/test262/tc39-test262-*
 /third_party
@@ -63,3 +66,4 @@ GTAGS
 GRTAGS
 GSYMS
 GPATH
+gtags.files

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -38,16 +15,11 @@ namespace internal {
 
 #ifdef VERIFY_HEAP
 
-void MaybeObject::Verify() {
-  Object* this_as_object;
-  if (ToObject(&this_as_object)) {
-    if (this_as_object->IsSmi()) {
-      Smi::cast(this_as_object)->SmiVerify();
-    } else {
-      HeapObject::cast(this_as_object)->HeapObjectVerify();
-    }
+void Object::ObjectVerify() {
+  if (IsSmi()) {
+    Smi::cast(this)->SmiVerify();
   } else {
-    Failure::cast(this)->FailureVerify();
+    HeapObject::cast(this)->HeapObjectVerify();
   }
 }
 
@@ -63,11 +35,6 @@ void Object::VerifyPointer(Object* p) {
 
 void Smi::SmiVerify() {
   CHECK(IsSmi());
-}
-
-
-void Failure::FailureVerify() {
-  CHECK(IsFailure());
 }
 
 
@@ -164,6 +131,12 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapVerify();
+      break;
+    case JS_SET_ITERATOR_TYPE:
+      JSSetIterator::cast(this)->JSSetIteratorVerify();
+      break;
+    case JS_MAP_ITERATOR_TYPE:
+      JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
@@ -294,6 +267,12 @@ void JSObject::JSObjectVerify() {
         if (value->IsUninitialized()) continue;
         if (r.IsSmi()) ASSERT(value->IsSmi());
         if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
+        HeapType* field_type = descriptors->GetFieldType(i);
+        if (r.IsNone()) {
+          CHECK(field_type->Is(HeapType::None()));
+        } else if (!HeapType::Any()->Is(field_type)) {
+          CHECK(!field_type->NowStable() || field_type->NowContains(value));
+        }
       }
     }
   }
@@ -368,7 +347,6 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
-  VerifyHeapPointer(feedback_vector());
 }
 
 
@@ -380,11 +358,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryVerify() {
 void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
-    if (e->IsHeapObject()) {
-      VerifyHeapPointer(e);
-    } else {
-      e->Verify();
-    }
+    VerifyPointer(e);
   }
 }
 
@@ -521,6 +495,7 @@ void ConsString::ConsStringVerify() {
   CHECK(this->second() == GetHeap()->empty_string() ||
         this->second()->IsString());
   CHECK(this->length() >= ConsString::kMinLength);
+  CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {
     // A flat cons can only be created by String::SlowTryFlatten.
     // Afterwards, the first part may be externalized.
@@ -552,6 +527,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kCodeOffset);
   VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kFeedbackVectorOffset);
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kFunctionDataOffset);
@@ -595,17 +571,40 @@ void JSBuiltinsObject::JSBuiltinsObjectVerify() {
 
 void Oddball::OddballVerify() {
   CHECK(IsOddball());
+  Heap* heap = GetHeap();
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
-    CHECK(number == HeapObject::cast(number)->GetHeap()->nan_value());
+    CHECK(number == heap->nan_value());
   } else {
     CHECK(number->IsSmi());
     int value = Smi::cast(number)->value();
     // Hidden oddballs have negative smis.
-    const int kLeastHiddenOddballNumber = -4;
+    const int kLeastHiddenOddballNumber = -5;
     CHECK_LE(value, 1);
     CHECK(value >= kLeastHiddenOddballNumber);
+  }
+  if (map() == heap->undefined_map()) {
+    CHECK(this == heap->undefined_value());
+  } else if (map() == heap->the_hole_map()) {
+    CHECK(this == heap->the_hole_value());
+  } else if (map() == heap->null_map()) {
+    CHECK(this == heap->null_value());
+  } else if (map() == heap->boolean_map()) {
+    CHECK(this == heap->true_value() ||
+          this == heap->false_value());
+  } else if (map() == heap->uninitialized_map()) {
+    CHECK(this == heap->uninitialized_value());
+  } else if (map() == heap->no_interceptor_result_sentinel_map()) {
+    CHECK(this == heap->no_interceptor_result_sentinel());
+  } else if (map() == heap->arguments_marker_map()) {
+    CHECK(this == heap->arguments_marker());
+  } else if (map() == heap->termination_exception_map()) {
+    CHECK(this == heap->termination_exception());
+  } else if (map() == heap->exception_map()) {
+    CHECK(this == heap->exception());
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -626,10 +625,11 @@ void PropertyCell::PropertyCellVerify() {
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
-  relocation_info()->Verify();
+  relocation_info()->ObjectVerify();
   Address last_gc_pc = NULL;
+  Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
-    it.rinfo()->Verify();
+    it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
       CHECK(it.rinfo()->pc() != last_gc_pc);
@@ -640,19 +640,25 @@ void Code::CodeVerify() {
 
 
 void Code::VerifyEmbeddedObjectsDependency() {
+  if (!CanContainWeakObjects()) return;
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     Object* obj = it.rinfo()->target_object();
     if (IsWeakObject(obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
-        CHECK(map->dependent_code()->Contains(
-            DependentCode::kWeaklyEmbeddedGroup, this));
+        DependentCode::DependencyGroup group = is_optimized_code() ?
+            DependentCode::kWeakCodeGroup : DependentCode::kWeakICGroup;
+        CHECK(map->dependent_code()->Contains(group, this));
       } else if (obj->IsJSObject()) {
         Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
         WeakHashTable* table = WeakHashTable::cast(raw_table);
-        CHECK(DependentCode::cast(table->Lookup(obj))->Contains(
-            DependentCode::kWeaklyEmbeddedGroup, this));
+        Handle<Object> key_obj(obj, isolate);
+        CHECK(DependentCode::cast(table->Lookup(key_obj))->Contains(
+            DependentCode::kWeakCodeGroup, this));
       }
     }
   }
@@ -676,7 +682,8 @@ void JSSet::JSSetVerify() {
   CHECK(IsJSSet());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsHashTable() || table()->IsUndefined());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
+  // TODO(arv): Verify OrderedHashTable too.
 }
 
 
@@ -684,7 +691,40 @@ void JSMap::JSMapVerify() {
   CHECK(IsJSMap());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsHashTable() || table()->IsUndefined());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
+  // TODO(arv): Verify OrderedHashTable too.
+}
+
+
+void JSSetIterator::JSSetIteratorVerify() {
+  CHECK(IsJSSetIterator());
+  JSObjectVerify();
+  VerifyHeapPointer(table());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
+  CHECK(index()->IsSmi());
+  CHECK(count()->IsSmi());
+  CHECK(kind()->IsSmi());
+  VerifyHeapPointer(next_iterator());
+  CHECK(next_iterator()->IsJSSetIterator() || next_iterator()->IsUndefined());
+  VerifyHeapPointer(table());
+  CHECK(previous_iterator()->IsJSSetIterator()
+        || previous_iterator()->IsUndefined());
+}
+
+
+void JSMapIterator::JSMapIteratorVerify() {
+  CHECK(IsJSMapIterator());
+  JSObjectVerify();
+  VerifyHeapPointer(table());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
+  CHECK(index()->IsSmi());
+  CHECK(count()->IsSmi());
+  CHECK(kind()->IsSmi());
+  VerifyHeapPointer(next_iterator());
+  CHECK(next_iterator()->IsJSMapIterator() || next_iterator()->IsUndefined());
+  VerifyHeapPointer(table());
+  CHECK(previous_iterator()->IsJSMapIterator()
+        || previous_iterator()->IsUndefined());
 }
 
 
@@ -811,7 +851,7 @@ void Foreign::ForeignVerify() {
 
 void Box::BoxVerify() {
   CHECK(IsBox());
-  value()->Verify();
+  value()->ObjectVerify();
 }
 
 
@@ -947,7 +987,7 @@ void Script::ScriptVerify() {
 
 
 void JSFunctionResultCache::JSFunctionResultCacheVerify() {
-  JSFunction::cast(get(kFactoryIndex))->Verify();
+  JSFunction::cast(get(kFactoryIndex))->ObjectVerify();
 
   int size = Smi::cast(get(kCacheSizeIndex))->value();
   CHECK(kEntriesIndex <= size);
@@ -962,21 +1002,21 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
   if (FLAG_enable_slow_asserts) {
     for (int i = kEntriesIndex; i < size; i++) {
       CHECK(!get(i)->IsTheHole());
-      get(i)->Verify();
+      get(i)->ObjectVerify();
     }
     for (int i = size; i < length(); i++) {
       CHECK(get(i)->IsTheHole());
-      get(i)->Verify();
+      get(i)->ObjectVerify();
     }
   }
 }
 
 
 void NormalizedMapCache::NormalizedMapCacheVerify() {
-  FixedArray::cast(this)->Verify();
+  FixedArray::cast(this)->FixedArrayVerify();
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      Object* e = get(i);
+      Object* e = FixedArray::get(i);
       if (e->IsMap()) {
         Map::cast(e)->SharedMapVerify();
       } else {
@@ -987,7 +1027,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void DebugInfo::DebugInfoVerify() {
   CHECK(IsDebugInfo());
   VerifyPointer(shared());
@@ -1004,7 +1043,6 @@ void BreakPointInfo::BreakPointInfoVerify() {
   statement_position()->SmiVerify();
   VerifyPointer(break_point_objects());
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

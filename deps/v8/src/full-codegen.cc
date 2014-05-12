@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -347,9 +324,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateTypeFeedbackInfo(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
-#ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_compiled_optimizable(info->IsOptimizable());
-#endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);
@@ -386,14 +361,12 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::InitializeFeedbackVector() {
-  int length = info_->function()->slot_count();
-  feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
-  Handle<Object> sentinel = TypeFeedbackInfo::UninitializedSentinel(isolate());
-  // Ensure that it's safe to set without using a write barrier.
-  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(), *sentinel);
-  for (int i = 0; i < length; i++) {
-    feedback_vector_->set(i, *sentinel, SKIP_WRITE_BARRIER);
+void FullCodeGenerator::EnsureSlotContainsAllocationSite(int slot) {
+  Handle<FixedArray> vector = FeedbackVector();
+  if (!vector->get(slot)->IsAllocationSite()) {
+    Handle<AllocationSite> allocation_site =
+        isolate()->factory()->NewAllocationSite();
+    vector->set(slot, *allocation_site);
   }
 }
 
@@ -403,8 +376,8 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
   if (!info_->HasDeoptimizationSupport()) return;
   int length = bailout_entries_.length();
-  Handle<DeoptimizationOutputData> data = isolate()->factory()->
-      NewDeoptimizationOutputData(length, TENURED);
+  Handle<DeoptimizationOutputData> data =
+      DeoptimizationOutputData::New(isolate(), length, TENURED);
   for (int i = 0; i < length; i++) {
     data->SetAstId(i, bailout_entries_[i].id);
     data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
@@ -416,24 +389,23 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
-  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
 
 
 void FullCodeGenerator::Initialize() {
+  InitializeAstVisitor(info_->zone());
   // The generation of debug code must match between the snapshot code and the
   // code that is generated later.  This is assumed by the debugger when it is
   // calculating PC offsets after generating a debug version of code.  Therefore
   // we disable the production of debug code in the full compiler if we are
   // either generating a snapshot or we booted from a snapshot.
   generate_debug_code_ = FLAG_debug_code &&
-                         !Serializer::enabled() &&
+                         !Serializer::enabled(isolate()) &&
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
-  InitializeAstVisitor(info_->zone());
 }
 
 
@@ -833,7 +805,6 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 
 
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
@@ -852,14 +823,10 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
       Debug::GenerateSlot(masm_);
     }
   }
-#else
-  CodeGenerator::RecordPositions(masm_, stmt->position());
-#endif
 }
 
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
@@ -882,9 +849,6 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
       Debug::GenerateSlot(masm_);
     }
   }
-#else
-  CodeGenerator::RecordPositions(masm_, expr->position());
-#endif
 }
 
 
@@ -1506,13 +1470,11 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
 
   __ DebugBreak();
   // Ignore the return value.
-#endif
 }
 
 
@@ -1589,8 +1551,10 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   bool is_generator = false;
   Handle<SharedFunctionInfo> shared =
-      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
+      isolate()->factory()->NewSharedFunctionInfo(
+          name, literals, is_generator,
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()),
+          Handle<FixedArray>(fun->shared()->feedback_vector()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

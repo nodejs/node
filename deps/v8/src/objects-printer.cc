@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -37,32 +14,27 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-void MaybeObject::Print() {
+void Object::Print() {
   Print(stdout);
 }
 
 
-void MaybeObject::Print(FILE* out) {
-  Object* this_as_object;
-  if (ToObject(&this_as_object)) {
-    if (this_as_object->IsSmi()) {
-      Smi::cast(this_as_object)->SmiPrint(out);
-    } else {
-      HeapObject::cast(this_as_object)->HeapObjectPrint(out);
-    }
+void Object::Print(FILE* out) {
+  if (IsSmi()) {
+    Smi::cast(this)->SmiPrint(out);
   } else {
-    Failure::cast(this)->FailurePrint(out);
+    HeapObject::cast(this)->HeapObjectPrint(out);
   }
   Flush(out);
 }
 
 
-void MaybeObject::PrintLn() {
+void Object::PrintLn() {
   PrintLn(stdout);
 }
 
 
-void MaybeObject::PrintLn(FILE* out) {
+void Object::PrintLn(FILE* out) {
   Print(out);
   PrintF(out, "\n");
 }
@@ -174,6 +146,12 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapPrint(out);
       break;
+    case JS_SET_ITERATOR_TYPE:
+      JSSetIterator::cast(this)->JSSetIteratorPrint(out);
+      break;
+    case JS_MAP_ITERATOR_TYPE:
+      JSMapIterator::cast(this)->JSMapIteratorPrint(out);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(out);
       break;
@@ -271,7 +249,6 @@ void JSObject::PrintProperties(FILE* out) {
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
         // There are no transitions in the descriptor array.
-        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;
@@ -428,7 +405,6 @@ void JSObject::PrintTransitions(FILE* out) {
         case NORMAL:
         case HANDLER:
         case INTERCEPTOR:
-        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;
@@ -566,8 +542,6 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - feedback_vector: ");
-  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -724,7 +698,7 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
-  PrintF(out, " - hash = ");
+  PrintF(out, "\n - hash = ");
   hash()->Print(out);
   PrintF(out, "\n");
 }
@@ -735,9 +709,9 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
   PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
-  PrintF(out, " - call_trap = ");
+  PrintF(out, "\n - call_trap = ");
   call_trap()->Print(out);
-  PrintF(out, " - construct_trap = ");
+  PrintF(out, "\n - construct_trap = ");
   construct_trap()->Print(out);
   PrintF(out, "\n");
 }
@@ -758,6 +732,48 @@ void JSMap::JSMapPrint(FILE* out) {
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+template<class Derived, class TableType>
+void OrderedHashTableIterator<Derived, TableType>::
+    OrderedHashTableIteratorPrint(FILE* out) {
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
+  PrintF(out, "\n - index = ");
+  index()->ShortPrint(out);
+  PrintF(out, "\n - count = ");
+  count()->ShortPrint(out);
+  PrintF(out, "\n - kind = ");
+  kind()->ShortPrint(out);
+  PrintF(out, "\n - next_iterator = ");
+  next_iterator()->ShortPrint(out);
+  PrintF(out, "\n - previous_iterator = ");
+  previous_iterator()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
+template void
+OrderedHashTableIterator<JSSetIterator,
+    OrderedHashSet>::OrderedHashTableIteratorPrint(FILE* out);
+
+
+template void
+OrderedHashTableIterator<JSMapIterator,
+    OrderedHashMap>::OrderedHashTableIteratorPrint(FILE* out);
+
+
+void JSSetIterator::JSSetIteratorPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSSetIterator");
+  OrderedHashTableIteratorPrint(out);
+}
+
+
+void JSMapIterator::JSMapIteratorPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSMapIterator");
+  OrderedHashTableIteratorPrint(out);
 }
 
 
@@ -854,6 +870,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, " - name: ");
   name()->ShortPrint(out);
   PrintF(out, "\n - expected_nof_properties: %d", expected_nof_properties());
+  PrintF(out, "\n - ast_node_count: %d", ast_node_count());
   PrintF(out, "\n - instance class name = ");
   instance_class_name()->Print(out);
   PrintF(out, "\n - code = ");
@@ -881,6 +898,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, "\n - length = %d", length());
   PrintF(out, "\n - optimized_code_map = ");
   optimized_code_map()->ShortPrint(out);
+  PrintF(out, "\n - feedback_vector = ");
+  feedback_vector()->FixedArrayPrint(out);
   PrintF(out, "\n");
 }
 
@@ -1165,7 +1184,6 @@ void Script::ScriptPrint(FILE* out) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void DebugInfo::DebugInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "DebugInfo");
   PrintF(out, "\n - shared: ");
@@ -1187,7 +1205,6 @@ void BreakPointInfo::BreakPointInfoPrint(FILE* out) {
   PrintF(out, "\n - break_point_objects: ");
   break_point_objects()->ShortPrint(out);
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 void DescriptorArray::PrintDescriptors(FILE* out) {
@@ -1223,7 +1240,6 @@ void TransitionArray::PrintTransitions(FILE* out) {
       case NORMAL:
       case HANDLER:
       case INTERCEPTOR:
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
         break;

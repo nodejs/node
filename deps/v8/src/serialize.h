@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SERIALIZE_H_
 #define V8_SERIALIZE_H_
@@ -123,8 +100,6 @@ class ExternalReferenceEncoder {
   }
 
   int IndexOf(Address key) const;
-
-  static bool Match(void* key1, void* key2) { return key1 == key2; }
 
   void Put(Address key, int index);
 
@@ -414,7 +389,7 @@ class SerializationAddressMapper {
  public:
   SerializationAddressMapper()
       : no_allocation_(),
-        serialization_map_(new HashMap(&SerializationMatchFun)) { }
+        serialization_map_(new HashMap(HashMap::PointersMatch)) { }
 
   ~SerializationAddressMapper() {
     delete serialization_map_;
@@ -438,10 +413,6 @@ class SerializationAddressMapper {
   }
 
  private:
-  static bool SerializationMatchFun(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
   static uint32_t Hash(HeapObject* obj) {
     return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
   }
@@ -470,19 +441,22 @@ class Serializer : public SerializerDeserializer {
   void VisitPointers(Object** start, Object** end);
   // You can call this after serialization to find out how much space was used
   // in each space.
-  int CurrentAllocationAddress(int space) {
+  int CurrentAllocationAddress(int space) const {
     ASSERT(space < kNumberOfSpaces);
     return fullness_[space];
   }
 
   Isolate* isolate() const { return isolate_; }
-  static void Enable(Isolate* isolate);
-  static void Disable();
+  static void RequestEnable(Isolate* isolate);
+  static void InitializeOncePerProcess();
+  static void TearDown();
 
-  // Call this when you have made use of the fact that there is no serialization
-  // going on.
-  static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
-  static bool enabled() { return serialization_enabled_; }
+  static bool enabled(Isolate* isolate) {
+    SerializationState state = static_cast<SerializationState>(
+        NoBarrier_Load(&serialization_state_));
+    ASSERT(state != SERIALIZER_STATE_UNINITIALIZED);
+    return state == SERIALIZER_STATE_ENABLED;
+  }
   SerializationAddressMapper* address_mapper() { return &address_mapper_; }
   void PutRoot(int index,
                HeapObject* object,
@@ -580,9 +554,15 @@ class Serializer : public SerializerDeserializer {
   int fullness_[LAST_SPACE + 1];
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
-  static bool serialization_enabled_;
-  // Did we already make use of the fact that serialization was not enabled?
-  static bool too_late_to_enable_now_;
+
+  enum SerializationState {
+    SERIALIZER_STATE_UNINITIALIZED = 0,
+    SERIALIZER_STATE_DISABLED = 1,
+    SERIALIZER_STATE_ENABLED = 2
+  };
+
+  static AtomicWord serialization_state_;
+
   SerializationAddressMapper address_mapper_;
   intptr_t root_index_wave_front_;
   void Pad();

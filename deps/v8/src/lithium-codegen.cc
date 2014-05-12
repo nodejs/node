@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -122,6 +99,30 @@ bool LCodeGenBase::GenerateBody() {
 }
 
 
+void LCodeGenBase::CheckEnvironmentUsage() {
+#ifdef DEBUG
+  bool dead_block = false;
+  for (int i = 0; i < instructions_->length(); i++) {
+    LInstruction* instr = instructions_->at(i);
+    HValue* hval = instr->hydrogen_value();
+    if (instr->IsLabel()) dead_block = LLabel::cast(instr)->HasReplacement();
+    if (dead_block || !hval->block()->IsReachable()) continue;
+
+    HInstruction* hinstr = HInstruction::cast(hval);
+    if (!hinstr->CanDeoptimize() && instr->HasEnvironment()) {
+      V8_Fatal(__FILE__, __LINE__, "CanDeoptimize is wrong for %s (%s)\n",
+               hinstr->Mnemonic(), instr->Mnemonic());
+    }
+
+    if (instr->HasEnvironment() && !instr->environment()->has_been_used()) {
+      V8_Fatal(__FILE__, __LINE__, "unused environment for %s (%s)\n",
+               hinstr->Mnemonic(), instr->Mnemonic());
+    }
+  }
+#endif
+}
+
+
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
   char buffer[4 * KB];
@@ -146,6 +147,17 @@ int LCodeGenBase::GetNextEmittedBlock() const {
     if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
   return -1;
+}
+
+
+static void AddWeakObjectToCodeDependency(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Code> code) {
+  Heap* heap = isolate->heap();
+  heap->EnsureWeakObjectToCodeTable();
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
+  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
+  heap->AddWeakObjectToCodeDependency(object, dep);
 }
 
 
@@ -176,6 +188,10 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
       }
     }
   }
+  if (FLAG_enable_ool_constant_pool) {
+    code->constant_pool()->set_weak_object_state(
+        ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE);
+  }
 #ifdef VERIFY_HEAP
   // This disables verification of weak embedded objects after full GC.
   // AddDependentCode can cause a GC, which would observe the state where
@@ -183,15 +199,32 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
   NoWeakObjectVerificationScope disable_verification_of_embedded_objects;
 #endif
   for (int i = 0; i < maps.length(); i++) {
-    maps.at(i)->AddDependentCode(DependentCode::kWeaklyEmbeddedGroup, code);
+    Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
   }
   for (int i = 0; i < objects.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate()->heap(), objects.at(i), code);
+    AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
   }
   for (int i = 0; i < cells.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate()->heap(), cells.at(i), code);
+    AddWeakObjectToCodeDependency(isolate(), cells.at(i), code);
   }
 }
 
+
+void LCodeGenBase::Abort(BailoutReason reason) {
+  info()->set_bailout_reason(reason);
+  status_ = ABORTED;
+}
+
+
+void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
+  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
+  chunk_->AddDeprecationDependency(map);
+}
+
+
+void LCodeGenBase::AddStabilityDependency(Handle<Map> map) {
+  if (!map->is_stable()) return Abort(kMapBecameUnstable);
+  chunk_->AddStabilityDependency(map);
+}
 
 } }  // namespace v8::internal

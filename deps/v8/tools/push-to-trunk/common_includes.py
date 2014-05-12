@@ -28,6 +28,7 @@
 
 import argparse
 import datetime
+import imp
 import json
 import os
 import re
@@ -38,9 +39,9 @@ import time
 import urllib2
 
 from git_recipes import GitRecipesMixin
+from git_recipes import GitFailedException
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
-TEMP_BRANCH = "TEMP_BRANCH"
 BRANCHNAME = "BRANCHNAME"
 DOT_GIT_LOCATION = "DOT_GIT_LOCATION"
 VERSION_FILE = "VERSION_FILE"
@@ -174,6 +175,7 @@ def Command(cmd, args="", prefix="", pipe=True):
   # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
   print "Command: %s" % cmd_line
+  sys.stdout.flush()
   try:
     if pipe:
       return subprocess.check_output(cmd_line, shell=True)
@@ -181,6 +183,9 @@ def Command(cmd, args="", prefix="", pipe=True):
       return subprocess.check_call(cmd_line, shell=True)
   except subprocess.CalledProcessError:
     return None
+  finally:
+    sys.stdout.flush()
+    sys.stderr.flush()
 
 
 # Wrapper for side effects.
@@ -212,10 +217,6 @@ DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
 class NoRetryException(Exception):
-  pass
-
-
-class GitFailedException(Exception):
   pass
 
 
@@ -257,10 +258,11 @@ class Step(GitRecipesMixin):
       return
 
     print ">>> Step %d: %s" % (self._number, self._text)
-    self.RunStep()
-
-    # Persist state.
-    TextToFile(json.dumps(self._state), state_file)
+    try:
+      return self.RunStep()
+    finally:
+      # Persist state.
+      TextToFile(json.dumps(self._state), state_file)
 
   def RunStep(self):  # pragma: no cover
     raise NotImplementedError
@@ -377,18 +379,11 @@ class Step(GitRecipesMixin):
     self.GitSVNFetch()
 
   def PrepareBranch(self):
-    # Get ahold of a safe temporary branch and check it out.
-    if self["current_branch"] != self._config[TEMP_BRANCH]:
-      self.DeleteBranch(self._config[TEMP_BRANCH])
-      self.GitCreateBranch(self._config[TEMP_BRANCH])
-
     # Delete the branch that will be created later if it exists already.
     self.DeleteBranch(self._config[BRANCHNAME])
 
   def CommonCleanup(self):
     self.GitCheckout(self["current_branch"])
-    if self._config[TEMP_BRANCH] != self["current_branch"]:
-      self.GitDeleteBranch(self._config[TEMP_BRANCH])
     if self._config[BRANCHNAME] != self["current_branch"]:
       self.GitDeleteBranch(self._config[BRANCHNAME])
 
@@ -441,8 +436,12 @@ class Step(GitRecipesMixin):
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
-  def FindLastTrunkPush(self, parent_hash=""):
-    push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based"
+  def FindLastTrunkPush(self, parent_hash="", include_patches=False):
+    push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*"
+    if not include_patches:
+      # Non-patched versions only have three numbers followed by the "(based
+      # on...) comment."
+      push_pattern += " (based"
     branch = "" if parent_hash else "svn/trunk"
     return self.GitLog(n=1, format="%H", grep=push_pattern,
                        parent_hash=parent_hash, branch=branch)
@@ -460,6 +459,40 @@ class UploadStep(Step):
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
     self.GitUpload(reviewer, self._options.author, self._options.force_upload)
+
+
+class DetermineV8Sheriff(Step):
+  MESSAGE = "Determine the V8 sheriff for code review."
+
+  def RunStep(self):
+    self["sheriff"] = None
+    if not self._options.sheriff:  # pragma: no cover
+      return
+
+    try:
+      # The googlers mapping maps @google.com accounts to @chromium.org
+      # accounts.
+      googlers = imp.load_source('googlers_mapping',
+                                 self._options.googlers_mapping)
+      googlers = googlers.list_to_dict(googlers.get_list())
+    except:  # pragma: no cover
+      print "Skip determining sheriff without googler mapping."
+      return
+
+    # The sheriff determined by the rotation on the waterfall has a
+    # @google.com account.
+    url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
+    match = re.match(r"document\.write\('(\w+)'\)", self.ReadURL(url))
+
+    # If "channel is sheriff", we can't match an account.
+    if match:
+      g_name = match.group(1)
+      self["sheriff"] = googlers.get(g_name + "@google.com",
+                                     g_name + "@chromium.org")
+      self._options.reviewer = self["sheriff"]
+      print "Found active sheriff: %s" % self["sheriff"]
+    else:
+      print "No active sheriff found."
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -506,11 +539,17 @@ class ScriptsBase(object):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
                         help="The author email used for rietveld.")
+    parser.add_argument("-g", "--googlers-mapping",
+                        help="Path to the script mapping google accounts.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
+    parser.add_argument("--sheriff", default=False, action="store_true",
+                        help=("Determine current sheriff to review CLs. On "
+                              "success, this will overwrite the reviewer "
+                              "option."))
     parser.add_argument("-s", "--step",
-                      help="Specify the step where to start work. Default: 0.",
-                      default=0, type=int)
+        help="Specify the step where to start work. Default: 0.",
+        default=0, type=int)
 
     self._PrepareOptions(parser)
 
@@ -522,6 +561,10 @@ class ScriptsBase(object):
     # Process common options.
     if options.step < 0:  # pragma: no cover
       print "Bad step number %d" % options.step
+      parser.print_help()
+      return None
+    if options.sheriff and not options.googlers_mapping:  # pragma: no cover
+      print "To determine the current sheriff, requires the googler mapping"
       parser.print_help()
       return None
 
@@ -555,7 +598,8 @@ class ScriptsBase(object):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
     for step in steps[options.step:]:
-      step.Run()
+      if step.Run():
+        return 1
     return 0
 
   def Run(self, args=None):

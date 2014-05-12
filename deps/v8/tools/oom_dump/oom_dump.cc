@@ -32,8 +32,6 @@
 
 #include <google_breakpad/processor/minidump.h>
 
-#define ENABLE_DEBUGGER_SUPPORT
-
 #include <v8.h>
 
 namespace {

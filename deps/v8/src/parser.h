@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_PARSER_H_
 #define V8_PARSER_H_
@@ -82,17 +59,22 @@ class FunctionEntry BASE_EMBEDDED {
 };
 
 
-class ScriptDataImpl : public ScriptData {
+class ScriptData {
  public:
-  explicit ScriptDataImpl(Vector<unsigned> store)
+  explicit ScriptData(Vector<unsigned> store)
       : store_(store),
         owns_store_(true) { }
 
-  // Create an empty ScriptDataImpl that is guaranteed to not satisfy
-  // a SanityCheck.
-  ScriptDataImpl() : owns_store_(false) { }
+  ScriptData(Vector<unsigned> store, bool owns_store)
+      : store_(store),
+        owns_store_(owns_store) { }
 
-  virtual ~ScriptDataImpl();
+  // The created ScriptData won't take ownership of the data. If the alignment
+  // is not correct, this will copy the data (and the created ScriptData will
+  // take ownership of the copy).
+  static ScriptData* New(const char* data, int length);
+
+  virtual ~ScriptData();
   virtual int Length();
   virtual const char* Data();
   virtual bool HasError();
@@ -104,14 +86,17 @@ class ScriptDataImpl : public ScriptData {
   int GetSymbolIdentifier();
   bool SanityCheck();
 
-  Scanner::Location MessageLocation();
-  const char* BuildMessage();
-  Vector<const char*> BuildArgs();
+  Scanner::Location MessageLocation() const;
+  bool IsReferenceError() const;
+  const char* BuildMessage() const;
+  Vector<const char*> BuildArgs() const;
 
-  int symbol_count() {
-    return (store_.length() > PreparseDataConstants::kHeaderSize)
-        ? store_[PreparseDataConstants::kSymbolCountOffset]
-        : 0;
+  int function_count() {
+    int functions_size =
+        static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
+    if (functions_size < 0) return 0;
+    if (functions_size % FunctionEntry::kSize != 0) return 0;
+    return functions_size / FunctionEntry::kSize;
   }
   // The following functions should only be called if SanityCheck has
   // returned true.
@@ -120,6 +105,10 @@ class ScriptDataImpl : public ScriptData {
   unsigned version() { return store_[PreparseDataConstants::kVersionOffset]; }
 
  private:
+  // Disable copying and assigning; because of owns_store they won't be correct.
+  ScriptData(const ScriptData&);
+  ScriptData& operator=(const ScriptData&);
+
   friend class v8::ScriptCompiler;
   Vector<unsigned> store_;
   unsigned char* symbol_data_;
@@ -127,35 +116,13 @@ class ScriptDataImpl : public ScriptData {
   int function_index_;
   bool owns_store_;
 
-  unsigned Read(int position);
-  unsigned* ReadAddress(int position);
+  unsigned Read(int position) const;
+  unsigned* ReadAddress(int position) const;
   // Reads a number from the current symbols
   int ReadNumber(byte** source);
 
-  ScriptDataImpl(const char* backing_store, int length)
-      : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
-               length / static_cast<int>(sizeof(unsigned))),
-        owns_store_(false) {
-    ASSERT_EQ(0, static_cast<int>(
-        reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned)));
-  }
-
   // Read strings written by ParserRecorder::WriteString.
   static const char* ReadString(unsigned* start, int* chars);
-
-  friend class ScriptData;
-};
-
-
-class PreParserApi {
- public:
-  // Pre-parse a character stream and return full preparse data.
-  //
-  // This interface is here instead of in preparser.h because it instantiates a
-  // preparser recorder object that is suited to the parser's purposes.  Also,
-  // the preparser doesn't know about ScriptDataImpl.
-  static ScriptDataImpl* PreParse(Isolate* isolate,
-                                  Utf16CharacterStream* source);
 };
 
 
@@ -430,6 +397,7 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+    typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory<AstConstructionVisitor> Factory;
@@ -441,16 +409,14 @@ class ParserTraits {
   template<typename FunctionState>
   static void SetUpFunctionState(FunctionState* function_state, Zone* zone) {
     Isolate* isolate = zone->isolate();
-    function_state->isolate_ = isolate;
     function_state->saved_ast_node_id_ = isolate->ast_node_id();
     isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
   }
 
   template<typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {
+  static void TearDownFunctionState(FunctionState* function_state, Zone* zone) {
     if (function_state->outer_function_state_ != NULL) {
-      function_state->isolate_->set_ast_node_id(
-          function_state->saved_ast_node_id_);
+      zone->isolate()->set_ast_node_id(function_state->saved_ast_node_id_);
     }
   }
 
@@ -461,6 +427,11 @@ class ParserTraits {
   static bool IsThisProperty(Expression* expression);
 
   static bool IsIdentifier(Expression* expression);
+
+  static Handle<String> AsIdentifier(Expression* expression) {
+    ASSERT(IsIdentifier(expression));
+    return expression->AsVariableProxy()->name();
+  }
 
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
@@ -501,10 +472,6 @@ class ParserTraits {
   // used on for the statically checking assignments to harmony const bindings.
   static Expression* MarkExpressionAsLValue(Expression* expression);
 
-  // Checks LHS expression for assignment and prefix/postfix increment/decrement
-  // in strict mode.
-  void CheckStrictModeLValue(Expression* expression, bool* ok);
-
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
   // computed value.
@@ -526,6 +493,24 @@ class ParserTraits {
   Expression* BuildUnaryExpression(
       Expression* expression, Token::Value op, int pos,
       AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Generate AST node that throws a ReferenceError with the given type.
+  Expression* NewThrowReferenceError(const char* type, int pos);
+
+  // Generate AST node that throws a SyntaxError with the given
+  // type. The first argument may be null (in the handle sense) in
+  // which case no arguments are passed to the constructor.
+  Expression* NewThrowSyntaxError(
+      const char* type, Handle<Object> arg, int pos);
+
+  // Generate AST node that throws a TypeError with the given
+  // type. Both arguments must be non-null (in the handle sense).
+  Expression* NewThrowTypeError(const char* type, Handle<Object> arg, int pos);
+
+  // Generic AST generator for throwing errors from compiled code.
+  Expression* NewThrowError(
+      Handle<String> constructor, const char* type,
+      Vector<Handle<Object> > arguments, int pos);
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -579,6 +564,9 @@ class ParserTraits {
   }
   ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size, Zone* zone) {
     return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
+  }
+  ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
+    return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
 
   // Temporary glue; these functions will move to ParserBase.
@@ -655,9 +643,9 @@ class Parser : public ParserBase<ParserTraits> {
                                   Handle<String> source);
 
   // Report syntax error
-  void ReportInvalidPreparseData(Handle<String> name, bool* ok);
+  void ReportInvalidCachedData(Handle<String> name, bool* ok);
 
-  void SetCachedData(ScriptDataImpl** data,
+  void SetCachedData(ScriptData** data,
                      CachedDataMode cached_data_mode) {
     cached_data_mode_ = cached_data_mode;
     if (cached_data_mode == NO_CACHED_DATA) {
@@ -665,12 +653,11 @@ class Parser : public ParserBase<ParserTraits> {
     } else {
       ASSERT(data != NULL);
       cached_data_ = data;
-      symbol_cache_.Initialize(*data ? (*data)->symbol_count() : 0, zone());
     }
   }
 
   bool inside_with() const { return scope_->inside_with(); }
-  ScriptDataImpl** cached_data() const { return cached_data_; }
+  ScriptData** cached_data() const { return cached_data_; }
   CachedDataMode cached_data_mode() const { return cached_data_mode_; }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
@@ -776,39 +763,32 @@ class Parser : public ParserBase<ParserTraits> {
 
   Scope* NewScope(Scope* parent, ScopeType type);
 
-  Handle<String> LookupCachedSymbol(int symbol_id);
+  // Skip over a lazy function, either using cached data if we have it, or
+  // by parsing the function with PreParser. Consumes the ending }.
+  void SkipLazyFunctionBody(Handle<String> function_name,
+                            int* materialized_literal_count,
+                            int* expected_property_count,
+                            bool* ok);
 
-  // Generate AST node that throw a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(Handle<String> type);
+  PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
+      SingletonLogger* logger);
 
-  // Generate AST node that throw a SyntaxError with the given
-  // type. The first argument may be null (in the handle sense) in
-  // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(Handle<String> type, Handle<Object> first);
-
-  // Generate AST node that throw a TypeError with the given
-  // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(Handle<String> type,
-                                Handle<Object> first,
-                                Handle<Object> second);
-
-  // Generic AST generator for throwing errors from compiled code.
-  Expression* NewThrowError(Handle<String> constructor,
-                            Handle<String> type,
-                            Vector< Handle<Object> > arguments);
-
-  PreParser::PreParseResult LazyParseFunctionLiteral(
-       SingletonLogger* logger);
+  // Consumes the ending }.
+  ZoneList<Statement*>* ParseEagerFunctionBody(Handle<String> function_name,
+                                               int pos,
+                                               Variable* fvar,
+                                               Token::Value fvar_init_op,
+                                               bool is_generator,
+                                               bool* ok);
 
   Isolate* isolate_;
-  ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
-  ScriptDataImpl** cached_data_;
+  ScriptData** cached_data_;
   CachedDataMode cached_data_mode_;
 
   CompilationInfo* info_;

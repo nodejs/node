@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_PREPARSE_DATA_H_
 #define V8_PREPARSE_DATA_H_
@@ -39,7 +16,7 @@ namespace internal {
 // Abstract interface for preparse data recorder.
 class ParserRecorder {
  public:
-  ParserRecorder() : should_log_symbols_(false) { }
+  ParserRecorder() { }
   virtual ~ParserRecorder() { }
 
   // Logs the scope and some details of a function literal in the source.
@@ -55,24 +32,8 @@ class ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt) = 0;
-
-  // Logs a symbol creation of a literal or identifier.
-  bool ShouldLogSymbols() { return should_log_symbols_; }
-  // The following functions are only callable on CompleteParserRecorder
-  // and are guarded by calls to ShouldLogSymbols.
-  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) {
-    UNREACHABLE();
-  }
-  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) {
-    UNREACHABLE();
-  }
-  virtual void PauseRecording() { UNREACHABLE(); }
-  virtual void ResumeRecording() { UNREACHABLE(); }
-
- protected:
-  bool should_log_symbols_;
-
+                          const char* argument_opt,
+                          bool is_reference_error) = 0;
  private:
   DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
 };
@@ -80,8 +41,9 @@ class ParserRecorder {
 
 class SingletonLogger : public ParserRecorder {
  public:
-  SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }
-  virtual ~SingletonLogger() { }
+  SingletonLogger()
+      : has_error_(false), start_(-1), end_(-1), is_reference_error_(false) {}
+  virtual ~SingletonLogger() {}
 
   void Reset() { has_error_ = false; }
 
@@ -104,36 +66,39 @@ class SingletonLogger : public ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt) {
+                          const char* argument_opt,
+                          bool is_reference_error) {
     if (has_error_) return;
     has_error_ = true;
     start_ = start;
     end_ = end;
     message_ = message;
     argument_opt_ = argument_opt;
+    is_reference_error_ = is_reference_error;
   }
 
-  bool has_error() { return has_error_; }
+  bool has_error() const { return has_error_; }
 
-  int start() { return start_; }
-  int end() { return end_; }
-  int literals() {
+  int start() const { return start_; }
+  int end() const { return end_; }
+  int literals() const {
     ASSERT(!has_error_);
     return literals_;
   }
-  int properties() {
+  int properties() const {
     ASSERT(!has_error_);
     return properties_;
   }
-  StrictMode strict_mode() {
+  StrictMode strict_mode() const {
     ASSERT(!has_error_);
     return strict_mode_;
   }
+  int is_reference_error() const { return is_reference_error_; }
   const char* message() {
     ASSERT(has_error_);
     return message_;
   }
-  const char* argument_opt() {
+  const char* argument_opt() const {
     ASSERT(has_error_);
     return argument_opt_;
   }
@@ -149,6 +114,7 @@ class SingletonLogger : public ParserRecorder {
   // For error messages.
   const char* message_;
   const char* argument_opt_;
+  bool is_reference_error_;
 };
 
 
@@ -180,20 +146,8 @@ class CompleteParserRecorder : public ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt);
-
-  virtual void PauseRecording() {
-    ASSERT(should_log_symbols_);
-    should_log_symbols_ = false;
-  }
-
-  virtual void ResumeRecording() {
-    ASSERT(!should_log_symbols_);
-    should_log_symbols_ = !has_error();
-  }
-
-  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal);
-  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal);
+                          const char* argument_opt,
+                          bool is_reference_error_);
   Vector<unsigned> ExtractData();
 
  private:
@@ -202,14 +156,6 @@ class CompleteParserRecorder : public ParserRecorder {
   }
 
   void WriteString(Vector<const char> str);
-
-  // For testing. Defined in test-parsing.cc.
-  friend struct CompleteParserRecorderFriend;
-
-  void LogSymbol(int start,
-                 int hash,
-                 bool is_one_byte,
-                 Vector<const byte> literal);
 
   // Write a non-negative number to the symbol store.
   void WriteNumber(int number);
@@ -220,12 +166,6 @@ class CompleteParserRecorder : public ParserRecorder {
 #ifdef DEBUG
   int prev_start_;
 #endif
-
-  Collector<byte> literal_chars_;
-  Collector<byte> symbol_store_;
-  Collector<Key> symbol_keys_;
-  HashMap string_table_;
-  int symbol_id_;
 };
 
 

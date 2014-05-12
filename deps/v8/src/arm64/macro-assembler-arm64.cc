@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -53,11 +30,23 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate,
 #endif
       has_frame_(false),
       use_real_aborts_(true),
-      sp_(jssp), tmp_list_(ip0, ip1), fptmp_list_(fp_scratch) {
+      sp_(jssp),
+      tmp_list_(DefaultTmpList()),
+      fptmp_list_(DefaultFPTmpList()) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
   }
+}
+
+
+CPURegList MacroAssembler::DefaultTmpList() {
+  return CPURegList(ip0, ip1);
+}
+
+
+CPURegList MacroAssembler::DefaultFPTmpList() {
+  return CPURegList(fp_scratch1, fp_scratch2);
 }
 
 
@@ -67,7 +56,7 @@ void MacroAssembler::LogicalMacro(const Register& rd,
                                   LogicalOp op) {
   UseScratchRegisterScope temps(this);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
     Logical(rd, rn, temp, op);
@@ -258,7 +247,7 @@ void MacroAssembler::Mov(const Register& rd,
   UseScratchRegisterScope temps(this);
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     LoadRelocated(dst, operand);
 
   } else if (operand.IsImmediate()) {
@@ -306,7 +295,7 @@ void MacroAssembler::Mov(const Register& rd,
 void MacroAssembler::Mvn(const Register& rd, const Operand& operand) {
   ASSERT(allow_macro_instructions_);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     LoadRelocated(rd, operand);
     mvn(rd, rd);
 
@@ -361,7 +350,7 @@ void MacroAssembler::ConditionalCompareMacro(const Register& rn,
                                              Condition cond,
                                              ConditionalCompareOp op) {
   ASSERT((cond != al) && (cond != nv));
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
@@ -427,12 +416,12 @@ void MacroAssembler::AddSubMacro(const Register& rd,
                                  FlagsUpdate S,
                                  AddSubOp op) {
   if (operand.IsZero() && rd.Is(rn) && rd.Is64Bits() && rn.Is64Bits() &&
-      !operand.NeedsRelocation() && (S == LeaveFlags)) {
+      !operand.NeedsRelocation(isolate()) && (S == LeaveFlags)) {
     // The instruction would be a nop. Avoid generating useless code.
     return;
   }
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
@@ -458,7 +447,7 @@ void MacroAssembler::AddSubWithCarryMacro(const Register& rd,
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
   UseScratchRegisterScope temps(this);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
     AddSubWithCarryMacro(rd, rn, temp, S, op);
@@ -596,6 +585,43 @@ bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
           max_reachable_pc - kVeneerDistanceCheckMargin);
   }
   return need_longer_range;
+}
+
+
+void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
+  ASSERT(allow_macro_instructions_);
+  ASSERT(!rd.IsZero());
+
+  if (hint == kAdrNear) {
+    adr(rd, label);
+    return;
+  }
+
+  ASSERT(hint == kAdrFar);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  ASSERT(!AreAliased(rd, scratch));
+
+  if (label->is_bound()) {
+    int label_offset = label->pos() - pc_offset();
+    if (Instruction::IsValidPCRelOffset(label_offset)) {
+      adr(rd, label);
+    } else {
+      ASSERT(label_offset <= 0);
+      int min_adr_offset = -(1 << (Instruction::ImmPCRelRangeBitwidth - 1));
+      adr(rd, min_adr_offset);
+      Add(rd, rd, label_offset - min_adr_offset);
+    }
+  } else {
+    InstructionAccurateScope scope(
+        this, PatchingAssembler::kAdrFarPatchableNInstrs);
+    adr(rd, label);
+    for (int i = 0; i < PatchingAssembler::kAdrFarPatchableNNops; ++i) {
+      nop(ADR_FAR_NOP);
+    }
+    movz(scratch, 0);
+    add(rd, rd, scratch);
+  }
 }
 
 
@@ -1196,7 +1222,65 @@ void MacroAssembler::AssertStackConsistency() {
 }
 
 
-void MacroAssembler::LoadRoot(Register destination,
+void MacroAssembler::AssertFPCRState(Register fpcr) {
+  if (emit_debug_code()) {
+    Label unexpected_mode, done;
+    UseScratchRegisterScope temps(this);
+    if (fpcr.IsNone()) {
+      fpcr = temps.AcquireX();
+      Mrs(fpcr, FPCR);
+    }
+
+    // Settings overridden by ConfiugreFPCR():
+    //   - Assert that default-NaN mode is set.
+    Tbz(fpcr, DN_offset, &unexpected_mode);
+
+    // Settings left to their default values:
+    //   - Assert that flush-to-zero is not set.
+    Tbnz(fpcr, FZ_offset, &unexpected_mode);
+    //   - Assert that the rounding mode is nearest-with-ties-to-even.
+    STATIC_ASSERT(FPTieEven == 0);
+    Tst(fpcr, RMode_mask);
+    B(eq, &done);
+
+    Bind(&unexpected_mode);
+    Abort(kUnexpectedFPCRMode);
+
+    Bind(&done);
+  }
+}
+
+
+void MacroAssembler::ConfigureFPCR() {
+  UseScratchRegisterScope temps(this);
+  Register fpcr = temps.AcquireX();
+  Mrs(fpcr, FPCR);
+
+  // If necessary, enable default-NaN mode. The default values of the other FPCR
+  // options should be suitable, and AssertFPCRState will verify that.
+  Label no_write_required;
+  Tbnz(fpcr, DN_offset, &no_write_required);
+
+  Orr(fpcr, fpcr, DN_mask);
+  Msr(FPCR, fpcr);
+
+  Bind(&no_write_required);
+  AssertFPCRState(fpcr);
+}
+
+
+void MacroAssembler::CanonicalizeNaN(const FPRegister& dst,
+                                     const FPRegister& src) {
+  AssertFPCRState();
+
+  // With DN=1 and RMode=FPTieEven, subtracting 0.0 preserves all inputs except
+  // for NaNs, which become the default NaN. We use fsub rather than fadd
+  // because sub preserves -0.0 inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  Fsub(dst, src, fp_zero);
+}
+
+
+void MacroAssembler::LoadRoot(CPURegister destination,
                               Heap::RootListIndex index) {
   // TODO(jbramley): Most root values are constants, and can be synthesized
   // without a load. Refer to the ARM back end for details.
@@ -1488,9 +1572,9 @@ void MacroAssembler::Throw(BailoutReason reason) {
 }
 
 
-void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+void MacroAssembler::ThrowIf(Condition cond, BailoutReason reason) {
   Label ok;
-  B(InvertCondition(cc), &ok);
+  B(InvertCondition(cond), &ok);
   Throw(reason);
   Bind(&ok);
 }
@@ -1572,12 +1656,12 @@ void MacroAssembler::AssertString(Register object) {
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1589,20 +1673,13 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
   // Check that the number of arguments matches what the function expects.
   // If f->nargs is -1, the function can accept a variable number of arguments.
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    // Illegal operation: drop the stack arguments and return undefined.
-    if (num_arguments > 0) {
-      Drop(num_arguments);
-    }
-    LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-    return;
-  }
+  CHECK(f->nargs < 0 || f->nargs == num_arguments);
 
   // Place the necessary arguments.
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference(f, isolate()));
 
-  CEntryStub stub(1, save_doubles);
+  CEntryStub stub(isolate(), 1, save_doubles);
   CallStub(&stub);
 }
 
@@ -1634,9 +1711,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   Label profiler_disabled;
   Label end_profiler_check;
-  bool* is_profiling_flag = isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
+  Mov(x10, ExternalReference::is_profiling_address(isolate()));
   Ldrb(w10, MemOperand(x10));
   Cbz(w10, &profiler_disabled);
   Mov(x3, thunk_ref);
@@ -1680,7 +1755,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(this, x3);
 
   if (FLAG_log_timer_events) {
@@ -1764,15 +1839,15 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   Mov(x0, num_arguments);
   Mov(x1, ext);
 
-  CEntryStub stub(1);
+  CEntryStub stub(isolate(), 1);
   CallStub(&stub);
 }
 
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   Mov(x1, builtin);
-  CEntryStub stub(1);
-  Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  CEntryStub stub(isolate(), 1);
+  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2237,11 +2312,11 @@ void MacroAssembler::LookupNumberStringCache(Register object,
 }
 
 
-void MacroAssembler::TryConvertDoubleToInt(Register as_int,
-                                           FPRegister value,
-                                           FPRegister scratch_d,
-                                           Label* on_successful_conversion,
-                                           Label* on_failed_conversion) {
+void MacroAssembler::TryRepresentDoubleAsInt(Register as_int,
+                                             FPRegister value,
+                                             FPRegister scratch_d,
+                                             Label* on_successful_conversion,
+                                             Label* on_failed_conversion) {
   // Convert to an int and back again, then compare with the original value.
   Fcvtzs(as_int, value);
   Scvtf(scratch_d, as_int);
@@ -2870,7 +2945,8 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   Push(lr);
   Push(double_input);  // Put input on stack.
 
-  DoubleToIStub stub(jssp,
+  DoubleToIStub stub(isolate(),
+                     jssp,
                      result,
                      0,
                      true,   // is_truncating
@@ -2898,7 +2974,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr);
-  DoubleToIStub stub(object,
+  DoubleToIStub stub(isolate(),
+                     object,
                      result,
                      HeapNumber::kValueOffset - kHeapObjectTag,
                      true,   // is_truncating
@@ -3135,15 +3212,13 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Mov(x0, 0);
   Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
-  CEntryStub ces(1);
+  CEntryStub ces(isolate(), 1);
   ASSERT(AllowThisStubCall(&ces));
-  Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
-#endif
 
 
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
@@ -3260,14 +3335,13 @@ void MacroAssembler::Allocate(int object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   Adds(scratch3, result, object_size);
-  B(vs, gc_required);
-  Cmp(scratch3, allocation_limit);
+  Ccmp(scratch3, allocation_limit, CFlag, cc);
   B(hi, gc_required);
   Str(scratch3, MemOperand(top_address));
 
   // Tag the object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    Orr(result, result, kHeapObjectTag);
+    ObjectTag(result, result);
   }
 }
 
@@ -3342,14 +3416,13 @@ void MacroAssembler::Allocate(Register object_size,
     Check(eq, kUnalignedAllocationInNewSpace);
   }
 
-  B(vs, gc_required);
-  Cmp(scratch3, allocation_limit);
+  Ccmp(scratch3, allocation_limit, CFlag, cc);
   B(hi, gc_required);
   Str(scratch3, MemOperand(top_address));
 
   // Tag the object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    Orr(result, result, kHeapObjectTag);
+    ObjectTag(result, result);
   }
 }
 
@@ -3533,32 +3606,50 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Label* gc_required,
                                         Register scratch1,
                                         Register scratch2,
-                                        Register heap_number_map) {
+                                        CPURegister value,
+                                        CPURegister heap_number_map) {
+  ASSERT(!value.IsValid() || value.Is64Bits());
+  UseScratchRegisterScope temps(this);
+
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
-  // Store heap number map in the allocated object.
-  if (heap_number_map.Is(NoReg)) {
-    heap_number_map = scratch1;
+  // Prepare the heap number map.
+  if (!heap_number_map.IsValid()) {
+    // If we have a valid value register, use the same type of register to store
+    // the map so we can use STP to store both in one instruction.
+    if (value.IsValid() && value.IsFPRegister()) {
+      heap_number_map = temps.AcquireD();
+    } else {
+      heap_number_map = scratch1;
+    }
     LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   }
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  Str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-}
+  if (emit_debug_code()) {
+    Register map;
+    if (heap_number_map.IsFPRegister()) {
+      map = scratch1;
+      Fmov(map, DoubleRegister(heap_number_map));
+    } else {
+      map = Register(heap_number_map);
+    }
+    AssertRegisterIsRoot(map, Heap::kHeapNumberMapRootIndex);
+  }
 
-
-void MacroAssembler::AllocateHeapNumberWithValue(Register result,
-                                                 DoubleRegister value,
-                                                 Label* gc_required,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Register heap_number_map) {
-  // TODO(all): Check if it would be more efficient to use STP to store both
-  // the map and the value.
-  AllocateHeapNumber(result, gc_required, scratch1, scratch2, heap_number_map);
-  Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
+  // Store the heap number map and the value in the allocated object.
+  if (value.IsSameSizeAndType(heap_number_map)) {
+    STATIC_ASSERT(HeapObject::kMapOffset + kPointerSize ==
+                  HeapNumber::kValueOffset);
+    Stp(heap_number_map, value, MemOperand(result, HeapObject::kMapOffset));
+  } else {
+    Str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+    if (value.IsValid()) {
+      Str(value, MemOperand(result, HeapNumber::kValueOffset));
+    }
+  }
+  ObjectTag(result, result);
 }
 
 
@@ -3848,7 +3939,6 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register elements_reg,
                                                  Register scratch1,
                                                  FPRegister fpscratch1,
-                                                 FPRegister fpscratch2,
                                                  Label* fail,
                                                  int elements_offset) {
   ASSERT(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
@@ -3866,12 +3956,9 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
            fail, DONT_DO_SMI_CHECK);
 
   Ldr(fpscratch1, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
-  Fmov(fpscratch2, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
 
-  // Check for NaN by comparing the number to itself: NaN comparison will
-  // report unordered, indicated by the overflow flag being set.
-  Fcmp(fpscratch1, fpscratch1);
-  Fcsel(fpscratch1, fpscratch2, fpscratch1, vs);
+  // Canonicalize NaNs.
+  CanonicalizeNaN(fpscratch1);
 
   // Store the result.
   Bind(&store_num);
@@ -4136,7 +4223,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Bind(&store_buffer_overflow);
   Push(lr);
   StoreBufferOverflowStub store_buffer_overflow_stub =
-      StoreBufferOverflowStub(fp_mode);
+      StoreBufferOverflowStub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow_stub);
   Pop(lr);
 
@@ -4329,7 +4416,8 @@ void MacroAssembler::RecordWrite(Register object,
   if (lr_status == kLRHasNotBeenSaved) {
     Push(lr);
   }
-  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop(lr);
@@ -4674,8 +4762,7 @@ void MacroAssembler::Abort(BailoutReason reason) {
   // We need some scratch registers for the MacroAssembler, so make sure we have
   // some. This is safe here because Abort never returns.
   RegList old_tmp_list = TmpList()->list();
-  TmpList()->Combine(ip0);
-  TmpList()->Combine(ip1);
+  TmpList()->Combine(MacroAssembler::DefaultTmpList());
 
   if (use_real_aborts()) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.
@@ -4980,7 +5067,8 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching() {
   // TODO(jbramley): Other architectures use the internal memcpy to copy the
   // sequence. If this is a performance bottleneck, we should consider caching
   // the sequence and copying it in the same way.
-  InstructionAccurateScope scope(this, kCodeAgeSequenceSize / kInstructionSize);
+  InstructionAccurateScope scope(this,
+                                 kNoCodeAgeSequenceLength / kInstructionSize);
   ASSERT(jssp.Is(StackPointer()));
   EmitFrameSetupForCodeAgePatching(this);
 }
@@ -4988,7 +5076,8 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching() {
 
 
 void MacroAssembler::EmitCodeAgeSequence(Code* stub) {
-  InstructionAccurateScope scope(this, kCodeAgeSequenceSize / kInstructionSize);
+  InstructionAccurateScope scope(this,
+                                 kNoCodeAgeSequenceLength / kInstructionSize);
   ASSERT(jssp.Is(StackPointer()));
   EmitCodeAgeSequence(this, stub);
 }
@@ -5012,7 +5101,7 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching(Assembler * assm) {
   __ stp(fp, lr, MemOperand(jssp, 2 * kXRegSize));
   __ add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
 
-  __ AssertSizeOfCodeGeneratedSince(&start, kCodeAgeSequenceSize);
+  __ AssertSizeOfCodeGeneratedSince(&start, kNoCodeAgeSequenceLength);
 }
 
 
@@ -5035,46 +5124,17 @@ void MacroAssembler::EmitCodeAgeSequence(Assembler * assm,
   __ AssertSizeOfCodeGeneratedSince(&start, kCodeAgeStubEntryOffset);
   if (stub) {
     __ dc64(reinterpret_cast<uint64_t>(stub->instruction_start()));
-    __ AssertSizeOfCodeGeneratedSince(&start, kCodeAgeSequenceSize);
+    __ AssertSizeOfCodeGeneratedSince(&start, kNoCodeAgeSequenceLength);
   }
 }
 
 
-bool MacroAssembler::IsYoungSequence(byte* sequence) {
-  // Generate a young sequence to compare with.
-  const int length = kCodeAgeSequenceSize / kInstructionSize;
-  static bool initialized = false;
-  static byte young[kCodeAgeSequenceSize];
-  if (!initialized) {
-    PatchingAssembler patcher(young, length);
-    // The young sequence is the frame setup code for FUNCTION code types. It is
-    // generated by FullCodeGenerator::Generate.
-    MacroAssembler::EmitFrameSetupForCodeAgePatching(&patcher);
-    initialized = true;
-  }
-
-  bool is_young = (memcmp(sequence, young, kCodeAgeSequenceSize) == 0);
-  ASSERT(is_young || IsCodeAgeSequence(sequence));
+bool MacroAssembler::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool is_young = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(is_young ||
+         isolate->code_aging_helper()->IsOld(sequence));
   return is_young;
 }
-
-
-#ifdef DEBUG
-bool MacroAssembler::IsCodeAgeSequence(byte* sequence) {
-  // The old sequence varies depending on the code age. However, the code up
-  // until kCodeAgeStubEntryOffset does not change, so we can check that part to
-  // get a reasonable level of verification.
-  const int length = kCodeAgeStubEntryOffset / kInstructionSize;
-  static bool initialized = false;
-  static byte old[kCodeAgeStubEntryOffset];
-  if (!initialized) {
-    PatchingAssembler patcher(old, length);
-    MacroAssembler::EmitCodeAgeSequence(&patcher, NULL);
-    initialized = true;
-  }
-  return memcmp(sequence, old, kCodeAgeStubEntryOffset) == 0;
-}
-#endif
 
 
 void MacroAssembler::TruncatingDiv(Register result,

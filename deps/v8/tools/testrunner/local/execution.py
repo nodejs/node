@@ -171,6 +171,7 @@ class Runner(object):
     cmd = (self.context.command_prefix +
            [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
            d8testflag +
+           ["--random-seed=%s" % self.context.random_seed] +
            test.suite.GetFlagsForTestCase(test, self.context) +
            self.context.extra_flags)
     return cmd

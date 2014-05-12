@@ -1,38 +1,14 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "allocation.h"
+#include "handles.h"
 
 namespace v8 {
 namespace internal {
-
 
 // Flag used to set the interrupt causes.
 enum InterruptFlag {
@@ -49,10 +25,7 @@ enum InterruptFlag {
 };
 
 
-class Isolate;
-
-
-class Execution : public AllStatic {
+class Execution V8_FINAL : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
   // of arguments. Arguments are Object* type. After function returns,
@@ -65,13 +38,13 @@ class Execution : public AllStatic {
   // and the function called is not in strict mode, receiver is converted to
   // an object.
   //
-  static Handle<Object> Call(Isolate* isolate,
-                             Handle<Object> callable,
-                             Handle<Object> receiver,
-                             int argc,
-                             Handle<Object> argv[],
-                             bool* pending_exception,
-                             bool convert_receiver = false);
+  MUST_USE_RESULT static MaybeHandle<Object> Call(
+      Isolate* isolate,
+      Handle<Object> callable,
+      Handle<Object> receiver,
+      int argc,
+      Handle<Object> argv[],
+      bool convert_receiver = false);
 
   // Construct object from function, the caller supplies an array of
   // arguments. Arguments are Object* type. After function returns,
@@ -80,99 +53,93 @@ class Execution : public AllStatic {
   // *pending_exception tells whether the invoke resulted in
   // a pending exception.
   //
-  static Handle<Object> New(Handle<JSFunction> func,
-                            int argc,
-                            Handle<Object> argv[],
-                            bool* pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> func,
+                                                 int argc,
+                                                 Handle<Object> argv[]);
 
   // Call a function, just like Call(), but make sure to silently catch
   // any thrown exceptions. The return value is either the result of
   // calling the function (if caught exception is false) or the exception
   // that occurred (if caught exception is true).
-  static Handle<Object> TryCall(Handle<JSFunction> func,
-                                Handle<Object> receiver,
-                                int argc,
-                                Handle<Object> argv[],
-                                bool* caught_exception);
+  static MaybeHandle<Object> TryCall(
+      Handle<JSFunction> func,
+      Handle<Object> receiver,
+      int argc,
+      Handle<Object> argv[],
+      Handle<Object>* exception_out = NULL);
 
   // ECMA-262 9.3
-  static Handle<Object> ToNumber(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.4
-  static Handle<Object> ToInteger(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.5
-  static Handle<Object> ToInt32(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.6
-  static Handle<Object> ToUint32(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8
-  static Handle<Object> ToString(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToString(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8
-  static Handle<Object> ToDetailString(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.9
-  static Handle<Object> ToObject(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToObject(
+      Isolate* isolate, Handle<Object> obj);
 
   // Create a new date object from 'time'.
-  static Handle<Object> NewDate(
-      Isolate* isolate, double time, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> NewDate(
+      Isolate* isolate, double time);
 
   // Create a new regular expression object from 'pattern' and 'flags'.
-  static Handle<JSRegExp> NewJSRegExp(Handle<String> pattern,
-                                      Handle<String> flags,
-                                      bool* exc);
+  MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
+      Handle<String> pattern, Handle<String> flags);
 
   // Used to implement [] notation on strings (calls JS code)
   static Handle<Object> CharAt(Handle<String> str, uint32_t index);
 
   static Handle<Object> GetFunctionFor();
-  static Handle<JSFunction> InstantiateFunction(
-      Handle<FunctionTemplateInfo> data, bool* exc);
-  static Handle<JSObject> InstantiateObject(Handle<ObjectTemplateInfo> data,
-                                            bool* exc);
-  static void ConfigureInstance(Isolate* isolate,
-                                Handle<Object> instance,
-                                Handle<Object> data,
-                                bool* exc);
+  MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
+      Handle<FunctionTemplateInfo> data);
+  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
+      Handle<ObjectTemplateInfo> data);
+  MUST_USE_RESULT static MaybeHandle<Object> ConfigureInstance(
+      Isolate* isolate,  Handle<Object> instance, Handle<Object> data);
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
-#ifdef ENABLE_DEBUGGER_SUPPORT
+
   static Object* DebugBreakHelper(Isolate* isolate);
   static void ProcessDebugMessages(Isolate* isolate, bool debug_command_only);
-#endif
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
-  MUST_USE_RESULT static MaybeObject* HandleStackGuardInterrupt(
-      Isolate* isolate);
+  static Object* HandleStackGuardInterrupt(Isolate* isolate);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Isolate* isolate,
                                             Handle<Object> object);
-  static Handle<Object> TryGetFunctionDelegate(Isolate* isolate,
-                                               Handle<Object> object,
-                                               bool* has_pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> TryGetFunctionDelegate(
+      Isolate* isolate,
+      Handle<Object> object);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
   static Handle<Object> GetConstructorDelegate(Isolate* isolate,
                                                Handle<Object> object);
-  static Handle<Object> TryGetConstructorDelegate(Isolate* isolate,
-                                                  Handle<Object> object,
-                                                  bool* has_pending_exception);
+  static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
+                                                       Handle<Object> object);
 
   static void RunMicrotasks(Isolate* isolate);
   static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
@@ -185,7 +152,7 @@ class ExecutionAccess;
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class StackGuard {
+class StackGuard V8_FINAL {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
@@ -211,12 +178,10 @@ class StackGuard {
   bool IsTerminateExecution();
   void TerminateExecution();
   void CancelTerminateExecution();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   bool IsDebugBreak();
   void DebugBreak();
   bool IsDebugCommand();
   void DebugCommand();
-#endif
   bool IsGCRequest();
   void RequestGC();
   bool IsInstallCodeRequest();
@@ -290,7 +255,7 @@ class StackGuard {
   static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
 
-  class ThreadLocal {
+  class ThreadLocal V8_FINAL {
    public:
     ThreadLocal() { Clear(); }
     // You should hold the ExecutionAccess lock when you call Initialize or
@@ -333,7 +298,6 @@ class StackGuard {
 
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
-
 
 } }  // namespace v8::internal
 

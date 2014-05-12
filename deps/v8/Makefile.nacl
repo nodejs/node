@@ -77,6 +77,9 @@ GYPENV += host_os=${HOST_OS}
 # ICU doesn't support NaCl.
 GYPENV += v8_enable_i18n_support=0
 
+# Disable strict aliasing - v8 code often relies on undefined behavior of C++.
+GYPENV += v8_no_strict_aliasing=1
+
 NACL_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(NACL_BUILDS))
 .SECONDEXPANSION:
 # For some reason the $$(basename $$@) expansion didn't work here...

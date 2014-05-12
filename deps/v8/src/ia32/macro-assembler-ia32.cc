@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -198,7 +175,7 @@ void MacroAssembler::RememberedSetHelper(
     j(equal, &done, Label::kNear);
   }
   StoreBufferOverflowStub store_buffer_overflow =
-      StoreBufferOverflowStub(save_fp);
+      StoreBufferOverflowStub(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
   if (and_then == kReturnAtEnd) {
     ret(0);
@@ -247,8 +224,8 @@ void MacroAssembler::ClampUint8(Register reg) {
 void MacroAssembler::SlowTruncateToI(Register result_reg,
                                      Register input_reg,
                                      int offset) {
-  DoubleToIStub stub(input_reg, result_reg, offset, true);
-  call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  DoubleToIStub stub(isolate(), input_reg, result_reg, offset, true);
+  call(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -414,7 +391,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
       isolate()->factory()->heap_number_map());
   j(not_equal, lost_precision, Label::kNear);
 
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     ASSERT(!temp.is(no_xmm_reg));
     CpuFeatureScope scope(this, SSE2);
 
@@ -634,7 +611,8 @@ void MacroAssembler::RecordWriteForMap(
   // them.
   lea(address, FieldOperand(object, HeapObject::kMapOffset));
   mov(value, Immediate(map));
-  RecordWriteStub stub(object, value, address, OMIT_REMEMBERED_SET, save_fp);
+  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET,
+                       save_fp);
   CallStub(&stub);
 
   bind(&done);
@@ -699,7 +677,8 @@ void MacroAssembler::RecordWrite(Register object,
                 &done,
                 Label::kNear);
 
-  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
 
   bind(&done);
@@ -713,14 +692,12 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Move(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
-  CEntryStub ces(1);
-  call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
+  CEntryStub ces(isolate(), 1);
+  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
-#endif
 
 
 void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
@@ -1424,7 +1401,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 // Note: r0 will contain hash code
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // Xor original key with a seed.
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate())) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(scratch, Immediate(Heap::kHashSeedRootIndex));
@@ -2182,12 +2159,12 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id);
+  call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  jmp(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2199,14 +2176,6 @@ void MacroAssembler::StubReturn(int argc) {
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame_ || !stub->SometimesSetsUpAFrame();
-}
-
-
-void MacroAssembler::IllegalOperation(int num_arguments) {
-  if (num_arguments > 0) {
-    add(esp, Immediate(num_arguments * kPointerSize));
-  }
-  mov(eax, Immediate(isolate()->factory()->undefined_value()));
 }
 
 
@@ -2235,10 +2204,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    IllegalOperation(num_arguments);
-    return;
-  }
+  CHECK(f->nargs < 0 || f->nargs == num_arguments);
 
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
@@ -2246,8 +2212,10 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? save_doubles
-                                                   : kDontSaveFPRegs);
+  CEntryStub ces(isolate(),
+                 1,
+                 CpuFeatures::IsSupported(SSE2) ? save_doubles
+                                                : kDontSaveFPRegs);
   CallStub(&ces);
 }
 
@@ -2257,7 +2225,7 @@ void MacroAssembler::CallExternalReference(ExternalReference ref,
   mov(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ref));
 
-  CEntryStub stub(1);
+  CEntryStub stub(isolate(), 1);
   CallStub(&stub);
 }
 
@@ -2298,7 +2266,7 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 
 void MacroAssembler::CallApiFunctionAndReturn(
     Register function_address,
-    Address thunk_address,
+    ExternalReference thunk_ref,
     Operand thunk_last_arg,
     int stack_space,
     Operand return_value_operand,
@@ -2329,17 +2297,15 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   Label profiler_disabled;
   Label end_profiler_check;
-  bool* is_profiling_flag =
-      isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  mov(eax, Immediate(reinterpret_cast<Address>(is_profiling_flag)));
+  mov(eax, Immediate(ExternalReference::is_profiling_address(isolate())));
   cmpb(Operand(eax, 0), 0);
   j(zero, &profiler_disabled);
 
   // Additional parameter is the address of the actual getter function.
   mov(thunk_last_arg, function_address);
   // Call the api function.
-  call(thunk_address, RelocInfo::RUNTIME_ENTRY);
+  mov(eax, Immediate(thunk_ref));
+  call(eax);
   jmp(&end_profiler_check);
 
   bind(&profiler_disabled);
@@ -2451,8 +2417,8 @@ void MacroAssembler::CallApiFunctionAndReturn(
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
-  CEntryStub ces(1);
-  jmp(ces.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  CEntryStub ces(isolate(), 1);
+  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 

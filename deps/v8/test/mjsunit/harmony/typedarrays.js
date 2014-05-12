@@ -310,6 +310,11 @@ function TestSubArray(constructor, item) {
 
   SubarrayTestCase(constructor, item, 10,90,        100, 90);
   SubarrayTestCase(constructor, item, 10,90,        100, -10);
+
+  var method = constructor.prototype.subarray;
+  method.call(new constructor(100), 0, 100);
+  var o = {};
+  assertThrows(function() { method.call(o, 0, 100); }, TypeError);
 }
 
 TestSubArray(Uint8Array, 0xFF);

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -66,14 +43,13 @@
 namespace v8 {
 namespace internal {
 
-Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
-                                               Handle<String> pattern,
-                                               Handle<String> flags,
-                                               bool* has_pending_exception) {
+MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
+    Handle<JSFunction> constructor,
+    Handle<String> pattern,
+    Handle<String> flags) {
   // Call the construct code with 2 arguments.
   Handle<Object> argv[] = { pattern, flags };
-  return Execution::New(constructor, ARRAY_SIZE(argv), argv,
-                        has_pending_exception);
+  return Execution::New(constructor, ARRAY_SIZE(argv), argv);
 }
 
 
@@ -96,10 +72,12 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
 }
 
 
-static inline void ThrowRegExpException(Handle<JSRegExp> re,
-                                        Handle<String> pattern,
-                                        Handle<String> error_text,
-                                        const char* message) {
+MUST_USE_RESULT
+static inline MaybeHandle<Object> ThrowRegExpException(
+    Handle<JSRegExp> re,
+    Handle<String> pattern,
+    Handle<String> error_text,
+    const char* message) {
   Isolate* isolate = re->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(2);
@@ -107,7 +85,7 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
   elements->set(1, *error_text);
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
   Handle<Object> regexp_err = factory->NewSyntaxError(message, array);
-  isolate->Throw(*regexp_err);
+  return isolate->Throw<Object>(regexp_err);
 }
 
 
@@ -168,15 +146,17 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
-Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
-                                   Handle<String> pattern,
-                                   Handle<String> flag_str) {
+MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
+                                        Handle<String> pattern,
+                                        Handle<String> flag_str) {
   Isolate* isolate = re->GetIsolate();
   Zone zone(isolate);
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
-  bool in_cache = !cached.is_null();
+  MaybeHandle<FixedArray> maybe_cached =
+      compilation_cache->LookupRegExp(pattern, flags);
+  Handle<FixedArray> cached;
+  bool in_cache = maybe_cached.ToHandle(&cached);
   LOG(isolate, RegExpCompileEvent(re, in_cache));
 
   Handle<Object> result;
@@ -184,18 +164,17 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     return re;
   }
-  pattern = FlattenGetString(pattern);
+  pattern = String::Flatten(pattern);
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &parse_result, &zone)) {
     // Throw an exception if we fail to parse the pattern.
-    ThrowRegExpException(re,
-                         pattern,
-                         parse_result.error,
-                         "malformed_regexp");
-    return Handle<Object>::null();
+    return ThrowRegExpException(re,
+                                pattern,
+                                parse_result.error,
+                                "malformed_regexp");
   }
 
   bool has_been_compiled = false;
@@ -211,8 +190,11 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    Handle<String> atom_string =
-        isolate->factory()->NewStringFromTwoByte(atom_pattern);
+    Handle<String> atom_string;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, atom_string,
+        isolate->factory()->NewStringFromTwoByte(atom_pattern),
+        Object);
     if (!HasFewDifferentCharacters(atom_string)) {
       AtomCompile(re, pattern, flags, atom_string);
       has_been_compiled = true;
@@ -231,23 +213,19 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 }
 
 
-Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
-                                Handle<String> subject,
-                                int index,
-                                Handle<JSArray> last_match_info) {
+MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
+                                     Handle<String> subject,
+                                     int index,
+                                     Handle<JSArray> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
     case JSRegExp::IRREGEXP: {
-      Handle<Object> result =
-          IrregexpExec(regexp, subject, index, last_match_info);
-      ASSERT(!result.is_null() ||
-             regexp->GetIsolate()->has_pending_exception());
-      return result;
+      return IrregexpExec(regexp, subject, index, last_match_info);
     }
     default:
       UNREACHABLE();
-      return Handle<Object>::null();
+      return MaybeHandle<Object>();
   }
 }
 
@@ -290,7 +268,7 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
   ASSERT(0 <= index);
   ASSERT(index <= subject->length());
 
-  if (!subject->IsFlat()) FlattenString(subject);
+  subject = String::Flatten(subject);
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
   String* needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -439,7 +417,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  if (!pattern->IsFlat()) FlattenString(pattern);
+  pattern = String::Flatten(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
@@ -447,10 +425,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  &zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    ThrowRegExpException(re,
-                         pattern,
-                         compile_data.error,
-                         "malformed_regexp");
+    USE(ThrowRegExpException(re,
+                             pattern,
+                             compile_data.error,
+                             "malformed_regexp"));
     return false;
   }
   RegExpEngine::CompilationResult result =
@@ -464,9 +442,8 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                             &zone);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Handle<String> error_message =
-        isolate->factory()->NewStringFromUtf8(CStrVector(result.error_message));
-    ASSERT(!error_message.is_null());
+    Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
+        CStrVector(result.error_message)).ToHandleChecked();
     CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }
@@ -528,7 +505,7 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  if (!subject->IsFlat()) FlattenString(subject);
+  subject = String::Flatten(subject);
 
   // Check the asciiness of the underlying storage.
   bool is_ascii = subject->IsOneByteRepresentationUnderneath();
@@ -637,10 +614,10 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 }
 
 
-Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
-                                        Handle<String> subject,
-                                        int previous_index,
-                                        Handle<JSArray> last_match_info) {
+MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
+                                             Handle<String> subject,
+                                             int previous_index,
+                                             Handle<JSArray> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
@@ -656,7 +633,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   if (required_registers < 0) {
     // Compiling failed with an exception.
     ASSERT(isolate->has_pending_exception());
-    return Handle<Object>::null();
+    return MaybeHandle<Object>();
   }
 
   int32_t* output_registers = NULL;
@@ -678,7 +655,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   }
   if (res == RE_EXCEPTION) {
     ASSERT(isolate->has_pending_exception());
-    return Handle<Object>::null();
+    return MaybeHandle<Object>();
   }
   ASSERT(res == RE_FAILURE);
   return isolate->factory()->null_value();
@@ -6015,7 +5992,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   // Sample some characters from the middle of the string.
   static const int kSampleSize = 128;
 
-  FlattenString(sample_subject);
+  sample_subject = String::Flatten(sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
   for (int i = Max(0, half_way);

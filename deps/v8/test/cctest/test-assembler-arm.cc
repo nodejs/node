@@ -57,15 +57,12 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
@@ -95,15 +92,12 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 100, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
@@ -142,15 +136,12 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -191,15 +182,12 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
@@ -292,9 +280,9 @@ TEST(4) {
     __ vstr(d4, r4, OFFSET_OF(T, f));
 
     // Convert from fixed point to floating point.
-    __ mov(lr, Operand(1234));
+    __ mov(lr, Operand(2468));
     __ vmov(s8, lr);
-    __ vcvt_f64_s32(d4, 1);
+    __ vcvt_f64_s32(d4, 2);
     __ vstr(d4, r4, OFFSET_OF(T, j));
 
     // Test vabs.
@@ -317,15 +305,12 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -380,15 +365,12 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+    F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
                 CALL_GENERATED_CODE(f, 0xAAAAAAAA, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
@@ -416,15 +398,12 @@ TEST(6) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+    F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
                 CALL_GENERATED_CODE(f, 0xFFFF, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
@@ -492,15 +471,12 @@ static void TestRoundingMode(VCVTTypes types,
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+    F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
                 CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
     ::printf("res = %d\n", res);
@@ -678,15 +654,12 @@ TEST(8) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -790,15 +763,12 @@ TEST(9) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -898,15 +868,12 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -995,15 +962,12 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
   USE(dummy);
 
@@ -1125,15 +1089,12 @@ TEST(13) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -1200,15 +1161,12 @@ TEST(14) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.left = BitCast<double>(kHoleNanInt64);
   t.right = 1;
   t.add_result = 0;
@@ -1306,15 +1264,12 @@ TEST(15) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     t.src0 = 0x01020304;
     t.src1 = 0x11121314;
     t.src2 = 0x21222324;
@@ -1411,15 +1366,12 @@ TEST(16) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.src0 = 0x01020304;
   t.src1 = 0x11121314;
   t.src2 = 0x11121300;
@@ -1496,15 +1448,12 @@ TEST(18) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     Object* dummy;
     TEST_SDIV(1073741824, kMinInt, -2);
     TEST_SDIV(kMinInt, kMinInt, -1);
@@ -1586,9 +1535,8 @@ TEST(code_relative_offset) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(desc,
-      Code::ComputeFlags(Code::STUB), code_object);
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), code_object);
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 21, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);

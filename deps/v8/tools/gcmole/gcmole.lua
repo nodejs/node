@@ -116,7 +116,7 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
                                          cfg.arch_define)
    for _, filename in ipairs(filenames) do
       log("-- %s", filename)
-      local action = cmd_line .. " src/" .. filename .. " 2>&1"
+      local action = cmd_line .. " " .. filename .. " 2>&1"
       if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
       func(filename, pipe:lines())
@@ -129,19 +129,26 @@ end
 -- GYP file parsing
 
 local function ParseGYPFile()
-   local f = assert(io.open("tools/gyp/v8.gyp"), "failed to open GYP file")
-   local gyp = f:read('*a')
-   f:close()
+   local gyp = ""
+   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
+   for i = 1, #gyp_files do
+      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
+      local t = f:read('*a')
+      gyp = gyp .. t
+      f:close()
+   end
 
    local result = {}
 
    for condition, sources in
       gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
-      local files = {}
+      if result[condition] == nil then result[condition] = {} end
       for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
-         table.insert(files, file)
+         table.insert(result[condition], "src/" .. file)
       end
-      result[condition] = files
+      for file in sources:gmatch "'(test-[^']-%.cc)'" do
+         table.insert(result[condition], "test/cctest/" .. file)
+      end
    end
 
    return result

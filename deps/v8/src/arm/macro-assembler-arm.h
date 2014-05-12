@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM_MACRO_ASSEMBLER_ARM_H_
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
@@ -102,7 +79,11 @@ class MacroAssembler: public Assembler {
   static int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  static int CallSizeNotPredictableCodeSize(Address target,
+  int CallStubSize(CodeStub* stub,
+                   TypeFeedbackId ast_id = TypeFeedbackId::None(),
+                   Condition cond = al);
+  static int CallSizeNotPredictableCodeSize(Isolate* isolate,
+                                            Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
@@ -627,12 +608,10 @@ class MacroAssembler: public Assembler {
                         Register scratch,
                         Label* fail);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -950,10 +929,6 @@ class MacroAssembler: public Assembler {
     return eq;
   }
 
-
-  // Generates code for reporting that an illegal operation has
-  // occurred.
-  void IllegalOperation(int num_arguments);
 
   // Picks out an array index from the hash field.
   // Register use:
@@ -1524,11 +1499,12 @@ class FrameAndConstantPoolScope {
         type_(type),
         old_has_frame_(masm->has_frame()),
         old_constant_pool_available_(masm->is_constant_pool_available())  {
+    // We only want to enable constant pool access for non-manual frame scopes
+    // to ensure the constant pool pointer is valid throughout the scope.
+    ASSERT(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
     masm->set_has_frame(true);
     masm->set_constant_pool_available(true);
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
-      masm->EnterFrame(type, !old_constant_pool_available_);
-    }
+    masm->EnterFrame(type, !old_constant_pool_available_);
   }
 
   ~FrameAndConstantPoolScope() {

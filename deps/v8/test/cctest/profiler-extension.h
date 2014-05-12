@@ -43,7 +43,7 @@ class ProfilerExtension : public v8::Extension {
       v8::Handle<v8::String> name);
   static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static const v8::CpuProfile* last_profile;
+  static v8::CpuProfile* last_profile;
  private:
   static const char* kSource;
 };

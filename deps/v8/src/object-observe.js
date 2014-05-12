@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 "use strict";
 
@@ -79,14 +56,11 @@ function GetWeakMapWrapper() {
   };
 
   MapWrapper.prototype = {
+    __proto__: null,
     get: function(key) {
-      key = %UnwrapGlobalProxy(key);
-      if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
       return %WeakCollectionGet(this.map_, key);
     },
     set: function(key, value) {
-      key = %UnwrapGlobalProxy(key);
-      if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
       %WeakCollectionSet(this.map_, key, value);
     },
     has: function(key) {
@@ -382,6 +356,8 @@ function CallbackInfoNormalize(callback) {
 function ObjectObserve(object, callback, acceptList) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["observe"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
   if (ObjectIsFrozen(callback))
@@ -389,6 +365,10 @@ function ObjectObserve(object, callback, acceptList) {
   if (!AcceptArgIsValid(acceptList))
     throw MakeTypeError("observe_accept_invalid");
 
+  return %ObjectObserveInObjectContext(object, callback, acceptList);
+}
+
+function NativeObjectObserve(object, callback, acceptList) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   ObjectInfoAddObserver(objectInfo, callback, acceptList);
   return object;
@@ -397,6 +377,8 @@ function ObjectObserve(object, callback, acceptList) {
 function ObjectUnobserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["unobserve"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["unobserve"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["unobserve"]);
 
@@ -419,27 +401,22 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
-function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                                 needsAccessCheck) {
+function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   if (!ObserverIsActive(observer, objectInfo) ||
       !TypeMapHasType(ObserverGetAcceptTypes(observer), changeRecord.type)) {
     return;
   }
 
   var callback = ObserverGetCallback(observer);
-  if (needsAccessCheck &&
-      // Drop all splice records on the floor for access-checked objects
-      (changeRecord.type == 'splice' ||
-       !%IsAccessAllowedForObserver(
-           callback, changeRecord.object, changeRecord.name))) {
+  if (!%ObserverObjectAndRecordHaveSameOrigin(callback, changeRecord.object,
+                                              changeRecord)) {
     return;
   }
 
   var callbackInfo = CallbackInfoNormalize(callback);
   if (IS_NULL(GetPendingObservers())) {
     SetPendingObservers(nullProtoObject())
-    GetMicrotaskQueue().push(ObserveMicrotaskRunner);
-    %SetMicrotaskPending(true);
+    EnqueueMicrotask(ObserveMicrotaskRunner);
   }
   GetPendingObservers()[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
@@ -461,22 +438,16 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
   }
   ObjectFreeze(newRecord);
 
-  ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord,
-                                        true /* skip access check */);
+  ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
 
-function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord,
-                                               skipAccessCheck) {
+function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
 
-  var needsAccessCheck = !skipAccessCheck &&
-      %IsAccessCheckNeeded(changeRecord.object);
-
   if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
     var observer = objectInfo.changeObservers;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                            needsAccessCheck);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
     return;
   }
 
@@ -484,8 +455,7 @@ function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord,
     var observer = objectInfo.changeObservers[priority];
     if (IS_NULL(observer))
       continue;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                            needsAccessCheck);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
   }
 }
 
@@ -562,7 +532,6 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
     throw MakeTypeError("called_on_non_object", ["performChange"]);
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
-
   if (IS_UNDEFINED(objectInfo))
     throw MakeTypeError("observe_notify_non_notifier");
   if (!IS_STRING(changeType))
@@ -570,6 +539,11 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_FUNCTION(changeFn))
     throw MakeTypeError("observe_perform_non_function");
 
+  return %ObjectNotifierPerformChangeInObjectContext(
+      objectInfo, changeType, changeFn);
+}
+
+function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
   ObjectInfoAddPerformingType(objectInfo, changeType);
 
   var changeRecord;
@@ -586,9 +560,17 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
 function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["getNotifier"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["getNotifier"]);
 
   if (ObjectIsFrozen(object)) return null;
 
+  if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
+
+  return %ObjectGetNotifierInObjectContext(object);
+}
+
+function NativeObjectGetNotifier(object) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   return ObjectInfoGetNotifier(objectInfo);
 }

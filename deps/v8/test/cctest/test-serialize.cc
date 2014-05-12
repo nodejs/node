@@ -121,10 +121,8 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::address_of_real_stack_limit(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
            encoder.Encode(real_stack_limit_address.address()));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 16),
            encoder.Encode(ExternalReference::debug_break(isolate).address()));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 10),
            encoder.Encode(
                ExternalReference::new_space_start(isolate).address()));
@@ -157,10 +155,8 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
   CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::debug_break(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 16)));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::new_space_start(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 10)));
 }
@@ -266,7 +262,7 @@ static void Serialize() {
 // Test that the whole heap can be serialized.
 TEST(Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Serializer::Enable(CcTest::i_isolate());
+    Serializer::RequestEnable(CcTest::i_isolate());
     v8::V8::Initialize();
     Serialize();
   }
@@ -276,7 +272,7 @@ TEST(Serialize) {
 // Test that heap serialization is non-destructive.
 TEST(SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    Serializer::Enable(CcTest::i_isolate());
+    Serializer::RequestEnable(CcTest::i_isolate());
     v8::V8::Initialize();
     Serialize();
     Serialize();
@@ -301,8 +297,7 @@ static void SanityCheck() {
   CHECK(isolate->global_object()->IsJSObject());
   CHECK(isolate->native_context()->IsContext());
   CHECK(CcTest::heap()->string_table()->IsStringTable());
-  CHECK(!isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("Empty"))->IsFailure());
+  isolate->factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
 }
 
 
@@ -375,7 +370,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 TEST(PartialSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Isolate* isolate = CcTest::i_isolate();
-    Serializer::Enable(isolate);
+    Serializer::RequestEnable(isolate);
     v8::V8::Initialize();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     Heap* heap = isolate->heap();
@@ -526,7 +521,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 TEST(ContextSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Isolate* isolate = CcTest::i_isolate();
-    Serializer::Enable(isolate);
+    Serializer::RequestEnable(isolate);
     v8::V8::Initialize();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     Heap* heap = isolate->heap();

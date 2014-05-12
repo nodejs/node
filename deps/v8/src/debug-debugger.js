@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // Default number of frames to include in the response to backtrace request.
 var kDefaultBacktraceLength = 10;
@@ -1093,15 +1070,16 @@ BreakEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeExceptionEvent(exec_state, exception, uncaught) {
-  return new ExceptionEvent(exec_state, exception, uncaught);
+function MakeExceptionEvent(exec_state, exception, uncaught, promise) {
+  return new ExceptionEvent(exec_state, exception, uncaught, promise);
 }
 
 
-function ExceptionEvent(exec_state, exception, uncaught) {
+function ExceptionEvent(exec_state, exception, uncaught, promise) {
   this.exec_state_ = exec_state;
   this.exception_ = exception;
   this.uncaught_ = uncaught;
+  this.promise_ = promise;
 }
 
 
@@ -1122,6 +1100,11 @@ ExceptionEvent.prototype.exception = function() {
 
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
+};
+
+
+ExceptionEvent.prototype.promise = function() {
+  return this.promise_;
 };
 
 
@@ -1214,31 +1197,6 @@ CompileEvent.prototype.toJSONProtocol = function() {
   o.body.script = this.script_;
 
   return o.toJSONProtocol();
-};
-
-
-function MakeNewFunctionEvent(func) {
-  return new NewFunctionEvent(func);
-}
-
-
-function NewFunctionEvent(func) {
-  this.func = func;
-}
-
-
-NewFunctionEvent.prototype.eventType = function() {
-  return Debug.DebugEvent.NewFunction;
-};
-
-
-NewFunctionEvent.prototype.name = function() {
-  return this.func.name;
-};
-
-
-NewFunctionEvent.prototype.setBreakPoint = function(p) {
-  Debug.setBreakPoint(this.func, p || 0);
 };
 
 

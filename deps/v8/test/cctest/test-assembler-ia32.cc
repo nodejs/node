@@ -60,15 +60,12 @@ TEST(AssemblerIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = f(3, 4);
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
@@ -99,15 +96,12 @@ TEST(AssemblerIa321) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(100);
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
@@ -142,15 +136,12 @@ TEST(AssemblerIa322) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(10);
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -177,10 +168,8 @@ TEST(AssemblerIa323) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   // don't print the code - our disassembler can't handle cvttss2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -212,10 +201,8 @@ TEST(AssemblerIa324) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   // don't print the code - our disassembler can't handle cvttsd2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -242,10 +229,8 @@ TEST(AssemblerIa325) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   CHECK_EQ(42, res);
@@ -279,10 +264,8 @@ TEST(AssemblerIa326) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
   ::printf("\n---\n");
   // don't print the code - our disassembler can't handle SSE instructions
@@ -319,15 +302,12 @@ TEST(AssemblerIa328) {
   __ ret(0);
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F6 f = FUNCTION_CAST<F6>(Code::cast(code)->entry());
+  F6 f = FUNCTION_CAST<F6>(code->entry());
   double res = f(12);
 
   ::printf("f() = %f\n", res);
@@ -375,16 +355,13 @@ TEST(AssemblerIa329) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F7 f = FUNCTION_CAST<F7>(Code::cast(code)->entry());
+  F7 f = FUNCTION_CAST<F7>(code->entry());
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
@@ -461,10 +438,8 @@ TEST(AssemblerMultiByteNop) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   CHECK(code->IsCode());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -514,13 +489,10 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CodeDesc desc;
   assm.GetCode(&desc);
 
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
@@ -584,16 +556,13 @@ TEST(AssemblerIa32Extractps) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F4 f = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  F4 f = FUNCTION_CAST<F4>(code->entry());
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
@@ -627,16 +596,13 @@ TEST(AssemblerIa32SSE) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F8 f = FUNCTION_CAST<F8>(Code::cast(code)->entry());
+  F8 f = FUNCTION_CAST<F8>(code->entry());
   CHECK_EQ(2, f(1.0, 2.0));
 }
 

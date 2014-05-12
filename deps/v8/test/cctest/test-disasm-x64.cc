@@ -104,7 +104,9 @@ TEST(DisasmX64) {
   __ xorq(rdx, Immediate(3));
   __ nop();
   __ cpuid();
+  __ movsxbl(rdx, Operand(rcx, 0));
   __ movsxbq(rdx, Operand(rcx, 0));
+  __ movsxwl(rdx, Operand(rcx, 0));
   __ movsxwq(rdx, Operand(rcx, 0));
   __ movzxbl(rdx, Operand(rcx, 0));
   __ movzxwl(rdx, Operand(rcx, 0));
@@ -179,22 +181,22 @@ TEST(DisasmX64) {
 
   __ nop();
 
-  __ rcl(rdx, Immediate(1));
-  __ rcl(rdx, Immediate(7));
-  __ rcr(rdx, Immediate(1));
-  __ rcr(rdx, Immediate(7));
-  __ sar(rdx, Immediate(1));
-  __ sar(rdx, Immediate(6));
-  __ sar_cl(rdx);
+  __ rclq(rdx, Immediate(1));
+  __ rclq(rdx, Immediate(7));
+  __ rcrq(rdx, Immediate(1));
+  __ rcrq(rdx, Immediate(7));
+  __ sarq(rdx, Immediate(1));
+  __ sarq(rdx, Immediate(6));
+  __ sarq_cl(rdx);
   __ sbbq(rdx, rbx);
   __ shld(rdx, rbx);
-  __ shl(rdx, Immediate(1));
-  __ shl(rdx, Immediate(6));
-  __ shl_cl(rdx);
+  __ shlq(rdx, Immediate(1));
+  __ shlq(rdx, Immediate(6));
+  __ shlq_cl(rdx);
   __ shrd(rdx, rbx);
-  __ shr(rdx, Immediate(1));
-  __ shr(rdx, Immediate(7));
-  __ shr_cl(rdx);
+  __ shrq(rdx, Immediate(1));
+  __ shrq(rdx, Immediate(7));
+  __ shrq_cl(rdx);
 
 
   // Immediates
@@ -258,11 +260,9 @@ TEST(DisasmX64) {
   __ jmp(&L1);
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
   USE(after_break_target);
-#endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -429,15 +429,13 @@ TEST(DisasmX64) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = CcTest::heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  USE(code);
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
-  byte* begin = Code::cast(code)->instruction_start();
-  byte* end = begin + Code::cast(code)->instruction_size();
+  code->Print();
+  byte* begin = code->instruction_start();
+  byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
 }

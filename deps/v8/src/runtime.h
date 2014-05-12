@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
@@ -97,9 +74,11 @@ namespace internal {
   F(SetNativeFlag, 1, 1) \
   F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
-  F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
+  F(DebugPromiseHandlePrologue, 1, 1) \
+  F(DebugPromiseHandleEpilogue, 0, 1) \
   F(FlattenString, 1, 1) \
+  F(LoadMutableDouble, 2, 1) \
   F(TryMigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
   \
@@ -133,7 +112,6 @@ namespace internal {
   F(NumberDiv, 2, 1) \
   F(NumberMod, 2, 1) \
   F(NumberUnaryMinus, 1, 1) \
-  F(NumberAlloc, 0, 1) \
   F(NumberImul, 2, 1) \
   \
   F(StringBuilderConcat, 3, 1) \
@@ -157,18 +135,14 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1) \
   \
   /* Math */ \
-  F(Math_acos, 1, 1) \
-  F(Math_asin, 1, 1) \
-  F(Math_atan, 1, 1) \
-  F(Math_log, 1, 1) \
-  F(Math_sqrt, 1, 1) \
-  F(Math_exp, 1, 1) \
-  F(Math_floor, 1, 1) \
-  F(Math_pow, 2, 1) \
-  F(Math_pow_cfunction, 2, 1) \
-  F(Math_atan2, 2, 1) \
+  F(MathAcos, 1, 1) \
+  F(MathAsin, 1, 1) \
+  F(MathAtan, 1, 1) \
+  F(MathFloor, 1, 1) \
+  F(MathAtan2, 2, 1) \
+  F(MathExp, 1, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_fround, 1, 1) \
+  F(MathFround, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -229,7 +203,7 @@ namespace internal {
   F(SetCode, 2, 1) \
   F(SetExpectedNumberOfProperties, 2, 1) \
   \
-  F(CreateApiFunction, 1, 1) \
+  F(CreateApiFunction, 2, 1) \
   F(IsTemplate, 1, 1) \
   F(GetTemplateField, 2, 1) \
   F(DisableAccessChecks, 1, 1) \
@@ -301,15 +275,25 @@ namespace internal {
   F(SetAdd, 2, 1) \
   F(SetHas, 2, 1) \
   F(SetDelete, 2, 1) \
+  F(SetClear, 1, 1) \
   F(SetGetSize, 1, 1) \
+  F(SetCreateIterator, 2, 1) \
+  \
+  F(SetIteratorNext, 1, 1) \
+  F(SetIteratorClose, 1, 1) \
   \
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
   F(MapGet, 2, 1) \
   F(MapHas, 2, 1) \
   F(MapDelete, 2, 1) \
+  F(MapClear, 1, 1) \
   F(MapSet, 3, 1) \
   F(MapGetSize, 1, 1) \
+  F(MapCreateIterator, 2, 1) \
+  \
+  F(MapIteratorNext, 1, 1) \
+  F(MapIteratorClose, 1, 1) \
   \
   /* Harmony weak maps and sets */ \
   F(WeakCollectionInitialize, 1, 1) \
@@ -327,26 +311,23 @@ namespace internal {
   F(SetIsObserved, 1, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
-  F(UnwrapGlobalProxy, 1, 1) \
-  F(IsAccessAllowedForObserver, 3, 1) \
+  F(ObserverObjectAndRecordHaveSameOrigin, 3, 1) \
+  F(ObjectWasCreatedInCurrentOrigin, 1, 1) \
+  F(ObjectObserveInObjectContext, 3, 1) \
+  F(ObjectGetNotifierInObjectContext, 1, 1) \
+  F(ObjectNotifierPerformChangeInObjectContext, 3, 1) \
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
-  F(ArrayBufferGetByteLength, 1, 1)\
   F(ArrayBufferSliceImpl, 3, 1) \
   F(ArrayBufferIsView, 1, 1) \
   F(ArrayBufferNeuter, 1, 1) \
   \
   F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(TypedArrayGetBuffer, 1, 1) \
-  F(TypedArrayGetByteLength, 1, 1) \
-  F(TypedArrayGetByteOffset, 1, 1) \
-  F(TypedArrayGetLength, 1, 1) \
   F(TypedArraySetFastCases, 3, 1) \
   \
   F(DataViewGetBuffer, 1, 1) \
-  F(DataViewGetByteLength, 1, 1) \
-  F(DataViewGetByteOffset, 1, 1) \
   F(DataViewGetInt8, 3, 1) \
   F(DataViewGetUint8, 3, 1) \
   F(DataViewGetInt16, 3, 1) \
@@ -420,11 +401,10 @@ namespace internal {
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
   F(HaveSameMap, 2, 1) \
-  F(IsAccessCheckNeeded, 1, 1)
+  F(IsJSGlobalProxy, 1, 1)
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+#define RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   /* Debugger support*/ \
   F(DebugBreak, 0, 1) \
   F(SetDebugEventListener, 2, 1) \
@@ -487,10 +467,6 @@ namespace internal {
   F(CollectGarbage, 1, 1) \
   F(GetHeapUsage, 0, 1) \
 
-#else
-#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
-#endif
-
 
 #ifdef V8_I18N_SUPPORT
 #define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F) \
@@ -500,6 +476,10 @@ namespace internal {
   F(AvailableLocalesOf, 1, 1) \
   F(GetDefaultICULocale, 0, 1) \
   F(GetLanguageTagVariants, 1, 1) \
+  F(IsInitializedIntlObject, 1, 1) \
+  F(IsInitializedIntlObjectOfType, 2, 1) \
+  F(MarkAsInitializedIntlObjectOfType, 3, 1) \
+  F(GetImplFromInitializedIntlObject, 1, 1) \
   \
   /* Date format and parse. */ \
   F(CreateDateTimeFormat, 3, 1) \
@@ -549,13 +529,14 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+  RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
 // RUNTIME_HIDDEN_FUNCTION_LIST defines all runtime functions accessed
 // by id from code generator, but not via native call by name.
 // Entries have the form F(name, number of arguments, number of return values).
 #define RUNTIME_HIDDEN_FUNCTION_LIST(F) \
+  /* String and Regexp */ \
   F(NumberToString, 1, 1) \
   F(RegExpConstructResult, 3, 1) \
   F(RegExpExec, 4, 1) \
@@ -563,7 +544,6 @@ namespace internal {
   F(SubString, 3, 1) \
   F(StringCompare, 2, 1) \
   F(StringCharCodeAt, 2, 1) \
-  F(Log, 3, 1) \
   F(GetFromCache, 2, 1) \
   \
   /* Compilation */ \
@@ -634,7 +614,11 @@ namespace internal {
   F(InitializeConstContextSlot, 3, 1) \
   \
   /* Eval */ \
-  F(ResolvePossiblyDirectEval, 5, 2)
+  F(ResolvePossiblyDirectEval, 5, 2) \
+  \
+  /* Maths */ \
+  F(MathPowSlow, 2, 1) \
+  F(MathPow, 2, 1)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -663,8 +647,6 @@ namespace internal {
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
-  F(MathSqrt, 1, 1)                                                          \
-  F(MathLog, 1, 1)                                                           \
   F(IsMinusZero, 1, 1)                                                       \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
@@ -674,7 +656,6 @@ namespace internal {
   F(DebugBreakInOptimizedCode, 0, 1)                                         \
   F(ClassOf, 1, 1)                                                           \
   F(StringCharCodeAt, 2, 1)                                                  \
-  F(Log, 3, 1)                                                               \
   F(StringAdd, 2, 1)                                                         \
   F(SubString, 3, 1)                                                         \
   F(StringCompare, 2, 1)                                                     \
@@ -690,13 +671,24 @@ namespace internal {
 // a corresponding runtime function, that is called from non-optimized code.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
-  F(DoubleHi, 1, 1)                                                          \
-  F(DoubleLo, 1, 1)                                                          \
-  F(ConstructDouble, 2, 1)                                                   \
+  /* Typed Arrays */                                                         \
   F(TypedArrayInitialize, 5, 1)                                              \
   F(DataViewInitialize, 4, 1)                                                \
   F(MaxSmi, 0, 1)                                                            \
-  F(TypedArrayMaxSizeInHeap, 0, 1)
+  F(TypedArrayMaxSizeInHeap, 0, 1)                                           \
+  F(ArrayBufferViewGetByteLength, 1, 1)                                      \
+  F(ArrayBufferViewGetByteOffset, 1, 1)                                      \
+  F(TypedArrayGetLength, 1, 1)                                               \
+  /* ArrayBuffer */                                                          \
+  F(ArrayBufferGetByteLength, 1, 1)                                          \
+  /* Maths */                                                                \
+  F(ConstructDouble, 2, 1)                                                   \
+  F(DoubleHi, 1, 1)                                                          \
+  F(DoubleLo, 1, 1)                                                          \
+  F(MathSqrt, 1, 1)                                                          \
+  F(MathLog, 1, 1)                                                           \
+  /* Debugger */                                                             \
+  F(DebugCallbackSupportsStepping, 1, 1)
 
 
 //---------------------------------------------------------------------------
@@ -791,11 +783,8 @@ class Runtime : public AllStatic {
 
   // Add internalized strings for all the intrinsic function names to a
   // StringDictionary.
-  // Returns failure if an allocation fails.  In this case, it must be
-  // retried with a new, empty StringDictionary, not with the same one.
-  // Alternatively, heap initialization can be completely restarted.
-  MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
-      Heap* heap, Object* dictionary);
+  static void InitializeIntrinsicFunctionNames(Isolate* isolate,
+                                               Handle<NameDictionary> dict);
 
   // Get the intrinsic function with the given name, which must be internalized.
   static const Function* FunctionForName(Handle<String> name);
@@ -816,11 +805,12 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Handle<Object> GetElementOrCharAt(Isolate* isolate,
-                                           Handle<Object> object,
-                                           uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementOrCharAt(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
-  static Handle<Object> SetObjectProperty(
+  MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key,
@@ -828,30 +818,26 @@ class Runtime : public AllStatic {
       PropertyAttributes attr,
       StrictMode strict_mode);
 
-  static Handle<Object> ForceSetObjectProperty(
-      Isolate* isolate,
+  MUST_USE_RESULT static MaybeHandle<Object> ForceSetObjectProperty(
       Handle<JSObject> object,
       Handle<Object> key,
       Handle<Object> value,
-      PropertyAttributes attr);
+      PropertyAttributes attr,
+      JSReceiver::StoreFromKeyed store_from_keyed
+        = JSReceiver::MAY_BE_STORE_FROM_KEYED);
 
-  MUST_USE_RESULT static MaybeObject* DeleteObjectProperty(
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate,
       Handle<JSReceiver> object,
       Handle<Object> key,
       JSReceiver::DeleteMode mode);
 
-  MUST_USE_RESULT static MaybeObject* HasObjectProperty(
+  MUST_USE_RESULT static MaybeHandle<Object> HasObjectProperty(
       Isolate* isolate,
       Handle<JSReceiver> object,
       Handle<Object> key);
 
-  MUST_USE_RESULT static MaybeObject* GetObjectProperty(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key);
-
-  MUST_USE_RESULT static MaybeObject* GetObjectPropertyOrFail(
+  MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key);
@@ -884,7 +870,10 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8_CLAMPED = 9
+    ARRAY_ID_UINT8_CLAMPED = 9,
+
+    ARRAY_ID_FIRST = ARRAY_ID_UINT8,
+    ARRAY_ID_LAST = ARRAY_ID_UINT8_CLAMPED
   };
 
   static void ArrayIdToTypeAndSize(int array_id,
@@ -893,12 +882,8 @@ class Runtime : public AllStatic {
       ElementsKind* fixed_elements_kind,
       size_t *element_size);
 
-  // Helper functions used stubs.
-  static void PerformGC(Object* result, Isolate* isolate);
-  static void OutOfMemory();
-
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
-  static Handle<Object> CreateArrayLiteralBoilerplate(
+  MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate,
       Handle<FixedArray> literals,
       Handle<FixedArray> elements);

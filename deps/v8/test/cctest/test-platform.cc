@@ -59,7 +59,7 @@ using namespace ::v8::internal;
   do { \
     ASM("mov x16, sp; str x16, %0" : "=g" (sp_addr)); \
   } while (0)
-#elif defined(__MIPSEL__)
+#elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define GET_STACK_POINTER() \
   static int sp_addr = 0; \
   do { \

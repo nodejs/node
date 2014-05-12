@@ -77,8 +77,6 @@ var TEST_INPUT = [{
 }, {
   msg: "Boolean false", val: false
 }, {
-  msg: "Regular expression /\d+/", val: /\d+/
-}, {
   msg: "Empty array []", val: []
 }, {
   msg: "Empty object {}", val: {}
@@ -126,7 +124,7 @@ assertTrue("abc".contains("ab", NaN));
 assertFalse("abc".contains("cd", NaN));
 assertFalse("xyzzy".contains("zy\0", 2));
 
-var dots = Array(10000).join('.');
+var dots = Array(10000).join(".");
 assertFalse(dots.contains("\x01", 10000));
 assertFalse(dots.contains("\0", 10000));
 
@@ -149,3 +147,20 @@ myobj = {
   },
   contains: String.prototype.contains
 };
+
+assertEquals("foo[a-z]+(bar)?".contains("[a-z]+"), true);
+assertThrows("'foo[a-z]+(bar)?'.contains(/[a-z]+/)", TypeError);
+assertThrows("'foo/[a-z]+/(bar)?'.contains(/[a-z]+/)", TypeError);
+assertEquals("foo[a-z]+(bar)?".contains("(bar)?"), true);
+assertThrows("'foo[a-z]+(bar)?'.contains(/(bar)?/)", TypeError);
+assertThrows("'foo[a-z]+/(bar)?/'.contains(/(bar)?/)", TypeError);
+
+assertThrows("String.prototype.contains.call({ 'toString': function() { " +
+  "throw RangeError(); } }, /./)", RangeError);
+assertThrows("String.prototype.contains.call({ 'toString': function() { " +
+  "return 'abc'; } }, /./)", TypeError);
+
+assertThrows("String.prototype.contains.apply({ 'toString': function() { " +
+  "throw RangeError(); } }, [/./])", RangeError);
+assertThrows("String.prototype.contains.apply({ 'toString': function() { " +
+  "return 'abc'; } }, [/./])", TypeError);
