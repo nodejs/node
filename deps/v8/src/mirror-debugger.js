@@ -1,29 +1,6 @@
 // Copyright 2006-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // Handle id counters.
 var next_handle_ = 0;
@@ -39,6 +16,18 @@ var mirror_cache_ = [];
 function ClearMirrorCache() {
   next_handle_ = 0;
   mirror_cache_ = [];
+}
+
+
+// Wrapper to check whether an object is a Promise.  The call may not work
+// if promises are not enabled.
+// TODO(yangguo): remove this wrapper once promises are enabled by default.
+function ObjectIsPromise(value) {
+  try {
+    return %IsPromise(value);
+  } catch (e) {
+    return false;
+  }
 }
 
 
@@ -90,6 +79,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new ErrorMirror(value);
   } else if (IS_SCRIPT(value)) {
     mirror = new ScriptMirror(value);
+  } else if (ObjectIsPromise(value)) {
+    mirror = new PromiseMirror(value);
   } else {
     mirror = new ObjectMirror(value, OBJECT_TYPE, opt_transient);
   }
@@ -159,6 +150,7 @@ var FRAME_TYPE = 'frame';
 var SCRIPT_TYPE = 'script';
 var CONTEXT_TYPE = 'context';
 var SCOPE_TYPE = 'scope';
+var PROMISE_TYPE = 'promise';
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
@@ -212,6 +204,7 @@ var ScopeType = { Global: 0,
 //         - DateMirror
 //         - RegExpMirror
 //         - ErrorMirror
+//         - PromiseMirror
 //     - PropertyMirror
 //     - InternalPropertyMirror
 //     - FrameMirror
@@ -347,6 +340,15 @@ Mirror.prototype.isRegExp = function() {
  */
 Mirror.prototype.isError = function() {
   return this instanceof ErrorMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a promise.
+ * @returns {boolean} True if the mirror reflects a promise
+ */
+Mirror.prototype.isPromise = function() {
+  return this instanceof PromiseMirror;
 };
 
 
@@ -637,9 +639,9 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
-    // Get all the local property names.
+    // Get all the local property names except for private symbols.
     propertyNames =
-        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_NONE);
+        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.
@@ -1168,6 +1170,31 @@ ErrorMirror.prototype.toText = function() {
     str = '#<Error>';
   }
   return str;
+};
+
+
+/**
+ * Mirror object for a Promise object.
+ * @param {Object} data The Promise object
+ * @constructor
+ * @extends Mirror
+ */
+function PromiseMirror(value) {
+  %_CallFunction(this, value, PROMISE_TYPE, ObjectMirror);
+}
+inherits(PromiseMirror, ObjectMirror);
+
+
+PromiseMirror.prototype.status = function() {
+  var status = builtins.GetPromiseStatus(this.value_);
+  if (status == 0) return "pending";
+  if (status == 1) return "resolved";
+  return "rejected";
+};
+
+
+PromiseMirror.prototype.promiseValue = function() {
+  return builtins.GetPromiseValue(this.value_);
 };
 
 
@@ -2350,6 +2377,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
     case FUNCTION_TYPE:
     case ERROR_TYPE:
     case REGEXP_TYPE:
+    case PROMISE_TYPE:
       // Add object representation.
       this.serializeObject_(mirror, content, details);
       break;
@@ -2452,7 +2480,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     content.indexedInterceptor = true;
   }
 
-  // Add function specific properties.
   if (mirror.isFunction()) {
     // Add function specific properties.
     content.name = mirror.name();
@@ -2480,10 +2507,15 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     }
   }
 
-  // Add date specific properties.
   if (mirror.isDate()) {
     // Add date specific properties.
     content.value = mirror.value();
+  }
+
+  if (mirror.isPromise()) {
+    // Add promise specific properties.
+    content.status = mirror.status();
+    content.promiseValue = mirror.promiseValue();
   }
 
   // Add actual properties - named properties followed by indexed properties.

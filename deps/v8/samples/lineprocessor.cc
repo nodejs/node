@@ -27,9 +27,7 @@
 
 #include <v8.h>
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 #include <v8-debug.h>
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #include <fcntl.h>
 #include <string.h>
@@ -109,7 +107,6 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
                  bool report_exceptions);
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 v8::Persistent<v8::Context> debug_message_context;
 
 void DispatchDebugMessages() {
@@ -132,7 +129,6 @@ void DispatchDebugMessages() {
 
   v8::Debug::ProcessDebugMessages();
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 int RunMain(int argc, char* argv[]) {
@@ -144,11 +140,9 @@ int RunMain(int argc, char* argv[]) {
   v8::Handle<v8::Value> script_name;
   int script_param_counter = 0;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   int port_number = -1;
   bool wait_for_connection = false;
   bool support_callback = false;
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   MainCycleType cycle_type = CycleInCpp;
 
@@ -162,7 +156,6 @@ int RunMain(int argc, char* argv[]) {
       cycle_type = CycleInCpp;
     } else if (strcmp(str, "--main-cycle-in-js") == 0) {
       cycle_type = CycleInJs;
-#ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (strcmp(str, "--callback") == 0) {
       support_callback = true;
     } else if (strcmp(str, "--wait-for-connection") == 0) {
@@ -170,7 +163,6 @@ int RunMain(int argc, char* argv[]) {
     } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
       port_number = atoi(argv[i + 1]);  // NOLINT
       i++;
-#endif  // ENABLE_DEBUGGER_SUPPORT
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
@@ -218,7 +210,6 @@ int RunMain(int argc, char* argv[]) {
   // Enter the newly created execution environment.
   v8::Context::Scope context_scope(context);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   debug_message_context.Reset(isolate, context);
 
   v8::Locker locker(isolate);
@@ -230,7 +221,6 @@ int RunMain(int argc, char* argv[]) {
   if (port_number != -1) {
     v8::Debug::EnableAgent("lineprocessor", port_number, wait_for_connection);
   }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   bool report_exceptions = true;
 
@@ -275,9 +265,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
                  v8::Local<v8::Context> context,
                  bool report_exceptions) {
   v8::Isolate* isolate = context->GetIsolate();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   v8::Locker lock(isolate);
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   v8::Handle<v8::String> fun_name =
       v8::String::NewFromUtf8(isolate, "ProcessLine");
@@ -435,9 +423,7 @@ v8::Handle<v8::String> ReadLine() {
 
   char* res;
   {
-#ifdef ENABLE_DEBUGGER_SUPPORT
     v8::Unlocker unlocker(v8::Isolate::GetCurrent());
-#endif  // ENABLE_DEBUGGER_SUPPORT
     res = fgets(buffer, kBufferSize, stdin);
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();

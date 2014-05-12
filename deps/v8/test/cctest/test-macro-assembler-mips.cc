@@ -91,13 +91,10 @@ TEST(CopyBytes) {
 
   CodeDesc desc;
   masm->GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  ::F f = FUNCTION_CAST< ::F>(Code::cast(code)->entry());
+  ::F f = FUNCTION_CAST< ::F>(code->entry());
 
   // Initialise source data with non-zero bytes.
   for (int i = 0; i < data_size; i++) {

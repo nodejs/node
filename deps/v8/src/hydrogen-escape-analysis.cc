@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "hydrogen-escape-analysis.h"
 
@@ -155,9 +132,26 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
   // TODO(mstarzinger): This will narrow a map check against a set of maps
   // down to the first element in the set. Revisit and fix this.
   HCheckValue* check = HCheckValue::New(
-      zone, NULL, value, mapcheck->first_map(), false);
+      zone, NULL, value, mapcheck->maps()->at(0), false);
   check->InsertBefore(mapcheck);
   return check;
+}
+
+
+// Replace a field load with a given value, forcing Smi representation if
+// necessary.
+HValue* HEscapeAnalysisPhase::NewLoadReplacement(
+    HLoadNamedField* load, HValue* load_value) {
+  HValue* replacement = load_value;
+  Representation representation = load->representation();
+  if (representation.IsSmi()) {
+    Zone* zone = graph()->zone();
+    HInstruction* new_instr =
+        HForceRepresentation::New(zone, NULL, load_value, representation);
+    new_instr->InsertAfter(load);
+    replacement = new_instr;
+  }
+  return replacement;
 }
 
 
@@ -196,10 +190,11 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           int index = load->access().offset() / kPointerSize;
           if (load->object() != allocate) continue;
           ASSERT(load->access().IsInobject());
-          HValue* replacement = state->OperandAt(index);
+          HValue* replacement =
+            NewLoadReplacement(load, state->OperandAt(index));
           load->DeleteAndReplaceWith(replacement);
           if (FLAG_trace_escape_analysis) {
-            PrintF("Replacing load #%d with #%d (%s)\n", instr->id(),
+            PrintF("Replacing load #%d with #%d (%s)\n", load->id(),
                    replacement->id(), replacement->Mnemonic());
           }
           break;

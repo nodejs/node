@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256 --noopt
+// Flags: --max-new-space-size=2 --noopt
 
 // Check that a mod where the stub code hits a failure in heap number
 // allocation still works.

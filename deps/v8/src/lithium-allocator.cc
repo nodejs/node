@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 #include "lithium-allocator-inl.h"
@@ -69,7 +46,8 @@ UsePosition::UsePosition(LifetimePosition pos,
       register_beneficial_(true) {
   if (operand_ != NULL && operand_->IsUnallocated()) {
     LUnallocated* unalloc = LUnallocated::cast(operand_);
-    requires_reg_ = unalloc->HasRegisterPolicy();
+    requires_reg_ = unalloc->HasRegisterPolicy() ||
+        unalloc->HasDoubleRegisterPolicy();
     register_beneficial_ = !unalloc->HasAnyPolicy();
   }
   ASSERT(pos_.IsValid());
@@ -986,7 +964,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        if (instr->ClobbersDoubleRegisters()) {
+        if (instr->ClobbersDoubleRegisters(isolate())) {
           for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {
@@ -1028,6 +1006,15 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
           Use(block_start_position, curr_position.InstructionEnd(), temp, NULL);
           Define(curr_position, temp, NULL);
+
+          if (temp->IsUnallocated()) {
+            LUnallocated* temp_unalloc = LUnallocated::cast(temp);
+            if (temp_unalloc->HasDoubleRegisterPolicy()) {
+              double_artificial_registers_.Add(
+                  temp_unalloc->virtual_register() - first_artificial_register_,
+                  zone());
+            }
+          }
         }
       }
     }
@@ -1118,7 +1105,6 @@ bool LAllocator::Allocate(LChunk* chunk) {
 
 void LAllocator::MeetRegisterConstraints() {
   LAllocatorPhase phase("L_Register constraints", this);
-  first_artificial_register_ = next_virtual_register_;
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int i = 0; i < blocks->length(); ++i) {
     HBasicBlock* block = blocks->at(i);

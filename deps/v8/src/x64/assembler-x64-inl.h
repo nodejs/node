@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_X64_ASSEMBLER_X64_INL_H_
 #define V8_X64_ASSEMBLER_X64_INL_H_
@@ -43,7 +20,8 @@ namespace internal {
 
 
 static const byte kCallOpcode = 0xE8;
-static const int kNoCodeAgeSequenceLength = 6;
+// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
+static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 
 void Assembler::emitl(uint32_t x) {
@@ -392,12 +370,8 @@ bool RelocInfo::IsPatchedReturnSequence() {
   //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
-#ifdef ENABLE_DEBUGGER_SUPPORT
   return pc_[Assembler::kMoveAddressIntoScratchRegisterInstructionLength] !=
          0xCC;
-#else
-  return false;
-#endif
 }
 
 
@@ -483,14 +457,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -512,14 +484,12 @@ void RelocInfo::Visit(Heap* heap) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

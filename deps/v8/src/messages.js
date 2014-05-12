@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // -------------------------------------------------------------------
 
@@ -47,7 +24,8 @@ var kMessages = {
   incompatible_method_receiver:  ["Method ", "%0", " called on incompatible receiver ", "%1"],
   multiple_defaults_in_switch:   ["More than one default clause in switch statement"],
   newline_after_throw:           ["Illegal newline after throw"],
-  redeclaration:                 ["%0", " '", "%1", "' has already been declared"],
+  label_redeclaration:           ["Label '", "%0", "' has already been declared"],
+  var_redeclaration:             ["Identifier '", "%0", "' has already been declared"],
   no_catch_or_finally:           ["Missing catch or finally after try"],
   unknown_label:                 ["Undefined label '", "%0", "'"],
   uncaught_exception:            ["Uncaught ", "%0"],
@@ -99,6 +77,7 @@ var kMessages = {
   observe_perform_non_string:    ["Invalid non-string changeType"],
   observe_perform_non_function:  ["Cannot perform non-function"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
+  observe_global_proxy:          ["%0", " cannot be called on the global proxy object"],
   not_typed_array:               ["this is not a typed array."],
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
@@ -153,7 +132,8 @@ var kMessages = {
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
-  invalid_preparser_data:        ["Invalid preparser data for function ", "%0"],
+  invalid_cached_data_function:  ["Invalid cached data for function ", "%0"],
+  invalid_cached_data:           ["Invalid cached data"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
@@ -198,8 +178,8 @@ function FormatString(format, args) {
         try {
           str = NoSideEffectToString(args[arg_num]);
           if (str.length > 256) {
-            str = %SubString(str, 0, 239) + "...<omitted>..." +
-                  %SubString(str, str.length - 2, str.length);
+            str = %_SubString(str, 0, 239) + "...<omitted>..." +
+                  %_SubString(str, str.length - 2, str.length);
           }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
@@ -1155,19 +1135,6 @@ function captureStackTrace(obj, cons_opt) {
                                  stackTraceLimit);
 
   var error_string = FormatErrorString(obj);
-  // The holder of this getter ('obj') may not be the receiver ('this').
-  // When this getter is called the first time, we use the context values to
-  // format a stack trace string and turn this accessor pair into a data
-  // property (on the holder).
-  var getter = function() {
-    // Stack is still a raw array awaiting to be formatted.
-    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
-    // Turn this accessor into a data property.
-    %DefineOrRedefineDataProperty(obj, 'stack', result, NONE);
-    // Release context values.
-    stack = error_string = UNDEFINED;
-    return result;
-  };
 
   // Set the 'stack' property on the receiver.  If the receiver is the same as
   // holder of this setter, the accessor pair is turned into a data property.
@@ -1178,6 +1145,21 @@ function captureStackTrace(obj, cons_opt) {
       // Release context values if holder is the same as the receiver.
       stack = error_string = UNDEFINED;
     }
+  };
+
+  // The holder of this getter ('obj') may not be the receiver ('this').
+  // When this getter is called the first time, we use the context values to
+  // format a stack trace string and turn this accessor pair into a data
+  // property (on the holder).
+  var getter = function() {
+    // Stack is still a raw array awaiting to be formatted.
+    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
+    // Replace this accessor to return result directly.
+    %DefineOrRedefineAccessorProperty(
+        obj, 'stack', function() { return result }, setter, DONT_ENUM);
+    // Release context values.
+    stack = error_string = UNDEFINED;
+    return result;
   };
 
   %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
@@ -1318,6 +1300,15 @@ function SetUpStackOverflowBoilerplate() {
 
   var error_string = boilerplate.name + ": " + boilerplate.message;
 
+  // Set the 'stack' property on the receiver.  If the receiver is the same as
+  // holder of this setter, the accessor pair is turned into a data property.
+  var setter = function(v) {
+    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    // Tentatively clear the hidden property. If the receiver is the same as
+    // holder, we release the raw stack trace this way.
+    %GetAndClearOverflowedStackTrace(this);
+  };
+
   // The raw stack trace is stored as a hidden property on the holder of this
   // getter, which may not be the same as the receiver.  Find the holder to
   // retrieve the raw stack trace and then turn this accessor pair into a
@@ -1333,18 +1324,10 @@ function SetUpStackOverflowBoilerplate() {
     if (IS_UNDEFINED(stack)) return stack;
 
     var result = FormatStackTrace(holder, error_string, GetStackFrames(stack));
-    // Replace this accessor with a data property.
-    %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
+    // Replace this accessor to return result directly.
+    %DefineOrRedefineAccessorProperty(
+        holder, 'stack', function() { return result }, setter, DONT_ENUM);
     return result;
-  };
-
-  // Set the 'stack' property on the receiver.  If the receiver is the same as
-  // holder of this setter, the accessor pair is turned into a data property.
-  var setter = function(v) {
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
-    // Tentatively clear the hidden property. If the receiver is the same as
-    // holder, we release the raw stack trace this way.
-    %GetAndClearOverflowedStackTrace(this);
   };
 
   %DefineOrRedefineAccessorProperty(

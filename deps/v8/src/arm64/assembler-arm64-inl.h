@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_ASSEMBLER_ARM64_INL_H_
 #define V8_ARM64_ASSEMBLER_ARM64_INL_H_
@@ -434,6 +411,12 @@ Operand Operand::UntagSmiAndScale(Register smi, int scale) {
 }
 
 
+MemOperand::MemOperand()
+  : base_(NoReg), regoffset_(NoReg), offset_(0), addrmode_(Offset),
+    shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {
+}
+
+
 MemOperand::MemOperand(Register base, ptrdiff_t offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), offset_(offset), addrmode_(addrmode),
     shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {
@@ -738,7 +721,7 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kCodeAgeSequenceSize = 5 * kInstructionSize;
+static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
 
 
@@ -750,7 +733,6 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  ASSERT(!Code::IsYoungSequence(pc_));
   // Read the stub entry point from the code age sequence.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
   return Code::GetCodeFromTargetAddress(Memory::Address_at(stub_entry_address));
@@ -759,7 +741,7 @@ Code* RelocInfo::code_age_stub() {
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  ASSERT(!Code::IsYoungSequence(pc_));
+  ASSERT(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
   // Overwrite the stub entry point in the code age sequence. This is loaded as
   // a literal so there is no need to call FlushICache here.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
@@ -825,14 +807,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -850,14 +830,12 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }
@@ -1199,11 +1177,16 @@ void Assembler::LoadRelocated(const CPURegister& rt, const Operand& operand) {
 }
 
 
-inline void Assembler::CheckBuffer() {
+inline void Assembler::CheckBufferSpace() {
   ASSERT(pc_ < (buffer_ + buffer_size_));
   if (buffer_space() < kGap) {
     GrowBuffer();
   }
+}
+
+
+inline void Assembler::CheckBuffer() {
+  CheckBufferSpace();
   if (pc_offset() >= next_veneer_pool_check_) {
     CheckVeneerPool(false, true);
   }

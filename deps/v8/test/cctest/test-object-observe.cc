@@ -36,6 +36,10 @@ namespace i = v8::internal;
 TEST(PerIsolateState) {
   HandleScope scope(CcTest::isolate());
   LocalContext context1(CcTest::isolate());
+
+  Local<Value> foo = v8_str("foo");
+  context1->SetSecurityToken(foo);
+
   CompileRun(
       "var count = 0;"
       "var calls = 0;"
@@ -49,6 +53,7 @@ TEST(PerIsolateState) {
   Handle<Value> notify_fun2;
   {
     LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
     context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
                             obj);
     notify_fun2 = CompileRun(
@@ -57,6 +62,7 @@ TEST(PerIsolateState) {
   Handle<Value> notify_fun3;
   {
     LocalContext context3(CcTest::isolate());
+    context3->SetSecurityToken(foo);
     context3->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
                             obj);
     notify_fun3 = CompileRun(
@@ -64,6 +70,7 @@ TEST(PerIsolateState) {
   }
   {
     LocalContext context4(CcTest::isolate());
+    context4->SetSecurityToken(foo);
     context4->Global()->Set(
         String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
     context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun1"),
@@ -206,59 +213,6 @@ TEST(ObjectHashTableGrowth) {
   // obj is now marked "is_observed", but our map has moved.
   CompileRun("obj.foo = 'bar'");
   CHECK(CompileRun("ran")->BooleanValue());
-}
-
-
-TEST(GlobalObjectObservation) {
-  LocalContext context(CcTest::isolate());
-  HandleScope scope(CcTest::isolate());
-  Handle<Object> global_proxy = context->Global();
-  CompileRun(
-      "var records = [];"
-      "var global = this;"
-      "Object.observe(global, function(r) { [].push.apply(records, r) });"
-      "global.foo = 'hello';");
-  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-  CHECK(global_proxy->StrictEquals(CompileRun("records[0].object")));
-
-  // Detached, mutating the proxy has no effect.
-  context->DetachGlobal();
-  CompileRun("global.bar = 'goodbye';");
-  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-  CompileRun("this.baz = 'goodbye';");
-  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-
-  // Attached to a different context, should not leak mutations
-  // to the old context.
-  context->DetachGlobal();
-  {
-    LocalContext context2(CcTest::isolate());
-    CompileRun(
-        "var records2 = [];"
-        "var global = this;"
-        "Object.observe(this, function(r) { [].push.apply(records2, r) });"
-        "this.v1 = 'context2';");
-    context2->DetachGlobal();
-    CompileRun(
-        "global.v2 = 'context2';"
-        "this.v3 = 'context2';");
-    CHECK_EQ(1, CompileRun("records2.length")->Int32Value());
-  }
-  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
-
-  // Attaching by passing to Context::New
-  {
-    // Delegates to Context::New
-    LocalContext context3(
-        CcTest::isolate(), NULL, Handle<ObjectTemplate>(), global_proxy);
-    CompileRun(
-        "var records3 = [];"
-        "Object.observe(this, function(r) { [].push.apply(records3, r) });"
-        "this.qux = 'context3';");
-    CHECK_EQ(1, CompileRun("records3.length")->Int32Value());
-    CHECK(global_proxy->StrictEquals(CompileRun("records3[0].object")));
-  }
-  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
 }
 
 
@@ -407,18 +361,19 @@ TEST(ObservationWeakMap) {
       "Object.observe(obj, function(){});"
       "Object.getNotifier(obj);"
       "obj = null;");
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(CcTest::isolate());
+  i::Isolate* i_isolate = CcTest::i_isolate();
   i::Handle<i::JSObject> observation_state =
       i_isolate->factory()->observation_state();
   i::Handle<i::JSWeakMap> callbackInfoMap =
-      i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "callbackInfoMap"));
+      i::Handle<i::JSWeakMap>::cast(i::Object::GetProperty(
+          i_isolate, observation_state, "callbackInfoMap").ToHandleChecked());
   i::Handle<i::JSWeakMap> objectInfoMap =
-      i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "objectInfoMap"));
+      i::Handle<i::JSWeakMap>::cast(i::Object::GetProperty(
+          i_isolate, observation_state, "objectInfoMap").ToHandleChecked());
   i::Handle<i::JSWeakMap> notifierObjectInfoMap =
-      i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "notifierObjectInfoMap"));
+      i::Handle<i::JSWeakMap>::cast(i::Object::GetProperty(
+          i_isolate, observation_state, "notifierObjectInfoMap")
+              .ToHandleChecked());
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));
@@ -429,285 +384,168 @@ TEST(ObservationWeakMap) {
 }
 
 
-static bool NamedAccessAlwaysAllowed(Local<Object>, Local<Value>, AccessType,
-                                     Local<Value>) {
-  return true;
-}
-
-
-static bool IndexedAccessAlwaysAllowed(Local<Object>, uint32_t, AccessType,
-                                       Local<Value>) {
-  return true;
-}
-
-
-static AccessType g_access_block_type = ACCESS_GET;
-static const uint32_t kBlockedContextIndex = 1337;
-
-
-static bool NamedAccessAllowUnlessBlocked(Local<Object> host,
-                                          Local<Value> key,
-                                          AccessType type,
-                                          Local<Value> data) {
-  if (type != g_access_block_type) return true;
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
-      Utils::OpenHandle(*host)->GetIsolate());
-  Handle<Object> global = isolate->GetCurrentContext()->Global();
-  if (!global->Has(kBlockedContextIndex)) return true;
-  return !key->IsString() || !key->Equals(data);
-}
-
-
-static bool IndexedAccessAllowUnlessBlocked(Local<Object> host,
-                                            uint32_t index,
-                                            AccessType type,
-                                            Local<Value> data) {
-  if (type != g_access_block_type) return true;
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
-      Utils::OpenHandle(*host)->GetIsolate());
-  Handle<Object> global = isolate->GetCurrentContext()->Global();
-  if (!global->Has(kBlockedContextIndex)) return true;
-  return index != data->Uint32Value();
-}
-
-
-static bool BlockAccessKeys(Local<Object> host, Local<Value> key,
-                            AccessType type, Local<Value>) {
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(
-      Utils::OpenHandle(*host)->GetIsolate());
-  Handle<Object> global = isolate->GetCurrentContext()->Global();
-  return type != ACCESS_KEYS || !global->Has(kBlockedContextIndex);
-}
-
-
-static Handle<Object> CreateAccessCheckedObject(
-    v8::Isolate* isolate,
-    NamedSecurityCallback namedCallback,
-    IndexedSecurityCallback indexedCallback,
-    Handle<Value> data = Handle<Value>()) {
-  Handle<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
-  tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback, data);
-  Handle<Object> instance = tmpl->NewInstance();
-  Handle<Object> global = instance->CreationContext()->Global();
-  global->Set(String::NewFromUtf8(isolate, "obj"), instance);
-  global->Set(kBlockedContextIndex, v8::True(isolate));
-  return instance;
-}
-
-
-TEST(NamedAccessCheck) {
-  const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
-  for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
-    HandleScope scope(CcTest::isolate());
-    LocalContext context(CcTest::isolate());
-    g_access_block_type = types[i];
-    Handle<Object> instance = CreateAccessCheckedObject(
-        CcTest::isolate(),
-        NamedAccessAllowUnlessBlocked,
-        IndexedAccessAlwaysAllowed,
-        String::NewFromUtf8(CcTest::isolate(), "foo"));
-    CompileRun("var records = null;"
-               "var objNoCheck = {};"
-               "var observer = function(r) { records = r };"
-               "Object.observe(obj, observer);"
-               "Object.observe(objNoCheck, observer);");
-    Handle<Value> obj_no_check = CompileRun("objNoCheck");
+static int TestObserveSecurity(Handle<Context> observer_context,
+                               Handle<Context> object_context,
+                               Handle<Context> mutation_context) {
+  Context::Scope observer_scope(observer_context);
+  CompileRun("var records = null;"
+             "var observer = function(r) { records = r };");
+  Handle<Value> observer = CompileRun("observer");
+  {
+    Context::Scope object_scope(object_context);
+    object_context->Global()->Set(
+        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
+    CompileRun("var obj = {};"
+               "obj.length = 0;"
+               "Object.observe(obj, observer,"
+                   "['add', 'update', 'delete','reconfigure','splice']"
+               ");");
+    Handle<Value> obj = CompileRun("obj");
     {
-      LocalContext context2(CcTest::isolate());
-      context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                              instance);
-      context2->Global()->Set(
-          String::NewFromUtf8(CcTest::isolate(), "objNoCheck"),
-          obj_no_check);
-      CompileRun("var records2 = null;"
-                 "var observer2 = function(r) { records2 = r };"
-                 "Object.observe(obj, observer2);"
-                 "Object.observe(objNoCheck, observer2);"
-                 "obj.foo = 'bar';"
-                 "Object.defineProperty(obj, 'foo', {value: 5});"
-                 "Object.defineProperty(obj, 'foo', {get: function(){}});"
-                 "obj.bar = 'baz';"
-                 "objNoCheck.baz = 'quux'");
-      const RecordExpectation expected_records2[] = {
-        { instance, "add", "foo", Handle<Value>() },
-        { instance, "update", "foo",
-          String::NewFromUtf8(CcTest::isolate(), "bar") },
-        { instance, "reconfigure", "foo",
-          Number::New(CcTest::isolate(), 5) },
-        { instance, "add", "bar", Handle<Value>() },
-        { obj_no_check, "add", "baz", Handle<Value>() },
-      };
-      EXPECT_RECORDS(CompileRun("records2"), expected_records2);
+      Context::Scope mutation_scope(mutation_context);
+      mutation_context->Global()->Set(
+          String::NewFromUtf8(CcTest::isolate(), "obj"), obj);
+      CompileRun("obj.foo = 'bar';"
+                 "obj.foo = 'baz';"
+                 "delete obj.foo;"
+                 "Object.defineProperty(obj, 'bar', {value: 'bot'});"
+                 "Array.prototype.push.call(obj, 1, 2, 3);"
+                 "Array.prototype.splice.call(obj, 1, 2, 2, 4);"
+                 "Array.prototype.pop.call(obj);"
+                 "Array.prototype.shift.call(obj);");
     }
-    const RecordExpectation expected_records[] = {
-      { instance, "add", "bar", Handle<Value>() },
-      { obj_no_check, "add", "baz", Handle<Value>() }
-    };
-    EXPECT_RECORDS(CompileRun("records"), expected_records);
   }
+  return CompileRun("records ? records.length : 0")->Int32Value();
 }
 
 
-TEST(IndexedAccessCheck) {
-  const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
-  for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
-    HandleScope scope(CcTest::isolate());
-    LocalContext context(CcTest::isolate());
-    g_access_block_type = types[i];
-    Handle<Object> instance = CreateAccessCheckedObject(
-        CcTest::isolate(), NamedAccessAlwaysAllowed,
-        IndexedAccessAllowUnlessBlocked, Number::New(CcTest::isolate(), 7));
-    CompileRun("var records = null;"
-               "var objNoCheck = {};"
-               "var observer = function(r) { records = r };"
-               "Object.observe(obj, observer);"
-               "Object.observe(objNoCheck, observer);");
-    Handle<Value> obj_no_check = CompileRun("objNoCheck");
-    {
-      LocalContext context2(CcTest::isolate());
-      context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                              instance);
-      context2->Global()->Set(
-          String::NewFromUtf8(CcTest::isolate(), "objNoCheck"),
-          obj_no_check);
-      CompileRun("var records2 = null;"
-                 "var observer2 = function(r) { records2 = r };"
-                 "Object.observe(obj, observer2);"
-                 "Object.observe(objNoCheck, observer2);"
-                 "obj[7] = 'foo';"
-                 "Object.defineProperty(obj, '7', {value: 5});"
-                 "Object.defineProperty(obj, '7', {get: function(){}});"
-                 "obj[8] = 'bar';"
-                 "objNoCheck[42] = 'quux'");
-      const RecordExpectation expected_records2[] = {
-        { instance, "add", "7", Handle<Value>() },
-        { instance, "update", "7",
-          String::NewFromUtf8(CcTest::isolate(), "foo") },
-        { instance, "reconfigure", "7", Number::New(CcTest::isolate(), 5) },
-        { instance, "add", "8", Handle<Value>() },
-        { obj_no_check, "add", "42", Handle<Value>() }
-      };
-      EXPECT_RECORDS(CompileRun("records2"), expected_records2);
-    }
-    const RecordExpectation expected_records[] = {
-      { instance, "add", "8", Handle<Value>() },
-      { obj_no_check, "add", "42", Handle<Value>() }
-    };
-    EXPECT_RECORDS(CompileRun("records"), expected_records);
-  }
+TEST(ObserverSecurityAAA) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA = Context::New(isolate);
+  CHECK_EQ(8, TestObserveSecurity(contextA, contextA, contextA));
 }
 
 
-TEST(SpliceAccessCheck) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
-  g_access_block_type = ACCESS_GET;
-  Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), NamedAccessAlwaysAllowed,
-      IndexedAccessAllowUnlessBlocked, Number::New(CcTest::isolate(), 1));
-  CompileRun("var records = null;"
-             "obj[1] = 'foo';"
-             "obj.length = 2;"
-             "var objNoCheck = {1: 'bar', length: 2};"
-             "observer = function(r) { records = r };"
-             "Array.observe(obj, observer);"
-             "Array.observe(objNoCheck, observer);");
-  Handle<Value> obj_no_check = CompileRun("objNoCheck");
+TEST(ObserverSecurityA1A2A3) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<Context> contextA1 = Context::New(isolate);
+  v8::Local<Context> contextA2 = Context::New(isolate);
+  v8::Local<Context> contextA3 = Context::New(isolate);
+
+  Local<Value> foo = v8_str("foo");
+  contextA1->SetSecurityToken(foo);
+  contextA2->SetSecurityToken(foo);
+  contextA3->SetSecurityToken(foo);
+
+  CHECK_EQ(8, TestObserveSecurity(contextA1, contextA2, contextA3));
+}
+
+
+TEST(ObserverSecurityAAB) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+  CHECK_EQ(0, TestObserveSecurity(contextA, contextA, contextB));
+}
+
+
+TEST(ObserverSecurityA1A2B) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<Context> contextA1 = Context::New(isolate);
+  v8::Local<Context> contextA2 = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+
+  Local<Value> foo = v8_str("foo");
+  contextA1->SetSecurityToken(foo);
+  contextA2->SetSecurityToken(foo);
+
+  CHECK_EQ(0, TestObserveSecurity(contextA1, contextA2, contextB));
+}
+
+
+TEST(ObserverSecurityABA) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+  CHECK_EQ(0, TestObserveSecurity(contextA, contextB, contextA));
+}
+
+
+TEST(ObserverSecurityA1BA2) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA1 = Context::New(isolate);
+  v8::Local<Context> contextA2 = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+
+  Local<Value> foo = v8_str("foo");
+  contextA1->SetSecurityToken(foo);
+  contextA2->SetSecurityToken(foo);
+
+  CHECK_EQ(0, TestObserveSecurity(contextA1, contextB, contextA2));
+}
+
+
+TEST(ObserverSecurityBAA) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+  CHECK_EQ(0, TestObserveSecurity(contextB, contextA, contextA));
+}
+
+
+TEST(ObserverSecurityBA1A2) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA1 = Context::New(isolate);
+  v8::Local<Context> contextA2 = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+
+  Local<Value> foo = v8_str("foo");
+  contextA1->SetSecurityToken(foo);
+  contextA2->SetSecurityToken(foo);
+
+  CHECK_EQ(0, TestObserveSecurity(contextB, contextA1, contextA2));
+}
+
+
+TEST(ObserverSecurityNotify) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> contextA = Context::New(isolate);
+  v8::Local<Context> contextB = Context::New(isolate);
+
+  Context::Scope scopeA(contextA);
+  CompileRun("var obj = {};"
+             "var recordsA = null;"
+             "var observerA = function(r) { recordsA = r };"
+             "Object.observe(obj, observerA);");
+  Handle<Value> obj = CompileRun("obj");
+
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
-    context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "objNoCheck"), obj_no_check);
-    CompileRun("var records2 = null;"
-               "var observer2 = function(r) { records2 = r };"
-               "Array.observe(obj, observer2);"
-               "Array.observe(objNoCheck, observer2);"
-               // No one should hear about this: no splice records are emitted
-               // for access-checked objects
-               "[].push.call(obj, 5);"
-               "[].splice.call(obj, 1, 1);"
-               "[].pop.call(obj);"
-               "[].pop.call(objNoCheck);");
-    // TODO(adamk): Extend EXPECT_RECORDS to be able to assert more things
-    // about splice records. For this test it's not so important since
-    // we just want to guarantee the machinery is in operation at all.
-    const RecordExpectation expected_records2[] = {
-      { obj_no_check, "splice", "", Handle<Value>() }
-    };
-    EXPECT_RECORDS(CompileRun("records2"), expected_records2);
+    Context::Scope scopeB(contextB);
+    contextB->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"), obj);
+    CompileRun("var recordsB = null;"
+               "var observerB = function(r) { recordsB = r };"
+               "Object.observe(obj, observerB);");
   }
-  const RecordExpectation expected_records[] = {
-    { obj_no_check, "splice", "", Handle<Value>() }
-  };
-  EXPECT_RECORDS(CompileRun("records"), expected_records);
-}
 
+  CompileRun("var notifier = Object.getNotifier(obj);"
+             "notifier.notify({ type: 'update' });");
+  CHECK_EQ(1, CompileRun("recordsA ? recordsA.length : 0")->Int32Value());
 
-TEST(DisallowAllForAccessKeys) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
-  Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
-  CompileRun("var records = null;"
-             "var objNoCheck = {};"
-             "var observer = function(r) { records = r };"
-             "Object.observe(obj, observer);"
-             "Object.observe(objNoCheck, observer);");
-  Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
-    context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "objNoCheck"), obj_no_check);
-    CompileRun("var records2 = null;"
-               "var observer2 = function(r) { records2 = r };"
-               "Object.observe(obj, observer2);"
-               "Object.observe(objNoCheck, observer2);"
-               "obj.foo = 'bar';"
-               "obj[5] = 'baz';"
-               "objNoCheck.baz = 'quux'");
-    const RecordExpectation expected_records2[] = {
-      { instance, "add", "foo", Handle<Value>() },
-      { instance, "add", "5", Handle<Value>() },
-      { obj_no_check, "add", "baz", Handle<Value>() },
-    };
-    EXPECT_RECORDS(CompileRun("records2"), expected_records2);
+    Context::Scope scopeB(contextB);
+    CHECK_EQ(0, CompileRun("recordsB ? recordsB.length : 0")->Int32Value());
   }
-  const RecordExpectation expected_records[] = {
-    { obj_no_check, "add", "baz", Handle<Value>() }
-  };
-  EXPECT_RECORDS(CompileRun("records"), expected_records);
-}
-
-
-TEST(AccessCheckDisallowApiModifications) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
-  Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
-  CompileRun("var records = null;"
-             "var observer = function(r) { records = r };"
-             "Object.observe(obj, observer);");
-  {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
-    CompileRun("var records2 = null;"
-               "var observer2 = function(r) { records2 = r };"
-               "Object.observe(obj, observer2);");
-    instance->Set(5, String::NewFromUtf8(CcTest::isolate(), "bar"));
-    instance->Set(String::NewFromUtf8(CcTest::isolate(), "foo"),
-                  String::NewFromUtf8(CcTest::isolate(), "bar"));
-    CompileRun("");  // trigger delivery
-    const RecordExpectation expected_records2[] = {
-      { instance, "add", "5", Handle<Value>() },
-      { instance, "add", "foo", Handle<Value>() }
-    };
-    EXPECT_RECORDS(CompileRun("records2"), expected_records2);
-  }
-  CHECK(CompileRun("records")->IsNull());
 }
 
 
@@ -725,4 +563,150 @@ TEST(HiddenPropertiesLeakage) {
                        Null(CcTest::isolate()));
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
+}
+
+
+TEST(GetNotifierFromOtherContext) {
+  HandleScope scope(CcTest::isolate());
+  LocalContext context(CcTest::isolate());
+  CompileRun("var obj = {};");
+  Handle<Value> instance = CompileRun("obj");
+  {
+    LocalContext context2(CcTest::isolate());
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            instance);
+    CHECK(CompileRun("Object.getNotifier(obj)")->IsNull());
+  }
+}
+
+
+TEST(GetNotifierFromOtherOrigin) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  Handle<Value> bar = String::NewFromUtf8(CcTest::isolate(), "bar");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> instance = CompileRun("obj");
+  {
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(bar);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            instance);
+    CHECK(CompileRun("Object.getNotifier(obj)")->IsNull());
+  }
+}
+
+
+TEST(GetNotifierFromSameOrigin) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> instance = CompileRun("obj");
+  {
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            instance);
+    CHECK(CompileRun("Object.getNotifier(obj)")->IsObject());
+  }
+}
+
+
+static int GetGlobalObjectsCount() {
+  CcTest::heap()->EnsureHeapIsIterable();
+  int count = 0;
+  i::HeapIterator it(CcTest::heap());
+  for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
+    if (object->IsJSGlobalObject()) count++;
+  return count;
+}
+
+
+static void CheckSurvivingGlobalObjectsCount(int expected) {
+  // We need to collect all garbage twice to be sure that everything
+  // has been collected.  This is because inline caches are cleared in
+  // the first garbage collection but some of the maps have already
+  // been marked at that point.  Therefore some of the maps are not
+  // collected until the second garbage collection.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  int count = GetGlobalObjectsCount();
+#ifdef DEBUG
+  if (count != expected) CcTest::heap()->TracePathToGlobal();
+#endif
+  CHECK_EQ(expected, count);
+}
+
+
+TEST(DontLeakContextOnObserve) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    CompileRun("function observer() {};"
+               "Object.observe(obj, observer, ['foo', 'bar', 'baz']);"
+               "Object.unobserve(obj, observer);");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
+}
+
+
+TEST(DontLeakContextOnGetNotifier) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    CompileRun("Object.getNotifier(obj);");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
+}
+
+
+TEST(DontLeakContextOnNotifierPerformChange) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  Handle<Value> notifier = CompileRun("Object.getNotifier(obj)");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "notifier"),
+                            notifier);
+    CompileRun("var obj2 = {};"
+               "var notifier2 = Object.getNotifier(obj2);"
+               "notifier2.performChange.call("
+                   "notifier, 'foo', function(){})");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
 }

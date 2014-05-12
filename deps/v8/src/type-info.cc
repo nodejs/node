@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -43,18 +20,18 @@ namespace internal {
 
 
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
+                                       Handle<FixedArray> feedback_vector,
                                        Handle<Context> native_context,
                                        Zone* zone)
     : native_context_(native_context),
       zone_(zone) {
-  Object* raw_info = code->type_feedback_info();
-  if (raw_info->IsTypeFeedbackInfo()) {
-    feedback_vector_ = Handle<FixedArray>(TypeFeedbackInfo::cast(raw_info)->
-                                          feedback_vector());
-  }
-
   BuildDictionary(code);
   ASSERT(dictionary_->IsDictionary());
+  // We make a copy of the feedback vector because a GC could clear
+  // the type feedback info contained therein.
+  // TODO(mvstanton): revisit the decision to copy when we weakly
+  // traverse the feedback vector at GC time.
+  feedback_vector_ = isolate()->factory()->CopyFixedArray(feedback_vector);
 }
 
 
@@ -136,9 +113,9 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
 
 byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
   Handle<Object> value = GetInfo(feedback_vector_slot);
-  return value->IsSmi() &&
-      Smi::cast(*value)->value() == TypeFeedbackInfo::kForInFastCaseMarker
-          ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
+  return value.is_identical_to(
+      TypeFeedbackInfo::UninitializedSentinel(isolate()))
+      ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
 }
 
 
@@ -217,8 +194,8 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   Handle<Map> map;
   Map* raw_map = code->FindFirstMap();
   if (raw_map != NULL) {
-    map = Map::CurrentMapForDeprecated(handle(raw_map));
-    if (!map.is_null() && CanRetainOtherContext(*map, *native_context_)) {
+    if (Map::CurrentMapForDeprecated(handle(raw_map)).ToHandle(&map) &&
+        CanRetainOtherContext(*map, *native_context_)) {
       map = Handle<Map>::null();
     }
   }
@@ -228,7 +205,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     CompareIC::StubInfoToType(
         stub_minor_key, left_type, right_type, combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(code->extra_ic_state());
+    CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
     *left_type = *right_type = stub.GetInputType(zone(), map);
   }
@@ -255,7 +232,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extra_ic_state());
+  BinaryOpIC::State state(isolate(), code->extra_ic_state());
   ASSERT_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
@@ -277,7 +254,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extra_ic_state());
+  BinaryOpIC::State state(isolate(), code->extra_ic_state());
   return state.GetLeftType(zone());
 }
 
@@ -286,7 +263,7 @@ void TypeFeedbackOracle::PropertyReceiverTypes(
     TypeFeedbackId id, Handle<String> name,
     SmallMapList* receiver_types, bool* is_prototype) {
   receiver_types->Clear();
-  FunctionPrototypeStub proto_stub(Code::LOAD_IC);
+  FunctionPrototypeStub proto_stub(isolate(), Code::LOAD_IC);
   *is_prototype = LoadIsStub(id, &proto_stub);
   if (!*is_prototype) {
     Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
@@ -445,8 +422,7 @@ void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
   Code* old_code = *code;
-  dictionary_ =
-      isolate()->factory()->NewUnseededNumberDictionary(infos->length());
+  dictionary_ = UnseededNumberDictionary::New(isolate(), infos->length());
   RelocateRelocInfos(infos, old_code, *code);
 }
 
@@ -492,14 +468,11 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   ASSERT(dictionary_->FindEntry(IdToKey(ast_id)) ==
          UnseededNumberDictionary::kNotFound);
-  MaybeObject* maybe_result = dictionary_->AtNumberPut(IdToKey(ast_id), target);
-  USE(maybe_result);
-#ifdef DEBUG
-  Object* result = NULL;
   // Dictionary has been allocated with sufficient size for all elements.
-  ASSERT(maybe_result->ToObject(&result));
-  ASSERT(*dictionary_ == result);
-#endif
+  DisallowHeapAllocation no_need_to_resize_dictionary;
+  HandleScope scope(isolate());
+  USE(UnseededNumberDictionary::AtNumberPut(
+      dictionary_, IdToKey(ast_id), handle(target, isolate())));
 }
 
 

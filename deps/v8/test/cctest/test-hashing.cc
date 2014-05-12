@@ -203,7 +203,8 @@ void check(i::Vector<const uint8_t> string) {
   CHECK(code->IsCode());
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
-  Handle<String> v8_string = factory->NewStringFromOneByte(string);
+  Handle<String> v8_string =
+      factory->NewStringFromOneByte(string).ToHandleChecked();
   v8_string->set_hash_field(String::kEmptyHashField);
 #ifdef USE_SIMULATOR
   uint32_t codegen_hash = static_cast<uint32_t>(

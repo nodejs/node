@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 
-const v8::CpuProfile* ProfilerExtension::last_profile = NULL;
+v8::CpuProfile* ProfilerExtension::last_profile = NULL;
 const char* ProfilerExtension::kSource =
     "native function startProfiling();"
     "native function stopProfiling();";
@@ -58,7 +58,7 @@ void ProfilerExtension::StartProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   last_profile = NULL;
   v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
-  cpu_profiler->StartCpuProfiling((args.Length() > 0)
+  cpu_profiler->StartProfiling((args.Length() > 0)
       ? args[0].As<v8::String>()
       : v8::String::Empty(args.GetIsolate()));
 }
@@ -67,7 +67,7 @@ void ProfilerExtension::StartProfiling(
 void ProfilerExtension::StopProfiling(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
-  last_profile = cpu_profiler->StopCpuProfiling((args.Length() > 0)
+  last_profile = cpu_profiler->StopProfiling((args.Length() > 0)
       ? args[0].As<v8::String>()
       : v8::String::Empty(args.GetIsolate()));
 }

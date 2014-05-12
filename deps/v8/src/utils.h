@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
@@ -31,11 +8,12 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <algorithm>
 
 #include "allocation.h"
 #include "checks.h"
 #include "globals.h"
+#include "platform.h"
+#include "vector.h"
 
 namespace v8 {
 namespace internal {
@@ -43,10 +21,10 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
-#define IS_POWER_OF_TWO(x) (((x) & ((x) - 1)) == 0)
+#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-// Returns true iff x is a power of 2 (or zero). Cannot be used with the
-// maximally negative value of the type T (the -1 overflows).
+// Returns true iff x is a power of 2. Cannot be used with the maximally
+// negative value of the type T (the -1 overflows).
 template <typename T>
 inline bool IsPowerOf2(T x) {
   return IS_POWER_OF_TWO(x);
@@ -56,7 +34,6 @@ inline bool IsPowerOf2(T x) {
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
   ASSERT(IsPowerOf2(x));
-  ASSERT(x != 0);
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;
@@ -250,13 +227,6 @@ T NegAbs(T a) {
 }
 
 
-inline int StrLength(const char* string) {
-  size_t length = strlen(string);
-  ASSERT(length == static_cast<size_t>(static_cast<int>(length)));
-  return static_cast<int>(length);
-}
-
-
 // TODO(svenpanne) Clean up the whole power-of-2 mess.
 inline int32_t WhichPowerOf2Abs(int32_t x) {
   return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
@@ -395,110 +365,6 @@ class Access {
 };
 
 
-template <typename T>
-class Vector {
- public:
-  Vector() : start_(NULL), length_(0) {}
-  Vector(T* data, int length) : start_(data), length_(length) {
-    ASSERT(length == 0 || (length > 0 && data != NULL));
-  }
-
-  static Vector<T> New(int length) {
-    return Vector<T>(NewArray<T>(length), length);
-  }
-
-  // Returns a vector using the same backing storage as this one,
-  // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
-    SLOW_ASSERT(to <= length_);
-    SLOW_ASSERT(from < to);
-    ASSERT(0 <= from);
-    return Vector<T>(start() + from, to - from);
-  }
-
-  // Returns the length of the vector.
-  int length() const { return length_; }
-
-  // Returns whether or not the vector is empty.
-  bool is_empty() const { return length_ == 0; }
-
-  // Returns the pointer to the start of the data in the vector.
-  T* start() const { return start_; }
-
-  // Access individual vector elements - checks bounds in debug mode.
-  T& operator[](int index) const {
-    ASSERT(0 <= index && index < length_);
-    return start_[index];
-  }
-
-  const T& at(int index) const { return operator[](index); }
-
-  T& first() { return start_[0]; }
-
-  T& last() { return start_[length_ - 1]; }
-
-  // Returns a clone of this vector with a new backing store.
-  Vector<T> Clone() const {
-    T* result = NewArray<T>(length_);
-    for (int i = 0; i < length_; i++) result[i] = start_[i];
-    return Vector<T>(result, length_);
-  }
-
-  void Sort(int (*cmp)(const T*, const T*)) {
-    std::sort(start(), start() + length(), RawComparer(cmp));
-  }
-
-  void Sort() {
-    std::sort(start(), start() + length());
-  }
-
-  void Truncate(int length) {
-    ASSERT(length <= length_);
-    length_ = length;
-  }
-
-  // Releases the array underlying this vector. Once disposed the
-  // vector is empty.
-  void Dispose() {
-    DeleteArray(start_);
-    start_ = NULL;
-    length_ = 0;
-  }
-
-  inline Vector<T> operator+(int offset) {
-    ASSERT(offset < length_);
-    return Vector<T>(start_ + offset, length_ - offset);
-  }
-
-  // Factory method for creating empty vectors.
-  static Vector<T> empty() { return Vector<T>(NULL, 0); }
-
-  template<typename S>
-  static Vector<T> cast(Vector<S> input) {
-    return Vector<T>(reinterpret_cast<T*>(input.start()),
-                     input.length() * sizeof(S) / sizeof(T));
-  }
-
- protected:
-  void set_start(T* start) { start_ = start; }
-
- private:
-  T* start_;
-  int length_;
-
-  class RawComparer {
-   public:
-    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
-    bool operator()(const T& a, const T& b) {
-      return cmp_(&a, &b) < 0;
-    }
-
-   private:
-    int (*cmp_)(const T*, const T*);
-  };
-};
-
-
 // A pointer that can only be set once and doesn't allow NULL values.
 template<typename T>
 class SetOncePointer {
@@ -536,16 +402,14 @@ class EmbeddedVector : public Vector<T> {
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs)
       : Vector<T>(rhs) {
-    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
-    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     set_start(buffer_);
   }
 
   EmbeddedVector& operator=(const EmbeddedVector& rhs) {
     if (this == &rhs) return *this;
     Vector<T>::operator=(rhs);
-    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
-    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     this->set_start(buffer_);
     return *this;
   }
@@ -553,44 +417,6 @@ class EmbeddedVector : public Vector<T> {
  private:
   T buffer_[kSize];
 };
-
-
-template <typename T>
-class ScopedVector : public Vector<T> {
- public:
-  explicit ScopedVector(int length) : Vector<T>(NewArray<T>(length), length) { }
-  ~ScopedVector() {
-    DeleteArray(this->start());
-  }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
-};
-
-#define STATIC_ASCII_VECTOR(x)                        \
-  v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
-                                      ARRAY_SIZE(x)-1)
-
-inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, StrLength(data));
-}
-
-inline Vector<const uint8_t> OneByteVector(const char* data, int length) {
-  return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
-}
-
-inline Vector<const uint8_t> OneByteVector(const char* data) {
-  return OneByteVector(data, StrLength(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, StrLength(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data, int max) {
-  int length = StrLength(data);
-  return Vector<char>(data, (length < max) ? length : max);
-}
 
 
 /*
@@ -920,7 +746,6 @@ struct BitCastHelper {
 
   INLINE(static Dest cast(const Source& source)) {
     Dest dest;
-    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
     memcpy(&dest, &source, sizeof(dest));
     return dest;
   }
@@ -1205,6 +1030,447 @@ class ContainerPointerWrapper {
  private:
   C* container_;
 };
+
+
+// ----------------------------------------------------------------------------
+// I/O support.
+
+#if __GNUC__ >= 4
+// On gcc we can ask the compiler to check the types of %d-style format
+// specifiers and their associated arguments.  TODO(erikcorry) fix this
+// so it works on MacOSX.
+#if defined(__MACH__) && defined(__APPLE__)
+#define PRINTF_CHECKING
+#define FPRINTF_CHECKING
+#define PRINTF_METHOD_CHECKING
+#define FPRINTF_METHOD_CHECKING
+#else  // MacOsX.
+#define PRINTF_CHECKING __attribute__ ((format (printf, 1, 2)))
+#define FPRINTF_CHECKING __attribute__ ((format (printf, 2, 3)))
+#define PRINTF_METHOD_CHECKING __attribute__ ((format (printf, 2, 3)))
+#define FPRINTF_METHOD_CHECKING __attribute__ ((format (printf, 3, 4)))
+#endif
+#else
+#define PRINTF_CHECKING
+#define FPRINTF_CHECKING
+#define PRINTF_METHOD_CHECKING
+#define FPRINTF_METHOD_CHECKING
+#endif
+
+// Our version of printf().
+void PRINTF_CHECKING PrintF(const char* format, ...);
+void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
+
+// Prepends the current process ID to the output.
+void PRINTF_CHECKING PrintPID(const char* format, ...);
+
+// Our version of fflush.
+void Flush(FILE* out);
+
+inline void Flush() {
+  Flush(stdout);
+}
+
+
+// Read a line of characters after printing the prompt to stdout. The resulting
+// char* needs to be disposed off with DeleteArray by the caller.
+char* ReadLine(const char* prompt);
+
+
+// Read and return the raw bytes in a file. the size of the buffer is returned
+// in size.
+// The returned buffer must be freed by the caller.
+byte* ReadBytes(const char* filename, int* size, bool verbose = true);
+
+
+// Append size chars from str to the file given by filename.
+// The file is overwritten. Returns the number of chars written.
+int AppendChars(const char* filename,
+                const char* str,
+                int size,
+                bool verbose = true);
+
+
+// Write size chars from str to the file given by filename.
+// The file is overwritten. Returns the number of chars written.
+int WriteChars(const char* filename,
+               const char* str,
+               int size,
+               bool verbose = true);
+
+
+// Write size bytes to the file given by filename.
+// The file is overwritten. Returns the number of bytes written.
+int WriteBytes(const char* filename,
+               const byte* bytes,
+               int size,
+               bool verbose = true);
+
+
+// Write the C code
+// const char* <varname> = "<str>";
+// const int <varname>_len = <len>;
+// to the file given by filename. Only the first len chars are written.
+int WriteAsCFile(const char* filename, const char* varname,
+                 const char* str, int size, bool verbose = true);
+
+
+// ----------------------------------------------------------------------------
+// Data structures
+
+template <typename T>
+inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
+                                             int length) {
+  return Vector< Handle<Object> >(
+      reinterpret_cast<v8::internal::Handle<Object>*>(elms), length);
+}
+
+
+// ----------------------------------------------------------------------------
+// Memory
+
+// Copies words from |src| to |dst|. The data spans must not overlap.
+template <typename T>
+inline void CopyWords(T* dst, const T* src, size_t num_words) {
+  STATIC_ASSERT(sizeof(T) == kPointerSize);
+  // TODO(mvstanton): disabled because mac builds are bogus failing on this
+  // assert. They are doing a signed comparison. Investigate in
+  // the morning.
+  // ASSERT(Min(dst, const_cast<T*>(src)) + num_words <=
+  //       Max(dst, const_cast<T*>(src)));
+  ASSERT(num_words > 0);
+
+  // Use block copying OS::MemCopy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const size_t kBlockCopyLimit = 16;
+
+  if (num_words < kBlockCopyLimit) {
+    do {
+      num_words--;
+      *dst++ = *src++;
+    } while (num_words > 0);
+  } else {
+    OS::MemCopy(dst, src, num_words * kPointerSize);
+  }
+}
+
+
+// Copies words from |src| to |dst|. No restrictions.
+template <typename T>
+inline void MoveWords(T* dst, const T* src, size_t num_words) {
+  STATIC_ASSERT(sizeof(T) == kPointerSize);
+  ASSERT(num_words > 0);
+
+  // Use block copying OS::MemCopy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const size_t kBlockCopyLimit = 16;
+
+  if (num_words < kBlockCopyLimit &&
+      ((dst < src) || (dst >= (src + num_words * kPointerSize)))) {
+    T* end = dst + num_words;
+    do {
+      num_words--;
+      *dst++ = *src++;
+    } while (num_words > 0);
+  } else {
+    OS::MemMove(dst, src, num_words * kPointerSize);
+  }
+}
+
+
+// Copies data from |src| to |dst|.  The data spans must not overlap.
+template <typename T>
+inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
+  STATIC_ASSERT(sizeof(T) == 1);
+  ASSERT(Min(dst, const_cast<T*>(src)) + num_bytes <=
+         Max(dst, const_cast<T*>(src)));
+  if (num_bytes == 0) return;
+
+  // Use block copying OS::MemCopy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
+
+  if (num_bytes < static_cast<size_t>(kBlockCopyLimit)) {
+    do {
+      num_bytes--;
+      *dst++ = *src++;
+    } while (num_bytes > 0);
+  } else {
+    OS::MemCopy(dst, src, num_bytes);
+  }
+}
+
+
+template <typename T, typename U>
+inline void MemsetPointer(T** dest, U* value, int counter) {
+#ifdef DEBUG
+  T* a = NULL;
+  U* b = NULL;
+  a = b;  // Fake assignment to check assignability.
+  USE(a);
+#endif  // DEBUG
+#if V8_HOST_ARCH_IA32
+#define STOS "stosl"
+#elif V8_HOST_ARCH_X64
+#define STOS "stosq"
+#endif
+#if defined(__native_client__)
+  // This STOS sequence does not validate for x86_64 Native Client.
+  // Here we #undef STOS to force use of the slower C version.
+  // TODO(bradchen): Profile V8 and implement a faster REP STOS
+  // here if the profile indicates it matters.
+#undef STOS
+#endif
+
+#if defined(MEMORY_SANITIZER)
+  // MemorySanitizer does not understand inline assembly.
+#undef STOS
+#endif
+
+#if defined(__GNUC__) && defined(STOS)
+  asm volatile(
+      "cld;"
+      "rep ; " STOS
+      : "+&c" (counter), "+&D" (dest)
+      : "a" (value)
+      : "memory", "cc");
+#else
+  for (int i = 0; i < counter; i++) {
+    dest[i] = value;
+  }
+#endif
+
+#undef STOS
+}
+
+
+// Simple wrapper that allows an ExternalString to refer to a
+// Vector<const char>. Doesn't assume ownership of the data.
+class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit AsciiStringAdapter(Vector<const char> data) : data_(data) {}
+
+  virtual const char* data() const { return data_.start(); }
+
+  virtual size_t length() const { return data_.length(); }
+
+ private:
+  Vector<const char> data_;
+};
+
+
+// Simple support to read a file into a 0-terminated C-string.
+// The returned buffer must be freed by the caller.
+// On return, *exits tells whether the file existed.
+Vector<const char> ReadFile(const char* filename,
+                            bool* exists,
+                            bool verbose = true);
+Vector<const char> ReadFile(FILE* file,
+                            bool* exists,
+                            bool verbose = true);
+
+
+template <typename sourcechar, typename sinkchar>
+INLINE(static void CopyCharsUnsigned(sinkchar* dest,
+                                     const sourcechar* src,
+                                     int chars));
+#if defined(V8_HOST_ARCH_ARM)
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+#elif defined(V8_HOST_ARCH_MIPS)
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+#endif
+
+// Copy from ASCII/16bit chars to ASCII/16bit chars.
+template <typename sourcechar, typename sinkchar>
+INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
+
+template<typename sourcechar, typename sinkchar>
+void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+  ASSERT(sizeof(sourcechar) <= 2);
+  ASSERT(sizeof(sinkchar) <= 2);
+  if (sizeof(sinkchar) == 1) {
+    if (sizeof(sourcechar) == 1) {
+      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
+                        reinterpret_cast<const uint8_t*>(src),
+                        chars);
+    } else {
+      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
+                        reinterpret_cast<const uint16_t*>(src),
+                        chars);
+    }
+  } else {
+    if (sizeof(sourcechar) == 1) {
+      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
+                        reinterpret_cast<const uint8_t*>(src),
+                        chars);
+    } else {
+      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
+                        reinterpret_cast<const uint16_t*>(src),
+                        chars);
+    }
+  }
+}
+
+template <typename sourcechar, typename sinkchar>
+void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
+  sinkchar* limit = dest + chars;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+  if (sizeof(*dest) == sizeof(*src)) {
+    if (chars >= static_cast<int>(OS::kMinComplexMemCopy / sizeof(*dest))) {
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
+      return;
+    }
+    // Number of characters in a uintptr_t.
+    static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
+    ASSERT(dest + kStepSize > dest);  // Check for overflow.
+    while (dest + kStepSize <= limit) {
+      *reinterpret_cast<uintptr_t*>(dest) =
+          *reinterpret_cast<const uintptr_t*>(src);
+      dest += kStepSize;
+      src += kStepSize;
+    }
+  }
+#endif
+  while (dest < limit) {
+    *dest++ = static_cast<sinkchar>(*src++);
+  }
+}
+
+
+#if defined(V8_HOST_ARCH_ARM)
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+    case 2:
+      memcpy(dest, src, 2);
+      break;
+    case 3:
+      memcpy(dest, src, 3);
+      break;
+    case 4:
+      memcpy(dest, src, 4);
+      break;
+    case 5:
+      memcpy(dest, src, 5);
+      break;
+    case 6:
+      memcpy(dest, src, 6);
+      break;
+    case 7:
+      memcpy(dest, src, 7);
+      break;
+    case 8:
+      memcpy(dest, src, 8);
+      break;
+    case 9:
+      memcpy(dest, src, 9);
+      break;
+    case 10:
+      memcpy(dest, src, 10);
+      break;
+    case 11:
+      memcpy(dest, src, 11);
+      break;
+    case 12:
+      memcpy(dest, src, 12);
+      break;
+    case 13:
+      memcpy(dest, src, 13);
+      break;
+    case 14:
+      memcpy(dest, src, 14);
+      break;
+    case 15:
+      memcpy(dest, src, 15);
+      break;
+    default:
+      OS::MemCopy(dest, src, chars);
+      break;
+  }
+}
+
+
+void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
+  if (chars >= OS::kMinComplexConvertMemCopy) {
+    OS::MemCopyUint16Uint8(dest, src, chars);
+  } else {
+    OS::MemCopyUint16Uint8Wrapper(dest, src, chars);
+  }
+}
+
+
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+    case 2:
+      memcpy(dest, src, 4);
+      break;
+    case 3:
+      memcpy(dest, src, 6);
+      break;
+    case 4:
+      memcpy(dest, src, 8);
+      break;
+    case 5:
+      memcpy(dest, src, 10);
+      break;
+    case 6:
+      memcpy(dest, src, 12);
+      break;
+    case 7:
+      memcpy(dest, src, 14);
+      break;
+    default:
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
+      break;
+  }
+}
+
+
+#elif defined(V8_HOST_ARCH_MIPS)
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+  if (chars < OS::kMinComplexMemCopy) {
+    memcpy(dest, src, chars);
+  } else {
+    OS::MemCopy(dest, src, chars);
+  }
+}
+
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+  if (chars < OS::kMinComplexMemCopy) {
+    memcpy(dest, src, chars * sizeof(*dest));
+  } else {
+    OS::MemCopy(dest, src, chars * sizeof(*dest));
+  }
+}
+#endif
+
+
+class StringBuilder : public SimpleStringBuilder {
+ public:
+  explicit StringBuilder(int size) : SimpleStringBuilder(size) { }
+  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) { }
+
+  // Add formatted contents to the builder just like printf().
+  void AddFormatted(const char* format, ...);
+
+  // Add formatted contents like printf based on a va_list.
+  void AddFormattedList(const char* format, va_list list);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
+};
+
 
 } }  // namespace v8::internal
 

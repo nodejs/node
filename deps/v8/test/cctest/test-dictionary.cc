@@ -38,46 +38,46 @@
 
 using namespace v8::internal;
 
+namespace {
 
-TEST(ObjectHashTable) {
-  LocalContext context;
+
+template<typename HashMap>
+static void TestHashMap(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashTable> table = factory->NewObjectHashTable(23);
+
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
-  table = ObjectHashTable::Put(table, a, b);
+  table = HashMap::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), *b);
+  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   CcTest::heap()->CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), *b);
+  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
-  table = ObjectHashTable::Put(table, a, factory->NewJSArray(13));
+  table = HashMap::Put(table, a, factory->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_NE(table->Lookup(*a), *b);
+  CHECK_NE(table->Lookup(a), *b);
 
   // Keys mapped to the hole should be removed permanently.
-  table = ObjectHashTable::Put(table, a, factory->the_hole_value());
+  table = HashMap::Put(table, a, factory->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
-  CHECK_EQ(table->NumberOfDeletedElements(), 1);
-  CHECK_EQ(table->Lookup(*a), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     Handle<JSObject> value = factory->NewJSArray(11);
-    table = ObjectHashTable::Put(table, key, value);
+    table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(*key), ObjectHashTable::kNotFound);
-    CHECK_EQ(table->Lookup(*key), *value);
+    CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
+    CHECK_EQ(table->Lookup(key), *value);
     CHECK(key->GetIdentityHash()->IsSmi());
   }
 
@@ -86,8 +86,8 @@ TEST(ObjectHashTable) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
-    CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
-    CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
+    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK(key->GetIdentityHash()->IsSmi());
   }
 
@@ -95,10 +95,19 @@ TEST(ObjectHashTable) {
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK_EQ(key->GetIdentityHash(),
              CcTest::heap()->undefined_value());
   }
+}
+
+
+TEST(HashMap) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashMap(ObjectHashTable::New(isolate, 23));
+  TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
 
@@ -110,7 +119,8 @@ class ObjectHashTableTest: public ObjectHashTable {
   }
 
   int lookup(int key) {
-    return Smi::cast(Lookup(Smi::FromInt(key)))->value();
+    Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
+    return Smi::cast(Lookup(key_obj))->value();
   }
 
   int capacity() {
@@ -122,30 +132,29 @@ class ObjectHashTableTest: public ObjectHashTable {
 TEST(HashTableRehash) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   // Test almost filled table.
   {
-    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
     ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
   }
   // Test half-filled table.
   {
-    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
     ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -154,13 +163,11 @@ TEST(HashTableRehash) {
 
 
 #ifdef DEBUG
-TEST(ObjectHashSetCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
+template<class HashSet>
+static void TestHashSetCausesGC(Handle<HashSet> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashSet> table = factory->NewObjectHashSet(1);
+
   Handle<JSObject> key = factory->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
 
@@ -176,28 +183,35 @@ TEST(ObjectHashSetCausesGC) {
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
-  CHECK(!table->Contains(*key));
+  CHECK(!table->Contains(key));
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.
-  table = ObjectHashSet::Remove(table, key);
+  table = HashSet::Remove(table, key);
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Add() should cause GC.
-  table = ObjectHashSet::Add(table, key);
+  table = HashSet::Add(table, key);
   CHECK(gc_count < isolate->heap()->gc_count());
+}
+
+
+TEST(ObjectHashSetCausesGC) {
+  i::FLAG_stress_compaction = false;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
 }
 #endif
 
 
 #ifdef DEBUG
-TEST(ObjectHashTableCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
+template<class HashMap>
+static void TestHashMapCausesGC(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashTable> table = factory->NewObjectHashTable(1);
+
   Handle<JSObject> key = factory->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
 
@@ -212,11 +226,24 @@ TEST(ObjectHashTableCausesGC) {
   SimulateFullSpace(CcTest::heap()->old_pointer_space());
 
   // Calling Lookup() should not cause GC ever.
-  CHECK(table->Lookup(*key)->IsTheHole());
+  CHECK(table->Lookup(key)->IsTheHole());
 
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();
-  ObjectHashTable::Put(table, key, key);
+  HashMap::Put(table, key, key);
   CHECK(gc_count < isolate->heap()->gc_count());
 }
+
+
+TEST(ObjectHashTableCausesGC) {
+  i::FLAG_stress_compaction = false;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
+  TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
+}
 #endif
+
+
+}

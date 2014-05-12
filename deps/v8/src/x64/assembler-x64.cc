@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -52,13 +29,13 @@ ExternalReference ExternalReference::cpu_features() {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG
   initialized_ = true;
 #endif
   supported_ = kDefaultCpuFeatures;
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
@@ -467,24 +444,30 @@ void Assembler::emit_operand(int code, const Operand& adr) {
 
 // Assembler Instruction implementations.
 
-void Assembler::arithmetic_op(byte opcode, Register reg, const Operand& op) {
+void Assembler::arithmetic_op(byte opcode,
+                              Register reg,
+                              const Operand& op,
+                              int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(reg, op);
+  emit_rex(reg, op, size);
   emit(opcode);
   emit_operand(reg, op);
 }
 
 
-void Assembler::arithmetic_op(byte opcode, Register reg, Register rm_reg) {
+void Assembler::arithmetic_op(byte opcode,
+                              Register reg,
+                              Register rm_reg,
+                              int size) {
   EnsureSpace ensure_space(this);
   ASSERT((opcode & 0xC6) == 2);
   if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
-    emit_rex_64(rm_reg, reg);
+    emit_rex(rm_reg, reg, size);
     emit(opcode ^ 0x02);
     emit_modrm(rm_reg, reg);
   } else {
-    emit_rex_64(reg, rm_reg);
+    emit_rex(reg, rm_reg, size);
     emit(opcode);
     emit_modrm(reg, rm_reg);
   }
@@ -520,37 +503,45 @@ void Assembler::arithmetic_op_16(byte opcode,
 }
 
 
-void Assembler::arithmetic_op_32(byte opcode, Register reg, Register rm_reg) {
+void Assembler::arithmetic_op_8(byte opcode, Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  if (!reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg);
+  }
+  emit(opcode);
+  emit_operand(reg, op);
+}
+
+
+void Assembler::arithmetic_op_8(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   ASSERT((opcode & 0xC6) == 2);
-  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
+  if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
-    emit_optional_rex_32(rm_reg, reg);
-    emit(opcode ^ 0x02);  // E.g. 0x03 -> 0x01 for ADD.
+    if (!rm_reg.is_byte_register() || !reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(rm_reg, reg);
+    }
+    emit(opcode ^ 0x02);
     emit_modrm(rm_reg, reg);
   } else {
-    emit_optional_rex_32(reg, rm_reg);
+    if (!reg.is_byte_register() || !rm_reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(reg, rm_reg);
+    }
     emit(opcode);
     emit_modrm(reg, rm_reg);
   }
 }
 
 
-void Assembler::arithmetic_op_32(byte opcode,
-                                 Register reg,
-                                 const Operand& rm_reg) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(reg, rm_reg);
-  emit(opcode);
-  emit_operand(reg, rm_reg);
-}
-
-
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         Register dst,
-                                        Immediate src) {
+                                        Immediate src,
+                                        int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_modrm(subcode, dst);
@@ -567,9 +558,10 @@ void Assembler::immediate_arithmetic_op(byte subcode,
 
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         const Operand& dst,
-                                        Immediate src) {
+                                        Immediate src,
+                                        int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_operand(subcode, dst);
@@ -617,43 +609,6 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
     emit(0x81);
     emit_operand(subcode, dst);
     emitw(src.value_);
-  }
-}
-
-
-void Assembler::immediate_arithmetic_op_32(byte subcode,
-                                           Register dst,
-                                           Immediate src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  if (is_int8(src.value_)) {
-    emit(0x83);
-    emit_modrm(subcode, dst);
-    emit(src.value_);
-  } else if (dst.is(rax)) {
-    emit(0x05 | (subcode << 3));
-    emitl(src.value_);
-  } else {
-    emit(0x81);
-    emit_modrm(subcode, dst);
-    emitl(src.value_);
-  }
-}
-
-
-void Assembler::immediate_arithmetic_op_32(byte subcode,
-                                           const Operand& dst,
-                                           Immediate src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  if (is_int8(src.value_)) {
-    emit(0x83);
-    emit_operand(subcode, dst);
-    emit(src.value_);
-  } else {
-    emit(0x81);
-    emit_operand(subcode, dst);
-    emitl(src.value_);
   }
 }
 
@@ -675,8 +630,8 @@ void Assembler::immediate_arithmetic_op_8(byte subcode,
                                           Immediate src) {
   EnsureSpace ensure_space(this);
   if (!dst.is_byte_register()) {
-    // Use 64-bit mode byte registers.
-    emit_rex_64(dst);
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst);
   }
   ASSERT(is_int8(src.value_) || is_uint8(src.value_));
   emit(0x80);
@@ -685,15 +640,19 @@ void Assembler::immediate_arithmetic_op_8(byte subcode,
 }
 
 
-void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
+void Assembler::shift(Register dst,
+                      Immediate shift_amount,
+                      int subcode,
+                      int size) {
   EnsureSpace ensure_space(this);
-  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  ASSERT(size == kInt64Size ? is_uint6(shift_amount.value_)
+                            : is_uint5(shift_amount.value_));
   if (shift_amount.value_ == 1) {
-    emit_rex_64(dst);
+    emit_rex(dst, size);
     emit(0xD1);
     emit_modrm(subcode, dst);
   } else {
-    emit_rex_64(dst);
+    emit_rex(dst, size);
     emit(0xC1);
     emit_modrm(subcode, dst);
     emit(shift_amount.value_);
@@ -701,35 +660,11 @@ void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
 }
 
 
-void Assembler::shift(Register dst, int subcode) {
+void Assembler::shift(Register dst, int subcode, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   emit(0xD3);
   emit_modrm(subcode, dst);
-}
-
-
-void Assembler::shift_32(Register dst, int subcode) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  emit(0xD3);
-  emit_modrm(subcode, dst);
-}
-
-
-void Assembler::shift_32(Register dst, Immediate shift_amount, int subcode) {
-  EnsureSpace ensure_space(this);
-  ASSERT(is_uint5(shift_amount.value_));  // illegal shift count
-  if (shift_amount.value_ == 1) {
-    emit_optional_rex_32(dst);
-    emit(0xD1);
-    emit_modrm(subcode, dst);
-  } else {
-    emit_optional_rex_32(dst);
-    emit(0xC1);
-    emit_modrm(subcode, dst);
-    emit(shift_amount.value_);
-  }
 }
 
 
@@ -1431,11 +1366,29 @@ void Assembler::movl(const Operand& dst, Label* src) {
 }
 
 
+void Assembler::movsxbl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movsxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst, src);
   emit(0x0F);
   emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movsxwl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBF);
   emit_operand(dst, src);
 }
 
@@ -2977,12 +2930,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     // Don't record external references unless the heap will be serialized.
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
+    if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
       return;
     }
   } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
@@ -3016,16 +2964,17 @@ void Assembler::RecordComment(const char* msg, bool force) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
-  return NULL;
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return;
 }
 
 

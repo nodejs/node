@@ -86,19 +86,19 @@ class TestObjectVisitor : public ObjectVisitor {
 
 TEST(IterateObjectGroupsOldApi) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  GlobalHandles* global_handles = isolate->global_handles();
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g1s2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
   Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g2s2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
   TestRetainedObjectInfo info1;
   TestRetainedObjectInfo info2;
@@ -181,20 +181,20 @@ TEST(IterateObjectGroupsOldApi) {
 
 TEST(IterateObjectGroups) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  GlobalHandles* global_handles = isolate->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g1s2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
   Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g2s2 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
   TestRetainedObjectInfo info1;
   TestRetainedObjectInfo info2;
@@ -276,25 +276,25 @@ TEST(IterateObjectGroups) {
 
 TEST(ImplicitReferences) {
   CcTest::InitializeVM();
-  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  GlobalHandles* global_handles = isolate->global_handles();
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g1c1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g1c2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
 
   Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g2s2 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(*isolate->factory()->NewFixedArray(1));
   Handle<Object> g2c1 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(*isolate->factory()->NewFixedArray(1));
 
   global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
   global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));

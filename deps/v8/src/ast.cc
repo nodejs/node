@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "ast.h"
 
@@ -56,29 +33,30 @@ AST_NODE_LIST(DECL_ACCEPT)
 // Implementation of other node functionality.
 
 
-bool Expression::IsSmiLiteral() {
+bool Expression::IsSmiLiteral() const {
   return AsLiteral() != NULL && AsLiteral()->value()->IsSmi();
 }
 
 
-bool Expression::IsStringLiteral() {
+bool Expression::IsStringLiteral() const {
   return AsLiteral() != NULL && AsLiteral()->value()->IsString();
 }
 
 
-bool Expression::IsNullLiteral() {
+bool Expression::IsNullLiteral() const {
   return AsLiteral() != NULL && AsLiteral()->value()->IsNull();
 }
 
 
-bool Expression::IsUndefinedLiteral(Isolate* isolate) {
-  VariableProxy* var_proxy = AsVariableProxy();
+bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
+  const VariableProxy* var_proxy = AsVariableProxy();
   if (var_proxy == NULL) return false;
   Variable* var = var_proxy->var();
   // The global identifier "undefined" is immutable. Everything
   // else could be reassigned.
   return var != NULL && var->location() == Variable::UNALLOCATED &&
-         var_proxy->name()->Equals(isolate->heap()->undefined_string());
+         String::Equals(var_proxy->name(),
+                        isolate->factory()->undefined_string());
 }
 
 
@@ -207,9 +185,10 @@ ObjectLiteralProperty::ObjectLiteralProperty(
   emit_store_ = true;
   key_ = key;
   value_ = value;
-  Object* k = *key->value();
+  Handle<Object> k = key->value();
   if (k->IsInternalizedString() &&
-      zone->isolate()->heap()->proto_string()->Equals(String::cast(k))) {
+      String::Equals(Handle<String>::cast(k),
+                     zone->isolate()->factory()->proto_string())) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -378,9 +357,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     } else if (boilerplate_value->IsUninitialized()) {
       is_simple = false;
       JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate), SLOPPY);
+          array, i, handle(Smi::FromInt(0), isolate), SLOPPY).Assert();
     } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY);
+      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY).Assert();
     }
   }
 
@@ -463,7 +442,7 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-bool BinaryOperation::ResultOverwriteAllowed() {
+bool BinaryOperation::ResultOverwriteAllowed() const {
   switch (op_) {
     case Token::COMMA:
     case Token::OR:
@@ -592,14 +571,9 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-int Call::ComputeFeedbackSlotCount(Isolate* isolate) {
+bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  if (call_type == LOOKUP_SLOT_CALL || call_type == OTHER_CALL) {
-    // Call only uses a slot in some cases.
-    return 1;
-  }
-
-  return 0;
+  return (call_type != POSSIBLY_EVAL_CALL);
 }
 
 
@@ -1177,7 +1151,7 @@ Handle<String> Literal::ToString() {
   } else {
     str = DoubleToCString(value_->Number(), buffer);
   }
-  return isolate_->factory()->NewStringFromAscii(CStrVector(str));
+  return isolate_->factory()->NewStringFromAsciiChecked(str);
 }
 
 

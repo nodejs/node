@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -39,6 +16,65 @@
 
 namespace v8 {
 namespace internal {
+
+
+#if defined(_WIN64)
+typedef double (*ModuloFunction)(double, double);
+static ModuloFunction modulo_function = NULL;
+// Defined in codegen-x64.cc.
+ModuloFunction CreateModuloFunction();
+
+void init_modulo_function() {
+  modulo_function = CreateModuloFunction();
+}
+
+
+double modulo(double x, double y) {
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
+  return (*modulo_function)(x, y);
+}
+#elif defined(_WIN32)
+
+double modulo(double x, double y) {
+  // Workaround MS fmod bugs. ECMA-262 says:
+  // dividend is finite and divisor is an infinity => result equals dividend
+  // dividend is a zero and divisor is nonzero finite => result equals dividend
+  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
+      !(x == 0 && (y != 0 && std::isfinite(y)))) {
+    x = fmod(x, y);
+  }
+  return x;
+}
+#else  // POSIX
+
+double modulo(double x, double y) {
+  return std::fmod(x, y);
+}
+#endif  // defined(_WIN64)
+
+
+#define UNARY_MATH_FUNCTION(name, generator)             \
+static UnaryMathFunction fast_##name##_function = NULL;  \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
+double fast_##name(double x) {                           \
+  return (*fast_##name##_function)(x);                   \
+}
+
+UNARY_MATH_FUNCTION(exp, CreateExpFunction())
+UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
+
+#undef UNARY_MATH_FUNCTION
+
+
+void lazily_initialize_fast_exp() {
+  if (fast_exp_function == NULL) {
+    init_fast_exp_function();
+  }
+}
+
 
 #define __ ACCESS_MASM(masm_)
 
@@ -185,21 +221,6 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     PrintF(tracing_scope.file(), "--- End code ---\n");
   }
 #endif  // ENABLE_DISASSEMBLER
-}
-
-
-bool CodeGenerator::ShouldGenerateLog(Isolate* isolate, Expression* type) {
-  ASSERT(type != NULL);
-  if (!isolate->logger()->is_logging() &&
-      !isolate->cpu_profiler()->is_profiling()) {
-    return false;
-  }
-  Handle<String> name = Handle<String>::cast(type->AsLiteral()->value());
-  if (FLAG_log_regexp) {
-    if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
-      return true;
-  }
-  return false;
 }
 
 

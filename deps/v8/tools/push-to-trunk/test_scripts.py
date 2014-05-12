@@ -34,6 +34,7 @@ import unittest
 import auto_push
 from auto_push import CheckLastPush
 from auto_push import SETTINGS_LOCATION
+import auto_roll
 import common_includes
 from common_includes import *
 import merge_to_branch
@@ -44,13 +45,14 @@ import chromium_roll
 from chromium_roll import CHROMIUM
 from chromium_roll import DEPS_FILE
 from chromium_roll import ChromiumRoll
+import releases
+from releases import Releases
 
 
 TEST_CONFIG = {
   BRANCHNAME: "test-prepare-push",
   TRUNKBRANCH: "test-trunk-push",
   PERSISTFILE_BASENAME: "/tmp/test-v8-push-to-trunk-tempfile",
-  TEMP_BRANCH: "test-prepare-push-temporary-branch-created-by-script",
   DOT_GIT_LOCATION: None,
   VERSION_FILE: None,
   CHANGELOG_FILE: None,
@@ -74,6 +76,38 @@ AUTO_PUSH_ARGS = [
 
 
 class ToplevelTest(unittest.TestCase):
+  def testSortBranches(self):
+    S = releases.SortBranches
+    self.assertEquals(["3.1", "2.25"], S(["2.25", "3.1"])[0:2])
+    self.assertEquals(["3.0", "2.25"], S(["2.25", "3.0", "2.24"])[0:2])
+    self.assertEquals(["3.11", "3.2"], S(["3.11", "3.2", "2.24"])[0:2])
+
+  def testFilterDuplicatesAndReverse(self):
+    F = releases.FilterDuplicatesAndReverse
+    self.assertEquals([], F([]))
+    self.assertEquals([["100", "10"]], F([["100", "10"]]))
+    self.assertEquals([["99", "9"], ["100", "10"]],
+                      F([["100", "10"], ["99", "9"]]))
+    self.assertEquals([["98", "9"], ["100", "10"]],
+                      F([["100", "10"], ["99", "9"], ["98", "9"]]))
+    self.assertEquals([["98", "9"], ["99", "10"]],
+                      F([["100", "10"], ["99", "10"], ["98", "9"]]))
+
+  def testBuildRevisionRanges(self):
+    B = releases.BuildRevisionRanges
+    self.assertEquals({}, B([]))
+    self.assertEquals({"10": "100"}, B([["100", "10"]]))
+    self.assertEquals({"10": "100", "9": "99:99"},
+                      B([["100", "10"], ["99", "9"]]))
+    self.assertEquals({"10": "100", "9": "97:99"},
+                      B([["100", "10"], ["98", "9"], ["97", "9"]]))
+    self.assertEquals({"10": "100", "9": "99:99", "3": "91:98"},
+                      B([["100", "10"], ["99", "9"], ["91", "3"]]))
+    self.assertEquals({"13": "101", "12": "100:100", "9": "94:97",
+                       "3": "91:93, 98:99"},
+                      B([["101", "13"], ["100", "12"], ["98", "3"],
+                         ["94", "9"], ["91", "3"]]))
+
   def testMakeComment(self):
     self.assertEquals("#   Line 1\n#   Line 2\n#",
                       MakeComment("    Line 1\n    Line 2\n"))
@@ -261,7 +295,7 @@ class SimpleMock(object):
     # arguments.
     if len(args) > len(expected_call['args']):
       raise NoRetryException("When calling %s with arguments, the "
-          "expectations must consist of at least as many arguments.")
+          "expectations must consist of at least as many arguments." % name)
 
     # Compare expected and actual arguments.
     for (expected_arg, actual_arg) in zip(expected_call['args'], args):
@@ -296,14 +330,14 @@ class ScriptTest(unittest.TestCase):
     self._tmp_files.append(name)
     return name
 
-  def WriteFakeVersionFile(self, build=4):
+  def WriteFakeVersionFile(self, minor=22, build=4, patch=0):
     with open(TEST_CONFIG[VERSION_FILE], "w") as f:
       f.write("  // Some line...\n")
       f.write("\n")
       f.write("#define MAJOR_VERSION    3\n")
-      f.write("#define MINOR_VERSION    22\n")
+      f.write("#define MINOR_VERSION    %s\n" % minor)
       f.write("#define BUILD_NUMBER     %s\n" % build)
-      f.write("#define PATCH_LEVEL      0\n")
+      f.write("#define PATCH_LEVEL      %s\n" % patch)
       f.write("  // Some line...\n")
       f.write("#define IS_CANDIDATE_VERSION 0\n")
 
@@ -400,10 +434,8 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("branch", ""),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
     self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
@@ -415,7 +447,7 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
     ])
     self.ExpectReadline([RL("n")])
     self.MakeStep().CommonPrepare()
@@ -427,8 +459,8 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], None),
     ])
     self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
@@ -692,8 +724,6 @@ Performance and stability improvements on all platforms.""", commit)
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
       Git("branch", "  branch1\n* branch2\n"),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("branch", "  branch1\n* branch2\n"),
       Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""),
       Git("svn find-rev r123455", "push_hash\n"),
@@ -726,7 +756,6 @@ Performance and stability improvements on all platforms.""", commit)
       Git("svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"),
       Git("svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
       Git("checkout -f some_branch", ""),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
       Git("branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""),
     ])
@@ -768,8 +797,15 @@ Performance and stability improvements on all platforms.""", commit)
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
-
   def _ChromiumRoll(self, force=False, manual=False):
+    googlers_mapping_py = "%s-mapping.py" % TEST_CONFIG[PERSISTFILE_BASENAME]
+    with open(googlers_mapping_py, "w") as f:
+      f.write("""
+def list_to_dict(entries):
+  return {"g_name@google.com": "c_name@chromium.org"}
+def get_list():
+  pass""")
+
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
@@ -783,7 +819,7 @@ Performance and stability improvements on all platforms.""", commit)
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
       Git(("log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "svn/trunk"), "push_hash\n"),
       Git("svn find-rev push_hash", "123455\n"),
       Git("log -1 --format=%s push_hash",
@@ -794,23 +830,30 @@ Performance and stability improvements on all platforms.""", commit)
       Git("checkout -b v8-roll-123455", ""),
       Git(("commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r123454).\n\n"
-           "TBR=reviewer@chromium.org\""),
+           "Please reply to the V8 sheriff c_name@chromium.org in "
+           "case of problems.\n\nTBR=c_name@chromium.org\""),
           ""),
       Git(("cl upload --send-mail --email \"author@chromium.org\"%s"
            % force_flag), ""),
     ])
 
+    self.ExpectReadURL([
+      URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
+          "document.write('g_name')"),
+    ])
+
     # Expected keyboard input in manual mode:
     if manual:
       self.ExpectReadline([
-        RL("reviewer@chromium.org"),  # Chromium reviewer.
+        RL("c_name@chromium.org"),  # Chromium reviewer.
       ])
 
     # Expected keyboard input in semi-automatic mode and forced mode:
     if not manual:
       self.ExpectReadline([])
 
-    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
+    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM],
+            "--sheriff", "--googlers-mapping", googlers_mapping_py]
     if force: args.append("-f")
     if manual: args.append("-m")
     else: args += ["-r", "reviewer@chromium.org"]
@@ -908,6 +951,70 @@ Performance and stability improvements on all platforms.""", commit)
       auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS)
     self.assertRaises(Exception, RunAutoPush)
 
+  def testAutoRollExistingRoll(self):
+    self.ExpectReadURL([
+      URL("https://codereview.chromium.org/search",
+          "owner=author%40chromium.org&limit=30&closed=3&format=json",
+          ("{\"results\": [{\"subject\": \"different\"},"
+           "{\"subject\": \"Update V8 to Version...\"}]}")),
+    ])
+
+    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
+        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG[CHROMIUM]])
+    self.assertEquals(1, result)
+
+  # Snippet from the original DEPS file.
+  FAKE_DEPS = """
+vars = {
+  "v8_revision": "123455",
+}
+deps = {
+  "src/v8":
+    (Var("googlecode_url") % "v8") + "/" + Var("v8_branch") + "@" +
+    Var("v8_revision"),
+}
+"""
+
+  def testAutoRollUpToDate(self):
+    self.ExpectReadURL([
+      URL("https://codereview.chromium.org/search",
+          "owner=author%40chromium.org&limit=30&closed=3&format=json",
+          ("{\"results\": [{\"subject\": \"different\"}]}")),
+      URL("http://src.chromium.org/svn/trunk/src/DEPS",
+          self.FAKE_DEPS),
+    ])
+
+    self.ExpectGit([
+      Git(("log -1 --format=%H --grep="
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
+           "svn/trunk"), "push_hash\n"),
+      Git("svn find-rev push_hash", "123455\n"),
+    ])
+
+    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
+        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG[CHROMIUM]])
+    self.assertEquals(1, result)
+
+  def testAutoRoll(self):
+    self.ExpectReadURL([
+      URL("https://codereview.chromium.org/search",
+          "owner=author%40chromium.org&limit=30&closed=3&format=json",
+          ("{\"results\": [{\"subject\": \"different\"}]}")),
+      URL("http://src.chromium.org/svn/trunk/src/DEPS",
+          self.FAKE_DEPS),
+    ])
+
+    self.ExpectGit([
+      Git(("log -1 --format=%H --grep="
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
+           "svn/trunk"), "push_hash\n"),
+      Git("svn find-rev push_hash", "123456\n"),
+    ])
+
+    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
+        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG[CHROMIUM], "--roll"])
+    self.assertEquals(0, result)
+
   def testMergeToBranch(self):
     TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -920,7 +1027,7 @@ Performance and stability improvements on all platforms.""", commit)
       return lambda: self.assertEquals(patch,
           FileToText(TEST_CONFIG[TEMPORARY_PATCH_FILE]))
 
-    msg = """Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
+    msg = """Version 3.22.5.1 (merged r12345, r23456, r34567, r45678, r56789)
 
 Title4
 
@@ -930,7 +1037,7 @@ Title3
 
 Title1
 
-Title5
+Revert "Something"
 
 BUG=123,234,345,456,567,v8:123
 LOG=N
@@ -949,8 +1056,6 @@ LOG=N
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* branch2\n"),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""),
       Git("log --format=%H --grep=\"Port r12345\" --reverse svn/bleeding_edge",
@@ -978,12 +1083,12 @@ LOG=N
       Git("log -1 --format=%s hash2", "Title2"),
       Git("log -1 --format=%s hash3", "Title3"),
       Git("log -1 --format=%s hash1", "Title1"),
-      Git("log -1 --format=%s hash5", "Title5"),
+      Git("log -1 --format=%s hash5", "Revert \"Something\""),
       Git("log -1 hash4", "Title4\nBUG=123\nBUG=234"),
       Git("log -1 hash2", "Title2\n BUG = v8:123,345"),
       Git("log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"),
-      Git("log -1 hash1", "Title1"),
-      Git("log -1 hash5", "Title5"),
+      Git("log -1 hash1", "Title1\nBUG="),
+      Git("log -1 hash5", "Revert \"Something\"\nBUG=none"),
       Git("log -1 -p hash4", "patch4"),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
           "", cb=VerifyPatch("patch4")),
@@ -1006,13 +1111,13 @@ LOG=N
       Git("cl presubmit", "Presubmit successfull\n"),
       Git("cl dcommit -f --bypass-hooks", "Closing issue\n", cb=VerifySVNCommit),
       Git("svn fetch", ""),
-      Git("log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"),
+      Git(("log -1 --format=%%H --grep=\"%s\" svn/trunk"
+           % msg.replace("\"", "\\\"")), "hash6"),
       Git("svn find-rev hash6", "1324"),
       Git(("copy -r 1324 https://v8.googlecode.com/svn/trunk "
            "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
            "\"Tagging version 3.22.5.1\""), ""),
       Git("checkout -f some_branch", ""),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
 
@@ -1035,6 +1140,121 @@ LOG=N
     # Test that state recovery after restarting the script works.
     args += ["-s", "3"]
     MergeToBranch(TEST_CONFIG, self).Run(args)
+
+  def testReleases(self):
+    json_output = self.MakeEmptyTempFile()
+    csv_output = self.MakeEmptyTempFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
+
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    if not os.path.exists(TEST_CONFIG[CHROMIUM]):
+      os.makedirs(TEST_CONFIG[CHROMIUM])
+    def WriteDEPS(revision):
+      TextToFile("Line\n   \"v8_revision\": \"%s\",\n  line\n" % revision,
+                 TEST_CONFIG[DEPS_FILE])
+    WriteDEPS(567)
+
+    def ResetVersion(minor, build, patch=0):
+      return lambda: self.WriteFakeVersionFile(minor=minor,
+                                               build=build,
+                                               patch=patch)
+
+    def ResetDEPS(revision):
+      return lambda: WriteDEPS(revision)
+
+    self.ExpectGit([
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("branch -r", "  svn/3.21\n  svn/3.3\n"),
+      Git("reset --hard svn/3.3", ""),
+      Git("log --format=%H", "hash1\nhash2"),
+      Git("diff --name-only hash1 hash1^", ""),
+      Git("diff --name-only hash2 hash2^", TEST_CONFIG[VERSION_FILE]),
+      Git("checkout -f hash2 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(3, 1, 1)),
+      Git("log -1 --format=%B hash2",
+          "Version 3.3.1.1 (merged 12)\n\nReview URL: fake.com\n"),
+      Git("log -1 --format=%s hash2", ""),
+      Git("svn find-rev hash2", "234"),
+      Git("log -1 --format=%ci hash2", "18:15"),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(22, 5)),
+      Git("reset --hard svn/3.21", ""),
+      Git("log --format=%H", "hash3\nhash4\nhash5\n"),
+      Git("diff --name-only hash3 hash3^", TEST_CONFIG[VERSION_FILE]),
+      Git("checkout -f hash3 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(21, 2)),
+      Git("log -1 --format=%B hash3", ""),
+      Git("log -1 --format=%s hash3", ""),
+      Git("svn find-rev hash3", "123"),
+      Git("log -1 --format=%ci hash3", "03:15"),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(22, 5)),
+      Git("reset --hard svn/trunk", ""),
+      Git("log --format=%H", "hash6\n"),
+      Git("diff --name-only hash6 hash6^", TEST_CONFIG[VERSION_FILE]),
+      Git("checkout -f hash6 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(22, 3)),
+      Git("log -1 --format=%B hash6", ""),
+      Git("log -1 --format=%s hash6", ""),
+      Git("svn find-rev hash6", "345"),
+      Git("log -1 --format=%ci hash6", ""),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(22, 5)),
+      Git("status -s -uno", ""),
+      Git("checkout -f master", ""),
+      Git("pull", ""),
+      Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\n"),
+      Git("diff --name-only c_hash1 c_hash1^", ""),
+      Git("diff --name-only c_hash2 c_hash2^", TEST_CONFIG[DEPS_FILE]),
+      Git("checkout -f c_hash2 -- %s" % TEST_CONFIG[DEPS_FILE], "",
+          cb=ResetDEPS(345)),
+      Git("svn find-rev c_hash2", "4567"),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[DEPS_FILE], "",
+          cb=ResetDEPS(567)),
+      Git("branch -r", " weird/123\n  branch-heads/7\n"),
+      Git("checkout -f branch-heads/7 -- %s" % TEST_CONFIG[DEPS_FILE], "",
+          cb=ResetDEPS(345)),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[DEPS_FILE], "",
+          cb=ResetDEPS(567)),
+      Git("checkout -f master", ""),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("checkout -f some_branch", ""),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
+    ])
+
+    args = ["-c", TEST_CONFIG[CHROMIUM],
+            "--json", json_output,
+            "--csv", csv_output,
+            "--max-releases", "1"]
+    Releases(TEST_CONFIG, self).Run(args)
+
+    # Check expected output.
+    csv = ("3.22.3,trunk,345,4567,\r\n"
+           "3.21.2,3.21,123,,\r\n"
+           "3.3.1.1,3.3,234,,12\r\n")
+    self.assertEquals(csv, FileToText(csv_output))
+
+    expected_json = [
+      {"bleeding_edge": "", "patches_merged": "", "version": "3.22.3",
+       "chromium_revision": "4567", "branch": "trunk", "revision": "345",
+       "review_link": "", "date": "", "chromium_branch": "7",
+       "revision_link": "https://code.google.com/p/v8/source/detail?r=345"},
+      {"patches_merged": "", "bleeding_edge": "", "version": "3.21.2",
+       "chromium_revision": "", "branch": "3.21", "revision": "123",
+       "review_link": "", "date": "03:15", "chromium_branch": "",
+       "revision_link": "https://code.google.com/p/v8/source/detail?r=123"},
+      {"patches_merged": "12", "bleeding_edge": "", "version": "3.3.1.1",
+       "chromium_revision": "", "branch": "3.3", "revision": "234",
+       "review_link": "fake.com", "date": "18:15", "chromium_branch": "",
+       "revision_link": "https://code.google.com/p/v8/source/detail?r=234"},
+    ]
+    self.assertEquals(expected_json, json.loads(FileToText(json_output)))
 
 
 class SystemTest(unittest.TestCase):

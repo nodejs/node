@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 "use strict";
 
@@ -57,7 +34,7 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
         length = ToPositiveInteger(length, "invalid_typed_array_length");
     }
 
-    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
+    var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
     var offset;
     if (IS_UNDEFINED(byteOffset)) {
       offset = 0;
@@ -125,7 +102,6 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   }
 
   function NAMEConstructor(arg1, arg2, arg3) {
-
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
         NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
@@ -139,34 +115,52 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
       throw MakeTypeError("constructor_not_function", ["NAME"])
     }
   }
-endmacro
 
-TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
+  function NAME_GetBuffer() {
+    if (!(%_ClassOf(this) === 'NAME')) {
+      throw MakeTypeError('incompatible_method_receiver',
+                          ["NAME.buffer", this]);
+    }
+    return %TypedArrayGetBuffer(this);
+  }
 
-function TypedArrayGetBuffer() {
-  return %TypedArrayGetBuffer(this);
-}
+  function NAME_GetByteLength() {
+    if (!(%_ClassOf(this) === 'NAME')) {
+      throw MakeTypeError('incompatible_method_receiver',
+                          ["NAME.byteLength", this]);
+    }
+    return %_ArrayBufferViewGetByteLength(this);
+  }
 
-function TypedArrayGetByteLength() {
-  return %TypedArrayGetByteLength(this);
-}
+  function NAME_GetByteOffset() {
+    if (!(%_ClassOf(this) === 'NAME')) {
+      throw MakeTypeError('incompatible_method_receiver',
+                          ["NAME.byteOffset", this]);
+    }
+    return %_ArrayBufferViewGetByteOffset(this);
+  }
 
-function TypedArrayGetByteOffset() {
-  return %TypedArrayGetByteOffset(this);
-}
+  function NAME_GetLength() {
+    if (!(%_ClassOf(this) === 'NAME')) {
+      throw MakeTypeError('incompatible_method_receiver',
+                          ["NAME.length", this]);
+    }
+    return %_TypedArrayGetLength(this);
+  }
 
-function TypedArrayGetLength() {
-  return %TypedArrayGetLength(this);
-}
+  var $NAME = global.NAME;
 
-function CreateSubArray(elementSize, constructor) {
-  return function(begin, end) {
+  function NAMESubArray(begin, end) {
+    if (!(%_ClassOf(this) === 'NAME')) {
+      throw MakeTypeError('incompatible_method_receiver',
+                          ["NAME.subarray", this]);
+    }
     var beginInt = TO_INTEGER(begin);
     if (!IS_UNDEFINED(end)) {
       end = TO_INTEGER(end);
     }
 
-    var srcLength = %TypedArrayGetLength(this);
+    var srcLength = %_TypedArrayGetLength(this);
     if (beginInt < 0) {
       beginInt = MathMax(0, srcLength + beginInt);
     } else {
@@ -184,11 +178,14 @@ function CreateSubArray(elementSize, constructor) {
     }
     var newLength = endInt - beginInt;
     var beginByteOffset =
-        %TypedArrayGetByteOffset(this) + beginInt * elementSize;
-    return new constructor(%TypedArrayGetBuffer(this),
-                           beginByteOffset, newLength);
+        %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
+    return new $NAME(%TypedArrayGetBuffer(this),
+                     beginByteOffset, newLength);
   }
-}
+endmacro
+
+TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
+
 
 function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
   if (offset > 0) {
@@ -296,34 +293,34 @@ function TypedArraySet(obj, offset) {
 
 // -------------------------------------------------------------------
 
-function SetupTypedArray(constructor, fun, elementSize) {
+function SetupTypedArrays() {
+macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %CheckIsBootstrapping();
-  %SetCode(constructor, fun);
-  %FunctionSetPrototype(constructor, new $Object());
+  %SetCode(global.NAME, NAMEConstructor);
+  %FunctionSetPrototype(global.NAME, new $Object());
 
-  %SetProperty(constructor, "BYTES_PER_ELEMENT", elementSize,
+  %SetProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                READ_ONLY | DONT_ENUM | DONT_DELETE);
-  %SetProperty(constructor.prototype,
-               "constructor", constructor, DONT_ENUM);
-  %SetProperty(constructor.prototype,
-               "BYTES_PER_ELEMENT", elementSize,
+  %SetProperty(global.NAME.prototype,
+               "constructor", global.NAME, DONT_ENUM);
+  %SetProperty(global.NAME.prototype,
+               "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                READ_ONLY | DONT_ENUM | DONT_DELETE);
-  InstallGetter(constructor.prototype, "buffer", TypedArrayGetBuffer);
-  InstallGetter(constructor.prototype, "byteOffset", TypedArrayGetByteOffset);
-  InstallGetter(constructor.prototype, "byteLength", TypedArrayGetByteLength);
-  InstallGetter(constructor.prototype, "length", TypedArrayGetLength);
+  InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
+  InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset);
+  InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength);
+  InstallGetter(global.NAME.prototype, "length", NAME_GetLength);
 
-  InstallFunctions(constructor.prototype, DONT_ENUM, $Array(
-        "subarray", CreateSubArray(elementSize, constructor),
+  InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
+        "subarray", NAMESubArray,
         "set", TypedArraySet
   ));
-}
-
-macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
-  SetupTypedArray (global.NAME, NAMEConstructor, ELEMENT_SIZE);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
+}
+
+SetupTypedArrays();
 
 // --------------------------- DataView -----------------------------
 
@@ -341,7 +338,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
         byteLength = TO_INTEGER(byteLength);
     }
 
-    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
+    var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
 
     var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
     if (offset > bufferByteLength) {
@@ -373,7 +370,7 @@ function DataViewGetByteOffset() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['DataView.byteOffset', this]);
   }
-  return %DataViewGetByteOffset(this);
+  return %_ArrayBufferViewGetByteOffset(this);
 }
 
 function DataViewGetByteLength() {
@@ -381,7 +378,7 @@ function DataViewGetByteLength() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['DataView.byteLength', this]);
   }
-  return %DataViewGetByteLength(this);
+  return %_ArrayBufferViewGetByteLength(this);
 }
 
 macro DATA_VIEW_TYPES(FUNCTION)

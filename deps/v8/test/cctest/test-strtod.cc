@@ -34,6 +34,7 @@
 #include "diy-fp.h"
 #include "double.h"
 #include "strtod.h"
+#include "utils/random-number-generator.h"
 
 using namespace v8::internal;
 
@@ -448,13 +449,13 @@ static const int kShortStrtodRandomCount = 2;
 static const int kLargeStrtodRandomCount = 2;
 
 TEST(RandomStrtod) {
-  srand(static_cast<unsigned int>(time(NULL)));
+  RandomNumberGenerator rng;
   char buffer[kBufferSize];
   for (int length = 1; length < 15; length++) {
     for (int i = 0; i < kShortStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = rand() % 10 + '0';
+        buffer[pos++] = rng.NextInt(10) + '0';
       }
       int exponent = DeterministicRandom() % (25*2 + 1) - 25 - length;
       buffer[pos] = '\0';
@@ -467,7 +468,7 @@ TEST(RandomStrtod) {
     for (int i = 0; i < kLargeStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = rand() % 10 + '0';
+        buffer[pos++] = rng.NextInt(10) + '0';
       }
       int exponent = DeterministicRandom() % (308*2 + 1) - 308 - length;
       buffer[pos] = '\0';

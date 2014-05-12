@@ -274,11 +274,9 @@ TEST(DisasmIa320) {
 
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
   __ jmp(Operand::StaticVariable(after_break_target));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -462,15 +460,13 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  USE(code);
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
-  byte* begin = Code::cast(code)->instruction_start();
-  byte* end = begin + Code::cast(code)->instruction_size();
+  code->Print();
+  byte* begin = code->instruction_start();
+  byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
 }

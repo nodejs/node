@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -38,8 +15,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return Debug::IsDebugBreakAtReturn(rinfo());
 }
@@ -67,7 +42,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   STATIC_ASSERT(Assembler::kJSRetSequenceInstructions >= 5);
   PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 5);
   byte* entry =
-      debug_info_->GetIsolate()->debug()->debug_break_return()->entry();
+      debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry();
 
   // The first instruction of a patched return sequence must be a load literal
   // loading the address of the debug break return code.
@@ -126,7 +101,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   STATIC_ASSERT(Assembler::kDebugBreakSlotInstructions >= 4);
   PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 4);
   byte* entry =
-      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry();
+      debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry();
 
   // The first instruction of a patched debug break slot must be a load literal
   // loading the address of the debug break slot code.
@@ -204,7 +179,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ Mov(x0, 0);  // No arguments.
     __ Mov(x1, ExternalReference::debug_break(masm->isolate()));
 
-    CEntryStub stub(1);
+    CEntryStub stub(masm->isolate(), 1);
     __ CallStub(&stub);
 
     // Restore the register values from the expression stack.
@@ -237,6 +212,16 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ Mov(scratch, after_break_target);
   __ Ldr(scratch, MemOperand(scratch));
   __ Br(scratch);
+}
+
+
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- x1 : function
+  //  -- x3 : slot in feedback array
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, x1.Bit() | x3.Bit(), 0, x10);
 }
 
 
@@ -296,15 +281,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Calling convention for IC call (from ic-arm.cc)
-  // ----------- S t a t e -------------
-  //  -- x2     : name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, x2.Bit(), 0, x10);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
@@ -319,17 +295,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- x1 : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, x1.Bit(), 0, x10);
-}
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-arm64.cc).
-  // ----------- S t a t e -------------
-  //  -- x1 : function
-  //  -- x2 : feedback array
-  //  -- x3 : slot in feedback array
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, x1.Bit() | x2.Bit() | x3.Bit(), 0, x10);
 }
 
 
@@ -385,8 +350,6 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 }
 
 const bool Debug::kFrameDropperSupported = false;
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
 

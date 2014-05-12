@@ -32,27 +32,34 @@
 assertThrows("12 = 12", ReferenceError);
 assertThrows("x++ = 12", ReferenceError);
 assertThrows("eval('var x') = 12", ReferenceError);
-assertThrows("if (false) eval('var x') = 12", ReferenceError);
+assertThrows("if (false) 12 = 12", ReferenceError);
+assertDoesNotThrow("if (false) eval('var x') = 12", ReferenceError);
 
 // Pre- and post-fix operations:
 assertThrows("12++", ReferenceError);
 assertThrows("12--", ReferenceError);
-assertThrows("--12", ReferenceError);
 assertThrows("++12", ReferenceError);
+assertThrows("--12", ReferenceError);
 assertThrows("++(eval('12'))", ReferenceError);
 assertThrows("(eval('12'))++", ReferenceError);
-assertThrows("if (false) ++(eval('12'))", ReferenceError);
-assertThrows("if (false) (eval('12'))++", ReferenceError);
+assertThrows("if (false) 12++", ReferenceError);
+assertThrows("if (false) 12--", ReferenceError);
+assertThrows("if (false) ++12", ReferenceError);
+assertThrows("if (false) --12", ReferenceError);
+assertDoesNotThrow("if (false) ++(eval('12'))", ReferenceError);
+assertDoesNotThrow("if (false) (eval('12'))++", ReferenceError);
 
 // For in:
 assertThrows("for (12 in [1]) print(12);", ReferenceError);
 assertThrows("for (eval('var x') in [1]) print(12);", ReferenceError);
-assertThrows("if (false) for (eval('0') in [1]) print(12);", ReferenceError);
+assertThrows("if (false) for (12 in [1]) print(12);", ReferenceError);
+assertDoesNotThrow("if (false) for (eval('0') in [1]) print(12);", ReferenceError);
 
 // For:
 assertThrows("for (12 = 1;;) print(12);", ReferenceError);
 assertThrows("for (eval('var x') = 1;;) print(12);", ReferenceError);
-assertThrows("if (false) for (eval('var x') = 1;;) print(12);", ReferenceError);
+assertThrows("if (false) for (12 = 1;;) print(12);", ReferenceError);
+assertDoesNotThrow("if (false) for (eval('var x') = 1;;) print(12);", ReferenceError);
 
 // Assignments to 'this'.
 assertThrows("this = 42", ReferenceError);
@@ -63,3 +70,5 @@ assertThrows("this++", ReferenceError);
 assertThrows("++this", ReferenceError);
 assertThrows("this--", ReferenceError);
 assertThrows("--this", ReferenceError);
+assertThrows("if (false) this = 42", ReferenceError);
+assertThrows("if (false) this++", ReferenceError);

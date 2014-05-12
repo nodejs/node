@@ -1,37 +1,14 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "store-buffer.h"
 
 #include <algorithm>
 
 #include "v8.h"
+#include "counters.h"
 #include "store-buffer-inl.h"
-#include "v8-counters.h"
 
 namespace v8 {
 namespace internal {
@@ -388,7 +365,9 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
         // When we are not in GC the Heap::InNewSpace() predicate
         // checks that pointers which satisfy predicate point into
         // the active semispace.
-        heap_->InNewSpace(*slot);
+        Object* object = reinterpret_cast<Object*>(
+            NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+        heap_->InNewSpace(object);
         slot_address += kPointerSize;
       }
     }
@@ -427,14 +406,18 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
        slot_address < end;
        slot_address += kPointerSize) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (heap_->InNewSpace(*slot)) {
-      HeapObject* object = reinterpret_cast<HeapObject*>(*slot);
-      ASSERT(object->IsHeapObject());
+    Object* object = reinterpret_cast<Object*>(
+        NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+    if (heap_->InNewSpace(object)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
+      ASSERT(heap_object->IsHeapObject());
       // The new space object was not promoted if it still contains a map
       // pointer. Clear the map field now lazily.
-      if (clear_maps) ClearDeadObject(object);
-      slot_callback(reinterpret_cast<HeapObject**>(slot), object);
-      if (heap_->InNewSpace(*slot)) {
+      if (clear_maps) ClearDeadObject(heap_object);
+      slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
+      object = reinterpret_cast<Object*>(
+          NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+      if (heap_->InNewSpace(object)) {
         EnterDirectlyIntoStoreBuffer(slot_address);
       }
     }
@@ -502,9 +485,9 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
 // This function iterates over all the pointers in a paged space in the heap,
 // looking for pointers into new space.  Within the pages there may be dead
 // objects that have not been overwritten by free spaces or fillers because of
-// lazy sweeping.  These dead objects may not contain pointers to new space.
-// The garbage areas that have been swept properly (these will normally be the
-// large ones) will be marked with free space and filler map words.  In
+// concurrent sweeping.  These dead objects may not contain pointers to new
+// space. The garbage areas that have been swept properly (these will normally
+// be the large ones) will be marked with free space and filler map words.  In
 // addition any area that has never been used at all for object allocation must
 // be marked with a free space or filler.  Because the free space and filler
 // maps do not move we can always recognize these even after a compaction.
@@ -531,7 +514,11 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
   Object* constant_pool_array_map = heap_->constant_pool_array_map();
 
   while (visitable_end < end_of_page) {
-    Object* o = *reinterpret_cast<Object**>(visitable_end);
+    // The sweeper thread concurrently may write free space maps and size to
+    // this page. We need acquire load here to make sure that we get a
+    // consistent view of maps and their sizes.
+    Object* o = reinterpret_cast<Object*>(
+        Acquire_Load(reinterpret_cast<AtomicWord*>(visitable_end)));
     // Skip fillers or constant pool arrays (which never contain new-space
     // pointers but can contain pointers which can be confused for fillers)
     // but not things that look like fillers in the special garbage section
@@ -595,14 +582,17 @@ void StoreBuffer::IteratePointersInStoreBuffer(
       Address* saved_top = old_top_;
 #endif
       Object** slot = reinterpret_cast<Object**>(*current);
-      Object* object = *slot;
+      Object* object = reinterpret_cast<Object*>(
+          NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
       if (heap_->InFromSpace(object)) {
         HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
         // The new space object was not promoted if it still contains a map
         // pointer. Clear the map field now lazily.
         if (clear_maps) ClearDeadObject(heap_object);
         slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-        if (heap_->InNewSpace(*slot)) {
+        object = reinterpret_cast<Object*>(
+            NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+        if (heap_->InNewSpace(object)) {
           EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(slot));
         }
       }

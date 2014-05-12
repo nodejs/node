@@ -31,11 +31,6 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var ARRAY_ITERATOR_KIND_KEYS = 1;
-var ARRAY_ITERATOR_KIND_VALUES = 2;
-var ARRAY_ITERATOR_KIND_ENTRIES = 3;
-// The spec draft also has "sparse" but it is never used.
-
 var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
 var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
 var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
@@ -79,25 +74,25 @@ function ArrayIteratorNext() {
 
   SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
 
-  if (itemKind == ARRAY_ITERATOR_KIND_VALUES)
+  if (itemKind == ITERATOR_KIND_VALUES)
     return CreateIteratorResultObject(array[index], false);
 
-  if (itemKind == ARRAY_ITERATOR_KIND_ENTRIES)
+  if (itemKind == ITERATOR_KIND_ENTRIES)
     return CreateIteratorResultObject([index, array[index]], false);
 
   return CreateIteratorResultObject(index, false);
 }
 
 function ArrayEntries() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_ENTRIES);
+  return CreateArrayIterator(this, ITERATOR_KIND_ENTRIES);
 }
 
 function ArrayValues() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_VALUES);
+  return CreateArrayIterator(this, ITERATOR_KIND_VALUES);
 }
 
 function ArrayKeys() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_KEYS);
+  return CreateArrayIterator(this, ITERATOR_KIND_KEYS);
 }
 
 function SetUpArrayIterator() {

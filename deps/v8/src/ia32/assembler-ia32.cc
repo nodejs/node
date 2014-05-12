@@ -89,13 +89,13 @@ const char* IntelDoubleRegister::AllocationIndexToString(int index) {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(!initialized_);
   ASSERT(supported_ == 0);
 #ifdef DEBUG
   initialized_ = true;
 #endif
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
@@ -2703,12 +2703,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
+    if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
       return;
     }
   }
@@ -2717,16 +2712,17 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
-  return NULL;
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return;
 }
 
 

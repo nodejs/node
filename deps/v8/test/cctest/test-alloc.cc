@@ -27,6 +27,7 @@
 
 #include "v8.h"
 #include "accessors.h"
+#include "api.h"
 
 #include "cctest.h"
 
@@ -34,32 +35,33 @@
 using namespace v8::internal;
 
 
-static MaybeObject* AllocateAfterFailures() {
+static AllocationResult AllocateAfterFailures() {
   static int attempts = 0;
-  if (++attempts < 3) return Failure::RetryAfterGC();
-  Heap* heap = CcTest::heap();
+
+  if (++attempts < 3) return AllocationResult::Retry();
+  TestHeap* heap = CcTest::test_heap();
 
   // New space.
   SimulateFullSpace(heap->new_space());
-  CHECK(!heap->AllocateByteArray(100)->IsFailure());
-  CHECK(!heap->AllocateFixedArray(100, NOT_TENURED)->IsFailure());
+  heap->AllocateByteArray(100).ToObjectChecked();
+  heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
 
   // Make sure we can allocate through optimized allocation functions
   // for specific kinds.
-  CHECK(!heap->AllocateFixedArray(100)->IsFailure());
-  CHECK(!heap->AllocateHeapNumber(0.42)->IsFailure());
-  CHECK(!heap->AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
+  heap->AllocateFixedArray(100).ToObjectChecked();
+  heap->AllocateHeapNumber(0.42).ToObjectChecked();
+  heap->AllocateArgumentsObject(Smi::FromInt(87), 10).ToObjectChecked();
   Object* object = heap->AllocateJSObject(
-      *CcTest::i_isolate()->object_function())->ToObjectChecked();
-  CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
+      *CcTest::i_isolate()->object_function()).ToObjectChecked();
+  heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
 
   // Old data space.
   SimulateFullSpace(heap->old_data_space());
-  CHECK(!heap->AllocateRawOneByteString(100, TENURED)->IsFailure());
+  heap->AllocateByteArray(100, TENURED).ToObjectChecked();
 
   // Old pointer space.
   SimulateFullSpace(heap->old_pointer_space());
-  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
   static const int kLargeObjectSpaceFillerLength = 300000;
@@ -67,22 +69,22 @@ static MaybeObject* AllocateAfterFailures() {
       kLargeObjectSpaceFillerLength);
   ASSERT(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
-    CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
-          IsFailure());
+    heap->AllocateFixedArray(
+        kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
   }
-  CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
-        IsFailure());
+  heap->AllocateFixedArray(
+      kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
 
   // Map space.
   SimulateFullSpace(heap->map_space());
   int instance_size = JSObject::kHeaderSize;
-  CHECK(!heap->AllocateMap(JS_OBJECT_TYPE, instance_size)->IsFailure());
+  heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
 
   // Test that we can allocate in old pointer space and code space.
   SimulateFullSpace(heap->code_space());
-  CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
-  CHECK(!heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
-      Builtins::kIllegal))->IsFailure());
+  heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
+  heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
+      Builtins::kIllegal)).ToObjectChecked();
 
   // Return success.
   return Smi::FromInt(42);
@@ -104,16 +106,29 @@ TEST(StressHandles) {
 }
 
 
-static MaybeObject* TestAccessorGet(Isolate* isolate, Object* object, void*) {
-  return AllocateAfterFailures();
+void TestGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  info.GetReturnValue().Set(v8::Utils::ToLocal(Test()));
 }
 
 
-const AccessorDescriptor kDescriptor = {
-  TestAccessorGet,
-  0,
-  0
-};
+void TestSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> TestAccessorInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name = isolate->factory()->NewStringFromStaticAscii("get");
+  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter,
+                                 attributes);
+}
 
 
 TEST(StressJS) {
@@ -122,8 +137,8 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<JSFunction> function =
-      factory->NewFunction(factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+      factory->function_string(), factory->null_value());
   // Force the creation of an initial map and set the code to
   // something empty.
   factory->NewJSObject(function);
@@ -132,20 +147,15 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  Handle<Foreign> foreign = factory->NewForeign(&kDescriptor);
-  Handle<String> name =
-      factory->NewStringFromAscii(Vector<const char>("get", 3));
   ASSERT(instance_descriptors->IsEmpty());
 
-  Handle<DescriptorArray> new_descriptors = factory->NewDescriptorArray(0, 1);
+  PropertyAttributes attrs = static_cast<PropertyAttributes>(0);
+  Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
+  Map::EnsureDescriptorSlack(map, 1);
 
-  v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
-  map->set_instance_descriptors(*new_descriptors);
-
-  CallbacksDescriptor d(*name,
-                        *foreign,
-                        static_cast<PropertyAttributes>(0));
-  map->AppendDescriptor(&d, witness);
+  CallbacksDescriptor d(Handle<Name>(Name::cast(foreign->name())),
+                        foreign, attrs);
+  map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),

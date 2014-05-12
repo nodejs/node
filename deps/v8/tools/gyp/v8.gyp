@@ -237,6 +237,9 @@
     {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
+      'dependencies': [
+        'v8_libbase.<(v8_target_arch)',
+      ],
       'variables': {
         'optimize': 'max',
       },
@@ -474,6 +477,7 @@
         '../../src/mark-compact.h',
         '../../src/messages.cc',
         '../../src/messages.h',
+        '../../src/msan.h',
         '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
@@ -569,6 +573,7 @@
         '../../src/transitions.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
+        '../../src/types-inl.h',
         '../../src/types.cc',
         '../../src/types.h',
         '../../src/typing.cc',
@@ -585,21 +590,16 @@
         '../../src/utils.h',
         '../../src/utils/random-number-generator.cc',
         '../../src/utils/random-number-generator.h',
-        '../../src/v8-counters.cc',
-        '../../src/v8-counters.h',
         '../../src/v8.cc',
         '../../src/v8.h',
         '../../src/v8checks.h',
-        '../../src/v8conversions.cc',
-        '../../src/v8conversions.h',
         '../../src/v8globals.h',
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
         '../../src/v8threads.h',
-        '../../src/v8utils.cc',
-        '../../src/v8utils.h',
         '../../src/variables.cc',
         '../../src/variables.h',
+        '../../src/vector.h',
         '../../src/version.cc',
         '../../src/version.h',
         '../../src/vm-state-inl.h',
@@ -694,7 +694,7 @@
             '../../src/arm64/utils-arm64.h',
           ],
         }],
-        ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
             '../../src/ia32/assembler-ia32-inl.h',
             '../../src/ia32/assembler-ia32.cc',
@@ -725,7 +725,7 @@
             '../../src/ia32/stub-cache-ia32.cc',
           ],
         }],
-        ['v8_target_arch=="mipsel"', {
+        ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             '../../src/mips/assembler-mips.cc',
             '../../src/mips/assembler-mips.h',
@@ -759,7 +759,7 @@
             '../../src/mips/stub-cache-mips.cc',
           ],
         }],
-        ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
@@ -1015,12 +1015,6 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
-        ['v8_use_default_platform==0', {
-          'sources!': [
-            '../../src/default-platform.cc',
-            '../../src/default-platform.h',
-          ],
-        }],
         ['icu_use_data_file_flag==1', {
           'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
         }, { # else icu_use_data_file_flag !=1
@@ -1030,6 +1024,33 @@
             }, {
               'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
             }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'v8_libbase.<(v8_target_arch)',
+      # TODO(jochen): Should be a static library once it has sources in it.
+      'type': 'none',
+      'variables': {
+        'optimize': 'max',
+      },
+      'include_dirs+': [
+        '../../src',
+      ],
+      'sources': [
+        '../../src/base/macros.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED',
+            'V8_SHARED',
           ],
         }],
       ],

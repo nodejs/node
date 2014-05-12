@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 #include <stdlib.h>
 
 #include "v8.h"
@@ -114,7 +112,7 @@ class DebugLocalContext {
     v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
         Handle<Object>(debug->debug_context()->global_proxy(), isolate),
         DONT_ENUM,
-        ::v8::internal::SLOPPY);
+        ::v8::internal::SLOPPY).Check();
   }
 
  private:
@@ -5409,8 +5407,6 @@ void BreakpointsDebuggerThread::Run() {
 
 
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
-  i::FLAG_debugger_auto_break = true;
-
   BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
   BreakpointsV8Thread breakpoints_v8_thread;
 
@@ -5881,7 +5877,6 @@ void HostDispatchDebuggerThread::Run() {
 TEST(DebuggerHostDispatch) {
   HostDispatchDebuggerThread host_dispatch_debugger_thread;
   HostDispatchV8Thread host_dispatch_v8_thread;
-  i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
   Barriers stack_allocated_host_dispatch_barriers;
@@ -5947,8 +5942,6 @@ void DebugMessageDispatchDebuggerThread::Run() {
 TEST(DebuggerDebugMessageDispatch) {
   DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
   DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
-
-  i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
   Barriers stack_allocated_debug_message_dispatch_barriers;
@@ -7515,7 +7508,7 @@ static void DebugBreakInlineListener(
     OS::SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[5]", break_id, i);
     v8::Local<v8::Value> result = CompileRun(script);
     CHECK_EQ(expected_line_number[i],
-             i::GetScriptLineNumber(source_script, result->Int32Value()));
+             i::Script::GetLineNumber(source_script, result->Int32Value()));
   }
   v8::Debug::SetDebugEventListener2(NULL);
   v8::V8::TerminateExecution(CcTest::isolate());
@@ -7668,4 +7661,32 @@ TEST(PrecompiledFunction) {
 }
 
 
-#endif  // ENABLE_DEBUGGER_SUPPORT
+static void DebugBreakStackTraceListener(
+    const v8::Debug::EventDetails& event_details) {
+  v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
+}
+
+
+static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Debug::DebugBreak(args.GetIsolate());
+}
+
+
+TEST(DebugBreakStackTrace) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Debug::SetDebugEventListener2(DebugBreakStackTraceListener);
+  v8::Handle<v8::FunctionTemplate> add_debug_break_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), AddDebugBreak);
+  v8::Handle<v8::Function> add_debug_break =
+      add_debug_break_template->GetFunction();
+  env->Global()->Set(v8_str("add_debug_break"), add_debug_break);
+
+  CompileRun("(function loop() {"
+             "  for (var j = 0; j < 1000; j++) {"
+             "    for (var i = 0; i < 1000; i++) {"
+             "      if (i == 999) add_debug_break();"
+             "    }"
+             "  }"
+             "})()");
+}

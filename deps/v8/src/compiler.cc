@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -141,6 +118,13 @@ void CompilationInfo::Initialize(Isolate* isolate,
     SetStrictMode(shared_info_->strict_mode());
   }
   set_bailout_reason(kUnknown);
+
+  if (!shared_info().is_null() && shared_info()->is_compiled()) {
+    // We should initialize the CompilationInfo feedback vector from the
+    // passed in shared info, rather than creating a new one.
+    feedback_vector_ = Handle<FixedArray>(shared_info()->feedback_vector(),
+                                          isolate);
+  }
 }
 
 
@@ -249,7 +233,13 @@ bool CompilationInfo::ShouldSelfOptimize() {
 void CompilationInfo::PrepareForCompilation(Scope* scope) {
   ASSERT(scope_ == NULL);
   scope_ = scope;
-  function()->ProcessFeedbackSlots(isolate_);
+
+  int length = function()->slot_count();
+  if (feedback_vector_.is_null()) {
+    // Allocate the feedback vector too.
+    feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(length);
+  }
+  ASSERT(feedback_vector_->length() == length);
 }
 
 
@@ -298,13 +288,9 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 // the full compiler need not be be used if a debugger is attached, but only if
 // break points has actually been set.
 static bool IsDebuggerActive(Isolate* isolate) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   return isolate->use_crankshaft() ?
     isolate->debug()->has_break_points() :
     isolate->debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
 }
 
 
@@ -352,6 +338,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   if (info()->is_osr() &&
       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
     return AbortAndDisableOptimization(kTooManyParametersLocals);
+  }
+
+  if (scope->HasIllegalRedeclaration()) {
+    return AbortAndDisableOptimization(kFunctionWithIllegalRedeclaration);
   }
 
   // Take --hydrogen-filter into account.
@@ -541,7 +531,7 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
   // TODO(yangguo): check whether those heuristics are still up-to-date.
   // We do not shrink objects that go into a snapshot (yet), so we adjust
   // the estimate conservatively.
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(shared->GetIsolate())) {
     estimate += 2;
   } else if (FLAG_clever_optimizations) {
     // Inobject slack tracking will reclaim redundant inobject space later,
@@ -570,6 +560,8 @@ static void UpdateSharedFunctionInfo(CompilationInfo* info) {
   CHECK(code->kind() == Code::FUNCTION);
   shared->ReplaceCode(*code);
   if (shared->optimization_disabled()) code->set_optimizable(false);
+
+  shared->set_feedback_vector(*info->feedback_vector());
 
   // Set the expected number of properties for instances.
   FunctionLiteral* lit = info->function();
@@ -633,13 +625,14 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 }
 
 
-static Handle<Code> GetUnoptimizedCodeCommon(CompilationInfo* info) {
+MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
+    CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
-  if (!Parser::Parse(info)) return Handle<Code>::null();
+  if (!Parser::Parse(info)) return MaybeHandle<Code>();
   info->SetStrictMode(info->function()->strict_mode());
 
-  if (!CompileUnoptimizedCode(info)) return Handle<Code>::null();
+  if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
   Compiler::RecordFunctionCompilation(
       Logger::LAZY_COMPILE_TAG, info, info->shared_info());
   UpdateSharedFunctionInfo(info);
@@ -648,7 +641,7 @@ static Handle<Code> GetUnoptimizedCodeCommon(CompilationInfo* info) {
 }
 
 
-Handle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
+MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
   ASSERT(!function->GetIsolate()->has_pending_exception());
   ASSERT(!function->is_compiled());
   if (function->shared()->is_compiled()) {
@@ -656,39 +649,43 @@ Handle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
   }
 
   CompilationInfoWithZone info(function);
-  Handle<Code> result = GetUnoptimizedCodeCommon(&info);
-  ASSERT_EQ(result.is_null(), info.isolate()->has_pending_exception());
+  Handle<Code> result;
+  ASSIGN_RETURN_ON_EXCEPTION(info.isolate(), result,
+                             GetUnoptimizedCodeCommon(&info),
+                             Code);
 
   if (FLAG_always_opt &&
-      !result.is_null() &&
       info.isolate()->use_crankshaft() &&
       !info.shared_info()->optimization_disabled() &&
       !info.isolate()->DebuggerHasBreakPoints()) {
-    Handle<Code> opt_code = Compiler::GetOptimizedCode(
-        function, result, Compiler::NOT_CONCURRENT);
-    if (!opt_code.is_null()) result = opt_code;
+    Handle<Code> opt_code;
+    if (Compiler::GetOptimizedCode(
+            function, result,
+            Compiler::NOT_CONCURRENT).ToHandle(&opt_code)) {
+      result = opt_code;
+    }
   }
 
   return result;
 }
 
 
-Handle<Code> Compiler::GetUnoptimizedCode(Handle<SharedFunctionInfo> shared) {
+MaybeHandle<Code> Compiler::GetUnoptimizedCode(
+    Handle<SharedFunctionInfo> shared) {
   ASSERT(!shared->GetIsolate()->has_pending_exception());
   ASSERT(!shared->is_compiled());
 
   CompilationInfoWithZone info(shared);
-  Handle<Code> result = GetUnoptimizedCodeCommon(&info);
-  ASSERT_EQ(result.is_null(), info.isolate()->has_pending_exception());
-  return result;
+  return GetUnoptimizedCodeCommon(&info);
 }
 
 
 bool Compiler::EnsureCompiled(Handle<JSFunction> function,
                               ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
-  Handle<Code> code = Compiler::GetUnoptimizedCode(function);
-  if (code.is_null()) {
+  MaybeHandle<Code> maybe_code = Compiler::GetUnoptimizedCode(function);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
     if (flag == CLEAR_EXCEPTION) {
       function->GetIsolate()->clear_pending_exception();
     }
@@ -709,7 +706,7 @@ bool Compiler::EnsureCompiled(Handle<JSFunction> function,
 // full code without debug break slots to full code with debug break slots
 // depends on the generated code is otherwise exactly the same.
 // If compilation fails, just keep the existing code.
-Handle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
+MaybeHandle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
   CompilationInfoWithZone info(function);
   Isolate* isolate = info.isolate();
   VMState<COMPILER> state(isolate);
@@ -725,18 +722,18 @@ Handle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
   } else {
     info.MarkNonOptimizable();
   }
-  Handle<Code> new_code = GetUnoptimizedCodeCommon(&info);
-  if (new_code.is_null()) {
+  MaybeHandle<Code> maybe_new_code = GetUnoptimizedCodeCommon(&info);
+  Handle<Code> new_code;
+  if (!maybe_new_code.ToHandle(&new_code)) {
     isolate->clear_pending_exception();
   } else {
     ASSERT_EQ(old_code->is_compiled_optimizable(),
               new_code->is_compiled_optimizable());
   }
-  return new_code;
+  return maybe_new_code;
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
   CompilationInfoWithZone info(script);
@@ -756,7 +753,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   }
   tracker.RecordRootFunctionInfo(info.code());
 }
-#endif
 
 
 static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
@@ -776,9 +772,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(0));
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->OnBeforeCompile(script);
-#endif
 
   ASSERT(info->is_eval() || info->is_global());
 
@@ -827,7 +821,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         lit->materialized_literal_count(),
         lit->is_generator(),
         info->code(),
-        ScopeInfo::Create(info->scope(), info->zone()));
+        ScopeInfo::Create(info->scope(), info->zone()),
+        info->feedback_vector());
 
     ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
     SetFunctionInfo(result, lit, true, script);
@@ -854,29 +849,30 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
-#endif
 
   return result;
 }
 
 
-Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
-                                                 Handle<Context> context,
-                                                 StrictMode strict_mode,
-                                                 ParseRestriction restriction,
-                                                 int scope_position) {
+MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
+    Handle<String> source,
+    Handle<Context> context,
+    StrictMode strict_mode,
+    ParseRestriction restriction,
+    int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  Handle<SharedFunctionInfo> shared_info = compilation_cache->LookupEval(
-      source, context, strict_mode, scope_position);
+  MaybeHandle<SharedFunctionInfo> maybe_shared_info =
+      compilation_cache->LookupEval(source, context, strict_mode,
+                                    scope_position);
+  Handle<SharedFunctionInfo> shared_info;
 
-  if (shared_info.is_null()) {
+  if (!maybe_shared_info.ToHandle(&shared_info)) {
     Handle<Script> script = isolate->factory()->NewScript(source);
     CompilationInfoWithZone info(script);
     info.MarkAsEval();
@@ -885,14 +881,12 @@ Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
     info.SetParseRestriction(restriction);
     info.SetContext(context);
 
-#if ENABLE_DEBUGGER_SUPPORT
     Debug::RecordEvalCaller(script);
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
     shared_info = CompileToplevel(&info);
 
     if (shared_info.is_null()) {
-      return Handle<JSFunction>::null();
+      return MaybeHandle<JSFunction>();
     } else {
       // Explicitly disable optimization for eval code. We're not yet prepared
       // to handle eval-code in the optimizing compiler.
@@ -922,7 +916,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     bool is_shared_cross_origin,
     Handle<Context> context,
     v8::Extension* extension,
-    ScriptDataImpl** cached_data,
+    ScriptData** cached_data,
     CachedDataMode cached_data_mode,
     NativesFlag natives) {
   if (cached_data_mode == NO_CACHED_DATA) {
@@ -941,25 +935,16 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
+  MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
-    result = compilation_cache->LookupScript(source,
-                                             script_name,
-                                             line_offset,
-                                             column_offset,
-                                             is_shared_cross_origin,
-                                             context);
+    maybe_result = compilation_cache->LookupScript(
+        source, script_name, line_offset, column_offset,
+        is_shared_cross_origin, context);
   }
 
-  if (result.is_null()) {
-    // No cache entry found. Do pre-parsing, if it makes sense, and compile
-    // the script.
-    // Building preparse data that is only used immediately after is only a
-    // saving if we might skip building the AST for lazily compiled functions.
-    // I.e., preparse data isn't relevant when the lazy flag is off, and
-    // for small sources, odds are that there aren't many functions
-    // that would be compiled lazily anyway, so we skip the preparse step
-    // in that case too.
+  if (!maybe_result.ToHandle(&result)) {
+    // No cache entry found. Compile the script.
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
@@ -984,11 +969,10 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
     }
+    if (result.is_null()) isolate->ReportPendingMessages();
   } else if (result->ic_age() != isolate->heap()->global_ic_age()) {
       result->ResetForNewContext(isolate->heap()->global_ic_age());
   }
-
-  if (result.is_null()) isolate->ReportPendingMessages();
   return result;
 }
 
@@ -1036,7 +1020,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                      literal->materialized_literal_count(),
                                      literal->is_generator(),
                                      info.code(),
-                                     scope_info);
+                                     scope_info,
+                                     info.feedback_vector());
   SetFunctionInfo(result, literal, false, script);
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
@@ -1051,8 +1036,9 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 }
 
 
-static Handle<Code> GetCodeFromOptimizedCodeMap(Handle<JSFunction> function,
-                                                BailoutId osr_ast_id) {
+MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
+    Handle<JSFunction> function,
+    BailoutId osr_ast_id) {
   if (FLAG_cache_optimized_code) {
     Handle<SharedFunctionInfo> shared(function->shared());
     DisallowHeapAllocation no_gc;
@@ -1072,7 +1058,7 @@ static Handle<Code> GetCodeFromOptimizedCodeMap(Handle<JSFunction> function,
       return Handle<Code>(shared->GetCodeFromOptimizedCodeMap(index));
     }
   }
-  return Handle<Code>::null();
+  return MaybeHandle<Code>();
 }
 
 
@@ -1159,12 +1145,15 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
 }
 
 
-Handle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
-                                        Handle<Code> current_code,
-                                        ConcurrencyMode mode,
-                                        BailoutId osr_ast_id) {
-  Handle<Code> cached_code = GetCodeFromOptimizedCodeMap(function, osr_ast_id);
-  if (!cached_code.is_null()) return cached_code;
+MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
+                                             Handle<Code> current_code,
+                                             ConcurrencyMode mode,
+                                             BailoutId osr_ast_id) {
+  Handle<Code> cached_code;
+  if (GetCodeFromOptimizedCodeMap(
+          function, osr_ast_id).ToHandle(&cached_code)) {
+    return cached_code;
+  }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
   Isolate* isolate = info->isolate();
@@ -1197,7 +1186,7 @@ Handle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-  return Handle<Code>::null();
+  return MaybeHandle<Code>();
 }
 
 
@@ -1261,12 +1250,13 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
       info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (code.is_identical_to(info->isolate()->builtins()->CompileUnoptimized()))
+    if (code.is_identical_to(
+            info->isolate()->builtins()->CompileUnoptimized())) {
       return;
-    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    }
+    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
     int column_num =
-        GetScriptColumnNumber(script, shared->start_position()) + 1;
-    USE(line_num);
+        Script::GetColumnNumber(script, shared->start_position()) + 1;
     String* script_name = script->name()->IsString()
         ? String::cast(script->name())
         : info->isolate()->heap()->empty_string();

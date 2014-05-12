@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256 --allow-natives-syntax
+// Flags: --max-new-space-size=2 --allow-natives-syntax
 
 function zero() {
   var x = 0.5;

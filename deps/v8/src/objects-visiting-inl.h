@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_OBJECTS_VISITING_INL_H_
 #define V8_OBJECTS_VISITING_INL_H_
@@ -309,12 +286,14 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   // Monomorphic ICs are preserved when possible, but need to be flushed
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
+
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
-          Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
-    IC::Clear(target->GetIsolate(), rinfo->pc(),
-              rinfo->host()->constant_pool());
+          Serializer::enabled(heap->isolate()) ||
+          target->ic_age() != heap->global_ic_age() ||
+          target->is_invalidated_weak_stub())) {
+    IC::Clear(heap->isolate(), rinfo->pc(), rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
@@ -427,10 +406,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
-  if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackInfo(heap);
-  }
-  if (FLAG_age_code && !Serializer::enabled()) {
+  if (FLAG_age_code && !Serializer::enabled(heap->isolate())) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
   code->CodeIterateBody<StaticVisitor>(heap);
@@ -444,6 +420,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
+  }
+  if (FLAG_cleanup_code_caches_at_gc) {
+    shared->ClearTypeFeedbackInfo();
   }
   if (FLAG_cache_optimized_code &&
       FLAG_flush_optimized_code_cache &&
@@ -498,8 +477,19 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
   }
   for (int i = 0; i < constant_pool->count_of_heap_ptr_entries(); i++) {
     int index = constant_pool->first_heap_ptr_index() + i;
-    StaticVisitor::VisitPointer(heap,
-                                constant_pool->RawFieldOfElementAt(index));
+    Object** slot = constant_pool->RawFieldOfElementAt(index);
+    HeapObject* object = HeapObject::cast(*slot);
+    heap->mark_compact_collector()->RecordSlot(slot, slot, object);
+    bool is_weak_object =
+        (constant_pool->get_weak_object_state() ==
+              ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
+         Code::IsWeakObjectInOptimizedCode(object)) ||
+        (constant_pool->get_weak_object_state() ==
+              ConstantPoolArray::WEAK_OBJECTS_IN_IC &&
+         Code::IsWeakObjectInIC(object));
+    if (!is_weak_object) {
+      StaticVisitor::MarkObject(heap, object);
+    }
   }
 }
 
@@ -615,12 +605,9 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   // array to prevent visiting it later. Skip recording the transition
   // array slot, since it will be implicitly recorded when the pointer
   // fields of this map are visited.
-  TransitionArray* transitions = map->unchecked_transition_array();
-  if (transitions->IsTransitionArray()) {
+  if (map->HasTransitionArray()) {
+    TransitionArray* transitions = map->transitions();
     MarkTransitionArray(heap, transitions);
-  } else {
-    // Already marked by marking map->GetBackPointer() above.
-    ASSERT(transitions->IsMap() || transitions->IsUndefined());
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the

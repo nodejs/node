@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -376,14 +353,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Label rt_call, allocated;
     if (FLAG_inline_new) {
       Label undo_allocation;
-#ifdef ENABLE_DEBUGGER_SUPPORT
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ mov(r2, Operand(debug_step_in_fp));
       __ ldr(r2, MemOperand(r2));
       __ tst(r2, r2);
       __ b(ne, &rt_call);
-#endif
 
       // Load the initial map and verify that it is in fact a map.
       // r1: constructor function
@@ -807,7 +782,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     if (is_construct) {
       // No type feedback cell is available
       __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-      CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
+      CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
       ParameterCount actual(r0);
@@ -923,7 +898,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Jump to point after the code-age stub.
-  __ add(r0, r0, Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize));
+  __ add(r0, r0, Operand(kNoCodeAgeSequenceLength));
   __ mov(pc, r0);
 }
 
@@ -1284,7 +1259,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ ldr(r1, MemOperand(fp, kFunctionOffset));
     __ Push(r1, r0);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     // End of stack check.
 
     // Push current limit and index.
@@ -1407,6 +1382,26 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
+static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
+                                      Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- r0 : actual number of arguments
+  //  -- r1 : function (passed through to callee)
+  //  -- r2 : expected number of arguments
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
+  // Make r5 the space we have left. The stack might already be overflowed
+  // here which will cause r5 to become negative.
+  __ sub(r5, sp, r5);
+  // Check if the arguments will overflow the stack.
+  __ cmp(r5, Operand(r2, LSL, kPointerSizeLog2));
+  __ b(le, stack_overflow);  // Signed comparison.
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -1446,6 +1441,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r2 : expected number of arguments
   // -----------------------------------
 
+  Label stack_overflow;
+  ArgumentAdaptorStackCheck(masm, &stack_overflow);
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
@@ -1545,6 +1542,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ Jump(r3);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ bkpt(0);
+  }
 }
 
 

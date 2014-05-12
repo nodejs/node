@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -51,8 +28,8 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       has_miss_handler_(false) { }
 
 
-bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
-  UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
+bool CodeStub::FindCodeInCache(Code** code_out) {
+  UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
@@ -72,11 +49,12 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 }
 
 
-void CodeStub::RecordCodeGeneration(Code* code, Isolate* isolate) {
+void CodeStub::RecordCodeGeneration(Handle<Code> code) {
+  IC::RegisterWeakMapDependency(code);
   SmartArrayPointer<const char> name = GetName();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, name.get()));
-  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), code));
-  Counters* counters = isolate->counters();
+  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, name.get()));
+  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), *code));
+  Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
 
@@ -86,25 +64,24 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
-Handle<Code> CodeStub::GetCodeCopy(Isolate* isolate,
-                                   const Code::FindAndReplacePattern& pattern) {
-  Handle<Code> ic = GetCode(isolate);
-  ic = isolate->factory()->CopyCode(ic);
+Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
+  Handle<Code> ic = GetCode();
+  ic = isolate()->factory()->CopyCode(ic);
   ic->FindAndReplace(pattern);
-  RecordCodeGeneration(*ic, isolate);
+  RecordCodeGeneration(ic);
   return ic;
 }
 
 
-Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+Handle<Code> PlatformCodeStub::GenerateCode() {
+  Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate, NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256);
 
   {
     // Update the static counter each time a new code stub is generated.
-    isolate->counters()->code_stubs()->Increment();
+    isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
@@ -128,37 +105,36 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
 }
 
 
-void CodeStub::VerifyPlatformFeatures(Isolate* isolate) {
+void CodeStub::VerifyPlatformFeatures() {
   ASSERT(CpuFeatures::VerifyCrossCompiling());
 }
 
 
-Handle<Code> CodeStub::GetCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
+Handle<Code> CodeStub::GetCode() {
+  Heap* heap = isolate()->heap();
   Code* code;
   if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code, isolate)
-      : FindCodeInCache(&code, isolate)) {
+      ? FindCodeInSpecialCache(&code)
+      : FindCodeInCache(&code)) {
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
 
 #ifdef DEBUG
-  VerifyPlatformFeatures(isolate);
+  VerifyPlatformFeatures();
 #endif
 
   {
-    HandleScope scope(isolate);
+    HandleScope scope(isolate());
 
-    Handle<Code> new_object = GenerateCode(isolate);
+    Handle<Code> new_object = GenerateCode();
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
-    RecordCodeGeneration(*new_object, isolate);
+    RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
-      CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+      CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
       new_object->Disassemble(GetName().get(), trace_scope.file());
       PrintF(trace_scope.file(), "\n");
     }
@@ -169,7 +145,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
     } else {
       // Update the dictionary and the root in Heap.
       Handle<UnseededNumberDictionary> dict =
-          factory->DictionaryAtNumberPut(
+          UnseededNumberDictionary::AtNumberPut(
               Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);
@@ -182,7 +158,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   ASSERT(!NeedsImmovableCode() ||
          heap->lo_space()->Contains(code) ||
          heap->code_space()->FirstPage()->Contains(code->address()));
-  return Handle<Code>(code, isolate);
+  return Handle<Code>(code, isolate());
 }
 
 
@@ -218,9 +194,10 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
     for (int mode = NO_OVERWRITE; mode <= OVERWRITE_RIGHT; ++mode) {
-      BinaryOpICStub stub(static_cast<Token::Value>(op),
+      BinaryOpICStub stub(isolate,
+                          static_cast<Token::Value>(op),
                           static_cast<OverwriteMode>(mode));
-      stub.GetCode(isolate);
+      stub.GetCode();
     }
   }
 
@@ -237,8 +214,8 @@ void BinaryOpICStub::PrintState(StringStream* stream) {
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
                                          const BinaryOpIC::State& state) {
-  BinaryOpICStub stub(state);
-  stub.GetCode(isolate);
+  BinaryOpICStub stub(isolate, state);
+  stub.GetCode();
 }
 
 
@@ -258,8 +235,8 @@ void BinaryOpICWithAllocationSiteStub::PrintState(StringStream* stream) {
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
     Isolate* isolate, const BinaryOpIC::State& state) {
   if (state.CouldCreateAllocationMementos()) {
-    BinaryOpICWithAllocationSiteStub stub(state);
-    stub.GetCode(isolate);
+    BinaryOpICWithAllocationSiteStub stub(isolate, state);
+    stub.GetCode();
   }
 }
 
@@ -312,8 +289,8 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
-  Factory* factory = isolate->factory();
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+  Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
@@ -324,7 +301,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
             *factory->strict_compare_ic_string() :
             *factory->compare_ic_string(),
         flags),
-      isolate);
+      isolate());
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
@@ -501,6 +478,11 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
+void CallICStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
+}
+
+
 void InstanceofStub::PrintName(StringStream* stream) {
   const char* args = "";
   if (HasArgsInRegisters()) {
@@ -539,8 +521,8 @@ void KeyedLoadDictionaryElementPlatformStub::Generate(
 
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
-  CreateAllocationSiteStub stub;
-  stub.GetCode(isolate);
+  CreateAllocationSiteStub stub(isolate);
+  stub.GetCode();
 }
 
 
@@ -583,7 +565,6 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 
 void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d", argc_);
-  if (RecordCallTarget()) stream->Add("_Recording");
 }
 
 
@@ -695,10 +676,10 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
-  StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
-  stub1.GetCode(isolate);
-  stub2.GetCode(isolate);
+  StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
+  StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
+  stub1.GetCode();
+  stub2.GetCode();
 }
 
 
@@ -716,42 +697,44 @@ static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (!descriptor->initialized()) {
-    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+    stub->InitializeInterfaceDescriptor(descriptor);
   }
 }
 
 
 void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  ArrayNoArgumentConstructorStub stub1(GetInitialFastElementsKind());
+  ArrayNoArgumentConstructorStub stub1(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub1);
-  ArraySingleArgumentConstructorStub stub2(GetInitialFastElementsKind());
+  ArraySingleArgumentConstructorStub stub2(isolate,
+                                           GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub2);
-  ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
+  ArrayNArgumentsConstructorStub stub3(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub3);
 }
 
 
 void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
-  NumberToStringStub stub;
+  NumberToStringStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(STRICT, false);
+  FastNewClosureStub stub(isolate, STRICT, false);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
-  FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  FastNewContextStub stub(isolate, FastNewContextStub::kMaximumSlots);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
-  FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+  FastCloneShallowArrayStub stub(isolate,
+                                 FastCloneShallowArrayStub::CLONE_ELEMENTS,
                                  DONT_TRACK_ALLOCATION_SITE, 0);
   InstallDescriptor(isolate, &stub);
 }
@@ -759,40 +742,41 @@ void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
 
 // static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpICStub stub(isolate, Token::ADD, NO_OVERWRITE);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpWithAllocationSiteStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpWithAllocationSiteStub stub(isolate, Token::ADD, NO_OVERWRITE);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void StringAddStub::InstallDescriptors(Isolate* isolate) {
-  StringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
+  StringAddStub stub(isolate, STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
-  RegExpConstructResultStub stub;
+  RegExpConstructResultStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : argument_count_(ANY) {
+    : PlatformCodeStub(isolate), argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
-                                           int argument_count) {
+                                           int argument_count)
+    : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
     argument_count_ = NONE;
   } else if (argument_count == 1) {
@@ -807,16 +791,16 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 
 
 void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  InternalArrayNoArgumentConstructorStub stub1(FAST_ELEMENTS);
+  InternalArrayNoArgumentConstructorStub stub1(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub1);
-  InternalArraySingleArgumentConstructorStub stub2(FAST_ELEMENTS);
+  InternalArraySingleArgumentConstructorStub stub2(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub2);
-  InternalArrayNArgumentsConstructorStub stub3(FAST_ELEMENTS);
+  InternalArrayNArgumentsConstructorStub stub3(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub3);
 }
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(
-    Isolate* isolate) {
+    Isolate* isolate) : PlatformCodeStub(isolate) {
   InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 

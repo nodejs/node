@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_LITHIUM_CODEGEN_ARM64_H_
 #define V8_ARM64_LITHIUM_CODEGEN_ARM64_H_
@@ -35,7 +12,7 @@
 #include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -60,8 +37,14 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        after_push_argument_(false),
+        inlined_arguments_(false) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
+  }
+
+  ~LCodeGen() {
+    ASSERT(!after_push_argument_ || inlined_arguments_);
   }
 
   // Simple accessors.
@@ -98,6 +81,7 @@ class LCodeGen: public LCodeGenBase {
   // information on it.
   void FinishCode(Handle<Code> code);
 
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
   Register ToRegister(LOperand* op) const;
@@ -105,8 +89,29 @@ class LCodeGen: public LCodeGenBase {
   Operand ToOperand(LOperand* op);
   Operand ToOperand32I(LOperand* op);
   Operand ToOperand32U(LOperand* op);
-  MemOperand ToMemOperand(LOperand* op) const;
+  enum StackMode { kMustUseFramePointer, kCanUseStackPointer };
+  MemOperand ToMemOperand(LOperand* op,
+                          StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
+
+  template<class LI>
+  Operand ToShiftedRightOperand32I(LOperand* right,
+                                   LI* shift_info) {
+    return ToShiftedRightOperand32(right, shift_info, SIGNED_INT32);
+  }
+  template<class LI>
+  Operand ToShiftedRightOperand32U(LOperand* right,
+                                   LI* shift_info) {
+    return ToShiftedRightOperand32(right, shift_info, UNSIGNED_INT32);
+  }
+  template<class LI>
+  Operand ToShiftedRightOperand32(LOperand* right,
+                                  LI* shift_info,
+                                  IntegerSignedness signedness);
+
+  int JSShiftAmountFromLConstant(LOperand* constant) {
+    return ToInteger32(LConstantOperand::cast(constant)) & 0x1f;
+  }
 
   // TODO(jbramley): Examine these helpers and check that they make sense.
   // IsInteger32Constant returns true for smi constants, for example.
@@ -137,7 +142,6 @@ class LCodeGen: public LCodeGenBase {
                                Label* exit,
                                Label* allocation_entry);
 
-  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   void DoDeferredNumberTagU(LInstruction* instr,
                             LOperand* value,
                             LOperand* temp1,
@@ -149,6 +153,10 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
+  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                   Register result,
+                                   Register object,
+                                   Register index);
 
   Operand ToOperand32(LOperand* op, IntegerSignedness signedness);
 
@@ -224,7 +232,7 @@ class LCodeGen: public LCodeGenBase {
       Deoptimizer::BailoutType* override_bailout_type = NULL);
   void Deoptimize(LEnvironment* environment,
                   Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
+  void DeoptimizeIf(Condition cond, LEnvironment* environment);
   void DeoptimizeIfZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNotZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
@@ -239,7 +247,6 @@ class LCodeGen: public LCodeGenBase {
   void DeoptimizeIfMinusZero(DoubleRegister input, LEnvironment* environment);
   void DeoptimizeIfBitSet(Register rt, int bit, LEnvironment* environment);
   void DeoptimizeIfBitClear(Register rt, int bit, LEnvironment* environment);
-  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,
@@ -249,18 +256,18 @@ class LCodeGen: public LCodeGenBase {
                                               int constant_key,
                                               ElementsKind elements_kind,
                                               int additional_index);
-  void CalcKeyedArrayBaseRegister(Register base,
-                                  Register elements,
-                                  Register key,
-                                  bool key_is_tagged,
-                                  ElementsKind elements_kind);
+  MemOperand PrepareKeyedArrayOperand(Register base,
+                                      Register elements,
+                                      Register key,
+                                      bool key_is_tagged,
+                                      ElementsKind elements_kind,
+                                      Representation representation,
+                                      int additional_index);
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
-
-  void Abort(BailoutReason reason);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
@@ -368,6 +375,15 @@ class LCodeGen: public LCodeGenBase {
 
   Safepoint::Kind expected_safepoint_kind_;
 
+  // This flag is true when we are after a push (but before a call).
+  // In this situation, jssp no longer references the end of the stack slots so,
+  // we can only reference a stack slot via fp.
+  bool after_push_argument_;
+  // If we have inlined arguments, we are no longer able to use jssp because
+  // jssp is modified and we never know if we are in a block after or before
+  // the pop of the arguments (which restores jssp).
+  bool inlined_arguments_;
+
   int old_position_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
@@ -387,12 +403,12 @@ class LCodeGen: public LCodeGenBase {
       codegen_->masm_->Mov(to_be_pushed_lr, lr);
       switch (codegen_->expected_safepoint_kind_) {
         case Safepoint::kWithRegisters: {
-          StoreRegistersStateStub stub(kDontSaveFPRegs);
+          StoreRegistersStateStub stub(codegen_->isolate(), kDontSaveFPRegs);
           codegen_->masm_->CallStub(&stub);
           break;
         }
         case Safepoint::kWithRegistersAndDoubles: {
-          StoreRegistersStateStub stub(kSaveFPRegs);
+          StoreRegistersStateStub stub(codegen_->isolate(), kSaveFPRegs);
           codegen_->masm_->CallStub(&stub);
           break;
         }
@@ -406,12 +422,12 @@ class LCodeGen: public LCodeGenBase {
       ASSERT((kind & Safepoint::kWithRegisters) != 0);
       switch (kind) {
         case Safepoint::kWithRegisters: {
-          RestoreRegistersStateStub stub(kDontSaveFPRegs);
+          RestoreRegistersStateStub stub(codegen_->isolate(), kDontSaveFPRegs);
           codegen_->masm_->CallStub(&stub);
           break;
         }
         case Safepoint::kWithRegistersAndDoubles: {
-          RestoreRegistersStateStub stub(kSaveFPRegs);
+          RestoreRegistersStateStub stub(codegen_->isolate(), kSaveFPRegs);
           codegen_->masm_->CallStub(&stub);
           break;
         }

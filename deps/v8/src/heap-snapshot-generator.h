@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
@@ -315,9 +292,6 @@ class HeapEntriesMap {
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)),
         v8::internal::kZeroHashSeed);
   }
-  static bool HeapThingsMatch(HeapThing key1, HeapThing key2) {
-    return key1 == key2;
-  }
 
   HashMap entries_;
 
@@ -376,6 +350,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   static HeapObject* const kInternalRootObject;
 
  private:
+  typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
+                                                          HeapObject* object);
+
   HeapEntry* AddEntry(HeapObject* object);
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
@@ -383,7 +360,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   const char* GetSystemEntryName(HeapObject* object);
 
-  void ExtractReferences(HeapObject* obj);
+  template<V8HeapExplorer::ExtractReferencesMethod extractor>
+  bool IterateAndExtractSinglePass();
+
+  bool ExtractReferencesPass1(int entry, HeapObject* obj);
+  bool ExtractReferencesPass2(int entry, HeapObject* obj);
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
@@ -400,12 +381,14 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
+  void ExtractFixedArrayReferences(int entry, FixedArray* array);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
                                    Object* key, Object* callback_obj);
   void ExtractElementReferences(JSObject* js_obj, int entry);
   void ExtractInternalReferences(JSObject* js_obj, int entry);
+
   bool IsEssentialObject(Object* object);
   void SetContextReference(HeapObject* parent_obj,
                            int parent,
@@ -439,6 +422,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                         const char* reference_name,
                         Object* child_obj,
                         int field_offset);
+  void SetWeakReference(HeapObject* parent_obj,
+                        int parent,
+                        int index,
+                        Object* child_obj,
+                        int field_offset);
   void SetPropertyReference(HeapObject* parent_obj,
                             int parent,
                             Name* reference_name,
@@ -452,6 +440,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
+  void MarkAsWeakContainer(Object* object);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -467,6 +456,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
+  HeapObjectsSet weak_containers_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   static HeapObject* const kGcRootsObject;

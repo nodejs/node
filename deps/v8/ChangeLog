@@ -1,3 +1,308 @@
+2014-05-08: Version 3.26.33
+
+        Removed default Isolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-07: Version 3.26.32
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-06: Version 3.26.31
+
+        Add a basic gn file for V8.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-05: Version 3.26.30
+
+        Introduce a microtask suppression scope and move microtask methods to
+        isolate (Chromium issue 369503).
+
+        Re-enable Object.observe and add enforcement for security invariants.
+
+        Move cache line size calculation directly into CPU::FlushICache
+        (Chromium issue 359977).
+
+        Generation of our home-grown memmove doesn't depend on serializer state
+        anymore (Chromium issue 359977).
+
+        Fix |RunMicrotasks()| leaking reference to the last context being run
+        on.
+
+        Object.defineProperty shouldn't be a hint that we're constructing a
+        dictionary (Chromium issue 362870).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-01: Version 3.26.29
+
+        Added a Isolate* parameter to Serializer::enabled() (Chromium issue
+        359977).
+
+        ES6: Add support for Array.prototype.fill() (issue 3273).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.28
+
+        PromiseThen should ignore non-function parameters (Chromium issue
+        347455).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.27
+
+        Error stack getter should not overwrite itself with a data property
+        (issue 3294).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.26
+
+        Expose promise value through promise mirror (issue 3093).
+
+        Simplified CPU/CpuFeatures a bit (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.25
+
+        Add timestamps to CPU profile samples (Chromium issue 363976).
+
+        Expose promise status through promise mirror (issue 3093).
+
+        Remove static CallCompletedCallback handlers.
+
+        Added an Isolate* field to NoTrackDoubleFieldsForSerializerScope,
+        PlatformFeatureScope and BinaryOpIC::State (Chromium issue 359977).
+
+        Trigger debug event on not yet caught exception in promises (issue
+        3093).
+
+        Unbreak vtunejit=on (issue 3288).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-25: Version 3.26.24
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 2)
+        (Chromium issue 359977).
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 1)
+        (Chromium issue 359977).
+
+        CodeStubs contain their corresponding Isolate* now. (part 2) (Chromium
+        issue 359977).
+
+        Make DescriptorArray::IsMoreGeneralThan() and DescriptorArray::Merge()
+        compatible again (Chromium issue 365172).
+
+        CodeStubs contain their corresponding Isolate* now. (part 1) (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-24: Version 3.26.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.22
+
+        Disable field type tracking by default (Chromium issue 365172).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.21
+
+        Context-allocate all parameters in generators (issue 3280).
+
+        Simplify v8/Isolate teardown (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-21: Version 3.26.20
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-18: Version 3.26.19
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-17: Version 3.26.18
+
+        Removed Isolate::EnterDefaultIsolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.17
+
+        Clear invalid field maps in PropertyAccessInfo (Chromium issue 363956).
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.16
+
+        Removed EnterIsolateIfNeeded and a soon-to-be-useless assertion
+        (Chromium issue 359977).
+
+        Removed GetDefaultIsolate{Debugger,ForLocking,StackGuard} (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-15: Version 3.26.15
+
+        Fix result of LCodeGen::DoWrapReceiver for strict functions and builtins
+        (Chromium issue 362128).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-15: Version 3.26.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-14: Version 3.26.13
+
+        Make maps in monomorphic IC stubs weak (issue 2073).
+
+        x64: Make sure that the upper half of a 64bit register contains 0 for
+        int32 values (Chromium issue 360611).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-11: Version 3.26.12
+
+        Do not use ranges after range analysis (Chromium issue 361608).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.11
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.10
+
+        Allow the embedder to pass the virtual memory limit to v8.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-09: Version 3.26.9
+
+        Fix invalid local property lookup for transitions (Chromium issue
+        361025).
+
+        MIPS: Fixed flooring division by -1 (issue 3259).
+
+        Fixed flooring division by -1 on ARM (issue 3259).
+
+        Make `String.prototype.contains` throw when passing a regular expression
+        (issue 3261).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-08: Version 3.26.8
+
+        Yet another regression test for range analysis (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-07: Version 3.26.7
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-04: Version 3.26.6
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.4
+
+        Make stray 'return' an early error.
+
+        Show references from weak containers as weak in heap snapshots (Chromium
+        issue 356590).
+
+        Make invalid LHSs that are calls late errors (Chromium issue 358346).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-02: Version 3.26.3
+
+        Support typed arrays in IsMoreGeneralElementsKindTransition (Chromium
+        issue 357054).
+
+        Remove debugger_auto_break flag.
+
+        Store i18n meta data in hidden symbols instead of js accessible
+        properties (Chromium issue 354967).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.2
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.1
+
+        Fix Type::Intersect to skip uninhabited bitsets (Chromium issue 357330).
+
+        Fix PrepareKeyedOperand on arm (Chromium issue 358057).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-31: Version 3.26.0
+
+        Deprecate Start/StopCpuProfiling methods (issue 3213).
+
+        Don't crash if we get a timezone change notification on an uninitialized
+        isolate (Chromium issue 357362).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-28: Version 3.25.30
 
         NativeContext::map_cache reference should be strong in heap snapshots

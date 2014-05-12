@@ -31,8 +31,6 @@
   'variables': {
     'v8_compress_startup_data%': 'off',
 
-    'v8_enable_debugger_support%': 1,
-
     'v8_enable_disassembler%': 0,
 
     'v8_enable_gdbjit%': 0,
@@ -64,9 +62,6 @@
   },
   'target_defaults': {
     'conditions': [
-      ['v8_enable_debugger_support==1', {
-        'defines': ['ENABLE_DEBUGGER_SUPPORT',],
-      }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
       }],
@@ -98,7 +93,8 @@
       }],
     ],  # conditions
     'configurations': {
-      'Debug': {
+      'DebugBaseCommon': {
+        'abstract': 1,
         'variables': {
           'v8_enable_extra_checks%': 1,
           'v8_enable_handle_zapping%': 1,

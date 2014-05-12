@@ -27,14 +27,18 @@
 
 // Regression test of a very rare corner case where left-trimming an
 // array caused invalid marking bit patterns on lazily swept pages.
+//
+// Lazy sweeping was deprecated. We are keeping the test case to make
+// sure that concurrent sweeping, which relies on similar assumptions
+// as lazy sweeping works correctly.
 
-// Flags: --expose-gc --noincremental-marking --max-new-space-size 1000
+// Flags: --expose-gc --noincremental-marking --max-new-space-size=2
 
 (function() {
   var head = new Array(1);
   var tail = head;
 
-  // Fill heap to increase old-space size and trigger lazy sweeping on
+  // Fill heap to increase old-space size and trigger concurrent sweeping on
   // some of the old-space pages.
   for (var i = 0; i < 200; i++) {
     tail[1] = new Array(1000);
@@ -44,7 +48,7 @@
   gc(); gc();
 
   // At this point "array" should have been promoted to old-space and be
-  // located in a lazy swept page with intact marking bits. Now shift
+  // located in a concurrently swept page with intact marking bits. Now shift
   // the array to trigger left-trimming operations.
   assertEquals(100, array.length);
   for (var i = 0; i < 50; i++) {
@@ -54,7 +58,7 @@
 
   // At this point "array" should have been trimmed from the left with
   // marking bits being correctly transfered to the new object start.
-  // Scavenging operations cause lazy sweeping to advance and verify
+  // Scavenging operations cause concurrent sweeping to advance and verify
   // that marking bit patterns are still sane.
   for (var i = 0; i < 200; i++) {
     tail[1] = new Array(1000);

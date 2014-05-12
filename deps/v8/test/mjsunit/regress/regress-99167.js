@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --max-new-space-size=1024
+// Flags: --expose-gc --max-new-space-size=2
 
 eval("function Node() { this.a = 1; this.a = 3; }");
 new Node;

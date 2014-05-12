@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -160,7 +137,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
       VariableMode mode;
       InitializationFlag init_flag;
-      int slot_index = scope_info->ContextSlotIndex(*name, &mode, &init_flag);
+      int slot_index =
+          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
       ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
@@ -231,7 +209,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     } else if (context->IsCatchContext()) {
       // Catch contexts have the variable name in the extension slot.
-      if (name->Equals(String::cast(context->extension()))) {
+      if (String::Equals(name, handle(String::cast(context->extension())))) {
         if (FLAG_trace_contexts) {
           PrintF("=> found in catch context\n");
         }
@@ -365,11 +343,11 @@ Object* Context::DeoptimizedCodeListHead() {
 
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
-  Handle<Object> result(error_message_for_code_gen_from_strings(),
-                        GetIsolate());
+  Isolate* isolate = GetIsolate();
+  Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
   if (!result->IsUndefined()) return result;
-  return GetIsolate()->factory()->NewStringFromOneByte(STATIC_ASCII_VECTOR(
-      "Code generation from strings disallowed for this context"));
+  return isolate->factory()->NewStringFromStaticAscii(
+      "Code generation from strings disallowed for this context");
 }
 
 

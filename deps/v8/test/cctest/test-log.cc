@@ -39,8 +39,8 @@
 #include "log-utils.h"
 #include "cpu-profiler.h"
 #include "natives.h"
+#include "utils.h"
 #include "v8threads.h"
-#include "v8utils.h"
 #include "cctest.h"
 #include "vm-state-inl.h"
 

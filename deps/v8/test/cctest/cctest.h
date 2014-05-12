@@ -80,6 +80,20 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
 #undef DEFINE_EXTENSION_FLAG
 
 
+// Use this to expose protected methods in i::Heap.
+class TestHeap : public i::Heap {
+ public:
+  using i::Heap::AllocateArgumentsObject;
+  using i::Heap::AllocateByteArray;
+  using i::Heap::AllocateFixedArray;
+  using i::Heap::AllocateHeapNumber;
+  using i::Heap::AllocateJSObject;
+  using i::Heap::AllocateJSObjectFromMap;
+  using i::Heap::AllocateMap;
+  using i::Heap::CopyCode;
+};
+
+
 class CcTest {
  public:
   typedef void (TestFunction)();
@@ -105,6 +119,10 @@ class CcTest {
 
   static i::Heap* heap() {
     return i_isolate()->heap();
+  }
+
+  static TestHeap* test_heap() {
+    return reinterpret_cast<TestHeap*>(i_isolate()->heap());
   }
 
   static v8::Local<v8::Object> global() {
@@ -346,19 +364,13 @@ static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
 
 
 static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
+  // Compile once just to get the preparse data, then compile the second time
+  // using the data.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::String> source_string =
-      v8::String::NewFromUtf8(isolate, source);
-  v8::ScriptData* preparse = v8::ScriptData::PreCompile(source_string);
-  v8::ScriptCompiler::Source script_source(
-      source_string, new v8::ScriptCompiler::CachedData(
-                         reinterpret_cast<const uint8_t*>(preparse->Data()),
-                         preparse->Length()));
-  v8::Local<v8::Script> script =
-      v8::ScriptCompiler::Compile(isolate, &script_source);
-  v8::Local<v8::Value> result = script->Run();
-  delete preparse;
-  return result;
+  v8::ScriptCompiler::Source script_source(v8_str(source));
+  v8::ScriptCompiler::Compile(isolate, &script_source,
+                              v8::ScriptCompiler::kProduceDataToCache);
+  return v8::ScriptCompiler::Compile(isolate, &script_source)->Run();
 }
 
 
@@ -403,8 +415,10 @@ static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
   int new_linear_size = static_cast<int>(
       *space->allocation_limit_address() - *space->allocation_top_address());
   if (new_linear_size == 0) return;
-  v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
+  v8::internal::AllocationResult allocation =
+      space->AllocateRaw(new_linear_size);
+  v8::internal::FreeListNode* node =
+      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
   node->set_size(space->heap(), new_linear_size);
 }
 

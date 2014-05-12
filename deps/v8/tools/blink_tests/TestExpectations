@@ -1,5 +1,4 @@
 # Tests that sometimes fail only on the V8 waterfall:
-[ Linux Release x86 ] fast/js/JSON-stringify.html [ Pass Failure Slow ]
 [ Linux Release x86 ] fast/text/atsui-multiple-renderers.html [ Pass Failure Slow ]
 [ Linux Release x86 ] fast/text/international/complex-joining-using-gpos.html [ Pass Failure Slow ]
 [ Linux Release x86 ] fast/text/international/danda-space.html [ Pass Failure Slow ]

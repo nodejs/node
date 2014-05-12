@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
@@ -55,10 +32,10 @@ class RegExpImpl {
 
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
-                                            Handle<String> pattern,
-                                            Handle<String> flags,
-                                            bool* has_pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> CreateRegExpLiteral(
+      Handle<JSFunction> constructor,
+      Handle<String> pattern,
+      Handle<String> flags);
 
   // Returns a string representation of a regular expression.
   // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
@@ -69,16 +46,18 @@ class RegExpImpl {
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
-  static Handle<Object> Compile(Handle<JSRegExp> re,
-                                Handle<String> pattern,
-                                Handle<String> flags);
+  MUST_USE_RESULT static MaybeHandle<Object> Compile(
+      Handle<JSRegExp> re,
+      Handle<String> pattern,
+      Handle<String> flags);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> Exec(Handle<JSRegExp> regexp,
-                             Handle<String> subject,
-                             int index,
-                             Handle<JSArray> lastMatchInfo);
+  MUST_USE_RESULT static MaybeHandle<Object> Exec(
+      Handle<JSRegExp> regexp,
+      Handle<String> subject,
+      int index,
+      Handle<JSArray> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -133,10 +112,11 @@ class RegExpImpl {
   // On a successful match, the result is a JSArray containing
   // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
-  static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
-                                     Handle<String> subject,
-                                     int index,
-                                     Handle<JSArray> lastMatchInfo);
+  MUST_USE_RESULT static MaybeHandle<Object> IrregexpExec(
+      Handle<JSRegExp> regexp,
+      Handle<String> subject,
+      int index,
+      Handle<JSArray> lastMatchInfo);
 
   // Set last match info.  If match is NULL, then setting captures is omitted.
   static Handle<JSArray> SetLastMatchInfo(Handle<JSArray> last_match_info,

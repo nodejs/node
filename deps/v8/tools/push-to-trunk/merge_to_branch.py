@@ -41,7 +41,6 @@ CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
   ALREADY_MERGING_SENTINEL_FILE:
       "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  TEMP_BRANCH: "prepare-merge-temporary-branch-created-by-script",
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",
@@ -134,16 +133,8 @@ class FindGitRevisions(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    if self._options.revert:
-      if not self._options.revert_bleeding_edge:
-        self["new_commit_msg"] = ("Rollback of %s in %s branch."
-            % (self["revision_list"], self["merge_to_branch"]))
-      else:
-        self["new_commit_msg"] = "Revert %s." % self["revision_list"]
-    else:
-      self["new_commit_msg"] = ("Merged %s into %s branch."
-          % (self["revision_list"], self["merge_to_branch"]))
-    self["new_commit_msg"] += "\n\n"
+    # The commit message title is added below after the version is specified.
+    self["new_commit_msg"] = ""
 
     for commit_hash in self["patch_commit_hashes"]:
       patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
@@ -155,10 +146,9 @@ class FindGitRevisions(Step):
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg,
                             re.M):
         bugs.extend(map(lambda s: s.strip(), bug.split(",")))
-    bug_aggregate = ",".join(sorted(bugs))
+    bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
     if bug_aggregate:
       self["new_commit_msg"] += "BUG=%s\nLOG=N\n" % bug_aggregate
-    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
 
 
 class ApplyPatches(Step):
@@ -181,7 +171,7 @@ class PrepareVersion(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    # These version numbers are used again for creating the tag
+    # This is used to calculate the patch level increment.
     self.ReadAndPersistVersion()
 
 
@@ -204,12 +194,28 @@ class IncrementVersion(Step):
     else:
       self.Editor(self.Config(VERSION_FILE))
     self.ReadAndPersistVersion("new_")
+    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
+                                       self["new_minor"],
+                                       self["new_build"],
+                                       self["new_patch"])
 
 
 class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
+    # Add a commit message title.
+    if self._options.revert:
+      if not self._options.revert_bleeding_edge:
+        title = ("Version %s (rollback of %s)"
+                 % (self["version"], self["revision_list"]))
+      else:
+        title = "Revert %s." % self["revision_list"]
+    else:
+      title = ("Version %s (merged %s)"
+               % (self["version"], self["revision_list"]))
+    self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
+    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
     self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
 
 
@@ -244,10 +250,6 @@ class TagRevision(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
-                                       self["new_minor"],
-                                       self["new_build"],
-                                       self["new_patch"])
     print "Creating tag svn/tags/%s" % self["version"]
     if self["merge_to_branch"] == "trunk":
       self["to_url"] = "trunk"

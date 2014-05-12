@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
@@ -35,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class ScriptDataImpl;
+class ScriptData;
 class HydrogenCodeStub;
 
 // ParseRestriction is used to restrict the set of valid statements in a
@@ -83,7 +60,7 @@ class CompilationInfo {
   Handle<Script> script() const { return script_; }
   HydrogenCodeStub* code_stub() const {return code_stub_; }
   v8::Extension* extension() const { return extension_; }
-  ScriptDataImpl** cached_data() const { return cached_data_; }
+  ScriptData** cached_data() const { return cached_data_; }
   CachedDataMode cached_data_mode() const {
     return cached_data_mode_;
   }
@@ -178,18 +155,20 @@ class CompilationInfo {
     ASSERT(function_ == NULL);
     function_ = literal;
   }
-  // When the scope is applied, we may have deferred work to do on the function.
   void PrepareForCompilation(Scope* scope);
   void SetGlobalScope(Scope* global_scope) {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;
+  }
+  Handle<FixedArray> feedback_vector() const {
+    return feedback_vector_;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
     ASSERT(!is_lazy());
     extension_ = extension;
   }
-  void SetCachedData(ScriptDataImpl** cached_data,
+  void SetCachedData(ScriptData** cached_data,
                      CachedDataMode cached_data_mode) {
     cached_data_mode_ = cached_data_mode;
     if (cached_data_mode == NO_CACHED_DATA) {
@@ -412,12 +391,15 @@ class CompilationInfo {
 
   // Fields possibly needed for eager compilation, NULL by default.
   v8::Extension* extension_;
-  ScriptDataImpl** cached_data_;
+  ScriptData** cached_data_;
   CachedDataMode cached_data_mode_;
 
   // The context of the caller for eval code, and the global context for a
   // global script. Will be a null handle otherwise.
   Handle<Context> context_;
+
+  // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
+  Handle<FixedArray> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
@@ -556,6 +538,8 @@ class OptimizedCompileJob: public ZoneObject {
   MUST_USE_RESULT Status AbortAndDisableOptimization(
       BailoutReason reason = kNoReason) {
     if (reason != kNoReason) info_->set_bailout_reason(reason);
+    // Reference to shared function info does not change between phases.
+    AllowDeferredHandleDereference allow_handle_dereference;
     info_->shared_info()->DisableOptimization(info_->bailout_reason());
     return SetLastStatus(BAILED_OUT);
   }
@@ -615,22 +599,24 @@ class OptimizedCompileJob: public ZoneObject {
 
 class Compiler : public AllStatic {
  public:
-  static Handle<Code> GetUnoptimizedCode(Handle<JSFunction> function);
-  static Handle<Code> GetUnoptimizedCode(Handle<SharedFunctionInfo> shared);
+  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
+      Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
+      Handle<SharedFunctionInfo> shared);
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-  static Handle<Code> GetCodeForDebugging(Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetCodeForDebugging(
+      Handle<JSFunction> function);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   static void CompileForLiveEdit(Handle<Script> script);
-#endif
 
   // Compile a String source within a context for eval.
-  static Handle<JSFunction> GetFunctionFromEval(Handle<String> source,
-                                                Handle<Context> context,
-                                                StrictMode strict_mode,
-                                                ParseRestriction restriction,
-                                                int scope_position);
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
+      Handle<String> source,
+      Handle<Context> context,
+      StrictMode strict_mode,
+      ParseRestriction restriction,
+      int scope_position);
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(
@@ -641,7 +627,7 @@ class Compiler : public AllStatic {
       bool is_shared_cross_origin,
       Handle<Context> context,
       v8::Extension* extension,
-      ScriptDataImpl** cached_data,
+      ScriptData** cached_data,
       CachedDataMode cached_data_mode,
       NativesFlag is_natives_code);
 
@@ -654,7 +640,7 @@ class Compiler : public AllStatic {
   // Generate and return optimized code or start a concurrent optimization job.
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
-  static Handle<Code> GetOptimizedCode(
+  MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
       Handle<JSFunction> function,
       Handle<Code> current_code,
       ConcurrencyMode mode,

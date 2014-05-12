@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
@@ -33,7 +10,7 @@
 #include "list.h"
 #include "log.h"
 #include "platform/mutex.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -946,7 +923,7 @@ class CodeRange {
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
   // Returns false on failure.
-  bool SetUp(const size_t requested_size);
+  bool SetUp(size_t requested_size);
 
   // Frees the range of virtual memory, and frees the data structures used to
   // manage it.
@@ -1520,9 +1497,8 @@ class FreeListNode: public HeapObject {
 
   inline void Zap();
 
-  static inline FreeListNode* cast(MaybeObject* maybe) {
-    ASSERT(!maybe->IsFailure());
-    return reinterpret_cast<FreeListNode*>(maybe);
+  static inline FreeListNode* cast(Object* object) {
+    return reinterpret_cast<FreeListNode*>(object);
   }
 
  private:
@@ -1693,6 +1669,47 @@ class FreeList {
 };
 
 
+class AllocationResult {
+ public:
+  // Implicit constructor from Object*.
+  AllocationResult(Object* object) : object_(object),  // NOLINT
+                                     retry_space_(INVALID_SPACE) { }
+
+  AllocationResult() : object_(NULL),
+                       retry_space_(INVALID_SPACE) { }
+
+  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+    return AllocationResult(space);
+  }
+
+  inline bool IsRetry() { return retry_space_ != INVALID_SPACE; }
+
+  template <typename T>
+  bool To(T** obj) {
+    if (IsRetry()) return false;
+    *obj = T::cast(object_);
+    return true;
+  }
+
+  Object* ToObjectChecked() {
+    CHECK(!IsRetry());
+    return object_;
+  }
+
+  AllocationSpace RetrySpace() {
+    ASSERT(IsRetry());
+    return retry_space_;
+  }
+
+ private:
+  explicit AllocationResult(AllocationSpace space) : object_(NULL),
+                                                     retry_space_(space) { }
+
+  Object* object_;
+  AllocationSpace retry_space_;
+};
+
+
 class PagedSpace : public Space {
  public:
   // Creates a space with a maximum capacity, and an id.
@@ -1722,10 +1739,10 @@ class PagedSpace : public Space {
   bool Contains(HeapObject* o) { return Contains(o->address()); }
 
   // Given an address occupied by a live object, return that object if it is
-  // in this space, or Failure::Exception() if it is not. The implementation
-  // iterates over objects in the page containing the address, the cost is
-  // linear in the number of objects in the page. It may be slow.
-  MUST_USE_RESULT MaybeObject* FindObject(Address addr);
+  // in this space, or a Smi if it is not.  The implementation iterates over
+  // objects in the page containing the address, the cost is linear in the
+  // number of objects in the page.  It may be slow.
+  Object* FindObject(Address addr);
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
@@ -1783,8 +1800,9 @@ class PagedSpace : public Space {
   intptr_t Available() { return free_list_.available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
-  // lazy sweeping are counted as being allocated!  The bytes in the current
-  // linear allocation area (between top and limit) are also counted here.
+  // concurrent sweeping are counted as being allocated!  The bytes in the
+  // current linear allocation area (between top and limit) are also counted
+  // here.
   virtual intptr_t Size() { return accounting_stats_.Size(); }
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
@@ -1812,7 +1830,7 @@ class PagedSpace : public Space {
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
@@ -1853,7 +1871,7 @@ class PagedSpace : public Space {
   void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page, bool unlink);
+  void ReleasePage(Page* page);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -1885,16 +1903,10 @@ class PagedSpace : public Space {
 
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
-  static bool ShouldBeSweptLazily(Page* p) {
+  static bool ShouldBeSweptBySweeperThreads(Page* p) {
     return !p->IsEvacuationCandidate() &&
            !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) &&
            !p->WasSweptPrecisely();
-  }
-
-  void SetPagesToSweep(Page* first) {
-    ASSERT(unswept_free_bytes_ == 0);
-    if (first == &anchor_) first = NULL;
-    first_unswept_page_ = first;
   }
 
   void IncrementUnsweptFreeBytes(intptr_t by) {
@@ -1902,7 +1914,7 @@ class PagedSpace : public Space {
   }
 
   void IncreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptLazily(p));
+    ASSERT(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
@@ -1911,7 +1923,7 @@ class PagedSpace : public Space {
   }
 
   void DecreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptLazily(p));
+    ASSERT(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
   }
 
@@ -1919,15 +1931,18 @@ class PagedSpace : public Space {
     unswept_free_bytes_ = 0;
   }
 
-  bool AdvanceSweeper(intptr_t bytes_to_sweep);
-
-  // When parallel sweeper threads are active and the main thread finished
-  // its sweeping phase, this function waits for them to complete, otherwise
-  // AdvanceSweeper with size_in_bytes is called.
+  // This function tries to steal size_in_bytes memory from the sweeper threads
+  // free-lists. If it does not succeed stealing enough memory, it will wait
+  // for the sweeper threads to finish sweeping.
+  // It returns true when sweeping is completed and false otherwise.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
 
-  bool IsLazySweepingComplete() {
-    return !first_unswept_page_->is_valid();
+  void set_end_of_unswept_pages(Page* page) {
+    end_of_unswept_pages_ = page;
+  }
+
+  Page* end_of_unswept_pages() {
+    return end_of_unswept_pages_;
   }
 
   Page* FirstPage() { return anchor_.next_page(); }
@@ -1969,14 +1984,15 @@ class PagedSpace : public Space {
 
   bool was_swept_conservatively_;
 
-  // The first page to be swept when the lazy sweeper advances. Is set
-  // to NULL when all pages have been swept.
-  Page* first_unswept_page_;
-
   // The number of free bytes which could be reclaimed by advancing the
-  // lazy sweeper.  This is only an estimation because lazy sweeping is
-  // done conservatively.
+  // concurrent sweeper threads.  This is only an estimation because concurrent
+  // sweeping is done conservatively.
   intptr_t unswept_free_bytes_;
+
+  // The sweeper threads iterate over the list of pointer and data space pages
+  // and sweep these pages concurrently. They will stop sweeping after the
+  // end_of_unswept_pages_ page.
+  Page* end_of_unswept_pages_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap
@@ -2540,7 +2556,7 @@ class NewSpace : public Space {
     return allocation_info_.limit_address();
   }
 
-  MUST_USE_RESULT INLINE(MaybeObject* AllocateRaw(int size_in_bytes));
+  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
@@ -2657,7 +2673,7 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  MUST_USE_RESULT MaybeObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT AllocationResult SlowAllocateRaw(int size_in_bytes);
 
   friend class SemiSpaceIterator;
 
@@ -2812,8 +2828,8 @@ class LargeObjectSpace : public Space {
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.
-  MUST_USE_RESULT MaybeObject* AllocateRaw(int object_size,
-                                           Executability executable);
+  MUST_USE_RESULT AllocationResult AllocateRaw(int object_size,
+                                               Executability executable);
 
   // Available bytes for objects in this space.
   inline intptr_t Available();
@@ -2841,10 +2857,9 @@ class LargeObjectSpace : public Space {
     return page_count_;
   }
 
-  // Finds an object for a given address, returns Failure::Exception()
-  // if it is not found. The function iterates through all objects in this
-  // space, may be slow.
-  MaybeObject* FindObject(Address a);
+  // Finds an object for a given address, returns a Smi if it is not found.
+  // The function iterates through all objects in this space, may be slow.
+  Object* FindObject(Address a);
 
   // Finds a large object page containing the given address, returns NULL
   // if such a page doesn't exist.
@@ -2872,7 +2887,7 @@ class LargeObjectSpace : public Space {
 #endif
   // Checks whether an address is in the object area in this space.  It
   // iterates all objects in the space. May be slow.
-  bool SlowContains(Address addr) { return !FindObject(addr)->IsFailure(); }
+  bool SlowContains(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
  private:
   intptr_t max_capacity_;

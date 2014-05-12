@@ -1,0 +1,48 @@
+# DO NOT EDIT EXCEPT FOR LOCAL TESTING.
+# THIS IS A GENERATED FILE.
+# ALL MANUAL CHANGES WILL BE OVERWRITTEN.
+# SEE http://code.google.com/p/chromium/wiki/UsingGit
+# FOR HOW TO ROLL DEPS
+vars = {
+    'webkit_url':
+         'https://chromium.googlesource.com/chromium/blink.git',
+    'git_url':
+         'https://chromium.googlesource.com'
+}
+
+deps = {
+    'v8/build/gyp':
+        Var('git_url') + '/external/gyp.git@a3e2a5caf24a1e0a45401e09ad131210bf16b852',
+    'v8/third_party/icu':
+        Var('git_url') + '/chromium/deps/icu46.git@7a1ec88f69e25b3efcf76196d07f7815255db025',
+}
+
+deps_os = {
+    'win':
+    {
+        'v8/third_party/cygwin':
+            Var('git_url') + '/chromium/deps/cygwin.git@06a117a90c15174436bfa20ceebbfdf43b7eb820',
+        'v8/third_party/python_26':
+            Var('git_url') + '/chromium/deps/python_26.git@67d19f904470effe3122d27101cc5a8195abd157',
+    },
+}
+
+include_rules = [
+    
+]
+
+skip_child_includes = [
+    
+]
+
+hooks = [
+    {
+    'action':
+         [
+    'python',
+    'v8/build/gyp_v8'
+],
+    'pattern':
+         '.'
+}
+]

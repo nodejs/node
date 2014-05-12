@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
@@ -41,7 +18,6 @@
 #include "string-stream.h"
 #include "v8threads.h"
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 
 namespace v8 {
@@ -175,7 +151,9 @@ class BreakLocationIterator {
 class ScriptCache : private HashMap {
  public:
   explicit ScriptCache(Isolate* isolate)
-    : HashMap(ScriptMatch), isolate_(isolate), collected_scripts_(10) {}
+      : HashMap(HashMap::PointersMatch),
+        isolate_(isolate),
+        collected_scripts_(10) {}
   virtual ~ScriptCache() { Clear(); }
 
   // Add script to the cache.
@@ -192,9 +170,6 @@ class ScriptCache : private HashMap {
   static uint32_t Hash(int key) {
     return ComputeIntegerHash(key, v8::internal::kZeroHashSeed);
   }
-
-  // Scripts match if their keys (script id) match.
-  static bool ScriptMatch(void* key1, void* key2) { return key1 == key2; }
 
   // Clear the cache releasing all the weak handles.
   void Clear();
@@ -237,13 +212,11 @@ class DebugInfoListNode {
 // DebugInfo.
 class Debug {
  public:
-  void SetUp(bool create_heap_objects);
   bool Load();
   void Unload();
   bool IsLoaded() { return !debug_context_.is_null(); }
   bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
   void PreemptionWhileInDebugger();
-  void Iterate(ObjectVisitor* v);
 
   Object* Break(Arguments args);
   void SetBreakPoint(Handle<JSFunction> function,
@@ -260,6 +233,12 @@ class Debug {
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
+
+  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
+  void PromiseHandleEpilogue();
+  // Returns a promise if it does not have a reject handler.
+  Handle<Object> GetPromiseForUncaughtException();
+
   void PrepareStep(StepAction step_action,
                    int step_count,
                    StackFrame::Id frame_id);
@@ -366,8 +345,6 @@ class Debug {
 
   enum AddressId {
     k_after_break_target_address,
-    k_debug_break_return_address,
-    k_debug_break_slot_address,
     k_restarter_frame_function_pointer
   };
 
@@ -383,18 +360,6 @@ class Debug {
   // Support for saving/restoring registers when handling debug break calls.
   Object** register_address(int r) {
     return &registers_[r];
-  }
-
-  // Access to the debug break on return code.
-  Code* debug_break_return() { return debug_break_return_; }
-  Code** debug_break_return_address() {
-    return &debug_break_return_;
-  }
-
-  // Access to the debug break in debug break slot code.
-  Code* debug_break_slot() { return debug_break_slot_; }
-  Code** debug_break_slot_address() {
-    return &debug_break_slot_;
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;
@@ -431,6 +396,7 @@ class Debug {
 
   // Code generator routines.
   static void GenerateSlot(MacroAssembler* masm);
+  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
@@ -438,7 +404,6 @@ class Debug {
   static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
   static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
@@ -449,9 +414,6 @@ class Debug {
   // There is no calling conventions here, because it never actually gets
   // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
-
-  // Called from stub-cache.cc.
-  static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
   // Describes how exactly a frame has been dropped from stack.
   enum FrameDropMode {
@@ -549,6 +511,10 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
+  void MaybeRecompileFunctionForDebugging(Handle<JSFunction> function);
+  void RecompileAndRelocateSuspendedGenerators(
+      const List<Handle<JSGeneratorObject> > &suspended_generators);
+
   // Global handle to debug context where all the debugger JavaScript code is
   // loaded.
   Handle<Context> debug_context_;
@@ -565,6 +531,14 @@ class Debug {
   bool disable_break_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
+
+  // When a promise is being resolved, we may want to trigger a debug event for
+  // the case we catch a throw.  For this purpose we remember the try-catch
+  // handler address that would catch the exception.  We also hold onto a
+  // closure that returns a promise if the exception is considered uncaught.
+  // Due to the possibility of reentry we use a list to form a stack.
+  List<StackHandler*> promise_catch_handlers_;
+  List<Handle<JSFunction> > promise_getters_;
 
   // Per-thread data.
   class ThreadLocal {
@@ -624,12 +598,6 @@ class Debug {
   ThreadLocal thread_local_;
   void ThreadInit();
 
-  // Code to call for handling debug break on return.
-  Code* debug_break_return_;
-
-  // Code to call for handling debug break in debug break slots.
-  Code* debug_break_slot_;
-
   Isolate* isolate_;
 
   friend class Isolate;
@@ -638,7 +606,7 @@ class Debug {
 };
 
 
-DECLARE_RUNTIME_FUNCTION(Object*, Debug_Break);
+DECLARE_RUNTIME_FUNCTION(Debug_Break);
 
 
 // Message delivered to the message handler callback. This is either a debugger
@@ -786,25 +754,21 @@ class Debugger {
 
   void DebugRequest(const uint16_t* json_request, int length);
 
-  Handle<Object> MakeJSObject(Vector<const char> constructor_name,
-                              int argc,
-                              Handle<Object> argv[],
-                              bool* caught_exception);
-  Handle<Object> MakeExecutionState(bool* caught_exception);
-  Handle<Object> MakeBreakEvent(Handle<Object> exec_state,
-                                Handle<Object> break_points_hit,
-                                bool* caught_exception);
-  Handle<Object> MakeExceptionEvent(Handle<Object> exec_state,
-                                    Handle<Object> exception,
-                                    bool uncaught,
-                                    bool* caught_exception);
-  Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
-                                      bool* caught_exception);
-  Handle<Object> MakeCompileEvent(Handle<Script> script,
-                                  bool before,
-                                  bool* caught_exception);
-  Handle<Object> MakeScriptCollectedEvent(int id,
-                                          bool* caught_exception);
+  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
+      Vector<const char> constructor_name,
+      int argc,
+      Handle<Object> argv[]);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
+  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
+      Handle<Object> break_points_hit);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception,
+      bool uncaught,
+      Handle<Object> promise);
+  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+      Handle<Script> script, bool before);
+  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
+
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   void OnException(Handle<Object> exception, bool uncaught);
   void OnBeforeCompile(Handle<Script> script);
@@ -844,9 +808,8 @@ class Debugger {
   // Enqueue a debugger command to the command queue for event listeners.
   void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
 
-  Handle<Object> Call(Handle<JSFunction> fun,
-                      Handle<Object> data,
-                      bool* pending_exception);
+  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
+                                           Handle<Object> data);
 
   // Start the debugger agent listening on the provided port.
   bool StartAgent(const char* name, int port,
@@ -1015,10 +978,6 @@ class Debug_Address {
     return Debug_Address(Debug::k_after_break_target_address);
   }
 
-  static Debug_Address DebugBreakReturn() {
-    return Debug_Address(Debug::k_debug_break_return_address);
-  }
-
   static Debug_Address RestarterFrameFunctionPointer() {
     return Debug_Address(Debug::k_restarter_frame_function_pointer);
   }
@@ -1028,10 +987,6 @@ class Debug_Address {
     switch (id_) {
       case Debug::k_after_break_target_address:
         return reinterpret_cast<Address>(debug->after_break_target_address());
-      case Debug::k_debug_break_return_address:
-        return reinterpret_cast<Address>(debug->debug_break_return_address());
-      case Debug::k_debug_break_slot_address:
-        return reinterpret_cast<Address>(debug->debug_break_slot_address());
       case Debug::k_restarter_frame_function_pointer:
         return reinterpret_cast<Address>(
             debug->restarter_frame_function_pointer_address());
@@ -1069,7 +1024,5 @@ class MessageDispatchHelperThread: public Thread {
 
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_DEBUG_H_

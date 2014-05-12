@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -241,8 +218,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ movq(rdx, register_location(start_reg));  // Offset of start of capture
-  __ movq(rbx, register_location(start_reg + 1));  // Offset of end of capture
+  ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
+  ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
   __ subp(rbx, rdx);  // Length of capture.
 
   // -----------------------
@@ -390,8 +367,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   Label fallthrough;
 
   // Find length of back-referenced capture.
-  __ movq(rdx, register_location(start_reg));
-  __ movq(rax, register_location(start_reg + 1));
+  ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
+  ReadPositionFromRegister(rax, start_reg + 1);  // Offset of end of capture
   __ subp(rax, rdx);  // Length to check.
 
   // Fail on partial or illegal capture (start of capture after end of capture).
@@ -692,12 +669,12 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
-  ASSERT_EQ(kInputString, -1 * kPointerSize);
-  ASSERT_EQ(kStartIndex, -2 * kPointerSize);
-  ASSERT_EQ(kInputStart, -3 * kPointerSize);
-  ASSERT_EQ(kInputEnd, -4 * kPointerSize);
-  ASSERT_EQ(kRegisterOutput, -5 * kPointerSize);
-  ASSERT_EQ(kNumOutputRegisters, -6 * kPointerSize);
+  ASSERT_EQ(kInputString, -1 * kRegisterSize);
+  ASSERT_EQ(kStartIndex, -2 * kRegisterSize);
+  ASSERT_EQ(kInputStart, -3 * kRegisterSize);
+  ASSERT_EQ(kInputEnd, -4 * kRegisterSize);
+  ASSERT_EQ(kRegisterOutput, -5 * kRegisterSize);
+  ASSERT_EQ(kNumOutputRegisters, -6 * kRegisterSize);
   __ pushq(rdi);
   __ pushq(rsi);
   __ pushq(rdx);
@@ -747,7 +724,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load input position.
   __ movp(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
-  __ subp(rdi, rsi);
+  __ subq(rdi, rsi);
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));
@@ -831,14 +808,14 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         __ addp(rcx, rdx);
       }
       for (int i = 0; i < num_saved_registers_; i++) {
-        __ movq(rax, register_location(i));
+        __ movp(rax, register_location(i));
         if (i == 0 && global_with_zero_length_check()) {
           // Keep capture start in rdx for the zero-length check later.
           __ movp(rdx, rax);
         }
         __ addp(rax, rcx);  // Convert to index from start, not end.
         if (mode_ == UC16) {
-          __ sar(rax, Immediate(1));  // Convert byte index to character index.
+          __ sarp(rax, Immediate(1));  // Convert byte index to character index.
         }
         __ movl(Operand(rbx, i * kIntSize), rax);
       }
@@ -1084,13 +1061,31 @@ void RegExpMacroAssemblerX64::PushRegister(int register_index,
 }
 
 
+STATIC_ASSERT(kPointerSize == kInt64Size || kPointerSize == kInt32Size);
+
+
 void RegExpMacroAssemblerX64::ReadCurrentPositionFromRegister(int reg) {
-  __ movq(rdi, register_location(reg));
+  if (kPointerSize == kInt64Size) {
+    __ movq(rdi, register_location(reg));
+  } else {
+    // Need sign extension for x32 as rdi might be used as an index register.
+    __ movsxlq(rdi, register_location(reg));
+  }
+}
+
+
+void RegExpMacroAssemblerX64::ReadPositionFromRegister(Register dst, int reg) {
+  if (kPointerSize == kInt64Size) {
+    __ movq(dst, register_location(reg));
+  } else {
+    // Need sign extension for x32 as dst might be used as an index register.
+    __ movsxlq(dst, register_location(reg));
+  }
 }
 
 
 void RegExpMacroAssemblerX64::ReadStackPointerFromRegister(int reg) {
-  __ movq(backtrack_stackpointer(), register_location(reg));
+  __ movp(backtrack_stackpointer(), register_location(reg));
   __ addp(backtrack_stackpointer(), Operand(rbp, kStackHighEnd));
 }
 
@@ -1215,7 +1210,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   ASSERT(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
-  MaybeObject* result = Execution::HandleStackGuardInterrupt(isolate);
+  Object* result = Execution::HandleStackGuardInterrupt(isolate);
 
   if (*code_handle != re_code) {  // Return address no longer valid
     intptr_t delta = code_handle->address() - re_code->address();

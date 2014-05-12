@@ -112,6 +112,8 @@ Object.defineProperty(changeRecordWithAccessor, 'name', {
 // Object.observe
 assertThrows(function() { Object.observe("non-object", observer.callback); },
              TypeError);
+assertThrows(function() { Object.observe(this, observer.callback); },
+             TypeError);
 assertThrows(function() { Object.observe(obj, nonFunction); }, TypeError);
 assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 assertEquals(obj, Object.observe(obj, observer.callback, [1]));
@@ -126,6 +128,8 @@ assertEquals(obj, Object.observe(obj, observer.callback));
 
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
+assertThrows(function() { Object.unobserve(this, observer.callback); },
+             TypeError);
 assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
 assertEquals(obj, Object.unobserve(obj, observer.callback));
 
@@ -134,6 +138,7 @@ assertEquals(obj, Object.unobserve(obj, observer.callback));
 var notifier = Object.getNotifier(obj);
 assertSame(notifier, Object.getNotifier(obj));
 assertEquals(null, Object.getNotifier(Object.freeze({})));
+assertThrows(function() { Object.getNotifier(this) }, TypeError);
 assertFalse(notifier.hasOwnProperty('notify'));
 assertEquals([], Object.keys(notifier));
 var notifyDesc = Object.getOwnPropertyDescriptor(notifier.__proto__, 'notify');
@@ -1073,6 +1078,8 @@ function TestObserveNonConfigurable(obj, prop, desc) {
   Object.unobserve(obj, observer.callback);
 }
 
+// TODO(rafaelw) Enable when ES6 Proxies are implemented
+/*
 function createProxy(create, x) {
   var handler = {
     getPropertyDescriptor: function(k) {
@@ -1112,11 +1119,11 @@ function createProxy(create, x) {
   Object.observe(handler.target, handler.callback);
   return handler.proxy = create(handler, x);
 }
+*/
 
 var objects = [
   {},
   [],
-  this,  // global object
   function(){},
   (function(){ return arguments })(),
   (function(){ "use strict"; return arguments })(),
@@ -1124,9 +1131,10 @@ var objects = [
   new Date(),
   Object, Function, Date, RegExp,
   new Set, new Map, new WeakMap,
-  new ArrayBuffer(10), new Int32Array(5),
-  createProxy(Proxy.create, null),
-  createProxy(Proxy.createFunction, function(){}),
+  new ArrayBuffer(10), new Int32Array(5)
+// TODO(rafaelw) Enable when ES6 Proxies are implemented.
+//  createProxy(Proxy.create, null),
+//  createProxy(Proxy.createFunction, function(){}),
 ];
 var properties = ["a", "1", 1, "length", "setPrototype", "name", "caller"];
 

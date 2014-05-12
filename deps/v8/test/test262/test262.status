@@ -99,7 +99,7 @@
   'S15.1.3.2_A2.5_T1': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
-['arch == arm or arch == mipsel or arch == arm64', {
+['arch == arm or arch == mipsel or arch == mips or arch == arm64', {
 
   # TODO(mstarzinger): Causes stack overflow on simulators due to eager
   # compilation of parenthesized function literals. Needs investigation.
@@ -112,5 +112,5 @@
   'S15.1.3.2_A2.5_T1': [SKIP],
   'S15.1.3.3_A2.3_T1': [SKIP],
   'S15.1.3.4_A2.3_T1': [SKIP],
-}],  # 'arch == arm or arch == mipsel or arch == arm64'
+}],  # 'arch == arm or arch == mipsel or arch == mips or arch == arm64'
 ]

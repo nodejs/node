@@ -39,7 +39,8 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   // Allocate a string, the GC may suspect a memento behind the string.
-  Handle<SeqOneByteString> string = isolate->factory()->NewRawOneByteString(12);
+  Handle<SeqOneByteString> string =
+      isolate->factory()->NewRawOneByteString(12).ToHandleChecked();
   CHECK(*string);
 
   // Create an allocation memento behind the string with a garbage allocation

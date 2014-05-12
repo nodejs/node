@@ -530,7 +530,7 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  static void Probe(bool serializer_enabled);
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
@@ -543,15 +543,11 @@ class CpuFeatures : public AllStatic {
     return Check(f, supported_);
   }
 
-  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, found_by_runtime_probing_only_);
-  }
-
-  static bool IsSafeForSnapshot(CpuFeature f) {
+  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return Check(f, cross_compile_) ||
            (IsSupported(f) &&
-            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+            !(Serializer::enabled(isolate) &&
+              Check(f, found_by_runtime_probing_only_)));
   }
 
   static bool VerifyCrossCompiling() {
@@ -563,6 +559,8 @@ class CpuFeatures : public AllStatic {
     return cross_compile_ == 0 ||
            (cross_compile_ & mask) == mask;
   }
+
+  static bool SupportsCrankshaft() { return IsSupported(SSE2); }
 
  private:
   static bool Check(CpuFeature f, uint64_t set) {
@@ -1192,7 +1190,7 @@ class Assembler : public AssemblerBase {
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
   // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
 
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);

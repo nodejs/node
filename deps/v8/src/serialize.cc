@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -208,25 +185,15 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
               isolate);
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
   Add(Debug_Address(Debug::k_after_break_target_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_after_break_target_address << kDebugIdShift,
       "Debug::after_break_target_address()");
-  Add(Debug_Address(Debug::k_debug_break_slot_address).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_debug_break_slot_address << kDebugIdShift,
-      "Debug::debug_break_slot_address()");
-  Add(Debug_Address(Debug::k_debug_break_return_address).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_debug_break_return_address << kDebugIdShift,
-      "Debug::debug_break_return_address()");
   Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_restarter_frame_function_pointer << kDebugIdShift,
       "Debug::restarter_frame_function_pointer_address()");
-#endif
 
   // Stat counters
   struct StatsRefTableEntry {
@@ -271,14 +238,17 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   }
 
   // Accessors
-#define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
-  Add((Address)&Accessors::name, \
+#define ACCESSOR_INFO_DECLARATION(name) \
+  Add(FUNCTION_ADDR(&Accessors::name##Getter), \
       ACCESSOR, \
-      Accessors::k##name, \
-      "Accessors::" #name);
-
-  ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
-#undef ACCESSOR_DESCRIPTOR_DECLARATION
+      Accessors::k##name##Getter, \
+      "Accessors::" #name "Getter"); \
+  Add(FUNCTION_ADDR(&Accessors::name##Setter), \
+      ACCESSOR, \
+      Accessors::k##name##Setter, \
+      "Accessors::" #name "Setter");
+  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
+#undef ACCESSOR_INFO_DECLARATION
 
   StubCache* stub_cache = isolate->stub_cache();
 
@@ -309,15 +279,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "StubCache::secondary_->map");
 
   // Runtime entries
-  Add(ExternalReference::perform_gc_function(isolate).address(),
-      RUNTIME_ENTRY,
-      1,
-      "Runtime::PerformGC");
-  // Runtime entries
-  Add(ExternalReference::out_of_memory_function(isolate).address(),
-      RUNTIME_ENTRY,
-      2,
-      "Runtime::OutOfMemory");
   Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
       RUNTIME_ENTRY,
       4,
@@ -372,10 +333,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       11,
       "Heap::NewSpaceMask()");
-  Add(ExternalReference::heap_always_allocate_scope_depth(isolate).address(),
-      UNCLASSIFIED,
-      12,
-      "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       UNCLASSIFIED,
       14,
@@ -384,7 +341,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       15,
       "Heap::NewSpaceAllocationTopAddress()");
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break(isolate).address(),
       UNCLASSIFIED,
       16,
@@ -393,7 +349,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       17,
       "Debug::step_in_fp_addr()");
-#endif
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       UNCLASSIFIED,
       22,
@@ -560,6 +515,26 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       62,
       "Code::MarkCodeAsExecuted");
 
+  Add(ExternalReference::is_profiling_address(isolate).address(),
+      UNCLASSIFIED,
+      63,
+      "CpuProfiler::is_profiling");
+
+  Add(ExternalReference::scheduled_exception_address(isolate).address(),
+      UNCLASSIFIED,
+      64,
+      "Isolate::scheduled_exception");
+
+  Add(ExternalReference::invoke_function_callback(isolate).address(),
+      UNCLASSIFIED,
+      65,
+      "InvokeFunctionCallback");
+
+  Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
+      UNCLASSIFIED,
+      66,
+      "InvokeAccessorGetterCallback");
+
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
   HandleScope scope(isolate);
@@ -575,7 +550,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
-    : encodings_(Match),
+    : encodings_(HashMap::PointersMatch),
       isolate_(isolate) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance(isolate_);
@@ -638,10 +613,7 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
   DeleteArray(encodings_);
 }
 
-
-bool Serializer::serialization_enabled_ = false;
-bool Serializer::too_late_to_enable_now_ = false;
-
+AtomicWord Serializer::serialization_state_ = SERIALIZER_STATE_UNINITIALIZED;
 
 class CodeAddressMap: public CodeEventLogger {
  public:
@@ -669,7 +641,7 @@ class CodeAddressMap: public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(&PointerEquals) {}
+    NameMap() : impl_(HashMap::PointersMatch) {}
 
     ~NameMap() {
       for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
@@ -709,10 +681,6 @@ class CodeAddressMap: public CodeEventLogger {
     }
 
    private:
-    static bool PointerEquals(void* lhs, void* rhs) {
-      return lhs == rhs;
-    }
-
     static char* CopyName(const char* name, int name_size) {
       char* result = NewArray<char>(name_size + 1);
       for (int i = 0; i < name_size; ++i) {
@@ -758,22 +726,42 @@ class CodeAddressMap: public CodeEventLogger {
 CodeAddressMap* Serializer::code_address_map_ = NULL;
 
 
-void Serializer::Enable(Isolate* isolate) {
-  if (!serialization_enabled_) {
-    ASSERT(!too_late_to_enable_now_);
-  }
-  if (serialization_enabled_) return;
-  serialization_enabled_ = true;
+void Serializer::RequestEnable(Isolate* isolate) {
   isolate->InitializeLoggingAndCounters();
   code_address_map_ = new CodeAddressMap(isolate);
 }
 
 
-void Serializer::Disable() {
-  if (!serialization_enabled_) return;
-  serialization_enabled_ = false;
-  delete code_address_map_;
-  code_address_map_ = NULL;
+void Serializer::InitializeOncePerProcess() {
+  // InitializeOncePerProcess is called by V8::InitializeOncePerProcess, a
+  // method guaranteed to be called only once in a process lifetime.
+  // serialization_state_ is read by many threads, hence the use of
+  // Atomic primitives. Here, we don't need a barrier or mutex to
+  // write it because V8 initialization is done by one thread, and gates
+  // all reads of serialization_state_.
+  ASSERT(NoBarrier_Load(&serialization_state_) ==
+         SERIALIZER_STATE_UNINITIALIZED);
+  SerializationState state = code_address_map_
+      ? SERIALIZER_STATE_ENABLED
+      : SERIALIZER_STATE_DISABLED;
+  NoBarrier_Store(&serialization_state_, state);
+}
+
+
+void Serializer::TearDown() {
+  // TearDown is called by V8::TearDown() for the default isolate. It's safe
+  // to shut down the serializer by that point. Just to be safe, we restore
+  // serialization_state_ to uninitialized.
+  ASSERT(NoBarrier_Load(&serialization_state_) !=
+         SERIALIZER_STATE_UNINITIALIZED);
+  if (code_address_map_) {
+    ASSERT(NoBarrier_Load(&serialization_state_) ==
+           SERIALIZER_STATE_ENABLED);
+    delete code_address_map_;
+    code_address_map_ = NULL;
+  }
+
+  NoBarrier_Store(&serialization_state_, SERIALIZER_STATE_UNINITIALIZED);
 }
 
 
@@ -865,7 +853,8 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
 
 
 Deserializer::~Deserializer() {
-  ASSERT(source_->AtEOF());
+  // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
+  // ASSERT(source_->AtEOF());
   if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
@@ -1349,7 +1338,7 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 // deserialized objects.
 void SerializerDeserializer::Iterate(Isolate* isolate,
                                      ObjectVisitor* visitor) {
-  if (Serializer::enabled()) return;
+  if (Serializer::enabled(isolate)) return;
   for (int i = 0; ; i++) {
     if (isolate->serialize_partial_snapshot_cache_length() <= i) {
       // Extend the array ready to get a value from the visitor when

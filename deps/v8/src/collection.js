@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 "use strict";
 
@@ -113,8 +90,29 @@ function SetClear() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.clear', this]);
   }
-  // Replace the internal table with a new empty table.
-  %SetInitialize(this);
+  %SetClear(this);
+}
+
+
+function SetForEach(f, receiver) {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.forEach', this]);
+  }
+
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [f]);
+  }
+
+  var iterator = %SetCreateIterator(this, ITERATOR_KIND_VALUES);
+  var entry;
+  try {
+    while (!(entry = %SetIteratorNext(iterator)).done) {
+      %_CallFunction(receiver, entry.value, entry.value, this, f);
+    }
+  } finally {
+    %SetIteratorClose(iterator);
+  }
 }
 
 
@@ -127,13 +125,16 @@ function SetUpSet() {
   %FunctionSetPrototype($Set, new $Object());
   %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
 
+  %FunctionSetLength(SetForEach, 1);
+
   // Set up the non-enumerable functions on the Set prototype object.
   InstallGetter($Set.prototype, "size", SetGetSize);
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     "add", SetAdd,
     "has", SetHas,
     "delete", SetDelete,
-    "clear", SetClear
+    "clear", SetClear,
+    "forEach", SetForEach
   ));
 }
 
@@ -202,8 +203,29 @@ function MapClear() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.clear', this]);
   }
-  // Replace the internal table with a new empty table.
-  %MapInitialize(this);
+  %MapClear(this);
+}
+
+
+function MapForEach(f, receiver) {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.forEach', this]);
+  }
+
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [f]);
+  }
+
+  var iterator = %MapCreateIterator(this, ITERATOR_KIND_ENTRIES);
+  var entry;
+  try {
+    while (!(entry = %MapIteratorNext(iterator)).done) {
+      %_CallFunction(receiver, entry.value[1], entry.value[0], this, f);
+    }
+  } finally {
+    %MapIteratorClose(iterator);
+  }
 }
 
 
@@ -216,6 +238,8 @@ function SetUpMap() {
   %FunctionSetPrototype($Map, new $Object());
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
+  %FunctionSetLength(MapForEach, 1);
+
   // Set up the non-enumerable functions on the Map prototype object.
   InstallGetter($Map.prototype, "size", MapGetSize);
   InstallFunctions($Map.prototype, DONT_ENUM, $Array(
@@ -223,7 +247,8 @@ function SetUpMap() {
     "set", MapSet,
     "has", MapHas,
     "delete", MapDelete,
-    "clear", MapClear
+    "clear", MapClear,
+    "forEach", MapForEach
   ));
 }
 

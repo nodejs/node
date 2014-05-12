@@ -164,8 +164,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
-        building_blocks[i] =
-            factory->NewStringFromTwoByte(Vector<const uc16>(buf, len));
+        building_blocks[i] = factory->NewStringFromTwoByte(
+            Vector<const uc16>(buf, len)).ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -176,8 +176,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        building_blocks[i] =
-            factory->NewStringFromAscii(Vector<const char>(buf, len));
+        building_blocks[i] = factory->NewStringFromAscii(
+            Vector<const char>(buf, len)).ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -230,11 +230,11 @@ class ConsStringStats {
   }
   void Reset();
   void VerifyEqual(const ConsStringStats& that) const;
-  unsigned leaves_;
-  unsigned empty_leaves_;
-  unsigned chars_;
-  unsigned left_traversals_;
-  unsigned right_traversals_;
+  int leaves_;
+  int empty_leaves_;
+  int chars_;
+  int left_traversals_;
+  int right_traversals_;
  private:
   DISALLOW_COPY_AND_ASSIGN(ConsStringStats);
 };
@@ -250,11 +250,11 @@ void ConsStringStats::Reset() {
 
 
 void ConsStringStats::VerifyEqual(const ConsStringStats& that) const {
-  CHECK(this->leaves_ == that.leaves_);
-  CHECK(this->empty_leaves_ == that.empty_leaves_);
-  CHECK(this->chars_ == that.chars_);
-  CHECK(this->left_traversals_ == that.left_traversals_);
-  CHECK(this->right_traversals_ == that.right_traversals_);
+  CHECK_EQ(this->leaves_, that.leaves_);
+  CHECK_EQ(this->empty_leaves_, that.empty_leaves_);
+  CHECK_EQ(this->chars_, that.chars_);
+  CHECK_EQ(this->left_traversals_, that.left_traversals_);
+  CHECK_EQ(this->right_traversals_, that.right_traversals_);
 }
 
 
@@ -270,14 +270,14 @@ class ConsStringGenerationData {
   double leftness_;
   double rightness_;
   double empty_leaf_threshold_;
-  unsigned max_leaves_;
+  int max_leaves_;
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
   String* empty_string_;
   MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;
-  unsigned early_terminations_;
+  int early_terminations_;
  private:
   DISALLOW_COPY_AND_ASSIGN(ConsStringGenerationData);
 };
@@ -356,23 +356,14 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
 
 void AccumulateStatsWithOperator(
     ConsString* cons_string, ConsStringStats* stats) {
-  unsigned offset = 0;
-  int32_t type = cons_string->map()->instance_type();
-  unsigned length = static_cast<unsigned>(cons_string->length());
-  ConsStringIteratorOp op;
-  String* string = op.Operate(cons_string, &offset, &type, &length);
-  CHECK(string != NULL);
-  while (true) {
-    ASSERT(!string->IsConsString());
+  ConsStringIteratorOp op(cons_string);
+  String* string;
+  int offset;
+  while (NULL != (string = op.Next(&offset))) {
     // Accumulate stats.
+    CHECK_EQ(0, offset);
     stats->leaves_++;
     stats->chars_ += string->length();
-    // Check for completion.
-    bool keep_going_fast_check = op.HasMore();
-    string = op.ContinueOperation(&type, &length);
-    if (string == NULL) return;
-    // Verify no false positives for fast check.
-    CHECK(keep_going_fast_check);
   }
 }
 
@@ -380,7 +371,7 @@ void AccumulateStatsWithOperator(
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
   CHECK(root->IsConsString());
-  CHECK(static_cast<unsigned>(root->length()) == data->stats_.chars_);
+  CHECK_EQ(root->length(), data->stats_.chars_);
   // Recursive verify.
   ConsStringStats stats;
   AccumulateStats(ConsString::cast(*root), &stats);
@@ -447,12 +438,12 @@ static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
     left = ConstructRandomString(data, max_recursion - 1);
   }
   // Build the cons string.
-  Handle<String> root = factory->NewConsString(left, right);
+  Handle<String> root = factory->NewConsString(left, right).ToHandleChecked();
   CHECK(root->IsConsString() && !root->IsFlat());
   // Special work needed for flat string.
   if (flat) {
     data->stats_.empty_leaves_++;
-    FlattenString(root);
+    String::Flatten(root);
     CHECK(root->IsConsString() && root->IsFlat());
   }
   return root;
@@ -463,11 +454,12 @@ static Handle<String> ConstructLeft(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = factory->NewStringFromStaticAscii("");
   data->stats_.leaves_++;
   for (int i = 0; i < depth; i++) {
     Handle<String> block = data->block(i);
-    Handle<String> next = factory->NewConsString(answer, block);
+    Handle<String> next =
+        factory->NewConsString(answer, block).ToHandleChecked();
     if (next->IsConsString()) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
@@ -481,11 +473,12 @@ static Handle<String> ConstructRight(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = factory->NewStringFromStaticAscii("");
   data->stats_.leaves_++;
   for (int i = depth - 1; i >= 0; i--) {
     Handle<String> block = data->block(i);
-    Handle<String> next = factory->NewConsString(block, answer);
+    Handle<String> next =
+        factory->NewConsString(block, answer).ToHandleChecked();
     if (next->IsConsString()) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
@@ -508,7 +501,8 @@ static Handle<String> ConstructBalancedHelper(
   if (to - from == 2) {
     data->stats_.chars_ += data->block(from)->length();
     data->stats_.chars_ += data->block(from+1)->length();
-    return factory->NewConsString(data->block(from), data->block(from+1));
+    return factory->NewConsString(data->block(from), data->block(from+1))
+        .ToHandleChecked();
   }
   Handle<String> part1 =
     ConstructBalancedHelper(data, from, from + ((to - from) / 2));
@@ -516,7 +510,7 @@ static Handle<String> ConstructBalancedHelper(
     ConstructBalancedHelper(data, from + ((to - from) / 2), to);
   if (part1->IsConsString()) data->stats_.left_traversals_++;
   if (part2->IsConsString()) data->stats_.right_traversals_++;
-  return factory->NewConsString(part1, part2);
+  return factory->NewConsString(part1, part2).ToHandleChecked();
 }
 
 
@@ -570,7 +564,7 @@ TEST(Traverse) {
   v8::HandleScope scope(CcTest::isolate());
   ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
-  FlattenString(flat);
+  String::Flatten(flat);
   Handle<String> left_asymmetric = ConstructLeft(&data, DEEP_DEPTH);
   Handle<String> right_asymmetric = ConstructRight(&data, DEEP_DEPTH);
   Handle<String> symmetric = ConstructBalanced(&data);
@@ -590,19 +584,19 @@ TEST(Traverse) {
   printf("6\n");
   TraverseFirst(left_asymmetric, right_deep_asymmetric, 65536);
   printf("7\n");
-  FlattenString(left_asymmetric);
+  String::Flatten(left_asymmetric);
   printf("10\n");
   Traverse(flat, left_asymmetric);
   printf("11\n");
-  FlattenString(right_asymmetric);
+  String::Flatten(right_asymmetric);
   printf("12\n");
   Traverse(flat, right_asymmetric);
   printf("14\n");
-  FlattenString(symmetric);
+  String::Flatten(symmetric);
   printf("15\n");
   Traverse(flat, symmetric);
   printf("16\n");
-  FlattenString(left_deep_asymmetric);
+  String::Flatten(left_deep_asymmetric);
   printf("18\n");
 }
 
@@ -622,9 +616,9 @@ static void VerifyCharacterStream(
     // Want to test the offset == length case.
     if (offset > length) offset = length;
     StringCharacterStream flat_stream(
-        flat_string, &cons_string_iterator_op_1, static_cast<unsigned>(offset));
+        flat_string, &cons_string_iterator_op_1, offset);
     StringCharacterStream cons_stream(
-        cons_string, &cons_string_iterator_op_2, static_cast<unsigned>(offset));
+        cons_string, &cons_string_iterator_op_2, offset);
     for (int i = offset; i < length; i++) {
       uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());
@@ -667,7 +661,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     ConsStringStats flat_string_stats;
     AccumulateStats(flat_string, &flat_string_stats);
     // Flatten string.
-    FlattenString(flat_string);
+    String::Flatten(flat_string);
     // Build unflattened version of cons string to test.
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
@@ -710,7 +704,8 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.chars_ += data->block(0)->length();
       data->stats_.chars_ += data->block(1)->length();
       data->stats_.leaves_ += 2;
-      return factory->NewConsString(data->block(0), data->block(1));
+      return factory->NewConsString(data->block(0), data->block(1))
+                 .ToHandleChecked();
     case 6:
       // Simple flattened tree.
       data->stats_.chars_ += data->block(0)->length();
@@ -719,8 +714,9 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.empty_leaves_ += 1;
       {
         Handle<String> string =
-            factory->NewConsString(data->block(0), data->block(1));
-        FlattenString(string);
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
+        String::Flatten(string);
         return string;
       }
     case 7:
@@ -733,9 +729,10 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.left_traversals_ += 1;
       {
         Handle<String> left =
-            factory->NewConsString(data->block(0), data->block(1));
-        FlattenString(left);
-        return factory->NewConsString(left, data->block(2));
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
+        String::Flatten(left);
+        return factory->NewConsString(left, data->block(2)).ToHandleChecked();
       }
     case 8:
       // Left node and right node flattened.
@@ -749,12 +746,14 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.right_traversals_ += 1;
       {
         Handle<String> left =
-            factory->NewConsString(data->block(0), data->block(1));
-        FlattenString(left);
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
+        String::Flatten(left);
         Handle<String> right =
-            factory->NewConsString(data->block(2), data->block(2));
-        FlattenString(right);
-        return factory->NewConsString(left, right);
+            factory->NewConsString(data->block(2), data->block(2))
+                .ToHandleChecked();
+        String::Flatten(right);
+        return factory->NewConsString(left, right).ToHandleChecked();
       }
   }
   UNREACHABLE();
@@ -862,14 +861,15 @@ TEST(DeepAscii) {
   for (int i = 0; i < DEEP_ASCII_DEPTH; i++) {
     foo[i] = "foo "[i % 4];
   }
-  Handle<String> string =
-      factory->NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
-  Handle<String> foo_string = factory->NewStringFromAscii(CStrVector("foo"));
+  Handle<String> string = factory->NewStringFromOneByte(
+      OneByteVector(foo, DEEP_ASCII_DEPTH)).ToHandleChecked();
+  Handle<String> foo_string = factory->NewStringFromStaticAscii("foo");
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
-    string = factory->NewConsString(string, foo_string);
+    string = factory->NewConsString(string, foo_string).ToHandleChecked();
   }
-  Handle<String> flat_string = factory->NewConsString(string, foo_string);
-  FlattenString(flat_string);
+  Handle<String> flat_string =
+      factory->NewConsString(string, foo_string).ToHandleChecked();
+  String::Flatten(flat_string);
 
   for (int i = 0; i < 500; i++) {
     TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);
@@ -1078,7 +1078,7 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
-      CHECK_EQ(Smi::cast(results[i]->ToSmi()->ToObjectChecked())->value(),
+      CHECK_EQ(Object::ToSmi(isolate, results[i]).ToHandleChecked()->value(),
                result->ToInt32()->Value());
     }
   }
@@ -1091,8 +1091,9 @@ TEST(SliceFromCons) {
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   Handle<String> string =
-      factory->NewStringFromAscii(CStrVector("parentparentparent"));
-  Handle<String> parent = factory->NewConsString(string, string);
+      factory->NewStringFromStaticAscii("parentparentparent");
+  Handle<String> parent =
+      factory->NewConsString(string, string).ToHandleChecked();
   CHECK(parent->IsConsString());
   CHECK(!parent->IsFlat());
   Handle<String> slice = factory->NewSubString(parent, 1, 25);
@@ -1127,7 +1128,8 @@ TEST(SliceFromExternal) {
   v8::HandleScope scope(CcTest::isolate());
   AsciiVectorResource resource(
       i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
-  Handle<String> string = factory->NewExternalStringFromAscii(&resource);
+  Handle<String> string =
+      factory->NewExternalStringFromAscii(&resource).ToHandleChecked();
   CHECK(string->IsExternalString());
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());
@@ -1201,7 +1203,7 @@ TEST(AsciiArrayJoin) {
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
-  constraints.set_max_young_space_size(256 * K);
+  constraints.set_max_new_space_size(2 * K * K);
   constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
@@ -1407,7 +1409,5 @@ TEST(InvalidExternalString) {
 INVALID_STRING_TEST(NewStringFromAscii, char)
 INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
-INVALID_STRING_TEST(InternalizeOneByteString, uint8_t)
-INVALID_STRING_TEST(InternalizeUtf8String, char)
 
 #undef INVALID_STRING_TEST

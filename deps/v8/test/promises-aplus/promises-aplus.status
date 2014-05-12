@@ -28,7 +28,5 @@
 
 [
 [ALWAYS, {
-  # http://crbug.com/347455
-  '2.2.7': FAIL
 }],  # ALWAYS
 ]

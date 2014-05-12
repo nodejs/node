@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -256,12 +233,20 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  // Check backing store for COW-ness.  For COW arrays we have to
-  // allocate a new backing store.
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
-  __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
-                 Heap::kFixedCOWArrayMapRootIndex);
-  __ j(equal, &new_backing_store);
+  if (kPointerSize == kDoubleSize) {
+    // Check backing store for COW-ness. For COW arrays we have to
+    // allocate a new backing store.
+    __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
+                   Heap::kFixedCOWArrayMapRootIndex);
+    __ j(equal, &new_backing_store);
+  } else {
+    // For x32 port we have to allocate a new backing store as SMI size is
+    // not equal with double size.
+    ASSERT(kDoubleSize == 2 * kPointerSize);
+    __ jmp(&new_backing_store);
+  }
+
   // Check if the backing store is in new-space. If not, we need to allocate
   // a new one since the old one is in pointer-space.
   // If in new space, we can reuse the old backing store because it is
@@ -608,10 +593,10 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
   __ leaq(temp1, Operand(temp2, 0x1ff800));
   __ andq(temp2, Immediate(0x7ff));
-  __ shr(temp1, Immediate(11));
+  __ shrq(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shl(temp1, Immediate(52));
+  __ shlq(temp1, Immediate(52));
   __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
@@ -631,37 +616,36 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  static bool initialized = false;
-  static byte sequence[kNoCodeAgeSequenceLength];
-  *length = kNoCodeAgeSequenceLength;
-  if (!initialized) {
-    // The sequence of instructions that is patched out for aging code is the
-    // following boilerplate stack-building prologue that is found both in
-    // FUNCTION and OPTIMIZED_FUNCTION code:
-    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->pushq(rbp);
-    patcher.masm()->movp(rbp, rsp);
-    patcher.masm()->Push(rsi);
-    patcher.masm()->Push(rdi);
-    initialized = true;
-  }
-  return sequence;
+CodeAgingHelper::CodeAgingHelper() {
+  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found both in
+  // FUNCTION and OPTIMIZED_FUNCTION code:
+  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  patcher.masm()->pushq(rbp);
+  patcher.masm()->movp(rbp, rsp);
+  patcher.masm()->Push(rsi);
+  patcher.masm()->Push(rdi);
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = (!memcmp(sequence, young_sequence, young_length));
-  ASSERT(result || *sequence == kCallOpcode);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return *candidate == kCallOpcode;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
+  if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
@@ -678,10 +662,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
-    CopyBytes(sequence, young_sequence, young_length);
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);

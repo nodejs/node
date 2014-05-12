@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -31,9 +8,9 @@
 
 #include "code-stubs.h"
 #include "compilation-cache.h"
+#include "conversions.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
-#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -263,7 +240,7 @@ class IncrementalMarkingMarkingVisitor
 
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
-    if (obj->NonFailureIsHeapObject()) {
+    if (obj->IsHeapObject()) {
       heap->mark_compact_collector()->RecordSlot(p, p, obj);
       MarkObject(heap, obj);
     }
@@ -272,7 +249,7 @@ class IncrementalMarkingMarkingVisitor
   INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
     for (Object** p = start; p < end; p++) {
       Object* obj = *p;
-      if (obj->NonFailureIsHeapObject()) {
+      if (obj->IsHeapObject()) {
         heap->mark_compact_collector()->RecordSlot(start, p, obj);
         MarkObject(heap, obj);
       }
@@ -285,7 +262,7 @@ class IncrementalMarkingMarkingVisitor
                                              Object** end)) {
     for (Object** p = start; p < end; p++) {
       Object* obj = *p;
-      if (obj->NonFailureIsHeapObject()) {
+      if (obj->IsHeapObject()) {
         heap->mark_compact_collector()->RecordSlot(anchor, p, obj);
         MarkObject(heap, obj);
       }
@@ -482,7 +459,7 @@ bool IncrementalMarking::WorthActivating() {
   return FLAG_incremental_marking &&
       FLAG_incremental_marking_steps &&
       heap_->gc_state() == Heap::NOT_IN_GC &&
-      !Serializer::enabled() &&
+      !Serializer::enabled(heap_->isolate()) &&
       heap_->isolate()->IsInitialized() &&
       heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
@@ -560,12 +537,12 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   ASSERT(FLAG_incremental_marking_steps);
   ASSERT(state_ == STOPPED);
   ASSERT(heap_->gc_state() == Heap::NOT_IN_GC);
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled(heap_->isolate()));
   ASSERT(heap_->isolate()->IsInitialized());
 
   ResetStepCounters();
 
-  if (heap_->IsSweepingComplete()) {
+  if (!heap_->mark_compact_collector()->IsConcurrentSweepingInProgress()) {
     StartMarking(flag);
   } else {
     if (FLAG_trace_incremental_marking) {
@@ -909,7 +886,11 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   }
 
   if (state_ == SWEEPING) {
-    if (heap_->EnsureSweepersProgressed(static_cast<int>(bytes_to_process))) {
+    if (heap_->mark_compact_collector()->IsConcurrentSweepingInProgress() &&
+        heap_->mark_compact_collector()->IsSweepingCompleted()) {
+      heap_->mark_compact_collector()->WaitUntilSweepingCompleted();
+    }
+    if (!heap_->mark_compact_collector()->IsConcurrentSweepingInProgress()) {
       bytes_scanned_ = 0;
       StartMarking(PREVENT_COMPACTION);
     }

@@ -30,19 +30,19 @@
 
 function testfn(f) { return [1].map(f)[0]; }
 function foo() { return [].map.caller; }
-assertEquals(null, testfn(foo));
+assertThrows(function() { testfn(foo); } );
 
 // Try to delete the caller property (to make sure that we can't get to the
 // caller accessor on the prototype.
 delete Array.prototype.map.caller;
-assertEquals(null, testfn(foo));
+assertThrows(function() { testfn(foo); } );
 
 // Redo tests with arguments object.
 function testarguments(f) { return [1].map(f)[0]; }
 function bar() { return [].map.arguments; }
-assertEquals(null, testfn(bar));
+assertThrows(function() { testarguments(bar); } );
 
 // Try to delete the arguments property (to make sure that we can't get to the
 // caller accessor on the prototype.
 delete Array.prototype.map.arguments;
-assertEquals(null, testarguments(bar));
+assertThrows(function() { testarguments(bar); } );

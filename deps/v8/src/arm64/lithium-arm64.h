@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM64_LITHIUM_ARM64_H_
 #define V8_ARM64_LITHIUM_ARM64_H_
@@ -138,11 +115,13 @@ class LCodeGen;
   V(MathAbsTagged)                              \
   V(MathClz32)                                  \
   V(MathExp)                                    \
-  V(MathFloor)                                  \
+  V(MathFloorD)                                 \
+  V(MathFloorI)                                 \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
-  V(MathRound)                                  \
+  V(MathRoundD)                                 \
+  V(MathRoundI)                                 \
   V(MathSqrt)                                   \
   V(ModByConstI)                                \
   V(ModByPowerOf2I)                             \
@@ -270,7 +249,9 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  virtual bool ClobbersDoubleRegisters() const { return IsCall(); }
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const {
+    return IsCall();
+  }
   bool IsMarkedAsCall() const { return IsCall(); }
 
   virtual bool HasResult() const = 0;
@@ -584,7 +565,14 @@ class LAddE V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
 class LAddI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LAddI(LOperand* left, LOperand* right) {
+  LAddI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LAddI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -592,8 +580,15 @@ class LAddI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -753,7 +748,14 @@ class LBoundsCheck V8_FINAL : public LTemplateInstruction<0, 2, 0> {
 
 class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LBitI(LOperand* left, LOperand* right) {
+  LBitI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LBitI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -761,10 +763,17 @@ class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   Token::Value op() const { return hydrogen()->op(); }
 
   DECLARE_CONCRETE_INSTRUCTION(BitI, "bit-i")
   DECLARE_HYDROGEN_ACCESSOR(Bitwise)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -887,7 +896,7 @@ class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
     return save_doubles() == kDontSaveFPRegs;
   }
 
@@ -927,7 +936,7 @@ class LCheckInstanceType V8_FINAL : public LTemplateInstruction<0, 1, 1> {
 
 class LCheckMaps V8_FINAL : public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LCheckMaps(LOperand* value, LOperand* temp = NULL) {
+  LCheckMaps(LOperand* value = NULL, LOperand* temp = NULL) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
@@ -1324,14 +1333,14 @@ class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
 class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LDivI(LOperand* left, LOperand* right, LOperand* temp) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LDivI(LOperand* dividend, LOperand* divisor, LOperand* temp) {
+    inputs_[0] = dividend;
+    inputs_[1] = divisor;
     temps_[0] = temp;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* dividend() { return inputs_[0]; }
+  LOperand* divisor() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
@@ -1930,10 +1939,19 @@ class LMathExp V8_FINAL : public LUnaryMathOperation<4> {
 };
 
 
-class LMathFloor V8_FINAL : public LUnaryMathOperation<0> {
+// Math.floor with a double result.
+class LMathFloorD V8_FINAL : public LUnaryMathOperation<0> {
  public:
-  explicit LMathFloor(LOperand* value) : LUnaryMathOperation<0>(value) { }
-  DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
+  explicit LMathFloorD(LOperand* value) : LUnaryMathOperation<0>(value) { }
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorD, "math-floor-d")
+};
+
+
+// Math.floor with an integer result.
+class LMathFloorI V8_FINAL : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathFloorI(LOperand* value) : LUnaryMathOperation<0>(value) { }
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorI, "math-floor-i")
 };
 
 
@@ -2029,16 +2047,28 @@ class LMathPowHalf V8_FINAL : public LUnaryMathOperation<0> {
 };
 
 
-class LMathRound V8_FINAL : public LUnaryMathOperation<1> {
+// Math.round with an integer result.
+class LMathRoundD V8_FINAL : public LUnaryMathOperation<0> {
  public:
-  LMathRound(LOperand* value, LOperand* temp1)
+  explicit LMathRoundD(LOperand* value)
+      : LUnaryMathOperation<0>(value) {
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundD, "math-round-d")
+};
+
+
+// Math.round with an integer result.
+class LMathRoundI V8_FINAL : public LUnaryMathOperation<1> {
+ public:
+  LMathRoundI(LOperand* value, LOperand* temp1)
       : LUnaryMathOperation<1>(value) {
     temps_[0] = temp1;
   }
 
   LOperand* temp1() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundI, "math-round-i")
 };
 
 
@@ -2384,6 +2414,10 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
   }
 
   bool NeedsCanonicalization() {
+    if (hydrogen()->value()->IsAdd() || hydrogen()->value()->IsSub() ||
+        hydrogen()->value()->IsMul() || hydrogen()->value()->IsDiv()) {
+      return false;
+    }
     return this->hydrogen()->NeedsCanonicalization();
   }
   uint32_t additional_index() const { return this->hydrogen()->index_offset(); }
@@ -2500,7 +2534,6 @@ class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 2> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> transition() const { return hydrogen()->transition_map(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
@@ -2725,7 +2758,14 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
 class LSubI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LSubI(LOperand* left, LOperand* right) {
+  LSubI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LSubI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -2733,8 +2773,15 @@ class LSubI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   DECLARE_CONCRETE_INSTRUCTION(SubI, "sub-i")
   DECLARE_HYDROGEN_ACCESSOR(Sub)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -2778,7 +2825,7 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 2> {
   LTransitionElementsKind(LOperand* object,
                           LOperand* context,
                           LOperand* temp1,
-                          LOperand* temp2 = NULL) {
+                          LOperand* temp2) {
     inputs_[0] = object;
     inputs_[1] = context;
     temps_[0] = temp1;
@@ -3042,6 +3089,9 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
 
+  // Temporary operand that must be in a double register.
+  MUST_USE_RESULT LUnallocated* TempDoubleRegister();
+
   // Temporary operand that must be in a fixed double register.
   MUST_USE_RESULT LOperand* FixedTemp(DoubleRegister reg);
 
@@ -3074,6 +3124,39 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   void VisitInstruction(HInstruction* current);
   void DoBasicBlock(HBasicBlock* block);
+
+  int JSShiftAmountFromHConstant(HValue* constant) {
+    return HConstant::cast(constant)->Integer32Value() & 0x1f;
+  }
+  bool LikelyFitsImmField(HInstruction* instr, int imm) {
+    if (instr->IsAdd() || instr->IsSub()) {
+      return Assembler::IsImmAddSub(imm) || Assembler::IsImmAddSub(-imm);
+    } else {
+      ASSERT(instr->IsBitwise());
+      unsigned unused_n, unused_imm_s, unused_imm_r;
+      return Assembler::IsImmLogical(imm, kWRegSizeInBits,
+                                     &unused_n, &unused_imm_s, &unused_imm_r);
+    }
+  }
+
+  // Indicates if a sequence of the form
+  //   lsl x8, x9, #imm
+  //   add x0, x1, x8
+  // can be replaced with:
+  //   add x0, x1, x9 LSL #imm
+  // If this is not possible, the function returns NULL. Otherwise it returns a
+  // pointer to the shift instruction that would be optimized away.
+  HBitwiseBinaryOperation* CanTransformToShiftedOp(HValue* val,
+                                                   HValue** left = NULL);
+  // Checks if all uses of the shift operation can optimize it away.
+  bool ShiftCanBeOptimizedAway(HBitwiseBinaryOperation* shift);
+  // Attempts to merge the binary operation and an eventual previous shift
+  // operation into a single operation. Returns the merged instruction on
+  // success, and NULL otherwise.
+  LInstruction* TryDoOpWithShiftedRightOperand(HBinaryOperation* op);
+  LInstruction* DoShiftedBinaryOp(HBinaryOperation* instr,
+                                  HValue* left,
+                                  HBitwiseBinaryOperation* shift);
 
   LInstruction* DoShift(Token::Value op, HBitwiseBinaryOperation* instr);
   LInstruction* DoArithmeticD(Token::Value op,

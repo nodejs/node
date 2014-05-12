@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // This file defines all of the flags.  It is separated into different section,
 // for Debug, Release, Logging and Profiling, etc.  To add a new flag, find the
@@ -185,6 +162,7 @@ DEFINE_bool(harmony_numeric_literals, false,
 DEFINE_bool(harmony_strings, false, "enable harmony string")
 DEFINE_bool(harmony_arrays, false, "enable harmony arrays")
 DEFINE_bool(harmony_maths, false, "enable harmony math functions")
+DEFINE_bool(harmony_promises, true, "(dummy flag, has no effect)")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 
 DEFINE_implication(harmony, harmony_scoping)
@@ -226,6 +204,9 @@ DEFINE_bool(track_computed_fields, true, "track computed boilerplate fields")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
+DEFINE_bool(track_field_types, true, "track field types")
+DEFINE_implication(track_field_types, track_fields)
+DEFINE_implication(track_field_types, track_heap_object_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
 
 // Flags for optimization types.
@@ -464,9 +445,6 @@ DEFINE_bool(trace_array_abuse, false,
             "trace out-of-bounds accesses to all arrays")
 DEFINE_implication(trace_array_abuse, trace_js_array_abuse)
 DEFINE_implication(trace_array_abuse, trace_external_array_abuse)
-DEFINE_bool(debugger_auto_break, true,
-            "automatically set the debug break flag when debugger commands are "
-            "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_bool(hard_abort, true, "abort by crashing")
 
@@ -485,8 +463,10 @@ DEFINE_bool(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
-DEFINE_int(max_new_space_size, 0, "max size of the new generation (in kBytes)")
-DEFINE_int(max_old_space_size, 0, "max size of the old generation (in Mbytes)")
+DEFINE_int(max_new_space_size, 0,
+    "max size of the new space consisting of two semi-spaces which are half"
+    "the size (in MBytes)")
+DEFINE_int(max_old_space_size, 0, "max size of the old space (in Mbytes)")
 DEFINE_int(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
@@ -511,6 +491,8 @@ DEFINE_bool(trace_external_memory, false,
             "it is adjusted.")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
+DEFINE_bool(weak_embedded_maps_in_ic, true,
+            "make maps embedded in inline cache stubs")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
 DEFINE_bool(weak_embedded_objects_in_optimized_code, true,
@@ -529,8 +511,8 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
-DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
+DEFINE_bool(parallel_sweeping, false, "enable parallel sweeping")
+DEFINE_bool(concurrent_sweeping, true, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
 DEFINE_bool(job_based_sweeping, false, "enable job based sweeping")
@@ -556,8 +538,6 @@ DEFINE_bool(native_code_counters, false,
 
 // mark-compact.cc
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
-DEFINE_bool(lazy_sweeping, true,
-            "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_bool(compact_code_space, true,
@@ -644,7 +624,13 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 
 // mksnapshot.cc
 DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
-                  " the snapshot (mksnapshot only)")
+                                " the snapshot (mksnapshot only)")
+DEFINE_string(raw_file, NULL, "A file to write the raw snapshot bytes to. "
+                              "(mksnapshot only)")
+DEFINE_string(raw_context_file, NULL, "A file to write the raw context "
+                                      "snapshot bytes to. (mksnapshot only)")
+DEFINE_bool(omit, false, "Omit raw snapshot bytes in generated code. "
+                         "(mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
@@ -664,13 +650,11 @@ DEFINE_neg_implication(predictable, parallel_sweeping)
 DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 DEFINE_bool(debugger, false, "Enable JavaScript debugger")
 DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")
 DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 DEFINE_string(map_counters, "", "Map counters to a file")
 DEFINE_args(js_arguments,
@@ -739,7 +723,6 @@ DEFINE_bool(print_scopes, false, "print scopes")
 DEFINE_bool(trace_contexts, false, "trace contexts operations")
 
 // heap.cc
-DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations")
 DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
@@ -787,7 +770,6 @@ DEFINE_bool(trace_regexp_assembler, false,
 DEFINE_bool(log, false,
             "Minimal logging (no API, code, GC, suspect, or handles samples).")
 DEFINE_bool(log_all, false, "Log all events to the log file.")
-DEFINE_bool(log_runtime, false, "Activate runtime system %Log call.")
 DEFINE_bool(log_api, false, "Log API events to the log file.")
 DEFINE_bool(log_code, false,
             "Log code events to the log file without profiling.")

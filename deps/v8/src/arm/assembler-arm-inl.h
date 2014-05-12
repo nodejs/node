@@ -222,7 +222,7 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kNoCodeAgeSequenceLength = 3;
+static const int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
 
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
@@ -234,15 +234,15 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   return Code::GetCodeFromTargetAddress(
-      Memory::Address_at(pc_ + Assembler::kInstrSize *
-                         (kNoCodeAgeSequenceLength - 1)));
+      Memory::Address_at(pc_ +
+                         (kNoCodeAgeSequenceLength - Assembler::kInstrSize)));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Memory::Address_at(pc_ + Assembler::kInstrSize *
-                     (kNoCodeAgeSequenceLength - 1)) =
+  Memory::Address_at(pc_ +
+                     (kNoCodeAgeSequenceLength - Assembler::kInstrSize)) =
       stub->instruction_start();
 }
 
@@ -323,14 +323,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitExternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -350,14 +348,12 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitExternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

@@ -51,7 +51,7 @@
         'android_stlport_libs': '<(android_stlport)/libs',
       }, {
         'variables': {
-          'android_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
+          'android_sysroot': '<(android_ndk_root)/platforms/android-<(android_target_platform)/arch-<(android_target_arch)',
           'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
         },
         'android_include': '<(android_sysroot)/usr/include',

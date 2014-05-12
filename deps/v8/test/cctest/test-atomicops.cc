@@ -214,6 +214,21 @@ static void TestStore() {
 }
 
 
+// Merge this test with TestStore as soon as we have Atomic8 acquire
+// and release stores.
+static void TestStoreAtomic8() {
+  const Atomic8 kVal1 = TestFillValue<Atomic8>();
+  const Atomic8 kVal2 = static_cast<Atomic8>(-1);
+
+  Atomic8 value;
+
+  NoBarrier_Store(&value, kVal1);
+  CHECK_EQU(kVal1, value);
+  NoBarrier_Store(&value, kVal2);
+  CHECK_EQU(kVal2, value);
+}
+
+
 // This is a simple sanity check to ensure that values are correct.
 // Not testing atomicity.
 template <class AtomicType>
@@ -237,6 +252,21 @@ static void TestLoad() {
   CHECK_EQU(kVal1, Release_Load(&value));
   value = kVal2;
   CHECK_EQU(kVal2, Release_Load(&value));
+}
+
+
+// Merge this test with TestLoad as soon as we have Atomic8 acquire
+// and release loads.
+static void TestLoadAtomic8() {
+  const Atomic8 kVal1 = TestFillValue<Atomic8>();
+  const Atomic8 kVal2 = static_cast<Atomic8>(-1);
+
+  Atomic8 value;
+
+  value = kVal1;
+  CHECK_EQU(kVal1, NoBarrier_Load(&value));
+  value = kVal2;
+  CHECK_EQU(kVal2, NoBarrier_Load(&value));
 }
 
 
@@ -265,12 +295,14 @@ TEST(AtomicIncrementBounds) {
 
 
 TEST(Store) {
+  TestStoreAtomic8();
   TestStore<Atomic32>();
   TestStore<AtomicWord>();
 }
 
 
 TEST(Load) {
+  TestLoadAtomic8();
   TestLoad<Atomic32>();
   TestLoad<AtomicWord>();
 }

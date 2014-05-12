@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -205,26 +182,31 @@ void RegExpBuilder::AddQuantifierToAtom(
 }
 
 
-Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
-  // Make sure the cache is large enough to hold the symbol identifier.
-  if (symbol_cache_.length() <= symbol_id) {
-    // Increase length to index + 1.
-    symbol_cache_.AddBlock(Handle<String>::null(),
-                           symbol_id + 1 - symbol_cache_.length(), zone());
+ScriptData* ScriptData::New(const char* data, int length) {
+  // The length is obviously invalid.
+  if (length % sizeof(unsigned) != 0) {
+    return NULL;
   }
-  Handle<String> result = symbol_cache_.at(symbol_id);
-  if (result.is_null()) {
-    result = scanner()->AllocateInternalizedString(isolate_);
-    ASSERT(!result.is_null());
-    symbol_cache_.at(symbol_id) = result;
-    return result;
+
+  int deserialized_data_length = length / sizeof(unsigned);
+  unsigned* deserialized_data;
+  bool owns_store = reinterpret_cast<intptr_t>(data) % sizeof(unsigned) != 0;
+  if (owns_store) {
+    // Copy the data to align it.
+    deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
+    i::CopyBytes(reinterpret_cast<char*>(deserialized_data),
+                 data, static_cast<size_t>(length));
+  } else {
+    // If aligned, don't create a copy of the data.
+    deserialized_data = reinterpret_cast<unsigned*>(const_cast<char*>(data));
   }
-  isolate()->counters()->total_preparse_symbols_skipped()->Increment();
-  return result;
+  return new ScriptData(
+      Vector<unsigned>(deserialized_data, deserialized_data_length),
+      owns_store);
 }
 
 
-FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
+FunctionEntry ScriptData::GetFunctionEntry(int start) {
   // The current pre-data entry must be a FunctionEntry with the given
   // start position.
   if ((function_index_ + FunctionEntry::kSize <= store_.length())
@@ -238,12 +220,12 @@ FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
 }
 
 
-int ScriptDataImpl::GetSymbolIdentifier() {
+int ScriptData::GetSymbolIdentifier() {
   return ReadNumber(&symbol_data_);
 }
 
 
-bool ScriptDataImpl::SanityCheck() {
+bool ScriptData::SanityCheck() {
   // Check that the header data is valid and doesn't specify
   // point to positions outside the store.
   if (store_.length() < PreparseDataConstants::kHeaderSize) return false;
@@ -279,10 +261,6 @@ bool ScriptDataImpl::SanityCheck() {
       static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
   if (functions_size < 0) return false;
   if (functions_size % FunctionEntry::kSize != 0) return false;
-  // Check that the count of symbols is non-negative.
-  int symbol_count =
-      static_cast<int>(store_[PreparseDataConstants::kSymbolCountOffset]);
-  if (symbol_count < 0) return false;
   // Check that the total size has room for header and function entries.
   int minimum_size =
       PreparseDataConstants::kHeaderSize + functions_size;
@@ -292,7 +270,7 @@ bool ScriptDataImpl::SanityCheck() {
 
 
 
-const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
+const char* ScriptData::ReadString(unsigned* start, int* chars) {
   int length = start[0];
   char* result = NewArray<char>(length + 1);
   for (int i = 0; i < length; i++) {
@@ -304,20 +282,25 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
 }
 
 
-Scanner::Location ScriptDataImpl::MessageLocation() {
+Scanner::Location ScriptData::MessageLocation() const {
   int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
   int end_pos = Read(PreparseDataConstants::kMessageEndPos);
   return Scanner::Location(beg_pos, end_pos);
 }
 
 
-const char* ScriptDataImpl::BuildMessage() {
+bool ScriptData::IsReferenceError() const {
+  return Read(PreparseDataConstants::kIsReferenceErrorPos);
+}
+
+
+const char* ScriptData::BuildMessage() const {
   unsigned* start = ReadAddress(PreparseDataConstants::kMessageTextPos);
   return ReadString(start, NULL);
 }
 
 
-Vector<const char*> ScriptDataImpl::BuildArgs() {
+Vector<const char*> ScriptData::BuildArgs() const {
   int arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
   // Position after text found by skipping past length field and
@@ -333,12 +316,12 @@ Vector<const char*> ScriptDataImpl::BuildArgs() {
 }
 
 
-unsigned ScriptDataImpl::Read(int position) {
+unsigned ScriptData::Read(int position) const {
   return store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
-unsigned* ScriptDataImpl::ReadAddress(int position) {
+unsigned* ScriptData::ReadAddress(int position) const {
   return &store_[PreparseDataConstants::kHeaderSize + position];
 }
 
@@ -418,10 +401,9 @@ class TargetScope BASE_EMBEDDED {
 // Implementation of Parser
 
 bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
-  return identifier.is_identical_to(
-             parser_->isolate()->factory()->eval_string()) ||
-         identifier.is_identical_to(
-             parser_->isolate()->factory()->arguments_string());
+  Factory* factory = parser_->isolate()->factory();
+  return identifier.is_identical_to(factory->eval_string())
+      || identifier.is_identical_to(factory->arguments_string());
 }
 
 
@@ -477,19 +459,6 @@ Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
       : NULL;
   if (proxy != NULL) proxy->MarkAsLValue();
   return expression;
-}
-
-
-void ParserTraits::CheckStrictModeLValue(Expression* expression,
-                                         bool* ok) {
-  VariableProxy* lhs = expression != NULL
-      ? expression->AsVariableProxy()
-      : NULL;
-  if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
-    parser_->ReportMessage("strict_eval_arguments",
-                           Vector<const char*>::empty());
-    *ok = false;
-  }
 }
 
 
@@ -599,6 +568,59 @@ Expression* ParserTraits::BuildUnaryExpression(
 }
 
 
+Expression* ParserTraits::NewThrowReferenceError(const char* message, int pos) {
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeReferenceError_string(),
+      message, HandleVector<Object>(NULL, 0), pos);
+}
+
+
+Expression* ParserTraits::NewThrowSyntaxError(
+    const char* message, Handle<Object> arg, int pos) {
+  int argc = arg.is_null() ? 0 : 1;
+  Vector< Handle<Object> > arguments = HandleVector<Object>(&arg, argc);
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeSyntaxError_string(),
+      message, arguments, pos);
+}
+
+
+Expression* ParserTraits::NewThrowTypeError(
+    const char* message, Handle<Object> arg, int pos) {
+  int argc = arg.is_null() ? 0 : 1;
+  Vector< Handle<Object> > arguments = HandleVector<Object>(&arg, argc);
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeTypeError_string(),
+      message, arguments, pos);
+}
+
+
+Expression* ParserTraits::NewThrowError(
+    Handle<String> constructor, const char* message,
+    Vector<Handle<Object> > arguments, int pos) {
+  Zone* zone = parser_->zone();
+  Factory* factory = parser_->isolate()->factory();
+  int argc = arguments.length();
+  Handle<FixedArray> elements = factory->NewFixedArray(argc, TENURED);
+  for (int i = 0; i < argc; i++) {
+    Handle<Object> element = arguments[i];
+    if (!element.is_null()) {
+      elements->set(i, *element);
+    }
+  }
+  Handle<JSArray> array =
+      factory->NewJSArrayWithElements(elements, FAST_ELEMENTS, TENURED);
+
+  ZoneList<Expression*>* args = new(zone) ZoneList<Expression*>(2, zone);
+  Handle<String> type = factory->InternalizeUtf8String(message);
+  args->Add(parser_->factory()->NewLiteral(type, pos), zone);
+  args->Add(parser_->factory()->NewLiteral(array, pos), zone);
+  CallRuntime* call_constructor =
+      parser_->factory()->NewCallRuntime(constructor, NULL, args, pos);
+  return parser_->factory()->NewThrow(call_constructor, pos);
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args,
@@ -615,8 +637,8 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
   Factory* factory = parser_->isolate()->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
-    ASSERT(!arg_string.is_null());
+    Handle<String> arg_string =
+        factory->NewStringFromUtf8(CStrVector(args[i])).ToHandleChecked();
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
@@ -662,20 +684,8 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 
 
 Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
-  if (parser_->cached_data_mode() == CONSUME_CACHED_DATA) {
-    int symbol_id = (*parser_->cached_data())->GetSymbolIdentifier();
-    // If there is no symbol data, -1 will be returned.
-    if (symbol_id >= 0 &&
-        symbol_id < (*parser_->cached_data())->symbol_count()) {
-      return parser_->LookupCachedSymbol(symbol_id);
-    }
-  } else if (parser_->cached_data_mode() == PRODUCE_CACHED_DATA) {
-    if (parser_->log_->ShouldLogSymbols()) {
-      parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
-    }
-  }
   Handle<String> result =
-      parser_->scanner()->AllocateInternalizedString(parser_->isolate_);
+      parser_->scanner()->AllocateInternalizedString(parser_->isolate());
   ASSERT(!result.is_null());
   return result;
 }
@@ -774,7 +784,6 @@ Parser::Parser(CompilationInfo* info)
                                info->zone(),
                                this),
       isolate_(info->isolate()),
-      symbol_cache_(0, info->zone()),
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
@@ -815,7 +824,7 @@ FunctionLiteral* Parser::ParseProgram() {
     (*cached_data_)->Initialize();
   }
 
-  source->TryFlatten();
+  source = String::Flatten(source);
   FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
@@ -845,8 +854,10 @@ FunctionLiteral* Parser::ParseProgram() {
     PrintF(" - took %0.3f ms]\n", ms);
   }
   if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
-    Vector<unsigned> store = recorder.ExtractData();
-    *cached_data_ = new ScriptDataImpl(store);
+    if (result != NULL) {
+      Vector<unsigned> store = recorder.ExtractData();
+      *cached_data_ = new ScriptData(store);
+    }
     log_ = NULL;
   }
   return result;
@@ -928,7 +939,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           FunctionLiteral::kNotGenerator,
           0);
       result->set_ast_properties(factory()->visitor()->ast_properties());
-      result->set_slot_processor(factory()->visitor()->slot_processor());
       result->set_dont_optimize_reason(
           factory()->visitor()->dont_optimize_reason());
     } else if (stack_overflow()) {
@@ -954,7 +964,7 @@ FunctionLiteral* Parser::ParseLazy() {
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
 
   // Initialize parser state.
-  source->TryFlatten();
+  source = String::Flatten(source);
   FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     ExternalTwoByteStringUtf16CharacterStream stream(
@@ -1082,7 +1092,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
         // Check "use strict" directive (ES5 14.1).
         if (strict_mode() == SLOPPY &&
-            directive->Equals(isolate()->heap()->use_strict_string()) &&
+            String::Equals(isolate()->factory()->use_strict_string(),
+                           directive) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict_string()->length() + 2) {
           // TODO(mstarzinger): Global strict eval calls, need their own scope
@@ -1151,8 +1162,8 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
         ExpressionStatement* estmt = stmt->AsExpressionStatement();
         if (estmt != NULL &&
             estmt->expression()->AsVariableProxy() != NULL &&
-            estmt->expression()->AsVariableProxy()->name()->Equals(
-                isolate()->heap()->module_string()) &&
+            String::Equals(isolate()->factory()->module_string(),
+                           estmt->expression()->AsVariableProxy()->name()) &&
             !scanner()->literal_contains_escapes()) {
           return ParseModuleDeclaration(NULL, ok);
         }
@@ -1707,18 +1718,14 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-        const char* elms[2] = { "Variable", c_string.get() };
-        Vector<const char*> args(elms, 2);
-        ReportMessage("redeclaration", args);
+        const char* elms[1] = { c_string.get() };
+        Vector<const char*> args(elms, 1);
+        ReportMessage("var_redeclaration", args);
         *ok = false;
         return;
       }
-      Handle<String> message_string =
-          isolate()->factory()->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("Variable"));
-      Expression* expression =
-          NewThrowTypeError(isolate()->factory()->redeclaration_string(),
-                            message_string, name);
+      Expression* expression = NewThrowTypeError(
+          "var_redeclaration", name, declaration->position());
       declaration_scope->SetIllegalRedeclaration(expression);
     }
   }
@@ -2327,9 +2334,9 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     // make later anyway so we should go back and fix this then.
     if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
       SmartArrayPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
-      const char* elms[2] = { "Label", c_string.get() };
-      Vector<const char*> args(elms, 2);
-      ReportMessage("redeclaration", args);
+      const char* elms[1] = { c_string.get() };
+      Vector<const char*> args(elms, 1);
+      ReportMessage("label_redeclaration", args);
       *ok = false;
       return NULL;
     }
@@ -2353,8 +2360,8 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
       !scanner()->HasAnyLineTerminatorBeforeNext() &&
       expr != NULL &&
       expr->AsVariableProxy() != NULL &&
-      expr->AsVariableProxy()->name()->Equals(
-          isolate()->heap()->native_string()) &&
+      String::Equals(isolate()->factory()->native_string(),
+                     expr->AsVariableProxy()->name()) &&
       !scanner()->literal_contains_escapes()) {
     return ParseNativeDeclaration(ok);
   }
@@ -2365,8 +2372,8 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
       peek() != Token::IDENTIFIER ||
       scanner()->HasAnyLineTerminatorBeforeNext() ||
       expr->AsVariableProxy() == NULL ||
-      !expr->AsVariableProxy()->name()->Equals(
-          isolate()->heap()->module_string()) ||
+      !String::Equals(isolate()->factory()->module_string(),
+                      expr->AsVariableProxy()->name()) ||
       scanner()->literal_contains_escapes()) {
     ExpectSemicolon(CHECK_OK);
   }
@@ -2474,7 +2481,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
-  int pos = position();
+  Scanner::Location loc = scanner()->location();
 
   Token::Value tok = peek();
   Statement* result;
@@ -2492,24 +2499,17 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* generator = factory()->NewVariableProxy(
         function_state_->generator_object_variable());
     Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::FINAL, pos);
-    result = factory()->NewExpressionStatement(yield, pos);
+        generator, return_value, Yield::FINAL, loc.beg_pos);
+    result = factory()->NewExpressionStatement(yield, loc.beg_pos);
   } else {
-    result = factory()->NewReturnStatement(return_value, pos);
+    result = factory()->NewReturnStatement(return_value, loc.beg_pos);
   }
 
-  // An ECMAScript program is considered syntactically incorrect if it
-  // contains a return statement that is not within the body of a
-  // function. See ECMA-262, section 12.9, page 67.
-  //
-  // To be consistent with KJS we report the syntax error at runtime.
-  Scope* declaration_scope = scope_->DeclarationScope();
-  if (declaration_scope->is_global_scope() ||
-      declaration_scope->is_eval_scope()) {
-    Handle<String> message = isolate()->factory()->illegal_return_string();
-    Expression* throw_error =
-        NewThrowSyntaxError(message, Handle<Object>::null());
-    return factory()->NewExpressionStatement(throw_error, pos);
+  Scope* decl_scope = scope_->DeclarationScope();
+  if (decl_scope->is_global_scope() || decl_scope->is_eval_scope()) {
+    ReportMessageAt(loc, "illegal_return");
+    *ok = false;
+    return NULL;
   }
   return result;
 }
@@ -2941,9 +2941,11 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // TODO(keuchel): Move the temporary variable to the block scope, after
         // implementing stack allocated block scoped variables.
         Factory* heap_factory = isolate()->factory();
-        Handle<String> tempstr =
-            heap_factory->NewConsString(heap_factory->dot_for_string(), name);
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate(), tempstr, 0);
+        Handle<String> tempstr;
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate(), tempstr,
+            heap_factory->NewConsString(heap_factory->dot_for_string(), name),
+            0);
         Handle<String> tempname = heap_factory->InternalizeString(tempstr);
         Variable* temp = scope_->DeclarationScope()->NewTemporary(tempname);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
@@ -2987,11 +2989,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       bool accept_OF = expression->AsVariableProxy();
 
       if (CheckInOrOf(accept_OF, &mode)) {
-        if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          ReportMessageAt(lhs_location, "invalid_lhs_in_for", true);
-          *ok = false;
-          return NULL;
-        }
+        expression = this->CheckAndRewriteReferenceExpression(
+            expression, lhs_location, "invalid_lhs_in_for", CHECK_OK);
+
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, pos);
         Target target(&this->target_stack_, loop);
@@ -3078,10 +3078,10 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 }
 
 
-void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
+void Parser::ReportInvalidCachedData(Handle<String> name, bool* ok) {
   SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
   const char* element[1] = { name_string.get() };
-  ReportMessage("invalid_preparser_data",
+  ReportMessage("invalid_cached_data_function",
                 Vector<const char*>(element, 1));
   *ok = false;
 }
@@ -3200,10 +3200,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
       ? FunctionLiteral::kIsParenthesized
       : FunctionLiteral::kNotParenthesized;
-  FunctionLiteral::IsGeneratorFlag generator = is_generator
-      ? FunctionLiteral::kIsGenerator
-      : FunctionLiteral::kNotGenerator;
-  DeferredFeedbackSlotProcessor* slot_processor;
   AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
@@ -3331,140 +3327,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_parsed) {
-      int function_block_pos = position();
-      FunctionEntry entry;
-      if (cached_data_mode_ == CONSUME_CACHED_DATA) {
-        // If we have cached data, we use it to skip parsing the function body.
-        // The data contains the information we need to construct the lazy
-        // function.
-        entry = (*cached_data())->GetFunctionEntry(function_block_pos);
-        if (entry.is_valid()) {
-          if (entry.end_pos() <= function_block_pos) {
-            // End position greater than end of stream is safe, and hard
-            // to check.
-            ReportInvalidPreparseData(function_name, CHECK_OK);
-          }
-          scanner()->SeekForward(entry.end_pos() - 1);
-
-          scope->set_end_position(entry.end_pos());
-          Expect(Token::RBRACE, CHECK_OK);
-          isolate()->counters()->total_preparse_skipped()->Increment(
-              scope->end_position() - function_block_pos);
-          materialized_literal_count = entry.literal_count();
-          expected_property_count = entry.property_count();
-          scope_->SetStrictMode(entry.strict_mode());
-        } else {
-          // This case happens when we have preparse data but it doesn't contain
-          // an entry for the function. As a safety net, fall back to eager
-          // parsing. It is unclear whether PreParser's laziness analysis can
-          // produce different results than the Parser's laziness analysis (see
-          // https://codereview.chromium.org/7565003 ). In this case, we must
-          // discard all the preparse data, since the symbol data will be wrong.
-          is_lazily_parsed = false;
-          cached_data_mode_ = NO_CACHED_DATA;
-        }
-      } else {
-        // With no cached data, we partially parse the function, without
-        // building an AST. This gathers the data needed to build a lazy
-        // function.
-        // FIXME(marja): Now the PreParser doesn't need to log functions /
-        // symbols; only errors -> clean that up.
-        SingletonLogger logger;
-        PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
-        if (result == PreParser::kPreParseStackOverflow) {
-          // Propagate stack overflow.
-          set_stack_overflow();
-          *ok = false;
-          return NULL;
-        }
-        if (logger.has_error()) {
-          const char* arg = logger.argument_opt();
-          Vector<const char*> args;
-          if (arg != NULL) {
-            args = Vector<const char*>(&arg, 1);
-          }
-          ParserTraits::ReportMessageAt(
-              Scanner::Location(logger.start(), logger.end()),
-              logger.message(),
-              args);
-          *ok = false;
-          return NULL;
-        }
-        scope->set_end_position(logger.end());
-        Expect(Token::RBRACE, CHECK_OK);
-        isolate()->counters()->total_preparse_skipped()->Increment(
-            scope->end_position() - function_block_pos);
-        materialized_literal_count = logger.literals();
-        expected_property_count = logger.properties();
-        scope_->SetStrictMode(logger.strict_mode());
-        if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
-          ASSERT(log_);
-          // Position right after terminal '}'.
-          int body_end = scanner()->location().end_pos;
-          log_->LogFunction(function_block_pos, body_end,
-                            materialized_literal_count,
-                            expected_property_count,
-                            scope_->strict_mode());
-        }
-      }
-    }
-
-    if (!is_lazily_parsed) {
-      // Everything inside an eagerly parsed function will be parsed eagerly
-      // (see comment above).
-      ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
-      body = new(zone()) ZoneList<Statement*>(8, zone());
-      if (fvar != NULL) {
-        VariableProxy* fproxy = scope_->NewUnresolved(
-            factory(), function_name, Interface::NewConst());
-        fproxy->BindTo(fvar);
-        body->Add(factory()->NewExpressionStatement(
-            factory()->NewAssignment(fvar_init_op,
-                                     fproxy,
-                                     factory()->NewThisFunction(pos),
-                                     RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition), zone());
-      }
-
-      // For generators, allocate and yield an iterator on function entry.
-      if (is_generator) {
-        ZoneList<Expression*>* arguments =
-            new(zone()) ZoneList<Expression*>(0, zone());
-        CallRuntime* allocation = factory()->NewCallRuntime(
-            isolate()->factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
-            arguments, pos);
-        VariableProxy* init_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Assignment* assignment = factory()->NewAssignment(
-            Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Yield* yield = factory()->NewYield(
-            get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
-        body->Add(factory()->NewExpressionStatement(
-            yield, RelocInfo::kNoPosition), zone());
-      }
-
-      ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
-
-      if (is_generator) {
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Expression *undefined = factory()->NewLiteral(
-            isolate()->factory()->undefined_value(), RelocInfo::kNoPosition);
-        Yield* yield = factory()->NewYield(
-            get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
-        body->Add(factory()->NewExpressionStatement(
-            yield, RelocInfo::kNoPosition), zone());
-      }
-
+      SkipLazyFunctionBody(function_name, &materialized_literal_count,
+                           &expected_property_count, CHECK_OK);
+    } else {
+      body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
+                                    is_generator, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
-
-      Expect(Token::RBRACE, CHECK_OK);
-      scope->set_end_position(scanner()->location().end_pos);
     }
 
     // Validate strict mode. We can do this only after parsing the function,
@@ -3500,7 +3370,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         CHECK_OK);
     }
     ast_properties = *factory()->visitor()->ast_properties();
-    slot_processor = factory()->visitor()->slot_processor();
     dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
@@ -3508,6 +3377,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
+  FunctionLiteral::IsGeneratorFlag generator = is_generator
+      ? FunctionLiteral::kIsGenerator
+      : FunctionLiteral::kNotGenerator;
   FunctionLiteral* function_literal =
       factory()->NewFunctionLiteral(function_name,
                                     scope,
@@ -3524,7 +3396,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     pos);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_ast_properties(&ast_properties);
-  function_literal->set_slot_processor(slot_processor);
   function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
@@ -3532,7 +3403,149 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 }
 
 
-PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
+void Parser::SkipLazyFunctionBody(Handle<String> function_name,
+                                  int* materialized_literal_count,
+                                  int* expected_property_count,
+                                  bool* ok) {
+  int function_block_pos = position();
+  if (cached_data_mode_ == CONSUME_CACHED_DATA) {
+    // If we have cached data, we use it to skip parsing the function body. The
+    // data contains the information we need to construct the lazy function.
+    FunctionEntry entry =
+        (*cached_data())->GetFunctionEntry(function_block_pos);
+    if (entry.is_valid()) {
+      if (entry.end_pos() <= function_block_pos) {
+        // End position greater than end of stream is safe, and hard to check.
+        ReportInvalidCachedData(function_name, ok);
+        if (!*ok) {
+          return;
+        }
+      }
+      scanner()->SeekForward(entry.end_pos() - 1);
+
+      scope_->set_end_position(entry.end_pos());
+      Expect(Token::RBRACE, ok);
+      if (!*ok) {
+        return;
+      }
+      isolate()->counters()->total_preparse_skipped()->Increment(
+          scope_->end_position() - function_block_pos);
+      *materialized_literal_count = entry.literal_count();
+      *expected_property_count = entry.property_count();
+      scope_->SetStrictMode(entry.strict_mode());
+    } else {
+      // This case happens when we have preparse data but it doesn't contain an
+      // entry for the function. Fail the compilation.
+      ReportInvalidCachedData(function_name, ok);
+      return;
+    }
+  } else {
+    // With no cached data, we partially parse the function, without building an
+    // AST. This gathers the data needed to build a lazy function.
+    SingletonLogger logger;
+    PreParser::PreParseResult result =
+        ParseLazyFunctionBodyWithPreParser(&logger);
+    if (result == PreParser::kPreParseStackOverflow) {
+      // Propagate stack overflow.
+      set_stack_overflow();
+      *ok = false;
+      return;
+    }
+    if (logger.has_error()) {
+      const char* arg = logger.argument_opt();
+      Vector<const char*> args;
+      if (arg != NULL) {
+        args = Vector<const char*>(&arg, 1);
+      }
+      ParserTraits::ReportMessageAt(
+          Scanner::Location(logger.start(), logger.end()),
+          logger.message(), args, logger.is_reference_error());
+      *ok = false;
+      return;
+    }
+    scope_->set_end_position(logger.end());
+    Expect(Token::RBRACE, ok);
+    if (!*ok) {
+      return;
+    }
+    isolate()->counters()->total_preparse_skipped()->Increment(
+        scope_->end_position() - function_block_pos);
+    *materialized_literal_count = logger.literals();
+    *expected_property_count = logger.properties();
+    scope_->SetStrictMode(logger.strict_mode());
+    if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
+      ASSERT(log_);
+      // Position right after terminal '}'.
+      int body_end = scanner()->location().end_pos;
+      log_->LogFunction(function_block_pos, body_end,
+                        *materialized_literal_count,
+                        *expected_property_count,
+                        scope_->strict_mode());
+    }
+  }
+}
+
+
+ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
+    Handle<String> function_name, int pos, Variable* fvar,
+    Token::Value fvar_init_op, bool is_generator, bool* ok) {
+  // Everything inside an eagerly parsed function will be parsed eagerly
+  // (see comment above).
+  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8, zone());
+  if (fvar != NULL) {
+    VariableProxy* fproxy = scope_->NewUnresolved(
+        factory(), function_name, Interface::NewConst());
+    fproxy->BindTo(fvar);
+    body->Add(factory()->NewExpressionStatement(
+        factory()->NewAssignment(fvar_init_op,
+                                 fproxy,
+                                 factory()->NewThisFunction(pos),
+                                 RelocInfo::kNoPosition),
+        RelocInfo::kNoPosition), zone());
+  }
+
+  // For generators, allocate and yield an iterator on function entry.
+  if (is_generator) {
+    ZoneList<Expression*>* arguments =
+        new(zone()) ZoneList<Expression*>(0, zone());
+    CallRuntime* allocation = factory()->NewCallRuntime(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
+        arguments, pos);
+    VariableProxy* init_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Assignment* assignment = factory()->NewAssignment(
+        Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
+    VariableProxy* get_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Yield* yield = factory()->NewYield(
+        get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
+    body->Add(factory()->NewExpressionStatement(
+        yield, RelocInfo::kNoPosition), zone());
+  }
+
+  ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
+
+  if (is_generator) {
+    VariableProxy* get_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Expression *undefined = factory()->NewLiteral(
+        isolate()->factory()->undefined_value(), RelocInfo::kNoPosition);
+    Yield* yield = factory()->NewYield(
+        get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
+    body->Add(factory()->NewExpressionStatement(
+        yield, RelocInfo::kNoPosition), zone());
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+  scope_->set_end_position(scanner()->location().end_pos);
+
+  return body;
+}
+
+
+PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SingletonLogger* logger) {
   HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
   ASSERT_EQ(Token::LBRACE, scanner()->current_token());
@@ -3626,13 +3639,13 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     // errors. See ES5 16 for a definition of early errors.
     Handle<String> name = decl->proxy()->name();
     SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-    const char* elms[2] = { "Variable", c_string.get() };
-    Vector<const char*> args(elms, 2);
+    const char* elms[1] = { c_string.get() };
+    Vector<const char*> args(elms, 1);
     int position = decl->proxy()->position();
     Scanner::Location location = position == RelocInfo::kNoPosition
         ? Scanner::Location::invalid()
         : Scanner::Location(position, position + 1);
-    ParserTraits::ReportMessageAt(location, "redeclaration", args);
+    ParserTraits::ReportMessageAt(location, "var_redeclaration", args);
     *ok = false;
   }
 }
@@ -3692,58 +3705,6 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
     TargetCollector* collector = t->node()->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target, zone());
   }
-}
-
-
-Expression* Parser::NewThrowReferenceError(Handle<String> message) {
-  return NewThrowError(isolate()->factory()->MakeReferenceError_string(),
-                       message, HandleVector<Object>(NULL, 0));
-}
-
-
-Expression* Parser::NewThrowSyntaxError(Handle<String> message,
-                                        Handle<Object> first) {
-  int argc = first.is_null() ? 0 : 1;
-  Vector< Handle<Object> > arguments = HandleVector<Object>(&first, argc);
-  return NewThrowError(
-      isolate()->factory()->MakeSyntaxError_string(), message, arguments);
-}
-
-
-Expression* Parser::NewThrowTypeError(Handle<String> message,
-                                      Handle<Object> first,
-                                      Handle<Object> second) {
-  ASSERT(!first.is_null() && !second.is_null());
-  Handle<Object> elements[] = { first, second };
-  Vector< Handle<Object> > arguments =
-      HandleVector<Object>(elements, ARRAY_SIZE(elements));
-  return NewThrowError(
-      isolate()->factory()->MakeTypeError_string(), message, arguments);
-}
-
-
-Expression* Parser::NewThrowError(Handle<String> constructor,
-                                  Handle<String> message,
-                                  Vector< Handle<Object> > arguments) {
-  int argc = arguments.length();
-  Handle<FixedArray> elements = isolate()->factory()->NewFixedArray(argc,
-                                                                    TENURED);
-  for (int i = 0; i < argc; i++) {
-    Handle<Object> element = arguments[i];
-    if (!element.is_null()) {
-      elements->set(i, *element);
-    }
-  }
-  Handle<JSArray> array = isolate()->factory()->NewJSArrayWithElements(
-      elements, FAST_ELEMENTS, TENURED);
-
-  int pos = position();
-  ZoneList<Expression*>* args = new(zone()) ZoneList<Expression*>(2, zone());
-  args->Add(factory()->NewLiteral(message, pos), zone());
-  args->Add(factory()->NewLiteral(array, pos), zone());
-  CallRuntime* call_constructor =
-      factory()->NewCallRuntime(constructor, NULL, args, pos);
-  return factory()->NewThrow(call_constructor, pos);
 }
 
 
@@ -3820,8 +3781,7 @@ bool RegExpParser::simple() {
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
-  *error_ = isolate()->factory()->NewStringFromAscii(message, NOT_TENURED);
-  ASSERT(!error_->is_null());
+  *error_ = isolate()->factory()->NewStringFromAscii(message).ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();
@@ -4556,27 +4516,27 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-ScriptDataImpl::~ScriptDataImpl() {
+ScriptData::~ScriptData() {
   if (owns_store_) store_.Dispose();
 }
 
 
-int ScriptDataImpl::Length() {
+int ScriptData::Length() {
   return store_.length() * sizeof(unsigned);
 }
 
 
-const char* ScriptDataImpl::Data() {
+const char* ScriptData::Data() {
   return reinterpret_cast<const char*>(store_.start());
 }
 
 
-bool ScriptDataImpl::HasError() {
+bool ScriptData::HasError() {
   return has_error();
 }
 
 
-void ScriptDataImpl::Initialize() {
+void ScriptData::Initialize() {
   // Prepares state for use.
   if (store_.length() >= PreparseDataConstants::kHeaderSize) {
     function_index_ = PreparseDataConstants::kHeaderSize;
@@ -4593,7 +4553,7 @@ void ScriptDataImpl::Initialize() {
 }
 
 
-int ScriptDataImpl::ReadNumber(byte** source) {
+int ScriptData::ReadNumber(byte** source) {
   // Reads a number from symbol_data_ in base 128. The most significant
   // bit marks that there are more digits.
   // If the first byte is 0x80 (kNumberTerminator), it would normally
@@ -4617,33 +4577,6 @@ int ScriptDataImpl::ReadNumber(byte** source) {
   }
   *source = data;
   return result;
-}
-
-
-// Create a Scanner for the preparser to use as input, and preparse the source.
-ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
-                                       Utf16CharacterStream* source) {
-  CompleteParserRecorder recorder;
-  HistogramTimerScope timer(isolate->counters()->pre_parse());
-  Scanner scanner(isolate->unicode_cache());
-  intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  PreParser preparser(&scanner, &recorder, stack_limit);
-  preparser.set_allow_lazy(true);
-  preparser.set_allow_generators(FLAG_harmony_generators);
-  preparser.set_allow_for_of(FLAG_harmony_iteration);
-  preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
-  preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
-  scanner.Initialize(source);
-  PreParser::PreParseResult result = preparser.PreParseProgram();
-  if (result == PreParser::kPreParseStackOverflow) {
-    isolate->StackOverflow();
-    return NULL;
-  }
-
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
 }
 
 
@@ -4684,11 +4617,12 @@ bool Parser::Parse() {
     SetCachedData(info()->cached_data(), info()->cached_data_mode());
     if (info()->cached_data_mode() == CONSUME_CACHED_DATA &&
         (*info()->cached_data())->has_error()) {
-      ScriptDataImpl* cached_data = *(info()->cached_data());
+      ScriptData* cached_data = *(info()->cached_data());
       Scanner::Location loc = cached_data->MessageLocation();
       const char* message = cached_data->BuildMessage();
       Vector<const char*> args = cached_data->BuildArgs();
-      ParserTraits::ReportMessageAt(loc, message, args);
+      ParserTraits::ReportMessageAt(loc, message, args,
+                                    cached_data->IsReferenceError());
       DeleteArray(message);
       for (int i = 0; i < args.length(); i++) {
         DeleteArray(args[i]);

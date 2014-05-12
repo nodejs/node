@@ -1,40 +1,18 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
+#include "handles.h"
+
 namespace v8 {
 namespace internal {
 
-
 class StringAllocator {
  public:
-  virtual ~StringAllocator() {}
+  virtual ~StringAllocator() { }
   // Allocate a number of bytes.
   virtual char* allocate(unsigned bytes) = 0;
   // Allocate a larger number of bytes and copy the old buffer to the new one.
@@ -46,11 +24,12 @@ class StringAllocator {
 
 
 // Normal allocator uses new[] and delete[].
-class HeapStringAllocator: public StringAllocator {
+class HeapStringAllocator V8_FINAL : public StringAllocator {
  public:
   ~HeapStringAllocator() { DeleteArray(space_); }
-  char* allocate(unsigned bytes);
-  char* grow(unsigned* bytes);
+  virtual char* allocate(unsigned bytes) V8_OVERRIDE;
+  virtual char* grow(unsigned* bytes) V8_OVERRIDE;
+
  private:
   char* space_;
 };
@@ -59,18 +38,19 @@ class HeapStringAllocator: public StringAllocator {
 // Allocator for use when no new c++ heap allocation is allowed.
 // Given a preallocated buffer up front and does no allocation while
 // building message.
-class NoAllocationStringAllocator: public StringAllocator {
+class NoAllocationStringAllocator V8_FINAL : public StringAllocator {
  public:
   NoAllocationStringAllocator(char* memory, unsigned size);
-  char* allocate(unsigned bytes) { return space_; }
-  char* grow(unsigned* bytes);
+  virtual char* allocate(unsigned bytes) V8_OVERRIDE { return space_; }
+  virtual char* grow(unsigned* bytes) V8_OVERRIDE;
+
  private:
   unsigned size_;
   char* space_;
 };
 
 
-class FmtElm {
+class FmtElm V8_FINAL {
  public:
   FmtElm(int value) : type_(INT) {  // NOLINT
     data_.u_int_ = value;
@@ -110,7 +90,7 @@ class FmtElm {
 };
 
 
-class StringStream {
+class StringStream V8_FINAL {
  public:
   explicit StringStream(StringAllocator* allocator):
     allocator_(allocator),
@@ -118,9 +98,6 @@ class StringStream {
     length_(0),
     buffer_(allocator_->allocate(kInitialCapacity)) {
     buffer_[0] = 0;
-  }
-
-  ~StringStream() {
   }
 
   bool Put(char c);
@@ -175,7 +152,6 @@ class StringStream {
   static bool IsMentionedObjectCacheClear(Isolate* isolate);
 #endif
 
-
   static const int kInitialCapacity = 16;
 
  private:
@@ -194,7 +170,7 @@ class StringStream {
 
 
 // Utility class to print a list of items to a stream, divided by a separator.
-class SimpleListPrinter {
+class SimpleListPrinter V8_FINAL {
  public:
   explicit SimpleListPrinter(StringStream* stream, char separator = ',') {
     separator_ = separator;
@@ -216,7 +192,6 @@ class SimpleListPrinter {
   char separator_;
   StringStream* stream_;
 };
-
 
 } }  // namespace v8::internal
 
