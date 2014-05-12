@@ -1006,18 +1006,6 @@ assert.throws(function() {
   }
 })();
 
-// Test Buffers to ArrayBuffers
-var b = new Buffer(5).fill('abcdf');
-var c = b.toArrayBuffer();
-assert.equal(c.byteLength, 5);
-assert.equal(Object.prototype.toString.call(c), '[object ArrayBuffer]');
-var d = new Uint8Array(c);
-for (var i = 0; i < 5; i++)
-  assert.equal(d[i], b[i]);
-b.fill('ghijk');
-for (var i = 0; i < 5; i++)
-  assert.notEqual(d[i], b[i]);
-
 
 assert.throws(function () {
   new Buffer(smalloc.kMaxLength + 1);
