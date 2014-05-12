@@ -85,7 +85,7 @@ consts_misc = [
     { 'name': 'prop_type_field',
         'value': 'FIELD' },
     { 'name': 'prop_type_first_phantom',
-        'value': 'TRANSITION' },
+        'value': 'INTERCEPTOR' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
 
