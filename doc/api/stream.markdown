@@ -160,7 +160,7 @@ readable.on('data', function(chunk) {
 
 #### Event: 'end'
 
-This event fires when no more data will be provided.
+This event fires when there will be no more data to read.
 
 Note that the `end` event **will not fire** unless the data is
 completely consumed.  This can be done by switching into flowing mode,
@@ -1121,6 +1121,14 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
+#### Events: 'finish' and 'end'
+
+The [`finish`][] and [`end`][] events are from the parent Writable
+and Readable classes respectively. The `finish` event is fired after
+`.end()` is called and all chunks have been processed by `_transform`,
+`end` is fired after all data has been output which is after the callback
+in `_flush` has been called.
+
 #### Example: `SimpleProtocol` parser v2
 
 The example above of a simple protocol parser can be implemented
@@ -1464,6 +1472,8 @@ modify them.
 [Writable]: #stream_class_stream_writable
 [Duplex]: #stream_class_stream_duplex
 [Transform]: #stream_class_stream_transform
+[`end`]: #stream_event_end
+[`finish`]: #stream_event_finish
 [`_read(size)`]: #stream_readable_read_size_1
 [`_read()`]: #stream_readable_read_size_1
 [_read]: #stream_readable_read_size_1
