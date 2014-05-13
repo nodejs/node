@@ -118,6 +118,19 @@ $ make jslint test
 Make sure the linter is happy and that all tests pass.  Please, do not submit
 patches that fail either check.
 
+If you are updating tests and just want to run a single test to check it, you
+can use this syntax to run it exactly as the test harness would:
+
+```
+python tools/test.py -v --mode=release simple/test-stream2-transform
+```
+
+You can run tests directly with node:
+
+```
+node ./test/simple/test-streams2-transform.js
+```
+
 
 ### PUSH
 
