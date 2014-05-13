@@ -27,30 +27,22 @@ var spawnSync = require('child_process').spawnSync;
 var TIMER = 100;
 var SLEEP = 1000;
 
-var start = Date.now();
 var timeout = 0;
 
 setTimeout(function() {
-  console.log('timer fired');
-  timeout = Date.now();
+  timeout = process.hrtime(start);
+  assert.ok(stop, 'timer should not fire before process exits');
+  assert.strictEqual(timeout[0], 1, 'timer should take as long as sleep');
 }, TIMER);
 
 console.log('sleep started');
+var start = process.hrtime();
 var ret = spawnSync('sleep', ['1']);
-console.log('sleep exited');
+var stop = process.hrtime(start);
+assert.strictEqual(ret.status, 0, 'exit status should be zero');
+console.log('sleep exited', stop);
+assert.strictEqual(stop[0], 1, 'sleep should not take longer or less than 1 second');
 
 // Error test when command does not exist
 var ret_err = spawnSync('command_does_not_exist');
 assert.strictEqual(ret_err.error.code, 'ENOENT');
-
-process.on('exit', function() {
-  assert.strictEqual(ret.status, 0);
-
-  var delta = Date.now() - start;
-
-  var expected_timeout = start + TIMER;
-  var tdlta = timeout - expected_timeout;
-
-  assert(delta > SLEEP);
-  assert(tdlta > TIMER && tdlta < SLEEP);
-});
