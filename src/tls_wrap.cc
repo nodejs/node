@@ -53,12 +53,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
-                                 | ASN1_STRFLGS_ESC_MSB
-                                 | XN_FLAG_SEP_MULTILINE
-                                 | XN_FLAG_FN_SN;
-
-
 size_t TLSCallbacks::error_off_;
 char TLSCallbacks::error_buf_[1024];
 
