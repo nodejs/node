@@ -784,12 +784,14 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
 size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
   HandleScope scope;
 
+  assert(state_ != kEnded);
+  
   // Just accumulate data, everything will be pushed to BIO later
   if (state_ == kPaused) return 0;
 
   // Copy incoming data to the internal buffer
   // (which has a size of the biggest possible TLS frame)
-  size_t available = sizeof(data_) - offset_;
+  size_t available = kBufferSize - offset_;
   size_t copied = len < available ? len : available;
   memcpy(data_ + offset_, data, copied);
   offset_ += copied;
@@ -824,7 +826,7 @@ size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
     }
 
     // Sanity check (too big frame, or too small)
-    if (frame_len_ >= sizeof(data_)) {
+    if (frame_len_ >= kBufferSize) {
       // Let OpenSSL handle it
       Finish();
       return copied;
@@ -905,7 +907,6 @@ size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
     argv[0] = hello;
     MakeCallback(conn_->handle_, onclienthello_sym, 1, argv);
     break;
-   case kEnded:
    default:
     break;
   }
@@ -922,6 +923,9 @@ void ClientHelloParser::Finish() {
   int r = BIO_write(conn_->bio_read_, reinterpret_cast<char*>(data_), offset_);
   conn_->HandleBIOError(conn_->bio_read_, "BIO_write", r);
   conn_->SetShutdownFlags();
+
+  delete[] data_;
+  data_ = NULL;
 }
 
 
