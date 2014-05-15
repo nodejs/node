@@ -685,25 +685,6 @@ assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
 assert.equal(0xef, b[3]);
 
-// testing invalid encoding on Buffer.toString
-caught_error = null;
-try {
-  var copied = b.toString('invalid');
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('Unknown encoding: invalid', caught_error.message);
-
-// testing invalid encoding on Buffer.write
-caught_error = null;
-try {
-  var copied = b.write('some string', 0, 5, 'invalid');
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('Unknown encoding: invalid', caught_error.message);
-
-
 // #1210 Test UTF-8 string includes null character
 var buf = new Buffer('\0');
 assert.equal(buf.length, 1);
