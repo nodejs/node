@@ -85,6 +85,12 @@ bool ClientHelloParser::ParseRecordHeader(const uint8_t* data, size_t avail) {
   return true;
 }
 
+#ifdef OPENSSL_NO_SSL2
+# define NODE_SSL2_VER_CHECK(buf) false
+#else
+# define NODE_SSL2_VER_CHECK(buf) ((buf)[0] == 0x00 && (buf)[1] == 0x02)
+#endif  // OPENSSL_NO_SSL2
+
 
 void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   ClientHello hello;
@@ -95,12 +101,10 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
 
   // Skip unsupported frames and gather some data from frame
   // Check hello protocol version
-  if (!(data[body_offset_ + 4] == 0x03 && data[body_offset_ + 5] <= 0x03))
+  if (!(data[body_offset_ + 4] == 0x03 && data[body_offset_ + 5] <= 0x03) &&
+      !NODE_SSL2_VER_CHECK(data + body_offset_ + 4)) {
     goto fail;
-#ifndef OPENSSL_NO_SSL2
-  if (!(data[body_offset_ + 4] == 0x00 && data[body_offset_ + 5] == 0x02))
-    goto fail;
-#endif
+  }
 
   if (data[body_offset_] == kClientHello) {
     if (state_ == kTLSHeader) {
@@ -139,6 +143,9 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
  fail:
   return End();
 }
+
+
+#undef NODE_SSL2_VER_CHECK
 
 
 void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
