@@ -62,7 +62,12 @@ server.listen(common.PIPE, function() {
     res.on('end', function() {
       assert.equal(res.body, 'hello world\n');
       body_ok = true;
-      server.close();
+      server.close(function(error) {
+        assert.equal(error, undefined);
+        server.close(function(error) {
+          assert.equal(error && error.message, 'Not running');
+        });
+      });
     });
   });
 
@@ -79,9 +84,4 @@ process.on('exit', function() {
   assert.ok(status_ok);
   assert.ok(headers_ok);
   assert.ok(body_ok);
-
-  // Double close should throw. Follows net_legacy behaviour.
-  assert.throws(function() {
-    server.close();
-  });
 });
