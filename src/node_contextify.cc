@@ -414,10 +414,6 @@ class ContextifyContext {
 
     bool success = PersistentToLocal(isolate,
                                      ctx->sandbox_)->Delete(property);
-    if (!success) {
-      success = PersistentToLocal(isolate,
-                                  ctx->proxy_global_)->Delete(property);
-    }
     args.GetReturnValue().Set(success);
   }
 
