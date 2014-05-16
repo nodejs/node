@@ -206,7 +206,8 @@ Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally
 closed when all connections are ended and the server emits a `'close'`
 event. Optionally, you can pass a callback to listen for the `'close'`
-event.
+event. If present, the callback is invoked with any potential error
+as the first and only argument.
 
 ### server.address()
 
