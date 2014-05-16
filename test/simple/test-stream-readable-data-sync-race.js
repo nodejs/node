@@ -19,34 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common.js');
-var R = require('_stream_readable');
+var common = require('../common');
 var assert = require('assert');
 
-var util = require('util');
-var EE = require('events').EventEmitter;
+var Readable = require('stream').Readable;
 
-var ondataCalled = 0;
+var r = new Readable();
+var errors = 0;
 
-function TestReader() {
-  R.apply(this);
-  this._buffer = new Buffer(100);
-  this._buffer.fill('x');
+// Setting `data` listener should not trigger `_read()` calls before we will
+// set the `error` listener below
+r.on('data', function() {
+});
 
-  this.on('data', function() {
-    ondataCalled++;
-  });
-}
+r.on('error', function() {
+  errors++;
+});
 
-util.inherits(TestReader, R);
-
-TestReader.prototype._read = function(n) {
-  this.push(this._buffer);
-  this._buffer = new Buffer(0);
-};
-
-var reader = new TestReader();
-process.nextTick(function() {
-  assert.equal(ondataCalled, 1);
+process.on('exit', function() {
+  assert.equal(errors, 1);
 });
