@@ -1502,7 +1502,16 @@ var relativeTests2 = [
   //changeing auth
   ['http://diff:auth@www.example.com',
    'http://asdf:qwer@www.example.com',
-   'http://diff:auth@www.example.com/']
+   'http://diff:auth@www.example.com/'],
+
+  // RFC6920
+  ['sha-256;UyaQV-Ev4rdLoHyJJWCi11OHfrYv9E1aGQAlMO2X_-Q',
+   'ni://example.com/',
+   'ni://example.com/sha-256;UyaQV-Ev4rdLoHyJJWCi11OHfrYv9E1aGQAlMO2X_-Q'],
+  ['sha-256-120;UyaQV+Ev4rdLoHyJJWCi',
+   'ni:///',
+   'ni:///sha-256-120;UyaQV+Ev4rdLoHyJJWCi']
+
 ];
 relativeTests2.forEach(function(relativeTest) {
   var a = url.resolve(relativeTest[1], relativeTest[0]),
