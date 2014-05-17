@@ -12,6 +12,9 @@
     'clang%': 0,
     'python%': 'python',
 
+    # Enable disassembler for `--print-code` v8 options
+    'v8_enable_disassembler': 1,
+
     # Enable V8's post-mortem debugging only on unix flavors.
     'conditions': [
       ['OS == "win"', {
