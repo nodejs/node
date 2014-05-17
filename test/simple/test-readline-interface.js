@@ -227,6 +227,7 @@ function isWarned(emitter) {
     var remainingKeypresses = keypresses.slice();
     function keypressListener (ch, key) {
       callCount++;
+      if (ch) assert(!key.code);
       assert.equal(key.sequence, remainingKeypresses.shift());
     };
     readline.emitKeypressEvents(fi);
