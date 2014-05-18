@@ -35,6 +35,9 @@
     'default_configuration': 'Release',
     'configurations': {
       'Debug': {
+        'variables': {
+          'v8_enable_handle_zapping%': 1,
+        },
         'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
@@ -59,6 +62,9 @@
         },
       },
       'Release': {
+        'variables': {
+          'v8_enable_handle_zapping%': 0,
+        },
         'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
         'conditions': [
           ['target_arch=="x64"', {
