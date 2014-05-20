@@ -180,7 +180,6 @@ void TLSCallbacks::InitSSL() {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server()) {
     SSL_CTX_set_tlsext_servername_callback(sc_->ctx_, SelectSNIContextCallback);
-    SSL_CTX_set_tlsext_servername_arg(sc_->ctx_, this);
   }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
@@ -764,7 +763,7 @@ void TLSCallbacks::SetServername(const FunctionCallbackInfo<Value>& args) {
 
 
 int TLSCallbacks::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
-  TLSCallbacks* p = static_cast<TLSCallbacks*>(arg);
+  TLSCallbacks* p = static_cast<TLSCallbacks*>(SSL_get_app_data(s));
   Environment* env = p->env();
 
   const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
