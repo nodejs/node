@@ -36,12 +36,14 @@ function pingPongTest(port, host, on_complete) {
   var server = net.createServer({ allowHalfOpen: true }, function(socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
-    if (host === '127.0.0.1' || host === 'localhost' || !host) {
-      assert.equal(socket.remoteAddress, '127.0.0.1');
+    var address = socket.remoteAddress;
+    if (host === '127.0.0.1') {
+      assert.equal(address, '127.0.0.1');
+    } else if (host == null || host === 'localhost') {
+      assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1');
     } else {
-      console.log('host = ' + host +
-                  ', remoteAddress = ' + socket.remoteAddress);
-      assert.equal(socket.remoteAddress, '::1');
+      console.log('host = ' + host + ', remoteAddress = ' + address);
+      assert.equal(address, '::1');
     }
 
     socket.setEncoding('utf8');
