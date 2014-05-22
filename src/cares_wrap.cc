@@ -1014,10 +1014,13 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
   assert(args[2]->IsInt32());
+  assert(args[3]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(args[1]);
 
   int family;
+  int32_t flags = args[3]->Int32Value();
+
   switch (args[2]->Int32Value()) {
   case 0:
     family = AF_UNSPEC;
@@ -1042,6 +1045,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = family;
   hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = flags;
 
   int err = uv_getaddrinfo(env->event_loop(),
                            &req_wrap->req_,
@@ -1246,6 +1250,10 @@ static void Initialize(Handle<Object> target,
               Integer::New(env->isolate(), AF_INET6));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_UNSPEC"),
               Integer::New(env->isolate(), AF_UNSPEC));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_ADDRCONFIG"),
+              Integer::New(env->isolate(), AI_ADDRCONFIG));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
+              Integer::New(env->isolate(), AI_V4MAPPED));
 }
 
 }  // namespace cares_wrap

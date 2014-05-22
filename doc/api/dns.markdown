@@ -31,12 +31,31 @@ resolves the IP addresses which are returned.
       });
     });
 
-## dns.lookup(hostname, [family], callback)
+## dns.lookup(hostname, [options], callback)
 
 Resolves a hostname (e.g. `'google.com'`) into the first found A (IPv4) or
-AAAA (IPv6) record.
-The `family` can be the integer `4` or `6`. Defaults to `null` that indicates
-both Ip v4 and v6 address family.
+AAAA (IPv6) record. `options` can be an object or integer. If `options` is
+not provided, then IP v4 and v6 addresses are both valid. If `options` is
+an integer, then it must be `4` or `6`.
+
+Alternatively, `options` can be an object containing two properties,
+`family` and `hints`. Both properties are optional. If `family` is provided,
+it must be the integer `4` or `6`. If `family` is not provided then IP v4
+and v6 addresses are accepted. The `hints` field, if present, should be one
+or more of the supported `getaddrinfo` flags. If `hints` is not provided,
+then no flags are passed to `getaddrinfo`. Multiple flags can be passed
+through `hints` by logically `OR`ing their values. An example usage of
+`options` is shown below.
+
+```
+{
+  family: 4,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED
+}
+```
+
+See [supported `getaddrinfo` flags](#dns_supported_getaddrinfo_flags) below for
+more information on supported flags.
 
 The callback has arguments `(err, address, family)`.  The `address` argument
 is a string representation of a IP v4 or v6 address. The `family` argument
@@ -120,7 +139,7 @@ of SRV records are priority, weight, port, and name (e.g.,
 
 ## dns.resolveSoa(hostname, callback)
 
-The same as `dns.resolve()`, but only for start of authority record queries 
+The same as `dns.resolve()`, but only for start of authority record queries
 (`SOA` record).
 
 `addresses` is an object with the following structure:
@@ -201,3 +220,14 @@ Each DNS query can return one of the following error codes:
 - `dns.LOADIPHLPAPI`: Error loading iphlpapi.dll.
 - `dns.ADDRGETNETWORKPARAMS`: Could not find GetNetworkParams function.
 - `dns.CANCELLED`: DNS query cancelled.
+
+## Supported getaddrinfo flags
+
+The following flags can be passed as hints to `dns.lookup`.
+
+- `dns.ADDRCONFIG`: Returned address types are determined by the types
+of addresses supported by the current system. For example, IPv4 addresses
+are only returned if the current system has at least one IPv4 address
+configured. Loopback addresses are not considered.
+- `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses
+were found, then return IPv4 mapped IPv6 addresses.

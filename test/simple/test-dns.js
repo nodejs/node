@@ -27,6 +27,8 @@ var dns = require('dns');
 var existing = dns.getServers();
 assert(existing.length);
 
+function noop() {}
+
 var goog = [
   '8.8.8.8',
   '8.8.4.4',
@@ -61,12 +63,54 @@ assert.deepEqual(dns.getServers(), portsExpected);
 assert.doesNotThrow(function () { dns.setServers([]); });
 assert.deepEqual(dns.getServers(), []);
 
-assert.throws(
-  function() {
-    dns.resolve('test.com', [], new Function);
-  },
-  function(err) {
-    return !(err instanceof TypeError);
-  },
-  "Unexpected error"
-);
+assert.throws(function() {
+  dns.resolve('test.com', [], noop);
+}, function(err) {
+  return !(err instanceof TypeError);
+}, 'Unexpected error');
+
+assert.throws(function() {
+  dns.lookup('www.google.com', { hints: 1 }, noop);
+});
+
+assert.throws(function() {
+  dns.lookup('www.google.com');
+}, 'invalid arguments: callback must be passed');
+
+assert.throws(function() {
+  dns.lookup('www.google.com', 4);
+}, 'invalid arguments: callback must be passed');
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', 6, noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', {}, noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', {
+    family: 4,
+    hints: 0
+  }, noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', {
+    family: 6,
+    hints: dns.ADDRCONFIG
+  }, noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', {
+    hints: dns.V4MAPPED
+  }, noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookup('www.google.com', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED
+  }, noop);
+});
