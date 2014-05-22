@@ -3622,10 +3622,10 @@ int Start(int argc, char** argv) {
     env = NULL;
   }
 
-#ifndef NDEBUG
-  // Clean up. Not strictly necessary.
+  CHECK_NE(node_isolate, NULL);
+  node_isolate->Dispose();
+  node_isolate = NULL;
   V8::Dispose();
-#endif  // NDEBUG
 
   delete[] exec_argv;
   exec_argv = NULL;
