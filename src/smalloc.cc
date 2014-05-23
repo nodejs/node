@@ -157,8 +157,9 @@ Free::Free(char* data) : data_(data) {
 void Free::WeakCallback(Isolate* isolate,
                         Local<Object> object,
                         CallbackInfo<Free>* info) {
-  free(data_);
   size_t length = object->GetIndexedPropertiesExternalArrayDataLength();
+  if (length > 0)
+    free(data_);
   enum ExternalArrayType array_type =
       object->GetIndexedPropertiesExternalArrayDataType();
   size_t array_size = ExternalArraySize(array_type);
