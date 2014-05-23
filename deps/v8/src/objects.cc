@@ -3373,9 +3373,16 @@ static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
       ? to_kind
       : TERMINAL_FAST_ELEMENTS_KIND;
 
-  // Support for legacy API.
+  // Support for legacy API: SetIndexedPropertiesTo{External,Pixel}Data
+  // allows to change elements from arbitrary kind to any ExternalArray
+  // elements kind. Satisfy its requirements, checking whether we already
+  // have the cached transition.
   if (IsExternalArrayElementsKind(to_kind) &&
       !IsFixedTypedArrayElementsKind(map->elements_kind())) {
+    if (map->HasElementsTransition()) {
+        Map* next_map = map->elements_transition_map();
+        if (next_map->elements_kind() == to_kind) return next_map;
+    }
     return map;
   }
 
