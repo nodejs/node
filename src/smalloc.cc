@@ -54,148 +54,93 @@ using v8::WeakCallbackData;
 using v8::kExternalUnsignedByteArray;
 
 
-template <typename Payload>
 class CallbackInfo {
  public:
+  static inline void Free(char* data, void* hint);
   static inline CallbackInfo* New(Isolate* isolate,
                                   Handle<Object> object,
-                                  Payload payload);
-  inline void Dispose();
+                                  FreeCallback callback,
+                                  void* hint = 0);
+  inline void Dispose(Isolate* isolate);
   inline Persistent<Object>* persistent();
-  inline Payload* payload();
  private:
   static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
+  inline void WeakCallback(Isolate* isolate, Local<Object> object);
   inline CallbackInfo(Isolate* isolate,
                       Handle<Object> object,
-                      Payload payload);
+                      FreeCallback callback,
+                      void* hint);
   ~CallbackInfo();
   Persistent<Object> persistent_;
-  Payload payload_;
-};
-
-
-class Free {
- public:
-  explicit Free(char* data);
-  void WeakCallback(Isolate* isolate,
-                    Local<Object> object,
-                    CallbackInfo<Free>* info);
- private:
-  char* const data_;
-};
-
-
-class Dispose {
- public:
-  typedef void (*Callback)(char* data, void* hint);
-  Dispose(Callback callback, void* hint);
-  void WeakCallback(Isolate* isolate,
-                    Local<Object> object,
-                    CallbackInfo<Dispose>* info);
- private:
-  Callback const callback_;
+  FreeCallback const callback_;
   void* const hint_;
+  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
 };
 
 
-template <typename Payload>
-CallbackInfo<Payload>* CallbackInfo<Payload>::New(Isolate* isolate,
-                                                  Handle<Object> object,
-                                                  Payload payload) {
-  return new CallbackInfo(isolate, object, payload);
+void CallbackInfo::Free(char* data, void*) {
+  ::free(data);
 }
 
 
-template <typename Payload>
-void CallbackInfo<Payload>::Dispose() {
-  delete this;
+CallbackInfo* CallbackInfo::New(Isolate* isolate,
+                                Handle<Object> object,
+                                FreeCallback callback,
+                                void* hint) {
+  return new CallbackInfo(isolate, object, callback, hint);
 }
 
 
-template <typename Payload>
-Persistent<Object>* CallbackInfo<Payload>::persistent() {
+void CallbackInfo::Dispose(Isolate* isolate) {
+  WeakCallback(isolate, PersistentToLocal(isolate, persistent_));
+}
+
+
+Persistent<Object>* CallbackInfo::persistent() {
   return &persistent_;
 }
 
 
-template <typename Payload>
-Payload* CallbackInfo<Payload>::payload() {
-  return &payload_;
-}
-
-
-template <typename Payload>
-CallbackInfo<Payload>::CallbackInfo(Isolate* isolate,
-                                    Handle<Object> object,
-                                    Payload payload)
+CallbackInfo::CallbackInfo(Isolate* isolate,
+                           Handle<Object> object,
+                           FreeCallback callback,
+                           void* hint)
     : persistent_(isolate, object),
-      payload_(payload) {
+      callback_(callback),
+      hint_(hint) {
   persistent_.SetWeak(this, WeakCallback);
   persistent_.SetWrapperClassId(ALLOC_ID);
   persistent_.MarkIndependent();
 }
 
 
-template <typename Payload>
-CallbackInfo<Payload>::~CallbackInfo() {
+CallbackInfo::~CallbackInfo() {
   persistent_.Reset();
 }
 
 
-template <typename Payload>
-void CallbackInfo<Payload>::WeakCallback(
+void CallbackInfo::WeakCallback(
     const WeakCallbackData<Object, CallbackInfo>& data) {
-  CallbackInfo* info = data.GetParameter();
-  info->payload()->WeakCallback(data.GetIsolate(), data.GetValue(), info);
+  data.GetParameter()->WeakCallback(data.GetIsolate(), data.GetValue());
 }
 
 
-Free::Free(char* data) : data_(data) {
-}
-
-
-void Free::WeakCallback(Isolate* isolate,
-                        Local<Object> object,
-                        CallbackInfo<Free>* info) {
-  size_t length = object->GetIndexedPropertiesExternalArrayDataLength();
-  if (length > 0)
-    free(data_);
-  enum ExternalArrayType array_type =
-      object->GetIndexedPropertiesExternalArrayDataType();
-  size_t array_size = ExternalArraySize(array_type);
-  CHECK_GT(array_size, 0);
-  CHECK_GE(array_size * length, length);  // Overflow check.
-  length *= array_size;
-  int64_t change_in_bytes = -static_cast<int64_t>(length);
-  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-  info->Dispose();
-}
-
-
-Dispose::Dispose(Callback callback, void* hint)
-    : callback_(callback),
-      hint_(hint) {
-}
-
-
-void Dispose::WeakCallback(Isolate* isolate,
-                           Local<Object> object,
-                           CallbackInfo<Dispose>* info) {
-  char* data =
-      static_cast<char*>(object->GetIndexedPropertiesExternalArrayData());
-  size_t len = object->GetIndexedPropertiesExternalArrayDataLength();
+void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
+  void* array_data = object->GetIndexedPropertiesExternalArrayData();
+  size_t array_length = object->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType array_type =
       object->GetIndexedPropertiesExternalArrayDataType();
   size_t array_size = ExternalArraySize(array_type);
   CHECK_GT(array_size, 0);
   if (array_size > 1) {
-    CHECK_GT(len * array_size, len);  // Overflow check.
-    len *= array_size;
+    CHECK_GT(array_length * array_size, array_length);  // Overflow check.
+    array_length *= array_size;
   }
-  int64_t change_in_bytes = -static_cast<int64_t>(len + sizeof(*info));
+  object->SetIndexedPropertiesToExternalArrayData(NULL, array_type, 0);
+  int64_t change_in_bytes = -static_cast<int64_t>(array_length + sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-  callback_(data, hint_);
-  info->Dispose();
+  callback_(static_cast<char*>(array_data), hint_);
+  delete this;
 }
 
 
@@ -403,7 +348,7 @@ void Alloc(Environment* env,
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
   size_t size = length / ExternalArraySize(type);
   obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
-  CallbackInfo<Free>::New(env->isolate(), obj, Free(data));
+  CallbackInfo::New(env->isolate(), obj, CallbackInfo::Free);
 }
 
 
@@ -421,10 +366,8 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
     Local<Value> ext_v = obj->GetHiddenValue(env->smalloc_p_string());
     if (ext_v->IsExternal()) {
       Local<External> ext = ext_v.As<External>();
-      CallbackInfo<Free>* info = static_cast<CallbackInfo<Free>*>(ext->Value());
-      Local<Object> object = PersistentToLocal(env->isolate(),
-                                               *info->persistent());
-      info->payload()->WeakCallback(env->isolate(), object, info);
+      CallbackInfo* info = static_cast<CallbackInfo*>(ext->Value());
+      info->Dispose(env->isolate());
       return;
     }
   }
@@ -484,8 +427,7 @@ void Alloc(Environment* env,
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
   env->set_using_smalloc_alloc_cb(true);
-  CallbackInfo<Dispose>* info =
-      CallbackInfo<Dispose>::New(isolate, obj, Dispose(fn, hint));
+  CallbackInfo* info = CallbackInfo::New(isolate, obj, fn, hint);
   obj->SetHiddenValue(env->smalloc_p_string(), External::New(isolate, info));
   isolate->AdjustAmountOfExternalAllocatedMemory(length + sizeof(*info));
   size_t size = length / ExternalArraySize(type);
