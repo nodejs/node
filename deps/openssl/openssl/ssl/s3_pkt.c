@@ -110,6 +110,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 #include <errno.h>
 #define USE_SOCKETS
 #include "ssl_locl.h"
