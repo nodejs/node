@@ -276,7 +276,7 @@ inline bool Environment::in_domain() const {
 
 inline Environment* Environment::from_immediate_check_handle(
     uv_check_t* handle) {
-  return CONTAINER_OF(handle, Environment, immediate_check_handle_);
+  return ContainerOf(&Environment::immediate_check_handle_, handle);
 }
 
 inline uv_check_t* Environment::immediate_check_handle() {
@@ -289,7 +289,7 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
 
 inline Environment* Environment::from_idle_prepare_handle(
     uv_prepare_t* handle) {
-  return CONTAINER_OF(handle, Environment, idle_prepare_handle_);
+  return ContainerOf(&Environment::idle_prepare_handle_, handle);
 }
 
 inline uv_prepare_t* Environment::idle_prepare_handle() {
@@ -297,7 +297,7 @@ inline uv_prepare_t* Environment::idle_prepare_handle() {
 }
 
 inline Environment* Environment::from_idle_check_handle(uv_check_t* handle) {
-  return CONTAINER_OF(handle, Environment, idle_check_handle_);
+  return ContainerOf(&Environment::idle_check_handle_, handle);
 }
 
 inline uv_check_t* Environment::idle_check_handle() {
@@ -345,7 +345,7 @@ inline void Environment::set_printed_error(bool value) {
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {
-  return CONTAINER_OF(handle, Environment, cares_timer_handle_);
+  return ContainerOf(&Environment::cares_timer_handle_, handle);
 }
 
 inline uv_timer_t* Environment::cares_timer_handle() {

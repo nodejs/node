@@ -83,7 +83,7 @@ void Environment::IsolateData::AfterGarbageCollection(GCType type,
     q = QUEUE_HEAD(&queue);
     QUEUE_REMOVE(q);
     QUEUE_INSERT_TAIL(&gc_tracker_queue_, q);
-    Environment* env = CONTAINER_OF(q, Environment, gc_tracker_queue_);
+    Environment* env = ContainerOf(&Environment::gc_tracker_queue_, q);
     env->AfterGarbageCollectionCallback(&gc_info_before_, &gc_info_after_);
   }
 }

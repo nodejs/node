@@ -510,7 +510,7 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 }
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = CONTAINER_OF(req, WriteWrap, req_);
+  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
   StreamWrap* wrap = req_wrap->wrap();
   Environment* env = wrap->env();
 
