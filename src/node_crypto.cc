@@ -4027,7 +4027,6 @@ class PBKDF2Request : public AsyncWrap {
     error_ = err;
   }
 
-  // TODO(trevnorris): Make private and make work with CONTAINER_OF macro.
   uv_work_t work_req_;
 
  private:
@@ -4059,7 +4058,7 @@ void EIO_PBKDF2(PBKDF2Request* req) {
 
 
 void EIO_PBKDF2(uv_work_t* work_req) {
-  PBKDF2Request* req = CONTAINER_OF(work_req, PBKDF2Request, work_req_);
+  PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
   EIO_PBKDF2(req);
 }
 
@@ -4078,7 +4077,7 @@ void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
 
 void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   assert(status == 0);
-  PBKDF2Request* req = CONTAINER_OF(work_req, PBKDF2Request, work_req_);
+  PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
   Environment* env = req->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -4257,7 +4256,6 @@ class RandomBytesRequest : public AsyncWrap {
     error_ = err;
   }
 
-  // TODO(trevnorris): Make private and make work with CONTAINER_OF macro.
   uv_work_t work_req_;
 
  private:
@@ -4269,9 +4267,8 @@ class RandomBytesRequest : public AsyncWrap {
 
 template <bool pseudoRandom>
 void RandomBytesWork(uv_work_t* work_req) {
-  RandomBytesRequest* req = CONTAINER_OF(work_req,
-                                         RandomBytesRequest,
-                                         work_req_);
+  RandomBytesRequest* req =
+      ContainerOf(&RandomBytesRequest::work_req_, work_req);
   int r;
 
   // Ensure that OpenSSL's PRNG is properly seeded.
@@ -4317,9 +4314,8 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 
 void RandomBytesAfter(uv_work_t* work_req, int status) {
   assert(status == 0);
-  RandomBytesRequest* req = CONTAINER_OF(work_req,
-                                         RandomBytesRequest,
-                                         work_req_);
+  RandomBytesRequest* req =
+      ContainerOf(&RandomBytesRequest::work_req_, work_req);
   Environment* env = req->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

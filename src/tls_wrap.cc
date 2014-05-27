@@ -114,7 +114,7 @@ TLSCallbacks::~TLSCallbacks() {
     QUEUE* q = QUEUE_HEAD(&pending_write_items_);
     QUEUE_REMOVE(q);
 
-    WriteItem* wi = QUEUE_DATA(q, WriteItem, member_);
+    WriteItem* wi = ContainerOf(&WriteItem::member_, q);
     delete wi;
   }
 }
@@ -145,7 +145,7 @@ bool TLSCallbacks::InvokeQueued(int status) {
     QUEUE* q = QUEUE_HEAD(&pending_write_items_);
     QUEUE_REMOVE(q);
 
-    WriteItem* wi = QUEUE_DATA(q, WriteItem, member_);
+    WriteItem* wi = ContainerOf(&WriteItem::member_, q);
     wi->cb_(&wi->w_->req_, status);
     delete wi;
   }

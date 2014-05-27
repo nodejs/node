@@ -246,7 +246,7 @@ class ZCtx : public AsyncWrap {
   // for a single write() call, until all of the input bytes have
   // been consumed.
   static void Process(uv_work_t* work_req) {
-    ZCtx *ctx = CONTAINER_OF(work_req, ZCtx, work_req_);
+    ZCtx *ctx = ContainerOf(&ZCtx::work_req_, work_req);
 
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
@@ -320,7 +320,7 @@ class ZCtx : public AsyncWrap {
   static void After(uv_work_t* work_req, int status) {
     assert(status == 0);
 
-    ZCtx* ctx = CONTAINER_OF(work_req, ZCtx, work_req_);
+    ZCtx* ctx = ContainerOf(&ZCtx::work_req_, work_req);
     Environment* env = ctx->env();
 
     HandleScope handle_scope(env->isolate());
