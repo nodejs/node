@@ -27,6 +27,7 @@ var expectedHeaders = {
   'DELETE': ['host', 'connection'],
   'GET': ['host', 'connection'],
   'HEAD': ['host', 'connection'],
+  'OPTIONS': ['host', 'connection'],
   'POST': ['host', 'connection', 'transfer-encoding'],
   'PUT': ['host', 'connection', 'transfer-encoding']
 };
