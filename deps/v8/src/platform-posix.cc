@@ -92,6 +92,33 @@ void OS::Guard(void* address, const size_t size) {
 }
 #endif  // __CYGWIN__
 
+// For our illumos/Solaris mmap hint, we pick a random address in the bottom
+// half of the top half of the address space (that is, the third quarter).
+// Because we do not MAP_FIXED, this will be treated only as a hint -- the
+// system will not fail to mmap() because something else happens to already be
+// mapped at our random address. We deliberately set the hint high enough to
+// get well above the system's break (that is, the heap); illumos and Solaris
+// will try the hint and if that fails allocate as if there were no hint at
+// all. The high hint prevents the break from getting hemmed in at low values,
+// ceding half of the address space to the system heap.
+
+// On all other 32bit platforms the range 0x20000000 - 0x60000000 is relatively
+// unpopulated across a variety of ASLR modes (PAE kernel, NX compat mode, etc)
+// and on macos 10.6 and 10.7.
+
+#ifdef V8_TARGET_ARCH_X64
+# ifdef __sun
+#   define V8_ASLR_MEMORY_SHIFT 0x400000000000ULL
+# else
+#   define V8_ASLR_MEMORY_SHIFT 0
+# endif // __sun
+#else
+# ifdef __sun
+#   define V8_ASLR_MEMORY_SHIFT 0x80000000
+# else
+#   define V8_ASLR_MEMORY_SHIFT 0x20000000
+# endif // __sun
+#endif // V8_TARGET_ARCH_X64
 
 void* OS::GetRandomMmapAddr() {
   Isolate* isolate = Isolate::UncheckedCurrent();
@@ -111,25 +138,8 @@ void* OS::GetRandomMmapAddr() {
     uint32_t raw_addr = V8::RandomPrivate(isolate);
 
     raw_addr &= 0x3ffff000;
-
-# ifdef __sun
-    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
-    // half of the top half of the address space (that is, the third quarter).
-    // Because we do not MAP_FIXED, this will be treated only as a hint -- the
-    // system will not fail to mmap() because something else happens to already
-    // be mapped at our random address. We deliberately set the hint high enough
-    // to get well above the system's break (that is, the heap); Solaris and
-    // illumos will try the hint and if that fails allocate as if there were
-    // no hint at all. The high hint prevents the break from getting hemmed in
-    // at low values, ceding half of the address space to the system heap.
-    raw_addr += 0x80000000;
-# else
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
-    // 10.6 and 10.7.
-    raw_addr += 0x20000000;
-# endif
 #endif
+    raw_addr += V8_ASLR_MEMORY_SHIFT;
     return reinterpret_cast<void*>(raw_addr);
   }
   return NULL;
