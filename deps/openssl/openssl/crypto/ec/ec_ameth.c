@@ -352,6 +352,7 @@ static int eckey_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
 		EC_KEY_set_enc_flags(ec_key, old_flags);
 		OPENSSL_free(ep);
 		ECerr(EC_F_ECKEY_PRIV_ENCODE, ERR_R_EC_LIB);
+		return 0;
 	}
 	/* restore old encoding flags */
 	EC_KEY_set_enc_flags(ec_key, old_flags);

@@ -204,17 +204,19 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
       }
       if (args.length === 1) args.unshift([])
 
-      npm.registry.refer = [a].concat(args[0]).map(function (arg) {
-        // exclude anything that might be a URL, path, or private module
-        // Those things will always have a slash in them somewhere
-        if (arg && arg.match && arg.match(/\/|\\/)) {
-          return "[REDACTED]"
-        } else {
-          return arg
-        }
-      }).filter(function (arg) {
-        return arg && arg.match
-      }).join(" ")
+      if (!npm.registry.refer) {
+        npm.registry.refer = [a].concat(args[0]).map(function (arg) {
+          // exclude anything that might be a URL, path, or private module
+          // Those things will always have a slash in them somewhere
+          if (arg && arg.match && arg.match(/\/|\\/)) {
+            return "[REDACTED]"
+          } else {
+            return arg
+          }
+        }).filter(function (arg) {
+          return arg && arg.match
+        }).join(" ")
+      }
 
       cmd.apply(npm, args)
     }

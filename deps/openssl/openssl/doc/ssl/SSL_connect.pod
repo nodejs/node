@@ -41,13 +41,13 @@ The following return values can occur:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The TLS/SSL handshake was not successful but was shut down controlled and
 by the specifications of the TLS/SSL protocol. Call SSL_get_error() with the
 return value B<ret> to find out the reason.
 
-=item 1
+=item Z<>1
 
 The TLS/SSL handshake was successfully completed, a TLS/SSL connection has been
 established.

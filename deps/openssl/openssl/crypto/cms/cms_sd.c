@@ -158,8 +158,8 @@ static void cms_sd_set_version(CMS_SignedData *sd)
 			if (sd->version < 3)
 				sd->version = 3;
 			}
-		else
-			sd->version = 1;
+		else if (si->version < 1)
+			si->version = 1;
 		}
 
 	if (sd->version < 1)

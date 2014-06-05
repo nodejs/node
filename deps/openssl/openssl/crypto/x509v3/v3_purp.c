@@ -389,8 +389,8 @@ static void x509v3_cache_extensions(X509 *x)
 	/* Handle proxy certificates */
 	if((pci=X509_get_ext_d2i(x, NID_proxyCertInfo, NULL, NULL))) {
 		if (x->ex_flags & EXFLAG_CA
-		    || X509_get_ext_by_NID(x, NID_subject_alt_name, 0) >= 0
-		    || X509_get_ext_by_NID(x, NID_issuer_alt_name, 0) >= 0) {
+		    || X509_get_ext_by_NID(x, NID_subject_alt_name, -1) >= 0
+		    || X509_get_ext_by_NID(x, NID_issuer_alt_name, -1) >= 0) {
 			x->ex_flags |= EXFLAG_INVALID;
 		}
 		if (pci->pcPathLengthConstraint) {
@@ -670,7 +670,7 @@ static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
 		return 0;
 
 	/* Extended Key Usage MUST be critical */
-	i_ext = X509_get_ext_by_NID((X509 *) x, NID_ext_key_usage, 0);
+	i_ext = X509_get_ext_by_NID((X509 *) x, NID_ext_key_usage, -1);
 	if (i_ext >= 0)
 		{
 		X509_EXTENSION *ext = X509_get_ext((X509 *) x, i_ext);

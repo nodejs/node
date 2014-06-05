@@ -10,57 +10,49 @@
     <div id="wrapper">
 
 <h1><a href="../files/npmrc.html">npmrc</a></h1> <p>The npm config files</p>
-
-<h2 id="DESCRIPTION">DESCRIPTION</h2>
-
+<h2 id="description">DESCRIPTION</h2>
 <p>npm gets its config settings from the command line, environment
 variables, and <code>npmrc</code> files.</p>
-
 <p>The <code>npm config</code> command can be used to update and edit the contents
 of the user and global npmrc files.</p>
-
 <p>For a list of available configuration options, see <a href="../misc/npm-config.html">npm-config(7)</a>.</p>
-
-<h2 id="FILES">FILES</h2>
-
+<h2 id="files">FILES</h2>
 <p>The three relevant files are:</p>
-
-<ul><li>per-user config file (~/.npmrc)</li><li>global config file ($PREFIX/npmrc)</li><li>npm builtin config file (/path/to/npm/npmrc)</li></ul>
-
+<ul>
+<li>per-user config file (~/.npmrc)</li>
+<li>global config file ($PREFIX/npmrc)</li>
+<li>npm builtin config file (/path/to/npm/npmrc)</li>
+</ul>
 <p>All npm config files are an ini-formatted list of <code>key = value</code>
 parameters.  Environment variables can be replaced using
 <code>${VARIABLE_NAME}</code>. For example:</p>
-
-<pre><code>prefix = ${HOME}/.npm-packages</code></pre>
-
-<p>Each of these files is loaded, and config options are resolved in
+<pre><code>prefix = ${HOME}/.npm-packages
+</code></pre><p>Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.</p>
-
-<h3 id="Per-user-config-file">Per-user config file</h3>
-
+<h3 id="per-user-config-file">Per-user config file</h3>
 <p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment
 or on the command line)</p>
-
-<h3 id="Global-config-file">Global config file</h3>
-
+<h3 id="global-config-file">Global config file</h3>
 <p><code>$PREFIX/etc/npmrc</code> (or the <code>globalconfig</code> param, if set above):
 This file is an ini-file formatted list of <code>key = value</code> parameters.
 Environment variables can be replaced as above.</p>
-
-<h3 id="Built-in-config-file">Built-in config file</h3>
-
+<h3 id="built-in-config-file">Built-in config file</h3>
 <p><code>path/to/npm/itself/npmrc</code></p>
-
 <p>This is an unchangeable &quot;builtin&quot; configuration file that npm keeps
 consistent across updates.  Set fields in here using the <code>./configure</code>
 script that comes with npm.  This is primarily for distribution
 maintainers to override default configs in a standard and consistent
 manner.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../cli/npm.html">npm(1)</a></li>
+</ul>
 
-<h2 id="SEE-ALSO">SEE ALSO</h2>
-
-<ul><li><a href="../files/npm-folders.html">npm-folders(5)</a></li><li><a href="../cli/npm-config.html">npm-config(1)</a></li><li><a href="../misc/npm-config.html">npm-config(7)</a></li><li><a href="../files/package.json.html">package.json(5)</a></li><li><a href="../cli/npm.html">npm(1)</a></li></ul>
 </div>
 
 <table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
@@ -72,5 +64,5 @@ manner.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npmrc &mdash; npm@1.4.9</p>
+<p id="footer">npmrc &mdash; npm@1.4.10</p>
 

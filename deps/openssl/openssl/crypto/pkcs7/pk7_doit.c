@@ -440,6 +440,11 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		{
 	case NID_pkcs7_signed:
 		data_body=PKCS7_get_octet_string(p7->d.sign->contents);
+		if (!PKCS7_is_detached(p7) && data_body == NULL)
+			{
+			PKCS7err(PKCS7_F_PKCS7_DATADECODE,PKCS7_R_INVALID_SIGNED_DATA_TYPE);
+			goto err;
+			}
 		md_sk=p7->d.sign->md_algs;
 		break;
 	case NID_pkcs7_signedAndEnveloped:
@@ -928,6 +933,7 @@ int PKCS7_SIGNER_INFO_sign(PKCS7_SIGNER_INFO *si)
 	if (EVP_DigestSignUpdate(&mctx,abuf,alen) <= 0)
 		goto err;
 	OPENSSL_free(abuf);
+	abuf = NULL;
 	if (EVP_DigestSignFinal(&mctx, NULL, &siglen) <= 0)
 		goto err;
 	abuf = OPENSSL_malloc(siglen);

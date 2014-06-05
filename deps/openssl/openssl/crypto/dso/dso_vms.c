@@ -61,7 +61,14 @@
 #include <errno.h>
 #include "cryptlib.h"
 #include <openssl/dso.h>
-#ifdef OPENSSL_SYS_VMS
+
+#ifndef OPENSSL_SYS_VMS
+DSO_METHOD *DSO_METHOD_vms(void)
+	{
+	return NULL;
+	}
+#else
+
 #pragma message disable DOLLARID
 #include <rms.h>
 #include <lib$routines.h>
@@ -69,7 +76,6 @@
 #include <descrip.h>
 #include <starlet.h>
 #include "vms_rms.h"
-#endif
 
 /* Some compiler options may mask the declaration of "_malloc32". */
 #if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
@@ -82,12 +88,6 @@
 #endif /* __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE */
 
 
-#ifndef OPENSSL_SYS_VMS
-DSO_METHOD *DSO_METHOD_vms(void)
-	{
-	return NULL;
-	}
-#else
 #pragma message disable DOLLARID
 
 static int vms_load(DSO *dso);

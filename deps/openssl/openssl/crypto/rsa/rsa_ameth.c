@@ -358,7 +358,7 @@ static int rsa_pss_param_print(BIO *bp, RSA_PSS_PARAMS *pss,
 		if (i2a_ASN1_INTEGER(bp, pss->saltLength) <= 0)
 			goto err;
 		}
-	else if (BIO_puts(bp, "0x14 (default)") <= 0)
+	else if (BIO_puts(bp, "14 (default)") <= 0)
 		goto err;
 	BIO_puts(bp, "\n");
 

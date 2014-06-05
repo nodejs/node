@@ -1,6 +1,6 @@
 /* crypto/pkcs7/pkcs7err.c */
 /* ====================================================================
- * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2014 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -130,6 +130,7 @@ static ERR_STRING_DATA PKCS7_str_reasons[]=
 {ERR_REASON(PKCS7_R_ERROR_SETTING_CIPHER),"error setting cipher"},
 {ERR_REASON(PKCS7_R_INVALID_MIME_TYPE)   ,"invalid mime type"},
 {ERR_REASON(PKCS7_R_INVALID_NULL_POINTER),"invalid null pointer"},
+{ERR_REASON(PKCS7_R_INVALID_SIGNED_DATA_TYPE),"invalid signed data type"},
 {ERR_REASON(PKCS7_R_MIME_NO_CONTENT_TYPE),"mime no content type"},
 {ERR_REASON(PKCS7_R_MIME_PARSE_ERROR)    ,"mime parse error"},
 {ERR_REASON(PKCS7_R_MIME_SIG_PARSE_ERROR),"mime sig parse error"},

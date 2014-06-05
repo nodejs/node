@@ -25,6 +25,7 @@ B<openssl> B<verify>
 [B<-untrusted file>]
 [B<-help>]
 [B<-issuer_checks>]
+[B<-attime timestamp>]
 [B<-verbose>]
 [B<->]
 [certificates]
@@ -79,6 +80,12 @@ current certificate. This shows why each candidate issuer certificate was
 rejected. The presence of rejection messages does not itself imply that
 anything is wrong; during the normal verification process, several
 rejections may take place.
+
+=item B<-attime timestamp>
+
+Perform validation checks using time specified by B<timestamp> and not
+current system time. B<timestamp> is the number of seconds since
+01.01.1970 (UNIX time).
 
 =item B<-policy arg>
 
@@ -386,7 +393,7 @@ an application specific error. Unused.
 
 =head1 BUGS
 
-Although the issuer checks are a considerably improvement over the old technique they still
+Although the issuer checks are a considerable improvement over the old technique they still
 suffer from limitations in the underlying X509_LOOKUP API. One consequence of this is that
 trusted certificates with matching subject name must either appear in a file (as specified by the
 B<-CAfile> option) or a directory (as specified by B<-CApath>. If they occur in both then only

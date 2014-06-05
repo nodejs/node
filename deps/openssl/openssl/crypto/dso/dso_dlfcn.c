@@ -464,7 +464,7 @@ static int dlfcn_pathbyaddr(void *addr,char *path,int sz)
 		return len;
 		}
 
-	ERR_add_error_data(4, "dlfcn_pathbyaddr(): ", dlerror());
+	ERR_add_error_data(2, "dlfcn_pathbyaddr(): ", dlerror());
 #endif
 	return -1;
 	}

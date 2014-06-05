@@ -10,27 +10,21 @@
     <div id="wrapper">
 
 <h1><a href="../api/npm-tag.html">npm-tag</a></h1> <p>Tag a published version</p>
-
-<h2 id="SYNOPSIS">SYNOPSIS</h2>
-
-<pre><code>npm.commands.tag(package@version, tag, callback)</code></pre>
-
-<h2 id="DESCRIPTION">DESCRIPTION</h2>
-
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.tag(package@version, tag, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Tags the specified version of the package with the specified tag, or the
 <code>--tag</code> config if not specified.</p>
-
 <p>The &#39;package@version&#39; is an array of strings, but only the first two elements are
 currently used.</p>
-
 <p>The first element must be in the form package@version, where package
 is the package name and version is the version number (much like installing a
 specific version).</p>
-
 <p>The second element is the name of the tag to tag this version with. If this
 parameter is missing or falsey (empty), the default froom the config will be
 used. For more information about how to set this config, check
 <code>man 3 npm-config</code> for programmatic usage or <code>man npm-config</code> for cli usage.</p>
+
 </div>
 
 <table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
@@ -42,5 +36,5 @@ used. For more information about how to set this config, check
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-tag &mdash; npm@1.4.9</p>
+<p id="footer">npm-tag &mdash; npm@1.4.10</p>
 

@@ -301,7 +301,7 @@ Example:
  O=Organisation
  CN=Some Name
 
- 
+
 =head2 Certificate Policies.
 
 This is a I<raw> extension. All the fields of this extension can be set by
@@ -390,7 +390,7 @@ Examples:
  nameConstraints=permitted;email:.somedomain.com
 
  nameConstraints=excluded;email:.com
-issuingDistributionPoint = idp_section
+
 
 =head2 OCSP No Check
 

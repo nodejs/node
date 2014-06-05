@@ -86,7 +86,7 @@ The following return values can occur:
 The read operation was successful; the return value is the number of
 bytes actually read from the TLS/SSL connection.
 
-=item 0
+=item Z<>0
 
 The read operation was not successful. The reason may either be a clean
 shutdown due to a "close notify" alert sent by the peer (in which case
