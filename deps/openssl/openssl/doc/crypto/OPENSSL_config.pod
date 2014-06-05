@@ -73,7 +73,7 @@ Neither OPENSSL_config() nor OPENSSL_no_config() return a value.
 =head1 SEE ALSO
 
 L<conf(5)|conf(5)>, L<CONF_load_modules_file(3)|CONF_load_modules_file(3)>,
-L<CONF_modules_free(3),CONF_modules_free(3)>
+L<CONF_modules_free(3)|CONF_modules_free(3)>
 
 =head1 HISTORY
 

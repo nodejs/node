@@ -9,7 +9,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
-    at Socket.EventEmitter.emit (events.js:*:*)
+    at Socket.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
 42
@@ -25,7 +25,7 @@ Error: hello
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
-    at Socket.EventEmitter.emit (events.js:*:*)
+    at Socket.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
 
@@ -39,7 +39,7 @@ Error: hello
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
-    at Socket.EventEmitter.emit (events.js:*:*)
+    at Socket.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
 100
@@ -54,7 +54,7 @@ ReferenceError: y is not defined
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
-    at Socket.EventEmitter.emit (events.js:*:*)
+    at Socket.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
 

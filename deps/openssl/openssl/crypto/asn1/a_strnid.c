@@ -74,7 +74,7 @@ static int sk_table_cmp(const ASN1_STRING_TABLE * const *a,
  * certain software (e.g. Netscape) has problems with them.
  */
 
-static unsigned long global_mask = 0xFFFFFFFFL;
+static unsigned long global_mask = B_ASN1_UTF8STRING;
 
 void ASN1_STRING_set_default_mask(unsigned long mask)
 {

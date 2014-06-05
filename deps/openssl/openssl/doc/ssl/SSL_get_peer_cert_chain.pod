@@ -8,11 +8,11 @@ SSL_get_peer_cert_chain - get the X509 certificate chain of the peer
 
  #include <openssl/ssl.h>
 
- STACKOF(X509) *SSL_get_peer_cert_chain(const SSL *ssl);
+ STACK_OF(X509) *SSL_get_peer_cert_chain(const SSL *ssl);
 
 =head1 DESCRIPTION
 
-SSL_get_peer_cert_chain() returns a pointer to STACKOF(X509) certificates
+SSL_get_peer_cert_chain() returns a pointer to STACK_OF(X509) certificates
 forming the certificate chain of the peer. If called on the client side,
 the stack also contains the peer's certificate; if called on the server
 side, the peer's certificate must be obtained separately using
@@ -24,7 +24,7 @@ If the peer did not present a certificate, NULL is returned.
 The peer certificate chain is not necessarily available after reusing
 a session, in which case a NULL pointer is returned.
 
-The reference count of the STACKOF(X509) object is not incremented.
+The reference count of the STACK_OF(X509) object is not incremented.
 If the corresponding session is freed, the pointer must not be used
 any longer.
 
@@ -39,7 +39,7 @@ The following return values can occur:
 No certificate was presented by the peer or no connection was established
 or the certificate chain is no longer available when a session is reused.
 
-=item Pointer to a STACKOF(X509)
+=item Pointer to a STACK_OF(X509)
 
 The return value points to the certificate chain presented by the peer.
 

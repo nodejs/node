@@ -53,11 +53,11 @@ SSL_COMP_add_compression_method() may return the following values:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The operation succeeded.
 
-=item 1
+=item Z<>1
 
 The operation failed. Check the error queue to find out the reason.
 

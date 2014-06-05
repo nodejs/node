@@ -10,30 +10,22 @@
     <div id="wrapper">
 
 <h1><a href="../api/npm-load.html">npm-load</a></h1> <p>Load config settings</p>
-
-<h2 id="SYNOPSIS">SYNOPSIS</h2>
-
-<pre><code>npm.load(conf, cb)</code></pre>
-
-<h2 id="DESCRIPTION">DESCRIPTION</h2>
-
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.load(conf, cb)
+</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>npm.load() must be called before any other function call.  Both parameters are
 optional, but the second is recommended.</p>
-
 <p>The first parameter is an object hash of command-line config params, and the
 second parameter is a callback that will be called when npm is loaded and
 ready to serve.</p>
-
 <p>The first parameter should follow a similar structure as the package.json
 config object.</p>
-
 <p>For example, to emulate the --dev flag, pass an object that looks like this:</p>
-
 <pre><code>{
   &quot;dev&quot;: true
-}</code></pre>
+}
+</code></pre><p>For a list of all the available command-line configs, see <code>npm help config</code></p>
 
-<p>For a list of all the available command-line configs, see <code>npm help config</code></p>
 </div>
 
 <table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
@@ -45,5 +37,5 @@ config object.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-load &mdash; npm@1.4.9</p>
+<p id="footer">npm-load &mdash; npm@1.4.10</p>
 

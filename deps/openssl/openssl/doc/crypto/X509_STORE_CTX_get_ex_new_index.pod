@@ -15,7 +15,7 @@ X509_STORE_CTX_get_ex_new_index, X509_STORE_CTX_set_ex_data, X509_STORE_CTX_get_
 
  int X509_STORE_CTX_set_ex_data(X509_STORE_CTX *d, int idx, void *arg);
 
- char *X509_STORE_CTX_get_ex_data(X509_STORE_CTX *d, int idx);
+ void *X509_STORE_CTX_get_ex_data(X509_STORE_CTX *d, int idx);
 
 =head1 DESCRIPTION
 

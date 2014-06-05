@@ -52,13 +52,13 @@ The following values are returned by all functions:
 
 =over 4
 
-=item 0
+=item Z<>0
 
  The operation failed. In case of the add operation, it was tried to add
  the same (identical) session twice. In case of the remove operation, the
  session was not found in the cache.
 
-=item 1
+=item Z<>1
  
  The operation succeeded.
 

@@ -10,30 +10,38 @@
     <div id="wrapper">
 
 <h1><a href="../api/npm-search.html">npm-search</a></h1> <p>Search for packages</p>
-
-<h2 id="SYNOPSIS">SYNOPSIS</h2>
-
-<pre><code>npm.commands.search(searchTerms, [silent,] [staleness,] callback)</code></pre>
-
-<h2 id="DESCRIPTION">DESCRIPTION</h2>
-
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.search(searchTerms, [silent,] [staleness,] callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Search the registry for packages matching the search terms. The available parameters are:</p>
-
-<ul><li>searchTerms:
-Array of search terms. These terms are case-insensitive.</li><li>silent:
-If true, npm will not log anything to the console.</li><li>staleness:
+<ul>
+<li>searchTerms:
+Array of search terms. These terms are case-insensitive.</li>
+<li>silent:
+If true, npm will not log anything to the console.</li>
+<li>staleness:
 This is the threshold for stale packages. &quot;Fresh&quot; packages are not refreshed
-from the registry. This value is measured in seconds.</li><li><p>callback:
+from the registry. This value is measured in seconds.</li>
+<li><p>callback:
 Returns an object where each key is the name of a package, and the value
 is information about that package along with a &#39;words&#39; property, which is
 a space-delimited string of all of the interesting words in that package.
-The only properties included are those that are searched, which generally include:</p><ul><li>name</li><li>description</li><li>maintainers</li><li>url</li><li>keywords</li></ul></li></ul>
-
+The only properties included are those that are searched, which generally include:</p>
+<ul>
+<li>name</li>
+<li>description</li>
+<li>maintainers</li>
+<li>url</li>
+<li>keywords</li>
+</ul>
+</li>
+</ul>
 <p>A search on the registry excludes any result that does not match all of the
 search terms. It also removes any items from the results that contain an
 excluded term (the &quot;searchexclude&quot; config). The search is case insensitive
 and doesn&#39;t try to read your mind (it doesn&#39;t do any verb tense matching or the
 like).</p>
+
 </div>
 
 <table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
@@ -45,5 +53,5 @@ like).</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-search &mdash; npm@1.4.9</p>
+<p id="footer">npm-search &mdash; npm@1.4.10</p>
 

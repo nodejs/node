@@ -269,7 +269,7 @@ static int pkey_ctrl_gost(EVP_PKEY *pkey, int op,
 		case ASN1_PKEY_CTRL_CMS_ENVELOPE:
 			if (arg1 == 0)
 				{
-				X509_ALGOR *alg;
+				X509_ALGOR *alg = NULL;
 				ASN1_STRING * params = encode_gost_algor_params(pkey);
 				if (!params) 
 					{

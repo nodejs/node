@@ -618,6 +618,11 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2014.05.01, Version 0.10.28 (Stable)
+
+* npm: upgrade to v1.4.9
+
+
 2014.05.01, Version 0.10.27 (Stable), cb7911f78ae96ef7a540df992cc1359ba9636e86
 
 * npm: upgrade to v1.4.8

@@ -93,6 +93,9 @@ static int t_fromb64(unsigned char *a, const char *src)
 		else a[i] = loc - b64table;
 		++i;
 		}
+	/* if nothing valid to process we have a zero length response */
+	if (i == 0)
+		return 0;
 	size = i;
 	i = size - 1;
 	j = size;

@@ -44,6 +44,7 @@ B<openssl> B<s_server>
 [B<-no_ssl3>]
 [B<-no_tls1>]
 [B<-no_dhe>]
+[B<-no_ecdhe>]
 [B<-bugs>]
 [B<-hack>]
 [B<-www>]
@@ -130,6 +131,11 @@ a static set of parameters hard coded into the s_server program will be used.
 
 if this option is set then no DH parameters will be loaded effectively
 disabling the ephemeral DH cipher suites.
+
+=item B<-no_ecdhe>
+
+if this option is set then no ECDH parameters will be loaded effectively
+disabling the ephemeral ECDH cipher suites.
 
 =item B<-no_tmp_rsa>
 

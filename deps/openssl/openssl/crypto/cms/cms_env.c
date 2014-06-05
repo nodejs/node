@@ -185,6 +185,8 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
 	if (flags & CMS_USE_KEYID)
 		{
 		ktri->version = 2;
+		if (env->version < 2)
+			env->version = 2;
 		type = CMS_RECIPINFO_KEYIDENTIFIER;
 		}
 	else

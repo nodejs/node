@@ -1435,8 +1435,11 @@ int i2o_ECPublicKey(EC_KEY *a, unsigned char **out)
 				*out, buf_len, NULL))
 		{
 		ECerr(EC_F_I2O_ECPUBLICKEY, ERR_R_EC_LIB);
-		OPENSSL_free(*out);
-		*out = NULL;
+		if (new_buffer)
+			{
+			OPENSSL_free(*out);
+			*out = NULL;
+			}
 		return 0;
 		}
 	if (!new_buffer)

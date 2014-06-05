@@ -66,13 +66,13 @@ values:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 A failure while manipulating the STACK_OF(X509_NAME) object occurred or
 the X509_NAME could not be extracted from B<cacert>. Check the error stack
 to find out the reason.
 
-=item 1
+=item Z<>1
 
 The operation succeeded.
 
