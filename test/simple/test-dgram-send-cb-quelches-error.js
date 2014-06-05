@@ -1,0 +1,54 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var common = require('../common');
+var assert = require('assert');
+var dgram = require('dgram');
+var dns = require('dns');
+
+var socket = dgram.createSocket('udp4');
+var buffer = new Buffer('gary busey');
+var times = 0;
+
+dns.setServers([]);
+
+// assert that:
+// * callbacks act as "error" listeners if given.
+// * callbacks and error events are emitted in a certain order.
+socket.send(buffer, 0, buffer.length, 100, 'dne.example.com', callbackOnly);
+
+function callbackOnly(err) {
+  assert.ok(err);
+  socket.once('error', onEvent);
+  socket.send(buffer, 0, buffer.length, 100, 'dne.example.com', onCallback);
+}
+
+function onEvent(err) {
+  assert.ok(err);
+  assert.equal(times, 0); 
+  times++;
+}
+
+function onCallback(err) {
+  assert.ok(err);
+  assert.equal(times, 1); 
+  socket.close();
+}
