@@ -63,6 +63,7 @@ IGETEST=	igetest
 JPAKETEST=	jpaketest
 SRPTEST=	srptest
 ASN1TEST=	asn1test
+HEARTBEATTEST= heartbeat_test
 
 TESTS=		alltests
 
@@ -74,7 +75,7 @@ EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)
 	$(RANDTEST)$(EXE_EXT) $(DHTEST)$(EXE_EXT) $(ENGINETEST)$(EXE_EXT) \
 	$(BFTEST)$(EXE_EXT) $(CASTTEST)$(EXE_EXT) $(SSLTEST)$(EXE_EXT) $(EXPTEST)$(EXE_EXT) $(DSATEST)$(EXE_EXT) $(RSATEST)$(EXE_EXT) \
 	$(EVPTEST)$(EXE_EXT) $(IGETEST)$(EXE_EXT) $(JPAKETEST)$(EXE_EXT) $(SRPTEST)$(EXE_EXT) \
-	$(ASN1TEST)$(EXE_EXT)
+	$(ASN1TEST)$(EXE_EXT) $(HEARTBEATTEST)$(EXE_EXT)
 
 # $(METHTEST)$(EXE_EXT)
 
@@ -86,7 +87,8 @@ OBJ=	$(BNTEST).o $(ECTEST).o  $(ECDSATEST).o $(ECDHTEST).o $(IDEATEST).o \
 	$(MDC2TEST).o $(RMDTEST).o \
 	$(RANDTEST).o $(DHTEST).o $(ENGINETEST).o $(CASTTEST).o \
 	$(BFTEST).o  $(SSLTEST).o  $(DSATEST).o  $(EXPTEST).o $(RSATEST).o \
-	$(EVPTEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o
+	$(EVPTEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o $(HEARTBEATTEST).o
+
 SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(MD2TEST).c  $(MD4TEST).c $(MD5TEST).c \
 	$(HMACTEST).c $(WPTEST).c \
@@ -94,7 +96,8 @@ SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(DESTEST).c $(SHATEST).c $(SHA1TEST).c $(MDC2TEST).c $(RMDTEST).c \
 	$(RANDTEST).c $(DHTEST).c $(ENGINETEST).c $(CASTTEST).c \
 	$(BFTEST).c  $(SSLTEST).c $(DSATEST).c   $(EXPTEST).c $(RSATEST).c \
-	$(EVPTEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c
+	$(EVPTEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c \
+	$(HEARTBEATTEST).c
 
 EXHEADER= 
 HEADER=	$(EXHEADER)
@@ -137,7 +140,7 @@ alltests: \
 	test_enc test_x509 test_rsa test_crl test_sid \
 	test_gen test_req test_pkcs7 test_verify test_dh test_dsa \
 	test_ss test_ca test_engine test_evp test_ssl test_tsa test_ige \
-	test_jpake test_srp test_cms
+	test_jpake test_srp test_cms test_heartbeat
 
 test_evp:
 	../util/shlib_wrap.sh ./$(EVPTEST) evptests.txt
@@ -227,7 +230,7 @@ test_bn:
 	@../util/shlib_wrap.sh ./$(BNTEST) >tmp.bntest
 	@echo quit >>tmp.bntest
 	@echo "running bc"
-	@<tmp.bntest sh -c "`sh ./bctest ignore`" | $(PERL) -e '$$i=0; while (<STDIN>) {if (/^test (.*)/) {print STDERR "\nverify $$1";} elsif (!/^0$$/) {die "\nFailed! bc: $$_";} else {print STDERR "."; $$i++;}} print STDERR "\n$$i tests passed\n"'
+	@<tmp.bntest sh -c "`sh ./bctest ignore`" | $(PERL) -e '$$i=0; while (<STDIN>) {if (/^test (.*)/) {print STDERR "\nverify $$1";} elsif (!/^0\r?$$/) {die "\nFailed! bc: $$_";} else {print STDERR "."; $$i++;}} print STDERR "\n$$i tests passed\n"'
 	@echo 'test a^b%c implementations'
 	../util/shlib_wrap.sh ./$(EXPTEST)
 
@@ -317,6 +320,9 @@ test_cms:
 test_srp: $(SRPTEST)$(EXE_EXT)
 	@echo "Test SRP"
 	../util/shlib_wrap.sh ./srptest
+
+test_heartbeat: $(HEARTBEATTEST)$(EXE_EXT)
+	../util/shlib_wrap.sh ./$(HEARTBEATTEST)
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
@@ -469,6 +475,9 @@ $(ASN1TEST)$(EXE_EXT): $(ASN1TEST).o $(DLIBCRYPTO)
 $(SRPTEST)$(EXE_EXT): $(SRPTEST).o $(DLIBCRYPTO)
 	@target=$(SRPTEST); $(BUILD_CMD)
 
+$(HEARTBEATTEST)$(EXE_EXT): $(HEARTBEATTEST).o $(DLIBCRYPTO)
+	@target=$(HEARTBEATTEST); $(BUILD_CMD)
+
 #$(AESTEST).o: $(AESTEST).c
 #	$(CC) -c $(CFLAGS) -DINTERMEDIATE_VALUE_KAT -DTRACE_KAT_MCT $(AESTEST).c
 
@@ -604,6 +613,27 @@ exptest.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 exptest.o: ../include/openssl/ossl_typ.h ../include/openssl/rand.h
 exptest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 exptest.o: ../include/openssl/symhacks.h exptest.c
+heartbeat_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
+heartbeat_test.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+heartbeat_test.o: ../include/openssl/crypto.h ../include/openssl/dsa.h
+heartbeat_test.o: ../include/openssl/dtls1.h ../include/openssl/e_os2.h
+heartbeat_test.o: ../include/openssl/ec.h ../include/openssl/ecdh.h
+heartbeat_test.o: ../include/openssl/ecdsa.h ../include/openssl/err.h
+heartbeat_test.o: ../include/openssl/evp.h ../include/openssl/hmac.h
+heartbeat_test.o: ../include/openssl/kssl.h ../include/openssl/lhash.h
+heartbeat_test.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
+heartbeat_test.o: ../include/openssl/opensslconf.h
+heartbeat_test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+heartbeat_test.o: ../include/openssl/pem.h ../include/openssl/pem2.h
+heartbeat_test.o: ../include/openssl/pkcs7.h ../include/openssl/pqueue.h
+heartbeat_test.o: ../include/openssl/rsa.h ../include/openssl/safestack.h
+heartbeat_test.o: ../include/openssl/sha.h ../include/openssl/srtp.h
+heartbeat_test.o: ../include/openssl/ssl.h ../include/openssl/ssl2.h
+heartbeat_test.o: ../include/openssl/ssl23.h ../include/openssl/ssl3.h
+heartbeat_test.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
+heartbeat_test.o: ../include/openssl/tls1.h ../include/openssl/x509.h
+heartbeat_test.o: ../include/openssl/x509_vfy.h ../ssl/ssl_locl.h
+heartbeat_test.o: heartbeat_test.c
 hmactest.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 hmactest.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
 hmactest.o: ../include/openssl/evp.h ../include/openssl/hmac.h

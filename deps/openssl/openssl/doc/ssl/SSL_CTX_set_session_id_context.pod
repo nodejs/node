@@ -64,13 +64,13 @@ return the following values:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The length B<sid_ctx_len> of the session id context B<sid_ctx> exceeded
 the maximum allowed length of B<SSL_MAX_SSL_SESSION_ID_LENGTH>. The error
 is logged to the error stack.
 
-=item 1
+=item Z<>1
 
 The operation succeeded.
 

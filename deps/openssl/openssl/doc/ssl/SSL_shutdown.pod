@@ -92,14 +92,14 @@ The following return values can occur:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The shutdown is not yet finished. Call SSL_shutdown() for a second time,
 if a bidirectional shutdown shall be performed.
 The output of L<SSL_get_error(3)|SSL_get_error(3)> may be misleading, as an
 erroneous SSL_ERROR_SYSCALL may be flagged even though no error occurred.
 
-=item 1
+=item Z<>1
 
 The shutdown was successfully completed. The "close notify" alert was sent
 and the peer's "close notify" alert was received.

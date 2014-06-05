@@ -65,7 +65,7 @@ set first so the relevant field information can be looked up internally.
 =head1 SEE ALSO
 
 L<ERR_get_error(3)|ERR_get_error(3)>, L<d2i_X509_NAME(3)|d2i_X509_NAME(3)>,
-L<OBJ_nid2obj(3),OBJ_nid2obj(3)>
+L<OBJ_nid2obj(3)|OBJ_nid2obj(3)>
 
 =head1 HISTORY
 

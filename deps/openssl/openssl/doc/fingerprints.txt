@@ -21,6 +21,13 @@ pub   2048R/F295C759 1998-12-13
       Key fingerprint = D0 5D 8C 61 6E 27 E6 60  41 EC B1 B8 D5 7E E5 97
 uid                  Dr S N Henson <shenson@drh-consultancy.demon.co.uk>
 
+pub   4096R/FA40E9E2 2005-03-19
+      Key fingerprint = 6260 5AA4 334A F9F0 DDE5  D349 D357 7507 FA40 E9E2
+uid                  Dr Stephen Henson <shenson@opensslfoundation.com>
+uid                  Dr Stephen Henson <shenson@drh-consultancy.co.uk>
+uid                  Dr Stephen N Henson <steve@openssl.org>
+sub   4096R/8811F530 2005-03-19
+
 pub   1024R/49A563D9 1997-02-24
       Key fingerprint = 7B 79 19 FA 71 6B 87 25  0E 77 21 E5 52 D9 83 BF
 uid                  Mark Cox <mjc@redhat.com>

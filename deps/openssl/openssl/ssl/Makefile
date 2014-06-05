@@ -15,7 +15,7 @@ KRB5_INCLUDES=
 CFLAGS= $(INCLUDES) $(CFLAG)
 
 GENERAL=Makefile README ssl-lib.com install.com
-TEST=ssltest.c
+TEST=ssltest.c heartbeat_test.c
 APPS=
 
 LIB=$(TOP)/libssl.a

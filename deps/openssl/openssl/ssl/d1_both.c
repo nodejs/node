@@ -627,7 +627,16 @@ dtls1_reassemble_fragment(SSL *s, struct hm_header_st* msg_hdr, int *ok)
 		frag->msg_header.frag_off = 0;
 		}
 	else
+		{
 		frag = (hm_fragment*) item->data;
+		if (frag->msg_header.msg_len != msg_hdr->msg_len)
+			{
+			item = NULL;
+			frag = NULL;
+			goto err;
+			}
+		}
+
 
 	/* If message is already reassembled, this must be a
 	 * retransmit and can be dropped.
@@ -674,8 +683,8 @@ dtls1_reassemble_fragment(SSL *s, struct hm_header_st* msg_hdr, int *ok)
 		item = pitem_new(seq64be, frag);
 		if (item == NULL)
 			{
-			goto err;
 			i = -1;
+			goto err;
 			}
 
 		pqueue_insert(s->d1->buffered_messages, item);
@@ -784,6 +793,7 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
 	int i,al;
 	struct hm_header_st msg_hdr;
 
+	redo:
 	/* see if we have the required fragment already */
 	if ((frag_len = dtls1_retrieve_buffered_fragment(s,max,ok)) || *ok)
 		{
@@ -842,8 +852,7 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
 					s->msg_callback_arg);
 			
 			s->init_num = 0;
-			return dtls1_get_message_fragment(s, st1, stn,
-				max, ok);
+			goto redo;
 			}
 		else /* Incorrectly formated Hello request */
 			{

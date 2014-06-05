@@ -127,6 +127,7 @@ int MAIN(int argc, char **argv)
 	ENGINE *e = NULL;
 	char **args;
 	char *host = NULL, *port = NULL, *path = "/";
+	char *thost = NULL, *tport = NULL, *tpath = NULL;
 	char *reqin = NULL, *respin = NULL;
 	char *reqout = NULL, *respout = NULL;
 	char *signfile = NULL, *keyfile = NULL;
@@ -204,6 +205,12 @@ int MAIN(int argc, char **argv)
 			}
 		else if (!strcmp(*args, "-url"))
 			{
+			if (thost)
+				OPENSSL_free(thost);
+			if (tport)
+				OPENSSL_free(tport);
+			if (tpath)
+				OPENSSL_free(tpath);
 			if (args[1])
 				{
 				args++;
@@ -212,6 +219,9 @@ int MAIN(int argc, char **argv)
 					BIO_printf(bio_err, "Error parsing URL\n");
 					badarg = 1;
 					}
+				thost = host;
+				tport = port;
+				tpath = path;
 				}
 			else badarg = 1;
 			}
@@ -920,12 +930,12 @@ end:
 	sk_X509_pop_free(verify_other, X509_free);
 	sk_CONF_VALUE_pop_free(headers, X509V3_conf_free);
 
-	if (use_ssl != -1)
-		{
-		OPENSSL_free(host);
-		OPENSSL_free(port);
-		OPENSSL_free(path);
-		}
+	if (thost)
+		OPENSSL_free(thost);
+	if (tport)
+		OPENSSL_free(tport);
+	if (tpath)
+		OPENSSL_free(tpath);
 
 	OPENSSL_EXIT(ret);
 }

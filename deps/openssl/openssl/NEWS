@@ -5,6 +5,14 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1g and OpenSSL 1.0.1h [5 Jun 2014]
+
+      o Fix for CVE-2014-0224
+      o Fix for CVE-2014-0221
+      o Fix for CVE-2014-0195
+      o Fix for CVE-2014-3470
+      o Fix for CVE-2010-5298
+
   Major changes between OpenSSL 1.0.1f and OpenSSL 1.0.1g [7 Apr 2014]
 
       o Fix for CVE-2014-0160

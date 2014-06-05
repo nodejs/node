@@ -51,7 +51,7 @@ return value of the failing module (this will always be zero or negative).
 =head1 SEE ALSO
 
 L<conf(5)|conf(5)>, L<OPENSSL_config(3)|OPENSSL_config(3)>,
-L<CONF_free(3), CONF_free(3)>, L<err(3),err(3)>
+L<CONF_free(3)|CONF_free(3)>, L<err(3)|err(3)>
 
 =head1 HISTORY
 

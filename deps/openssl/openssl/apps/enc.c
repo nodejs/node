@@ -331,6 +331,12 @@ bad:
         setup_engine(bio_err, engine, 0);
 #endif
 
+	if (cipher && EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)
+		{
+		BIO_printf(bio_err, "AEAD ciphers not supported by the enc utility\n");
+		goto end;
+		}
+
 	if (md && (dgst=EVP_get_digestbyname(md)) == NULL)
 		{
 		BIO_printf(bio_err,"%s is an unsupported message digest type\n",md);
