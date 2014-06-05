@@ -43,7 +43,7 @@ test('prompt callback param', function (t) {
     child.stdin.write('55\n')
   }, 150)
   setTimeout(function () {
-    child.stdin.write('async prompt\n')
+    child.stdin.end('async prompt\n')
   }, 200)
 })
 

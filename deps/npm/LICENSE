@@ -214,9 +214,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------
 
 
-"Node.js" and "node" trademark Joyent, Inc.  npm is not officially
-part of the Node.js project, and is neither owned by nor
-officially affiliated with Joyent, Inc.
+"Node.js" trademark Joyent, Inc.  npm is not officially part of the Node.js
+project, and is neither owned by nor affiliated with Joyent, Inc.
 
 Packages published in the npm registry (other than the Software and
 its included dependencies) are not part of npm itself, are the sole

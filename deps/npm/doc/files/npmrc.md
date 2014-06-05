@@ -13,8 +13,9 @@ For a list of available configuration options, see npm-config(7).
 
 ## FILES
 
-The three relevant files are:
+The four relevant files are:
 
+* per-project config file (/path/to/my/project/.npmrc)
 * per-user config file (~/.npmrc)
 * global config file ($PREFIX/npmrc)
 * npm builtin config file (/path/to/npm/npmrc)
@@ -28,6 +29,17 @@ parameters.  Environment variables can be replaced using
 Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.
+
+### Per-project config file
+
+When working locally in a project, a `.npmrc` file in the root of the
+project (ie, a sibling of `node_modules` and `package.json`) will set
+config values specific to this project.
+
+Note that this only applies to the root of the project that you're
+running npm in.  It has no effect when your module is published.  For
+example, you can't publish a module that forces itself to install
+globally, or in a different location.
 
 ### Per-user config file
 

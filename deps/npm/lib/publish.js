@@ -49,7 +49,7 @@ function publish (args, isRetry, cb) {
 // That means that we can run publish/postpublish in the dir, rather than
 // in the cache dir.
 function cacheAddPublish (dir, didPre, isRetry, cb) {
-  npm.commands.cache.add(dir, function (er, data) {
+  npm.commands.cache.add(dir, null, false, function (er, data) {
     if (er) return cb(er)
     log.silly("publish", data)
     var cachedir = path.resolve( npm.cache

@@ -150,7 +150,7 @@ if (!package.repository) {
         else u = u.replace(/^\s*url = /, '')
       }
       if (u && u.match(/^git@github.com:/))
-        u = u.replace(/^git@github.com:/, 'git://github.com/')
+        u = u.replace(/^git@github.com:/, 'https://github.com/')
 
       return cb(null, prompt('git repository', u))
     })

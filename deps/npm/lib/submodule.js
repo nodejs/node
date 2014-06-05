@@ -23,7 +23,7 @@ function submodule (args, cb) {
   if (args.length === 0) return cb(submodule.usage)
 
   asyncMap(args, function (arg, cb) {
-    cache.add(arg, cb)
+    cache.add(arg, null, false, cb)
   }, function (er, pkgs) {
     if (er) return cb(er)
     chain(pkgs.map(function (pkg) { return function (cb) {
@@ -99,9 +99,9 @@ var getSubmodules = function getSubmodules (cb) {
       err.code = "ENOGIT"
       return cb(err)
     }
-    exec(git, args, function (er, stdout, stderr) {
+    exec(git, args, function (er, stdout) {
       if (er) return cb(er)
-      res = stdout.trim().split(/\n/).map(function (line) {
+      var res = stdout.trim().split(/\n/).map(function (line) {
         return line.trim().split(/\s+/)[1]
       }).filter(function (line) {
         // only care about submodules in the node_modules folder.

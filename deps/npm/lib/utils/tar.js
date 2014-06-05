@@ -8,7 +8,6 @@ var npm = require("../npm.js")
   , uidNumber = require("uid-number")
   , rm = require("./gently-rm.js")
   , readJson = require("read-package-json")
-  , cache = require("../cache.js")
   , myUid = process.getuid && process.getuid()
   , myGid = process.getgid && process.getgid()
   , tar = require("tar")
@@ -16,13 +15,14 @@ var npm = require("../npm.js")
   , fstream = require("fstream")
   , Packer = require("fstream-npm")
   , lifecycle = require("./lifecycle.js")
+  , locker = require("./locker.js")
 
 function lock(path, cb) {
-  return cache.lock('tar://' + path, cb)
+  return locker.lock('tar://' + path, cb)
 }
 
 function unlock(path, cb) {
-  return cache.unlock('tar://' + path, cb)
+  return locker.unlock('tar://' + path, cb)
 }
 
 if (process.env.SUDO_UID && myUid === 0) {

@@ -162,6 +162,9 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
     , group = unsafe ? null : npm.config.get("group")
 
   if (log.level !== 'silent') {
+    if (npm.spinner.int) {
+      npm.config.get("logstream").write("\r \r")
+    }
     console.log(note)
   }
   log.verbose("unsafe-perm in lifecycle", unsafe)

@@ -43,7 +43,7 @@ test("npm cache add request", function(t) {
 test("compare", function(t) {
   var d = path.resolve(__dirname, "cache-shasum/request")
   var p = path.resolve(d, "2.27.0/package.tgz")
-  var r = require(path.resolve(d, ".cache.json"))
+  var r = require("./cache-shasum/localhost_1337/request/.cache.json")
   var rshasum = r.versions['2.27.0'].dist.shasum
   sha.get(p, function (er, pshasum) {
     if (er)

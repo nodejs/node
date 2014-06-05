@@ -11,7 +11,7 @@ var exec = require("child_process").execFile
   , which = require("which")
   , npm = require("./npm.js")
 
-version.usage = "npm version [<newversion> | major | minor | patch]\n"
+version.usage = "npm version [<newversion> | major | minor | patch | prerelease | preminor | premajor ]\n"
               + "\n(run in package dir)\n"
               + "'npm -v' or 'npm --version' to print npm version "
               + "("+npm.version+")\n"
@@ -105,6 +105,11 @@ function checkGit (data, cb) {
         chain
           ( [ [ exec, git, [ "add", "package.json" ], {env: process.env} ]
             , [ exec, git, [ "commit", "-m", message ], {env: process.env} ]
+            , sign && function (cb) {
+                npm.spinner.stop()
+                cb()
+              }
+
             , [ exec, git, [ "tag", "v" + data.version, flag, message ]
               , {env: process.env} ] ]
           , cb )

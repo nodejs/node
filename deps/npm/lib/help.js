@@ -15,6 +15,7 @@ var fs = require("graceful-fs")
   , glob = require("glob")
 
 function help (args, cb) {
+  npm.spinner.stop()
   var argv = npm.config.get("argv").cooked
 
   var argnum = 0

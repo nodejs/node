@@ -203,9 +203,6 @@ proto.usage = function usage () {
         return '    - ' + c + ' - ' + require('./' + c).usage
       }).join('\n')
     , ''
-    , '  for specific command usage and options try:'
-    , '    $ node-gyp <command> --help'
-    , ''
     , 'node-gyp@' + this.version + '  ' + path.resolve(__dirname, '..')
     , 'node@' + process.versions.node
   ].join('\n')
