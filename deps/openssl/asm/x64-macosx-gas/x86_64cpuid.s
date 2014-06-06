@@ -192,4 +192,3 @@ _OPENSSL_wipe_cpu:
 	xorq	%r11,%r11
 	leaq	8(%rsp),%rax
 	.byte	0xf3,0xc3
-

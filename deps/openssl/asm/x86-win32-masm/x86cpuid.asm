@@ -62,6 +62,7 @@ $L_OPENSSL_ia32_cpuid_begin::
 	movzx	esi,cl
 	inc	esi
 	mov	eax,1
+	xor	ecx,ecx
 	cpuid
 	bt	edx,28
 	jnc	$L000done
@@ -83,6 +84,7 @@ $L001intel:
 	and	edi,4095
 $L002nocacheinfo:
 	mov	eax,1
+	xor	ecx,ecx
 	cpuid
 	cmp	ebp,0
 	jne	$L003notP4

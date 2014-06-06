@@ -1326,8 +1326,8 @@ L$cbc_picked_te:
 	jb	L$cbc_slow_prologue
 	testq	$15,%rdx
 	jnz	L$cbc_slow_prologue
-
-
+	btl	$28,%r10d
+	jc	L$cbc_slow_prologue
 
 
 	leaq	-88-248(%rsp),%r15

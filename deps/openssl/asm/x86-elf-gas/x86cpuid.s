@@ -54,6 +54,7 @@ OPENSSL_ia32_cpuid:
 	movzbl	%cl,%esi
 	incl	%esi
 	movl	$1,%eax
+	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	btl	$28,%edx
 	jnc	.L000done
@@ -75,6 +76,7 @@ OPENSSL_ia32_cpuid:
 	andl	$4095,%edi
 .L002nocacheinfo:
 	movl	$1,%eax
+	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	cmpl	$0,%ebp
 	jne	.L003notP4

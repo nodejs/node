@@ -2241,6 +2241,8 @@ $L014picked_te:
 	jb	$L015slow_way
 	test	ecx,15
 	jnz	$L015slow_way
+	bt	DWORD PTR [eax],28
+	jc	$L015slow_way
 	lea	esi,DWORD PTR [esp-324]
 	and	esi,-64
 	mov	eax,ebp
