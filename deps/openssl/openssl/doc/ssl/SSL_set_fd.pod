@@ -35,11 +35,11 @@ The following return values can occur:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The operation failed. Check the error stack to find out why.
 
-=item 1
+=item Z<>1
 
 The operation succeeded.
 

@@ -95,7 +95,7 @@ is ignored.
 
 ECDSA_verify() verifies that the signature in B<sig> of size
 B<siglen> is a valid ECDSA signature of the hash value
-value B<dgst> of size B<dgstlen> using the public key B<eckey>.
+B<dgst> of size B<dgstlen> using the public key B<eckey>.
 The parameter B<type> is ignored.
 
 ECDSA_do_sign() is wrapper function for ECDSA_do_sign_ex with B<kinv>
@@ -114,7 +114,7 @@ using the public key B<eckey>.
 
 ECDSA_size() returns the maximum length signature or 0 on error.
 
-ECDSA_sign_setup() and ECDSA_sign() return 1 if successful or -1
+ECDSA_sign_setup() and ECDSA_sign() return 1 if successful or 0
 on error.
 
 ECDSA_verify() and ECDSA_do_verify() return 1 for a valid
@@ -131,13 +131,9 @@ specific)
 
  int        ret;
  ECDSA_SIG *sig;
- EC_KEY    *eckey = EC_KEY_new();
+ EC_KEY    *eckey;
+ eckey = EC_KEY_new_by_curve_name(NID_secp192k1);
  if (eckey == NULL)
-	{
-	/* error */
-	}
- key->group = EC_GROUP_new_by_nid(NID_secp192k1);
- if (key->group == NULL)
 	{
 	/* error */
 	}

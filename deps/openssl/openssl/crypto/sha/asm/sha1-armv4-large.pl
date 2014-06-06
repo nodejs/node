@@ -161,7 +161,7 @@ for($i=0;$i<5;$i++) {
 $code.=<<___;
 	teq	$Xi,sp
 	bne	.L_00_15		@ [((11+4)*5+2)*3]
-	sub	sp,sp,#5*4
+	sub	sp,sp,#25*4
 ___
 	&BODY_00_15(@V);	unshift(@V,pop(@V));
 	&BODY_16_19(@V);	unshift(@V,pop(@V));
@@ -171,7 +171,6 @@ ___
 $code.=<<___;
 
 	ldr	$K,.LK_20_39		@ [+15+16*4]
-	sub	sp,sp,#20*4
 	cmn	sp,#0			@ [+3], clear carry to denote 20_39
 .L_20_39_or_60_79:
 ___

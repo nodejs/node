@@ -171,7 +171,19 @@ EVP_PKEY *X509_PUBKEY_get(X509_PUBKEY *key)
 		goto error;
 		}
 
-	key->pkey = ret;
+	/* Check to see if another thread set key->pkey first */
+	CRYPTO_w_lock(CRYPTO_LOCK_EVP_PKEY);
+	if (key->pkey)
+		{
+		CRYPTO_w_unlock(CRYPTO_LOCK_EVP_PKEY);
+		EVP_PKEY_free(ret);
+		ret = key->pkey;
+		}
+	else
+		{
+		key->pkey = ret;
+		CRYPTO_w_unlock(CRYPTO_LOCK_EVP_PKEY);
+		}
 	CRYPTO_add(&ret->references, 1, CRYPTO_LOCK_EVP_PKEY);
 
 	return ret;

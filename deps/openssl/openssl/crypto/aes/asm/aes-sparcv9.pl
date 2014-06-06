@@ -1176,6 +1176,7 @@ ___
 # As UltraSPARC T1, a.k.a. Niagara, has shared FPU, FP nops can have
 # undesired effect, so just omit them and sacrifice some portion of
 # percent in performance...
-$code =~ s/fmovs.*$//gem;
+$code =~ s/fmovs.*$//gm;
 
 print $code;
+close STDOUT;	# ensure flush

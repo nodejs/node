@@ -57,7 +57,7 @@ following methods:
 
  - in all other cases, proxy certificate validation can be enabled
    before starting the application by setting the envirnoment variable
-   OPENSSL_ALLOW_PROXY with some non-empty value.
+   OPENSSL_ALLOW_PROXY_CERTS with some non-empty value.
 
 There are thoughts to allow proxy certificates with a line in the
 default openssl.cnf, but that's still in the future.

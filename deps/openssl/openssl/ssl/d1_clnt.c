@@ -260,7 +260,6 @@ int dtls1_connect(SSL *s)
 			if (ret <= 0) goto end;
 			else
 				{
-				dtls1_stop_timer(s);
 				if (s->hit)
 					s->state=SSL3_ST_CR_FINISHED_A;
 				else
@@ -354,6 +353,7 @@ int dtls1_connect(SSL *s)
 		case SSL3_ST_CR_SRVR_DONE_B:
 			ret=ssl3_get_server_done(s);
 			if (ret <= 0) goto end;
+			dtls1_stop_timer(s);
 			if (s->s3->tmp.cert_req)
 				s->state=SSL3_ST_CW_CERT_A;
 			else
@@ -615,12 +615,6 @@ int dtls1_client_hello(SSL *s)
 #endif
 			(s->session->not_resumable))
 			{
-		        if (!s->session_creation_enabled)
-				{
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
-				SSLerr(SSL_F_DTLS1_CLIENT_HELLO,SSL_R_SESSION_MAY_NOT_BE_CREATED);
-				goto err;
-				}
 			if (!ssl_get_new_session(s,0))
 				goto err;
 			}

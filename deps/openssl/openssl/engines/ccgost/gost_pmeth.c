@@ -123,7 +123,7 @@ static int pkey_gost_ctrl94_str(EVP_PKEY_CTX *ctx,
 			}
 		if (strlen(value) == 1)
 			{
-			switch(toupper(value[0]))
+			switch(toupper((unsigned char)value[0]))
 				{
 				case 'A':
 					param_nid = NID_id_GostR3410_94_CryptoPro_A_ParamSet;
@@ -142,9 +142,9 @@ static int pkey_gost_ctrl94_str(EVP_PKEY_CTX *ctx,
 					break;
 				}
 			}
-		else if ((strlen(value) == 2) && (toupper(value[0]) == 'X'))
+		else if ((strlen(value) == 2) && (toupper((unsigned char)value[0]) == 'X'))
 			{
-			switch (toupper(value[1]))
+			switch (toupper((unsigned char)value[1]))
 				{
 				case 'A':
 					param_nid = NID_id_GostR3410_94_CryptoPro_XchA_ParamSet;
@@ -198,7 +198,7 @@ static int pkey_gost_ctrl01_str(EVP_PKEY_CTX *ctx,
 			}
 		if (strlen(value) == 1)
 			{
-			switch(toupper(value[0]))
+			switch(toupper((unsigned char)value[0]))
 				{
 				case 'A':
 					param_nid = NID_id_GostR3410_2001_CryptoPro_A_ParamSet;
@@ -217,9 +217,9 @@ static int pkey_gost_ctrl01_str(EVP_PKEY_CTX *ctx,
 					break;
 				}
 			}
-		else if ((strlen(value) == 2) && (toupper(value[0]) == 'X'))
+		else if ((strlen(value) == 2) && (toupper((unsigned char)value[0]) == 'X'))
 			{
-			switch (toupper(value[1]))
+			switch (toupper((unsigned char)value[1]))
 				{
 				case 'A':
 					param_nid = NID_id_GostR3410_2001_CryptoPro_XchA_ParamSet;
@@ -521,6 +521,7 @@ static int pkey_gost_mac_ctrl_str(EVP_PKEY_CTX *ctx,
 				{
 				GOSTerr(GOST_F_PKEY_GOST_MAC_CTRL_STR,
 					GOST_R_INVALID_MAC_KEY_LENGTH);
+				OPENSSL_free(keybuf);
 				return 0;	
 				}
 			ret= pkey_gost_mac_ctrl(ctx, EVP_PKEY_CTRL_SET_MAC_KEY,

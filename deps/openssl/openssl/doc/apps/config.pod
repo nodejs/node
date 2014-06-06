@@ -119,7 +119,7 @@ variable points to a section containing further ENGINE configuration
 information.
 
 The section pointed to by B<engines> is a table of engine names (though see
-B<engine_id> below) and further sections containing configuration informations
+B<engine_id> below) and further sections containing configuration information
 specific to each ENGINE.
 
 Each ENGINE specific section is used to set default algorithms, load

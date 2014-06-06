@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 	int ret = 1;
 
 	/* For simple S/MIME signing use CMS_DETACHED.
-	 * On OpenSSL 0.9.9 only:
+	 * On OpenSSL 1.0.0 only:
 	 * for streaming detached set CMS_DETACHED|CMS_STREAM
 	 * for streaming non-detached set CMS_STREAM
 	 */

@@ -144,26 +144,17 @@ int BN_add_word(BIGNUM *a, BN_ULONG w)
 			a->neg=!(a->neg);
 		return(i);
 		}
-	/* Only expand (and risk failing) if it's possibly necessary */
-	if (((BN_ULONG)(a->d[a->top - 1] + 1) == 0) &&
-			(bn_wexpand(a,a->top+1) == NULL))
-		return(0);
-	i=0;
-	for (;;)
+	for (i=0;w!=0 && i<a->top;i++)
 		{
-		if (i >= a->top)
-			l=w;
-		else
-			l=(a->d[i]+w)&BN_MASK2;
-		a->d[i]=l;
-		if (w > l)
-			w=1;
-		else
-			break;
-		i++;
+		a->d[i] = l = (a->d[i]+w)&BN_MASK2;
+		w = (w>l)?1:0;
 		}
-	if (i >= a->top)
+	if (w && i==a->top)
+		{
+		if (bn_wexpand(a,a->top+1) == NULL) return 0;
 		a->top++;
+		a->d[i]=w;
+		}
 	bn_check_top(a);
 	return(1);
 	}

@@ -11,6 +11,14 @@
 #include <openssl/rand.h>
 #include "e_gost_err.h"
 #include "gost_lcl.h"
+
+#if !defined(CCGOST_DEBUG) && !defined(DEBUG)
+# ifndef NDEBUG
+#  define NDEBUG
+# endif
+#endif
+#include <assert.h>
+
 static int gost_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key, 
 	const unsigned char *iv, int enc);
 static int	gost_cipher_init_cpa(EVP_CIPHER_CTX *ctx, const unsigned char *key,
@@ -206,12 +214,13 @@ int gost_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 static void gost_crypt_mesh (void *ctx,unsigned char *iv,unsigned char *buf)
 	{
 	struct ossl_gost_cipher_ctx *c = ctx;
-	if (c->count&&c->key_meshing && c->count%1024==0)
+	assert(c->count%8 == 0 && c->count <= 1024);
+	if (c->key_meshing && c->count==1024)
 		{
 		cryptopro_key_meshing(&(c->cctx),iv);
 		}	
 	gostcrypt(&(c->cctx),iv,buf);
-	c->count+=8;
+	c->count = c->count%1024 + 8;
 	}
 
 static void gost_cnt_next (void *ctx, unsigned char *iv, unsigned char *buf)
@@ -219,7 +228,8 @@ static void gost_cnt_next (void *ctx, unsigned char *iv, unsigned char *buf)
 	struct ossl_gost_cipher_ctx *c = ctx;
 	word32 g,go;
 	unsigned char buf1[8];
-	if (c->count && c->key_meshing && c->count %1024 ==0)
+	assert(c->count%8 == 0 && c->count <= 1024);
+	if (c->key_meshing && c->count==1024)
 		{
 		cryptopro_key_meshing(&(c->cctx),iv);
 		}
@@ -248,7 +258,7 @@ static void gost_cnt_next (void *ctx, unsigned char *iv, unsigned char *buf)
 	buf1[7]=(unsigned char)((g>>24)&0xff);
 	memcpy(iv,buf1,8);
 	gostcrypt(&(c->cctx),buf1,buf);
-	c->count +=8;
+	c->count = c->count%1024 + 8;
 	}
 
 /* GOST encryption in CFB mode */
@@ -511,12 +521,13 @@ static void mac_block_mesh(struct ossl_gost_imit_ctx *c,const unsigned char *dat
 	 * interpret internal state of MAC algorithm as iv during keymeshing
 	 * (but does initialize internal state from iv in key transport
 	 */
-	if (c->key_meshing&& c->count && c->count %1024 ==0)
+	assert(c->count%8 == 0 && c->count <= 1024);
+	if (c->key_meshing && c->count==1024)
 		{
 		cryptopro_key_meshing(&(c->cctx),buffer);
 		}
 	mac_block(&(c->cctx),c->buffer,data);
-	c->count +=8;
+	c->count = c->count%1024 + 8;
 	}
 
 int gost_imit_update(EVP_MD_CTX *ctx, const void *data, size_t count)
@@ -565,6 +576,12 @@ int gost_imit_final(EVP_MD_CTX *ctx,unsigned char *md)
 		GOSTerr(GOST_F_GOST_IMIT_FINAL, GOST_R_MAC_KEY_NOT_SET);
 		return 0;
 	}
+	if (c->count==0 && c->bytes_left)
+		{
+		unsigned char buffer[8];
+		memset(buffer, 0, 8);
+		gost_imit_update(ctx, buffer, 8);
+		}
 	if (c->bytes_left)
 		{
 		int i;

@@ -287,8 +287,6 @@ SHA Digest
 
 SHA-1 Digest
 
-=back
-
 =item B<sha224>
 
 SHA-224 Digest
@@ -304,6 +302,8 @@ SHA-384 Digest
 =item B<sha512>
 
 SHA-512 Digest
+
+=back
 
 =head2 ENCODING AND CIPHER COMMANDS
 

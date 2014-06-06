@@ -774,7 +774,15 @@ void EC_KEY_set_conv_form(EC_KEY *, point_conversion_form_t);
 /* functions to set/get method specific data  */
 void *EC_KEY_get_key_method_data(EC_KEY *, 
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *));
-void EC_KEY_insert_key_method_data(EC_KEY *, void *data,
+/** Sets the key method data of an EC_KEY object, if none has yet been set.
+ *  \param  key              EC_KEY object
+ *  \param  data             opaque data to install.
+ *  \param  dup_func         a function that duplicates |data|.
+ *  \param  free_func        a function that frees |data|.
+ *  \param  clear_free_func  a function that wipes and frees |data|.
+ *  \return the previously set data pointer, or NULL if |data| was inserted.
+ */
+void *EC_KEY_insert_key_method_data(EC_KEY *key, void *data,
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *));
 /* wrapper functions for the underlying EC_GROUP object */
 void EC_KEY_set_asn1_flag(EC_KEY *, int);

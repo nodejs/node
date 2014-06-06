@@ -687,13 +687,6 @@ static int ssl23_get_server_hello(SSL *s)
 
 	/* Since, if we are sending a ssl23 client hello, we are not
 	 * reusing a session-id */
-        if (!s->session_creation_enabled)
-		{
-		if (!(s->client_version == SSL2_VERSION))
-			ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
-		SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,SSL_R_SESSION_MAY_NOT_BE_CREATED);
-		goto err;
-		}
 	if (!ssl_get_new_session(s,0))
 		goto err;
 

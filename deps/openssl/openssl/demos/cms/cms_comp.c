@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 	int ret = 1;
 
 	/*
-	 * On OpenSSL 0.9.9 only:
+	 * On OpenSSL 1.0.0+ only:
 	 * for streaming set CMS_STREAM
 	 */
 	int flags = CMS_STREAM;

@@ -147,7 +147,7 @@ int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
 
 	EVP_Digest((void *)param, plen, phash, NULL, EVP_sha1(), NULL);
 
-	if (memcmp(db, phash, SHA_DIGEST_LENGTH) != 0 || bad)
+	if (CRYPTO_memcmp(db, phash, SHA_DIGEST_LENGTH) != 0 || bad)
 		goto decoding_err;
 	else
 		{

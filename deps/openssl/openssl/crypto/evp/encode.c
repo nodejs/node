@@ -324,6 +324,7 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 				v=EVP_DecodeBlock(out,d,n);
 				n=0;
 				if (v < 0) { rv=0; goto end; }
+				if (eof > v) { rv=-1; goto end; }
 				ret+=(v-eof);
 				}
 			else

@@ -114,6 +114,8 @@ hexadecimal value if preceded by B<0x>. Default value is 65537.
 
 The number of bits in the generated parameters. If not specified 1024 is used.
 
+=back
+
 =head1 DH PARAMETER GENERATION OPTIONS
 
 =over 4

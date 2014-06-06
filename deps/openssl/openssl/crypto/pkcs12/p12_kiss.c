@@ -167,7 +167,7 @@ int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert,
 	if (cert && *cert)
 		X509_free(*cert);
 	if (x)
-		X509_free(*cert);
+		X509_free(x);
 	if (ocerts)
 		sk_X509_pop_free(ocerts, X509_free);
 	return 0;
@@ -269,7 +269,7 @@ static int parse_bag(PKCS12_SAFEBAG *bag, const char *pass, int passlen,
 			int len, r;
 			unsigned char *data;
 			len = ASN1_STRING_to_UTF8(&data, fname);
-			if(len > 0) {
+			if(len >= 0) {
 				r = X509_alias_set1(x509, data, len);
 				OPENSSL_free(data);
 				if (!r)

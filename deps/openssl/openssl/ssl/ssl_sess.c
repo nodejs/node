@@ -261,11 +261,6 @@ static int def_generate_session_id(const SSL *ssl, unsigned char *id,
 	return 0;
 }
 
-void SSL_set_session_creation_enabled (SSL *s, int creation_enabled)
-	{
-	s->session_creation_enabled = creation_enabled;
-	}
-
 int ssl_get_new_session(SSL *s, int session)
 	{
 	/* This gets used by clients and servers. */
@@ -274,8 +269,6 @@ int ssl_get_new_session(SSL *s, int session)
 	SSL_SESSION *ss=NULL;
 	GEN_SESSION_CB cb = def_generate_session_id;
 
-	/* caller should check this if they can do better error handling */
-        if (!s->session_creation_enabled) return(0);
 	if ((ss=SSL_SESSION_new()) == NULL) return(0);
 
 	/* If the context has a default timeout, use it */

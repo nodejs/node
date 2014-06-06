@@ -37,7 +37,7 @@ None of the functions return a value.
 =head1 SEE ALSO
 
 L<conf(5)|conf(5)>, L<OPENSSL_config(3)|OPENSSL_config(3)>,
-L<CONF_modules_load_file(3), CONF_modules_load_file(3)>
+L<CONF_modules_load_file(3)|CONF_modules_load_file(3)>
 
 =head1 HISTORY
 

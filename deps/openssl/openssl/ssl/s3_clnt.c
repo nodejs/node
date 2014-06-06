@@ -199,18 +199,6 @@ int ssl3_connect(SSL *s)
 	
 	s->in_handshake++;
 	if (!SSL_in_init(s) || SSL_in_before(s)) SSL_clear(s); 
-#if 0	/* Send app data in separate packet, otherwise, some particular site
-	 * (only one site so far) closes the socket.
-	 * Note: there is a very small chance that two TCP packets
-	 * could be arriving at server combined into a single TCP packet,
-	 * then trigger that site to break. We haven't encounter that though.
-	 */
-	if (SSL_get_mode(s) & SSL_MODE_HANDSHAKE_CUTTHROUGH)
-		{
-		/* Send app data along with CCS/Finished */
-		s->s3->flags |= SSL3_FLAGS_DELAY_CLIENT_FINISHED;
-		}
-#endif
 
 	for (;;)
 		{
@@ -292,7 +280,16 @@ int ssl3_connect(SSL *s)
 			if (ret <= 0) goto end;
 
 			if (s->hit)
+				{
 				s->state=SSL3_ST_CR_FINISHED_A;
+#ifndef OPENSSL_NO_TLSEXT
+				if (s->tlsext_ticket_expected)
+					{
+					/* receive renewed session ticket */
+					s->state=SSL3_ST_CR_SESSION_TICKET_A;
+					}
+#endif
+				}
 			else
 				s->state=SSL3_ST_CR_CERT_A;
 			s->init_num=0;
@@ -435,16 +432,7 @@ int ssl3_connect(SSL *s)
 			ret=ssl3_send_change_cipher_spec(s,
 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
 			if (ret <= 0) goto end;
-
-#if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
 			s->state=SSL3_ST_CW_FINISHED_A;
-#else
-			if (s->next_proto_negotiated)
-				s->state=SSL3_ST_CW_NEXT_PROTO_A;
-			else
-				s->state=SSL3_ST_CW_FINISHED_A;
-#endif
-
 			s->init_num=0;
 
 			s->session->cipher=s->s3->tmp.new_cipher;
@@ -472,15 +460,6 @@ int ssl3_connect(SSL *s)
 
 			break;
 
-#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
-		case SSL3_ST_CW_NEXT_PROTO_A:
-		case SSL3_ST_CW_NEXT_PROTO_B:
-			ret=ssl3_send_next_proto(s);
-			if (ret <= 0) goto end;
-			s->state=SSL3_ST_CW_FINISHED_A;
-			break;
-#endif
-
 		case SSL3_ST_CW_FINISHED_A:
 		case SSL3_ST_CW_FINISHED_B:
 			ret=ssl3_send_finished(s,
@@ -504,31 +483,14 @@ int ssl3_connect(SSL *s)
 				}
 			else
 				{
-				if ((SSL_get_mode(s) & SSL_MODE_HANDSHAKE_CUTTHROUGH) && SSL_get_cipher_bits(s, NULL) >= 128
-				    && s->s3->previous_server_finished_len == 0 /* no cutthrough on renegotiation (would complicate the state machine) */
-				   )
-					{
-					if (s->s3->flags & SSL3_FLAGS_DELAY_CLIENT_FINISHED)
-						{
-						s->state=SSL3_ST_CUTTHROUGH_COMPLETE;
-						s->s3->flags|=SSL3_FLAGS_POP_BUFFER;
-						s->s3->delay_buf_pop_ret=0;
-						}
-					else
-						{
-						s->s3->tmp.next_state=SSL3_ST_CUTTHROUGH_COMPLETE;
-						}
-					}
-				else
-					{
 #ifndef OPENSSL_NO_TLSEXT
-					/* Allow NewSessionTicket if ticket expected */
-					if (s->tlsext_ticket_expected)
-						s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
-					else
+				/* Allow NewSessionTicket if ticket expected */
+				if (s->tlsext_ticket_expected)
+					s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
+				else
 #endif
-						s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
-					}
+				
+				s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
 				}
 			s->init_num=0;
 			break;
@@ -554,6 +516,7 @@ int ssl3_connect(SSL *s)
 		case SSL3_ST_CR_FINISHED_A:
 		case SSL3_ST_CR_FINISHED_B:
 
+			s->s3->flags |= SSL3_FLAGS_CCS_OK;
 			ret=ssl3_get_finished(s,SSL3_ST_CR_FINISHED_A,
 				SSL3_ST_CR_FINISHED_B);
 			if (ret <= 0) goto end;
@@ -575,24 +538,6 @@ int ssl3_connect(SSL *s)
 			s->rwstate=SSL_NOTHING;
 			s->state=s->s3->tmp.next_state;
 			break;
-
-		case SSL3_ST_CUTTHROUGH_COMPLETE:
-#ifndef OPENSSL_NO_TLSEXT
-			/* Allow NewSessionTicket if ticket expected */
-			if (s->tlsext_ticket_expected)
-				s->state=SSL3_ST_CR_SESSION_TICKET_A;
-			else
-#endif
-				s->state=SSL3_ST_CR_FINISHED_A;
-
-			/* SSL_write() will take care of flushing buffered data if
-			 * DELAY_CLIENT_FINISHED is set.
-			 */
-			if (!(s->s3->flags & SSL3_FLAGS_DELAY_CLIENT_FINISHED))
-				ssl_free_wbio_buffer(s);
-			ret = 1;
-			goto end;
-			/* break; */
 
 		case SSL_ST_OK:
 			/* clean a few things up */
@@ -686,12 +631,6 @@ int ssl3_client_hello(SSL *s)
 #endif
 			(sess->not_resumable))
 			{
-		        if (!s->session_creation_enabled)
-				{
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
-				SSLerr(SSL_F_SSL3_CLIENT_HELLO,SSL_R_SESSION_MAY_NOT_BE_CREATED);
-				goto err;
-				}
 			if (!ssl_get_new_session(s,0))
 				goto err;
 			}
@@ -891,6 +830,7 @@ int ssl3_get_server_hello(SSL *s)
 		SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT);
 		goto f_err;
 		}
+	    s->s3->flags |= SSL3_FLAGS_CCS_OK;
 	    s->hit=1;
 	    }
 	else	/* a miss or crap from the other end */
@@ -900,12 +840,6 @@ int ssl3_get_server_hello(SSL *s)
 		s->hit=0;
 		if (s->session->session_id_length > 0)
 			{
-		        if (!s->session_creation_enabled)
-				{
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
-				SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_SESSION_MAY_NOT_BE_CREATED);
-				goto err;
-				}
 			if (!ssl_get_new_session(s,0))
 				{
 				al=SSL_AD_INTERNAL_ERROR;
@@ -956,7 +890,10 @@ int ssl3_get_server_hello(SSL *s)
 		}
 	s->s3->tmp.new_cipher=c;
 	if (!ssl3_digest_cached_records(s))
+		{
+		al = SSL_AD_INTERNAL_ERROR;
 		goto f_err;
+		}
 
 	/* lets get the compression algorithm */
 	/* COMPRESSION */
@@ -1036,7 +973,9 @@ int ssl3_get_server_hello(SSL *s)
 	return(1);
 f_err:
 	ssl3_send_alert(s,SSL3_AL_FATAL,al);
+#ifndef OPENSSL_NO_TLSEXT
 err:
+#endif
 	return(-1);
 	}
 
@@ -2363,6 +2302,13 @@ int ssl3_send_client_key_exchange(SSL *s)
 			int ecdh_clnt_cert = 0;
 			int field_size = 0;
 
+			if (s->session->sess_cert == NULL) 
+				{
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_UNEXPECTED_MESSAGE);
+				SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,SSL_R_UNEXPECTED_MESSAGE);
+				goto err;
+				}
+
 			/* Did we send out the client's
 			 * ECDH share for use in premaster
 			 * computation as part of client certificate?
@@ -3083,32 +3029,6 @@ err:
  */
 
 #ifndef OPENSSL_NO_TLSEXT
-# ifndef OPENSSL_NO_NEXTPROTONEG
-int ssl3_send_next_proto(SSL *s)
-	{
-	unsigned int len, padding_len;
-	unsigned char *d;
-
-	if (s->state == SSL3_ST_CW_NEXT_PROTO_A)
-		{
-		len = s->next_proto_negotiated_len;
-		padding_len = 32 - ((len + 2) % 32);
-		d = (unsigned char *)s->init_buf->data;
-		d[4] = len;
-		memcpy(d + 5, s->next_proto_negotiated, len);
-		d[5 + len] = padding_len;
-		memset(d + 6 + len, 0, padding_len);
-		*(d++)=SSL3_MT_NEXT_PROTO;
-		l2n3(2 + len + padding_len, d);
-		s->state = SSL3_ST_CW_NEXT_PROTO_B;
-		s->init_num = 4 + 2 + len + padding_len;
-		s->init_off = 0;
-		}
-
-	return ssl3_do_write(s, SSL3_RT_HANDSHAKE);
-	}
-# endif
-
 int ssl3_check_finished(SSL *s)
 	{
 	int ok;

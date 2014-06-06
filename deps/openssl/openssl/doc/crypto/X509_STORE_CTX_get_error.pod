@@ -278,6 +278,8 @@ happen if extended CRL checking is enabled.
 an application specific error. This will never be returned unless explicitly
 set by an application.
 
+=back
+
 =head1 NOTES
 
 The above functions should be used instead of directly referencing the fields

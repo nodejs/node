@@ -2087,9 +2087,6 @@ SSL3_ENC_METHOD SSLv3_enc_data={
 	SSL3_MD_CLIENT_FINISHED_CONST,4,
 	SSL3_MD_SERVER_FINISHED_CONST,4,
 	ssl3_alert_code,
-	(int (*)(SSL *, unsigned char *, size_t, const char *,
-		 size_t, const unsigned char *, size_t,
-		 int use_context)) ssl_undefined_function,
 	};
 
 long ssl3_default_timeout(void)
@@ -2214,6 +2211,11 @@ void ssl3_clear(SSL *s)
 		s->s3->tmp.ecdh = NULL;
 		}
 #endif
+#ifndef OPENSSL_NO_TLSEXT
+#ifndef OPENSSL_NO_EC
+	s->s3->is_probably_safari = 0;
+#endif /* !OPENSSL_NO_EC */
+#endif /* !OPENSSL_NO_TLSEXT */
 
 	rp = s->s3->rbuf.buf;
 	wp = s->s3->wbuf.buf;
@@ -2242,15 +2244,6 @@ void ssl3_clear(SSL *s)
 	s->s3->num_renegotiations=0;
 	s->s3->in_read_app_data=0;
 	s->version=SSL3_VERSION;
-
-#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
-	if (s->next_proto_negotiated)
-		{
-		OPENSSL_free(s->next_proto_negotiated);
-		s->next_proto_negotiated = NULL;
-		s->next_proto_negotiated_len = 0;
-		}
-#endif
 	}
 
 long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
@@ -3095,6 +3088,13 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 		ii=sk_SSL_CIPHER_find(allow,c);
 		if (ii >= 0)
 			{
+#if !defined(OPENSSL_NO_EC) && !defined(OPENSSL_NO_TLSEXT)
+			if ((alg_k & SSL_kEECDH) && (alg_a & SSL_aECDSA) && s->s3->is_probably_safari)
+				{
+				if (!ret) ret=sk_SSL_CIPHER_value(allow,ii);
+				continue;
+				}
+#endif
 			ret=sk_SSL_CIPHER_value(allow,ii);
 			break;
 			}
@@ -3278,22 +3278,9 @@ int ssl3_write(SSL *s, const void *buf, int len)
 
 static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
 	{
-	int n,ret;
+	int ret;
 	
 	clear_sys_error();
-	if ((s->s3->flags & SSL3_FLAGS_POP_BUFFER) && (s->wbio == s->bbio))
-		{
-		/* Deal with an application that calls SSL_read() when handshake data
-		 * is yet to be written.
-		 */
-		if (BIO_wpending(s->wbio) > 0)
-			{
-			s->rwstate=SSL_WRITING;
-			n=BIO_flush(s->wbio);
-			if (n <= 0) return(n);
-			s->rwstate=SSL_NOTHING;
-			}
-		}
 	if (s->s3->renegotiate) ssl3_renegotiate_check(s);
 	s->s3->in_read_app_data=1;
 	ret=s->method->ssl_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);

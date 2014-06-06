@@ -197,3 +197,17 @@ reconfigure with additional no-sse2 [or 386] option passed to ./config.
 We don't have framework to associate -ldl with no-dso, therefore the only
 way is to edit Makefile right after ./config no-dso and remove -ldl from
 EX_LIBS line.
+
+* hpux-parisc2-cc no-asm build fails with SEGV in ECDSA/DH.
+
+Compiler bug, presumably at particular patch level. Remaining
+hpux*-parisc*-cc configurations can be affected too. Drop optimization
+level to +O2 when compiling bn_nist.o.
+
+* solaris64-sparcv9-cc link failure
+
+Solaris 8 ar can fail to maintain symbol table in .a, which results in
+link failures. Apply 109147-09 or later or modify Makefile generated
+by ./Configure solaris64-sparcv9-cc and replace RANLIB assignment with
+
+	RANLIB= /usr/ccs/bin/ar rs

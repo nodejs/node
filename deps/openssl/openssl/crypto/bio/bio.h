@@ -146,6 +146,7 @@ extern "C" {
 /* #endif */
 
 #define BIO_CTRL_DGRAM_QUERY_MTU          40 /* as kernel for current MTU */
+#define BIO_CTRL_DGRAM_GET_FALLBACK_MTU   47
 #define BIO_CTRL_DGRAM_GET_MTU            41 /* get cached value for MTU */
 #define BIO_CTRL_DGRAM_SET_MTU            42 /* set cached value for
 					      * MTU. want to use this

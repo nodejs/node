@@ -136,6 +136,12 @@ int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *a, ASN1_BIT_STRING *signat
 
 	int mdnid, pknid;
 
+	if (!pkey)
+		{
+		ASN1err(ASN1_F_ASN1_ITEM_VERIFY, ERR_R_PASSED_NULL_PARAMETER);
+		return -1;
+		}
+
 	EVP_MD_CTX_init(&ctx);
 
 	/* Convert signature OID into digest and public key OIDs */

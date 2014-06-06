@@ -204,11 +204,11 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
 	unsigned char *ek = NULL;
 	size_t eklen;
 
-	int ret = 0;
+	int ret = -1;
 
 	pctx = EVP_PKEY_CTX_new(pkey, NULL);
 	if (!pctx)
-		return 0;
+		return -1;
 
 	if (EVP_PKEY_decrypt_init(pctx) <= 0)
 		goto err;
@@ -235,11 +235,18 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
 	if (EVP_PKEY_decrypt(pctx, ek, &eklen,
 				ri->enc_key->data, ri->enc_key->length) <= 0)
 		{
+		ret = 0;
 		PKCS7err(PKCS7_F_PKCS7_DECRYPT_RINFO, ERR_R_EVP_LIB);
 		goto err;
 		}
 
 	ret = 1;
+
+	if (*pek)
+		{
+		OPENSSL_cleanse(*pek, *peklen);
+		OPENSSL_free(*pek);
+		}
 
 	*pek = ek;
 	*peklen = eklen;
@@ -423,6 +430,8 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	STACK_OF(X509_ALGOR) *md_sk=NULL;
 	STACK_OF(PKCS7_RECIP_INFO) *rsk=NULL;
 	PKCS7_RECIP_INFO *ri=NULL;
+       unsigned char *ek = NULL, *tkey = NULL;
+       int eklen = 0, tkeylen = 0;
 
 	i=OBJ_obj2nid(p7->type);
 	p7->state=PKCS7_S_HEADER;
@@ -431,6 +440,11 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		{
 	case NID_pkcs7_signed:
 		data_body=PKCS7_get_octet_string(p7->d.sign->contents);
+		if (!PKCS7_is_detached(p7) && data_body == NULL)
+			{
+			PKCS7err(PKCS7_F_PKCS7_DATADECODE,PKCS7_R_INVALID_SIGNED_DATA_TYPE);
+			goto err;
+			}
 		md_sk=p7->d.sign->md_algs;
 		break;
 	case NID_pkcs7_signedAndEnveloped:
@@ -500,8 +514,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		int max;
 		X509_OBJECT ret;
 #endif
-		unsigned char *ek = NULL;
-		int eklen;
 
 		if ((etmp=BIO_new(BIO_f_cipher())) == NULL)
 			{
@@ -534,29 +546,28 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			}
 
 		/* If we haven't got a certificate try each ri in turn */
-
 		if (pcert == NULL)
 			{
+			/* Always attempt to decrypt all rinfo even
+			 * after sucess as a defence against MMA timing
+			 * attacks.
+			 */
 			for (i=0; i<sk_PKCS7_RECIP_INFO_num(rsk); i++)
 				{
 				ri=sk_PKCS7_RECIP_INFO_value(rsk,i);
+				
 				if (pkcs7_decrypt_rinfo(&ek, &eklen,
-							ri, pkey) > 0)
-					break;
+							ri, pkey) < 0)
+					goto err;
 				ERR_clear_error();
-				ri = NULL;
-				}
-			if (ri == NULL)
-				{
-				PKCS7err(PKCS7_F_PKCS7_DATADECODE,
-				      PKCS7_R_NO_RECIPIENT_MATCHES_KEY);
-				goto err;
 				}
 			}
 		else
 			{
-			if (pkcs7_decrypt_rinfo(&ek, &eklen, ri, pkey) <= 0)
+			/* Only exit on fatal errors, not decrypt failure */
+			if (pkcs7_decrypt_rinfo(&ek, &eklen, ri, pkey) < 0)
 				goto err;
+			ERR_clear_error();
 			}
 
 		evp_ctx=NULL;
@@ -565,6 +576,19 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			goto err;
 		if (EVP_CIPHER_asn1_to_param(evp_ctx,enc_alg->parameter) < 0)
 			goto err;
+		/* Generate random key as MMA defence */
+		tkeylen = EVP_CIPHER_CTX_key_length(evp_ctx);
+		tkey = OPENSSL_malloc(tkeylen);
+		if (!tkey)
+			goto err;
+		if (EVP_CIPHER_CTX_rand_key(evp_ctx, tkey) <= 0)
+			goto err;
+		if (ek == NULL)
+			{
+			ek = tkey;
+			eklen = tkeylen;
+			tkey = NULL;
+			}
 
 		if (eklen != EVP_CIPHER_CTX_key_length(evp_ctx)) {
 			/* Some S/MIME clients don't use the same key
@@ -573,11 +597,16 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			 */
 			if(!EVP_CIPHER_CTX_set_key_length(evp_ctx, eklen))
 				{
-				PKCS7err(PKCS7_F_PKCS7_DATADECODE,
-					PKCS7_R_DECRYPTED_KEY_IS_WRONG_LENGTH);
-				goto err;
+				/* Use random key as MMA defence */
+				OPENSSL_cleanse(ek, eklen);
+				OPENSSL_free(ek);
+				ek = tkey;
+				eklen = tkeylen;
+				tkey = NULL;
 				}
 		} 
+		/* Clear errors so we don't leak information useful in MMA */
+		ERR_clear_error();
 		if (EVP_CipherInit_ex(evp_ctx,NULL,NULL,ek,NULL,0) <= 0)
 			goto err;
 
@@ -585,6 +614,13 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			{
 			OPENSSL_cleanse(ek,eklen);
 			OPENSSL_free(ek);
+                       ek = NULL;
+			}
+		if (tkey)
+			{
+			OPENSSL_cleanse(tkey,tkeylen);
+			OPENSSL_free(tkey);
+                       tkey = NULL;
 			}
 
 		if (out == NULL)
@@ -627,6 +663,16 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	if (0)
 		{
 err:
+               if (ek)
+                       {
+                       OPENSSL_cleanse(ek,eklen);
+                       OPENSSL_free(ek);
+                       }
+               if (tkey)
+                       {
+                       OPENSSL_cleanse(tkey,tkeylen);
+                       OPENSSL_free(tkey);
+                       }
 		if (out != NULL) BIO_free_all(out);
 		if (btmp != NULL) BIO_free_all(btmp);
 		if (etmp != NULL) BIO_free_all(etmp);
@@ -881,6 +927,7 @@ int PKCS7_SIGNER_INFO_sign(PKCS7_SIGNER_INFO *si)
 	if (EVP_DigestSignUpdate(&mctx,abuf,alen) <= 0)
 		goto err;
 	OPENSSL_free(abuf);
+	abuf = NULL;
 	if (EVP_DigestSignFinal(&mctx, NULL, &siglen) <= 0)
 		goto err;
 	abuf = OPENSSL_malloc(siglen);

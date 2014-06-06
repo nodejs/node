@@ -226,6 +226,7 @@ static int b64_read(BIO *b, char *out, int outl)
 		else if (ctx->start)
 			{
 			q=p=(unsigned char *)ctx->tmp;
+			num = 0;
 			for (j=0; j<i; j++)
 				{
 				if (*(q++) != '\n') continue;
@@ -264,7 +265,7 @@ static int b64_read(BIO *b, char *out, int outl)
 				}
 
 			/* we fell off the end without starting */
-			if (j == i)
+			if ((j == i) && (num == 0))
 				{
 				/* Is this is one long chunk?, if so, keep on
 				 * reading until a new line. */

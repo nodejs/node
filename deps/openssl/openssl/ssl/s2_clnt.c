@@ -359,12 +359,14 @@ static int get_server_hello(SSL *s)
 					SSL_R_PEER_ERROR);
 			return(-1);
 			}
-#ifdef __APPLE_CC__
-		/* The Rhapsody 5.5 (a.k.a. MacOS X) compiler bug
-		 * workaround. <appro@fy.chalmers.se> */
-		s->hit=(i=*(p++))?1:0;
-#else
+#if 0
 		s->hit=(*(p++))?1:0;
+		/* Some [PPC?] compilers fail to increment p in above
+		   statement, e.g. one provided with Rhapsody 5.5, but
+		   most recent example XL C 11.1 for AIX, even without
+		   optimization flag... */
+#else
+		s->hit=(*p)?1:0; p++;
 #endif
 		s->s2->tmp.cert_type= *(p++);
 		n2s(p,i);
@@ -937,7 +939,7 @@ static int get_server_verify(SSL *s)
 		s->msg_callback(0, s->version, 0, p, len, s, s->msg_callback_arg); /* SERVER-VERIFY */
 	p += 1;
 
-	if (memcmp(p,s->s2->challenge,s->s2->challenge_length) != 0)
+	if (CRYPTO_memcmp(p,s->s2->challenge,s->s2->challenge_length) != 0)
 		{
 		ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
 		SSLerr(SSL_F_GET_SERVER_VERIFY,SSL_R_CHALLENGE_IS_DIFFERENT);

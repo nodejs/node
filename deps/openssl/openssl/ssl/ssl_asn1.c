@@ -386,6 +386,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 		if (os.length != 3)
 			{
 			c.error=SSL_R_CIPHER_CODE_WRONG_LENGTH;
+			c.line=__LINE__;
 			goto err;
 			}
 		id=0x02000000L|
@@ -398,6 +399,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 		if (os.length != 2)
 			{
 			c.error=SSL_R_CIPHER_CODE_WRONG_LENGTH;
+			c.line=__LINE__;
 			goto err;
 			}
 		id=0x03000000L|
@@ -407,6 +409,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 	else
 		{
 		c.error=SSL_R_UNKNOWN_SSL_VERSION;
+		c.line=__LINE__;
 		goto err;
 		}
 	
@@ -499,6 +502,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 	    if (os.length > SSL_MAX_SID_CTX_LENGTH)
 		{
 		c.error=SSL_R_BAD_LENGTH;
+		c.line=__LINE__;
 		goto err;
 		}
 	    else

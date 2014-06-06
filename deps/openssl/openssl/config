@@ -706,7 +706,7 @@ case "$GUESSOS" in
 			    libc=/usr/lib/libc.so
 			else					# OpenBSD
 			    # ld searches for highest libc.so.* and so do we
-			    libc=`(ls /usr/lib/libc.so.* | tail -1) 2>/dev/null`
+			    libc=`(ls /usr/lib/libc.so.* /lib/libc.so.* | tail -1) 2>/dev/null`
 			fi
 			case "`(file -L $libc) 2>/dev/null`" in
 			*ELF*)	OUT="BSD-x86-elf" ;;
@@ -825,9 +825,11 @@ esac
 #  options="$options -DATALLA"
 #fi
 
-($CC -Wa,--help -c -o /dev/null -x assembler /dev/null 2>&1 | \
- grep \\--noexecstack) 2>&1 > /dev/null && \
+if expr "$options" : '.*no\-asm' > /dev/null; then :; else
+  sh -c "$CROSS_COMPILE${CC:-gcc} -Wa,--help -c -o /tmp/null.$$.o -x assembler /dev/null && rm /tmp/null.$$.o" 2>&1 | \
+  grep \\--noexecstack >/dev/null && \
   options="$options -Wa,--noexecstack"
+fi
 
 # gcc < 2.8 does not support -march=ultrasparc
 if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]

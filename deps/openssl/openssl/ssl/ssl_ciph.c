@@ -1653,52 +1653,6 @@ int SSL_CIPHER_get_bits(const SSL_CIPHER *c, int *alg_bits)
 	return(ret);
 	}
 
-/* return string version of key exchange algorithm */
-const char* SSL_CIPHER_authentication_method(const SSL_CIPHER* cipher)
-	{
-	switch (cipher->algorithm_mkey)
-		{
-	case SSL_kRSA:
-		return SSL_TXT_RSA;
-	case SSL_kDHr:
-		return SSL_TXT_DH "_" SSL_TXT_RSA;
-	case SSL_kDHd:
-		return SSL_TXT_DH "_" SSL_TXT_DSS;
-	case SSL_kEDH:
-		switch (cipher->algorithm_auth)
-			{
-		case SSL_aDSS:
-			return "DHE_" SSL_TXT_DSS;
-		case SSL_aRSA:
-			return "DHE_" SSL_TXT_RSA;
-		case SSL_aNULL:
-			return SSL_TXT_DH "_anon";
-		default:
-			return "UNKNOWN";
-                        }
-	case SSL_kKRB5:
-		return SSL_TXT_KRB5;
-	case SSL_kECDHr:
-		return SSL_TXT_ECDH "_" SSL_TXT_RSA;
-	case SSL_kECDHe:
-		return SSL_TXT_ECDH "_" SSL_TXT_ECDSA;
-	case SSL_kEECDH:
-		switch (cipher->algorithm_auth)
-			{
-		case SSL_aECDSA:
-			return "ECDHE_" SSL_TXT_ECDSA;
-		case SSL_aRSA:
-			return "ECDHE_" SSL_TXT_RSA;
-		case SSL_aNULL:
-			return SSL_TXT_ECDH "_anon";
-		default:
-			return "UNKNOWN";
-                        }
-        default:
-		return "UNKNOWN";
-		}
-	}
-
 SSL_COMP *ssl3_comp_find(STACK_OF(SSL_COMP) *sk, int n)
 	{
 	SSL_COMP *ctmp;

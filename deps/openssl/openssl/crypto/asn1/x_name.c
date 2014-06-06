@@ -399,8 +399,7 @@ static int asn1_string_canon(ASN1_STRING *out, ASN1_STRING *in)
 	/* If type not in bitmask just copy string across */
 	if (!(ASN1_tag2bit(in->type) & ASN1_MASK_CANON))
 		{
-		out->type = in->type;
-		if (!ASN1_STRING_set(out, in->data, in->length))
+		if (!ASN1_STRING_copy(out, in))
 			return 0;
 		return 1;
 		}

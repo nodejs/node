@@ -111,6 +111,7 @@ DECLARE_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 #define CMS_PARTIAL			0x4000
 #define CMS_REUSE_DIGEST		0x8000
 #define CMS_USE_KEYID			0x10000
+#define CMS_DEBUG_DECRYPT		0x20000
 
 const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
 

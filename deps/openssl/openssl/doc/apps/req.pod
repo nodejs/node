@@ -303,7 +303,7 @@ Reverses effect of B<-asn1-kludge>
 
 =item B<-newhdr>
 
-Adds the word B<NEW> to the PEM file header and footer lines on the outputed
+Adds the word B<NEW> to the PEM file header and footer lines on the outputted
 request. Some software (Netscape certificate server) and some CAs need this.
 
 =item B<-batch>

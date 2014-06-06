@@ -117,7 +117,7 @@ $ ENCRYPT_TYPES = "Basic,"+ -
 		  "BUFFER,BIO,STACK,LHASH,RAND,ERR,"+ -
 		  "EVP,EVP_2,EVP_3,ASN1,ASN1_2,PEM,X509,X509V3,"+ -
 		  "CONF,TXT_DB,PKCS7,PKCS12,COMP,OCSP,UI,KRB5,"+ -
-		  "STORE,CMS,PQUEUE,TS,JPAKE"
+		  "CMS,PQUEUE,TS,JPAKE,STORE"
 $!
 $! Check To Make Sure We Have Valid Command Line Parameters.
 $!
@@ -1021,7 +1021,7 @@ $!
 $! Set basic C compiler /INCLUDE directories.
 $!
 $ CC_INCLUDES = "SYS$DISK:[.''ARCHD'],SYS$DISK:[],SYS$DISK:[-],"+ -
-   "SYS$DISK:[.ENGINE.VENDOR_DEFNS],SYS$DISK:[.EVP],SYS$DISK:[.ASN1]"
+   "SYS$DISK:[.ENGINE.VENDOR_DEFNS],SYS$DISK:[.ASN1],SYS$DISK:[.EVP]"
 $!
 $! Check To See If P3 Is Blank.
 $!

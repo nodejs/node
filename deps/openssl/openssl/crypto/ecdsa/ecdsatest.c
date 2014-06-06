@@ -289,7 +289,8 @@ int test_builtin(BIO *out)
 	ECDSA_SIG	*ecdsa_sig = NULL;
 	unsigned char	digest[20], wrong_digest[20];
 	unsigned char	*signature = NULL;
-	unsigned char	*sig_ptr;
+	const unsigned char	*sig_ptr;
+	unsigned char	*sig_ptr2;
 	unsigned char	*raw_buf = NULL;
 	unsigned int	sig_len, degree, r_len, s_len, bn_len, buf_len;
 	int		nid, ret =  0;
@@ -464,8 +465,8 @@ int test_builtin(BIO *out)
 			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
 			goto builtin_err;
 
-		sig_ptr = signature;
-		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
+		sig_ptr2 = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr2);
 		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) == 1)
 			{
 			BIO_printf(out, " failed\n");
@@ -477,8 +478,8 @@ int test_builtin(BIO *out)
 			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
 			goto builtin_err;
 
-		sig_ptr = signature;
-		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
+		sig_ptr2 = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr2);
 		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) != 1)
 			{
 			BIO_printf(out, " failed\n");

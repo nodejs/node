@@ -91,9 +91,12 @@ int OCSP_basic_verify(OCSP_BASICRESP *bs, STACK_OF(X509) *certs,
 		{
 		EVP_PKEY *skey;
 		skey = X509_get_pubkey(signer);
-		ret = OCSP_BASICRESP_verify(bs, skey, 0);
-		EVP_PKEY_free(skey);
-		if(ret <= 0)
+		if (skey)
+			{
+			ret = OCSP_BASICRESP_verify(bs, skey, 0);
+			EVP_PKEY_free(skey);
+			}
+		if(!skey || ret <= 0)
 			{
 			OCSPerr(OCSP_F_OCSP_BASIC_VERIFY, OCSP_R_SIGNATURE_FAILURE);
 			goto end;
@@ -108,6 +111,7 @@ int OCSP_basic_verify(OCSP_BASICRESP *bs, STACK_OF(X509) *certs,
 			init_res = X509_STORE_CTX_init(&ctx, st, signer, bs->certs);
 		if(!init_res)
 			{
+			ret = -1;
 			OCSPerr(OCSP_F_OCSP_BASIC_VERIFY,ERR_R_X509_LIB);
 			goto end;
 			}

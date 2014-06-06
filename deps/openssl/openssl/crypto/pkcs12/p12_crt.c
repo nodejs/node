@@ -90,7 +90,11 @@ PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert,
 
 	/* Set defaults */
 	if (!nid_cert)
+#ifdef OPENSSL_NO_RC2
+		nid_cert = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+#else
 		nid_cert = NID_pbe_WithSHA1And40BitRC2_CBC;
+#endif
 	if (!nid_key)
 		nid_key = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
 	if (!iter)
@@ -279,7 +283,11 @@ int PKCS12_add_safe(STACK_OF(PKCS7) **psafes, STACK_OF(PKCS12_SAFEBAG) *bags,
 		free_safes = 0;
 
 	if (nid_safe == 0)
+#ifdef OPENSSL_NO_RC2
+		nid_safe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+#else
 		nid_safe = NID_pbe_WithSHA1And40BitRC2_CBC;
+#endif
 
 	if (nid_safe == -1)
 		p7 = PKCS12_pack_p7data(bags);

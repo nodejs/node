@@ -316,9 +316,6 @@ static void sv_usage(void)
 	               "                 (default is sect163r2).\n");
 #endif
 	fprintf(stderr," -test_cipherlist - verifies the order of the ssl cipher lists\n");
-	fprintf(stderr," -c_small_records - enable client side use of small SSL record buffers\n");
-	fprintf(stderr," -s_small_records - enable server side use of small SSL record buffers\n");
-	fprintf(stderr," -cutthrough      - enable 1-RTT full-handshake for strong ciphers\n");
 	}
 
 static void print_details(SSL *c_ssl, const char *prefix)
@@ -447,10 +444,6 @@ int opaque_prf_input_cb(SSL *ssl, void *peerinput, size_t len, void *arg_)
 	return arg->ret;
 	}
 #endif
-	int ssl_mode = 0;
-	int c_small_records=0;
-	int s_small_records=0;
-	int cutthrough = 0;
 
 int main(int argc, char *argv[])
 	{
@@ -687,18 +680,6 @@ int main(int argc, char *argv[])
 			{
 			test_cipherlist = 1;
 			}
-		else if (strcmp(*argv, "-c_small_records") == 0)
-			{
-			c_small_records = 1;
-			}
-		else if (strcmp(*argv, "-s_small_records") == 0)
-			{
-			s_small_records = 1;
-			}
-		else if (strcmp(*argv, "-cutthrough") == 0)
-			{
-			cutthrough = 1;
-			}
 		else
 			{
 			fprintf(stderr,"unknown option %s\n",*argv);
@@ -801,7 +782,13 @@ bad:
 		meth=SSLv23_method();
 #else
 #ifdef OPENSSL_NO_SSL2
-	meth=SSLv3_method();
+	if (tls1)
+		meth=TLSv1_method();
+	else
+	if (ssl3)
+		meth=SSLv3_method();
+	else
+		meth=SSLv23_method();
 #else
 	meth=SSLv2_method();
 #endif
@@ -819,28 +806,6 @@ bad:
 		{
 		SSL_CTX_set_cipher_list(c_ctx,cipher);
 		SSL_CTX_set_cipher_list(s_ctx,cipher);
-		}
-
-	ssl_mode = 0;
-	if (c_small_records)
-		{
-		ssl_mode = SSL_CTX_get_mode(c_ctx);
-		ssl_mode |= SSL_MODE_SMALL_BUFFERS;
-		SSL_CTX_set_mode(c_ctx, ssl_mode);
-		}
-	ssl_mode = 0;
-	if (s_small_records)
-		{
-		ssl_mode = SSL_CTX_get_mode(s_ctx);
-		ssl_mode |= SSL_MODE_SMALL_BUFFERS;
-		SSL_CTX_set_mode(s_ctx, ssl_mode);
-		}
-	ssl_mode = 0;
-	if (cutthrough)
-		{
-		ssl_mode = SSL_CTX_get_mode(c_ctx);
-		ssl_mode = SSL_MODE_HANDSHAKE_CUTTHROUGH;
-		SSL_CTX_set_mode(c_ctx, ssl_mode);
 		}
 
 #ifndef OPENSSL_NO_DH

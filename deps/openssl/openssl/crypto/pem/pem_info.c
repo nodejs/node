@@ -167,6 +167,7 @@ start:
 #ifndef OPENSSL_NO_RSA
 			if (strcmp(name,PEM_STRING_RSA) == 0)
 			{
+			d2i=(D2I_OF(void))d2i_RSAPrivateKey;
 			if (xi->x_pkey != NULL) 
 				{
 				if (!sk_X509_INFO_push(ret,xi)) goto err;

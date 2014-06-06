@@ -42,6 +42,7 @@
         'openssl/ssl/s2_pkt.c',
         'openssl/ssl/s2_srvr.c',
         'openssl/ssl/s3_both.c',
+        'openssl/ssl/s3_cbc.c',
         'openssl/ssl/s3_clnt.c',
         'openssl/ssl/s3_enc.c',
         'openssl/ssl/s3_lib.c',
