@@ -535,8 +535,6 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
                           uv_write_cb cb) {
   assert(send_handle == NULL);
 
-  // Queue callback to execute it on next tick
-  WriteItem* wi = new WriteItem(w, cb);
   bool empty = true;
 
   // Empty writes should not go through encryption process
@@ -554,6 +552,8 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
       return uv_write(&w->req_, wrap()->stream(), bufs, count, cb);
   }
 
+  // Queue callback to execute it on next tick
+  WriteItem* wi = new WriteItem(w, cb);
   QUEUE_INSERT_TAIL(&write_item_queue_, &wi->member_);
 
   // Write queued data
