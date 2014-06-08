@@ -50,6 +50,9 @@ console.log(custom_inspect);
 
 // test console.dir()
 console.dir(custom_inspect);
+console.dir(custom_inspect, { showHidden: false });
+console.dir({ foo : { bar : { baz : true } } }, { depth: 0 });
+console.dir({ foo : { bar : { baz : true } } }, { depth: 1 });
 
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
@@ -63,6 +66,9 @@ assert.equal('foo bar hop\n', strings.shift());
 assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 assert.equal('inspect\n', strings.shift());
 assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
+assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
+assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
+assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
              strings.shift().split('\n').shift());
 
