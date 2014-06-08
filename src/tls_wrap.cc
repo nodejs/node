@@ -141,8 +141,11 @@ bool TLSCallbacks::InvokeQueued(int status) {
     return false;
 
   // Process old queue
-  while (!QUEUE_EMPTY(&pending_write_items_)) {
-    QUEUE* q = QUEUE_HEAD(&pending_write_items_);
+  QUEUE queue;
+  QUEUE* q = QUEUE_HEAD(&pending_write_items_);
+  QUEUE_SPLIT(&pending_write_items_, q, &queue);
+  while (QUEUE_EMPTY(&queue) == false) {
+    q = QUEUE_HEAD(&queue);
     QUEUE_REMOVE(q);
 
     WriteItem* wi = ContainerOf(&WriteItem::member_, q);
