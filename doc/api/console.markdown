@@ -47,10 +47,10 @@ Same as `console.error`.
 ## console.dir(obj, [options])
 
 Uses `util.inspect` on `obj` and prints resulting string to stdout. This function
-bypasses any custom `inspect()` function on `obj`. An optional *options* object 
+bypasses any custom `inspect()` function on `obj`. An optional *options* object
 may be passed that alters certain aspects of the formatted string:
 
-- `showHidden` - if `true` then the object's non-enumerable properties will be 
+- `showHidden` - if `true` then the object's non-enumerable properties will be
 shown too. Defaults to `false`.
 
 - `depth` - tells `inspect` how many times to recurse while formatting the
