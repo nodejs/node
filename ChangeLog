@@ -1,4 +1,20 @@
-2013.10.13, Version 0.8.26 (maintenance)
+2014.06.09, Version 0.8.27 (maintenance)
+
+* openssl: update to 1.0.0m (CVE-2014-0224)
+
+* utf8: Prevent Node from sending invalid UTF-8 (Felix Geisendörfer)
+  - *NOTE* this introduces a breaking change, previously you could construct
+    invalid UTF-8 and invoke an error in a client that was expecting valid
+    UTF-8, now unmatched surrogate pairs are replaced with the unknown UTF-8
+    character. To restore the old functionality simply have NODE_INVALID_UTF8
+    environment variable set.
+
+* tls: fix pool usage race (Fedor Indutny)
+
+* fs: close file if fstat() fails in readFile() (cjihrig)
+
+
+2013.10.13, Version 0.8.26 (maintenance), 6d391bbbe18217ce20c15c3da2bad71ef836922c
 
 * v8: Upgrade to 3.11.10.26
 
