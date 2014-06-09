@@ -102,6 +102,9 @@ function runTest(highWaterMark, objectMode, produce) {
 runTest(10, false, function(){ return new Buffer('xxxxxxxxxx'); });
 runTest(1, true, function(){ return { foo: 'bar' }; });
 
+var objectChunks = [ 5, 'a', false, 0, '', 'xyz', { x: 4 }, 7, [], 555 ];
+runTest(1, true, function(){ return objectChunks.shift() });
+
 process.on('exit', function() {
   assert.equal(testRuns, completedRuns);
   console.log('ok');
