@@ -16,6 +16,8 @@ test("make sure that it works with depth=0", function (t) {
     // Exclude self from dependencies when depth = 0
     delete map.dependencies[json.name]
     var subdeps = Object.keys(map.dependencies).reduce(function(acc, dep) {
+      // Exclude self from dependencies when depth = current depth
+      delete map.dependencies[dep].dependencies[dep]
       acc += Object.keys(map.dependencies[dep].dependencies).length;
       return acc;
     }, 0);

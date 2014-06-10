@@ -5,8 +5,6 @@ function star (package, starred, cb) {
   if (!this.conf.get('username')) return cb(new Error(
     "Must be logged in to star/unstar packages"))
 
-  var users = {}
-
   this.request("GET", package + '?write=true', function (er, fullData) {
     if (er) return cb(er)
 

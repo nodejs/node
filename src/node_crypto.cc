@@ -305,7 +305,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
-    const String::Utf8Value sslmethod(args[0]);
+    const node::Utf8Value sslmethod(args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
@@ -386,7 +386,7 @@ static BIO* LoadBIO(Environment* env, Handle<Value> v) {
   int r = -1;
 
   if (v->IsString()) {
-    const String::Utf8Value s(v);
+    const node::Utf8Value s(v);
     r = BIO_write(bio, *s, s.length());
   } else if (Buffer::HasInstance(v)) {
     char* buffer_data = Buffer::Data(v);
@@ -441,7 +441,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  String::Utf8Value passphrase(args[1]);
+  node::Utf8Value passphrase(args[1]);
 
   EVP_PKEY* key = PEM_read_bio_PrivateKey(bio,
                                           NULL,
@@ -710,7 +710,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
     return sc->env()->ThrowTypeError("Bad parameter");
   }
 
-  const String::Utf8Value ciphers(args[0]);
+  const node::Utf8Value ciphers(args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
 }
 
@@ -724,7 +724,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() != 1 || !args[0]->IsString())
     return env->ThrowTypeError("First argument should be a string");
 
-  String::Utf8Value curve(args[0]);
+  node::Utf8Value curve(args[0]);
 
   int nid = OBJ_sn2nid(*curve);
 
@@ -766,7 +766,7 @@ void SecureContext::SetSessionIdContext(
     return sc->env()->ThrowTypeError("Bad parameter");
   }
 
-  const String::Utf8Value sessionIdContext(args[0]);
+  const node::Utf8Value sessionIdContext(args[0]);
   const unsigned char* sid_ctx =
       reinterpret_cast<const unsigned char*>(*sessionIdContext);
   unsigned int sid_ctx_len = sessionIdContext.length();
@@ -2123,7 +2123,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   if (is_server) {
     SSL_CTX_set_tlsext_servername_callback(sc->ctx_, SelectSNIContextCallback_);
   } else if (args[2]->IsString()) {
-    const String::Utf8Value servername(args[2]);
+    const node::Utf8Value servername(args[2]);
     SSL_set_tlsext_host_name(conn->ssl_, *servername);
   }
 #endif
@@ -2544,7 +2544,7 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
     return cipher->env()->ThrowError("Must give cipher-type, key");
   }
 
-  const String::Utf8Value cipher_type(args[0]);
+  const node::Utf8Value cipher_type(args[0]);
   const char* key_buf = Buffer::Data(args[1]);
   ssize_t key_buf_len = Buffer::Length(args[1]);
   cipher->Init(*cipher_type, key_buf, key_buf_len);
@@ -2599,7 +2599,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   ASSERT_IS_BUFFER(args[1]);
   ASSERT_IS_BUFFER(args[2]);
 
-  const String::Utf8Value cipher_type(args[0]);
+  const node::Utf8Value cipher_type(args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
   ssize_t iv_len = Buffer::Length(args[2]);
@@ -2899,7 +2899,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
   ASSERT_IS_BUFFER(args[1]);
 
-  const String::Utf8Value hash_type(args[0]);
+  const node::Utf8Value hash_type(args[0]);
   const char* buffer_data = Buffer::Data(args[1]);
   size_t buffer_length = Buffer::Length(args[1]);
   hmac->HmacInit(*hash_type, buffer_data, buffer_length);
@@ -3010,7 +3010,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Must give hashtype string as argument");
   }
 
-  const String::Utf8Value hash_type(args[0]);
+  const node::Utf8Value hash_type(args[0]);
 
   Hash* hash = new Hash(env, args.This());
   if (!hash->HashInit(*hash_type)) {
@@ -3189,7 +3189,7 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
     return sign->env()->ThrowError("Must give signtype string as argument");
   }
 
-  const String::Utf8Value sign_type(args[0]);
+  const node::Utf8Value sign_type(args[0]);
   sign->CheckThrow(sign->SignInit(*sign_type));
 }
 
@@ -3298,7 +3298,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[1]->ToString(), BUFFER);
   }
 
-  String::Utf8Value passphrase(args[2]);
+  node::Utf8Value passphrase(args[2]);
 
   ASSERT_IS_BUFFER(args[0]);
   size_t buf_len = Buffer::Length(args[0]);
@@ -3374,7 +3374,7 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
     return verify->env()->ThrowError("Must give verifytype string as argument");
   }
 
-  const String::Utf8Value verify_type(args[0]);
+  const node::Utf8Value verify_type(args[0]);
   verify->CheckThrow(verify->VerifyInit(*verify_type));
 }
 
@@ -3644,7 +3644,7 @@ void DiffieHellman::DiffieHellmanGroup(
 
   bool initialized = false;
 
-  const String::Utf8Value group_name(args[0]);
+  const node::Utf8Value group_name(args[0]);
   for (unsigned int i = 0; i < ARRAY_SIZE(modp_groups); ++i) {
     const modp_group* it = modp_groups + i;
 
@@ -4158,7 +4158,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[4]->IsString()) {
-    String::Utf8Value digest_name(args[4]);
+    node::Utf8Value digest_name(args[4]);
     digest = EVP_get_digestbyname(*digest_name);
     if (digest == NULL) {
       type_error = "Bad digest name";
@@ -4668,7 +4668,7 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence compiler warning.
 
-  const String::Utf8Value engine_id(args[0]);
+  const node::Utf8Value engine_id(args[0]);
   ENGINE* engine = ENGINE_by_id(*engine_id);
 
   // Engine not found, try loading dynamically

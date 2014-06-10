@@ -157,8 +157,8 @@ Perform a case-insensitive match.
 ### nonull
 
 When a match is not found by `minimatch.match`, return a list containing
-the pattern itself.  When set, an empty list is returned if there are
-no matches.
+the pattern itself if this option is set.  When not set, an empty list
+is returned if there are no matches.
 
 ### matchBase
 

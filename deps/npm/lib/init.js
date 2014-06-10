@@ -12,6 +12,7 @@ init.usage = "npm init"
 function init (args, cb) {
   var dir = process.cwd()
   log.pause()
+  npm.spinner.stop()
   var initFile = npm.config.get('init-module')
 
   console.log(
@@ -31,6 +32,10 @@ function init (args, cb) {
     log.resume()
     log.silly('package data', data)
     log.info('init', 'written successfully')
+    if (er && er.message === 'canceled') {
+      log.warn('init', 'canceled')
+      return cb(null, data)
+    }
     cb(er, data)
   })
 }

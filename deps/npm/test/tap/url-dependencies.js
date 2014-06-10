@@ -56,6 +56,7 @@ function performInstall (cb) {
             npm_config_registry: common.registry,
             npm_config_cache_lock_stale: 1000,
             npm_config_cache_lock_wait: 1000,
+            npm_config_loglevel: "http",
             HOME: process.env.HOME,
             Path: process.env.PATH,
             PATH: process.env.PATH

@@ -813,11 +813,12 @@ function makeRe () {
 }
 
 minimatch.match = function (list, pattern, options) {
+  options = options || {}
   var mm = new Minimatch(pattern, options)
   list = list.filter(function (f) {
     return mm.match(f)
   })
-  if (options.nonull && !list.length) {
+  if (mm.options.nonull && !list.length) {
     list.push(pattern)
   }
   return list
@@ -853,12 +854,17 @@ function match (f, partial) {
   var set = this.set
   this.debug(this.pattern, "set", set)
 
-  var splitFile = path.basename(f.join("/")).split("/")
+  // Find the basename of the path by looking for the last non-empty segment
+  var filename;
+  for (var i = f.length - 1; i >= 0; i--) {
+    filename = f[i]
+    if (filename) break
+  }
 
   for (var i = 0, l = set.length; i < l; i ++) {
     var pattern = set[i], file = f
     if (options.matchBase && pattern.length === 1) {
-      file = splitFile
+      file = [filename]
     }
     var hit = this.matchOne(file, pattern, partial)
     if (hit) {
@@ -975,7 +981,7 @@ Minimatch.prototype.matchOne = function (file, pattern, partial) {
       }
       // no match was found.
       // However, in partial mode, we can't say this is necessarily over.
-      // If there's more *pattern* left, then 
+      // If there's more *pattern* left, then
       if (partial) {
         // ran out of file
         this.debug("\n>>> no match, partial?", file, fr, pattern, pr)

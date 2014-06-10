@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "SEMVER" "7" "May 2014" "" ""
+.TH "SEMVER" "7" "June 2014" "" ""
 .
 .SH "NAME"
 \fBsemver\fR \-\- The semantic versioner for npm
@@ -43,7 +43,7 @@ multiple versions to the utility will just sort them\.
 .IP "" 0
 .
 .SH "Versions"
-A "version" is described by the v2\.0\.0 specification found at \fIhttp://semver\.org/\fR\|\.
+A "version" is described by the \fBv2\.0\.0\fR specification found at \fIhttp://semver\.org/\fR\|\.
 .
 .P
 A leading \fB"="\fR or \fB"v"\fR character is stripped off and ignored\.
@@ -52,9 +52,10 @@ A leading \fB"="\fR or \fB"v"\fR character is stripped off and ignored\.
 The following range styles are supported:
 .
 .IP "\(bu" 4
-\fB1\.2\.3\fR A specific version\.  When nothing else will do\.  Note that
-build metadata is still ignored, so \fB1\.2\.3+build2012\fR will satisfy
-this range\.
+\fB1\.2\.3\fR A specific version\.  When nothing else will do\.  Must be a full
+version number, with major, minor, and patch versions specified\.
+Note that build metadata is still ignored, so \fB1\.2\.3+build2012\fR will
+satisfy this range\.
 .
 .IP "\(bu" 4
 \fB>1\.2\.3\fR Greater than a specific version\.
@@ -77,44 +78,65 @@ ARE allowed, so \fB1\.2\.3\-beta\fR would satisfy\.
 \fB1\.2\.3 \- 2\.3\.4\fR := \fB>=1\.2\.3 <=2\.3\.4\fR
 .
 .IP "\(bu" 4
-\fB~1\.2\.3\fR := \fB>=1\.2\.3\-0 <1\.3\.0\-0\fR  "Reasonably close to 1\.2\.3"\.  When
+\fB~1\.2\.3\fR := \fB>=1\.2\.3\-0 <1\.3\.0\-0\fR  "Reasonably close to \fB1\.2\.3\fR"\.  When
 using tilde operators, prerelease versions are supported as well,
 but a prerelease of the next significant digit will NOT be
 satisfactory, so \fB1\.3\.0\-beta\fR will not satisfy \fB~1\.2\.3\fR\|\.
 .
 .IP "\(bu" 4
-\fB^1\.2\.3\fR := \fB>=1\.2\.3\-0 <2\.0\.0\-0\fR  "Compatible with 1\.2\.3"\.  When
+\fB^1\.2\.3\fR := \fB>=1\.2\.3\-0 <2\.0\.0\-0\fR  "Compatible with \fB1\.2\.3\fR"\.  When
 using caret operators, anything from the specified version (including
 prerelease) will be supported up to, but not including, the next
 major version (or its prereleases)\. \fB1\.5\.1\fR will satisfy \fB^1\.2\.3\fR,
 while \fB1\.2\.2\fR and \fB2\.0\.0\-beta\fR will not\.
 .
 .IP "\(bu" 4
-\fB^0\.1\.3\fR := \fB>=0\.1\.3\-0 <0\.2\.0\-0\fR "Compatible with 0\.1\.3"\. 0\.x\.x versions are
+\fB^0\.1\.3\fR := \fB>=0\.1\.3\-0 <0\.2\.0\-0\fR "Compatible with \fB0\.1\.3\fR"\. \fB0\.x\.x\fR versions are
 special: the first non\-zero component indicates potentially breaking changes,
 meaning the caret operator matches any version with the same first non\-zero
 component starting at the specified version\.
 .
 .IP "\(bu" 4
-\fB^0\.0\.2\fR := \fB=0\.0\.2\fR "Only the version 0\.0\.2 is considered compatible"
+\fB^0\.0\.2\fR := \fB=0\.0\.2\fR "Only the version \fB0\.0\.2\fR is considered compatible"
 .
 .IP "\(bu" 4
-\fB~1\.2\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with 1\.2"
+\fB~1\.2\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with \fB1\.2\fR"
 .
 .IP "\(bu" 4
-\fB^1\.2\fR := \fB>=1\.2\.0\-0 <2\.0\.0\-0\fR "Any version compatible with 1\.2"
+\fB^1\.2\fR := \fB>=1\.2\.0\-0 <2\.0\.0\-0\fR "Any version compatible with \fB1\.2\fR"
 .
 .IP "\(bu" 4
-\fB1\.2\.x\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with 1\.2"
+\fB1\.2\.x\fR := \fB>=1\.2\.0\-0 <1\.3\.0\-0\fR "Any version starting with \fB1\.2\fR"
 .
 .IP "\(bu" 4
-\fB~1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with 1"
+\fB1\.2\.*\fR Same as \fB1\.2\.x\fR\|\.
 .
 .IP "\(bu" 4
-\fB^1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version compatible with 1"
+\fB1\.2\fR Same as \fB1\.2\.x\fR\|\.
 .
 .IP "\(bu" 4
-\fB1\.x\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with 1"
+\fB~1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with \fB1\fR"
+.
+.IP "\(bu" 4
+\fB^1\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version compatible with \fB1\fR"
+.
+.IP "\(bu" 4
+\fB1\.x\fR := \fB>=1\.0\.0\-0 <2\.0\.0\-0\fR "Any version starting with \fB1\fR"
+.
+.IP "\(bu" 4
+\fB1\.*\fR Same as \fB1\.x\fR\|\.
+.
+.IP "\(bu" 4
+\fB1\fR Same as \fB1\.x\fR\|\.
+.
+.IP "\(bu" 4
+\fB*\fR Any version whatsoever\.
+.
+.IP "\(bu" 4
+\fBx\fR Same as \fB*\fR\|\.
+.
+.IP "\(bu" 4
+\fB""\fR (just an empty string) Same as \fB*\fR\|\.
 .
 .IP "" 0
 .
@@ -131,75 +153,86 @@ Strict\-mode Comparators and Ranges will be strict about the SemVer
 strings that they parse\.
 .
 .IP "\(bu" 4
-valid(v): Return the parsed version, or null if it\'s not valid\.
+\fBvalid(v)\fR: Return the parsed version, or null if it\'s not valid\.
 .
 .IP "\(bu" 4
-inc(v, release): Return the version incremented by the release type
-(major, minor, patch, or prerelease), or null if it\'s not valid\.
+\fBinc(v, release)\fR\fBmajor\fR\fBpremajor\fR\fBminor\fR\fBpreminor\fR\fBpatch\fR\fBprepatch\fR\fBprerelease\fR
+.
+.IP "\(bu" 4
+\fBpremajor\fR in one call will bump the version up to the next major
+version and down to a prerelease of that major version\. \fBpreminor\fR, and \fBprepatch\fR work the same way\.
+.
+.IP "\(bu" 4
+If called from a non\-prerelease version, the \fBprerelease\fR will work the
+same as \fBprepatch\fR\|\. It increments the patch version, then makes a
+prerelease\. If the input version is already a prerelease it simply
+increments it\.
+.
+.IP "" 0
+
 .
 .IP "" 0
 .
 .SS "Comparison"
 .
 .IP "\(bu" 4
-gt(v1, v2): \fBv1 > v2\fR
+\fBgt(v1, v2)\fR: \fBv1 > v2\fR
 .
 .IP "\(bu" 4
-gte(v1, v2): \fBv1 >= v2\fR
+\fBgte(v1, v2)\fR: \fBv1 >= v2\fR
 .
 .IP "\(bu" 4
-lt(v1, v2): \fBv1 < v2\fR
+\fBlt(v1, v2)\fR: \fBv1 < v2\fR
 .
 .IP "\(bu" 4
-lte(v1, v2): \fBv1 <= v2\fR
+\fBlte(v1, v2)\fR: \fBv1 <= v2\fR
 .
 .IP "\(bu" 4
-eq(v1, v2): \fBv1 == v2\fR This is true if they\'re logically equivalent,
+\fBeq(v1, v2)\fR: \fBv1 == v2\fR This is true if they\'re logically equivalent,
 even if they\'re not the exact same string\.  You already know how to
 compare strings\.
 .
 .IP "\(bu" 4
-neq(v1, v2): \fBv1 != v2\fR The opposite of eq\.
+\fBneq(v1, v2)\fR: \fBv1 != v2\fR The opposite of \fBeq\fR\|\.
 .
 .IP "\(bu" 4
-cmp(v1, comparator, v2): Pass in a comparison string, and it\'ll call
+\fBcmp(v1, comparator, v2)\fR: Pass in a comparison string, and it\'ll call
 the corresponding function above\.  \fB"==="\fR and \fB"!=="\fR do simple
 string comparison, but are included for completeness\.  Throws if an
 invalid comparison string is provided\.
 .
 .IP "\(bu" 4
-compare(v1, v2): Return 0 if v1 == v2, or 1 if v1 is greater, or \-1 if
-v2 is greater\.  Sorts in ascending order if passed to Array\.sort()\.
+\fBcompare(v1, v2)\fR: Return \fB0\fR if \fBv1 == v2\fR, or \fB1\fR if \fBv1\fR is greater, or \fB\-1\fR if \fBv2\fR is greater\.  Sorts in ascending order if passed to \fBArray\.sort()\fR\|\.
 .
 .IP "\(bu" 4
-rcompare(v1, v2): The reverse of compare\.  Sorts an array of versions
-in descending order when passed to Array\.sort()\.
+\fBrcompare(v1, v2)\fR: The reverse of compare\.  Sorts an array of versions
+in descending order when passed to \fBArray\.sort()\fR\|\.
 .
 .IP "" 0
 .
 .SS "Ranges"
 .
 .IP "\(bu" 4
-validRange(range): Return the valid range or null if it\'s not valid
+\fBvalidRange(range)\fR: Return the valid range or null if it\'s not valid
 .
 .IP "\(bu" 4
-satisfies(version, range): Return true if the version satisfies the
+\fBsatisfies(version, range)\fR: Return true if the version satisfies the
 range\.
 .
 .IP "\(bu" 4
-maxSatisfying(versions, range): Return the highest version in the list
-that satisfies the range, or null if none of them do\.
+\fBmaxSatisfying(versions, range)\fR: Return the highest version in the list
+that satisfies the range, or \fBnull\fR if none of them do\.
 .
 .IP "\(bu" 4
-gtr(version, range): Return true if version is greater than all the
+\fBgtr(version, range)\fR: Return \fBtrue\fR if version is greater than all the
 versions possible in the range\.
 .
 .IP "\(bu" 4
-ltr(version, range): Return true if version is less than all the
+\fBltr(version, range)\fR: Return \fBtrue\fR if version is less than all the
 versions possible in the range\.
 .
 .IP "\(bu" 4
-outside(version, range, hilo): Return true if the version is outside
+\fBoutside(version, range, hilo)\fR: Return true if the version is outside
 the bounds of the range in either the high or low direction\.  The \fBhilo\fR argument must be either the string \fB\'>\'\fR or \fB\'<\'\fR\|\.  (This is
 the function called by \fBgtr\fR and \fBltr\fR\|\.)
 .
@@ -210,8 +243,8 @@ Note that, since ranges may be non\-contiguous, a version might not be
 greater than a range, less than a range, \fIor\fR satisfy a range!  For
 example, the range \fB1\.2 <1\.2\.9 || >2\.0\.0\fR would have a hole from \fB1\.2\.9\fR
 until \fB2\.0\.0\fR, so the version \fB1\.2\.10\fR would not be greater than the
-range (because 2\.0\.1 satisfies, which is higher), nor less than the
-range (since 1\.2\.8 satisfies, which is lower), and it also does not
+range (because \fB2\.0\.1\fR satisfies, which is higher), nor less than the
+range (since \fB1\.2\.8\fR satisfies, which is lower), and it also does not
 satisfy the range\.
 .
 .P

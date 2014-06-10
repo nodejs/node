@@ -49,7 +49,7 @@ w.write = function(c) {
 };
 
 function drain() {
-  assert(buffered <= 2);
+  assert(buffered <= 3);
   buffered = 0;
   w.emit('drain');
 }

@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CACHE" "1" "May 2014" "" ""
+.TH "NPM\-CACHE" "1" "June 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-cache\fR \-\- Manipulates packages cache
@@ -46,12 +46,8 @@ For each package that is added to the cache, three pieces of information are
 stored in \fB{cache}/{name}/{version}\fR:
 .
 .IP "\(bu" 4
-\|\.\.\./package/:
-A folder containing the package contents as they appear in the tarball\.
-.
-.IP "\(bu" 4
-\|\.\.\./package\.json:
-The package\.json file, as npm sees it, with overlays applied and a _id attribute\.
+\|\.\.\./package/package\.json:
+The package\.json file, as npm sees it\.
 .
 .IP "\(bu" 4
 \|\.\.\./package\.tgz:
@@ -62,7 +58,7 @@ The tarball for that version\.
 .P
 Additionally, whenever a registry request is made, a \fB\|\.cache\.json\fR file
 is placed at the corresponding URI, to store the ETag and the requested
-data\.
+data\.  This is stored in \fB{cache}/{hostname}/{path}/\.cache\.json\fR\|\.
 .
 .P
 Commands that make non\-essential registry requests (such as \fBsearch\fR and \fBview\fR, or the completion scripts) generally specify a minimum timeout\.

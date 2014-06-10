@@ -1,5 +1,3 @@
-var qs = require('querystring')
-
 module.exports = stars
 
 function stars (name, cb) {

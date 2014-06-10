@@ -24,8 +24,9 @@ same.
 
 ### npmrc Files
 
-The three relevant files are:
+The four relevant files are:
 
+* per-project config file (/path/to/my/project/.npmrc)
 * per-user config file (~/.npmrc)
 * global config file ($PREFIX/npmrc)
 * npm builtin config file (/path/to/npm/npmrc)
@@ -711,6 +712,17 @@ using `-s` to add a signature.
 
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly.
+
+### spin
+
+* Default: true
+* Type: Boolean or `"always"`
+
+When set to `true`, npm will display an ascii spinner while it is doing
+things, if `process.stderr` is a TTY.
+
+Set to `false` to suppress the spinner, or set to `always` to output
+the spinner even for non-TTY outputs.
 
 ### strict-ssl
 

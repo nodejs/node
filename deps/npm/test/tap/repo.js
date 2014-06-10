@@ -12,6 +12,10 @@ var node = process.execPath
 var rimraf = require("rimraf")
 var spawn = require("child_process").spawn
 var fs = require("fs")
+var path = require('path')
+var outFile = path.join(__dirname, '/_output')
+
+var opts = { cwd: __dirname }
 
 test("setup", function (t) {
   var s = "#!/usr/bin/env bash\n" +
@@ -24,21 +28,105 @@ test("setup", function (t) {
 
 test("npm repo underscore", function (t) {
   mr(common.port, function (s) {
-    var c = spawn(node, [
-      npm, "repo", "underscore",
-      "--registry=" + common.registry,
-      "--loglevel=silent",
-      "--browser=" + __dirname + "/_script.sh",
-    ])
-    c.stdout.on("data", function(d) {
-      t.fail("Should not get data on stdout: " + d)
-    })
-    c.stderr.pipe(process.stderr)
-    c.on("close", function(code) {
-      t.equal(code, 0, "exit ok")
-      var res = fs.readFileSync(__dirname + "/_output", "ascii")
+    common.npm([
+      'repo', 'underscore',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 0, 'exit ok')
+      var res = fs.readFileSync(outFile, 'ascii')
       s.close()
       t.equal(res, "https://github.com/jashkenas/underscore\n")
+      rimraf.sync(outFile)
+      t.end()
+    })
+  })
+})
+
+
+test('npm repo optimist - github (https://)', function (t) {
+  mr(common.port, function (s) {
+    common.npm([
+      'repo', 'optimist',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 0, 'exit ok')
+      var res = fs.readFileSync(outFile, 'ascii')
+      s.close()
+      t.equal(res, "https://github.com/substack/node-optimist\n")
+      rimraf.sync(outFile)
+      t.end()
+    })
+  })
+})
+
+test("npm repo npm-test-peer-deps - no repo", function (t) {
+  mr(common.port, function (s) {
+    common.npm([
+      'repo', 'npm-test-peer-deps',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 1, 'exit not ok')
+      s.close()
+      t.end()
+    })
+  })
+})
+
+test("npm repo test-repo-url-http - non-github (http://)", function (t) {
+  mr(common.port, function (s) {
+    common.npm([
+      'repo', 'test-repo-url-http',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 0, 'exit ok')
+      var res = fs.readFileSync(outFile, 'ascii')
+      s.close()
+      t.equal(res, "http://gitlab.com/evanlucas/test-repo-url-http\n")
+      rimraf.sync(outFile)
+      t.end()
+    })
+  })
+})
+
+test("npm repo test-repo-url-https - non-github (https://)", function (t) {
+  mr(common.port, function (s) {
+    common.npm([
+      'repo', 'test-repo-url-https',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 0, 'exit ok')
+      var res = fs.readFileSync(outFile, 'ascii')
+      s.close()
+      t.equal(res, "https://gitlab.com/evanlucas/test-repo-url-https\n")
+      rimraf.sync(outFile)
+      t.end()
+    })
+  })
+})
+
+test("npm repo test-repo-url-ssh - non-github (ssh://)", function (t) {
+  mr(common.port, function (s) {
+    common.npm([
+      'repo', 'test-repo-url-ssh',
+      '--registry=' + common.registry,
+      '--loglevel=silent',
+      '--browser=' + __dirname + '/_script.sh'
+    ], opts, function(err, code, stdout, stderr) {
+      t.equal(code, 0, 'exit ok')
+      var res = fs.readFileSync(outFile, 'ascii')
+      s.close()
+      t.equal(res, "http://gitlab.com/evanlucas/test-repo-url-ssh\n")
+      rimraf.sync(outFile)
       t.end()
     })
   })
@@ -46,7 +134,6 @@ test("npm repo underscore", function (t) {
 
 test("cleanup", function (t) {
   fs.unlinkSync(__dirname + "/_script.sh")
-  fs.unlinkSync(__dirname + "/_output")
   t.pass("cleaned up")
   t.end()
 })

@@ -22,6 +22,7 @@ test('"npm install --save with default save-prefix should install local pkg vers
     npm.load({
       cache: pkg + "/cache",
       loglevel: 'silent',
+      'save-prefix': '^',
       registry: common.registry }, function(err) {
         t.ifError(err)
         npm.config.set('save', true)
@@ -47,6 +48,7 @@ test('"npm install --save-dev with default save-prefix should install local pkg 
     npm.load({
       cache: pkg + "/cache",
       loglevel: 'silent',
+      'save-prefix': '^',
       registry: common.registry }, function(err) {
         t.ifError(err)
         npm.config.set('save-dev', true)

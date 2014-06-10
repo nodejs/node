@@ -209,6 +209,10 @@ Display npm bin folder
 
 Bugs for a package in a web browser maybe
 
+## npm-cache(3)
+
+manage the npm cache programmatically
+
 ## npm-commands(3)
 
 npm commands

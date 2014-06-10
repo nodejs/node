@@ -31,7 +31,12 @@ test("get files", function (t) {
       return path.resolve(lib, f)
     })
     files.forEach(function (f) {
-      if (fs.statSync(f).isDirectory())
+      try {
+        var s = fs.statSync(f)
+      } catch (er) {
+        return
+      }
+      if (s.isDirectory())
         walk(f)
       else if (f.match(/\.js$/))
         FILES.push(f)

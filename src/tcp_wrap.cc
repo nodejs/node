@@ -257,7 +257,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
-  String::Utf8Value ip_address(args[0]);
+  node::Utf8Value ip_address(args[0]);
   int port = args[1]->Int32Value();
 
   sockaddr_in addr;
@@ -278,7 +278,7 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
-  String::Utf8Value ip6_address(args[0]);
+  node::Utf8Value ip6_address(args[0]);
   int port = args[1]->Int32Value();
 
   sockaddr_in6 addr;
@@ -381,7 +381,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   assert(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(args[1]);
   int port = args[2]->Uint32Value();
 
   sockaddr_in addr;
@@ -415,7 +415,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   assert(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(args[1]);
   int port = args[2]->Int32Value();
 
   sockaddr_in6 addr;

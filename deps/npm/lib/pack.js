@@ -40,7 +40,7 @@ function printFiles (files, cb) {
 
 // add to cache, then cp to the cwd
 function pack_ (pkg, cb) {
-  cache.add(pkg, function (er, data) {
+  cache.add(pkg, null, false, function (er, data) {
     if (er) return cb(er)
     var fname = path.resolve(data._id.replace(/@/g, "-") + ".tgz")
       , cached = path.resolve( npm.cache

@@ -63,6 +63,7 @@ function exit (code, noLog) {
     // if we're really exiting, then let it exit on its own, so that
     // in-process stuff can finish or clean up first.
     if (!doExit) process.emit("exit", code)
+    npm.spinner.stop()
   }
 }
 

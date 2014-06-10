@@ -39,6 +39,7 @@ function main () {
       case "-i": case "--inc": case "--increment":
         switch (argv[0]) {
           case "major": case "minor": case "patch": case "prerelease":
+          case "premajor": case "preminor": case "prepatch":
             inc = argv.shift()
             break
           default:

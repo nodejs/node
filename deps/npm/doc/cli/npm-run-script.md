@@ -4,6 +4,7 @@ npm-run-script(1) -- Run arbitrary package scripts
 ## SYNOPSIS
 
     npm run-script [<pkg>] [command]
+    npm run [<pkg>] [command]
 
 ## DESCRIPTION
 

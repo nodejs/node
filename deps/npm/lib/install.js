@@ -391,6 +391,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
       if (saveBundle) {
         var i = bundle.indexOf(t)
         if (i === -1) bundle.push(t)
+        data.bundleDependencies = bundle.sort()
       }
     })
 
@@ -709,7 +710,7 @@ function targetResolver (where, context, deps) {
     // already has a matching copy.
     // If it's not a git repo, and the parent already has that pkg, then
     // we can skip installing it again.
-    cache.add(what, function (er, data) {
+    cache.add(what, null, false, function (er, data) {
       if (er && parent && parent.optionalDependencies &&
           parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
         log.warn("optional dep failed, continuing", what)

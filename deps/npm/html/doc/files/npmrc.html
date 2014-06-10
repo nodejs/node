@@ -17,8 +17,9 @@ variables, and <code>npmrc</code> files.</p>
 of the user and global npmrc files.</p>
 <p>For a list of available configuration options, see <a href="../misc/npm-config.html">npm-config(7)</a>.</p>
 <h2 id="files">FILES</h2>
-<p>The three relevant files are:</p>
+<p>The four relevant files are:</p>
 <ul>
+<li>per-project config file (/path/to/my/project/.npmrc)</li>
 <li>per-user config file (~/.npmrc)</li>
 <li>global config file ($PREFIX/npmrc)</li>
 <li>npm builtin config file (/path/to/npm/npmrc)</li>
@@ -30,6 +31,14 @@ parameters.  Environment variables can be replaced using
 </code></pre><p>Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.</p>
+<h3 id="per-project-config-file">Per-project config file</h3>
+<p>When working locally in a project, a <code>.npmrc</code> file in the root of the
+project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
+config values specific to this project.</p>
+<p>Note that this only applies to the root of the project that you&#39;re
+running npm in.  It has no effect when your module is published.  For
+example, you can&#39;t publish a module that forces itself to install
+globally, or in a different location.</p>
 <h3 id="per-user-config-file">Per-user config file</h3>
 <p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment
 or on the command line)</p>
@@ -64,5 +73,5 @@ manner.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npmrc &mdash; npm@1.4.10</p>
+<p id="footer">npmrc &mdash; npm@1.4.14</p>
 
