@@ -1,6 +1,9 @@
 var test = require('tap').test
 var npmconf = require('../npmconf.js')
 var common = require('./00-setup.js')
+var path = require('path')
+
+var projectData = {}
 
 var ucData =
   { globalconfig: common.globalconfig,
@@ -29,6 +32,7 @@ var ucData =
        httponly: true } }
 
 var envData = { userconfig: common.userconfig, 'other-env-thing': '1000' }
+var envDataFix = { userconfig: common.userconfig, 'other-env-thing': 1000 }
 
 var gcData = { 'package-config:foo': 'boo' }
 
@@ -38,7 +42,8 @@ var cli = { foo: 'bar', umask: 022 }
 
 var expectList =
 [ cli,
-  envData,
+  envDataFix,
+  projectData,
   ucData,
   gcData,
   biData ]
@@ -46,9 +51,13 @@ var expectList =
 var expectSources =
 { cli: { data: cli },
   env:
-   { data: envData,
+   { data: envDataFix,
      source: envData,
      prefix: '' },
+  project:
+    { path: path.resolve(__dirname, '..', '.npmrc'),
+      type: 'ini',
+      data: projectData },
   user:
    { path: common.userconfig,
      type: 'ini',

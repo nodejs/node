@@ -26,6 +26,7 @@ function explore (args, cb) {
       "\nExploring "+cwd+"\n"+
       "Type 'exit' or ^D when finished\n")
 
+    npm.spinner.stop()
     var shell = spawn(sh, args, { cwd: cwd, customFds: [0, 1, 2] })
     shell.on("close", function (er) {
       // only fail if non-interactive.

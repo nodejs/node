@@ -326,9 +326,11 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case UTF8:
       if (is_extern)
+        // TODO(tjfontaine) should this validate invalid surrogate pairs as
+        // well?
         memcpy(buf, data, len);
       else
-        len = str->WriteUtf8(buf, buflen, chars_written, flags);
+        len = str->WriteUtf8(buf, buflen, chars_written, WRITE_UTF8_FLAGS);
       break;
 
     case UCS2:

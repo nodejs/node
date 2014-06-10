@@ -258,7 +258,7 @@ change it again?  npm doesn't currently track any state about past
 configuration settings, so this would be rather difficult to do
 properly.  It would have to track every previous value for this
 config, and always accept any of them, or else yesterday's install may
-be broken tomorrow.  Complexity hurdle #5.
+be broken tomorrow.  Complexity hurdle #4.
 
 Never going to happen.  The folder is named `node_modules`.  It is
 written indelibly in the Node Way, handed down from the ancient times
@@ -340,7 +340,7 @@ contributed to it, some of them quite substantially.
 
 The npm open source project, The npm Registry, and [the community
 website](https://www.npmjs.org) are maintained and operated by the
-good folks at [npm, Inc.](https://www.npmjs.com)
+good folks at [npm, Inc.](http://www.npmjs.com)
 
 ## I have a question or request not addressed here. Where should I put it?
 

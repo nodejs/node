@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/robertkowalski/npm-user-validate.png?branch=master)](https://travis-ci.org/robertkowalski/npm-user-validate)
-[![devDependency Status](https://david-dm.org/robertkowalski/npm-user-validate/dev-status.png)](https://david-dm.org/robertkowalski/npm-user-validate#info=devDependencies)
+[![Build Status](https://travis-ci.org/npm/npm-user-validate.png?branch=master)](https://travis-ci.org/npm/npm-user-validate)
+[![devDependency Status](https://david-dm.org/npm/npm-user-validate/dev-status.png)](https://david-dm.org/npm/npm-user-validate#info=devDependencies)
 
 # npm-user-validate
 

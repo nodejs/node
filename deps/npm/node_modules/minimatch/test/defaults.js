@@ -237,7 +237,7 @@ tap.test("basic tests", function (t) {
 
       var pattern = c[0]
         , expect = c[1].sort(alpha)
-        , options = c[2] || {}
+        , options = c[2]
         , f = c[3] || files
         , tapOpts = c[4] || {}
 

@@ -169,8 +169,7 @@ publish: link doc
 	git push origin &&\
 	git push origin --tags &&\
 	npm publish &&\
-	make doc-publish &&\
-	make zip-publish
+	make doc-publish
 
 docpublish: doc-publish
 doc-publish: doc
@@ -202,13 +201,10 @@ doc-publish: doc
     esac; \
   done
 
-zip-publish: release
-	scp release/* node@nodejs.org:dist/npm/
-
 release:
 	@bash scripts/release.sh
 
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-publish doc-clean docclean docpublish release zip-publish
+.PHONY: all latest install dev link doc clean uninstall test man doc-publish doc-clean docclean docpublish release

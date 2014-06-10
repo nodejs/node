@@ -29,10 +29,11 @@ function unpublish (name, ver, cb) {
     var versions = data.versions || {}
       , versionPublic = versions.hasOwnProperty(ver)
 
+    var dist
     if (!versionPublic) {
       this.log.info("unpublish", name+"@"+ver+" not published")
     } else {
-      var dist = versions[ver].dist
+      dist = versions[ver].dist
       this.log.verbose("unpublish", "removing attachments", dist)
     }
 

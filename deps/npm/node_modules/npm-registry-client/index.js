@@ -6,6 +6,7 @@ var fs = require('fs')
 , url = require('url')
 , path = require('path')
 , npmlog
+, cacheFile = require('npm-cache-filename')
 
 try {
   npmlog = require("npmlog")
@@ -45,7 +46,10 @@ function RegClient (conf) {
     registry = null
   }
 
+  this.registry = registry
+
   if (!conf.get('cache')) throw new Error("Cache dir is required")
+  this.cacheFile = cacheFile(this.conf.get('cache'))
   this.log = conf.log || conf.get('log') || npmlog
 }
 

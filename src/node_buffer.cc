@@ -353,7 +353,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  String::Utf8Value at(args[0]);
+  node::Utf8Value at(args[0]);
   size_t at_length = at.length();
 
   // optimize single ascii character case

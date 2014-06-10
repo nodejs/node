@@ -12,8 +12,6 @@ function deprecate (name, ver, message, cb) {
     return cb(new Error("invalid version range: "+ver))
   }
 
-  var users = {}
-
   this.get(name + '?write=true', function (er, data) {
     if (er) return cb(er)
     // filter all the versions that match

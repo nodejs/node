@@ -23,6 +23,7 @@
 #define SRC_UTIL_H_
 
 #include "v8.h"
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -113,6 +114,31 @@ inline void Wrap(v8::Local<v8::Object> object, void* pointer);
 
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
+
+class Utf8Value {
+  public:
+    explicit Utf8Value(v8::Handle<v8::Value> value);
+
+    ~Utf8Value() {
+      free(str_);
+    }
+
+    char* operator*() {
+      return str_;
+    };
+
+    const char* operator*() const {
+      return str_;
+    };
+
+    size_t length() const {
+      return length_;
+    };
+
+  private:
+    size_t length_;
+    char* str_;
+};
 
 }  // namespace node
 

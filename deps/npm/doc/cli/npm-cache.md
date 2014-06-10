@@ -37,16 +37,14 @@ npm stores cache data in the directory specified in `npm config get cache`.
 For each package that is added to the cache, three pieces of information are
 stored in `{cache}/{name}/{version}`:
 
-* .../package/:
-  A folder containing the package contents as they appear in the tarball.
-* .../package.json:
-  The package.json file, as npm sees it, with overlays applied and a _id attribute.
+* .../package/package.json:
+  The package.json file, as npm sees it.
 * .../package.tgz:
   The tarball for that version.
 
 Additionally, whenever a registry request is made, a `.cache.json` file
 is placed at the corresponding URI, to store the ETag and the requested
-data.
+data.  This is stored in `{cache}/{hostname}/{path}/.cache.json`.
 
 Commands that make non-essential registry requests (such as `search` and
 `view`, or the completion scripts) generally specify a minimum timeout.

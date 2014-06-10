@@ -155,12 +155,33 @@ function outdated_ (args, dir, parentHas, depth, cb) {
   }
   var deps = null
   readJson(path.resolve(dir, "package.json"), function (er, d) {
+    d = d || {}
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     deps = (er) ? true : (d.dependencies || {})
+
+    if (npm.config.get("save-dev")) {
+      deps = d.devDependencies || {}
+      return next()
+    }
+
+    if (npm.config.get("save")) {
+      // remove optional dependencies from dependencies during --save.
+      Object.keys(d.optionalDependencies || {}).forEach(function (k) {
+        delete deps[k]
+      })
+      return next()
+    }
+
+    if (npm.config.get("save-optional")) {
+      deps = d.optionalDependencies || {}
+      return next()
+    }
+
     var doUpdate = npm.config.get("dev") ||
                     (!npm.config.get("production") &&
                     !Object.keys(parentHas).length &&
                     !npm.config.get("global"))
+
     if (!er && d && doUpdate) {
       Object.keys(d.devDependencies || {}).forEach(function (k) {
         if (!(k in parentHas)) {
@@ -273,7 +294,7 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
     }
 
     // We didn't find the version in the doc.  See if cache can find it.
-    cache.add(dep, req, onCacheAdd)
+    cache.add(dep, req, false, onCacheAdd)
 
     function onCacheAdd(er, d) {
       // if this fails, then it means we can't update this thing.

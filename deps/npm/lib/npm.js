@@ -24,12 +24,8 @@ var EventEmitter = require("events").EventEmitter
   , abbrev = require("abbrev")
   , which = require("which")
   , semver = require("semver")
-  , findPrefix = require("./utils/find-prefix.js")
-  , getUid = require("uid-number")
-  , mkdirp = require("mkdirp")
-  , slide = require("slide")
-  , chain = slide.chain
   , RegClient = require("npm-registry-client")
+  , charSpin = require("char-spinner")
 
 npm.config = {
   loaded: false,
@@ -39,23 +35,6 @@ npm.config = {
   set: function() {
     throw new Error('npm.load() required')
   }
-}
-
-// /usr/local is often a read-only fs, which is not
-// well handled by node or mkdirp.  Just double-check
-// in the case of errors when making the prefix dirs.
-function mkdir (p, cb) {
-  mkdirp(p, function (er, made) {
-    // it could be that we couldn't create it, because it
-    // already exists, and is on a read-only fs.
-    if (er) {
-      return fs.stat(p, function (er2, st) {
-        if (er2 || !st.isDirectory()) return cb(er)
-        return cb(null, made)
-      })
-    }
-    return cb(er, made)
-  })
 }
 
 npm.commands = {}
@@ -182,6 +161,22 @@ var commandCache = {}
     })
   , abbrevs = abbrev(fullList)
 
+npm.spinner =
+  { int: null
+  , start: function () {
+      if (npm.spinner.int) return
+      var c = npm.config.get("spin")
+      if (!c) return
+      var stream = npm.config.get("logstream")
+      var opt = { tty: c !== "always", stream: stream }
+      npm.spinner.int = charSpin(opt)
+    }
+  , stop: function () {
+      clearInterval(npm.spinner.int)
+      npm.spinner.int = null
+    }
+  }
+
 Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
   Object.defineProperty(npm.commands, c, { get : function () {
     if (!loaded) throw new Error(
@@ -204,6 +199,9 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
       }
       if (args.length === 1) args.unshift([])
 
+      npm.spinner.start()
+
+      npm.registry.version = npm.version
       if (!npm.registry.refer) {
         npm.registry.refer = [a].concat(args[0]).map(function (arg) {
           // exclude anything that might be a URL, path, or private module
@@ -350,117 +348,23 @@ function load (npm, cli, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      var token = config.get("_token")
-      if (typeof token === "string") {
-        try {
-          token = JSON.parse(token)
-          config.set("_token", token, "user")
-          config.save("user")
-        } catch (e) { token = null }
-      }
-
       npm.registry = new RegClient(npm.config)
-
-      // save the token cookie in the config file
-      if (npm.registry.couchLogin) {
-        npm.registry.couchLogin.tokenSet = function (tok) {
-          npm.config.set("_token", tok, "user")
-          // ignore save error.  best effort.
-          npm.config.save("user")
-        }
-      }
 
       var umask = npm.config.get("umask")
       npm.modes = { exec: 0777 & (~umask)
                   , file: 0666 & (~umask)
                   , umask: umask }
 
-      chain([ [ loadPrefix, npm, cli ]
-            , [ setUser, config, config.root ]
-            , [ loadUid, npm ]
-            ], cb)
+      var gp = Object.getOwnPropertyDescriptor(config, "globalPrefix")
+      Object.defineProperty(npm, "globalPrefix", gp)
+
+      var lp = Object.getOwnPropertyDescriptor(config, "localPrefix")
+      Object.defineProperty(npm, "localPrefix", lp)
+
+      return cb()
     })
   })
 }
-
-function loadPrefix (npm, config, cb) {
-  // try to guess at a good node_modules location.
-  var p
-    , gp
-  if (!Object.prototype.hasOwnProperty.call(config, "prefix")) {
-    p = process.cwd()
-  } else {
-    p = npm.config.get("prefix")
-  }
-  gp = npm.config.get("prefix")
-
-  findPrefix(p, function (er, p) {
-    Object.defineProperty(npm, "localPrefix",
-      { get : function () { return p }
-      , set : function (r) { return p = r }
-      , enumerable : true
-      })
-    // the prefix MUST exist, or else nothing works.
-    if (!npm.config.get("global")) {
-      mkdir(p, next)
-    } else {
-      next(er)
-    }
-  })
-
-  gp = path.resolve(gp)
-  Object.defineProperty(npm, "globalPrefix",
-    { get : function () { return gp }
-    , set : function (r) { return gp = r }
-    , enumerable : true
-    })
-  // the prefix MUST exist, or else nothing works.
-  mkdir(gp, next)
-
-
-  var i = 2
-    , errState = null
-  function next (er) {
-    if (errState) return
-    if (er) return cb(errState = er)
-    if (--i === 0) return cb()
-  }
-}
-
-
-function loadUid (npm, cb) {
-  // if we're not in unsafe-perm mode, then figure out who
-  // to run stuff as.  Do this first, to support `npm update npm -g`
-  if (!npm.config.get("unsafe-perm")) {
-    getUid(npm.config.get("user"), npm.config.get("group"), cb)
-  } else {
-    process.nextTick(cb)
-  }
-}
-
-function setUser (cl, dc, cb) {
-  // If global, leave it as-is.
-  // If not global, then set the user to the owner of the prefix folder.
-  // Just set the default, so it can be overridden.
-  if (cl.get("global")) return cb()
-  if (process.env.SUDO_UID) {
-    dc.user = +(process.env.SUDO_UID)
-    return cb()
-  }
-
-  var prefix = path.resolve(cl.get("prefix"))
-  mkdir(prefix, function (er) {
-    if (er) {
-      log.error("could not create prefix dir", prefix)
-      return cb(er)
-    }
-    fs.stat(prefix, function (er, st) {
-      dc.user = st && st.uid
-      return cb(er)
-    })
-  })
-}
-
 
 Object.defineProperty(npm, "prefix",
   { get : function () {

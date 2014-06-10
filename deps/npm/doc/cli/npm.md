@@ -31,6 +31,22 @@ Use `npm install blerg` to install the latest version of "blerg".  Check out
 Use the `npm search` command to show everything that's available.
 Use `npm ls` to show everything you've installed.
 
+## DEPENDENCIES
+
+If a package references to another package with a git URL, npm depends
+on a preinstalled git.
+
+If one of the packages npm tries to install is a native node module and
+requires compiling of C++ Code, npm will use
+[node-gyp](https://github.com/TooTallNate/node-gyp) for that task.
+For a Unix system, [node-gyp](https://github.com/TooTallNate/node-gyp)
+needs Python, make and a buildchain like GCC. On Windows,
+Python and Microsoft Visual Studio C++ is needed. Python 3 is
+not supported by [node-gyp](https://github.com/TooTallNate/node-gyp).
+For more information visit
+[the node-gyp repository](https://github.com/TooTallNate/node-gyp) and
+the [node-gyp Wiki](https://github.com/TooTallNate/node-gyp/wiki).
+
 ## DIRECTORIES
 
 See `npm-folders(5)` to learn about where npm puts stuff.

@@ -29,6 +29,8 @@
 
 namespace node {
 
+extern int WRITE_UTF8_FLAGS;
+
 class StringBytes {
  public:
   // Does the string match the encoding? Quick but non-exhaustive.

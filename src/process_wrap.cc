@@ -173,7 +173,7 @@ class ProcessWrap : public HandleWrap {
 
     // options.file
     Local<Value> file_v = js_options->Get(env->file_string());
-    String::Utf8Value file(file_v->IsString() ? file_v : Local<Value>());
+    node::Utf8Value file(file_v->IsString() ? file_v : Local<Value>());
     if (file.length() > 0) {
       options.file = *file;
     } else {
@@ -188,7 +188,7 @@ class ProcessWrap : public HandleWrap {
       // Heap allocate to detect errors. +1 is for NULL.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
-        String::Utf8Value arg(js_argv->Get(i));
+        node::Utf8Value arg(js_argv->Get(i));
         options.args[i] = strdup(*arg);
       }
       options.args[argc] = NULL;
@@ -196,7 +196,7 @@ class ProcessWrap : public HandleWrap {
 
     // options.cwd
     Local<Value> cwd_v = js_options->Get(env->cwd_string());
-    String::Utf8Value cwd(cwd_v->IsString() ? cwd_v : Local<Value>());
+    node::Utf8Value cwd(cwd_v->IsString() ? cwd_v : Local<Value>());
     if (cwd.length() > 0) {
       options.cwd = *cwd;
     }
@@ -208,7 +208,7 @@ class ProcessWrap : public HandleWrap {
       int envc = env->Length();
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
-        String::Utf8Value pair(env->Get(i));
+        node::Utf8Value pair(env->Get(i));
         options.env[i] = strdup(*pair);
       }
       options.env[envc] = NULL;

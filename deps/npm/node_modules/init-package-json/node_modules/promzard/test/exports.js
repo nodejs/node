@@ -20,7 +20,7 @@ test('exports', function (t) {
     child.stdin.write('\n');
   }, 100)
   setTimeout(function () {
-    child.stdin.write('55\n');
+    child.stdin.end('55\n');
   }, 200)
 
   child.on('close', function () {

@@ -28,6 +28,7 @@
 #include "node.h"
 #include "req_wrap.h"
 #include "tree.h"
+#include "util.h"
 #include "uv.h"
 
 #include <assert.h>
@@ -39,6 +40,7 @@
     defined(__MINGW32__) || \
     defined(__OpenBSD__) || \
     defined(_MSC_VER)
+
 # include <nameser.h>
 #else
 # include <arpa/nameser.h>
@@ -849,7 +851,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   Wrap* wrap = new Wrap(env, req_wrap_obj);
 
-  String::Utf8Value name(string);
+  node::Utf8Value name(string);
   int err = wrap->Send(*name);
   if (err)
     delete wrap;
@@ -960,7 +962,7 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  String::Utf8Value ip(args[0]);
+  node::Utf8Value ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
   int rc = 0;
@@ -981,7 +983,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   assert(args[1]->IsString());
   assert(args[2]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::Utf8Value hostname(args[1]);
+  node::Utf8Value hostname(args[1]);
 
   int family;
   switch (args[2]->Int32Value()) {
@@ -1082,7 +1084,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     assert(elm->Get(1)->IsString());
 
     int fam = elm->Get(0)->Int32Value();
-    String::Utf8Value ip(elm->Get(1));
+    node::Utf8Value ip(elm->Get(1));
 
     ares_addr_node* cur = &servers[i];
 

@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "7" "May 2014" "" ""
+.TH "NPM\-CONFIG" "7" "June 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- More than you probably want to know about npm configuration
@@ -24,7 +24,10 @@ values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fR will work the
 same\.
 .
 .SS "npmrc Files"
-The three relevant files are:
+The four relevant files are:
+.
+.IP "\(bu" 4
+per\-project config file (/path/to/my/project/\.npmrc)
 .
 .IP "\(bu" 4
 per\-user config file (~/\.npmrc)
@@ -1247,6 +1250,24 @@ using \fB\-s\fR to add a signature\.
 .P
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly\.
+.
+.SS "spin"
+.
+.IP "\(bu" 4
+Default: true
+.
+.IP "\(bu" 4
+Type: Boolean or \fB"always"\fR
+.
+.IP "" 0
+.
+.P
+When set to \fBtrue\fR, npm will display an ascii spinner while it is doing
+things, if \fBprocess\.stderr\fR is a TTY\.
+.
+.P
+Set to \fBfalse\fR to suppress the spinner, or set to \fBalways\fR to output
+the spinner even for non\-TTY outputs\.
 .
 .SS "strict\-ssl"
 .

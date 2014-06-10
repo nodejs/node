@@ -121,7 +121,7 @@ PromZard.prototype.makePrompt = function () {
       else if (a && typeof a === 'object') {
         p = a.prompt || p
         d = a.default || d
-        t = a.tranform || t
+        t = a.transform || t
       }
     }
 

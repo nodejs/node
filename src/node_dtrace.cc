@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+#include "util.h"
+
 #ifdef HAVE_DTRACE
 #include "node_dtrace.h"
 #include "node_provider.h"
@@ -74,7 +76,7 @@ using v8::Value;
     return env->ThrowError( \
         "expected object for " #obj " to contain string member " #member); \
   } \
-  String::Utf8Value _##member(obj->Get(OneByteString(env->isolate(), \
+  node::Utf8Value _##member(obj->Get(OneByteString(env->isolate(), \
                                                      #member))); \
   if ((*(const char **)valp = *_##member) == NULL) \
     *(const char **)valp = "<unknown>";
@@ -217,7 +219,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
-  String::Utf8Value fwdfor(strfwdfor);
+  node::Utf8Value fwdfor(strfwdfor);
 
   if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == NULL)
     req.forwardedFor = const_cast<char*>("");

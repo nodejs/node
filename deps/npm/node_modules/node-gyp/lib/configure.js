@@ -327,6 +327,9 @@ function configure (gyp, argv, callback) {
     // execute `gyp` from the current target nodedir
     argv.unshift(gyp_script)
 
+    // make sure python uses files that came with this particular node package
+    process.env.PYTHONPATH = path.resolve(__dirname, '..', 'gyp', 'pylib')
+
     var cp = gyp.spawn(python, argv)
     cp.on('exit', onCpExit)
   }

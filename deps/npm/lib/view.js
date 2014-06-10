@@ -208,7 +208,7 @@ function printData (data, name, cb) {
         d = JSON.stringify(d)
       }
       if (f && showFields) f += " = "
-      if (d.indexOf("\n") !== -1) d = "\n" + d
+      if (d.indexOf("\n") !== -1) d = " \n" + d
       msg += (showVersions ? name + "@" + v + " " : "")
            + (showFields ? f : "") + d + "\n"
     })

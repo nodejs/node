@@ -34,7 +34,7 @@ following scripts:
   stop and start scripts if no `restart` script is provided.
 
 Additionally, arbitrary scripts can be run by doing
-`npm run-script <stage> <pkg>`.
+`npm run-script <pkg> <stage>`.
 
 ## NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN
 

@@ -1,7 +1,6 @@
 var common = require("../common-tap.js")
 var test = require("tap").test
 var npm = require.resolve("../../bin/npm-cli.js")
-var osenv = require("osenv")
 var path = require("path")
 var fs = require("fs")
 var rimraf = require("rimraf")
@@ -9,7 +8,6 @@ var mkdirp = require("mkdirp")
 
 var mr = require("npm-registry-mock")
 
-var child
 var spawn = require("child_process").spawn
 var node = process.execPath
 
@@ -56,7 +54,7 @@ test("does not update the package.json with empty arguments", function (t) {
 
   mr(common.port, function (s) {
     var child = createChild([npm, "install"])
-    child.on("close", function (m) {
+    child.on("close", function () {
       var text = JSON.stringify(fs.readFileSync(pkg + "/package.json", "utf8"))
       t.ok(text.indexOf('"dependencies') === -1)
       s.close()
@@ -71,7 +69,7 @@ test("updates the package.json (adds dependencies) with an argument", function (
 
   mr(common.port, function (s) {
     var child = createChild([npm, "install", "underscore"])
-    child.on("close", function (m) {
+    child.on("close", function () {
       var text = JSON.stringify(fs.readFileSync(pkg + "/package.json", "utf8"))
       t.ok(text.indexOf('"dependencies') !== -1)
       s.close()

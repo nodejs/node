@@ -47,6 +47,7 @@
 #include "handle_wrap.h"
 #include "req_wrap.h"
 #include "string_bytes.h"
+#include "util.h"
 #include "uv.h"
 #include "v8-debug.h"
 #include "v8-profiler.h"
@@ -144,6 +145,8 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = NULL;
 
+int WRITE_UTF8_FLAGS = v8::String::HINT_MANY_WRITES_EXPECTED |
+                       v8::String::NO_NULL_TERMINATION;
 
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
@@ -1252,7 +1255,7 @@ enum encoding ParseEncoding(Isolate* isolate,
   if (!encoding_v->IsString())
     return _default;
 
-  String::Utf8Value encoding(encoding_v);
+  node::Utf8Value encoding(encoding_v);
 
   if (strcasecmp(*encoding, "utf8") == 0) {
     return UTF8;
@@ -1352,11 +1355,11 @@ void AppendExceptionLine(Environment* env,
   static char arrow[1024];
 
   // Print (filename):(line number): (message).
-  String::Utf8Value filename(message->GetScriptResourceName());
+  node::Utf8Value filename(message->GetScriptResourceName());
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber();
   // Print line of source code.
-  String::Utf8Value sourceline(message->GetSourceLine());
+  node::Utf8Value sourceline(message->GetSourceLine());
   const char* sourceline_string = *sourceline;
 
   // Because of how node modules work, all scripts are wrapped with a
@@ -1447,7 +1450,7 @@ static void ReportException(Environment* env,
   else
     trace_value = er->ToObject()->Get(env->stack_string());
 
-  String::Utf8Value trace(trace_value);
+  node::Utf8Value trace(trace_value);
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
@@ -1470,11 +1473,11 @@ static void ReportException(Environment* env,
         name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
-      String::Utf8Value message(er);
+      node::Utf8Value message(er);
       fprintf(stderr, "%s\n", *message);
     } else {
-      String::Utf8Value name_string(name);
-      String::Utf8Value message_string(message);
+      node::Utf8Value name_string(name);
+      node::Utf8Value message_string(message);
       fprintf(stderr, "%s: %s\n", *name_string, *message_string);
     }
   }
@@ -1574,7 +1577,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Bad argument.");
   }
 
-  String::Utf8Value path(args[0]);
+  node::Utf8Value path(args[0]);
   int err = uv_chdir(*path);
   if (err) {
     return env->ThrowUVException(err, "uv_chdir");
@@ -1622,10 +1625,10 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
       oct = args[0]->Uint32Value();
     } else {
       oct = 0;
-      String::Utf8Value str(args[0]);
+      node::Utf8Value str(args[0]);
 
       // Parse the octal string.
-      for (int i = 0; i < str.length(); i++) {
+      for (size_t i = 0; i < str.length(); i++) {
         char c = (*str)[i];
         if (c > '7' || c < '0') {
           return env->ThrowTypeError("invalid octal string");
@@ -1727,7 +1730,7 @@ static uid_t uid_by_name(Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<uid_t>(value->Uint32Value());
   } else {
-    String::Utf8Value name(value);
+    node::Utf8Value name(value);
     return uid_by_name(*name);
   }
 }
@@ -1737,7 +1740,7 @@ static gid_t gid_by_name(Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<gid_t>(value->Uint32Value());
   } else {
-    String::Utf8Value name(value);
+    node::Utf8Value name(value);
     return gid_by_name(*name);
   }
 }
@@ -1878,7 +1881,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("argument 2 must be a number or a string");
   }
 
-  String::Utf8Value arg0(args[0]);
+  node::Utf8Value arg0(args[0]);
   gid_t extra_group;
   bool must_free;
   char* user;
@@ -2054,7 +2057,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> module = args[0]->ToObject();  // Cast
-  String::Utf8Value filename(args[1]);  // Cast
+  node::Utf8Value filename(args[1]);  // Cast
 
   Local<String> exports_string = env->exports_string();
   Local<Object> exports = module->Get(exports_string)->ToObject();
@@ -2191,7 +2194,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<String> module = args[0]->ToString();
-  String::Utf8Value module_v(module);
+  node::Utf8Value module_v(module);
 
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
@@ -2251,7 +2254,7 @@ static void ProcessTitleSetter(Local<String> property,
                                const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
-  String::Utf8Value title(value);
+  node::Utf8Value title(value);
   // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
 }
@@ -2262,7 +2265,7 @@ static void EnvGetter(Local<String> property,
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   const char* val = getenv(*key);
   if (val) {
     return info.GetReturnValue().Set(String::NewFromUtf8(env->isolate(), val));
@@ -2295,8 +2298,8 @@ static void EnvSetter(Local<String> property,
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
-  String::Utf8Value key(property);
-  String::Utf8Value val(value);
+  node::Utf8Value key(property);
+  node::Utf8Value val(value);
   setenv(*key, *val, 1);
 #else  // _WIN32
   String::Value key(property);
@@ -2318,7 +2321,7 @@ static void EnvQuery(Local<String> property,
   HandleScope scope(env->isolate());
   int32_t rc = -1;  // Not found unless proven otherwise.
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   if (getenv(*key))
     rc = 0;
 #else  // _WIN32
@@ -2346,7 +2349,7 @@ static void EnvDeleter(Local<String> property,
   HandleScope scope(env->isolate());
   bool rc = true;
 #ifdef __POSIX__
-  String::Utf8Value key(property);
+  node::Utf8Value key(property);
   rc = getenv(*key) != NULL;
   if (rc)
     unsetenv(*key);
@@ -2811,7 +2814,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 1 && args[0]->IsString() &&
          "must be called with a single string");
 
-  String::Utf8Value message(args[0]);
+  node::Utf8Value message(args[0]);
   fprintf(stderr, "%s\n", *message);
   fflush(stderr);
 }
@@ -3563,6 +3566,11 @@ Environment* CreateEnvironment(Isolate* isolate,
 
 
 int Start(int argc, char** argv) {
+  const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
+
+  if (replaceInvalid == NULL)
+    WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
+
 #if !defined(_WIN32)
   // Try hard not to lose SIGUSR1 signals during the bootstrap process.
   InstallEarlyDebugSignalHandler();

@@ -148,7 +148,7 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
-  String::Utf8Value name(args[0]);
+  node::Utf8Value name(args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
 }
@@ -282,7 +282,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   assert(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  String::Utf8Value name(args[1]);
+  node::Utf8Value name(args[1]);
 
   ConnectWrap* req_wrap = new ConnectWrap(env,
                                           req_wrap_obj,

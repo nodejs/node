@@ -19,6 +19,7 @@ var npm = require("./npm.js")
   , path = require("path")
   , readJson = require("read-package-json")
   , fs = require("fs")
+  , url_ = require('url')
 
 function repo (args, cb) {
   var n = args.length && args[0].split("@").shift() || '.'
@@ -40,7 +41,11 @@ function getUrlAndOpen (d, cb) {
   // from https://github.com/npm/npm-www/issues/418
   if (githubUserRepo(r.url))
     r.url = githubUserRepo(r.url)
-  var url = github(r.url)
+
+  var url = (r.url && ~r.url.indexOf('github'))
+          ? github(r.url)
+          : nonGithubUrl(r.url)
+
   if (!url)
     return cb(new Error('no repository: could not get url'))
   opener(url, { command: npm.config.get("browser") }, cb)
@@ -51,4 +56,20 @@ function callRegistry (n, cb) {
     if (er) return cb(er)
     getUrlAndOpen(d, cb)
   })
+}
+
+function nonGithubUrl (url) {
+  try {
+    var idx = url.indexOf('@')
+    if (idx !== -1) {
+      url = url.slice(idx+1).replace(/:([^\d]+)/, '/$1')
+    }
+    url = url_.parse(url)
+    var protocol = url.protocol === 'https:'
+                 ? 'https:'
+                 : 'http:'
+    return protocol + '//' + (url.host || '') +
+      url.path.replace(/\.git$/, '')
+  }
+  catch(e) {}
 }
