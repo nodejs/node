@@ -134,12 +134,6 @@ feature branch.  Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
-### CONTRIBUTOR LICENSE AGREEMENT
-
-Please visit http://nodejs.org/cla.html and sign the Contributor License
-Agreement.  You only need to do that once.
-
-
 [stability index page]: https://github.com/joyent/node/blob/master/doc/api/documentation.markdown
 [issue tracker]: https://github.com/joyent/node/issues
 [node.js mailing list]: http://groups.google.com/group/nodejs
