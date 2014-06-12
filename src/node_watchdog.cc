@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_watchdog.h"
+#include "env.h"
+#include "env-inl.h"
 #include "util.h"
 #include <assert.h>
 
@@ -28,7 +30,8 @@ namespace node {
 using v8::V8;
 
 
-Watchdog::Watchdog(uint64_t ms) : destroyed_(false) {
+Watchdog::Watchdog(Environment* env, uint64_t ms) : env_(env),
+                                                    destroyed_(false) {
   int rc;
   loop_ = new uv_loop_t;
   CHECK(loop_);
@@ -98,7 +101,8 @@ void Watchdog::Async(uv_async_t* async) {
 
 
 void Watchdog::Timer(uv_timer_t* timer) {
-  V8::TerminateExecution();
+  Watchdog* w = ContainerOf(&Watchdog::timer_, timer);
+  V8::TerminateExecution(w->env()->isolate());
 }
 
 
