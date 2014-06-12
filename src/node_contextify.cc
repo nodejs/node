@@ -655,6 +655,7 @@ class ContextifyScript : public BaseObject {
     if (try_catch.HasCaught() && try_catch.HasTerminated()) {
       V8::CancelTerminateExecution(env->isolate());
       env->ThrowError("Script execution timed out.");
+      try_catch.ReThrow();
       return false;
     }
 
