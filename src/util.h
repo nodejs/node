@@ -64,7 +64,7 @@ class Utf8Value {
       return str_;
     };
 
-    size_t length() {
+    size_t length() const {
       return length_;
     };
 
