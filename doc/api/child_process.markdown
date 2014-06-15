@@ -36,7 +36,7 @@ Emitted when:
 2. The process could not be killed, or
 3. Sending a message to the child process failed for whatever reason.
 
-Note that the `exit`-event may or may not fire after an error has occured. If
+Note that the `exit`-event may or may not fire after an error has occurred. If
 you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
@@ -610,7 +610,7 @@ output on this fd is expected to be line delimited JSON objects.
   * `stderr` {Buffer|String} The contents of `output[2]`
   * `status` {Number} The exit code of the child process
   * `signal` {String} The signal used to kill the child process
-  * `error` {Error} The error object if the child process failed or timedout
+  * `error` {Error} The error object if the child process failed or timed out
 
 `spawnSync` will not return until the child process has fully closed. When a
 timeout has been encountered and `killSignal` is sent, the method won't return
