@@ -175,6 +175,12 @@ this order:
 This allows programs to localize their dependencies, so that they do not
 clash.
 
+You can require specific files or sub modules distributed with a module by
+including a path suffix after the module name. For instance
+`require('example-module/path/to/file')` would resolve `path/to/file`
+relative to where `example-module` is located. The suffixed path follows the
+same module resolution semantics.
+
 ## Folders as Modules
 
 <!--type=misc-->
