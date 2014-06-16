@@ -248,7 +248,7 @@ $(PKG): release-only
 	rm -rf out/deps out/Release
 	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
 	$(MAKE) install V=$(V)
-	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/node \
 		$(PKGDIR)/usr/local/bin/node \
 		-output $(PKGDIR)/usr/local/bin/node-universal \
@@ -259,7 +259,7 @@ $(PKG): release-only
 		--id "org.nodejs.Node" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
-	SIGN="$(SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
+	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 $(TARBALL): release-only node doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
