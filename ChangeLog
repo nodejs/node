@@ -2,7 +2,7 @@
 
 * openssl: to 1.0.1h (CVE-2014-0224)
 
-* npm: upgrade to 1.4.10
+* npm: upgrade to 1.4.14
 
 * utf8: Prevent Node from sending invalid UTF-8 (Felix Geisendörfer)
   - *NOTE* this introduces a breaking change, previously you could construct
