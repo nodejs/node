@@ -53,7 +53,8 @@ class AsyncWrap : public BaseObject {
     PROVIDER_TLSWRAP            = 1 << 14,
     PROVIDER_TTYWRAP            = 1 << 15,
     PROVIDER_UDPWRAP            = 1 << 16,
-    PROVIDER_ZLIB               = 1 << 17
+    PROVIDER_ZLIB               = 1 << 17,
+    PROVIDER_GETNAMEINFOREQWRAP = 1 << 18
   };
 
   inline AsyncWrap(Environment* env,

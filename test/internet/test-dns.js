@@ -431,6 +431,44 @@ TEST(function test_lookup_localhost_ipv4(done) {
 });
 
 
+TEST(function test_lookupservice_ip_ipv4(done) {
+  var req = dns.lookupService('127.0.0.1', 80, function(err, host, service) {
+    if (err) throw err;
+    assert.strictEqual(host, 'localhost');
+    assert.strictEqual(service, 'http');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookupservice_ip_ipv6(done) {
+  var req = dns.lookupService('::1', 80, function(err, host, service) {
+    if (err) throw err;
+    assert.strictEqual(host, 'localhost');
+    assert.strictEqual(service, 'http');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookupservice_invalid(done) {
+  var req = dns.lookupService('1.2.3.4', 80, function(err, host, service) {
+    assert(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
 TEST(function test_reverse_failure(done) {
   var req = dns.reverse('0.0.0.0', function(err) {
     assert(err instanceof Error);
