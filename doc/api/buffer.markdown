@@ -41,9 +41,14 @@ encoding method.  Here are the different string encodings.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-A `Buffer` object can also be used with typed arrays.  The buffer object is
-cloned to an `ArrayBuffer` that is used as the backing store for the typed
-array.  The memory of the buffer and the `ArrayBuffer` is not shared.
+Creating a typed array from a `Buffer` works with the following caveats:
+
+1. The buffer's memory is copied, not shared.
+
+2. The buffer's memory is interpreted as an array, not a byte array.  That is,
+   `new Uint32Array(new Buffer([1,2,3,4]))` creates a 4-element `Uint32Array`
+   with elements `[1,2,3,4]`, not an `Uint32Array` with a single element
+   `[0x1020304]` or `[0x4030201]`.
 
 NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
 instead of cloning it.
