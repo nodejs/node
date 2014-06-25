@@ -1396,14 +1396,22 @@ void AppendExceptionLine(Environment* env,
 
   // Print wavy underline (GetUnderline is deprecated).
   for (int i = 0; i < start; i++) {
+    if (sourceline_string[i] == '\0' ||
+        static_cast<size_t>(off) >= sizeof(arrow)) {
+      break;
+    }
     assert(static_cast<size_t>(off) < sizeof(arrow));
     arrow[off++] = (sourceline_string[i] == '\t') ? '\t' : ' ';
   }
   for (int i = start; i < end; i++) {
+    if (sourceline_string[i] == '\0' ||
+        static_cast<size_t>(off) >= sizeof(arrow)) {
+      break;
+    }
     assert(static_cast<size_t>(off) < sizeof(arrow));
     arrow[off++] = '^';
   }
-  assert(static_cast<size_t>(off) < sizeof(arrow) - 1);
+  assert(static_cast<size_t>(off - 1) <= sizeof(arrow) - 1);
   arrow[off++] = '\n';
   arrow[off] = '\0';
 
