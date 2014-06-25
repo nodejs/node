@@ -58,6 +58,8 @@ Example:
 
 ## crypto.createCredentials(details)
 
+Stability: 0 - Deprecated. Use [tls.createSecureContext][] instead.
+
 Creates a credentials object, with the optional details being a
 dictionary with keys:
 
@@ -636,6 +638,7 @@ temporary measure.
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
 [crypto.createDiffieHellman()]: #crypto_crypto_creatediffiehellman_prime_encoding
+[tls.createSecureContext]: tls.html#tls_tls_createsecurecontext_details
 [diffieHellman.setPublicKey()]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [RFC 2412]: http://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
