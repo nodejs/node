@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var assert = require('assert');
+var common = require('../common');
 var tls = require('tls');
 
 function test1() {
@@ -27,7 +28,8 @@ function test1() {
   tls.createSecureContext = function(options) {
     ciphers = options.ciphers
   }
-  tls.connect(443);
+  var s = tls.connect(common.PORT);
+  s.destroy();
   assert.equal(ciphers, tls.DEFAULT_CIPHERS);
 }
 test1();
