@@ -436,6 +436,9 @@ dictionary with keys:
   Consult
   <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
   for details on the format.
+* `honorCipherOrder` : When choosing a cipher, use the server's preferences
+  instead of the client preferences. For further details see `tls` module
+  documentation.
 
 If no 'ca' details are given, then node.js will use the default
 publicly trusted list of CAs as given in
@@ -608,7 +611,8 @@ more information.
 
 Add secure context that will be used if client request's SNI hostname is
 matching passed `hostname` (wildcards can be used). `context` can contain
-`key`, `cert` and `ca`.
+`key`, `cert`, `ca` and/or any other properties from `tls.createSecureContext`
+`options` argument.
 
 ### server.maxConnections
 
