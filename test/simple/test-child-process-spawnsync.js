@@ -46,3 +46,19 @@ assert.strictEqual(stop[0], 1, 'sleep should not take longer or less than 1 seco
 // Error test when command does not exist
 var ret_err = spawnSync('command_does_not_exist');
 assert.strictEqual(ret_err.error.code, 'ENOENT');
+
+// Verify that the cwd option works - GH #7824
+(function() {
+  var response;
+  var cwd;
+
+  if (process.platform === 'win32') {
+    cwd = 'c:\\';
+    response = spawnSync('cmd.exe', ['/c', 'cd'], {cwd: cwd});
+  } else {
+    cwd = '/';
+    response = spawnSync('pwd', [], {cwd: cwd});
+  }
+
+  assert.strictEqual(response.stdout.toString().trim(), cwd);
+})();

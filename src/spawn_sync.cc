@@ -726,7 +726,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_cwd = js_options->Get(env()->cwd_string());
   if (IsSet(js_cwd)) {
-    r = CopyJsString(js_cwd, &uv_process_options_.cwd);
+    r = CopyJsString(js_cwd, &cwd_buffer_);
     if (r < 0)
       return r;
     uv_process_options_.cwd = cwd_buffer_;

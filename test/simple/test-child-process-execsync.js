@@ -80,3 +80,19 @@ assert.deepEqual(ret, msgBuf);
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 
 assert.strictEqual(ret, msg + '\n', 'execFileSync encoding result should match');
+
+// Verify that the cwd option works - GH #7824
+(function() {
+  var response;
+  var cwd;
+
+  if (process.platform === 'win32') {
+    cwd = 'c:\\';
+    response = execSync('echo %cd%', {cwd: cwd});
+  } else {
+    cwd = '/';
+    response = execSync('pwd', {cwd: cwd});
+  }
+
+  assert.strictEqual(response.toString().trim(), cwd);
+})();
