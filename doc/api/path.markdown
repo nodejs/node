@@ -47,7 +47,7 @@ If `to` isn't already absolute `from` arguments are prepended in right to left
 order, until an absolute path is found. If after using all `from` paths still
 no absolute path is found, the current working directory is used as well. The
 resulting path is normalized, and trailing slashes are removed unless the path
-gets resolved to the root directory. Non-string arguments are ignored.
+gets resolved to the root directory. Non-string `from` arguments are ignored.
 
 Another way to think of it is as a sequence of `cd` commands in a shell.
 
