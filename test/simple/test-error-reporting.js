@@ -71,6 +71,13 @@ errExec('throws_error3.js', function(err, stdout, stderr) {
 });
 
 
+// throw ILLEGAL error
+errExec('throws_error4.js', function(err, stdout, stderr) {
+  assert.ok(/\/\*\*/.test(stderr));
+  assert.ok(/SyntaxError/.test(stderr));
+});
+
+
 process.on('exit', function() {
-  assert.equal(3, exits);
+  assert.equal(4, exits);
 });
