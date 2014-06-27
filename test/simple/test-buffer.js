@@ -849,6 +849,16 @@ Buffer(Buffer(0), 0, 0);
   }));
 })();
 
+// issue GH-7849
+(function() {
+  var buf = new Buffer('test');
+  var json = JSON.stringify(buf);
+  var obj = JSON.parse(json);
+  var copy = new Buffer(obj);
+
+  assert(buf.equals(copy));
+})();
+
 // issue GH-4331
 assert.throws(function() {
   new Buffer(0xFFFFFFFF);
