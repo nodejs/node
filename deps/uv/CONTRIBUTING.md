@@ -142,11 +142,8 @@ Bug fixes and features should come with tests.  Add your tests in the
 Look at other tests to see how they should be structured (license boilerplate,
 the way entry points are declared, etc.).
 
-```
-$ make test
-```
-
-Make sure that there are no test regressions.
+Check README.md file to find out how to run the test suite and make sure that
+there are no test regressions.
 
 ### PUSH
 
@@ -163,15 +160,7 @@ feature branch.  Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
-### CONTRIBUTOR LICENSE AGREEMENT
-
-The current state of affairs is that, in order to get a patch accepted, you need
-to sign Node.js's [contributor license agreement][]. You only need to do that
-once.
-
-
 [issue tracker]: https://github.com/joyent/libuv/issues
 [libuv mailing list]: http://groups.google.com/group/libuv
 [IRC]: http://webchat.freelibuv.net/?channels=libuv
 [Google C/C++ style guide]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
-[contributor license agreement]: http://nodejs.org/cla.html

@@ -86,3 +86,25 @@ TEST_IMPL(udp_options) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(udp_no_autobind) {
+  uv_loop_t* loop;
+  uv_udp_t h;
+
+  loop = uv_default_loop();
+
+  ASSERT(0 == uv_udp_init(loop, &h));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_ttl(&h, 32));
+  ASSERT(UV_EBADF == uv_udp_set_broadcast(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_ttl(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_loop(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_interface(&h, "0.0.0.0"));
+
+  uv_close((uv_handle_t*) &h, NULL);
+
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

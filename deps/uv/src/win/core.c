@@ -53,15 +53,15 @@ __declspec( thread ) int uv__crt_assert_enabled = TRUE;
 static int uv__crt_dbg_report_handler(int report_type, char *message, int *ret_val) {
   if (uv__crt_assert_enabled || report_type != _CRT_ASSERT)
     return FALSE;
-  
+
   if (ret_val) {
     /* Set ret_val to 0 to continue with normal execution. */
     /* Set ret_val to 1 to trigger a breakpoint. */
 
-    if(IsDebuggerPresent())     
-      *ret_val = 1;  
+    if(IsDebuggerPresent())
+      *ret_val = 1;
     else
-      *ret_val = 0;  
+      *ret_val = 0;
   }
 
   /* Don't call _CrtDbgReport. */

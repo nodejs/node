@@ -444,6 +444,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
  */
 static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
   int err;
+  int emfile_fd;
 
   if (loop->emfile_fd == -1)
     return -EMFILE;
@@ -457,7 +458,10 @@ static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
       uv__close(err);
   } while (err >= 0 || err == -EINTR);
 
-  SAVE_ERRNO(loop->emfile_fd = uv__open_cloexec("/", O_RDONLY));
+  emfile_fd = uv__open_cloexec("/", O_RDONLY);
+  if (emfile_fd >= 0)
+    loop->emfile_fd = emfile_fd;
+
   return err;
 }
 

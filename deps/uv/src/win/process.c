@@ -430,11 +430,10 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
   int quote_hit;
   WCHAR* start;
 
-  /*
-   * Check if the string must be quoted;
-   * if unnecessary, don't do it, it may only confuse older programs.
-   */
   if (len == 0) {
+    /* Need double quotation for empty argument */
+    *(target++) = L'"';
+    *(target++) = L'"';
     return target;
   }
 
@@ -965,7 +964,7 @@ int uv_spawn(uv_loop_t* loop,
 
   /* Spawn succeeded */
   /* Beyond this point, failure is reported asynchronously. */
-  
+
   process->process_handle = info.hProcess;
   process->pid = info.dwProcessId;
 
@@ -1011,8 +1010,8 @@ int uv_spawn(uv_loop_t* loop,
 
   CloseHandle(info.hThread);
 
-  assert(!err);  
-  
+  assert(!err);
+
   /* Make the handle active. It will remain active until the exit callback */
   /* iis made or the handle is closed, whichever happens first. */
   uv__handle_start(process);

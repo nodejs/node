@@ -51,6 +51,7 @@ OBJS = src/fs-poll.o \
        src/win/fs-event.o \
        src/win/fs.o \
        src/win/getaddrinfo.o \
+       src/win/getnameinfo.o \
        src/win/handle.o \
        src/win/loop-watcher.o \
        src/win/pipe.o \

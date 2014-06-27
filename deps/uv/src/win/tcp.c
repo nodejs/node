@@ -244,7 +244,7 @@ static int uv_tcp_try_bind(uv_tcp_t* handle,
 
   if (handle->socket == INVALID_SOCKET) {
     SOCKET sock;
-    
+
     /* Cannot set IPv6-only mode on non-IPv6 socket. */
     if ((flags & UV_TCP_IPV6ONLY) && addr->sa_family != AF_INET6)
       return ERROR_INVALID_PARAMETER;
@@ -810,7 +810,6 @@ int uv_tcp_write(uv_loop_t* loop,
   req->type = UV_WRITE;
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
-  memset(&req->overlapped, 0, sizeof(req->overlapped));
 
   /* Prepare the overlapped structure. */
   memset(&(req->overlapped), 0, sizeof(req->overlapped));

@@ -283,9 +283,9 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
     uv__update_time(loop);
     uv__run_timers(loop);
+    uv__run_pending(loop);
     uv__run_idle(loop);
     uv__run_prepare(loop);
-    uv__run_pending(loop);
 
     timeout = 0;
     if ((mode & UV_RUN_NOWAIT) == 0)

@@ -314,8 +314,7 @@ uint64_t uv_get_free_memory(void) {
   MEMORYSTATUSEX memory_status;
   memory_status.dwLength = sizeof(memory_status);
 
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
+  if (!GlobalMemoryStatusEx(&memory_status)) {
      return -1;
   }
 
@@ -327,8 +326,7 @@ uint64_t uv_get_total_memory(void) {
   MEMORYSTATUSEX memory_status;
   memory_status.dwLength = sizeof(memory_status);
 
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
+  if (!GlobalMemoryStatusEx(&memory_status)) {
     return -1;
   }
 
@@ -388,7 +386,7 @@ int uv_set_process_title(const char* title) {
   if (!length) {
     err = GetLastError();
     goto done;
-  };
+  }
 
   /* If the title must be truncated insert a \0 terminator there */
   if (length > MAX_TITLE_LENGTH) {

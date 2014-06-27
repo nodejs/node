@@ -553,7 +553,7 @@ void fs__read(uv_fs_t* req) {
   VERIFY_FD(fd, req);
 
   handle = uv__get_osfhandle(fd);
-  
+
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
     return;

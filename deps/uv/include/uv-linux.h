@@ -31,6 +31,4 @@
   void* watchers[2];                                                          \
   int wd;                                                                     \
 
-#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
-
 #endif /* UV_LINUX_H */

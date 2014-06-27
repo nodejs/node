@@ -115,7 +115,7 @@ static void uv_pipe_connection_init(uv_pipe_t* handle) {
 }
 
 
-static HANDLE open_named_pipe(WCHAR* name, DWORD* duplex_flags) {
+static HANDLE open_named_pipe(const WCHAR* name, DWORD* duplex_flags) {
   HANDLE pipeHandle;
 
   /*
