@@ -298,7 +298,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   for (i = 0; i < numcpus; i++) {
     cpu_info = &(*cpu_infos)[i];
-    
+
     cpu_info->cpu_times.user = (uint64_t)(cp_times[CP_USER+cur]) * multiplier;
     cpu_info->cpu_times.nice = (uint64_t)(cp_times[CP_NICE+cur]) * multiplier;
     cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS+cur]) * multiplier;

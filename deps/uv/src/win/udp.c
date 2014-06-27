@@ -662,7 +662,6 @@ int uv_udp_set_membership(uv_udp_t* handle,
 
 
 int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr) {
-  int err;
   struct sockaddr_storage addr_st;
   struct sockaddr_in* addr4;
   struct sockaddr_in6* addr6;
@@ -687,13 +686,10 @@ int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr)
     return UV_EINVAL;
   }
 
+  if (!(handle->flags & UV_HANDLE_BOUND))
+    return UV_EBADF;
+
   if (addr_st.ss_family == AF_INET) {
-    err = uv_udp_maybe_bind(handle,
-                            (const struct sockaddr*) &uv_addr_ip4_any_,
-                            sizeof(uv_addr_ip4_any_),
-                            UV_UDP_REUSEADDR);
-    if (err)
-      return uv_translate_sys_error(err);
     if (setsockopt(handle->socket,
                    IPPROTO_IP,
                    IP_MULTICAST_IF,
@@ -702,12 +698,6 @@ int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr)
       return uv_translate_sys_error(WSAGetLastError());
     }
   } else if (addr_st.ss_family == AF_INET6) {
-    err = uv_udp_maybe_bind(handle,
-                            (const struct sockaddr*) &uv_addr_ip6_any_,
-                            sizeof(uv_addr_ip6_any_),
-                            UV_UDP_REUSEADDR);
-    if (err)
-      return uv_translate_sys_error(err);
     if (setsockopt(handle->socket,
                    IPPROTO_IPV6,
                    IPV6_MULTICAST_IF,
@@ -726,15 +716,9 @@ int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr)
 
 int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
   BOOL optval = (BOOL) value;
-  int err;
 
-  /* If the socket is unbound, bind to inaddr_any. */
-  err = uv_udp_maybe_bind(handle,
-                          (const struct sockaddr*) &uv_addr_ip4_any_,
-                          sizeof(uv_addr_ip4_any_),
-                          0);
-  if (err)
-    return uv_translate_sys_error(err);
+  if (!(handle->flags & UV_HANDLE_BOUND))
+    return UV_EBADF;
 
   if (setsockopt(handle->socket,
                  SOL_SOCKET,
@@ -774,19 +758,13 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
 #define SOCKOPT_SETTER(name, option4, option6, validate)                      \
   int uv_udp_set_##name(uv_udp_t* handle, int value) {                        \
     DWORD optval = (DWORD) value;                                             \
-    int err;                                                                  \
                                                                               \
     if (!(validate(value))) {                                                 \
       return UV_EINVAL;                                                       \
     }                                                                         \
                                                                               \
-    /* If the socket is unbound, bind to inaddr_any. */                       \
-    err = uv_udp_maybe_bind(handle,                                           \
-                            (const struct sockaddr*) &uv_addr_ip4_any_,       \
-                            sizeof(uv_addr_ip4_any_),                         \
-                            0);                                               \
-    if (err)                                                                  \
-      return uv_translate_sys_error(err);                                     \
+    if (!(handle->flags & UV_HANDLE_BOUND))                                   \
+      return UV_EBADF;                                                        \
                                                                               \
     if (!(handle->flags & UV_HANDLE_IPV6)) {                                  \
       /* Set IPv4 socket option */                                            \

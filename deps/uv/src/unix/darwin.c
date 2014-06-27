@@ -53,9 +53,11 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 
 
 uint64_t uv__hrtime(uv_clocktype_t type) {
-  mach_timebase_info_data_t info;
+  static mach_timebase_info_data_t info;
 
-  if (mach_timebase_info(&info) != KERN_SUCCESS)
+  if ((ACCESS_ONCE(uint32_t, info.numer) == 0 ||
+       ACCESS_ONCE(uint32_t, info.denom) == 0) &&
+      mach_timebase_info(&info) != KERN_SUCCESS)
     abort();
 
   return mach_absolute_time() * info.numer / info.denom;

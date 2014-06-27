@@ -32,7 +32,6 @@
 
 
 TEST_IMPL(ip6_addr_link_local) {
-#ifdef UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
   char string_address[INET6_ADDRSTRLEN];
   uv_interface_address_t* addresses;
   uv_interface_address_t* address;
@@ -93,9 +92,6 @@ TEST_IMPL(ip6_addr_link_local) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
-#else
-  RETURN_SKIP("Qualified link-local addresses are not supported.");
-#endif
 }
 
 
@@ -107,6 +103,7 @@ TEST_IMPL(ip6_addr_link_local) {
     X("fe80::2acf:daff:fedd:342a")                                            \
     X("fe80:0:0:0:2acf:daff:fedd:342a")                                       \
     X("fe80:0:0:0:2acf:daff:1.2.3.4")                                         \
+    X("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")                        \
 
 #define BAD_ADDR_LIST(X)                                                      \
     X(":::1")                                                                 \
@@ -114,6 +111,7 @@ TEST_IMPL(ip6_addr_link_local) {
     X("fe80:0:0:0:2acf:daff:fedd:342a:5678")                                  \
     X("fe80:0:0:0:2acf:daff:abcd:1.2.3.4")                                    \
     X("fe80:0:0:2acf:daff:1.2.3.4.5")                                         \
+    X("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255.255")                    \
 
 #define TEST_GOOD(ADDR)                                                       \
     ASSERT(0 == uv_inet_pton(AF_INET6, ADDR, &addr));                         \

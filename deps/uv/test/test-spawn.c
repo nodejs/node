@@ -808,6 +808,7 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target);
 
 TEST_IMPL(argument_escaping) {
   const WCHAR* test_str[] = {
+    L"",
     L"HelloWorld",
     L"Hello World",
     L"Hello\"World",

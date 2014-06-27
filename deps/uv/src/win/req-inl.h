@@ -199,6 +199,10 @@ INLINE static void uv_process_reqs(uv_loop_t* loop) {
         uv_process_getaddrinfo_req(loop, (uv_getaddrinfo_t*) req);
         break;
 
+      case UV_GETNAMEINFO:
+        uv_process_getnameinfo_req(loop, (uv_getnameinfo_t*)req);
+        break;
+
       case UV_PROCESS_EXIT:
         uv_process_proc_exit(loop, (uv_process_t*) req->data);
         break;

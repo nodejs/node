@@ -39,7 +39,6 @@
 #define UV__EAI_OVERFLOW    (-3009)
 #define UV__EAI_SERVICE     (-3010)
 #define UV__EAI_SOCKTYPE    (-3011)
-#define UV__EAI_SYSTEM      (-3012) /* TODO(bnoordhuis) Return system error. */
 #define UV__EAI_BADHINTS    (-3013)
 #define UV__EAI_PROTOCOL    (-3014)
 

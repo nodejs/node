@@ -528,6 +528,14 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct addrinfoW* res;                                                      \
   int retcode;
 
+#define UV_GETNAMEINFO_PRIVATE_FIELDS                                         \
+  uv_getnameinfo_cb getnameinfo_cb;                                           \
+  struct sockaddr_storage storage;                                            \
+  int flags;                                                                  \
+  char host[NI_MAXHOST];                                                      \
+  char service[NI_MAXSERV];                                                   \
+  int retcode;
+
 #define UV_PROCESS_PRIVATE_FIELDS                                             \
   struct uv_process_exit_s {                                                  \
     UV_REQ_FIELDS                                                             \
@@ -587,4 +595,3 @@ int uv_utf16_to_utf8(const WCHAR* utf16Buffer, size_t utf16Size,
 int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
     size_t utf16Size);
 
-#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS

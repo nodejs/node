@@ -27,6 +27,9 @@
 #include "uv.h"
 #include "uv-common.h"
 
+#define UV__INET_ADDRSTRLEN         16
+#define UV__INET6_ADDRSTRLEN        46
+
 
 static int inet_ntop4(const unsigned char *src, char *dst, size_t size);
 static int inet_ntop6(const unsigned char *src, char *dst, size_t size);
@@ -49,7 +52,7 @@ int uv_inet_ntop(int af, const void* src, char* dst, size_t size) {
 
 static int inet_ntop4(const unsigned char *src, char *dst, size_t size) {
   static const char fmt[] = "%u.%u.%u.%u";
-  char tmp[sizeof "255.255.255.255"];
+  char tmp[UV__INET_ADDRSTRLEN];
   int l;
 
 #ifndef _WIN32
@@ -74,7 +77,7 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
    * Keep this in mind if you think this function should have been coded
    * to use pointer overlays.  All the world's not a VAX.
    */
-  char tmp[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"], *tp;
+  char tmp[UV__INET6_ADDRSTRLEN], *tp;
   struct { int base, len; } best, cur;
   unsigned int words[sizeof(struct in6_addr) / sizeof(uint16_t)];
   int i;
@@ -156,11 +159,27 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
 
 
 int uv_inet_pton(int af, const char* src, void* dst) {
+  if (src == NULL || dst == NULL)
+    return UV_EINVAL;
+
   switch (af) {
   case AF_INET:
     return (inet_pton4(src, dst));
-  case AF_INET6:
-    return (inet_pton6(src, dst));
+  case AF_INET6: {
+    int len;
+    char tmp[UV__INET6_ADDRSTRLEN], *s, *p;
+    s = (char*) src;
+    p = strchr(src, '%');
+    if (p != NULL) {
+      s = tmp;
+      len = p - src;
+      if (len > UV__INET6_ADDRSTRLEN-1)
+        return UV_EINVAL;
+      memcpy(s, src, len);
+      s[len] = '\0';
+    }
+    return inet_pton6(s, dst);
+  }
   default:
     return UV_EAFNOSUPPORT;
   }
@@ -225,7 +244,7 @@ static int inet_pton6(const char *src, unsigned char *dst) {
   curtok = src;
   seen_xdigits = 0;
   val = 0;
-  while ((ch = *src++) != '\0' && ch != '%') {
+  while ((ch = *src++) != '\0') {
     const char *pch;
 
     if ((pch = strchr((xdigits = xdigits_l), ch)) == NULL)
@@ -256,19 +275,7 @@ static int inet_pton6(const char *src, unsigned char *dst) {
       continue;
     }
     if (ch == '.' && ((tp + sizeof(struct in_addr)) <= endp)) {
-      int err;
-
-      /* Scope id present, parse ipv4 addr without it */
-      pch = strchr(curtok, '%');
-      if (pch != NULL) {
-        char tmp[sizeof "255.255.255.255"];
-
-        memcpy(tmp, curtok, pch - curtok);
-        curtok = tmp;
-        src = pch;
-      }
-
-      err = inet_pton4(curtok, tp);
+      int err = inet_pton4(curtok, tp);
       if (err == 0) {
         tp += sizeof(struct in_addr);
         seen_xdigits = 0;

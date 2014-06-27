@@ -431,7 +431,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
   if (!uv__is_active(handle))
-    return -EINVAL;
+    return 0;
 
   if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
     port_dissociate(handle->loop->fs_fd,

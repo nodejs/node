@@ -36,11 +36,15 @@
 # include <io.h>
 # define unlink _unlink
 # define rmdir _rmdir
-# define stat _stati64
 # define open _open
 # define write _write
-# define lseek _lseek
 # define close _close
+# ifndef stat
+#  define stat _stati64
+# endif
+# ifndef lseek
+#   define lseek _lseek
+# endif
 #endif
 
 #define TOO_LONG_NAME_LENGTH 65536

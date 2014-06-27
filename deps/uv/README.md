@@ -66,10 +66,9 @@ To build with autotools:
 
 ### Windows
 
-First, Python 2.6 or 2.7 must be installed as it is required by [GYP][].
-
-Also, the directory for the preferred Python executable must be specified
-by the `PYTHON` or `Path` environment variables.
+First, [Python][] 2.6 or 2.7 must be installed as it is required by [GYP][].
+If python is not in your path set the environment variable `PYTHON` to its
+location. For example: `set PYTHON=C:\Python27\python.exe`
 
 To build with Visual Studio, launch a git shell (e.g. Cmd or PowerShell)
 and run vcbuild.bat which will checkout the GYP code into build/gyp and
@@ -139,5 +138,6 @@ See the [guidelines for contributing][].
 
 [node.js]: http://nodejs.org/
 [GYP]: http://code.google.com/p/gyp/
+[Python]: https://www.python.org/downloads/
 [Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express
 [guidelines for contributing]: https://github.com/joyent/libuv/blob/master/CONTRIBUTING.md

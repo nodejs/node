@@ -231,7 +231,7 @@ int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
 
       snprintf(buf, sizeof(buf), "/proc/self/fd/%d", pipefd[0]);
       fd = uv__open_cloexec(buf, O_RDWR);
-      if (fd != -1) {
+      if (fd >= 0) {
         uv__close(pipefd[0]);
         uv__close(pipefd[1]);
         pipefd[0] = fd;

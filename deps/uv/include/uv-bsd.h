@@ -31,6 +31,4 @@
 
 #define UV_HAVE_KQUEUE 1
 
-#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
-
 #endif /* UV_BSD_H */

@@ -227,6 +227,13 @@ HEAP_EXPORT(void heap_remove(struct heap* heap,
       break;
     heap_node_swap(heap, child, smallest);
   }
+
+  /* Walk up the subtree and check that each parent is less than the node
+   * this is required, because `max` node is not guaranteed to be the
+   * actual maximum in tree
+   */
+  while (child->parent != NULL && less_than(child, child->parent))
+    heap_node_swap(heap, child->parent, child);
 }
 
 HEAP_EXPORT(void heap_dequeue(struct heap* heap, heap_compare_fn less_than)) {

@@ -55,6 +55,14 @@
 # include "uv-bsd.h"
 #endif
 
+#ifndef NI_MAXHOST
+# define NI_MAXHOST 1025
+#endif
+
+#ifndef NI_MAXSERV
+# define NI_MAXSERV 32
+#endif
+
 #ifndef UV_IO_PRIVATE_PLATFORM_FIELDS
 # define UV_IO_PRIVATE_PLATFORM_FIELDS /* empty */
 #endif
@@ -279,6 +287,15 @@ typedef struct {
   char* hostname;                                                             \
   char* service;                                                              \
   struct addrinfo* res;                                                       \
+  int retcode;
+
+#define UV_GETNAMEINFO_PRIVATE_FIELDS                                         \
+  struct uv__work work_req;                                                   \
+  uv_getnameinfo_cb getnameinfo_cb;                                           \
+  struct sockaddr_storage storage;                                            \
+  int flags;                                                                  \
+  char host[NI_MAXHOST];                                                      \
+  char service[NI_MAXSERV];                                                   \
   int retcode;
 
 #define UV_PROCESS_PRIVATE_FIELDS                                             \

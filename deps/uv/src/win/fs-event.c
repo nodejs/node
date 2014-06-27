@@ -290,7 +290,7 @@ error:
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
   if (!uv__is_active(handle))
-    return UV_EINVAL;
+    return 0;
 
   if (handle->dir_handle != INVALID_HANDLE_VALUE) {
     CloseHandle(handle->dir_handle);

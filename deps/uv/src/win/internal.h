@@ -43,7 +43,7 @@ extern __declspec( thread ) int uv__crt_assert_enabled;
   {                                                             \
     int uv__saved_crt_assert_enabled = uv__crt_assert_enabled;  \
     uv__crt_assert_enabled = FALSE;
-  
+
 
 #define UV_END_DISABLE_CRT_ASSERT()                             \
     uv__crt_assert_enabled = uv__saved_crt_assert_enabled;      \
@@ -289,6 +289,12 @@ int uv_translate_sys_error(int sys_errno);
  * Getaddrinfo
  */
 void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req);
+
+
+/*
+* Getnameinfo
+*/
+void uv_process_getnameinfo_req(uv_loop_t* loop, uv_getnameinfo_t* req);
 
 
 /*

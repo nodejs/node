@@ -46,7 +46,6 @@ static unsigned work_cb_called;
 static unsigned done_cb_called;
 static unsigned done2_cb_called;
 static unsigned timer_cb_called;
-static unsigned getaddrinfo_cb_called;
 
 
 static void work_cb(uv_work_t* req) {
@@ -125,7 +124,16 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* req,
   ASSERT(status == UV_EAI_CANCELED);
   ASSERT(res == NULL);
   uv_freeaddrinfo(res);  /* Should not crash. */
-  getaddrinfo_cb_called++;
+}
+
+
+static void getnameinfo_cb(uv_getnameinfo_t* handle,
+                           int status,
+                           const char* hostname,
+                           const char* service) {
+  ASSERT(status == UV_EAI_CANCELED);
+  ASSERT(hostname == NULL);
+  ASSERT(service == NULL);
 }
 
 
@@ -188,6 +196,44 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
   ASSERT(r == 0);
 
   r = uv_getaddrinfo(loop, reqs + 3, getaddrinfo_cb, "fail", NULL, &hints);
+  ASSERT(r == 0);
+
+  ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
+  ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT(1 == timer_cb_called);
+
+  cleanup_threadpool();
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(threadpool_cancel_getnameinfo) {
+  uv_getnameinfo_t reqs[4];
+  struct sockaddr_in addr4;
+  struct cancel_info ci;
+  uv_loop_t* loop;
+  int r;
+
+  r = uv_ip4_addr("127.0.0.1", 80, &addr4);
+  ASSERT(r == 0);
+
+  INIT_CANCEL_INFO(&ci, reqs);
+  loop = uv_default_loop();
+  saturate_threadpool();
+
+  r = uv_getnameinfo(loop, reqs + 0, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 1, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 2, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 3, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
   ASSERT(r == 0);
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));

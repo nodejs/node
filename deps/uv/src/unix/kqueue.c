@@ -377,7 +377,7 @@ fallback:
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
   if (!uv__is_active(handle))
-    return -EINVAL;
+    return 0;
 
   uv__handle_stop(handle);
 

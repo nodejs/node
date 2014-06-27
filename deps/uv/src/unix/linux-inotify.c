@@ -231,7 +231,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   struct watcher_list* w;
 
   if (!uv__is_active(handle))
-    return -EINVAL;
+    return 0;
 
   w = find_watcher(handle->loop, handle->wd);
   assert(w != NULL);

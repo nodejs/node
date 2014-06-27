@@ -113,8 +113,7 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
       if (addrinfow_ptr->ai_canonname != NULL) {
         name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname, -1, NULL, 0);
         if (name_len == 0) {
-          /* FIXME(bnoordhuis) Retain GetLastError(). */
-          err = UV_EAI_SYSTEM;
+          err = uv_translate_sys_error(GetLastError());
           goto complete;
         }
         addrinfo_len += ALIGNED_SIZE(name_len);
