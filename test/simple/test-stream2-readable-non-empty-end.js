@@ -35,7 +35,7 @@ var n = 0;
 test._read = function(size) {
   var chunk = chunks[n++];
   setTimeout(function() {
-    test.push(chunk);
+    test.push(chunk === undefined ? null : chunk);
   });
 };
 
