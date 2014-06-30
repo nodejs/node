@@ -19,27 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// O_NONBLOCK is not exported unless _XOPEN_SOURCE >= 500.
-#if defined(_XOPEN_SOURCE) && _XOPEN_SOURCE < 500
-#undef _XOPEN_SOURCE
-#endif
-
-#if !defined(_XOPEN_SOURCE)
-#define _XOPEN_SOURCE 500
-#endif
-
 #include "node_constants.h"
 
 #include "uv.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+// O_NONBLOCK is not exported, unless _XOPEN_SOURCE is set
+#define _XOPEN_SOURCE 500
+#include <fcntl.h>
 
 #if HAVE_OPENSSL
 # include <openssl/ssl.h>
