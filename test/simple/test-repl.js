@@ -82,7 +82,10 @@ function error_test() {
     if (read_buffer.indexOf(prompt_unix) !== -1) {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
-        assert.ok(read_buffer.match(client_unix.expect));
+        var expect = client_unix.expect;
+        if (expect === prompt_multiline)
+          expect = /[\.]{3} /;
+        assert.ok(read_buffer.match(expect));
         console.error('match');
       }
       read_buffer = '';
