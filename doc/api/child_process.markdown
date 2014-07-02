@@ -491,6 +491,8 @@ See also: `child_process.exec()` and `child_process.fork()`
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} (Default: `200*1024`)
   * `killSignal` {String} (Default: 'SIGTERM')
+  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
   * `stdout` {Buffer}
@@ -544,6 +546,8 @@ the child process is killed.
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} (Default: 200\*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
+  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
   * `stdout` {Buffer}
@@ -570,6 +574,8 @@ leaner than `child_process.exec`. It has the same options.
     piped to the parent, otherwise they will be inherited from the parent, see
     the "pipe" and "inherit" options for `spawn()`'s `stdio` for more details
     (default is false)
+  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node
