@@ -268,7 +268,6 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(args[5]);
   const bool have_callback = args[6]->IsTrue();
 
-  assert(offset < Buffer::Length(buffer_obj));
   assert(length <= Buffer::Length(buffer_obj) - offset);
 
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
@@ -396,7 +395,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
                      const uv_buf_t* buf,
                      const struct sockaddr* addr,
                      unsigned int flags) {
-  if (nread == 0) {
+  if (nread == 0 && addr == NULL) {
     if (buf->base != NULL)
       free(buf->base);
     return;
