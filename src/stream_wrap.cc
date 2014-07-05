@@ -605,7 +605,7 @@ int StreamWrapCallbacks::TryWrite(uv_buf_t** bufs, size_t* count) {
   size_t vcount = *count;
 
   err = uv_try_write(wrap()->stream(), vbufs, vcount);
-  if (err == UV_ENOSYS)
+  if (err == UV_ENOSYS || err == UV_EAGAIN)
     return 0;
   if (err < 0)
     return err;
