@@ -126,7 +126,6 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
-        'src/node_contextify.h',
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_internals.h',
