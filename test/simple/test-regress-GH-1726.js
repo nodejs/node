@@ -38,7 +38,7 @@ if (gen === maxGen) {
 }
 
 var child = ch.spawn(process.execPath, [__filename, gen + 1], {
-  customFds: [0, -1, 2]
+  stdio: 'inherit'
 });
 assert.ok(!child.stdin);
 assert.ok(child.stdout);

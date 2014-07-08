@@ -27,7 +27,7 @@ var SIZE = 100000;
 var childGone = false;
 
 var cp = ch.spawn('python', ['-c', 'print ' + SIZE + ' * "C"'], {
-  customFds: [0, 1, 2]
+  stdio: 'inherit'
 });
 
 cp.on('exit', function(code) {
