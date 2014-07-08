@@ -300,8 +300,6 @@ child process has any open IPC channels with the parent (i.e `fork()`).
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `stdio` {Array|String} Child's stdio configuration. (See below)
-  * `customFds` {Array} **Deprecated** File descriptors for the child to use
-    for stdio.  (See below)
   * `env` {Object} Environment key-value pairs
   * `detached` {Boolean} The child will be a process group leader.  (See below)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
@@ -467,13 +465,6 @@ When using the `detached` option to start a long-running process, the process
 will not stay running in the background unless it is provided with a `stdio`
 configuration that is not connected to the parent.  If the parent's `stdio` is
 inherited, the child will remain attached to the controlling terminal.
-
-There is a deprecated option called `customFds` which allows one to specify
-specific file descriptors for the stdio of the child process. This API was
-not portable to all platforms and therefore removed.
-With `customFds` it was possible to hook up the new process' `[stdin, stdout,
-stderr]` to existing streams; `-1` meant that a new stream should be created.
-Use at your own risk.
 
 See also: `child_process.exec()` and `child_process.fork()`
 
