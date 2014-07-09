@@ -34,7 +34,8 @@ var net = require('net'),
                  'node repl, in your normal shell.\n' +
                  '(Press Control-D to exit.)\n',
     expect_npm = prompt_npm + prompt_unix,
-    server_tcp, server_unix, client_tcp, client_unix, timer;
+    server_tcp, server_unix, client_tcp, client_unix, timer,
+    repl_unix;
 
 
 // absolute path to test/fixtures/a.js
@@ -99,6 +100,7 @@ function error_test() {
     } else if (read_buffer.indexOf(prompt_multiline) !== -1) {
       // Check that you meant to send a multiline test
       assert.strictEqual(prompt_multiline, client_unix.expect);
+      assert.equal(repl_unix._prompt, prompt_multiline);
       read_buffer = '';
       if (client_unix.list && client_unix.list.length > 0) {
         send_expect(client_unix.list);
@@ -275,12 +277,13 @@ function unix_test() {
       socket.end();
     });
 
-    repl.start({
+    repl_unix = repl.start({
       prompt: prompt_unix,
       input: socket,
       output: socket,
       useGlobal: true
-    }).context.message = message;
+    });
+    repl_unix.context.message = message;
   });
 
   server_unix.on('listening', function() {
