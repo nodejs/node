@@ -3527,13 +3527,13 @@ int EmitExit(Environment* env) {
 
 
 Environment* CreateEnvironment(Isolate* isolate,
+                               Handle<Context> context,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
                                const char* const* exec_argv) {
   HandleScope handle_scope(isolate);
 
-  Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
   Environment* env = Environment::New(context);
 
@@ -3605,8 +3605,10 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   {
     Locker locker(node_isolate);
-    Environment* env =
-        CreateEnvironment(node_isolate, argc, argv, exec_argc, exec_argv);
+    HandleScope handle_scope(node_isolate);
+    Local<Context> context = Context::New(node_isolate);
+    Environment* env = CreateEnvironment(
+        node_isolate, context, argc, argv, exec_argc, exec_argv);
     // Assign env to the debugger's context
     if (debugger_running) {
       HandleScope scope(env->isolate());
