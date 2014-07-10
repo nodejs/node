@@ -250,7 +250,15 @@ See [child_process event: 'exit'](child_process.html#child_process_event_exit).
 
 ## Event: 'setup'
 
-Emitted every time `.setupMaster()` is called with a `settings` argument.
+* `settings` {Object}
+
+Emitted every time `.setupMaster()` is called.
+
+The `settings` object is the `cluster.settings` object at the time
+`.setupMaster()` was called and is advisory only, since multiple calls to
+`.setupMaster()` can be made in a single tick.
+
+If accuracy is important, use `cluster.settings`.
 
 ## cluster.setupMaster([settings])
 
