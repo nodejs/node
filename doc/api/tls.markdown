@@ -90,7 +90,7 @@ This is achieved by randomly generating a key pair for key-agreement on every
 handshake (in contrary to the same key for all sessions). Methods implementing
 this technique, thus offering Perfect Forward Secrecy, are called "ephemeral".
 
-Currently two methods are commonly used to achieve Perfect Forward Secrecy (note 
+Currently two methods are commonly used to achieve Perfect Forward Secrecy (note
 the character "E" appended to the traditional abbreviations):
 
   * [DHE] - An ephemeral version of the Diffie Hellman key-agreement protocol.
@@ -339,7 +339,7 @@ Here is an example of a client of echo server as described previously:
       // These are necessary only if using the client certificate authentication
       key: fs.readFileSync('client-key.pem'),
       cert: fs.readFileSync('client-cert.pem'),
-    
+
       // This is necessary only if the server uses the self-signed certificate
       ca: [ fs.readFileSync('server-cert.pem') ]
     };
@@ -771,6 +771,10 @@ object with three properties, e.g.
 
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
+
+### tlsSocket.remoteFamily
+
+The string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### tlsSocket.remotePort
 

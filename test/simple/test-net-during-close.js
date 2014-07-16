@@ -35,6 +35,7 @@ server.listen(common.PORT, function() {
   // client is still attempting to connect
   assert.doesNotThrow(function() {
     client.remoteAddress;
+    client.remoteFamily;
     client.remotePort;
   });
   accessedProperties = true;

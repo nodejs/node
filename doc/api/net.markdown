@@ -449,6 +449,10 @@ the socket is `ref`d calling `ref` again will have no effect.
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
+### socket.remoteFamily
+
+The string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
+
 ### socket.remotePort
 
 The numeric representation of the remote port. For example,
