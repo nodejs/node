@@ -473,6 +473,11 @@ void TLSCallbacks::ClearOut() {
     Local<Value> arg = GetSSLError(read, &err, NULL);
 
     if (!arg.IsEmpty()) {
+      // When TLS Alert are stored in wbio,
+      // it should be flushed to socket before destroyed.
+      if (BIO_pending(enc_out_) != 0)
+        EncOut();
+
       MakeCallback(env()->onerror_string(), 1, &arg);
     }
   }
