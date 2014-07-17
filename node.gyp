@@ -271,6 +271,14 @@
             'PLATFORM="darwin"',
           ],
         }],
+        [ 'OS=="mac" and v8_postmortem_support=="true"', {
+          # Do not let `v8dbg_` symbols slip away
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(V8_BASE)',
+            ],
+          },
+        }],
         [ 'OS=="freebsd"', {
           'libraries': [
             '-lutil',
