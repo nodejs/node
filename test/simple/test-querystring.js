@@ -57,7 +57,9 @@ var qsTestCases = [
       valueOf: 'bar',
       __defineGetter__: 'baz' }],
   // See: https://github.com/joyent/node/issues/3058
-  ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }]
+  ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
+  [null, '', {}],
+  [undefined, '', {}]
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
@@ -87,7 +89,8 @@ var qsWeirdObjects = [
   [{f: false, t: true}, 'f=false&t=true', {'f': 'false', 't': 'true'}],
   [{n: null}, 'n=', {'n': ''}],
   [{nan: NaN}, 'nan=', {'nan': ''}],
-  [{inf: Infinity}, 'inf=', {'inf': ''}]
+  [{inf: Infinity}, 'inf=', {'inf': ''}],
+  [{a: [], b: []}, '', {}]
 ];
 // }}}
 
