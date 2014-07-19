@@ -62,9 +62,10 @@ Finish timer, record output. Example:
     }
     console.timeEnd('100-elements');
 
-## console.trace(label)
+## console.trace(message, [...])
 
-Print a stack trace to stderr of the current position.
+Print to stderr `'Trace :'`, followed by the formatted message and stack trace
+to the current position.
 
 ## console.assert(value, [message], [...])
 
