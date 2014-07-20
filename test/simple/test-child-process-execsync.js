@@ -96,3 +96,10 @@ assert.strictEqual(ret, msg + '\n', 'execFileSync encoding result should match')
 
   assert.strictEqual(response.toString().trim(), cwd);
 })();
+
+// Verify that stderr is not accessed when stdio = 'ignore' - GH #7966
+(function() {
+  assert.throws(function() {
+    execSync('exit -1', {stdio: 'ignore'});
+  }, /Command failed: exit -1/);
+})();
