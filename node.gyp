@@ -261,6 +261,11 @@
         } ],
         [ 'v8_postmortem_support=="true"', {
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(V8_BASE)',
+            ],
+          },
         }],
         [ 'node_shared_v8=="false"', {
           'sources': [
