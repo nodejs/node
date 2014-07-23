@@ -602,6 +602,10 @@
     process.kill = function(pid, sig) {
       var err;
 
+      if (typeof pid !== 'number' || !isFinite(pid)) {
+        throw new TypeError('pid must be a number');
+      }
+
       // preserve null signal
       if (0 === sig) {
         err = process._kill(pid, 0);
