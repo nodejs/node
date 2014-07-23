@@ -19,11 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
 
-
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 
@@ -179,7 +178,8 @@ function runClient(options, cb) {
   }
 
   // To test use: openssl s_client -connect localhost:8000
-  var client = spawn('openssl', args);
+  console.log(common.opensslCli, args);
+  var client = spawn(common.opensslCli, args);
 
   var out = '';
 
