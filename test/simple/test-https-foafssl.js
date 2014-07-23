@@ -19,17 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
+var common = require('../common');
+
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 
-var common = require('../common');
 var assert = require('assert');
 var join = require('path').join;
 
 var fs = require('fs');
-var exec = require('child_process').exec;
+var spawn = require('child_process').spawn;
 
 var https = require('https');
 
@@ -40,6 +41,7 @@ var options = {
 };
 
 var reqCount = 0;
+var CRLF = '\r\n';
 var body = 'hello world\n';
 var cert;
 var subjectaltname;
@@ -62,17 +64,26 @@ var server = https.createServer(options, function(req, res) {
 
 
 server.listen(common.PORT, function() {
-  var cmd = 'curl --insecure https://127.0.0.1:' + common.PORT + '/';
-  cmd += ' --cert ' + join(common.fixturesDir, 'foafssl.crt');
-  cmd += ' --key ' + join(common.fixturesDir, 'foafssl.key');
-  console.error('executing %j', cmd);
-  exec(cmd, function(err, stdout, stderr) {
-    if (err) throw err;
-    common.error(common.inspect(stdout));
-    assert.equal(body, stdout);
+  var args = ['s_client',
+              '-quiet',
+              '-connect', '127.0.0.1:' + common.PORT,
+              '-cert', join(common.fixturesDir, 'foafssl.crt'),
+              '-key', join(common.fixturesDir, 'foafssl.key')];
+
+  var client = spawn(common.opensslCli, args);
+
+  client.stdout.on('data', function(data) {
+    var message = data.toString();
+    var contents = message.split(CRLF + CRLF).pop();
+    assert.equal(body, contents);
     server.close();
   });
 
+  client.stdin.write('GET /\n\n');
+
+  client.on('error', function(error) {
+    throw error;
+  });
 });
 
 process.on('exit', function() {
