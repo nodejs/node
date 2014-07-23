@@ -342,6 +342,13 @@ def is_arch_armv7():
           '__ARM_ARCH_7M__' in cc_macros_cache)
 
 
+def is_arch_armv6():
+  """Check for ARMv6 instructions"""
+  cc_macros_cache = cc_macros()
+  return ('__ARM_ARCH_6__' in cc_macros_cache or
+          '__ARM_ARCH_6M__' in cc_macros_cache)
+
+
 def is_arm_neon():
   """Check for ARM NEON support"""
   return '__ARM_NEON__' in cc_macros()
@@ -438,7 +445,14 @@ def configure_arm(o):
     arm_float_abi = 'hard'
   else:
     arm_float_abi = 'default'
-  o['variables']['armv7'] = int(is_arch_armv7())
+
+  if is_arch_armv7():
+    o['variables']['arm_version'] = '7'
+  elif is_arch_armv6():
+    o['variables']['arm_version'] = '6'
+  else:
+    o['variables']['arm_version'] = 'default'
+
   o['variables']['arm_fpu'] = 'vfpv3'  # V8 3.18 no longer supports VFP2.
   o['variables']['arm_neon'] = int(is_arm_neon())
   o['variables']['arm_thumb'] = 0      # -marm
