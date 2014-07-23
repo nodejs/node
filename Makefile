@@ -125,6 +125,13 @@ test-npm: node
 test-npm-publish: node
 	npm_package_config_publishtest=true ./node deps/npm/test/run.js
 
+test-timers:
+	$(MAKE) --directory=tools faketime
+	$(PYTHON) tools/test.py --mode=release timers
+
+test-timers-clean:
+	$(MAKE) --directory=tools clean
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))
