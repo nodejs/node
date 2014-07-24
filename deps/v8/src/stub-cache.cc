@@ -633,7 +633,18 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-  ASSERT(receiver->HasNamedInterceptor());
+  if (receiver->IsJSGlobalProxy()) {
+    Object* proto = Object::cast(*receiver)->GetPrototype(isolate);
+#ifdef DEBUG
+    ASSERT(proto == NULL ||
+           JSGlobalObject::cast(proto)->HasNamedInterceptor());
+#endif
+    receiver = Handle<JSObject>(JSObject::cast(proto));
+  } else {
+#ifdef DEBUG
+    ASSERT(receiver->HasNamedInterceptor());
+#endif
+  }
   PropertyAttributes attr = NONE;
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
