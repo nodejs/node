@@ -43,7 +43,9 @@ process.on('exit', function(code) {
 //
 // Nan, Infinity, -Infinity: TypeError
 //
-// 0, process.pid: ourself
+// 0: our group process
+//
+// process.pid: ourself
 
 assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
 assert.throws(function() { process.kill(String(process.pid)); }, TypeError);
@@ -60,5 +62,32 @@ process.once('SIGHUP', function() {
   });
   process.kill(process.pid, 'SIGHUP');
 });
+
+
+/*
+ * Monkey patch _kill so that, in the specific case
+ * when we want to test sending a signal to pid 0,
+ * we don't actually send the signal to the process group.
+ * Otherwise, it could cause a lot of trouble, like terminating
+ * the test runner, or any other process that belongs to the
+ * same process group as this test.
+ */
+var origKill = process._kill;
+process._kill = function(pid, sig) {
+    /*
+     * make sure we patch _kill only when
+     * we want to test sending a signal
+     * to the process group.
+     */
+    assert.strictEqual(pid, 0);
+
+    // make sure that _kill is passed the correct args types
+    assert(typeof pid === 'number');
+    assert(typeof sig === 'number');
+
+    // un-monkey patch process._kill
+    process._kill = origKill;
+    process._kill(process.pid, sig);
+}
 
 process.kill(0, 'SIGHUP');
