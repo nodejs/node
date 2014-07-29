@@ -74,14 +74,15 @@ Finish timer, record output. Example:
     }
     console.timeEnd('100-elements');
 
-## console.trace(label)
+## console.trace(message, [...])
 
-Print a stack trace to stderr of the current position.
+Print to stderr `'Trace :'`, followed by the formatted message and stack trace
+to the current position.
 
-## console.assert(expression, [message])
+## console.assert(value, [message], [...])
 
-Same as [assert.ok()][] where if the `expression` evaluates as `false` throw an
-AssertionError with `message`.
+Similar to [assert.ok()][], but the error message is formatted as
+`util.format(message...)`.
 
 [assert.ok()]: assert.html#assert_assert_value_message_assert_ok_value_message
 [util.format()]: util.html#util_util_format_format
