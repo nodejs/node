@@ -964,6 +964,22 @@ assert.throws(function() { buf.readInt8(0); }, /beyond buffer length/);
   );
 });
 
+[16, 32].forEach(function(bits) {
+  var buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
+
+  assert.equal(buf['readUInt' + bits + 'BE'](0),
+                (0xFFFFFFFF >>> (32 - bits)));
+
+  assert.equal(buf['readUInt' + bits + 'LE'](0),
+                (0xFFFFFFFF >>> (32 - bits)));
+
+  assert.equal(buf['readInt' + bits + 'BE'](0),
+                (0xFFFFFFFF >> (32 - bits)));
+
+  assert.equal(buf['readInt' + bits + 'LE'](0),
+                (0xFFFFFFFF >> (32 - bits)));
+});
+
 // SlowBuffer sanity checks.
 assert.throws(function() {
   var len = 0xfffff;
