@@ -385,7 +385,8 @@ in pseudocode of what require.resolve does:
     LOAD_AS_FILE(X)
     1. If X is a file, load X as JavaScript text.  STOP
     2. If X.js is a file, load X.js as JavaScript text.  STOP
-    3. If X.node is a file, load X.node as binary addon.  STOP
+    3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
+    4. If X.node is a file, load X.node as binary addon.  STOP
 
     LOAD_AS_DIRECTORY(X)
     1. If X/package.json is a file,

@@ -37,6 +37,22 @@ encoding method.  Here are the different string encodings.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
+Creating a typed array from a `Buffer` works with the following caveats:
+
+1. The buffer's memory is copied, not shared.
+
+2. The buffer's memory is interpreted as an array, not a byte array.  That is,
+   `new Uint32Array(new Buffer([1,2,3,4]))` creates a 4-element `Uint32Array`
+   with elements `[1,2,3,4]`, not an `Uint32Array` with a single element
+   `[0x1020304]` or `[0x4030201]`.
+
+NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
+instead of cloning it.
+
+While more efficient, it introduces subtle incompatibilities with the typed
+arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
+`Buffer#slice()` creates a view.
+
 ## Class: Buffer
 
 The Buffer class is a global type for dealing with binary data directly.

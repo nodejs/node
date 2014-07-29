@@ -19,23 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+
+var common = require('../common.js');
+var R = require('_stream_readable');
+var W = require('_stream_writable');
 var assert = require('assert');
 
-var Readable = require('stream').Readable;
+var src = new R({encoding: 'base64'});
+var dst = new W();
+var hasRead = false;
+var accum = [];
+var timeout;
 
-var r = new Readable();
-var errors = 0;
+src._read = function(n) {
+  if(!hasRead) {
+    hasRead = true;
+    process.nextTick(function() {
+      src.push(new Buffer('1'));
+      src.push(null);
+    });
+  };
+};
 
-// Setting `data` listener should not trigger `_read()` calls before we will
-// set the `error` listener below
-r.on('data', function() {
-});
+dst._write = function(chunk, enc, cb) {
+  accum.push(chunk);
+  cb();
+};
 
-r.on('error', function() {
-  errors++;
-});
+src.on('end', function() {
+  assert.equal(Buffer.concat(accum) + '', 'MQ==');
+  clearTimeout(timeout);
+})
 
-process.on('exit', function() {
-  assert.equal(errors, 1);
-});
+src.pipe(dst);
+
+timeout = setTimeout(function() {
+  assert.fail('timed out waiting for _write');
+}, 100);

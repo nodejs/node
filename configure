@@ -473,6 +473,8 @@ def configure_node(o):
 
   if target_arch != host_arch and not options.without_snapshot:
     o['variables']['want_separate_host_toolset'] = 1
+  else:
+    o['variables']['want_separate_host_toolset'] = 0
 
   if target_arch == 'arm':
     configure_arm(o)

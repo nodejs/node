@@ -188,8 +188,8 @@ which must be a `'binary'` encoded string or a [buffer](buffer.html).
 
 It is a [stream](stream.html) that is both readable and writable.  The
 written data is used to compute the hash.  Once the writable side of
-the stream is ended, use the `read()` method to get the computed hash
-digest.  The legacy `update` and `digest` methods are also supported.
+the stream is ended, use the `read()` method to get the enciphered
+contents.  The legacy `update` and `final` methods are also supported.
 
 ## crypto.createCipheriv(algorithm, key, iv)
 
