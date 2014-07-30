@@ -155,6 +155,19 @@
                 # For tests
                 './deps/openssl/openssl.gyp:openssl-cli',
               ],
+              # Do not let unused OpenSSL symbols to slip away
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-force_load,<(PRODUCT_DIR)/libopenssl.a',
+                ],
+              },
+              'conditions': [
+                ['OS=="linux"', {
+                  'ldflags': [
+                    '-Wl,--whole-archive <(PRODUCT_DIR)/libopenssl.a -Wl,--no-whole-archive',
+                  ],
+                }],
+              ],
             }]]
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
