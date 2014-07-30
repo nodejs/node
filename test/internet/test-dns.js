@@ -447,7 +447,14 @@ TEST(function test_lookupservice_ip_ipv4(done) {
 TEST(function test_lookupservice_ip_ipv6(done) {
   var req = dns.lookupService('::1', 80, function(err, host, service) {
     if (err) throw err;
-    assert.strictEqual(host, 'localhost');
+    /*
+     * On some systems, ::1 can be set to "localhost", on others it
+     * can be set to "ip6-localhost". There does not seem to be
+     * a consensus on that. Ultimately, it could be set to anything
+     * else just by changing /etc/hosts for instance, but it seems
+     * that most sane platforms use either one of these two by default.
+     */
+    assert(host === 'localhost' || host === 'ip6-localhost');
     assert.strictEqual(service, 'http');
 
     done();
