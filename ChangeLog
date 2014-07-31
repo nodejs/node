@@ -1,4 +1,9 @@
-2014.06.09, Version 0.8.27 (maintenance)
+2014.07.31, Version 0.8.28 (maintenance)
+
+* v8: Interrupts must not mask stack overflow. (Fedor Indutny)
+
+
+2014.06.09, Version 0.8.27 (maintenance), a69205346b09eb3fd21e9530a75868b92102e039
 
 * openssl: update to 1.0.0m (CVE-2014-0224)
 
