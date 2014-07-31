@@ -50,7 +50,7 @@
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
     <Target Name="BeforeBuild">
-      <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NPMSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NPMFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs">
+      <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NPMSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NPMFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs" RunAsSeparateProcess="true">
       </HeatDirectory>
     </Target>
 </Project>
