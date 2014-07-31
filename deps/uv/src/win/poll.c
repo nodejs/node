@@ -187,7 +187,8 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     if (afd_poll_info->Handles[0].Events & AFD_POLL_LOCAL_CLOSE) {
       /* Stop polling. */
       handle->events = 0;
-      uv__handle_stop(handle);
+      if (uv__is_active(handle))
+        uv__handle_stop(handle);
     }
 
     if (events != 0) {

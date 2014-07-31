@@ -34,6 +34,8 @@ static void uv__getaddrinfo_work(struct uv__work* w) {
                              req->service,
                              req->hints,
                              &req->res);
+  if (req->retcode == EAI_SYSTEM)
+    req->retcode = -errno;
 }
 
 
@@ -67,7 +69,10 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req->service = NULL;
   req->hostname = NULL;
 
-  if (req->retcode == 0) {
+  if (req->retcode < 0) {
+    /* EAI_SYSTEM error */
+    uv__set_sys_error(req->loop, -req->retcode);
+  } else if (req->retcode == 0) {
     /* OK */
 #if defined(EAI_NODATA) /* FreeBSD deprecated EAI_NODATA */
   } else if (req->retcode == EAI_NONAME || req->retcode == EAI_NODATA) {

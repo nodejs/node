@@ -681,9 +681,9 @@ TEST_IMPL(spawn_closed_process_io) {
   uv_write_t write_req;
   uv_buf_t buf;
   uv_stdio_container_t stdio[2];
-  static char buffer[] = "hello-from-spawn_stdin";
+  static char buffer[] = "hello-from-spawn_stdin\n";
 
-  init_process_options("spawn_helper1", exit_cb);
+  init_process_options("spawn_helper3", exit_cb);
 
   uv_pipe_init(uv_default_loop(), &in, 0);
   options.stdio = stdio;

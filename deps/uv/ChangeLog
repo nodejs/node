@@ -1,4 +1,18 @@
-2014.05.02, Version 0.10.27 (Stable)
+2014.07.32, Version 0.10.28 (Stable)
+
+Changes since version 0.10.27:
+
+* windows: fix handling closed socket while poll handle is closing (Saúl Ibarra
+  Corretgé)
+
+* unix: return system error on EAI_SYSTEM (Saúl Ibarra Corretgé)
+
+* unix: fix bogus structure field name (Saúl Ibarra Corretgé)
+
+* darwin: invoke `mach_timebase_info` only once (Fedor Indutny)
+
+
+2014.05.02, Version 0.10.27 (Stable), 6e24ce23b1e7576059f85a608eca13b766458a01
 
 Changes since version 0.10.26:
 

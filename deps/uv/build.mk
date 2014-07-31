@@ -102,6 +102,7 @@ TESTS= \
 	test/test-platform-output.o \
 	test/test-poll.o \
 	test/test-poll-close.o \
+	test/test-poll-closesocket.o \
 	test/test-process-title.o \
 	test/test-ref.o \
 	test/test-run-nowait.o \
