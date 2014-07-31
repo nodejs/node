@@ -23,6 +23,14 @@ test("~ path is resolved to $HOME", function (t) {
   t.end()
 })
 
+// https://github.com/npm/nopt/issues/24
+test("Unknown options are not parsed as numbers", function (t) {
+    var parsed = nopt({"parse-me": Number}, null, ['--leave-as-is=1.20', '--parse-me=1.20'], 0)
+    t.equal(parsed['leave-as-is'], '1.20')
+    t.equal(parsed['parse-me'], 1.2)
+    t.end()
+});
+
 test("other tests", function (t) {
 
   var util = require("util")
@@ -170,7 +178,7 @@ test("other tests", function (t) {
      ,{t:["true"]}
      ,[]]
     ,["-aoa one -aoa null -aoa 100"
-     ,{aoa:["one", null, 100]}
+     ,{aoa:["one", null, '100']}
      ,[]]
     ,["-str 100"
      ,{str:"100"}

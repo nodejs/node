@@ -4,20 +4,15 @@ module.exports = helpSearch
 var fs = require("graceful-fs")
   , path = require("path")
   , asyncMap = require("slide").asyncMap
-  , cliDocsPath = path.join(__dirname, "..", "doc", "cli")
-  , apiDocsPath = path.join(__dirname, "..", "doc", "api")
-  , log = require("npmlog")
   , npm = require("./npm.js")
   , glob = require("glob")
+  , color = require("ansicolors")
 
 helpSearch.usage = "npm help-search <text>"
 
 function helpSearch (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
   if (!args.length) return cb(helpSearch.usage)
-
-  // see if we're actually searching the api docs.
-  var argv = npm.config.get("argv").cooked
 
   var docPath = path.resolve(__dirname, "..", "doc")
   return glob(docPath + "/*/*.md", function (er, files) {
@@ -53,24 +48,27 @@ function searchFiles (args, files, cb) {
     var data = files[file]
 
     // skip if no matches at all
+    var match
     for (var a = 0, l = args.length; a < l && !match; a++) {
-      var match = data.toLowerCase().indexOf(args[a].toLowerCase()) !== -1
+      match = data.toLowerCase().indexOf(args[a].toLowerCase()) !== -1
     }
     if (!match)
       return
 
     var lines = data.split(/\n+/)
-    var context = []
 
     // if a line has a search term, then skip it and the next line.
     // if the next line has a search term, then skip all 3
     // otherwise, set the line to null.  then remove the nulls.
-    for (var i = 0, l = lines.length; i < l; i ++) {
+    l = lines.length
+    for (var i = 0; i < l; i ++) {
       var line = lines[i]
         , nextLine = lines[i + 1]
-        , match = false
+        , ll
+
+      match = false
       if (nextLine) {
-        for (var a = 0, ll = args.length; a < ll && !match; a ++) {
+        for (a = 0, ll = args.length; a < ll && !match; a ++) {
           match = nextLine.toLowerCase()
                   .indexOf(args[a].toLowerCase()) !== -1
         }
@@ -82,7 +80,7 @@ function searchFiles (args, files, cb) {
       }
 
       match = false
-      for (var a = 0, ll = args.length; a < ll && !match; a ++) {
+      for (a = 0, ll = args.length; a < ll && !match; a ++) {
         match = line.toLowerCase().indexOf(args[a].toLowerCase()) !== -1
       }
       if (match) {
@@ -161,7 +159,7 @@ function formatResults (args, results, cb) {
 
   var cols = Math.min(process.stdout.columns || Infinity, 80) + 1
 
-  var out = results.map(function (res, i, results) {
+  var out = results.map(function (res) {
     var out = res.cmd
       , r = Object.keys(res.hits).map(function (k) {
           return k + ":" + res.hits[k]
@@ -170,37 +168,31 @@ function formatResults (args, results, cb) {
         }).join(" ")
 
     out += ((new Array(Math.max(1, cols - out.length - r.length)))
-             .join (" ")) + r
+             .join(" ")) + r
 
     if (!npm.config.get("long")) return out
 
-    var out = "\n\n" + out
+    out = "\n\n" + out
          + "\n" + (new Array(cols)).join("—") + "\n"
          + res.lines.map(function (line, i) {
       if (line === null || i > 3) return ""
       for (var out = line, a = 0, l = args.length; a < l; a ++) {
         var finder = out.toLowerCase().split(args[a].toLowerCase())
-          , newOut = []
+          , newOut = ""
           , p = 0
+
         finder.forEach(function (f) {
-          newOut.push( out.substr(p, f.length)
-                     , "\1"
-                     , out.substr(p + f.length, args[a].length)
-                     , "\2" )
+          newOut += out.substr(p, f.length)
+
+          var hilit = out.substr(p + f.length, args[a].length)
+          if (npm.color) hilit = color.bgBlack(color.red(hilit))
+          newOut += hilit
+
           p += f.length + args[a].length
         })
-        out = newOut.join("")
       }
-      if (npm.color) {
-        var color = "\033[31;40m"
-          , reset = "\033[0m"
-      } else {
-        var color = ""
-          , reset = ""
-      }
-      out = out.split("\1").join(color)
-               .split("\2").join(reset)
-      return out
+
+      return newOut
     }).join("\n").trim()
     return out
   }).join("\n")

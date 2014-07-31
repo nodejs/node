@@ -3,8 +3,8 @@ npm-link(3) -- Symlink a package folder
 
 ## SYNOPSIS
 
-    npm.command.link(callback)
-    npm.command.link(packages, callback)
+    npm.commands.link(callback)
+    npm.commands.link(packages, callback)
 
 ## DESCRIPTION
 

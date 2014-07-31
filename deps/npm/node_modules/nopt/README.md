@@ -116,8 +116,7 @@ considered valid values.  For instance, in the example above, the
 and any other value will be rejected.
 
 When parsing unknown fields, `"true"`, `"false"`, and `"null"` will be
-interpreted as their JavaScript equivalents, and numeric values will be
-interpreted as a number.
+interpreted as their JavaScript equivalents.
 
 You can also mix types and values, or multiple types, in a list.  For
 instance `{ blah: [Number, null] }` would allow a value to be set to

@@ -10,10 +10,12 @@ var npm = require("./npm.js")
   , path = require("path")
   , readJson = require("read-package-json")
   , fs = require("fs")
+  , url = require("url")
 
 bugs.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
-  registry.get("/-/short", 60000, function (er, list) {
+  var uri = url.resolve(npm.config.get("registry"), "-/short")
+  registry.get(uri, { timeout : 60000 }, function (er, list) {
     return cb(null, list || [])
   })
 }
@@ -54,7 +56,8 @@ function getUrlAndOpen (d, cb) {
 }
 
 function callRegistry (n, cb) {
-  registry.get(n + "/latest", 3600, function (er, d) {
+  var uri = url.resolve(npm.config.get("registry"), n + "/latest")
+  registry.get(uri, { timeout : 3600 }, function (er, d) {
     if (er) return cb(er)
     getUrlAndOpen (d, cb)
   })

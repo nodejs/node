@@ -1,0 +1,75 @@
+{
+  "name": "ansi-regex",
+  "version": "0.1.0",
+  "description": "Regular expression for matching ANSI escape codes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/sindresorhus/ansi-regex"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "http://sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "ansi",
+    "styles",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "string",
+    "tty",
+    "escape",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "text",
+    "regex",
+    "regexp",
+    "re"
+  ],
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/ansi-regex/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/ansi-regex",
+  "_id": "ansi-regex@0.1.0",
+  "_shasum": "55ca60db6900857c423ae9297980026f941ed903",
+  "_from": "ansi-regex@^0.1.0",
+  "_npmVersion": "1.4.9",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "55ca60db6900857c423ae9297980026f941ed903",
+    "tarball": "http://registry.npmjs.org/ansi-regex/-/ansi-regex-0.1.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-0.1.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

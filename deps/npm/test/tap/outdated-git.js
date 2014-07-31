@@ -14,12 +14,12 @@ test("dicovers new versions in outdated", function (t) {
   process.chdir(pkg)
   t.plan(5)
   npm.load({cache: pkg + "/cache", registry: common.registry}, function () {
-    npm.outdated(function (er, d) {
+    npm.commands.outdated([], function (er, d) {
       t.equal('git', d[0][3])
       t.equal('git', d[0][4])
       t.equal('git://github.com/robertkowalski/foo-private.git', d[0][5])
       t.equal('git://user:pass@github.com/robertkowalski/foo-private.git', d[1][5])
-      t.equal('git://github.com/robertkowalski/foo', d[2][5])
+      t.equal('git+https://github.com/robertkowalski/foo', d[2][5])
     })
   })
 })

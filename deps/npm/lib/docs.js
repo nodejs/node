@@ -5,16 +5,18 @@ docs.usage += "\n"
 docs.usage += "npm docs ."
 
 docs.completion = function (opts, cb) {
-  registry.get("/-/short", 60000, function (er, list) {
+  var uri = url_.resolve(npm.config.get("registry"), "/-/short")
+  registry.get(uri, { timeout : 60000 }, function (er, list) {
     return cb(null, list || [])
   })
 }
 
-var npm = require("./npm.js")
+var url_ = require("url")
+  , npm = require("./npm.js")
   , registry = npm.registry
   , opener = require("opener")
-  , path = require('path')
-  , log = require('npmlog')
+  , path = require("path")
+  , log = require("npmlog")
 
 function url (json) {
   return json.homepage ? json.homepage : "https://npmjs.org/package/" + json.name
@@ -26,7 +28,9 @@ function docs (args, cb) {
   if (!pending) return getDoc('.', cb)
   args.forEach(function(proj) {
     getDoc(proj, function(err) {
-      if (err) return cb(err)
+      if (err) {
+        return cb(err)
+      }
       --pending || cb()
     })
   })
@@ -37,8 +41,9 @@ function getDoc (project, cb) {
   var package = path.resolve(process.cwd(), "package.json")
 
   if (project === '.' || project === './') {
+    var json
     try {
-      var json = require(package)
+      json = require(package)
       if (!json.name) throw new Error('package.json does not have a valid "name" property')
       project = json.name
     } catch (e) {
@@ -49,7 +54,8 @@ function getDoc (project, cb) {
     return opener(url(json), { command: npm.config.get("browser") }, cb)
   }
 
-  registry.get(project + "/latest", 3600, function (er, json) {
+  var uri = url_.resolve(npm.config.get("registry"), project + "/latest")
+  registry.get(uri, { timeout : 3600 }, function (er, json) {
     var github = "https://github.com/" + project + "#readme"
 
     if (er) {

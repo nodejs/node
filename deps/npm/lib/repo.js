@@ -5,14 +5,14 @@ repo.usage = "npm repo <pkgname>"
 
 repo.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
-  registry.get("/-/short", 60000, function (er, list) {
+  var uri = url_.resolve(npm.config.get("registry"), "/-/short")
+  registry.get(uri, { timeout : 60000 }, function (er, list) {
     return cb(null, list || [])
   })
 }
 
 var npm = require("./npm.js")
   , registry = npm.registry
-  , log = require("npmlog")
   , opener = require("opener")
   , github = require('github-url-from-git')
   , githubUserRepo = require("github-url-from-username-repo")
@@ -52,7 +52,8 @@ function getUrlAndOpen (d, cb) {
 }
 
 function callRegistry (n, cb) {
-  registry.get(n + "/latest", 3600, function (er, d) {
+  var uri = url_.resolve(npm.config.get("registry"), n + "/latest")
+  registry.get(uri, { timeout : 3600 }, function (er, d) {
     if (er) return cb(er)
     getUrlAndOpen(d, cb)
   })

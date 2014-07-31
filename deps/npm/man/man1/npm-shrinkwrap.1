@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-SHRINKWRAP" "1" "June 2014" "" ""
+.TH "NPM\-SHRINKWRAP" "1" "July 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-shrinkwrap\fR \-\- Lock down dependency versions
@@ -244,16 +244,6 @@ and recursively specifies all dependencies, the contents of B\'s
 shrinkwrap will implicitly be included in A\'s shrinkwrap\.
 .
 .SS "Caveats"
-Shrinkwrap files only lock down package versions, not actual package
-contents\.  While discouraged, a package author can republish an
-existing version of a package, causing shrinkwrapped packages using
-that version to pick up different code than they were before\. If you
-want to avoid any risk that a byzantine author replaces a package
-you\'re using with code that breaks your application, you could modify
-the shrinkwrap file to use git URL references rather than version
-numbers so that npm always fetches all packages from git\.
-.
-.P
 If you wish to lock down the specific bytes included in a package, for
 example to have 100% confidence in being able to reproduce a
 deployment or build, then you ought to check your dependencies into

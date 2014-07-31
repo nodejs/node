@@ -141,14 +141,6 @@ because A&#39;s shrinkwrap is constructed from a valid installation of B
 and recursively specifies all dependencies, the contents of B&#39;s
 shrinkwrap will implicitly be included in A&#39;s shrinkwrap.</p>
 <h3 id="caveats">Caveats</h3>
-<p>Shrinkwrap files only lock down package versions, not actual package
-contents.  While discouraged, a package author can republish an
-existing version of a package, causing shrinkwrapped packages using
-that version to pick up different code than they were before. If you
-want to avoid any risk that a byzantine author replaces a package
-you&#39;re using with code that breaks your application, you could modify
-the shrinkwrap file to use git URL references rather than version
-numbers so that npm always fetches all packages from git.</p>
 <p>If you wish to lock down the specific bytes included in a package, for
 example to have 100% confidence in being able to reproduce a
 deployment or build, then you ought to check your dependencies into
@@ -172,5 +164,5 @@ contents rather than versions.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-shrinkwrap &mdash; npm@1.4.14</p>
+<p id="footer">npm-shrinkwrap &mdash; npm@1.4.21</p>
 
