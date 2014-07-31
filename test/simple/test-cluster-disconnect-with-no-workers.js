@@ -31,3 +31,6 @@ process.on('exit', function() {
 cluster.disconnect(function() {
   disconnected = true;
 });
+
+// Assert that callback is not sometimes synchronous
+assert(!disconnected);
