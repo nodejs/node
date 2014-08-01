@@ -49,7 +49,7 @@ server.listen(common.PORT, 'localhost', function() {
   });
   client2.on('connect', function() {
     assert.equal('127.0.0.1', client2.remoteAddress);
-    assert.equal('IPv4', client.remoteFamily);
+    assert.equal('IPv4', client2.remoteFamily);
     assert.equal(common.PORT, client2.remotePort);
     client2.end();
   });
