@@ -2240,7 +2240,12 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     DefineJavaScript(env, exports);
     cache->Set(module, exports);
   } else {
-    return env->ThrowError("No such module");
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "No such module: %s",
+             *module_v);
+    return env->ThrowError(errmsg);
   }
 
   args.GetReturnValue().Set(exports);
