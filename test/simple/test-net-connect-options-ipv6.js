@@ -24,6 +24,11 @@ var assert = require('assert');
 var net = require('net');
 var dns = require('dns');
 
+if (!common.hasIPv6) {
+  console.error('Skipping test, no IPv6 support');
+  return;
+}
+
 var serverGotEnd = false;
 var clientGotEnd = false;
 

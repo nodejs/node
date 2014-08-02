@@ -57,6 +57,11 @@ server_ipv6.listen(common.PORT, localhost_ipv6, function() {
   server_ipv6.close();
 });
 
+if (!common.hasIPv6) {
+  console.error('Skipping ipv6 part of test, no IPv6 support');
+  return;
+}
+
 // Test without hostname or ip
 var anycast_ipv6 = '::';
 var server1 = net.createServer();
