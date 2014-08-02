@@ -28,6 +28,11 @@ var dgram = require('dgram');
 var callbacks = 0;
 var client, timer, buf;
 
+if (process.platform === 'darwin') {
+  console.error('Test is disabled due to 17894467 Apple bug');
+  return;
+}
+
 
 client = dgram.createSocket('udp4');
 
