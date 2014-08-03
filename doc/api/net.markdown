@@ -53,8 +53,12 @@ Use `nc` to connect to a UNIX domain socket server:
 ## net.connect(options, [connectionListener])
 ## net.createConnection(options, [connectionListener])
 
-Constructs a new socket object and opens the socket to the given location.
+A factory method, which returns a new ['net.Socket'](#net_class_net_socket)
+and connects to the supplied address and port.
+
 When the socket is established, the ['connect'][] event will be emitted.
+
+Has the same events as ['net.Socket'](#net_class_net_socket).
 
 For TCP sockets, `options` argument should be an object which specifies:
 
@@ -106,12 +110,16 @@ Creates a TCP connection to `port` on `host`. If `host` is omitted,
 The `connectListener` parameter will be added as an listener for the
 ['connect'][] event.
 
+Is a factory method which returns a new ['net.Socket'](#net_class_net_socket).
+
 ## net.connect(path, [connectListener])
 ## net.createConnection(path, [connectListener])
 
 Creates unix socket connection to `path`.
 The `connectListener` parameter will be added as an listener for the
 ['connect'][] event.
+
+A factory method which returns a new ['net.Socket'](#net_class_net_socket).
 
 ## Class: net.Server
 
