@@ -168,6 +168,7 @@ class TimerWrap : public HandleWrap {
   static Handle<Value> Now(const Arguments& args) {
     HandleScope scope;
 
+    uv_update_time(uv_default_loop());
     double now = static_cast<double>(uv_now(uv_default_loop()));
     return scope.Close(v8::Number::New(now));
   }
