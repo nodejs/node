@@ -1014,12 +1014,11 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
   assert(args[2]->IsInt32());
-  assert(args[3]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(args[1]);
 
+  int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
   int family;
-  int32_t flags = args[3]->Int32Value();
 
   switch (args[2]->Int32Value()) {
   case 0:
