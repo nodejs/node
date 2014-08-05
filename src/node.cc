@@ -833,7 +833,7 @@ Local<Value> UVException(Isolate* isolate,
 #ifdef _WIN32
 // Does about the same as strerror(),
 // but supports all windows error messages
-static const char *winapi_strerror(const int errorno) {
+static const char *winapi_strerror(const int errorno, bool* must_free) {
   char *errmsg = NULL;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
@@ -841,6 +841,8 @@ static const char *winapi_strerror(const int errorno) {
       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
 
   if (errmsg) {
+    *must_free = true;
+
     // Remove trailing newlines
     for (int i = strlen(errmsg) - 1;
         i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
@@ -850,6 +852,7 @@ static const char *winapi_strerror(const int errorno) {
     return errmsg;
   } else {
     // FormatMessage failed
+    *must_free = false;
     return "Unknown error";
   }
 }
@@ -862,8 +865,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
                                   const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
   Local<Value> e;
+  bool must_free = false;
   if (!msg || !msg[0]) {
-    msg = winapi_strerror(errorno);
+    msg = winapi_strerror(errorno, &must_free);
   }
   Local<String> message = OneByteString(env->isolate(), msg);
 
@@ -889,6 +893,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   if (syscall != NULL) {
     obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
+
+  if (must_free)
+    LocalFree((HLOCAL)msg);
 
   return e;
 }
