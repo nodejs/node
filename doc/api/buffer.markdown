@@ -62,7 +62,9 @@ It can be constructed in a variety of ways.
 
 * `size` Number
 
-Allocates a new buffer of `size` octets.
+Allocates a new buffer of `size` octets. Note, `size` must be no more than
+[kMaxLength](smalloc.html#smalloc_smalloc_kmaxlength). Otherwise, a `RangeError`
+will be thrown here.
 
 ### new Buffer(array)
 
