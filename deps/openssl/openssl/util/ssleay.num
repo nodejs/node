@@ -181,6 +181,7 @@ SSL_get_verify_depth                    229	EXIST::FUNCTION:
 SSL_CTX_set_session_id_context          231	EXIST::FUNCTION:
 SSL_CTX_set_cert_verify_callback        232	EXIST:!VMS:FUNCTION:
 SSL_CTX_set_cert_verify_cb              232	EXIST:VMS:FUNCTION:
+SSL_test_functions                      233	EXIST::FUNCTION:UNIT_TEST
 SSL_CTX_set_default_passwd_cb_userdata  235	EXIST:!VMS:FUNCTION:
 SSL_CTX_set_def_passwd_cb_ud            235	EXIST:VMS:FUNCTION:
 SSL_set_purpose                         236	EXIST::FUNCTION:

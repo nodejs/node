@@ -79,6 +79,7 @@
 #endif
 #ifndef OPENSSL_NO_POSIX_IO
 # include <sys/stat.h>
+# include <fcntl.h>
 #endif
 
 #ifdef _WIN32

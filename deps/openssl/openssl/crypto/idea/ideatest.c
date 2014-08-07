@@ -199,10 +199,10 @@ static int cfb64_test(unsigned char *cfb_cipher)
                 }
         memcpy(cfb_tmp,cfb_iv,8);
         n=0;
-        idea_cfb64_encrypt(cfb_buf1,cfb_buf2,(long)17,&eks,
+        idea_cfb64_encrypt(cfb_buf1,cfb_buf2,(long)13,&eks,
                 cfb_tmp,&n,IDEA_DECRYPT);
-        idea_cfb64_encrypt(&(cfb_buf1[17]),&(cfb_buf2[17]),
-                (long)CFB_TEST_SIZE-17,&dks,
+        idea_cfb64_encrypt(&(cfb_buf1[13]),&(cfb_buf2[13]),
+                (long)CFB_TEST_SIZE-13,&eks,
                 cfb_tmp,&n,IDEA_DECRYPT);
         if (memcmp(plain,cfb_buf2,CFB_TEST_SIZE) != 0)
                 {

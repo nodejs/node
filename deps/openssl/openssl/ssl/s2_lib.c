@@ -250,7 +250,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[]={
 	SSL_SSLV2,
 	SSL_NOT_EXP|SSL_HIGH,
 	0,
-	168,
+	112,
 	168,
 	},
 

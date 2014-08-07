@@ -1,5 +1,5 @@
 
- OpenSSL 1.0.1h 5 Jun 2014
+ OpenSSL 1.0.1i 6 Aug 2014
 
  Copyright (c) 1998-2011 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson

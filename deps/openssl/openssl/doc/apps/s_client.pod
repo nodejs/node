@@ -9,6 +9,7 @@ s_client - SSL/TLS client program
 
 B<openssl> B<s_client>
 [B<-connect host:port>]
+[B<-servername name>]
 [B<-verify depth>]
 [B<-verify_return_error>]
 [B<-cert filename>]
@@ -28,6 +29,7 @@ B<openssl> B<s_client>
 [B<-nbio>]
 [B<-crlf>]
 [B<-ign_eof>]
+[B<-no_ign_eof>]
 [B<-quiet>]
 [B<-ssl2>]
 [B<-ssl3>]
@@ -37,6 +39,7 @@ B<openssl> B<s_client>
 [B<-no_tls1>]
 [B<-bugs>]
 [B<-cipher cipherlist>]
+[B<-serverpref>]
 [B<-starttls protocol>]
 [B<-engine id>]
 [B<-tlsextdebug>]
@@ -44,6 +47,8 @@ B<openssl> B<s_client>
 [B<-sess_out filename>]
 [B<-sess_in filename>]
 [B<-rand file(s)>]
+[B<-status>]
+[B<-nextprotoneg protocols>]
 
 =head1 DESCRIPTION
 
@@ -59,6 +64,10 @@ SSL servers.
 
 This specifies the host and optional port to connect to. If not specified
 then an attempt is made to connect to the local host on port 4433.
+
+=item B<-servername name>
+
+Set the TLS SNI (Server Name Indication) extension in the ClientHello message.
 
 =item B<-cert certname>
 
@@ -172,6 +181,11 @@ input.
 inhibit printing of session and certificate information.  This implicitly
 turns on B<-ign_eof> as well.
 
+=item B<-no_ign_eof>
+
+shut down the connection when end of file is reached in the input.
+Can be used to override the implicit B<-ign_eof> after B<-quiet>.
+
 =item B<-psk_identity identity>
 
 Use the PSK identity B<identity> when using a PSK cipher suite.
@@ -204,6 +218,10 @@ this allows the cipher list sent by the client to be modified. Although
 the server determines which cipher suite is used it should take the first
 supported cipher in the list sent by the client. See the B<ciphers>
 command for more information.
+
+=item B<-serverpref>
+
+use the server's cipher preferences; only used for SSLV2.
 
 =item B<-starttls protocol>
 
@@ -242,6 +260,22 @@ generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+
+=item B<-status>
+
+sends a certificate status request to the server (OCSP stapling). The server
+response (if any) is printed out.
+
+=item B<-nextprotoneg protocols>
+
+enable Next Protocol Negotiation TLS extension and provide a list of
+comma-separated protocol names that the client should advertise
+support for. The list should contain most wanted protocols first.
+Protocol names are printable ASCII strings, for example "http/1.1" or
+"spdy/3".
+Empty list of protocols is treated specially and will cause the client to
+advertise support for the TLS extension but disconnect just after
+reciving ServerHello with a list of server supported protocols.
 
 =back
 

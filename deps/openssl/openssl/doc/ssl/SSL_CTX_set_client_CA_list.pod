@@ -35,7 +35,7 @@ the chosen B<ssl>, overriding the setting valid for B<ssl>'s SSL_CTX object.
 =head1 NOTES
 
 When a TLS/SSL server requests a client certificate (see
-B<SSL_CTX_set_verify_options()>), it sends a list of CAs, for which
+B<SSL_CTX_set_verify(3)>), it sends a list of CAs, for which
 it will accept certificates, to the client.
 
 This list must explicitly be set using SSL_CTX_set_client_CA_list() for

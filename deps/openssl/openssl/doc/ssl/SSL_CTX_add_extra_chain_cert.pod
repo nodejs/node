@@ -24,6 +24,16 @@ the library will try to complete the chain from the available CA
 certificates in the trusted CA storage, see
 L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>.
 
+The B<x509> certificate provided to SSL_CTX_add_extra_chain_cert() will be freed by the library when the B<SSL_CTX> is destroyed. An application B<should not> free the B<x509> object.
+
+=head1 RESTRICTIONS
+
+Only one set of extra chain certificates can be specified per SSL_CTX
+structure. Different chains for different certificates (for example if both
+RSA and DSA certificates are specified by the same server) or different SSL
+structures with the same parent SSL_CTX cannot be specified using this
+function.
+
 =head1 RETURN VALUES
 
 SSL_CTX_add_extra_chain_cert() returns 1 on success. Check out the

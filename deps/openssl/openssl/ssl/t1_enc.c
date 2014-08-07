@@ -1128,7 +1128,7 @@ int tls1_export_keying_material(SSL *s, unsigned char *out, size_t olen,
 	int rv;
 
 #ifdef KSSL_DEBUG
-	printf ("tls1_export_keying_material(%p,%p,%d,%s,%d,%p,%d)\n", s, out, olen, label, llen, p, plen);
+	printf ("tls1_export_keying_material(%p,%p,%d,%s,%d,%p,%d)\n", s, out, olen, label, llen, context, contextlen);
 #endif	/* KSSL_DEBUG */
 
 	buff = OPENSSL_malloc(olen);

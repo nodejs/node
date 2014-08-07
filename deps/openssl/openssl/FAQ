@@ -113,11 +113,6 @@ that came with the version of OpenSSL you are using. The pod format
 documentation is included in each OpenSSL distribution under the docs
 directory.
 
-For information on parts of libcrypto that are not yet documented, you
-might want to read Ariel Glenn's documentation on SSLeay 0.9, OpenSSL's
-predecessor, at <URL: http://www.columbia.edu/~ariel/ssleay/>.  Much
-of this still applies to OpenSSL.
-
 There is some documentation about certificate extensions and PKCS#12
 in doc/openssl.txt
 

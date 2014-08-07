@@ -12,12 +12,12 @@ SSL_get_version - get the protocol version of a connection.
 
 =head1 DESCRIPTION
 
-SSL_get_cipher_version() returns the name of the protocol used for the
+SSL_get_version() returns the name of the protocol used for the
 connection B<ssl>.
 
 =head1 RETURN VALUES
 
-The following strings can occur:
+The following strings can be returned:
 
 =over 4
 
@@ -31,7 +31,15 @@ The connection uses the SSLv3 protocol.
 
 =item TLSv1
 
-The connection uses the TLSv1 protocol.
+The connection uses the TLSv1.0 protocol.
+
+=item TLSv1.1
+
+The connection uses the TLSv1.1 protocol.
+
+=item TLSv1.2
+
+The connection uses the TLSv1.2 protocol.
 
 =item unknown
 

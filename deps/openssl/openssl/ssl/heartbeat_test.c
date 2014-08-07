@@ -38,13 +38,17 @@
  * http://mike-bland.com/tags/heartbleed.html
  */
 
+#define OPENSSL_UNIT_TEST
+
+#include "../test/testutil.h"
+
 #include "../ssl/ssl_locl.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(OPENSSL_NO_HEARTBEATS) && !defined(OPENSSL_SYS_WINDOWS)
+#if !defined(OPENSSL_NO_HEARTBEATS) && !defined(OPENSSL_NO_UNIT_TEST)
 
 /* As per https://tools.ietf.org/html/rfc6520#section-4 */
 #define MIN_PADDING_SIZE	16
@@ -263,13 +267,10 @@ static int honest_payload_size(unsigned char payload_buf[])
 	}
 
 #define SETUP_HEARTBEAT_TEST_FIXTURE(type)\
-	HEARTBEAT_TEST_FIXTURE fixture = set_up_##type(__func__);\
-	int result = 0
+  SETUP_TEST_FIXTURE(HEARTBEAT_TEST_FIXTURE, set_up_##type)
 
 #define EXECUTE_HEARTBEAT_TEST()\
-	if (execute_heartbeat(fixture) != 0) result = 1;\
-	tear_down(fixture);\
-	return result
+  EXECUTE_TEST(execute_heartbeat, tear_down)
 
 static int test_dtls1_not_bleeding()
 	{

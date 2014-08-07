@@ -109,8 +109,8 @@ certificates would not be present, most likely a
 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY will be issued.
 The depth count is "level 0:peer certificate", "level 1: CA certificate",
 "level 2: higher level CA certificate", and so on. Setting the maximum
-depth to 2 allows the levels 0, 1, and 2. The default depth limit is 9,
-allowing for the peer certificate and additional 9 CA certificates.
+depth to 2 allows the levels 0, 1, and 2. The default depth limit is 100,
+allowing for the peer certificate and additional 100 CA certificates.
 
 The B<verify_callback> function is used to control the behaviour when the
 SSL_VERIFY_PEER flag is set. It must be supplied by the application and

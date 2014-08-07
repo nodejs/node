@@ -48,6 +48,16 @@ known limit on the size of the created ASN1 representation, so the necessary
 amount of space should be obtained by first calling i2d_SSL_SESSION() with
 B<pp=NULL>, and obtain the size needed, then allocate the memory and
 call i2d_SSL_SESSION() again.
+Note that this will advance the value contained in B<*pp> so it is necessary
+to save a copy of the original allocation.
+For example:
+ int i,j;
+ char *p, *temp;
+ i = i2d_SSL_SESSION(sess, NULL);
+ p = temp = malloc(i);
+ j = i2d_SSL_SESSION(sess, &temp);
+ assert(i == j);
+ assert(p+i == temp);
 
 =head1 RETURN VALUES
 
