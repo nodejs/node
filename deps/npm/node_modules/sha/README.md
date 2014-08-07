@@ -2,9 +2,9 @@
 
 Check and get file hashes (using any algorithm)
 
-[![Build Status](https://travis-ci.org/ForbesLindesay/sha.png?branch=master)](https://travis-ci.org/ForbesLindesay/sha)
-[![Dependency Status](https://gemnasium.com/ForbesLindesay/sha.png)](https://gemnasium.com/ForbesLindesay/sha)
-[![NPM version](https://badge.fury.io/js/sha.png)](http://badge.fury.io/js/sha)
+[![Build Status](https://img.shields.io/travis/ForbesLindesay/sha/master.svg)](https://travis-ci.org/ForbesLindesay/sha)
+[![Dependency Status](https://img.shields.io/gemnasium/ForbesLindesay/sha.svg)](https://gemnasium.com/ForbesLindesay/sha)
+[![NPM version](https://img.shields.io/npm/v/sha.svg)](http://badge.fury.io/js/sha)
 
 ## Installation
 

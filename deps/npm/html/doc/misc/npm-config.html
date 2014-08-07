@@ -124,6 +124,14 @@ connections to the registry.</p>
 <p>Set to <code>null</code> to only allow &quot;known&quot; registrars, or to a specific CA cert
 to trust only that specific signing authority.</p>
 <p>See also the <code>strict-ssl</code> config.</p>
+<h3 id="cafile">cafile</h3>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: path</li>
+</ul>
+<p>A path to a file containing one or multiple Certificate Authority signing
+certificates. Similar to the <code>ca</code> setting, but allows for multiple CA&#39;s, as
+well as for the CA information to be stored in a file on disk.</p>
 <h3 id="cache">cache</h3>
 <ul>
 <li>Default: Windows: <code>%AppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
@@ -741,5 +749,5 @@ hash, and exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@1.4.14</p>
+<p id="footer">npm-config &mdash; npm@1.4.21</p>
 

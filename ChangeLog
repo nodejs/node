@@ -618,6 +618,41 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2014.07.31, Version 0.10.30 (Stable), bc0ff830aff1e016163d855e86ded5c98b0899e8
+
+* uv: Upgrade to v0.10.28
+
+* npm: Upgrade to v1.4.21
+
+* v8: Interrupts must not mask stack overflow.
+
+* Revert "stream: start old-mode read in a next tick" (Fedor Indutny)
+
+* buffer: fix sign overflow in `readUIn32BE` (Fedor Indutny)
+
+* buffer: improve {read,write}{U}Int* methods (Nick Apperson)
+
+* child_process: handle writeUtf8String error (Fedor Indutny)
+
+* deps: backport 4ed5fde4f from v8 upstream (Fedor Indutny)
+
+* deps: cherry-pick eca441b2 from OpenSSL (Fedor Indutny)
+
+* lib: remove and restructure calls to isNaN() (cjihrig)
+
+* module: eliminate double `getenv()` (Maciej Małecki)
+
+* stream2: flush extant data on read of ended stream (Chris Dickinson)
+
+* streams: remove unused require('assert') (Rod Vagg)
+
+* timers: backport f8193ab (Julien Gilli)
+
+* util.h: interface compatibility (Oguz Bastemur)
+
+* zlib: do not crash on write after close (Fedor Indutny)
+
+
 2014.06.05, Version 0.10.29 (Stable), ce82d6b8474bde7ac7df6d425fb88fb1bcba35bc
 
 * openssl: to 1.0.1h (CVE-2014-0224)

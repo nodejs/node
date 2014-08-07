@@ -14,6 +14,19 @@ Object.keys(process.env).forEach(function (k) {
 process.env.npm_config_userconfig = exports.userconfig
 process.env.npm_config_other_env_thing = 1000
 process.env.random_env_var = 'asdf'
+process.env.npm_config__underbar_env_thing = 'underful'
+
+exports.envData = {
+  userconfig: exports.userconfig,
+  '_underbar-env-thing': 'underful',
+  'other-env-thing': '1000'
+}
+exports.envDataFix = {
+  userconfig: exports.userconfig,
+  '_underbar-env-thing': 'underful',
+  'other-env-thing': 1000,
+}
+
 
 if (module === require.main) {
   // set the globalconfig in the userconfig

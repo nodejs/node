@@ -60,8 +60,9 @@ function save (pkginfo, silent, cb) {
   // copy the keys over in a well defined order
   // because javascript objects serialize arbitrarily
   pkginfo.dependencies = sortedObject(pkginfo.dependencies || {})
+  var swdata
   try {
-    var swdata = JSON.stringify(pkginfo, null, 2) + "\n"
+    swdata = JSON.stringify(pkginfo, null, 2) + "\n"
   } catch (er) {
     log.error("shrinkwrap", "Error converting package info to json")
     return cb(er)

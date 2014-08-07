@@ -155,6 +155,13 @@ test-npm-publish: node
 test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
 
+test-timers:
+	$(MAKE) --directory=tools faketime
+	$(PYTHON) tools/test.py --mode=release timers
+
+test-timers-clean:
+	$(MAKE) --directory=tools clean
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))

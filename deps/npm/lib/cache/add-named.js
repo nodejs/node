@@ -65,7 +65,8 @@ function addNameTag (name, tag, data, cb_) {
     return cb_(er, data)
   }
 
-  registry.get(name, function (er, data, json, resp) {
+  var uri = url.resolve(npm.config.get("registry"), name)
+  registry.get(uri, null, function (er, data, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }
@@ -113,7 +114,8 @@ function addNameVersion (name, v, data, cb) {
     response = null
     return next()
   }
-  registry.get(name, function (er, d, json, resp) {
+  var uri = url.resolve(npm.config.get("registry"), name)
+  registry.get(uri, null, function (er, d, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }
@@ -195,7 +197,8 @@ function addNameRange (name, range, data, cb) {
   log.silly("addNameRange", {name:name, range:range, hasData:!!data})
 
   if (data) return next()
-  registry.get(name, function (er, d, json, resp) {
+  var uri = url.resolve(npm.config.get("registry"), name)
+  registry.get(uri, null, function (er, d, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }

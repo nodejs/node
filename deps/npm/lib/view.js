@@ -4,12 +4,15 @@ module.exports = view
 view.usage = "npm view pkg[@version] [<field>[.subfield]...]"
 
 view.completion = function (opts, cb) {
+  var uri
   if (opts.conf.argv.remain.length <= 2) {
-    return registry.get("/-/short", cb)
+    uri = url.resolve(npm.config.get("registry"), "-/short")
+    return registry.get(uri, null, cb)
   }
   // have the package, get the fields.
   var tag = npm.config.get("tag")
-  registry.get(opts.conf.argv.remain[2], function (er, d) {
+  uri = url.resolve(npm.config.get("registry"), opts.conf.argv.remain[2])
+  registry.get(uri, null, function (er, d) {
     if (er) return cb(er)
     var dv = d.versions[d["dist-tags"][tag]]
       , fields = []
@@ -39,7 +42,8 @@ view.completion = function (opts, cb) {
   }
 }
 
-var npm = require("./npm.js")
+var url = require("url")
+  , npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , util = require("util")
@@ -56,7 +60,8 @@ function view (args, silent, cb) {
   if (name === ".") return cb(view.usage)
 
   // get the data about this package
-  registry.get(name, function (er, data) {
+  var uri = url.resolve(npm.config.get("registry"), name)
+  registry.get(uri, null, function (er, data) {
     if (er) return cb(er)
     if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
       version = data["dist-tags"][version]
@@ -64,7 +69,7 @@ function view (args, silent, cb) {
 
     if (data.time && data.time.unpublished) {
       var u = data.time.unpublished
-      var er = new Error("Unpublished by " + u.name + " on " + u.time)
+      er = new Error("Unpublished by " + u.name + " on " + u.time)
       er.statusCode = 404
       er.code = "E404"
       er.pkgid = data._id
@@ -139,8 +144,9 @@ function search (data, fields, version, title) {
     , tail = fields
   while (!field && fields.length) field = tail.shift()
   fields = [field].concat(tail)
+  var o
   if (!field && !tail.length) {
-    var o = {}
+    o = {}
     o[version] = {}
     o[version][title] = data
     return o
@@ -160,7 +166,6 @@ function search (data, fields, version, title) {
       return search(data[0], fields, version, title)
     }
     var results = []
-      , res = null
     data.forEach(function (data, i) {
       var tl = title.length
         , newt = title.substr(0, tl-(fields.join(".").length) - 1)
@@ -182,7 +187,7 @@ function search (data, fields, version, title) {
       return new Error("Not an object: "+data)
     }
   }
-  var o = {}
+  o = {}
   o[version] = {}
   o[version][title] = data
   return o
@@ -194,7 +199,7 @@ function printData (data, name, cb) {
     , showVersions = versions.length > 1
     , showFields
 
-  versions.forEach(function (v, i) {
+  versions.forEach(function (v) {
     var fields = Object.keys(data[v])
     showFields = showFields || (fields.length > 1)
     fields.forEach(function (f) {

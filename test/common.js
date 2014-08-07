@@ -39,6 +39,13 @@ if (process.platform === 'win32') {
 if (!fs.existsSync(exports.opensslCli))
   exports.opensslCli = false;
 
+if (process.platform === 'win32') {
+  exports.faketimeCli = false;
+} else {
+  exports.faketimeCli = path.join(__dirname, "..", "tools", "faketime", "src",
+    "faketime");
+}
+
 var util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];

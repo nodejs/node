@@ -1,0 +1,53 @@
+{
+  "name": "string_decoder",
+  "version": "0.10.25-1",
+  "description": "The string_decoder module from Node core",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "~0.4.8"
+  },
+  "scripts": {
+    "test": "tap test/simple/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rvagg/string_decoder.git"
+  },
+  "homepage": "https://github.com/rvagg/string_decoder",
+  "keywords": [
+    "string",
+    "decoder",
+    "browser",
+    "browserify"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rvagg/string_decoder/issues"
+  },
+  "_id": "string_decoder@0.10.25-1",
+  "dist": {
+    "shasum": "f387babd95d23a2bb73b1fbf2cb3efab6f78baab",
+    "tarball": "http://registry.npmjs.org/string_decoder/-/string_decoder-0.10.25-1.tgz"
+  },
+  "_from": "string_decoder@~0.10.x",
+  "_npmVersion": "1.3.24",
+  "_npmUser": {
+    "name": "rvagg",
+    "email": "rod@vagg.org"
+  },
+  "maintainers": [
+    {
+      "name": "substack",
+      "email": "mail@substack.net"
+    },
+    {
+      "name": "rvagg",
+      "email": "rod@vagg.org"
+    }
+  ],
+  "directories": {},
+  "_shasum": "f387babd95d23a2bb73b1fbf2cb3efab6f78baab",
+  "_resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-0.10.25-1.tgz",
+  "readme": "ERROR: No README data found!"
+}

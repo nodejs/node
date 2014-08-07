@@ -1,10 +1,13 @@
 module.exports = setUser
 
+var Conf = require('../npmconf.js').Conf
+var assert = require('assert')
 var path = require('path')
 var fs = require('fs')
 
 function setUser (cb) {
-  var defaultConf = Object.getPrototypeOf(this.root)
+  var defaultConf = this.root
+  assert(defaultConf !== Object.prototype)
 
   // If global, leave it as-is.
   // If not global, then set the user to the owner of the prefix folder.

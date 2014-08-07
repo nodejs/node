@@ -7,14 +7,11 @@
 // much better "put pkg X at folder Y" abstraction.  Oh well,
 // whatever.  Perfect enemy of the good, and all that.
 
+var url = require("url")
 var fs = require("fs")
 var asyncMap = require("slide").asyncMap
 var path = require("path")
 var readJson = require("read-package-json")
-var archy = require("archy")
-var util = require("util")
-var RegClient = require("npm-registry-client")
-var npmconf = require("npmconf")
 var semver = require("semver")
 var rm = require("./utils/gently-rm.js")
 var log = require("npmlog")
@@ -93,7 +90,6 @@ function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
         })]
       })]
     }).map(function (item) {
-      var name = item[0]
       var set = item[1]
 
       var ranges = set.map(function (i) {
@@ -137,7 +133,6 @@ function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
         b.pop()
         // find the longest chain that both A and B share.
         // then push the name back on it, and join by /node_modules/
-        var res = []
         for (var i = 0, al = a.length, bl = b.length; i < al && i < bl && a[i] === b[i]; i++);
         return a.slice(0, i).concat(name).join(path.sep + "node_modules" + path.sep)
       }) : undefined
@@ -204,9 +199,9 @@ function installAndRetest (set, filter, dir, unavoidable, silent, cb) {
 
     // hrm?
     return cb(new Error("danger zone\n" + name + " " +
-                        + regMatch + " " + locMatch))
+                        regMatch + " " + locMatch))
 
-  }, function (er, installed) {
+  }, function (er) {
     if (er) return cb(er)
     asyncMap(remove, rm, function (er) {
       if (er) return cb(er)
@@ -245,7 +240,8 @@ function findVersions (npm, summary, cb) {
     var versions = data.versions
 
     var ranges = data.ranges
-    npm.registry.get(name, function (er, data) {
+    var uri = url.resolve(npm.config.get("registry"), name)
+    npm.registry.get(uri, null, function (er, data) {
       var regVersions = er ? [] : Object.keys(data.versions)
       var locMatch = bestMatch(versions, ranges)
       var regMatch;

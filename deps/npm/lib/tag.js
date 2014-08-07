@@ -5,7 +5,8 @@ tag.usage = "npm tag <project>@<version> [<tag>]"
 
 tag.completion = require("./unpublish.js").completion
 
-var npm = require("./npm.js")
+var url = require("url")
+  , npm = require("./npm.js")
   , registry = npm.registry
 
 function tag (args, cb) {
@@ -14,5 +15,6 @@ function tag (args, cb) {
     , version = thing.join("@")
     , t = args.shift() || npm.config.get("tag")
   if (!project || !version || !t) return cb("Usage:\n"+tag.usage)
-  registry.tag(project, version, t, cb)
+  var uri = url.resolve(npm.config.get("registry"), project)
+  registry.tag(uri, version, t, cb)
 }

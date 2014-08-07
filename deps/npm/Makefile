@@ -69,7 +69,7 @@ dev: install
 link: uninstall
 	node cli.js link -f
 
-clean: ronnclean doc-clean uninstall
+clean: markedclean ronnclean doc-clean uninstall
 	rm -rf npmrc
 	node cli.js cache clean
 
@@ -78,12 +78,16 @@ uninstall:
 
 doc: $(mandocs) $(htmldocs)
 
+markedclean:
+	rm -rf node_modules/marked node_modules/.bin/marked .building_marked
+
 ronnclean:
 	rm -rf node_modules/ronn node_modules/.bin/ronn .building_ronn
 
 docclean: doc-clean
 doc-clean:
 	rm -rf \
+    .building_marked \
     .building_ronn \
     html/doc \
     html/api \
@@ -149,6 +153,10 @@ html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
 	scripts/doc-build.sh $< $@
 
 
+marked: node_modules/.bin/marked
+
+node_modules/.bin/marked:
+	node cli.js install marked --no-global
 
 ronn: node_modules/.bin/ronn
 

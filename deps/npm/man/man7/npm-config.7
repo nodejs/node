@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "7" "June 2014" "" ""
+.TH "NPM\-CONFIG" "7" "July 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- More than you probably want to know about npm configuration
@@ -265,6 +265,21 @@ to trust only that specific signing authority\.
 .
 .P
 See also the \fBstrict\-ssl\fR config\.
+.
+.SS "cafile"
+.
+.IP "\(bu" 4
+Default: \fBnull\fR
+.
+.IP "\(bu" 4
+Type: path
+.
+.IP "" 0
+.
+.P
+A path to a file containing one or multiple Certificate Authority signing
+certificates\. Similar to the \fBca\fR setting, but allows for multiple CA\'s, as
+well as for the CA information to be stored in a file on disk\.
 .
 .SS "cache"
 .

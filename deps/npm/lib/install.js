@@ -34,7 +34,8 @@ install.completion = function (opts, cb) {
   // if it starts with https?://, then just give up, because it's a url
   // for now, not yet implemented.
   var registry = npm.registry
-  registry.get("/-/short", function (er, pkgs) {
+    , uri = url.resolve(npm.config.get("registry"), "-/short")
+  registry.get(uri, null, function (er, pkgs) {
     if (er) return cb()
     if (!opts.partialWord) return cb(null, pkgs)
 
@@ -47,7 +48,8 @@ install.completion = function (opts, cb) {
       return cb(null, pkgs)
     }
 
-    registry.get(pkgs[0], function (er, d) {
+    uri = url.resolve(npm.config.get("registry"), pkgs[0])
+    registry.get(uri, null, function (er, d) {
       if (er) return cb()
       return cb(null, Object.keys(d["dist-tags"] || {})
                 .concat(Object.keys(d.versions || {}))
@@ -119,7 +121,7 @@ function install (args, cb_) {
     })
   }
 
-  mkdir(where, function (er, made) {
+  mkdir(where, function (er) {
     if (er) return cb(er)
     // install dependencies locally by default,
     // or install current folder globally
@@ -151,7 +153,6 @@ function install (args, cb_) {
 
         installManyTop(deps.map(function (dep) {
           var target = data.dependencies[dep]
-            , parsed = url.parse(target.replace(/^git\+/, "git"))
           target = dep + "@" + target
           return target
         }), where, context, function(er, results) {
@@ -206,7 +207,7 @@ function findPeerInvalid_ (packageMap, fpiList) {
 
     if (pkg.peerInvalid) {
       var peersDepending = {};
-      for (peerName in packageMap) {
+      for (var peerName in packageMap) {
         var peer = packageMap[peerName]
         if (peer.peerDependencies && peer.peerDependencies[packageName]) {
           peersDepending[peer.name + "@" + peer.version] =
@@ -289,8 +290,9 @@ function readDependencies (context, where, opts, cb) {
         return cb(null, data, null)
       }
 
+      var newwrap
       try {
-        var newwrap = JSON.parse(wrapjson)
+        newwrap = JSON.parse(wrapjson)
       } catch (ex) {
         return cb(ex)
       }
@@ -525,9 +527,6 @@ function installManyTop (what, where, context, cb_) {
 
 function installManyTop_ (what, where, context, cb) {
   var nm = path.resolve(where, "node_modules")
-    , names = context.explicit
-            ? what.map(function (w) { return w.split(/@/).shift() })
-            : []
 
   fs.readdir(nm, function (er, pkgs) {
     if (er) return installMany(what, where, context, cb)
@@ -837,8 +836,6 @@ function installOne_ (target, where, context, cb) {
   if (prettyWhere === ".") prettyWhere = null
 
   if (isIncompatibleInstallOneInProgress(target, where)) {
-    var prettyTarget = path.relative(process.cwd(), targetFolder)
-
     // just call back, with no error.  the error will be detected in the
     // final check for peer-invalid dependencies
     return cb()
@@ -978,7 +975,6 @@ function prepareForInstallMany (packageData, depsKey, bundled, wrap, family) {
     return true
   }).map(function (d) {
     var t = packageData[depsKey][d]
-      , parsed = url.parse(t.replace(/^git\+/, "git"))
     t = d + "@" + t
     return t
   })

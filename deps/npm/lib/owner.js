@@ -15,17 +15,19 @@ owner.completion = function (opts, cb) {
     return cb(null, subs)
   }
   var un = encodeURIComponent(npm.config.get("username"))
+  var theUser, uri
   switch (argv[2]) {
     case "ls":
       if (argv.length > 3) return cb()
-      else return registry.get("/-/short", cb)
+      uri = url.resolve(npm.config.get("registry"), "-/short")
+      return registry.get(uri, null, cb)
 
     case "rm":
       if (argv.length > 3) {
-        var theUser = encodeURIComponent(argv[3])
-          , uri = "/-/by-user/"+theUser+"|"+un
+        theUser = encodeURIComponent(argv[3])
+        uri = url.resolve(npm.config.get("registry"), "-/by-user/"+theUser+"|"+un)
         console.error(uri)
-        return registry.get(uri, function (er, d) {
+        return registry.get(uri, null, function (er, d) {
           if (er) return cb(er)
           // return the intersection
           return cb(null, d[theUser].filter(function (p) {
@@ -37,10 +39,10 @@ owner.completion = function (opts, cb) {
       // else fallthrough
     case "add":
       if (argv.length > 3) {
-        var theUser = encodeURIComponent(argv[3])
-          , uri = "/-/by-user/"+theUser+"|"+un
+        theUser = encodeURIComponent(argv[3])
+        uri = url.resolve(npm.config.get("registry"), "-/by-user/"+theUser+"|"+un)
         console.error(uri)
-        return registry.get(uri, function (er, d) {
+        return registry.get(uri, null, function (er, d) {
           console.error(uri, er || d)
           // return mine that they're not already on.
           if (er) return cb(er)
@@ -52,7 +54,8 @@ owner.completion = function (opts, cb) {
         })
       }
       // just list all users who aren't me.
-      return registry.get("/-/users", function (er, list) {
+      uri = url.resolve(npm.config.get("registry"), "-/users")
+      return registry.get(uri, null, function (er, list) {
         if (er) return cb()
         return cb(null, Object.keys(list).filter(function (n) {
           return n !== un
@@ -68,6 +71,7 @@ var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , readJson = require("read-package-json")
+  , url = require("url")
 
 function owner (args, cb) {
   var action = args.shift()
@@ -86,7 +90,8 @@ function ls (pkg, cb) {
     ls(pkg, cb)
   })
 
-  registry.get(pkg, function (er, data) {
+  var uri = url.resolve(npm.config.get("registry"), pkg)
+  registry.get(uri, null, function (er, data) {
     var msg = ""
     if (er) {
       log.error("owner ls", "Couldn't get owner data", pkg)
@@ -151,7 +156,8 @@ function rm (user, pkg, cb) {
 
 function mutate (pkg, user, mutation, cb) {
   if (user) {
-    registry.get("/-/user/org.couchdb.user:"+user, mutate_)
+    var uri = url.resolve(npm.config.get("registry"), "-/user/org.couchdb.user:"+user)
+    registry.get(uri, null, mutate_)
   } else {
     mutate_(null, null)
   }
@@ -166,7 +172,8 @@ function mutate (pkg, user, mutation, cb) {
     }
 
     if (u) u = { "name" : u.name, "email" : u.email }
-    registry.get(pkg, function (er, data) {
+    var uri = url.resolve(npm.config.get("registry"), pkg)
+    registry.get(uri, null, function (er, data) {
       if (er) {
         log.error("owner mutate", "Error getting package data for %s", pkg)
         return cb(er)
@@ -178,9 +185,8 @@ function mutate (pkg, user, mutation, cb) {
              , _rev : data._rev
              , maintainers : m
              }
-      registry.request("PUT"
-          , pkg+"/-rev/"+data._rev, data
-          , function (er, data) {
+      var uri = url.resolve(npm.config.get("registry"), pkg+"/-rev/"+data._rev)
+      registry.request("PUT", uri, { body : data }, function (er, data) {
         if (!er && data.error) er = new Error(
           "Failed to update package metadata: "+JSON.stringify(data))
         if (er) {
