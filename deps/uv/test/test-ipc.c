@@ -27,6 +27,7 @@
 
 static uv_pipe_t channel;
 static uv_tcp_t tcp_server;
+static uv_tcp_t tcp_server2;
 static uv_tcp_t tcp_connection;
 
 static int exit_cb_called;
@@ -38,8 +39,6 @@ static int local_conn_accepted;
 static int remote_conn_accepted;
 static int tcp_server_listening;
 static uv_write_t write_req;
-static uv_pipe_t channel;
-static uv_tcp_t tcp_server;
 static uv_write_t conn_notify_req;
 static int close_cb_called;
 static int connection_accepted;
@@ -205,6 +204,71 @@ static void on_read(uv_stream_t* handle,
   free(buf->base);
 }
 
+#ifdef _WIN32
+static void on_read_listen_after_bound_twice(uv_stream_t* handle,
+                                             ssize_t nread,
+                                             const uv_buf_t* buf) {
+  int r;
+  uv_pipe_t* pipe;
+  uv_handle_type pending;
+
+  pipe = (uv_pipe_t*) handle;
+
+  if (nread == 0) {
+    /* Everything OK, but nothing read. */
+    free(buf->base);
+    return;
+  }
+
+  if (nread < 0) {
+    if (nread == UV_EOF) {
+      free(buf->base);
+      return;
+    }
+
+    printf("error recving on channel: %s\n", uv_strerror(nread));
+    abort();
+  }
+
+  fprintf(stderr, "got %d bytes\n", (int)nread);
+
+  ASSERT(uv_pipe_pending_count(pipe) > 0);
+  pending = uv_pipe_pending_type(pipe);
+  ASSERT(nread > 0 && buf->base && pending != UV_UNKNOWN_HANDLE);
+  read_cb_called++;
+
+  if (read_cb_called == 1) {
+    /* Accept the first TCP server, and start listening on it. */
+    ASSERT(pending == UV_TCP);
+    r = uv_tcp_init(uv_default_loop(), &tcp_server);
+    ASSERT(r == 0);
+    
+    r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_server);
+    ASSERT(r == 0);
+    
+    r = uv_listen((uv_stream_t*)&tcp_server, 12, on_connection);
+    ASSERT(r == 0); 
+  } else if (read_cb_called == 2) {
+    /* Accept the second TCP server, and start listening on it. */
+    ASSERT(pending == UV_TCP);
+    r = uv_tcp_init(uv_default_loop(), &tcp_server2);
+    ASSERT(r == 0);
+    
+    r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_server2);
+    ASSERT(r == 0);
+    
+    r = uv_listen((uv_stream_t*)&tcp_server2, 12, on_connection);
+    ASSERT(r == UV_EADDRINUSE);
+
+    uv_close((uv_handle_t*)&tcp_server, NULL);
+    uv_close((uv_handle_t*)&tcp_server2, NULL);
+    ASSERT(0 == uv_pipe_pending_count(pipe));
+    uv_close((uv_handle_t*)&channel, NULL);
+  }
+
+  free(buf->base);
+}
+#endif
 
 void spawn_helper(uv_pipe_t* channel,
                   uv_process_t* process,
@@ -424,6 +488,13 @@ TEST_IMPL(listen_no_simultaneous_accepts) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+TEST_IMPL(ipc_listen_after_bind_twice) {
+  int r = run_ipc_test("ipc_helper_bind_twice", on_read_listen_after_bound_twice);
+  ASSERT(read_cb_called == 2);
+  ASSERT(exit_cb_called == 1);
+  return r;
+}
 #endif
 
 
@@ -608,7 +679,7 @@ int ipc_helper(int listen_after_write) {
 
 int ipc_helper_tcp_connection(void) {
   /*
-   * This is launched from test-ipc.c. stdin is a duplex channel that we
+   * This is launched from test-ipc.c. stdin is a duplex channel
    * over which a handle will be transmitted.
    */
 
@@ -654,6 +725,54 @@ int ipc_helper_tcp_connection(void) {
   ASSERT(tcp_conn_write_cb_called == 1);
   ASSERT(close_cb_called == 4);
 
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+int ipc_helper_bind_twice(void) {
+  /*
+   * This is launched from test-ipc.c. stdin is a duplex channel
+   * over which two handles will be transmitted.
+   */
+  struct sockaddr_in addr;
+  uv_write_t write_req;
+  uv_write_t write_req2;
+  int r;
+  uv_buf_t buf;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+
+  r = uv_pipe_init(uv_default_loop(), &channel, 1);
+  ASSERT(r == 0);
+
+  uv_pipe_open(&channel, 0);
+
+  ASSERT(1 == uv_is_readable((uv_stream_t*) &channel));
+  ASSERT(1 == uv_is_writable((uv_stream_t*) &channel));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) &channel));
+
+  buf = uv_buf_init("hello\n", 6);
+
+  r = uv_tcp_init(uv_default_loop(), &tcp_server);
+  ASSERT(r == 0);
+  r = uv_tcp_init(uv_default_loop(), &tcp_server2);
+  ASSERT(r == 0);
+
+  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
+  r = uv_tcp_bind(&tcp_server2, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
+
+  r = uv_write2(&write_req, (uv_stream_t*)&channel, &buf, 1,
+                (uv_stream_t*)&tcp_server, NULL);
+  ASSERT(r == 0);
+  r = uv_write2(&write_req2, (uv_stream_t*)&channel, &buf, 1,
+                (uv_stream_t*)&tcp_server2, NULL);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+  
   MAKE_VALGRIND_HAPPY();
   return 0;
 }

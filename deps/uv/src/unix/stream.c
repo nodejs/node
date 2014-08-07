@@ -60,19 +60,8 @@ static void uv__stream_connect(uv_stream_t*);
 static void uv__write(uv_stream_t* stream);
 static void uv__read(uv_stream_t* stream);
 static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
+static void uv__write_callbacks(uv_stream_t* stream);
 static size_t uv__write_req_size(uv_write_t* req);
-
-
-static size_t uv_count_bufs(const uv_buf_t bufs[], unsigned int nbufs) {
-  unsigned int i;
-  size_t bytes;
-
-  bytes = 0;
-  for (i = 0; i < nbufs; i++)
-    bytes += bufs[i].len;
-
-  return bytes;
-}
 
 
 void uv__stream_init(uv_loop_t* loop,
@@ -390,33 +379,12 @@ void uv__stream_destroy(uv_stream_t* stream) {
     QUEUE_REMOVE(q);
 
     req = QUEUE_DATA(q, uv_write_t, queue);
-    uv__req_unregister(stream->loop, req);
+    req->error = -ECANCELED;
 
-    if (req->bufs != req->bufsml)
-      free(req->bufs);
-    req->bufs = NULL;
-
-    if (req->cb != NULL)
-      req->cb(req, -ECANCELED);
+    QUEUE_INSERT_TAIL(&stream->write_completed_queue, &req->queue);
   }
 
-  while (!QUEUE_EMPTY(&stream->write_completed_queue)) {
-    q = QUEUE_HEAD(&stream->write_completed_queue);
-    QUEUE_REMOVE(q);
-
-    req = QUEUE_DATA(q, uv_write_t, queue);
-    uv__req_unregister(stream->loop, req);
-
-    if (req->bufs != NULL) {
-      stream->write_queue_size -= uv__write_req_size(req);
-      if (req->bufs != req->bufsml)
-        free(req->bufs);
-      req->bufs = NULL;
-    }
-
-    if (req->cb)
-      req->cb(req, req->error);
-  }
+  uv__write_callbacks(stream);
 
   if (stream->shutdown_req) {
     /* The ECANCELED error code is a lie, the shutdown(2) syscall is a
@@ -428,6 +396,8 @@ void uv__stream_destroy(uv_stream_t* stream) {
     stream->shutdown_req->cb(stream->shutdown_req, -ECANCELED);
     stream->shutdown_req = NULL;
   }
+
+  assert(stream->write_queue_size == 0);
 }
 
 
@@ -660,8 +630,8 @@ static size_t uv__write_req_size(uv_write_t* req) {
   size_t size;
 
   assert(req->bufs != NULL);
-  size = uv_count_bufs(req->bufs + req->write_index,
-                       req->nbufs - req->write_index);
+  size = uv__count_bufs(req->bufs + req->write_index,
+                        req->nbufs - req->write_index);
   assert(req->handle->write_queue_size >= size);
 
   return size;
@@ -903,10 +873,6 @@ static void uv__write_callbacks(uv_stream_t* stream) {
   }
 
   assert(QUEUE_EMPTY(&stream->write_completed_queue));
-
-  /* Write queue drained. */
-  if (QUEUE_EMPTY(&stream->write_queue))
-    uv__drain(stream);
 }
 
 
@@ -1223,6 +1189,10 @@ static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if (events & (UV__POLLOUT | UV__POLLERR | UV__POLLHUP)) {
     uv__write(stream);
     uv__write_callbacks(stream);
+
+    /* Write queue drained. */
+    if (QUEUE_EMPTY(&stream->write_queue))
+      uv__drain(stream);
   }
 }
 
@@ -1327,7 +1297,7 @@ int uv_write2(uv_write_t* req,
   memcpy(req->bufs, bufs, nbufs * sizeof(bufs[0]));
   req->nbufs = nbufs;
   req->write_index = 0;
-  stream->write_queue_size += uv_count_bufs(bufs, nbufs);
+  stream->write_queue_size += uv__count_bufs(bufs, nbufs);
 
   /* Append the request to write_queue. */
   QUEUE_INSERT_TAIL(&stream->write_queue, &req->queue);
@@ -1386,7 +1356,7 @@ int uv_try_write(uv_stream_t* stream,
 
   /* Connecting or already writing some data */
   if (stream->connect_req != NULL || stream->write_queue_size != 0)
-    return 0;
+    return -EAGAIN;
 
   has_pollout = uv__io_active(&stream->io_watcher, UV__POLLOUT);
 
@@ -1395,7 +1365,7 @@ int uv_try_write(uv_stream_t* stream,
     return r;
 
   /* Remove not written bytes from write queue size */
-  written = uv_count_bufs(bufs, nbufs);
+  written = uv__count_bufs(bufs, nbufs);
   if (req.bufs != NULL)
     req_size = uv__write_req_size(&req);
   else
@@ -1416,7 +1386,10 @@ int uv_try_write(uv_stream_t* stream,
     uv__stream_osx_interrupt_select(stream);
   }
 
-  return (int) written;
+  if (written == 0)
+    return -EAGAIN;
+  else
+    return written;
 }
 
 

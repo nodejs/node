@@ -19,6 +19,9 @@
  * IN THE SOFTWARE.
  */
 
+/* this test is Unix only */
+#ifndef _WIN32
+
 #include "uv.h"
 #include "task.h"
 
@@ -181,3 +184,5 @@ TEST_IMPL(tcp_close_accept) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#endif  /* !_WIN32 */

@@ -1,4 +1,93 @@
-2014.06.28, Version 0.11.26 (Unstable)
+2014.08.08, Version 0.11.28 (Unstable)
+
+Changes since version 0.11.27:
+
+* unix, windows: const-ify handle in uv_udp_getsockname (Rasmus Pedersen)
+
+* windows: use UV_ECANCELED for aborted TCP writes (Saúl Ibarra Corretgé)
+
+* windows: add more required environment variables (Jameson Nash)
+
+* windows: sort environment variables before calling CreateProcess (Jameson
+  Nash)
+
+* unix, windows: move uv_loop_close out of assert (John Firebaugh)
+
+* windows: fix buffer overflow on uv__getnameinfo_work() (lilohuang)
+
+* windows: add uv_backend_timeout (Jameson Nash)
+
+* test: disable tcp_close_accept on Windows (Saúl Ibarra Corretgé)
+
+* windows: read the PATH env var of the child (Alex Crichton)
+
+* include: avoid using C++ 'template' reserved word (Iñaki Baz Castillo)
+
+* include: fix version number (Saúl Ibarra Corretgé)
+
+
+2014.07.32, Version 0.11.27 (Unstable), ffe24f955032d060968ea0289af365006afed55e
+
+Changes since version 0.11.26:
+
+* unix, windows: use the same threadpool implementation (Saúl Ibarra Corretgé)
+
+* unix: use struct sockaddr_storage for target UDP addr (Saúl Ibarra Corretgé)
+
+* doc: add documentation to uv_udp_start_recv (Andrius Bentkus)
+
+* common: use common uv__count_bufs code (Andrius Bentkus)
+
+* unix, win: add send_queue_size and send_queue_count to uv_udp_t (Andrius
+  Bentkus)
+
+* unix, win: add uv_udp_try_send (Andrius Bentkus)
+
+* unix: return UV_EAGAIN if uv_try_write cannot write any data (Saúl Ibarra
+  Corretgé)
+
+* windows: fix compatibility with cygwin pipes (Jameson Nash)
+
+* windows: count queued bytes even if request completed immediately (Saúl
+  Ibarra Corretgé)
+
+* windows: disable CRT debug handler on MinGW32 (Saúl Ibarra Corretgé)
+
+* windows: map ERROR_INVALID_DRIVE to UV_ENOENT (Saúl Ibarra Corretgé)
+
+* unix: try to write immediately in uv_udp_send (Saúl Ibarra Corretgé)
+
+* unix: remove incorrect assert (Saúl Ibarra Corretgé)
+
+* openbsd: avoid requiring privileges for uv_resident_set_memory (Aaron Bieber)
+
+* unix: guarantee write queue cb execution order in streams (Andrius Bentkus)
+
+* img: add logo files (Saúl Ibarra Corretgé)
+
+* aix: improve AIX compatibility (Andrew Low)
+
+* windows: return bind error immediately when implicitly binding (Saúl Ibarra
+  Corretgé)
+
+* windows: don't use atexit for cleaning up the threadpool (Saúl Ibarra
+  Corretgé)
+
+* windows: destroy work queue elements when colsing a loop (Saúl Ibarra
+  Corretgé)
+
+* unix, windows: add uv_fs_mkdtemp (Pavel Platto)
+
+* build: handle platforms without multiprocessing.synchronize (Saúl Ibarra
+  Corretgé)
+
+* windows: change GENERIC_ALL to GENERIC_WRITE in fs__create_junction (Tony
+  Kelman)
+
+* windows: relay TCP bind errors via ipc (Alexis Campailla)
+
+
+2014.06.28, Version 0.11.26 (Unstable), 115281a1058c4034d5c5ccedacb667fe3f6327ea
 
 Changes since version 0.11.25:
 

@@ -39,6 +39,7 @@
 int ipc_helper(int listen_after_write);
 int ipc_helper_tcp_connection(void);
 int ipc_send_recv_helper(void);
+int ipc_helper_bind_twice(void);
 int stdio_over_pipes_helper(void);
 
 static int maybe_run_test(int argc, char **argv);
@@ -80,6 +81,10 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "ipc_helper_tcp_connection") == 0) {
     return ipc_helper_tcp_connection();
+  }
+
+  if (strcmp(argv[1], "ipc_helper_bind_twice") == 0) {
+    return ipc_helper_bind_twice();
   }
 
   if (strcmp(argv[1], "stdio_over_pipes_helper") == 0) {

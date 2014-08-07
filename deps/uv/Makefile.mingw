@@ -26,6 +26,7 @@ CFLAGS += -Wall \
 INCLUDES = include/stdint-msvc2008.h \
            include/tree.h \
            include/uv-errno.h \
+           include/uv-threadpool.h \
            include/uv-version.h \
            include/uv-win.h \
            include/uv.h \
@@ -42,6 +43,7 @@ INCLUDES = include/stdint-msvc2008.h \
 
 OBJS = src/fs-poll.o \
        src/inet.o \
+       src/threadpool.o \
        src/uv-common.o \
        src/version.o \
        src/win/async.o \
@@ -63,7 +65,6 @@ OBJS = src/fs-poll.o \
        src/win/stream.o \
        src/win/tcp.o \
        src/win/thread.o \
-       src/win/threadpool.o \
        src/win/timer.o \
        src/win/tty.o \
        src/win/udp.o \

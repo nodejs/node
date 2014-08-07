@@ -6,6 +6,13 @@ import os
 import subprocess
 import sys
 
+try:
+  import multiprocessing.synchronize
+  gyp_parallel_support = True
+except ImportError:
+  gyp_parallel_support = False
+
+
 CC = os.environ.get('CC', 'cc')
 script_dir = os.path.dirname(__file__)
 uv_root = os.path.normpath(script_dir)
@@ -93,6 +100,11 @@ if __name__ == '__main__':
 
   if not any(a.startswith('-Dcomponent=') for a in args):
     args.append('-Dcomponent=static_library')
+
+  # Some platforms (OpenBSD for example) don't have multiprocessing.synchronize
+  # so gyp must be run with --no-parallel
+  if not gyp_parallel_support:
+    args.append('--no-parallel')
 
   gyp_args = list(args)
   print gyp_args

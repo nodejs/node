@@ -26,16 +26,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+
+TEST_IMPL(udp_try_send) {
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#else  /* !_WIN32 */
+
 #define CHECK_HANDLE(handle) \
   ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
 
 static uv_udp_t server;
 static uv_udp_t client;
 
-static int cl_send_cb_called;
-static int cl_recv_cb_called;
-
-static int sv_send_cb_called;
 static int sv_recv_cb_called;
 
 static int close_cb_called;
@@ -54,63 +60,8 @@ static void alloc_cb(uv_handle_t* handle,
 
 static void close_cb(uv_handle_t* handle) {
   CHECK_HANDLE(handle);
-  ASSERT(1 == uv_is_closing(handle));
+  ASSERT(uv_is_closing(handle));
   close_cb_called++;
-}
-
-
-static void cl_recv_cb(uv_udp_t* handle,
-                       ssize_t nread,
-                       const uv_buf_t* buf,
-                       const struct sockaddr* addr,
-                       unsigned flags) {
-  CHECK_HANDLE(handle);
-  ASSERT(flags == 0);
-
-  if (nread < 0) {
-    ASSERT(0 && "unexpected error");
-  }
-
-  if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards cl_recv_cb_called */
-    ASSERT(addr == NULL);
-    return;
-  }
-
-  ASSERT(addr != NULL);
-  ASSERT(nread == 4);
-  ASSERT(!memcmp("PONG", buf->base, nread));
-
-  cl_recv_cb_called++;
-
-  uv_close((uv_handle_t*) handle, close_cb);
-}
-
-
-static void cl_send_cb(uv_udp_send_t* req, int status) {
-  int r;
-
-  ASSERT(req != NULL);
-  ASSERT(status == 0);
-  CHECK_HANDLE(req->handle);
-
-  r = uv_udp_recv_start(req->handle, alloc_cb, cl_recv_cb);
-  ASSERT(r == 0);
-
-  cl_send_cb_called++;
-}
-
-
-static void sv_send_cb(uv_udp_send_t* req, int status) {
-  ASSERT(req != NULL);
-  ASSERT(status == 0);
-  CHECK_HANDLE(req->handle);
-
-  uv_close((uv_handle_t*) req->handle, close_cb);
-  free(req);
-
-  sv_send_cb_called++;
 }
 
 
@@ -119,49 +70,27 @@ static void sv_recv_cb(uv_udp_t* handle,
                        const uv_buf_t* rcvbuf,
                        const struct sockaddr* addr,
                        unsigned flags) {
-  uv_udp_send_t* req;
-  uv_buf_t sndbuf;
-  int r;
-
-  if (nread < 0) {
-    ASSERT(0 && "unexpected error");
-  }
+  ASSERT(nread > 0);
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
 
-  CHECK_HANDLE(handle);
-  ASSERT(flags == 0);
-
-  ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(!memcmp("PING", rcvbuf->base, nread));
+  ASSERT(addr != NULL);
 
-  /* FIXME? `uv_udp_recv_stop` does what it says: recv_cb is not called
-    * anymore. That's problematic because the read buffer won't be returned
-    * either... Not sure I like that but it's consistent with `uv_read_stop`.
-    */
-  r = uv_udp_recv_stop(handle);
-  ASSERT(r == 0);
-
-  req = malloc(sizeof *req);
-  ASSERT(req != NULL);
-
-  sndbuf = uv_buf_init("PONG", 4);
-  r = uv_udp_send(req, handle, &sndbuf, 1, addr, sv_send_cb);
-  ASSERT(r == 0);
+  ASSERT(memcmp("EXIT", rcvbuf->base, nread) == 0);
+  uv_close((uv_handle_t*) handle, close_cb);
+  uv_close((uv_handle_t*) &client, close_cb);
 
   sv_recv_cb_called++;
 }
 
 
-TEST_IMPL(udp_send_and_recv) {
+TEST_IMPL(udp_try_send) {
   struct sockaddr_in addr;
-  uv_udp_send_t req;
+  static char buffer[64 * 1024];
   uv_buf_t buf;
   int r;
 
@@ -181,30 +110,18 @@ TEST_IMPL(udp_send_and_recv) {
   r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
-  /* client sends "PING", expects "PONG" */
-  buf = uv_buf_init("PING", 4);
+  buf = uv_buf_init(buffer, sizeof(buffer));
+  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
+  ASSERT(r == UV_EMSGSIZE);
 
-  r = uv_udp_send(&req,
-                  &client,
-                  &buf,
-                  1,
-                  (const struct sockaddr*) &addr,
-                  cl_send_cb);
-  ASSERT(r == 0);
-
-  ASSERT(close_cb_called == 0);
-  ASSERT(cl_send_cb_called == 0);
-  ASSERT(cl_recv_cb_called == 0);
-  ASSERT(sv_send_cb_called == 0);
-  ASSERT(sv_recv_cb_called == 0);
+  buf = uv_buf_init("EXIT", 4);
+  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
+  ASSERT(r == 4);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(cl_send_cb_called == 1);
-  ASSERT(cl_recv_cb_called == 1);
-  ASSERT(sv_send_cb_called == 1);
-  ASSERT(sv_recv_cb_called == 1);
   ASSERT(close_cb_called == 2);
+  ASSERT(sv_recv_cb_called == 1);
 
   ASSERT(client.send_queue_size == 0);
   ASSERT(server.send_queue_size == 0);
@@ -212,3 +129,5 @@ TEST_IMPL(udp_send_and_recv) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#endif  /* !_WIN32 */

@@ -159,6 +159,8 @@ TEST_IMPL(udp_open) {
   ASSERT(send_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
+  ASSERT(client.send_queue_size == 0);
+
   MAKE_VALGRIND_HAPPY();
   return 0;
 }

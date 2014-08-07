@@ -19,38 +19,19 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_STREAM_INL_H_
-#define UV_WIN_STREAM_INL_H_
+/*
+ * This file is private to libuv. It provides common functionality to both
+ * Windows and Unix backends.
+ */
 
-#include <assert.h>
+#ifndef UV_THREADPOOL_H_
+#define UV_THREADPOOL_H_
 
-#include "uv.h"
-#include "internal.h"
-#include "handle-inl.h"
-#include "req-inl.h"
+struct uv__work {
+  void (*work)(struct uv__work *w);
+  void (*done)(struct uv__work *w, int status);
+  struct uv_loop_s* loop;
+  void* wq[2];
+};
 
-
-INLINE static void uv_stream_init(uv_loop_t* loop,
-                                  uv_stream_t* handle,
-                                  uv_handle_type type) {
-  uv__handle_init(loop, (uv_handle_t*) handle, type);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
-}
-
-
-INLINE static void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-  handle->write_reqs_pending = 0;
-
-  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.type = UV_READ;
-  handle->read_req.data = handle;
-
-  handle->shutdown_req = NULL;
-}
-
-
-#endif /* UV_WIN_STREAM_INL_H_ */
+#endif /* UV_THREADPOOL_H_ */

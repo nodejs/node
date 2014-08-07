@@ -42,8 +42,12 @@
 #endif
 #include <signal.h>
 
+#include "uv-threadpool.h"
+
 #if defined(__linux__)
 # include "uv-linux.h"
+#elif defined(_AIX)
+# include "uv-aix.h"
 #elif defined(__sun)
 # include "uv-sunos.h"
 #elif defined(__APPLE__)
@@ -94,13 +98,6 @@ struct uv__async {
   uv__async_cb cb;
   uv__io_t io_watcher;
   int wfd;
-};
-
-struct uv__work {
-  void (*work)(struct uv__work *w);
-  void (*done)(struct uv__work *w, int status);
-  struct uv_loop_s* loop;
-  void* wq[2];
 };
 
 #ifndef UV_PLATFORM_SEM_T
@@ -218,7 +215,7 @@ typedef struct {
 
 #define UV_UDP_SEND_PRIVATE_FIELDS                                            \
   void* queue[2];                                                             \
-  struct sockaddr_in6 addr;                                                   \
+  struct sockaddr_storage addr;                                               \
   unsigned int nbufs;                                                         \
   uv_buf_t* bufs;                                                             \
   ssize_t status;                                                             \

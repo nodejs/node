@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <limits.h>
+#include <malloc.h>
+#include <wchar.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -36,14 +38,27 @@
 
 
 typedef struct env_var {
-  const char* narrow;
-  const WCHAR* wide;
-  size_t len; /* including null or '=' */
-  DWORD value_len;
-  int supplied;
+  const WCHAR* const wide;
+  const WCHAR* const wide_eq;
+  const size_t len; /* including null or '=' */
 } env_var_t;
 
-#define E_V(str) { str "=", L##str, sizeof(str), 0, 0 }
+#define E_V(str) { L##str, L##str L"=", sizeof(str) }
+
+static const env_var_t required_vars[] = { /* keep me sorted */
+  E_V("HOMEDRIVE"),
+  E_V("HOMEPATH"),
+  E_V("LOGONSERVER"),
+  E_V("PATH"),
+  E_V("SYSTEMDRIVE"),
+  E_V("SYSTEMROOT"),
+  E_V("TEMP"),
+  E_V("USERDOMAIN"),
+  E_V("USERNAME"),
+  E_V("USERPROFILE"),
+  E_V("WINDIR"),
+};
+static size_t n_required_vars = ARRAY_SIZE(required_vars);
 
 
 static HANDLE uv_global_job_handle_;
@@ -587,22 +602,53 @@ error:
 }
 
 
-/*
- * If we learn that people are passing in huge environment blocks
- * then we should probably qsort() the array and then bsearch()
- * to see if it contains this variable. But there are ownership
- * issues associated with that solution; this is the caller's
- * char**, and modifying it is rude.
- */
-static void check_required_vars_contains_var(env_var_t* required, int count,
-    const char* var) {
-  int i;
-  for (i = 0; i < count; ++i) {
-    if (_strnicmp(required[i].narrow, var, required[i].len) == 0) {
-      required[i].supplied =  1;
-      return;
+int env_strncmp(const wchar_t* a, int na, const wchar_t* b) {
+  wchar_t* a_eq;
+  wchar_t* b_eq;
+  wchar_t* A;
+  wchar_t* B;
+  int nb;
+  int r;
+
+  if (na < 0) {
+    a_eq = wcschr(a, L'=');
+    assert(a_eq);
+    na = (int)(long)(a_eq - a);
+  } else {
+    na--;
+  }
+  b_eq = wcschr(b, L'=');
+  assert(b_eq);
+  nb = b_eq - b;
+
+  A = alloca((na+1) * sizeof(wchar_t));
+  B = alloca((nb+1) * sizeof(wchar_t));
+
+  r = LCMapStringW(LOCALE_INVARIANT, LCMAP_UPPERCASE, a, na, A, na);
+  assert(r==na);
+  A[na] = L'\0';
+  r = LCMapStringW(LOCALE_INVARIANT, LCMAP_UPPERCASE, b, nb, B, nb);
+  assert(r==nb);
+  B[nb] = L'\0';
+
+  while (1) {
+    wchar_t AA = *A++;
+    wchar_t BB = *B++;
+    if (AA < BB) {
+      return -1;
+    } else if (AA > BB) {
+      return 1;
+    } else if (!AA && !BB) {
+      return 0;
     }
   }
+}
+
+
+static int qsort_wcscmp(const void *a, const void *b) {
+  wchar_t* astr = *(wchar_t* const*)a;
+  wchar_t* bstr = *(wchar_t* const*)b;
+  return env_strncmp(astr, -1, bstr);
 }
 
 
@@ -616,95 +662,171 @@ static void check_required_vars_contains_var(env_var_t* required, int count,
  * TEMP. SYSTEMDRIVE is probably also important. We therefore ensure that
  * these get defined if the input environment block does not contain any
  * values for them.
+ *
+ * Also add variables known to Cygwin to be required for correct
+ * subprocess operation in many cases:
+ * https://github.com/Alexpux/Cygwin/blob/b266b04fbbd3a595f02ea149e4306d3ab9b1fe3d/winsup/cygwin/environ.cc#L955
+ *
  */
 int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   WCHAR* dst;
   WCHAR* ptr;
   char** env;
-  size_t env_len = 1; /* room for closing null */
+  size_t env_len = 0;
   int len;
   size_t i;
   DWORD var_size;
+  size_t env_block_count = 1; /* 1 for null-terminator */
+  WCHAR* dst_copy;
+  WCHAR** ptr_copy;
+  WCHAR** env_copy;
+  DWORD* required_vars_value_len = alloca(n_required_vars * sizeof(DWORD*));
 
-  env_var_t required_vars[] = {
-    E_V("SYSTEMROOT"),
-    E_V("SYSTEMDRIVE"),
-    E_V("TEMP"),
-  };
-
+  /* first pass: determine size in UTF-16 */
   for (env = env_block; *env; env++) {
     int len;
-    check_required_vars_contains_var(required_vars,
-                                     ARRAY_SIZE(required_vars),
-                                     *env);
-
-    len = MultiByteToWideChar(CP_UTF8,
-                              0,
-                              *env,
-                              -1,
-                              NULL,
-                              0);
-    if (len <= 0) {
-      return GetLastError();
-    }
-
-    env_len += len;
-  }
-
-  for (i = 0; i < ARRAY_SIZE(required_vars); ++i) {
-    if (!required_vars[i].supplied) {
-      env_len += required_vars[i].len;
-      var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
-      if (var_size == 0) {
+    if (strchr(*env, '=')) {
+      len = MultiByteToWideChar(CP_UTF8,
+                                0,
+                                *env,
+                                -1,
+                                NULL,
+                                0);
+      if (len <= 0) {
         return GetLastError();
       }
-      required_vars[i].value_len = var_size;
-      env_len += var_size;
+      env_len += len;
+      env_block_count++;
     }
   }
 
-  dst = malloc(env_len * sizeof(WCHAR));
+  /* second pass: copy to UTF-16 environment block */
+  dst_copy = _malloca(env_len * sizeof(WCHAR));
+  if (!dst_copy) {
+    return ERROR_OUTOFMEMORY;
+  }
+  env_copy = alloca(env_block_count * sizeof(WCHAR*));
+
+  ptr = dst_copy;
+  ptr_copy = env_copy;
+  for (env = env_block; *env; env++) {
+    if (strchr(*env, '=')) {
+      len = MultiByteToWideChar(CP_UTF8,
+                                0,
+                                *env,
+                                -1,
+                                ptr,
+                                (int) (env_len - (ptr - dst_copy)));
+      if (len <= 0) {
+        DWORD err = GetLastError();
+        _freea(dst_copy);
+        return err;
+      }
+      *ptr_copy++ = ptr;
+      ptr += len;
+    }
+  }
+  *ptr_copy = NULL;
+  assert(env_len == ptr - dst_copy);
+
+  /* sort our (UTF-16) copy */
+  qsort(env_copy, env_block_count-1, sizeof(wchar_t*), qsort_wcscmp);
+
+  /* third pass: check for required variables */
+  for (ptr_copy = env_copy, i = 0; i < n_required_vars; ) {
+    int cmp;
+    if (!*ptr_copy) {
+      cmp = -1;
+    } else {
+      cmp = env_strncmp(required_vars[i].wide_eq,
+                       required_vars[i].len,
+                        *ptr_copy);
+    }
+    if (cmp < 0) {
+      /* missing required var */
+      var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
+      required_vars_value_len[i] = var_size;
+      if (var_size != 0) {
+        env_len += required_vars[i].len;
+        env_len += var_size;
+      }
+      i++;
+    } else {
+      ptr_copy++;
+      if (cmp == 0)
+        i++;
+    }
+  }
+
+  /* final pass: copy, in sort order, and inserting required variables */
+  dst = malloc((1+env_len) * sizeof(WCHAR));
   if (!dst) {
+    _freea(dst_copy);
     return ERROR_OUTOFMEMORY;
   }
 
-  ptr = dst;
-
-  for (env = env_block; *env; env++, ptr += len) {
-    len = MultiByteToWideChar(CP_UTF8,
-                              0,
-                              *env,
-                              -1,
-                              ptr,
-                              (int) (env_len - (ptr - dst)));
-    if (len <= 0) {
-      free(dst);
-      return GetLastError();
+  for (ptr = dst, ptr_copy = env_copy, i = 0;
+       *ptr_copy || i < n_required_vars;
+       ptr += len) {
+    int cmp;
+    if (i >= n_required_vars) {
+      cmp = 1;
+    } else if (!*ptr_copy) {
+      cmp = -1;
+    } else {
+      cmp = env_strncmp(required_vars[i].wide_eq,
+                        required_vars[i].len,
+                        *ptr_copy);
     }
-  }
-
-  for (i = 0; i < ARRAY_SIZE(required_vars); ++i) {
-    if (!required_vars[i].supplied) {
-      wcscpy(ptr, required_vars[i].wide);
-      ptr += required_vars[i].len - 1;
-      *ptr++ = L'=';
-      var_size = GetEnvironmentVariableW(required_vars[i].wide,
-                                         ptr,
-                                         required_vars[i].value_len);
-      if (var_size == 0) {
-        uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
+    if (cmp < 0) {
+      /* missing required var */
+      len = required_vars_value_len[i];
+      if (len) {
+        wcscpy(ptr, required_vars[i].wide_eq);
+        ptr += required_vars[i].len;
+        var_size = GetEnvironmentVariableW(required_vars[i].wide,
+                                           ptr,
+                                           (int) (env_len - (ptr - dst)));
+        if (var_size != len-1) { /* race condition? */
+          uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
+        }
       }
-      ptr += required_vars[i].value_len;
+      i++;
+    } else {
+      /* copy var from env_block */
+      DWORD r;
+      len = wcslen(*ptr_copy) + 1;
+      r = wmemcpy_s(ptr, (env_len - (ptr - dst)), *ptr_copy, len);
+      assert(!r);
+      ptr_copy++;
+      if (cmp == 0)
+        i++;
     }
   }
 
   /* Terminate with an extra NULL. */
+  assert(env_len == (ptr - dst));
   *ptr = L'\0';
 
+  _freea(dst_copy);
   *dst_ptr = dst;
   return 0;
 }
 
+/*
+ * Attempt to find the value of the PATH environment variable in the child's
+ * preprocessed environment.
+ *
+ * If found, a pointer into `env` is returned. If not found, NULL is returned.
+ */
+static WCHAR* find_path(WCHAR *env) {
+  for (; env != NULL && *env != 0; env += wcslen(env) + 1) {
+    if (wcsncmp(env, L"PATH=", 5) == 0)
+      return &env[5];
+  }
+
+  return NULL;
+}
 
 /*
  * Called on Windows thread-pool thread to indicate that
@@ -802,7 +924,7 @@ int uv_spawn(uv_loop_t* loop,
              const uv_process_options_t* options) {
   int i;
   int err = 0;
-  WCHAR* path = NULL;
+  WCHAR* path = NULL, *alloc_path = NULL;
   BOOL result;
   WCHAR* application_path = NULL, *application = NULL, *arguments = NULL,
          *env = NULL, *cwd = NULL;
@@ -876,7 +998,8 @@ int uv_spawn(uv_loop_t* loop,
   }
 
   /* Get PATH environment variable. */
-  {
+  path = find_path(env);
+  if (path == NULL) {
     DWORD path_len, r;
 
     path_len = GetEnvironmentVariableW(L"PATH", NULL, 0);
@@ -885,11 +1008,12 @@ int uv_spawn(uv_loop_t* loop,
       goto done;
     }
 
-    path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
-    if (path == NULL) {
+    alloc_path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
+    if (alloc_path == NULL) {
       err = ERROR_OUTOFMEMORY;
       goto done;
     }
+    path = alloc_path;
 
     r = GetEnvironmentVariableW(L"PATH", path, path_len);
     if (r == 0 || r >= path_len) {
@@ -1023,7 +1147,7 @@ int uv_spawn(uv_loop_t* loop,
   free(arguments);
   free(cwd);
   free(env);
-  free(path);
+  free(alloc_path);
 
   if (process->child_stdio_buffer != NULL) {
     /* Clean up child stdio handles. */

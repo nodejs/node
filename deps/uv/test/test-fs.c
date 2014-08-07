@@ -65,6 +65,7 @@ static int read_cb_count;
 static int write_cb_count;
 static int unlink_cb_count;
 static int mkdir_cb_count;
+static int mkdtemp_cb_count;
 static int rmdir_cb_count;
 static int readdir_cb_count;
 static int stat_cb_count;
@@ -93,6 +94,8 @@ static uv_fs_t write_req;
 static uv_fs_t unlink_req;
 static uv_fs_t close_req;
 static uv_fs_t mkdir_req;
+static uv_fs_t mkdtemp_req1;
+static uv_fs_t mkdtemp_req2;
 static uv_fs_t rmdir_req;
 static uv_fs_t readdir_req;
 static uv_fs_t stat_req;
@@ -373,6 +376,32 @@ static void mkdir_cb(uv_fs_t* req) {
   ASSERT(req->path);
   ASSERT(memcmp(req->path, "test_dir\0", 9) == 0);
   uv_fs_req_cleanup(req);
+}
+
+
+static void check_mkdtemp_result(uv_fs_t* req) {
+  int r;
+
+  ASSERT(req->fs_type == UV_FS_MKDTEMP);
+  ASSERT(req->result == 0);
+  ASSERT(req->path);
+  ASSERT(strlen(req->path) == 15);
+  ASSERT(memcmp(req->path, "test_dir_", 9) == 0);
+  ASSERT(memcmp(req->path + 9, "XXXXXX", 6) != 0);
+  check_permission(req->path, 0700);
+
+  /* Check if req->path is actually a directory */
+  r = uv_fs_stat(uv_default_loop(), &stat_req, req->path, NULL);
+  ASSERT(r == 0);
+  ASSERT(((uv_stat_t*)stat_req.ptr)->st_mode & S_IFDIR);
+  uv_fs_req_cleanup(&stat_req);
+}
+
+
+static void mkdtemp_cb(uv_fs_t* req) {
+  ASSERT(req == &mkdtemp_req1);
+  check_mkdtemp_result(req);
+  mkdtemp_cb_count++;
 }
 
 
@@ -927,6 +956,37 @@ TEST_IMPL(fs_async_sendfile) {
 }
 
 
+TEST_IMPL(fs_mkdtemp) {
+  int r;
+  const char* path_template = "test_dir_XXXXXX";
+
+  loop = uv_default_loop();
+
+  r = uv_fs_mkdtemp(loop, &mkdtemp_req1, path_template, mkdtemp_cb);
+  ASSERT(r == 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(mkdtemp_cb_count == 1);
+
+  /* sync mkdtemp */
+  r = uv_fs_mkdtemp(loop, &mkdtemp_req2, path_template, NULL);
+  ASSERT(r == 0);
+  check_mkdtemp_result(&mkdtemp_req2);
+
+  /* mkdtemp return different values on subsequent calls */
+  ASSERT(strcmp(mkdtemp_req1.path, mkdtemp_req2.path) != 0);
+
+  /* Cleanup */
+  rmdir(mkdtemp_req1.path);
+  rmdir(mkdtemp_req2.path);
+  uv_fs_req_cleanup(&mkdtemp_req1);
+  uv_fs_req_cleanup(&mkdtemp_req2);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(fs_fstat) {
   int r;
   uv_fs_t req;
@@ -985,6 +1045,13 @@ TEST_IMPL(fs_fstat) {
   ASSERT(s->st_birthtim.tv_nsec == t.st_birthtimespec.tv_nsec);
   ASSERT(s->st_flags == t.st_flags);
   ASSERT(s->st_gen == t.st_gen);
+#elif defined(_AIX)
+  ASSERT(s->st_atim.tv_sec == t.st_atime);
+  ASSERT(s->st_atim.tv_nsec == 0);
+  ASSERT(s->st_mtim.tv_sec == t.st_mtime);
+  ASSERT(s->st_mtim.tv_nsec == 0);
+  ASSERT(s->st_ctim.tv_sec == t.st_ctime);
+  ASSERT(s->st_ctim.tv_nsec == 0);
 #elif defined(__sun) || \
       defined(_BSD_SOURCE) || \
       defined(_SVID_SOURCE) || \

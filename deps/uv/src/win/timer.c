@@ -36,10 +36,11 @@ void uv_update_time(uv_loop_t* loop) {
 
   time.QuadPart = loop->time;
 
-  /* GetTickCount() can conceivably wrap around, so when the current tick */
-  /* count is lower than the last tick count, we'll assume it has wrapped. */
-  /* uv_poll must make sure that the timer can never overflow more than */
-  /* once between two subsequent uv_update_time calls. */
+  /* GetTickCount() can conceivably wrap around, so when the current tick
+   * count is lower than the last tick count, we'll assume it has wrapped.
+   * uv_poll must make sure that the timer can never overflow more than
+   * once between two subsequent uv_update_time calls.
+   */
   time.LowPart = ticks;
   if (ticks < loop->last_tick_count)
     time.HighPart++;
@@ -47,13 +48,14 @@ void uv_update_time(uv_loop_t* loop) {
   /* Remember the last tick count. */
   loop->last_tick_count = ticks;
 
-  /* The GetTickCount() resolution isn't too good. Sometimes it'll happen */
-  /* that GetQueuedCompletionStatus() or GetQueuedCompletionStatusEx() has */
-  /* waited for a couple of ms but this is not reflected in the GetTickCount */
-  /* result yet. Therefore whenever GetQueuedCompletionStatus times out */
-  /* we'll add the number of ms that it has waited to the current loop time. */
-  /* When that happened the loop time might be a little ms farther than what */
-  /* we've just computed, and we shouldn't update the loop time. */
+  /* The GetTickCount() resolution isn't too good. Sometimes it'll happen
+   * that GetQueuedCompletionStatus() or GetQueuedCompletionStatusEx() has
+   * waited for a couple of ms but this is not reflected in the GetTickCount
+   * result yet. Therefore whenever GetQueuedCompletionStatus times out
+   * we'll add the number of ms that it has waited to the current loop time.
+   * When that happened the loop time might be a little ms farther than what
+   * we've just computed, and we shouldn't update the loop time.
+   */
   if (loop->time < time.QuadPart)
     loop->time = time.QuadPart;
 }
@@ -193,24 +195,26 @@ uint64_t uv_timer_get_repeat(const uv_timer_t* handle) {
 }
 
 
-DWORD uv_get_poll_timeout(uv_loop_t* loop) {
+DWORD uv__next_timeout(const uv_loop_t* loop) {
   uv_timer_t* timer;
   int64_t delta;
 
-  /* Check if there are any running timers */
-  timer = RB_MIN(uv_timer_tree_s, &loop->timers);
+  /* Check if there are any running timers
+   * Need to cast away const first, since RB_MIN doesn't know what we are
+   * going to do with this return value, it can't be marked const
+   */
+  timer = RB_MIN(uv_timer_tree_s, &((uv_loop_t*)loop)->timers);
   if (timer) {
-    uv_update_time(loop);
-
     delta = timer->due - loop->time;
     if (delta >= UINT_MAX >> 1) {
-      /* A timeout value of UINT_MAX means infinite, so that's no good. But */
-      /* more importantly, there's always the risk that GetTickCount wraps. */
-      /* uv_update_time can detect this, but we must make sure that the */
-      /* tick counter never overflows twice between two subsequent */
-      /* uv_update_time calls. We do this by never sleeping more than half */
-      /* the time it takes to wrap  the counter - which is huge overkill, */
-      /* but hey, it's not so bad to wake up every 25 days. */
+      /* A timeout value of UINT_MAX means infinite, so that's no good. But
+       * more importantly, there's always the risk that GetTickCount wraps.
+       * uv_update_time can detect this, but we must make sure that the
+       * tick counter never overflows twice between two subsequent
+       * uv_update_time calls. We do this by never sleeping more than half
+       * the time it takes to wrap  the counter - which is huge overkill,
+       * but hey, it's not so bad to wake up every 25 days.
+       */
       return UINT_MAX >> 1;
     } else if (delta < 0) {
       /* Negative timeout values are not allowed */

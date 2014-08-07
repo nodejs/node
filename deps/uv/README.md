@@ -1,10 +1,12 @@
-# libuv
+![libuv][libuv_banner]
+
+## Overview
 
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
 was primarily developed for use by [Node.js](http://nodejs.org), but it's also
 used by Mozilla's [Rust language](http://www.rust-lang.org/),
 [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
-[pyuv](https://crate.io/packages/pyuv/), and [others](https://github.com/joyent/libuv/wiki/Projects-that-use-libuv).
+[pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/joyent/libuv/wiki/Projects-that-use-libuv).
 
 ## Feature highlights
 
@@ -141,3 +143,4 @@ See the [guidelines for contributing][].
 [Python]: https://www.python.org/downloads/
 [Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express
 [guidelines for contributing]: https://github.com/joyent/libuv/blob/master/CONTRIBUTING.md
+[libuv_banner]: https://raw.githubusercontent.com/joyent/libuv/master/img/banner.png

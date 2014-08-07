@@ -214,9 +214,23 @@ skip:
 }
 
 
+static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
+  return mkdtemp((char*) req->path) ? 0 : -1;
+}
+
+
 static ssize_t uv__fs_read(uv_fs_t* req) {
   ssize_t result;
 
+#if defined(_AIX)
+  struct stat buf;
+  if(fstat(req->file, &buf))
+    return -1;
+  if(S_ISDIR(buf.st_mode)) {
+    errno = EISDIR;
+    return -1;
+  }
+#endif /* defined(_AIX) */
   if (req->off < 0) {
     if (req->nbufs == 1)
       result = read(req->file, req->bufs[0].base, req->bufs[0].len);
@@ -683,7 +697,8 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
   dst->st_flags = src->st_flags;
   dst->st_gen = src->st_gen;
-#elif defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE)
+#elif !defined(_AIX) && \
+  (defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE))
   dst->st_atim.tv_sec = src->st_atim.tv_sec;
   dst->st_atim.tv_nsec = src->st_atim.tv_nsec;
   dst->st_mtim.tv_sec = src->st_mtim.tv_sec;
@@ -779,6 +794,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(LSTAT, uv__fs_lstat(req->path, &req->statbuf));
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
+    X(MKDTEMP, uv__fs_mkdtemp(req));
     X(READ, uv__fs_read(req));
     X(READDIR, uv__fs_readdir(req));
     X(READLINK, uv__fs_readlink(req));
@@ -987,6 +1003,18 @@ int uv_fs_mkdir(uv_loop_t* loop,
   INIT(MKDIR);
   PATH;
   req->mode = mode;
+  POST;
+}
+
+
+int uv_fs_mkdtemp(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* tpl,
+                  uv_fs_cb cb) {
+  INIT(MKDTEMP);
+  req->path = strdup(tpl);
+  if (req->path == NULL)
+    return -ENOMEM;
   POST;
 }
 

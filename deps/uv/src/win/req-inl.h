@@ -195,24 +195,8 @@ INLINE static void uv_process_reqs(uv_loop_t* loop) {
         uv_process_poll_req(loop, (uv_poll_t*) req->data, req);
         break;
 
-      case UV_GETADDRINFO:
-        uv_process_getaddrinfo_req(loop, (uv_getaddrinfo_t*) req);
-        break;
-
-      case UV_GETNAMEINFO:
-        uv_process_getnameinfo_req(loop, (uv_getnameinfo_t*)req);
-        break;
-
       case UV_PROCESS_EXIT:
         uv_process_proc_exit(loop, (uv_process_t*) req->data);
-        break;
-
-      case UV_FS:
-        uv_process_fs_req(loop, (uv_fs_t*) req);
-        break;
-
-      case UV_WORK:
-        uv_process_work_req(loop, (uv_work_t*) req);
         break;
 
       case UV_FS_EVENT_REQ:

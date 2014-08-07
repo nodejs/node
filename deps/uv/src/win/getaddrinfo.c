@@ -56,25 +56,13 @@
 #define ALIGNED_SIZE(X)     ((((X) + 3) >> 2) << 2)
 
 
-/* getaddrinfo worker thread implementation */
-static DWORD WINAPI getaddrinfo_thread_proc(void* parameter) {
-  uv_getaddrinfo_t* req = (uv_getaddrinfo_t*) parameter;
-  uv_loop_t* loop = req->loop;
-  int ret;
+static void uv__getaddrinfo_work(struct uv__work* w) {
+  uv_getaddrinfo_t* req;
+  int err;
 
-  assert(req != NULL);
-
-  /* call OS function on this thread */
-  ret = GetAddrInfoW(req->node,
-                     req->service,
-                     req->hints,
-                     &req->res);
-  req->retcode = ret;
-
-  /* post getaddrinfo completed */
-  POST_COMPLETION_FOR_REQ(loop, req);
-
-  return 0;
+  req = container_of(w, uv_getaddrinfo_t, work_req);
+  err = GetAddrInfoW(req->node, req->service, req->hints, &req->res);
+  req->retcode = uv__getaddrinfo_translate_error(err);
 }
 
 
@@ -87,7 +75,8 @@ static DWORD WINAPI getaddrinfo_thread_proc(void* parameter) {
  * and copy all structs and referenced strings into the one block.
  * Each size calculation is adjusted to avoid unaligned pointers.
  */
-void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
+static void uv__getaddrinfo_done(struct uv__work* w, int status) {
+  uv_getaddrinfo_t* req;
   int addrinfo_len = 0;
   int name_len = 0;
   size_t addrinfo_struct_len = ALIGNED_SIZE(sizeof(struct addrinfo));
@@ -95,12 +84,23 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
   struct addrinfo* addrinfo_ptr;
   char* alloc_ptr = NULL;
   char* cur_ptr = NULL;
-  int err = 0;
+
+  req = container_of(w, uv_getaddrinfo_t, work_req);
 
   /* release input parameter memory */
   if (req->alloc != NULL) {
     free(req->alloc);
     req->alloc = NULL;
+  }
+
+  if (status == UV_ECANCELED) {
+    assert(req->retcode == 0);
+    req->retcode = UV_EAI_CANCELED;
+    if (req->res != NULL) {
+        FreeAddrInfoW(req->res);
+        req->res = NULL;
+    }
+    goto complete;
   }
 
   if (req->retcode == 0) {
@@ -113,7 +113,7 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
       if (addrinfow_ptr->ai_canonname != NULL) {
         name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname, -1, NULL, 0);
         if (name_len == 0) {
-          err = uv_translate_sys_error(GetLastError());
+          req->retcode = uv_translate_sys_error(GetLastError());
           goto complete;
         }
         addrinfo_len += ALIGNED_SIZE(name_len);
@@ -178,11 +178,8 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
         }
       }
     } else {
-      err = UV_EAI_MEMORY;
+      req->retcode = UV_EAI_MEMORY;
     }
-  } else {
-    /* GetAddrInfo failed */
-    err = uv__getaddrinfo_translate_error(req->retcode);
   }
 
   /* return memory to system */
@@ -192,10 +189,10 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req) {
   }
 
 complete:
-  uv__req_unregister(loop, req);
+  uv__req_unregister(req->loop, req);
 
   /* finally do callback with converted result */
-  req->getaddrinfo_cb(req, err, (struct addrinfo*)alloc_ptr);
+  req->getaddrinfo_cb(req, req->retcode, (struct addrinfo*)alloc_ptr);
 }
 
 
@@ -246,6 +243,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   req->res = NULL;
   req->type = UV_GETADDRINFO;
   req->loop = loop;
+  req->retcode = 0;
 
   /* calculate required memory size for all input values */
   if (node != NULL) {
@@ -323,13 +321,10 @@ int uv_getaddrinfo(uv_loop_t* loop,
     req->hints = NULL;
   }
 
-  /* Ask thread to run. Treat this as a long operation */
-  if (QueueUserWorkItem(&getaddrinfo_thread_proc,
-                        req,
-                        WT_EXECUTELONGFUNCTION) == 0) {
-    err = GetLastError();
-    goto error;
-  }
+  uv__work_submit(loop,
+                  &req->work_req,
+                  uv__getaddrinfo_work,
+                  uv__getaddrinfo_done);
 
   uv__req_register(loop, req);
 

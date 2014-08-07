@@ -19,75 +19,67 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-#include "task.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_BYTES 1024 * 1024
+#include "uv.h"
+#include "task.h"
 
-#ifdef _WIN32
+#define REQ_COUNT 100000
 
-TEST_IMPL(tcp_try_write) {
-
-  MAKE_VALGRIND_HAPPY();
-  return 0;
-}
-
-#else  /* !_WIN32 */
-
+static uv_timer_t timer;
 static uv_tcp_t server;
 static uv_tcp_t client;
 static uv_tcp_t incoming;
 static int connect_cb_called;
 static int close_cb_called;
 static int connection_cb_called;
-static int bytes_read;
-static int bytes_written;
+static int write_callbacks;
+static int write_cancelled_callbacks;
+static int write_error_callbacks;
+
+static uv_write_t write_requests[REQ_COUNT];
 
 
 static void close_cb(uv_handle_t* handle) {
   close_cb_called++;
 }
 
+void timer_cb(uv_timer_t* handle) {
+  uv_close((uv_handle_t*) &client, close_cb);
+  uv_close((uv_handle_t*) &server, close_cb);
+  uv_close((uv_handle_t*) &incoming, close_cb);
+}
+
+void write_cb(uv_write_t* req, int status) {
+  if (status == 0)
+    write_callbacks++;
+  else if (status == UV_ECANCELED)
+    write_cancelled_callbacks++;
+  else
+    write_error_callbacks++;
+}
 
 static void connect_cb(uv_connect_t* req, int status) {
+  static char base[1024];
   int r;
+  int i;
   uv_buf_t buf;
+
   ASSERT(status == 0);
   connect_cb_called++;
 
-  do {
-    buf = uv_buf_init("PING", 4);
-    r = uv_try_write((uv_stream_t*) &client, &buf, 1);
-    ASSERT(r > 0 || r == UV_EAGAIN);
-    if (r > 0) {
-      bytes_written += r;
-      break;
-    }
-  } while (1);
-  uv_close((uv_handle_t*) &client, close_cb);
-}
+  buf = uv_buf_init(base, sizeof(base));
 
-
-static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
-  static char base[1024];
-
-  buf->base = base;
-  buf->len = sizeof(base);
-}
-
-
-static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-  if (nread < 0) {
-    uv_close((uv_handle_t*) tcp, close_cb);
-    uv_close((uv_handle_t*) &server, close_cb);
-    return;
+  for (i = 0; i < REQ_COUNT; i++) {
+    r = uv_write(&write_requests[i],
+                 req->handle,
+                 &buf,
+                 1,
+                 write_cb);
+    ASSERT(r == 0);
   }
-
-  bytes_read += nread;
 }
 
 
@@ -98,7 +90,6 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(0 == uv_accept(tcp, (uv_stream_t*) &incoming));
 
   connection_cb_called++;
-  ASSERT(0 == uv_read_start((uv_stream_t*) &incoming, alloc_cb, read_cb));
 }
 
 
@@ -113,7 +104,7 @@ static void start_server(void) {
 }
 
 
-TEST_IMPL(tcp_try_write) {
+TEST_IMPL(tcp_write_queue_order) {
   uv_connect_t connect_req;
   struct sockaddr_in addr;
 
@@ -127,16 +118,20 @@ TEST_IMPL(tcp_try_write) {
                              (struct sockaddr*) &addr,
                              connect_cb));
 
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
+  ASSERT(0 == uv_timer_start(&timer, timer_cb, 100, 0));
+
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   ASSERT(connect_cb_called == 1);
-  ASSERT(close_cb_called == 3);
   ASSERT(connection_cb_called == 1);
-  ASSERT(bytes_read == bytes_written);
-  ASSERT(bytes_written > 0);
+  ASSERT(write_callbacks > 0);
+  ASSERT(write_cancelled_callbacks > 0);
+  ASSERT(write_callbacks +
+         write_error_callbacks +
+         write_cancelled_callbacks == REQ_COUNT);
+  ASSERT(close_cb_called == 3);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-
-#endif  /* !_WIN32 */
