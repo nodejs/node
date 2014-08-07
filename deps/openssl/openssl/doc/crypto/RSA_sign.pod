@@ -20,6 +20,10 @@ RSA_sign() signs the message digest B<m> of size B<m_len> using the
 private key B<rsa> as specified in PKCS #1 v2.0. It stores the
 signature in B<sigret> and the signature size in B<siglen>. B<sigret>
 must point to RSA_size(B<rsa>) bytes of memory.
+Note that PKCS #1 adds meta-data, placing limits on the size of the
+key that can be used.
+See L<RSA_private_encrypt(3)|RSA_private_encrypt(3)> for lower-level
+operations.
 
 B<type> denotes the message digest algorithm that was used to generate
 B<m>. It usually is one of B<NID_sha1>, B<NID_ripemd160> and B<NID_md5>;

@@ -77,6 +77,7 @@ int BN_sqr(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
 	if (al <= 0)
 		{
 		r->top=0;
+		r->neg = 0;
 		return 1;
 		}
 

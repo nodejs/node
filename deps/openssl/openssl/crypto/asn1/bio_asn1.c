@@ -154,7 +154,10 @@ static int asn1_bio_new(BIO *b)
 	if (!ctx)
 		return 0;
 	if (!asn1_bio_init(ctx, DEFAULT_ASN1_BUF_SIZE))
+		{
+		OPENSSL_free(ctx);
 		return 0;
+		}
 	b->init = 1;
 	b->ptr = (char *)ctx;
 	b->flags = 0;

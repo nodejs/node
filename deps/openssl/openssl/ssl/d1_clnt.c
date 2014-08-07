@@ -876,12 +876,18 @@ int dtls1_client_hello(SSL *s)
 		*(p++)=0; /* Add the NULL method */
 
 #ifndef OPENSSL_NO_TLSEXT
+		/* TLS extensions*/
+		if (ssl_prepare_clienthello_tlsext(s) <= 0)
+			{
+			SSLerr(SSL_F_DTLS1_CLIENT_HELLO,SSL_R_CLIENTHELLO_TLSEXT);
+			goto err;
+			}
 		if ((p = ssl_add_clienthello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
 			{
 			SSLerr(SSL_F_DTLS1_CLIENT_HELLO,ERR_R_INTERNAL_ERROR);
 			goto err;
 			}
-#endif		
+#endif
 
 		l=(p-d);
 		d=buf;
@@ -989,6 +995,13 @@ int dtls1_send_client_key_exchange(SSL *s)
 			{
 			RSA *rsa;
 			unsigned char tmp_buf[SSL_MAX_MASTER_KEY_LENGTH];
+
+			if (s->session->sess_cert == NULL)
+				{
+				/* We should always have a server certificate with SSL_kRSA. */
+				SSLerr(SSL_F_DTLS1_SEND_CLIENT_KEY_EXCHANGE,ERR_R_INTERNAL_ERROR);
+				goto err;
+				}
 
 			if (s->session->sess_cert->peer_rsa_tmp != NULL)
 				rsa=s->session->sess_cert->peer_rsa_tmp;
@@ -1180,6 +1193,13 @@ int dtls1_send_client_key_exchange(SSL *s)
 			{
 			DH *dh_srvr,*dh_clnt;
 
+			if (s->session->sess_cert == NULL)
+				{
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_UNEXPECTED_MESSAGE);
+				SSLerr(SSL_F_DTLS1_SEND_CLIENT_KEY_EXCHANGE,SSL_R_UNEXPECTED_MESSAGE);
+				goto err;
+				}
+
 			if (s->session->sess_cert->peer_dh_tmp != NULL)
 				dh_srvr=s->session->sess_cert->peer_dh_tmp;
 			else
@@ -1238,6 +1258,13 @@ int dtls1_send_client_key_exchange(SSL *s)
 			EC_KEY *tkey;
 			int ecdh_clnt_cert = 0;
 			int field_size = 0;
+
+			if (s->session->sess_cert == NULL)
+				{
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_UNEXPECTED_MESSAGE);
+				SSLerr(SSL_F_DTLS1_SEND_CLIENT_KEY_EXCHANGE,SSL_R_UNEXPECTED_MESSAGE);
+				goto err;
+				}
 
 			/* Did we send out the client's
 			 * ECDH share for use in premaster
@@ -1714,5 +1741,3 @@ int dtls1_send_client_certificate(SSL *s)
 	/* SSL3_ST_CW_CERT_D */
 	return(dtls1_do_write(s,SSL3_RT_HANDSHAKE));
 	}
-
-

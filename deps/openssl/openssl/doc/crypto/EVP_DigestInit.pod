@@ -161,9 +161,8 @@ EVP_MD_CTX_copy_ex() returns 1 if successful or 0 for failure.
 EVP_MD_type(), EVP_MD_pkey_type() and EVP_MD_type() return the NID of the
 corresponding OBJECT IDENTIFIER or NID_undef if none exists.
 
-EVP_MD_size(), EVP_MD_block_size(), EVP_MD_CTX_size(e), EVP_MD_size(),
-EVP_MD_CTX_block_size()	and EVP_MD_block_size() return the digest or block
-size in bytes.
+EVP_MD_size(), EVP_MD_block_size(), EVP_MD_CTX_size() and
+EVP_MD_CTX_block_size() return the digest or block size in bytes.
 
 EVP_md_null(), EVP_md2(), EVP_md5(), EVP_sha(), EVP_sha1(), EVP_dss(),
 EVP_dss1(), EVP_mdc2() and EVP_ripemd160() return pointers to the

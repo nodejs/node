@@ -174,7 +174,7 @@ The IP address used in the B<IP> options can be in either IPv4 or IPv6 format.
 
 The value of B<dirName> should point to a section containing the distinguished
 name to use as a set of name value pairs. Multi values AVAs can be formed by
-preceeding the name with a B<+> character.
+prefacing the name with a B<+> character.
 
 otherName can include arbitrary data associated with an OID: the value
 should be the OID followed by a semicolon and the content in standard

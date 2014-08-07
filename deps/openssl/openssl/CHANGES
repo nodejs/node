@@ -2,6 +2,92 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1h and 1.0.1i [6 Aug 2014]
+
+  *) Fix SRP buffer overrun vulnerability. Invalid parameters passed to the
+     SRP code can be overrun an internal buffer. Add sanity check that
+     g, A, B < N to SRP code.
+
+     Thanks to Sean Devlin and Watson Ladd of Cryptography Services, NCC
+     Group for discovering this issue.
+     (CVE-2014-3512)
+     [Steve Henson]
+
+  *) A flaw in the OpenSSL SSL/TLS server code causes the server to negotiate
+     TLS 1.0 instead of higher protocol versions when the ClientHello message
+     is badly fragmented. This allows a man-in-the-middle attacker to force a
+     downgrade to TLS 1.0 even if both the server and the client support a
+     higher protocol version, by modifying the client's TLS records.
+
+     Thanks to David Benjamin and Adam Langley (Google) for discovering and
+     researching this issue.
+     (CVE-2014-3511)
+     [David Benjamin]
+
+  *) OpenSSL DTLS clients enabling anonymous (EC)DH ciphersuites are subject
+     to a denial of service attack. A malicious server can crash the client
+     with a null pointer dereference (read) by specifying an anonymous (EC)DH
+     ciphersuite and sending carefully crafted handshake messages.
+
+     Thanks to Felix Gröbert (Google) for discovering and researching this
+     issue.
+     (CVE-2014-3510)
+     [Emilia Käsper]
+
+  *) By sending carefully crafted DTLS packets an attacker could cause openssl
+     to leak memory. This can be exploited through a Denial of Service attack.
+     Thanks to Adam Langley for discovering and researching this issue.
+     (CVE-2014-3507)
+     [Adam Langley]
+
+  *) An attacker can force openssl to consume large amounts of memory whilst
+     processing DTLS handshake messages. This can be exploited through a
+     Denial of Service attack.
+     Thanks to Adam Langley for discovering and researching this issue.
+     (CVE-2014-3506)
+     [Adam Langley]
+
+  *) An attacker can force an error condition which causes openssl to crash
+     whilst processing DTLS packets due to memory being freed twice. This
+     can be exploited through a Denial of Service attack.
+     Thanks to Adam Langley and Wan-Teh Chang for discovering and researching
+     this issue.
+     (CVE-2014-3505)
+     [Adam Langley]
+
+  *) If a multithreaded client connects to a malicious server using a resumed
+     session and the server sends an ec point format extension it could write
+     up to 255 bytes to freed memory.
+
+     Thanks to Gabor Tyukasz (LogMeIn Inc) for discovering and researching this
+     issue.
+     (CVE-2014-3509)
+     [Gabor Tyukasz]
+
+  *) A malicious server can crash an OpenSSL client with a null pointer
+     dereference (read) by specifying an SRP ciphersuite even though it was not
+     properly negotiated with the client. This can be exploited through a
+     Denial of Service attack.
+
+     Thanks to Joonas Kuorilehto and Riku Hietamäki (Codenomicon) for
+     discovering and researching this issue.
+     (CVE-2014-5139)
+     [Steve Henson]
+
+  *) A flaw in OBJ_obj2txt may cause pretty printing functions such as
+     X509_name_oneline, X509_name_print_ex et al. to leak some information
+     from the stack. Applications may be affected if they echo pretty printing
+     output to the attacker.
+
+     Thanks to Ivan Fratric (Google) for discovering this issue.
+     (CVE-2014-3508)
+     [Emilia Käsper, and Steve Henson]
+
+  *) Fix ec_GFp_simple_points_make_affine (thus, EC_POINTs_mul etc.)
+     for corner cases. (Certain input points at infinity could lead to
+     bogus results, with non-infinity inputs mapped to infinity too.)
+     [Bodo Moeller]
+
  Changes between 1.0.1g and 1.0.1h [5 Jun 2014]
 
   *) Fix for SSL/TLS MITM flaw. An attacker using a carefully crafted

@@ -459,7 +459,7 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 	if (padding == RSA_X931_PADDING)
 		{
 		BN_sub(f, rsa->n, ret);
-		if (BN_cmp(ret, f))
+		if (BN_cmp(ret, f) > 0)
 			res = f;
 		else
 			res = ret;

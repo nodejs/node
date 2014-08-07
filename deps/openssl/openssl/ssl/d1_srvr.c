@@ -598,10 +598,11 @@ int dtls1_accept(SSL *s)
 				s->state = SSL3_ST_SR_CLNT_HELLO_C;
 				}
 			else {
-				/* could be sent for a DH cert, even if we
-				 * have not asked for it :-) */
-				ret=ssl3_get_client_certificate(s);
-				if (ret <= 0) goto end;
+				if (s->s3->tmp.cert_request)
+					{
+					ret=ssl3_get_client_certificate(s);
+					if (ret <= 0) goto end;
+					}
 				s->init_num=0;
 				s->state=SSL3_ST_SR_KEY_EXCH_A;
 			}
@@ -980,6 +981,11 @@ int dtls1_send_server_hello(SSL *s)
 #endif
 
 #ifndef OPENSSL_NO_TLSEXT
+		if (ssl_prepare_serverhello_tlsext(s) <= 0)
+			{
+			SSLerr(SSL_F_DTLS1_SEND_SERVER_HELLO,SSL_R_SERVERHELLO_TLSEXT);
+			return -1;
+			}
 		if ((p = ssl_add_serverhello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
 			{
 			SSLerr(SSL_F_DTLS1_SEND_SERVER_HELLO,ERR_R_INTERNAL_ERROR);

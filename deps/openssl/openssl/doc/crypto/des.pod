@@ -135,9 +135,8 @@ depend on a global variable.
 
 DES_set_odd_parity() sets the parity of the passed I<key> to odd.
 
-DES_is_weak_key() returns 1 is the passed key is a weak key, 0 if it
-is ok.  The probability that a randomly generated key is weak is
-1/2^52, so it is not really worth checking for them.
+DES_is_weak_key() returns 1 if the passed key is a weak key, 0 if it
+is ok.  
 
 The following routines mostly operate on an input and output stream of
 I<DES_cblock>s.
@@ -181,7 +180,7 @@ of 24 bytes.  This is much better than CBC DES.
 
 DES_ede3_cbc_encrypt() implements outer triple CBC DES encryption with
 three keys. This means that each DES operation inside the CBC mode is
-really an C<C=E(ks3,D(ks2,E(ks1,M)))>.  This mode is used by SSL.
+an C<C=E(ks3,D(ks2,E(ks1,M)))>.  This mode is used by SSL.
 
 The DES_ede2_cbc_encrypt() macro implements two-key Triple-DES by
 reusing I<ks1> for the final encryption.  C<C=E(ks1,D(ks2,E(ks1,M)))>.

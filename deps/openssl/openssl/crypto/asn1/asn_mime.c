@@ -667,6 +667,8 @@ static STACK_OF(MIME_HEADER) *mime_parse_hdr(BIO *bio)
 	int len, state, save_state = 0;
 
 	headers = sk_MIME_HEADER_new(mime_hdr_cmp);
+	if (!headers)
+		return NULL;
 	while ((len = BIO_gets(bio, linebuf, MAX_SMLEN)) > 0) {
 	/* If whitespace at line start then continuation line */
 	if(mhdr && isspace((unsigned char)linebuf[0])) state = MIME_NAME;

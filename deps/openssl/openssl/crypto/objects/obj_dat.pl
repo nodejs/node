@@ -115,7 +115,7 @@ for ($i=0; $i<$n; $i++)
 		$out.="\"$sn\"";
 		$out.=","."\"$ln\"";
 		$out.=",NID_$nid{$i},";
-		if (defined($obj{$nid{$i}}))
+		if (defined($obj{$nid{$i}}) && $objd{$obj{$nid{$i}}} =~ /,/)
 			{
 			$v=$objd{$obj{$nid{$i}}};
 			$v =~ s/L//g;

@@ -96,13 +96,7 @@ int MAIN(int argc, char **argv)
 	char buf[512];
 	BIO *STDout=NULL;
 
-#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	meth=SSLv23_server_method();
-#elif !defined(OPENSSL_NO_SSL3)
-	meth=SSLv3_server_method();
-#elif !defined(OPENSSL_NO_SSL2)
-	meth=SSLv2_server_method();
-#endif
 
 	apps_startup();
 

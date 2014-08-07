@@ -759,6 +759,11 @@ static EVP_PKEY *do_PVK_body(const unsigned char **in,
 		/* Copy BLOBHEADER across, decrypt rest */
 		memcpy(enctmp, p, 8);
 		p += 8;
+		if (keylen < 8)
+			{
+			PEMerr(PEM_F_DO_PVK_BODY, PEM_R_PVK_TOO_SHORT);
+			return NULL;
+			}
 		inlen = keylen - 8;
 		q = enctmp + 8;
 		if (!EVP_DecryptInit_ex(&cctx, EVP_rc4(), NULL, keybuf, NULL))

@@ -141,7 +141,13 @@ int MAIN(int argc, char **argv)
 			{
 			if (--argc < 1) goto bad;
 			if(!certflst) certflst = sk_OPENSSL_STRING_new_null();
-			sk_OPENSSL_STRING_push(certflst,*(++argv));
+			if (!certflst)
+				goto end;
+			if (!sk_OPENSSL_STRING_push(certflst,*(++argv)))
+				{
+				sk_OPENSSL_STRING_free(certflst);
+				goto end;
+				}
 			}
 		else
 			{

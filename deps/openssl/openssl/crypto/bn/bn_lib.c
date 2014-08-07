@@ -320,6 +320,15 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
 		BNerr(BN_F_BN_EXPAND_INTERNAL,ERR_R_MALLOC_FAILURE);
 		return(NULL);
 		}
+#ifdef PURIFY
+	/* Valgrind complains in BN_consttime_swap because we process the whole
+	 * array even if it's not initialised yet. This doesn't matter in that
+	 * function - what's important is constant time operation (we're not
+	 * actually going to use the data)
+	*/
+	memset(a, 0, sizeof(BN_ULONG)*words);
+#endif
+
 #if 1
 	B=b->d;
 	/* Check if the previous number needs to be copied */

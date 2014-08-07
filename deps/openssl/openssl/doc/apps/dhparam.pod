@@ -12,6 +12,7 @@ B<openssl dhparam>
 [B<-in> I<filename>]
 [B<-out> I<filename>]
 [B<-dsaparam>]
+[B<-check>]
 [B<-noout>]
 [B<-text>]
 [B<-C>]
@@ -63,6 +64,10 @@ and the recommended exponent length is shorter, which makes DH key
 exchange more efficient.  Beware that with such DSA-style DH
 parameters, a fresh DH key should be created for each use to
 avoid small-subgroup attacks that may be possible otherwise.
+
+=item B<-check>
+
+check if the parameters are valid primes and generator.
 
 =item B<-2>, B<-5>
 

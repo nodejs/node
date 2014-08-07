@@ -408,16 +408,46 @@ err:
 	return ret;
 	}
 
+int srp_verify_server_param(SSL *s, int *al)
+	{
+	SRP_CTX *srp = &s->srp_ctx;
+	/* Sanity check parameters: we can quickly check B % N == 0
+	 * by checking B != 0 since B < N
+	 */
+	if (BN_ucmp(srp->g, srp->N) >=0 || BN_ucmp(srp->B, srp->N) >= 0
+		|| BN_is_zero(srp->B))
+		{
+		*al = SSL3_AD_ILLEGAL_PARAMETER;
+		return 0;
+		}
+
+	if (BN_num_bits(srp->N) < srp->strength)
+		{
+		*al = TLS1_AD_INSUFFICIENT_SECURITY;
+		return 0;
+		}
+
+	if (srp->SRP_verify_param_callback)
+		{
+		if (srp->SRP_verify_param_callback(s, srp->SRP_cb_arg) <= 0)
+			{
+			*al = TLS1_AD_INSUFFICIENT_SECURITY;
+			return 0;
+			}
+		}
+	else if(!SRP_check_known_gN_param(srp->g, srp->N))
+		{
+		*al = TLS1_AD_INSUFFICIENT_SECURITY;
+		return 0;
+		}
+
+	return 1;
+	}
+	
+
 int SRP_Calc_A_param(SSL *s)
 	{
 	unsigned char rnd[SSL_MAX_MASTER_KEY_LENGTH];
-
-	if (BN_num_bits(s->srp_ctx.N) < s->srp_ctx.strength)
-		return -1;
-
-	if (s->srp_ctx.SRP_verify_param_callback ==NULL && 
-		!SRP_check_known_gN_param(s->srp_ctx.g,s->srp_ctx.N))
-		return -1 ;
 
 	RAND_bytes(rnd, sizeof(rnd));
 	s->srp_ctx.a = BN_bin2bn(rnd, sizeof(rnd), s->srp_ctx.a);
@@ -425,10 +455,6 @@ int SRP_Calc_A_param(SSL *s)
 
 	if (!(s->srp_ctx.A = SRP_Calc_A(s->srp_ctx.a,s->srp_ctx.N,s->srp_ctx.g)))
 		return -1;
-
-	/* We can have a callback to verify SRP param!! */
-	if (s->srp_ctx.SRP_verify_param_callback !=NULL) 
-		return s->srp_ctx.SRP_verify_param_callback(s,s->srp_ctx.SRP_cb_arg);
 
 	return 1;
 	}

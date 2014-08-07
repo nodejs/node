@@ -154,5 +154,6 @@
 #define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_md2(), NULL)
 #endif
 
+int ssleay_rand_bytes(unsigned char *buf, int num, int pseudo, int lock);
 
 #endif

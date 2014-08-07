@@ -916,9 +916,9 @@ int UI_set_result(UI *ui, UI_STRING *uis, const char *result)
 				break;
 				}
 			}
+		}
 	default:
 		break;
-		}
 		}
 	return 0;
 	}
