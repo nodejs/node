@@ -40,7 +40,7 @@ If the call:
 
  BIO_push(b64, f);
 
-is made then the new chain will be B<b64-chain>. After making the calls
+is made then the new chain will be B<b64-f>. After making the calls
 
  BIO_push(md2, b64);
  BIO_push(md1, md2);

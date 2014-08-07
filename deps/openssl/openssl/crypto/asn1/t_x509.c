@@ -475,6 +475,8 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
 	l=80-2-obase;
 
 	b=X509_NAME_oneline(name,NULL,0);
+	if (!b)
+		return 0;
 	if (!*b)
 		{
 		OPENSSL_free(b);

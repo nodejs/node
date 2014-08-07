@@ -196,24 +196,29 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
 	struct tm *ts;
 	struct tm data;
 	size_t len = 20;
+	int free_s = 0;
 
 	if (s == NULL)
+		{
+		free_s = 1;
 		s=M_ASN1_UTCTIME_new();
+		}
 	if (s == NULL)
-		return(NULL);
+		goto err;
+
 
 	ts=OPENSSL_gmtime(&t, &data);
 	if (ts == NULL)
-		return(NULL);
+		goto err;
 
 	if (offset_day || offset_sec)
 		{ 
 		if (!OPENSSL_gmtime_adj(ts, offset_day, offset_sec))
-			return NULL;
+			goto err;
 		}
 
 	if((ts->tm_year < 50) || (ts->tm_year >= 150))
-		return NULL;
+		goto err;
 
 	p=(char *)s->data;
 	if ((p == NULL) || ((size_t)s->length < len))
@@ -222,7 +227,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
 		if (p == NULL)
 			{
 			ASN1err(ASN1_F_ASN1_UTCTIME_ADJ,ERR_R_MALLOC_FAILURE);
-			return(NULL);
+			goto err;
 			}
 		if (s->data != NULL)
 			OPENSSL_free(s->data);
@@ -237,6 +242,10 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
 	ebcdic2ascii(s->data, s->data, s->length);
 #endif
 	return(s);
+	err:
+	if (free_s && s)
+		M_ASN1_UTCTIME_free(s);
+	return NULL;
 	}
 
 
@@ -261,6 +270,11 @@ int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
 	t -= offset*60; /* FIXME: may overflow in extreme cases */
 
 	tm = OPENSSL_gmtime(&t, &data);
+	/* NB: -1, 0, 1 already valid return values so use -2 to
+	 * indicate error.
+	 */
+	if (tm == NULL)
+		return -2;
 	
 #define return_cmp(a,b) if ((a)<(b)) return -1; else if ((a)>(b)) return 1
 	year = g2(s->data);

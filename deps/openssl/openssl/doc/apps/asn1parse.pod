@@ -15,6 +15,8 @@ B<openssl> B<asn1parse>
 [B<-length number>]
 [B<-i>]
 [B<-oid filename>]
+[B<-dump>]
+[B<-dlimit num>]
 [B<-strparse offset>]
 [B<-genstr string>]
 [B<-genconf file>]
@@ -63,6 +65,14 @@ indents the output according to the "depth" of the structures.
 
 a file containing additional OBJECT IDENTIFIERs (OIDs). The format of this
 file is described in the NOTES section below.
+
+=item B<-dump>
+
+dump unknown data in hex format.
+
+=item B<-dlimit num>
+
+like B<-dump>, but only the first B<num> bytes are output.
 
 =item B<-strparse offset>
 

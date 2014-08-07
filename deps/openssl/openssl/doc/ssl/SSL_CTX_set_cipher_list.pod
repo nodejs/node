@@ -54,6 +54,10 @@ of 512 bits and the server is not configured to use temporary RSA
 keys), the "no shared cipher" (SSL_R_NO_SHARED_CIPHER) error is generated
 and the handshake will fail.
 
+If the cipher list does not contain any SSLv2 cipher suites (this is the
+default) then SSLv2 is effectively disabled and neither clients nor servers
+will attempt to use SSLv2.
+
 =head1 RETURN VALUES
 
 SSL_CTX_set_cipher_list() and SSL_set_cipher_list() return 1 if any cipher

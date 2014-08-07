@@ -16,7 +16,7 @@ B<openssl ecparam>
 [B<-C>]
 [B<-check>]
 [B<-name arg>]
-[B<-list_curve>]
+[B<-list_curves>]
 [B<-conv_form arg>]
 [B<-param_enc arg>]
 [B<-no_seed>]

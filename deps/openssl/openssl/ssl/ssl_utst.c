@@ -1,5 +1,9 @@
+/* ssl_utst.c */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project.
+ */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2014 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,12 +50,24 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
  */
 
-int add_signed_time(PKCS7_SIGNER_INFO *si);
-ASN1_UTCTIME *get_signed_time(PKCS7_SIGNER_INFO *si);
-int get_signed_seq2string(PKCS7_SIGNER_INFO *si, char **str1, char **str2);
+#include "ssl_locl.h"
+
+#ifndef OPENSSL_NO_UNIT_TEST
+
+
+static const struct openssl_ssl_test_functions ssl_test_functions =
+	{
+	ssl_init_wbio_buffer,
+	ssl3_setup_buffers,
+	tls1_process_heartbeat,
+	dtls1_process_heartbeat
+	};
+
+const struct openssl_ssl_test_functions *SSL_test_functions(void)
+	{
+	return &ssl_test_functions;
+	}
+
+#endif

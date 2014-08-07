@@ -48,7 +48,6 @@ of the B<x509> utility). Under Unix the B<c_rehash> script will automatically
 create symbolic links to a directory of certificates.
 
 =item B<-CAfile file>
-
 A file of trusted certificates. The file should contain multiple certificates
 in PEM format concatenated together.
 

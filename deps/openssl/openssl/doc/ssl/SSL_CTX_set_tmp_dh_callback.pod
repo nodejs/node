@@ -12,11 +12,9 @@ SSL_CTX_set_tmp_dh_callback, SSL_CTX_set_tmp_dh, SSL_set_tmp_dh_callback, SSL_se
             DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength));
  long SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh);
 
- void SSL_set_tmp_dh_callback(SSL_CTX *ctx,
+ void SSL_set_tmp_dh_callback(SSL *ctx,
             DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength));
  long SSL_set_tmp_dh(SSL *ssl, DH *dh)
-
- DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength));
 
 =head1 DESCRIPTION
 
@@ -81,7 +79,7 @@ instead (see L<dhparam(1)|dhparam(1)>), but in this case SSL_OP_SINGLE_DH_USE
 is mandatory.
 
 Application authors may compile in DH parameters. Files dh512.pem,
-dh1024.pem, dh2048.pem, and dh4096 in the 'apps' directory of current
+dh1024.pem, dh2048.pem, and dh4096.pem in the 'apps' directory of current
 version of the OpenSSL distribution contain the 'SKIP' DH parameters,
 which use safe primes and were generated verifiably pseudo-randomly.
 These files can be converted into C code using the B<-C> option of the

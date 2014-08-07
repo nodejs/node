@@ -453,9 +453,14 @@ static int asn1_set_seq_out(STACK_OF(ASN1_VALUE) *sk, unsigned char **out,
 			{
 			derlst = OPENSSL_malloc(sk_ASN1_VALUE_num(sk)
 						* sizeof(*derlst));
-			tmpdat = OPENSSL_malloc(skcontlen);
-			if (!derlst || !tmpdat)
+			if (!derlst)
 				return 0;
+			tmpdat = OPENSSL_malloc(skcontlen);
+			if (!tmpdat)
+				{
+				OPENSSL_free(derlst);
+				return 0;
+				}
 			}
 		}
 	/* If not sorting just output each item */

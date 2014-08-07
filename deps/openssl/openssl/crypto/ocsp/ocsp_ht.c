@@ -158,6 +158,8 @@ OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, char *path, OCSP_REQUEST *req,
 
 	OCSP_REQ_CTX *rctx;
 	rctx = OPENSSL_malloc(sizeof(OCSP_REQ_CTX));
+	if (!rctx)
+		return NULL;
 	rctx->state = OHS_ERROR;
 	rctx->mem = BIO_new(BIO_s_mem());
 	rctx->io = io;
@@ -167,18 +169,21 @@ OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, char *path, OCSP_REQUEST *req,
 	else
 		rctx->iobuflen = OCSP_MAX_LINE_LEN;
 	rctx->iobuf = OPENSSL_malloc(rctx->iobuflen);
-	if (!rctx->iobuf)
-		return 0;
+	if (!rctx->mem || !rctx->iobuf)
+		goto err;
 	if (!path)
 		path = "/";
 
         if (BIO_printf(rctx->mem, post_hdr, path) <= 0)
-		return 0;
+		goto err;
 
 	if (req && !OCSP_REQ_CTX_set1_req(rctx, req))
-		return 0;
+		goto err;
 
 	return rctx;
+	err:
+	OCSP_REQ_CTX_free(rctx);
+	return NULL;
 	}
 
 /* Parse the HTTP response. This will look like this:
@@ -489,6 +494,9 @@ OCSP_RESPONSE *OCSP_sendreq_bio(BIO *b, char *path, OCSP_REQUEST *req)
 	int rv;
 
 	ctx = OCSP_sendreq_new(b, path, req, -1);
+
+	if (!ctx)
+		return NULL;
 
 	do
 		{

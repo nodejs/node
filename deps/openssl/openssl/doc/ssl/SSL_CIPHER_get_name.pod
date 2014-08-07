@@ -23,8 +23,12 @@ SSL_CIPHER_get_bits() returns the number of secret bits used for B<cipher>. If
 B<alg_bits> is not NULL, it contains the number of bits processed by the
 chosen algorithm. If B<cipher> is NULL, 0 is returned.
 
-SSL_CIPHER_get_version() returns the protocol version for B<cipher>, currently
-"SSLv2", "SSLv3", or "TLSv1". If B<cipher> is NULL, "(NONE)" is returned.
+SSL_CIPHER_get_version() returns string which indicates the SSL/TLS protocol
+version that first defined the cipher.
+This is currently B<SSLv2> or B<TLSv1/SSLv3>.
+In some cases it should possibly return "TLSv1.2" but does not;
+use SSL_CIPHER_description() instead.
+If B<cipher> is NULL, "(NONE)" is returned.
 
 SSL_CIPHER_description() returns a textual description of the cipher used
 into the buffer B<buf> of length B<len> provided. B<len> must be at least
@@ -52,7 +56,8 @@ Textual representation of the cipher name.
 
 =item <protocol version>
 
-Protocol version: B<SSLv2>, B<SSLv3>. The TLSv1 ciphers are flagged with SSLv3.
+Protocol version: B<SSLv2>, B<SSLv3>, B<TLSv1.2>. The TLSv1.0 ciphers are
+flagged with SSLv3. No new ciphers were added by TLSv1.1.
 
 =item Kx=<key exchange>
 
@@ -90,6 +95,10 @@ Some examples for the output of SSL_CIPHER_description():
  EDH-DSS-DES-CBC3-SHA    SSLv3 Kx=DH       Au=DSS  Enc=3DES(168) Mac=SHA1
  RC4-MD5                 SSLv3 Kx=RSA      Au=RSA  Enc=RC4(128)  Mac=MD5
  EXP-RC4-MD5             SSLv3 Kx=RSA(512) Au=RSA  Enc=RC4(40)   Mac=MD5  export
+
+A comp[lete list can be retrieved by invoking the following command:
+
+ openssl ciphers -v ALL
 
 =head1 BUGS
 

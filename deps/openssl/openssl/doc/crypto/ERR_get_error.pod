@@ -49,10 +49,10 @@ additionally store the file name and line number where
 the error occurred in *B<file> and *B<line>, unless these are B<NULL>.
 
 ERR_get_error_line_data(), ERR_peek_error_line_data() and
-ERR_get_last_error_line_data() store additional data and flags
+ERR_peek_last_error_line_data() store additional data and flags
 associated with the error code in *B<data>
 and *B<flags>, unless these are B<NULL>. *B<data> contains a string
-if *B<flags>&B<ERR_TXT_STRING> is true. 
+if *B<flags>&B<ERR_TXT_STRING> is true.
 
 An application B<MUST NOT> free the *B<data> pointer (or any other pointers
 returned by these functions) with OPENSSL_free() as freeing is handled

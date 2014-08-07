@@ -344,7 +344,10 @@ bits and 12 rounds.
 
 Where possible the B<EVP> interface to symmetric ciphers should be used in
 preference to the low level interfaces. This is because the code then becomes
-transparent to the cipher used and much more flexible.
+transparent to the cipher used and much more flexible. Additionally, the
+B<EVP> interface will ensure the use of platform specific cryptographic
+acceleration such as AES-NI (the low level interfaces do not provide the
+guarantee).
 
 PKCS padding works by adding B<n> padding bytes of value B<n> to make the total 
 length of the encrypted data a multiple of the block size. Padding is always

@@ -450,9 +450,9 @@ byte B<salt> encoded as a set of hexadecimal digits.
 
 After this is the base64 encoded encrypted data.
 
-The encryption key is determined using EVP_bytestokey(), using B<salt> and an
+The encryption key is determined using EVP_BytesToKey(), using B<salt> and an
 iteration count of 1. The IV used is the value of B<salt> and *not* the IV
-returned by EVP_bytestokey().
+returned by EVP_BytesToKey().
 
 =head1 BUGS
 
@@ -474,3 +474,7 @@ The read routines return either a pointer to the structure read or NULL
 if an error occurred.
 
 The write routines return 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<EVP_get_cipherbyname(3)|EVP_get_cipherbyname>, L<EVP_BytesToKey(3)|EVP_BytesToKey(3)>

@@ -348,23 +348,19 @@ int ssl23_get_client_hello(SSL *s)
 			 * Client Hello message, this would be difficult, and we'd have
 			 * to read more records to find out.
 			 * No known SSL 3.0 client fragments ClientHello like this,
-			 * so we simply assume TLS 1.0 to avoid protocol version downgrade
-			 * attacks. */
+			 * so we simply reject such connections to avoid
+			 * protocol version downgrade attacks. */
 			if (p[3] == 0 && p[4] < 6)
 				{
-#if 0
 				SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_RECORD_TOO_SMALL);
 				goto err;
-#else
-				v[1] = TLS1_VERSION_MINOR;
-#endif
 				}
 			/* if major version number > 3 set minor to a value
 			 * which will use the highest version 3 we support.
 			 * If TLS 2.0 ever appears we will need to revise
 			 * this....
 			 */
-			else if (p[9] > SSL3_VERSION_MAJOR)
+			if (p[9] > SSL3_VERSION_MAJOR)
 				v[1]=0xff;
 			else
 				v[1]=p[10]; /* minor version according to client_version */
@@ -444,14 +440,34 @@ int ssl23_get_client_hello(SSL *s)
 		v[0] = p[3]; /* == SSL3_VERSION_MAJOR */
 		v[1] = p[4];
 
+		/* An SSLv3/TLSv1 backwards-compatible CLIENT-HELLO in an SSLv2
+		 * header is sent directly on the wire, not wrapped as a TLS
+		 * record. It's format is:
+		 * Byte  Content
+		 * 0-1   msg_length
+		 * 2     msg_type
+		 * 3-4   version
+		 * 5-6   cipher_spec_length
+		 * 7-8   session_id_length
+		 * 9-10  challenge_length
+		 * ...   ...
+		 */
 		n=((p[0]&0x7f)<<8)|p[1];
 		if (n > (1024*4))
 			{
 			SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_RECORD_TOO_LARGE);
 			goto err;
 			}
+		if (n < 9)
+			{
+			SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_RECORD_LENGTH_MISMATCH);
+			goto err;
+			}
 
 		j=ssl23_read_bytes(s,n+2);
+		/* We previously read 11 bytes, so if j > 0, we must have
+		 * j == n+2 == s->packet_length. We have at least 11 valid
+		 * packet bytes. */
 		if (j <= 0) return(j);
 
 		ssl3_finish_mac(s, s->packet+2, s->packet_length-2);

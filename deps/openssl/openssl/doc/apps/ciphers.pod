@@ -36,7 +36,7 @@ SSL v2 and for SSL v3/TLS v1.
 
 =item B<-V>
 
-Like B<-V>, but include cipher suite codes in output (hex format).
+Like B<-v>, but include cipher suite codes in output (hex format).
 
 =item B<-ssl3>
 
@@ -116,8 +116,8 @@ specified.
 =item B<COMPLEMENTOFDEFAULT>
 
 the ciphers included in B<ALL>, but not enabled by default. Currently
-this is B<ADH>. Note that this rule does not cover B<eNULL>, which is
-not included by B<ALL> (use B<COMPLEMENTOFALL> if necessary).
+this is B<ADH> and B<AECDH>. Note that this rule does not cover B<eNULL>,
+which is not included by B<ALL> (use B<COMPLEMENTOFALL> if necessary).
 
 =item B<ALL>
 
@@ -165,21 +165,58 @@ included.
 =item B<aNULL>
 
 the cipher suites offering no authentication. This is currently the anonymous
-DH algorithms. These cipher suites are vulnerable to a "man in the middle"
-attack and so their use is normally discouraged.
+DH algorithms and anonymous ECDH algorithms. These cipher suites are vulnerable
+to a "man in the middle" attack and so their use is normally discouraged.
 
 =item B<kRSA>, B<RSA>
 
 cipher suites using RSA key exchange.
 
-=item B<kEDH>
-
-cipher suites using ephemeral DH key agreement.
-
-=item B<kDHr>, B<kDHd>
+=item B<kDHr>, B<kDHd>, B<kDH>
 
 cipher suites using DH key agreement and DH certificates signed by CAs with RSA
-and DSS keys respectively. Not implemented.
+and DSS keys or either respectively. Not implemented.
+
+=item B<kEDH>
+
+cipher suites using ephemeral DH key agreement, including anonymous cipher
+suites.
+
+=item B<EDH>
+
+cipher suites using authenticated ephemeral DH key agreement.
+
+=item B<ADH>
+
+anonymous DH cipher suites, note that this does not include anonymous Elliptic
+Curve DH (ECDH) cipher suites.
+
+=item B<DH>
+
+cipher suites using DH, including anonymous DH, ephemeral DH and fixed DH.
+
+=item B<kECDHr>, B<kECDHe>, B<kECDH>
+
+cipher suites using fixed ECDH key agreement signed by CAs with RSA and ECDSA
+keys or either respectively.
+
+=item B<kEECDH>
+
+cipher suites using ephemeral ECDH key agreement, including anonymous
+cipher suites.
+
+=item B<EECDHE>
+
+cipher suites using authenticated ephemeral ECDH key agreement.
+
+=item B<AECDH>
+
+anonymous Elliptic Curve Diffie Hellman cipher suites.
+
+=item B<ECDH>
+
+cipher suites using ECDH key exchange, including anonymous, ephemeral and
+fixed ECDH.
 
 =item B<aRSA>
 
@@ -194,30 +231,39 @@ cipher suites using DSS authentication, i.e. the certificates carry DSS keys.
 cipher suites effectively using DH authentication, i.e. the certificates carry
 DH keys.  Not implemented.
 
+=item B<aECDH>
+
+cipher suites effectively using ECDH authentication, i.e. the certificates
+carry ECDH keys.
+
+=item B<aECDSA>, B<ECDSA>
+
+cipher suites using ECDSA authentication, i.e. the certificates carry ECDSA
+keys.
+
 =item B<kFZA>, B<aFZA>, B<eFZA>, B<FZA>
 
 ciphers suites using FORTEZZA key exchange, authentication, encryption or all
 FORTEZZA algorithms. Not implemented.
 
-=item B<TLSv1>, B<SSLv3>, B<SSLv2>
+=item B<TLSv1.2>, B<TLSv1>, B<SSLv3>, B<SSLv2>
 
-TLS v1.0, SSL v3.0 or SSL v2.0 cipher suites respectively.
+TLS v1.2, TLS v1.0, SSL v3.0 or SSL v2.0 cipher suites respectively. Note:
+there are no ciphersuites specific to TLS v1.1.
 
-=item B<DH>
+=item B<AES128>, B<AES256>, B<AES>
 
-cipher suites using DH, including anonymous DH.
+cipher suites using 128 bit AES, 256 bit AES or either 128 or 256 bit AES.
 
-=item B<ADH>
+=item B<AESGCM>
 
-anonymous DH cipher suites.
+AES in Galois Counter Mode (GCM): these ciphersuites are only supported
+in TLS v1.2.
 
-=item B<AES>
+=item B<CAMELLIA128>, B<CAMELLIA256>, B<CAMELLIA>
 
-cipher suites using AES.
-
-=item B<CAMELLIA>
-
-cipher suites using Camellia.
+cipher suites using 128 bit CAMELLIA, 256 bit CAMELLIA or either 128 or 256 bit
+CAMELLIA.
 
 =item B<3DES>
 
@@ -251,6 +297,10 @@ cipher suites using MD5.
 
 cipher suites using SHA1.
 
+=item B<SHA256>, B<SHA384>
+
+ciphersuites using SHA256 or SHA384.
+
 =item B<aGOST> 
 
 cipher suites using GOST R 34.10 (either 2001 or 94) for authenticaction
@@ -277,6 +327,9 @@ cipher suites, using HMAC based on GOST R 34.11-94.
 
 cipher suites using GOST 28147-89 MAC B<instead of> HMAC.
 
+=item B<PSK>
+
+cipher suites using pre-shared keys (PSK).
 
 =back
 
@@ -423,7 +476,100 @@ Note: these ciphers can also be used in SSL v3.
  TLS_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA  EXP1024-DHE-DSS-RC4-SHA
  TLS_DHE_DSS_WITH_RC4_128_SHA            DHE-DSS-RC4-SHA
 
-=head2 SSL v2.0 cipher suites.
+=head2 Elliptic curve cipher suites.
+
+ TLS_ECDH_RSA_WITH_NULL_SHA              ECDH-RSA-NULL-SHA
+ TLS_ECDH_RSA_WITH_RC4_128_SHA           ECDH-RSA-RC4-SHA
+ TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA      ECDH-RSA-DES-CBC3-SHA
+ TLS_ECDH_RSA_WITH_AES_128_CBC_SHA       ECDH-RSA-AES128-SHA
+ TLS_ECDH_RSA_WITH_AES_256_CBC_SHA       ECDH-RSA-AES256-SHA
+
+ TLS_ECDH_ECDSA_WITH_NULL_SHA            ECDH-ECDSA-NULL-SHA
+ TLS_ECDH_ECDSA_WITH_RC4_128_SHA         ECDH-ECDSA-RC4-SHA
+ TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA    ECDH-ECDSA-DES-CBC3-SHA
+ TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA     ECDH-ECDSA-AES128-SHA
+ TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA     ECDH-ECDSA-AES256-SHA
+
+ TLS_ECDHE_RSA_WITH_NULL_SHA             ECDHE-RSA-NULL-SHA
+ TLS_ECDHE_RSA_WITH_RC4_128_SHA          ECDHE-RSA-RC4-SHA
+ TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA     ECDHE-RSA-DES-CBC3-SHA
+ TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      ECDHE-RSA-AES128-SHA
+ TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      ECDHE-RSA-AES256-SHA
+
+ TLS_ECDHE_ECDSA_WITH_NULL_SHA           ECDHE-ECDSA-NULL-SHA
+ TLS_ECDHE_ECDSA_WITH_RC4_128_SHA        ECDHE-ECDSA-RC4-SHA
+ TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA   ECDHE-ECDSA-DES-CBC3-SHA
+ TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA    ECDHE-ECDSA-AES128-SHA
+ TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA    ECDHE-ECDSA-AES256-SHA
+
+ TLS_ECDH_anon_WITH_NULL_SHA             AECDH-NULL-SHA
+ TLS_ECDH_anon_WITH_RC4_128_SHA          AECDH-RC4-SHA
+ TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA     AECDH-DES-CBC3-SHA
+ TLS_ECDH_anon_WITH_AES_128_CBC_SHA      AECDH-AES128-SHA
+ TLS_ECDH_anon_WITH_AES_256_CBC_SHA      AECDH-AES256-SHA
+
+=head2 TLS v1.2 cipher suites
+
+ TLS_RSA_WITH_NULL_SHA256                  NULL-SHA256
+
+ TLS_RSA_WITH_AES_128_CBC_SHA256           AES128-SHA256
+ TLS_RSA_WITH_AES_256_CBC_SHA256           AES256-SHA256
+ TLS_RSA_WITH_AES_128_GCM_SHA256           AES128-GCM-SHA256
+ TLS_RSA_WITH_AES_256_GCM_SHA384           AES256-GCM-SHA384
+
+ TLS_DH_RSA_WITH_AES_128_CBC_SHA256        Not implemented.
+ TLS_DH_RSA_WITH_AES_256_CBC_SHA256        Not implemented.
+ TLS_DH_RSA_WITH_AES_128_GCM_SHA256        Not implemented.
+ TLS_DH_RSA_WITH_AES_256_GCM_SHA384        Not implemented.
+
+ TLS_DH_DSS_WITH_AES_128_CBC_SHA256        Not implemented.
+ TLS_DH_DSS_WITH_AES_256_CBC_SHA256        Not implemented.
+ TLS_DH_DSS_WITH_AES_128_GCM_SHA256        Not implemented.
+ TLS_DH_DSS_WITH_AES_256_GCM_SHA384        Not implemented.
+
+ TLS_DHE_RSA_WITH_AES_128_CBC_SHA256       DHE-RSA-AES128-SHA256
+ TLS_DHE_RSA_WITH_AES_256_CBC_SHA256       DHE-RSA-AES256-SHA256
+ TLS_DHE_RSA_WITH_AES_128_GCM_SHA256       DHE-RSA-AES128-GCM-SHA256
+ TLS_DHE_RSA_WITH_AES_256_GCM_SHA384       DHE-RSA-AES256-GCM-SHA384
+
+ TLS_DHE_DSS_WITH_AES_128_CBC_SHA256       DHE-DSS-AES128-SHA256
+ TLS_DHE_DSS_WITH_AES_256_CBC_SHA256       DHE-DSS-AES256-SHA256
+ TLS_DHE_DSS_WITH_AES_128_GCM_SHA256       DHE-DSS-AES128-GCM-SHA256
+ TLS_DHE_DSS_WITH_AES_256_GCM_SHA384       DHE-DSS-AES256-GCM-SHA384
+
+ TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256      ECDH-RSA-AES128-SHA256
+ TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384      ECDH-RSA-AES256-SHA384
+ TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256      ECDH-RSA-AES128-GCM-SHA256
+ TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384      ECDH-RSA-AES256-GCM-SHA384
+
+ TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256    ECDH-ECDSA-AES128-SHA256
+ TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384    ECDH-ECDSA-AES256-SHA384
+ TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256    ECDH-ECDSA-AES128-GCM-SHA256
+ TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384    ECDH-ECDSA-AES256-GCM-SHA384
+
+ TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256     ECDHE-RSA-AES128-SHA256
+ TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384     ECDHE-RSA-AES256-SHA384
+ TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256     ECDHE-RSA-AES128-GCM-SHA256
+ TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384     ECDHE-RSA-AES256-GCM-SHA384
+
+ TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256   ECDHE-ECDSA-AES128-SHA256
+ TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384   ECDHE-ECDSA-AES256-SHA384
+ TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256   ECDHE-ECDSA-AES128-GCM-SHA256
+ TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384   ECDHE-ECDSA-AES256-GCM-SHA384
+
+ TLS_DH_anon_WITH_AES_128_CBC_SHA256       ADH-AES128-SHA256
+ TLS_DH_anon_WITH_AES_256_CBC_SHA256       ADH-AES256-SHA256
+ TLS_DH_anon_WITH_AES_128_GCM_SHA256       ADH-AES128-GCM-SHA256
+ TLS_DH_anon_WITH_AES_256_GCM_SHA384       ADH-AES256-GCM-SHA384
+
+=head2 Pre shared keying (PSK) cipheruites
+
+ TLS_PSK_WITH_RC4_128_SHA                  PSK-RC4-SHA
+ TLS_PSK_WITH_3DES_EDE_CBC_SHA             PSK-3DES-EDE-CBC-SHA
+ TLS_PSK_WITH_AES_128_CBC_SHA              PSK-AES128-CBC-SHA
+ TLS_PSK_WITH_AES_256_CBC_SHA              PSK-AES256-CBC-SHA
+
+=head2 Deprecated SSL v2.0 cipher suites.
 
  SSL_CK_RC4_128_WITH_MD5                 RC4-MD5
  SSL_CK_RC4_128_EXPORT40_WITH_MD5        EXP-RC4-MD5
@@ -451,6 +597,11 @@ Include all ciphers except NULL and anonymous DH then sort by
 strength:
 
  openssl ciphers -v 'ALL:!ADH:@STRENGTH'
+
+Include all ciphers except ones with no encryption (eNULL) or no
+authentication (aNULL):
+
+ openssl ciphers -v 'ALL:!aNULL'
 
 Include only 3DES ciphers and then place RSA ciphers last:
 

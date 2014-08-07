@@ -199,6 +199,7 @@ static void group_order_tests(EC_GROUP *group)
 	EC_POINT *P = EC_POINT_new(group);
 	EC_POINT *Q = EC_POINT_new(group);
 	BN_CTX *ctx = BN_CTX_new();
+	int i;
 
 	n1 = BN_new(); n2 = BN_new(); order = BN_new();
 	fprintf(stdout, "verify group order ...");
@@ -212,21 +213,55 @@ static void group_order_tests(EC_GROUP *group)
 	if (!EC_POINT_mul(group, Q, order, NULL, NULL, ctx)) ABORT;
 	if (!EC_POINT_is_at_infinity(group, Q)) ABORT;
 	fprintf(stdout, " ok\n");
-	fprintf(stdout, "long/negative scalar tests ... ");
-	if (!BN_one(n1)) ABORT;
-	/* n1 = 1 - order */
-	if (!BN_sub(n1, n1, order)) ABORT;
-	if(!EC_POINT_mul(group, Q, NULL, P, n1, ctx)) ABORT;
-	if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
-	/* n2 = 1 + order */
-	if (!BN_add(n2, order, BN_value_one())) ABORT;
-	if(!EC_POINT_mul(group, Q, NULL, P, n2, ctx)) ABORT;
-	if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
-	/* n2 = (1 - order) * (1 + order) */
-	if (!BN_mul(n2, n1, n2, ctx)) ABORT;
-	if(!EC_POINT_mul(group, Q, NULL, P, n2, ctx)) ABORT;
-	if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
+	fprintf(stdout, "long/negative scalar tests ");
+        for (i = 1; i <= 2; i++)
+		{
+		const BIGNUM *scalars[6];
+		const EC_POINT *points[6];
+
+		fprintf(stdout, i == 1 ?
+			"allowing precomputation ... " :
+			"without precomputation ... ");
+		if (!BN_set_word(n1, i)) ABORT;
+		/* If i == 1, P will be the predefined generator for which
+		 * EC_GROUP_precompute_mult has set up precomputation. */
+		if (!EC_POINT_mul(group, P, n1, NULL, NULL, ctx)) ABORT;
+
+		if (!BN_one(n1)) ABORT;
+		/* n1 = 1 - order */
+		if (!BN_sub(n1, n1, order)) ABORT;
+		if (!EC_POINT_mul(group, Q, NULL, P, n1, ctx)) ABORT;
+		if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
+
+		/* n2 = 1 + order */
+		if (!BN_add(n2, order, BN_value_one())) ABORT;
+		if (!EC_POINT_mul(group, Q, NULL, P, n2, ctx)) ABORT;
+		if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
+
+		/* n2 = (1 - order) * (1 + order) = 1 - order^2 */
+		if (!BN_mul(n2, n1, n2, ctx)) ABORT;
+		if (!EC_POINT_mul(group, Q, NULL, P, n2, ctx)) ABORT;
+		if (0 != EC_POINT_cmp(group, Q, P, ctx)) ABORT;
+
+		/* n2 = order^2 - 1 */
+		BN_set_negative(n2, 0);
+		if (!EC_POINT_mul(group, Q, NULL, P, n2, ctx)) ABORT;
+		/* Add P to verify the result. */
+		if (!EC_POINT_add(group, Q, Q, P, ctx)) ABORT;
+		if (!EC_POINT_is_at_infinity(group, Q)) ABORT;
+
+		/* Exercise EC_POINTs_mul, including corner cases. */
+		scalars[0] = n1; points[0] = Q; /* => infinity */
+		scalars[1] = n2; points[1] = P; /* => -P */
+		scalars[2] = n1; points[2] = Q; /* => infinity */
+		scalars[3] = n2; points[3] = Q; /* => infinity */
+		scalars[4] = n1; points[4] = P; /* => P */
+		scalars[5] = n2; points[5] = Q; /* => infinity */
+		if (!EC_POINTs_mul(group, Q, NULL, 5, points, scalars, ctx)) ABORT;
+		if (!EC_POINT_is_at_infinity(group, Q)) ABORT;
+		}
 	fprintf(stdout, "ok\n");
+
 	EC_POINT_free(P);
 	EC_POINT_free(Q);
 	BN_free(n1);

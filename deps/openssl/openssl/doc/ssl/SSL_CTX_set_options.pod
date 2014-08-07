@@ -256,7 +256,7 @@ Connections and renegotiation are always permitted by OpenSSL implementations.
 
 =head2 Unpatched client and patched OpenSSL server
 
-The initial connection suceeds but client renegotiation is denied by the
+The initial connection succeeds but client renegotiation is denied by the
 server with a B<no_renegotiation> warning alert if TLS v1.0 is used or a fatal
 B<handshake_failure> alert in SSL v3.0.
 
