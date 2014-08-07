@@ -77,7 +77,6 @@ function linkStuff (pkg, folder, global, didRB, cb) {
   // otherwise, then bins are in folder/../.bin
   var parent = path.dirname(folder)
     , gnm = global && npm.globalDir
-    , top = parent === npm.dir
     , gtop = parent === gnm
 
   log.verbose("linkStuff", [global, gnm, gtop, parent])
@@ -150,7 +149,7 @@ function rebuildBundles (pkg, folder, parent, gtop, cb) {
         if (build._didBuild[file]) return cb()
         log.verbose("rebuild bundle", file)
         // if file is not a package dir, then don't do it.
-        fs.lstat(path.resolve(file, "package.json"), function (er, st) {
+        fs.lstat(path.resolve(file, "package.json"), function (er) {
           if (er) return cb()
           build_(false)(file, cb)
         })
@@ -219,7 +218,6 @@ function linkMans (pkg, folder, parent, gtop, cb) {
     var parseMan = man.match(/(.*\.([0-9]+)(\.gz)?)$/)
       , stem = parseMan[1]
       , sxn = parseMan[2]
-      , gz = parseMan[3] || ""
       , bn = path.basename(stem)
       , manDest = path.join(manRoot, "man" + sxn, bn)
 

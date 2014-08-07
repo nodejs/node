@@ -1,3 +1,5 @@
+var url = require("url")
+  , npm = require("./npm.js")
 
 module.exports = deprecate
 
@@ -10,17 +12,14 @@ deprecate.completion = function (opts, cb) {
   if (!npm.config.get("username")) return cb()
   if (opts.conf.argv.remain.length > 2) return cb()
   // get the list of packages by user
-  var uri = "/-/by-user/"+encodeURIComponent(un)
-  registry.get(uri, null, 60000, function (er, list) {
+  var path = "/-/by-user/"+encodeURIComponent(un)
+    , uri = url.resolve(npm.config.get("registry"), path)
+  npm.registry.get(uri, { timeout : 60000 }, function (er, list) {
     if (er) return cb()
     console.error(list)
     return cb(null, list[un])
   })
 }
-
-var semver = require("semver")
-  , npm = require("./npm.js")
-  , registry = npm.registry
 
 function deprecate (args, cb) {
   var pkg = args[0]
@@ -30,18 +29,7 @@ function deprecate (args, cb) {
   pkg = pkg.split(/@/)
   var name = pkg.shift()
     , ver = pkg.join("@")
-  if (semver.validRange(ver) === null) {
-    return cb(new Error("invalid version range: "+ver))
-  }
-  registry.get(name, function (er, data) {
-    if (er) return cb(er)
-    // filter all the versions that match
-    Object.keys(data.versions).filter(function (v) {
-      return semver.satisfies(v, ver, true)
-    }).forEach(function (v) {
-      data.versions[v].deprecated = msg
-    })
-    // now update the doc on the registry
-    registry.request('PUT', data._id, data, cb)
-  })
+    , uri = url.resolve(npm.config.get("registry"), name)
+
+  npm.registry.deprecate(uri, ver, msg, cb)
 }

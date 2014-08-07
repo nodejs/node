@@ -7,8 +7,6 @@ var lifecycle = require("./utils/lifecycle.js")
   , readJson = require("read-package-json")
   , log = require("npmlog")
   , chain = require("slide").chain
-  , fs = require("graceful-fs")
-  , asyncMap = require("slide").asyncMap
 
 runScript.usage = "npm run-script [<pkg>] <command>"
 

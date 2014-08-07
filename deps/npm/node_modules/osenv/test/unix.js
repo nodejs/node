@@ -23,7 +23,6 @@ process.env.EDITOR = 'edit'
 process.env.VISUAL = 'visualedit'
 process.env.SHELL = 'zsh'
 
-
 tap.test('basic unix sanity test', function (t) {
   var osenv = require('../osenv.js')
 
@@ -46,10 +45,6 @@ tap.test('basic unix sanity test', function (t) {
   t.equal(osenv.tmpdir(), process.env.TEMP)
 
   process.env.TEMP = ''
-  delete require.cache[require.resolve('../osenv.js')]
-  var osenv = require('../osenv.js')
-  t.equal(osenv.tmpdir(), '/home/sirUser/tmp')
-
   delete require.cache[require.resolve('../osenv.js')]
   var osenv = require('../osenv.js')
   osenv.home = function () { return null }

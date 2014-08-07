@@ -10,7 +10,6 @@ module.exports = update
 update.usage = "npm update [pkg]"
 
 var npm = require("./npm.js")
-  , lifecycle = require("./utils/lifecycle.js")
   , asyncMap = require("slide").asyncMap
   , log = require("npmlog")
 

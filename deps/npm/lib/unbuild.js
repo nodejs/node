@@ -6,7 +6,6 @@ var readJson = require("read-package-json")
   , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
   , path = require("path")
-  , fs = require("graceful-fs")
   , lifecycle = require("./utils/lifecycle.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
@@ -26,7 +25,7 @@ function unbuild_ (silent) { return function (folder, cb_) {
   }
   folder = path.resolve(folder)
   delete build._didBuild[folder]
-  log.info(folder, "unbuild")
+  log.verbose(folder.substr(npm.prefix.length + 1), "unbuild")
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
     if (er) return rm(folder, cb)
@@ -87,12 +86,12 @@ function rmMans (pkg, folder, parent, top, cb) {
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
   asyncMap(pkg.man, function (man, cb) {
     if (Array.isArray(man)) {
-      man.forEach(rm)
+      man.forEach(rmMan)
     } else {
-      rm(man)
+      rmMan(man)
     }
 
-    function rm(man) {
+    function rmMan(man) {
       var parseMan = man.match(/(.*)\.([0-9]+)(\.gz)?$/)
         , stem = parseMan[1]
         , sxn = parseMan[2]

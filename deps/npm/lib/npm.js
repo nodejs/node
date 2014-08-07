@@ -15,8 +15,7 @@ if (typeof WScript !== "undefined") {
 require('child-process-close')
 
 var EventEmitter = require("events").EventEmitter
-  , npm = module.exports = new EventEmitter
-  , config = require("./config.js")
+  , npm = module.exports = new EventEmitter()
   , npmconf = require("npmconf")
   , log = require("npmlog")
   , fs = require("graceful-fs")
@@ -163,13 +162,16 @@ var commandCache = {}
 
 npm.spinner =
   { int: null
+  , started: false
   , start: function () {
       if (npm.spinner.int) return
       var c = npm.config.get("spin")
       if (!c) return
       var stream = npm.config.get("logstream")
       var opt = { tty: c !== "always", stream: stream }
+      opt.cleanup = !npm.spinner.started
       npm.spinner.int = charSpin(opt)
+      npm.spinner.started = true
     }
   , stop: function () {
       clearInterval(npm.spinner.int)
@@ -198,8 +200,6 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
         args.push(defaultCb)
       }
       if (args.length === 1) args.unshift([])
-
-      npm.spinner.start()
 
       npm.registry.version = npm.version
       if (!npm.registry.refer) {
@@ -274,6 +274,8 @@ npm.load = function (cli, cb_) {
 
   function cb (er) {
     if (loadErr) return
+    loadErr = er
+    if (er) return cb_(er)
     if (npm.config.get("force")) {
       log.warn("using --force", "I sure hope you know what you are doing.")
     }
@@ -306,6 +308,21 @@ function load (npm, cli, cb) {
     npmconf.load(cli, builtin, function (er, config) {
       if (er === config) er = null
 
+      npm.config = config
+      if (er) return cb(er)
+
+      // if the "project" config is not a filename, and we're
+      // not in global mode, then that means that it collided
+      // with either the default or effective userland config
+      if (!config.get("global")
+          && config.sources.project
+          && config.sources.project.type !== "ini") {
+        log.verbose("config"
+                   , "Skipping project config: %s. "
+                   + "(matches userconfig)"
+                   , config.localPrefix + "/.npmrc")
+      }
+
       // Include npm-version and node-version in user-agent
       var ua = config.get("user-agent") || ""
       ua = ua.replace(/\{node-version\}/gi, process.version)
@@ -314,27 +331,19 @@ function load (npm, cli, cb) {
       ua = ua.replace(/\{arch\}/gi, process.arch)
       config.set("user-agent", ua)
 
-      npm.config = config
-
       var color = config.get("color")
 
       log.level = config.get("loglevel")
       log.heading = config.get("heading") || "npm"
       log.stream = config.get("logstream")
-      switch (color) {
-        case "always": log.enableColor(); break
-        case false: log.disableColor(); break
-      }
-      log.resume()
 
-      if (er) return cb(er)
-
-      // see if we need to color normal output
       switch (color) {
         case "always":
+          log.enableColor()
           npm.color = true
           break
         case false:
+          log.disableColor()
           npm.color = false
           break
         default:
@@ -345,6 +354,8 @@ function load (npm, cli, cb) {
           else npm.color = false
           break
       }
+
+      log.resume()
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
@@ -361,7 +372,7 @@ function load (npm, cli, cb) {
       var lp = Object.getOwnPropertyDescriptor(config, "localPrefix")
       Object.defineProperty(npm, "localPrefix", lp)
 
-      return cb()
+      return cb(null, npm)
     })
   })
 }

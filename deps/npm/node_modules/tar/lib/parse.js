@@ -37,6 +37,7 @@ function Parse () {
   me.readable = true
   me._stream = new BlockStream(512)
   me.position = 0
+  me._ended = false
 
   me._stream.on("error", function (e) {
     me.emit("error", e)
@@ -118,13 +119,13 @@ Parse.prototype._process = function (c) {
     // so appending one tarball to another is technically valid.
     // ending without the eof null blocks is not allowed, however.
     if (zero) {
-      this._ended = this._eofStarted
+      if (this._eofStarted)
+        this._ended = true
       this._eofStarted = true
     } else {
-      this._ended = this._eofStarted = false
+      this._eofStarted = false
       this._startEntry(c)
     }
-
   }
 
   this.position += 512

@@ -146,6 +146,15 @@ to trust only that specific signing authority.
 
 See also the `strict-ssl` config.
 
+### cafile
+
+* Default: `null`
+* Type: path
+
+A path to a file containing one or multiple Certificate Authority signing
+certificates. Similar to the `ca` setting, but allows for multiple CA's, as
+well as for the CA information to be stored in a file on disk.
+
 ### cache
 
 * Default: Windows: `%AppData%\npm-cache`, Posix: `~/.npm`

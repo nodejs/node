@@ -7,7 +7,7 @@ The improvements are meant to normalize behavior across different
 platforms and environments, and to make filesystem access more
 resilient to errors.
 
-## Improvements over fs module
+## Improvements over [fs module](http://api.nodejs.org/fs.html)
 
 graceful-fs:
 
@@ -24,3 +24,13 @@ graceful-fs:
 On Windows, it retries renaming a file for up to one second if `EACCESS`
 or `EPERM` error occurs, likely because antivirus software has locked
 the directory.
+
+## USAGE
+
+```javascript
+// use just like fs
+var fs = require('graceful-fs')
+
+// now go and do stuff with it...
+fs.readFileSync('some-file-or-whatever')
+```

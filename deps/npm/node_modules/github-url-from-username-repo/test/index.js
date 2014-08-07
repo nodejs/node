@@ -4,7 +4,7 @@ var getUrl = require("../")
 describe("github url from username/repo", function () {
   it("returns a github url for the username/repo", function () {
     var url = getUrl("visionmedia/express")
-    assert.equal("git://github.com/visionmedia/express", url)
+    assert.equal("https://github.com/visionmedia/express", url)
   })
 
   it("returns null if it does not match", function () {
@@ -19,16 +19,16 @@ describe("github url from username/repo", function () {
 
   it("works with .", function () {
     var url = getUrl("component/downloader.js")
-    assert.equal("git://github.com/component/downloader.js", url)
+    assert.equal("https://github.com/component/downloader.js", url)
   })
 
   it("works with . in the beginning", function () {
     var url = getUrl("component/.downloader.js")
-    assert.equal("git://github.com/component/.downloader.js", url)
+    assert.equal("https://github.com/component/.downloader.js", url)
   })
 
   it("works with -", function () {
     var url = getUrl("component/-dow-nloader.j-s")
-    assert.equal("git://github.com/component/-dow-nloader.j-s", url)
+    assert.equal("https://github.com/component/-dow-nloader.j-s", url)
   })
 })

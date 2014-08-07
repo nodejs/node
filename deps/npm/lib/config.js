@@ -11,7 +11,6 @@ config.usage = "npm config set <key> <value>"
 
 var log = require("npmlog")
   , npm = require("./npm.js")
-  , spawn = require("child_process").spawn
   , fs = require("graceful-fs")
   , npmconf = require("npmconf")
   , types = npmconf.defs.types
@@ -150,10 +149,6 @@ function sort (a, b) {
   return a > b ? 1 : -1
 }
 
-function reverse (a, b) {
-  return a > b ? -1 : 1
-}
-
 function public (k) {
   return !(k.charAt(0) === "_" || types[k] !== types[k])
 }
@@ -236,7 +231,6 @@ function list (cb) {
       , bpath = builtin.path
       , bconfKeys = getKeys(bconf)
     if (bconfKeys.length) {
-      var path = require("path")
       msg += "; builtin config " + bpath + "\n"
       bconfKeys.forEach(function (k) {
         var val = (k.charAt(0) === "_")

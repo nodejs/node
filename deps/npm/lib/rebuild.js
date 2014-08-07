@@ -4,10 +4,7 @@ module.exports = rebuild
 var readInstalled = require("read-installed")
   , semver = require("semver")
   , log = require("npmlog")
-  , path = require("path")
   , npm = require("./npm.js")
-  , asyncMap = require("slide").asyncMap
-  , fs = require("graceful-fs")
 
 rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 

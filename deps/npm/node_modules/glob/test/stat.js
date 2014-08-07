@@ -20,7 +20,7 @@ test('stat all the things', function(t) {
     t.same(eof, matches)
     var cache = Object.keys(this.statCache)
     t.same(cache.map(function (f) {
-      return path.relative(__dirname, f)
+      return path.relative(__dirname, f).replace(/\\/g, '/')
     }).sort(), matches)
 
     cache.forEach(function(c) {

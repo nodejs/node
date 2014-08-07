@@ -163,15 +163,6 @@ shrinkwrap will implicitly be included in A's shrinkwrap.
 
 ### Caveats
 
-Shrinkwrap files only lock down package versions, not actual package
-contents.  While discouraged, a package author can republish an
-existing version of a package, causing shrinkwrapped packages using
-that version to pick up different code than they were before. If you
-want to avoid any risk that a byzantine author replaces a package
-you're using with code that breaks your application, you could modify
-the shrinkwrap file to use git URL references rather than version
-numbers so that npm always fetches all packages from git.
-
 If you wish to lock down the specific bytes included in a package, for
 example to have 100% confidence in being able to reproduce a
 deployment or build, then you ought to check your dependencies into

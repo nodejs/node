@@ -2,7 +2,7 @@ var test = require('tap').test
 var fs = require('../graceful-fs.js')
 
 test('graceful fs is monkeypatched fs', function (t) {
-  t.equal(fs, require('fs'))
+  t.equal(fs, require('../fs.js'))
   t.end()
 })
 

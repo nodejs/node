@@ -139,7 +139,7 @@ var fixer = module.exports = {
         // "/" is not allowed as packagename for publishing, but for git-urls
         // normalize shorthand-urls
         if (githubUserRepo(data[deps][d])) {
-          data[deps][d] = githubUserRepo(data[deps][d])
+          data[deps][d] = 'git+' + githubUserRepo(data[deps][d])
         }
       }, this)
     }, this)

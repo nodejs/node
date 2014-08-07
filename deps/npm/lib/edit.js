@@ -7,7 +7,6 @@ edit.usage = "npm edit <pkg>"
 edit.completion = require("./utils/completion/installed-shallow.js")
 
 var npm = require("./npm.js")
-  , spawn = require("child_process").spawn
   , path = require("path")
   , fs = require("graceful-fs")
   , editor = require("editor")

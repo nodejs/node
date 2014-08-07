@@ -210,13 +210,15 @@ Reader.prototype._stat = function (currentStat) {
         return
       }
 
-      if (me._paused) {
+      if (me._paused && me.type !== "Directory") {
         me.once("resume", go)
         return
       }
 
       var ev = events[e ++]
-      if (!ev) return me._read()
+      if (!ev) {
+        return me._read()
+      }
       me.emit(ev, props)
       go()
     })()

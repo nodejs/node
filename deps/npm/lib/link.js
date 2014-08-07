@@ -132,7 +132,7 @@ function linkPkg (folder, cb_) {
         if (er) return cb(er)
         log.verbose("link", "build target", target)
         // also install missing dependencies.
-        npm.commands.install(me, [], function (er, installed) {
+        npm.commands.install(me, [], function (er) {
           if (er) return cb(er)
           // build the global stuff.  Don't run *any* scripts, because
           // install command already will have done that.

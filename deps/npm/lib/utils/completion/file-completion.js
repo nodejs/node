@@ -2,7 +2,6 @@ module.exports = fileCompletion
 
 var mkdir = require("mkdirp")
   , path = require("path")
-  , fs = require("graceful-fs")
   , glob = require("glob")
 
 function fileCompletion (root, req, depth, cb) {

@@ -71,6 +71,7 @@ var npm = require("./npm.js")
   , addLocal = require("./cache/add-local.js")
   , addRemoteTarball = require("./cache/add-remote-tarball.js")
   , addRemoteGit = require("./cache/add-remote-git.js")
+  , inflight = require("inflight")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -207,6 +208,8 @@ cache.add = function (pkg, ver, scrub, cb) {
   return add([pkg, ver], cb)
 }
 
+
+var adding = 0
 function add (args, cb) {
   // this is hot code.  almost everything passes through here.
   // the args can be any of:
@@ -240,6 +243,10 @@ function add (args, cb) {
 
   if (!name && !spec) return cb(usage)
 
+  if (adding <= 0) {
+    npm.spinner.start()
+  }
+  adding ++
   cb = afterAdd([name, spec], cb)
 
   // see if the spec is a url
@@ -298,6 +305,10 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
 }
 
 function afterAdd (arg, cb) { return function (er, data) {
+  adding --
+  if (adding <= 0) {
+    npm.spinner.stop()
+  }
   if (er || !data || !data.name || !data.version) {
     return cb(er, data)
   }
@@ -307,8 +318,17 @@ function afterAdd (arg, cb) { return function (er, data) {
   var name = data.name
   var ver = data.version
   var pj = path.join(npm.cache, name, ver, "package", "package.json")
-  fs.writeFile(pj, JSON.stringify(data), "utf8", function (er) {
-    cb(er, data)
+  var tmp = pj + "." + process.pid
+
+  var done = inflight(pj, cb)
+
+  if (!done) return
+
+  fs.writeFile(tmp, JSON.stringify(data), "utf8", function (er) {
+    if (er) return done(er)
+    fs.rename(tmp, pj, function (er) {
+      done(er, data)
+    })
   })
 }}
 
