@@ -35,10 +35,10 @@ typedef struct uv__ipc_queue_item_s uv__ipc_queue_item_t;
 
 struct uv__ipc_queue_item_s {
   /*
-   * NOTE: It is important for socket_info to be the first field,
+   * NOTE: It is important for socket_info_ex to be the first field,
    * because we will we assigning it to the pending_ipc_info.socket_info
    */
-  WSAPROTOCOL_INFOW socket_info;
+  uv__ipc_socket_info_ex socket_info_ex;
   QUEUE member;
   int tcp_connection;
 };
@@ -73,7 +73,7 @@ typedef struct {
 /* IPC frame, which contains an imported TCP socket stream. */
 typedef struct {
   uv_ipc_frame_header_t header;
-  WSAPROTOCOL_INFOW socket_info;
+  uv__ipc_socket_info_ex socket_info_ex;
 } uv_ipc_frame_uv_stream;
 
 static void eof_timer_init(uv_pipe_t* pipe);
@@ -230,7 +230,7 @@ static int uv_set_pipe_handle(uv_loop_t* loop,
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
   FILE_MODE_INFORMATION mode_info;
-  DWORD mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
+  DWORD mode = PIPE_READMODE_BYTE | PIPE_WAIT;
   DWORD current_mode = 0;
   DWORD err = 0;
 
@@ -246,11 +246,9 @@ static int uv_set_pipe_handle(uv_loop_t* loop,
       if (!GetNamedPipeHandleState(pipeHandle, &current_mode, NULL, NULL,
                                    NULL, NULL, 0)) {
         return -1;
-      } else if (current_mode != mode) {
+      } else if (current_mode & PIPE_NOWAIT) {
         SetLastError(ERROR_ACCESS_DENIED);
         return -1;
-      } else {
-        duplex_flags &= ~UV_HANDLE_WRITABLE;
       }
     } else {
       /* If this returns ERROR_INVALID_PARAMETER we probably opened
@@ -410,7 +408,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
         socket = WSASocketW(FROM_PROTOCOL_INFO,
                             FROM_PROTOCOL_INFO,
                             FROM_PROTOCOL_INFO,
-                            &item->socket_info,
+                            &item->socket_info_ex.socket_info,
                             0,
                             WSA_FLAG_OVERLAPPED);
         free(item);
@@ -789,7 +787,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
     item = QUEUE_DATA(q, uv__ipc_queue_item_t, member);
 
     err = uv_tcp_import((uv_tcp_t*)client,
-                        &item->socket_info,
+                        &item->socket_info_ex,
                         item->tcp_connection);
     if (err != 0)
       return err;
@@ -1134,10 +1132,13 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
       tcp_send_handle = (uv_tcp_t*)send_handle;
 
       err = uv_tcp_duplicate_socket(tcp_send_handle, handle->ipc_pid,
-          &ipc_frame.socket_info);
+          &ipc_frame.socket_info_ex.socket_info);
       if (err) {
         return err;
       }
+
+      ipc_frame.socket_info_ex.delayed_error = tcp_send_handle->delayed_error;
+
       ipc_frame.header.flags |= UV_IPC_TCP_SERVER;
 
       if (tcp_send_handle->flags & UV_HANDLE_CONNECTION) {
@@ -1254,7 +1255,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
     }
 
     /* Request queued by the kernel. */
-    req->queued_bytes = uv_count_bufs(bufs, nbufs);
+    req->queued_bytes = uv__count_bufs(bufs, nbufs);
     handle->write_queue_size += req->queued_bytes;
   } else if (handle->flags & UV_HANDLE_BLOCKING_WRITES) {
     /* Using overlapped IO, but wait for completion before returning */
@@ -1311,7 +1312,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
       req->queued_bytes = 0;
     } else {
       /* Request queued by the kernel. */
-      req->queued_bytes = uv_count_bufs(bufs, nbufs);
+      req->queued_bytes = uv__count_bufs(bufs, nbufs);
       handle->write_queue_size += req->queued_bytes;
     }
 
@@ -1397,7 +1398,7 @@ static void uv_pipe_read_error_or_eof(uv_loop_t* loop, uv_pipe_t* handle,
 
 
 void uv__pipe_insert_pending_socket(uv_pipe_t* handle,
-                                    WSAPROTOCOL_INFOW* info,
+                                    uv__ipc_socket_info_ex* info,
                                     int tcp_connection) {
   uv__ipc_queue_item_t* item;
 
@@ -1405,7 +1406,7 @@ void uv__pipe_insert_pending_socket(uv_pipe_t* handle,
   if (item == NULL)
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
 
-  memcpy(&item->socket_info, info, sizeof(item->socket_info));
+  memcpy(&item->socket_info_ex, info, sizeof(item->socket_info_ex));
   item->tcp_connection = tcp_connection;
   QUEUE_INSERT_TAIL(&handle->pending_ipc_info.queue, &item->member);
   handle->pending_ipc_info.queue_len++;
@@ -1471,11 +1472,11 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
 
           if (ipc_frame.header.flags & UV_IPC_TCP_SERVER) {
             assert(avail - sizeof(ipc_frame.header) >=
-              sizeof(ipc_frame.socket_info));
+              sizeof(ipc_frame.socket_info_ex));
 
             /* Read the TCP socket info. */
             if (!ReadFile(handle->handle,
-                          &ipc_frame.socket_info,
+                          &ipc_frame.socket_info_ex,
                           sizeof(ipc_frame) - sizeof(ipc_frame.header),
                           &bytes,
                           NULL)) {
@@ -1489,7 +1490,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
             /* Store the pending socket info. */
             uv__pipe_insert_pending_socket(
                 handle,
-                &ipc_frame.socket_info,
+                &ipc_frame.socket_info_ex,
                 ipc_frame.header.flags & UV_IPC_TCP_CONNECTION);
           }
 
@@ -1772,7 +1773,34 @@ static void eof_timer_close_cb(uv_handle_t* handle) {
 
 int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   HANDLE os_handle = uv__get_osfhandle(file);
-  DWORD duplex_flags = UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
+  NTSTATUS nt_status;
+  IO_STATUS_BLOCK io_status;
+  FILE_ACCESS_INFORMATION access;
+  DWORD duplex_flags = 0;
+
+  /* Determine what kind of permissions we have on this handle.
+   * Cygwin opens the pipe in message mode, but we can support it,
+   * just query the access flags and set the stream flags accordingly.
+   */
+  nt_status = pNtQueryInformationFile(os_handle,
+                                      &io_status,
+                                      &access,
+                                      sizeof(access),
+                                      FileAccessInformation);
+  if (nt_status != STATUS_SUCCESS)
+    return UV_EINVAL;
+
+  if (pipe->ipc) {
+    if (!(access.AccessFlags & FILE_WRITE_DATA) ||
+        !(access.AccessFlags & FILE_READ_DATA)) {
+      return UV_EINVAL;
+    }
+  }
+
+  if (access.AccessFlags & FILE_WRITE_DATA)
+    duplex_flags |= UV_HANDLE_WRITABLE;
+  if (access.AccessFlags & FILE_READ_DATA)
+    duplex_flags |= UV_HANDLE_READABLE;
 
   if (os_handle == INVALID_HANDLE_VALUE ||
       uv_set_pipe_handle(pipe->loop, pipe, os_handle, duplex_flags) == -1) {

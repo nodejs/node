@@ -180,29 +180,23 @@ int uv_get_process_title(char* buffer, size_t size) {
 
 
 int uv_resident_set_memory(size_t* rss) {
-  kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
-  pid_t pid;
-  int nprocs, max_size = sizeof(struct kinfo_proc);
+  struct kinfo_proc kinfo;
   size_t page_size = getpagesize();
+  size_t size = sizeof(struct kinfo_proc);
+  int mib[6];
 
-  pid = getpid();
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PID;
+  mib[3] = getpid();
+  mib[4] = sizeof(struct kinfo_proc);
+  mib[5] = 1;
 
-  kd = kvm_open(NULL, _PATH_MEM, NULL, O_RDONLY, "kvm_open");
-  if (kd == NULL) goto error;
+  if (sysctl(mib, 6, &kinfo, &size, NULL, 0) < 0)
+    return -errno;
 
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, max_size, &nprocs);
-  if (kinfo == NULL) goto error;
-
-  *rss = kinfo->p_vm_rssize * page_size;
-
-  kvm_close(kd);
-
+  *rss = kinfo.p_vm_rssize * page_size;
   return 0;
-
-error:
-  if (kd) kvm_close(kd);
-  return -EPERM;
 }
 
 

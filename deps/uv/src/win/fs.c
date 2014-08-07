@@ -44,12 +44,8 @@
 
 #define QUEUE_FS_TP_JOB(loop, req)                                          \
   do {                                                                      \
-    if (!QueueUserWorkItem(&uv_fs_thread_proc,                              \
-                           req,                                             \
-                           WT_EXECUTEDEFAULT)) {                            \
-      return uv_translate_sys_error(GetLastError());                        \
-    }                                                                       \
     uv__req_register(loop, req);                                            \
+    uv__work_submit((loop), &(req)->work_req, uv__fs_work, uv__fs_done);    \
   } while (0)
 
 #define SET_REQ_RESULT(req, result_value)                                   \
@@ -232,11 +228,7 @@ INLINE static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req,
   req->result = 0;
   req->ptr = NULL;
   req->path = NULL;
-
-  if (cb != NULL) {
-    req->cb = cb;
-    memset(&req->overlapped, 0, sizeof(req->overlapped));
-  }
+  req->cb = cb;
 }
 
 
@@ -726,6 +718,78 @@ void fs__mkdir(uv_fs_t* req) {
   /* TODO: use req->mode. */
   int result = _wmkdir(req->pathw);
   SET_REQ_RESULT(req, result);
+}
+
+
+/* Some parts of the implementation were borrowed from glibc. */
+void fs__mkdtemp(uv_fs_t* req) {
+  static const WCHAR letters[] =
+    L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  size_t len;
+  WCHAR* template_part;
+  static uint64_t value;
+  unsigned int count;
+  int fd;
+
+  /* A lower bound on the number of temporary files to attempt to
+     generate. The maximum total number of temporary file names that
+     can exist for a given template is 62**6. It should never be
+     necessary to try all these combinations. Instead if a reasonable
+     number of names is tried (we define reasonable as 62**3) fail to
+     give the system administrator the chance to remove the problems. */
+#define ATTEMPTS_MIN (62 * 62 * 62)
+
+  /* The number of times to attempt to generate a temporary file. To
+     conform to POSIX, this must be no smaller than TMP_MAX. */
+#if ATTEMPTS_MIN < TMP_MAX
+  unsigned int attempts = TMP_MAX;
+#else
+  unsigned int attempts = ATTEMPTS_MIN;
+#endif
+
+  len = wcslen(req->pathw);
+  if (len < 6 || wcsncmp(&req->pathw[len - 6], L"XXXXXX", 6)) {
+    SET_REQ_UV_ERROR(req, UV_EINVAL, ERROR_INVALID_PARAMETER);
+    return;
+  }
+
+  /* This is where the Xs start. */
+  template_part = &req->pathw[len - 6];
+
+  /* Get some random data. */
+  value += uv_hrtime() ^ _getpid();
+
+  for (count = 0; count < attempts; value += 7777, ++count) {
+    uint64_t v = value;
+
+    /* Fill in the random bits. */
+    template_part[0] = letters[v % 62];
+    v /= 62;
+    template_part[1] = letters[v % 62];
+    v /= 62;
+    template_part[2] = letters[v % 62];
+    v /= 62;
+    template_part[3] = letters[v % 62];
+    v /= 62;
+    template_part[4] = letters[v % 62];
+    v /= 62;
+    template_part[5] = letters[v % 62];
+
+    fd = _wmkdir(req->pathw);
+
+    if (fd >= 0) {
+      len = strlen(req->path);
+      wcstombs((char*) req->path + len - 6, template_part, 6);
+      SET_REQ_RESULT(req, 0);
+      return;
+    } else if (errno != EEXIST) {
+      SET_REQ_RESULT(req, -1);
+      return;
+    }
+  }
+
+  /* We got out of the loop because we ran out of combinations to try. */
+  SET_REQ_RESULT(req, -1);
 }
 
 
@@ -1401,7 +1465,7 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
 
   /* Open the directory */
   handle = CreateFileW(new_path,
-                       GENERIC_ALL,
+                       GENERIC_WRITE,
                        0,
                        NULL,
                        OPEN_EXISTING,
@@ -1510,11 +1574,10 @@ static void fs__fchown(uv_fs_t* req) {
 }
 
 
-static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
-  uv_fs_t* req = (uv_fs_t*) parameter;
-  uv_loop_t* loop = req->loop;
+static void uv__fs_work(struct uv__work* w) {
+  uv_fs_t* req;
 
-  assert(req != NULL);
+  req = container_of(w, uv_fs_t, work_req);
   assert(req->type == UV_FS);
 
 #define XX(uc, lc)  case UV_FS_##uc: fs__##lc(req); break;
@@ -1537,6 +1600,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(UNLINK, unlink)
     XX(RMDIR, rmdir)
     XX(MKDIR, mkdir)
+    XX(MKDTEMP, mkdtemp)
     XX(RENAME, rename)
     XX(READDIR, readdir)
     XX(LINK, link)
@@ -1547,9 +1611,41 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     default:
       assert(!"bad uv_fs_type");
   }
+}
 
-  POST_COMPLETION_FOR_REQ(loop, req);
-  return 0;
+
+static void uv__fs_done(struct uv__work* w, int status) {
+  uv_fs_t* req;
+
+  req = container_of(w, uv_fs_t, work_req);
+  uv__req_unregister(req->loop, req);
+
+  if (status == UV_ECANCELED) {
+    assert(req->result == 0);
+    req->result = UV_ECANCELED;
+  }
+
+  if (req->cb != NULL)
+    req->cb(req);
+}
+
+
+void uv_fs_req_cleanup(uv_fs_t* req) {
+  if (req->flags & UV_FS_CLEANEDUP)
+    return;
+
+  if (req->flags & UV_FS_FREE_PATHS)
+    free(req->pathw);
+
+  if (req->flags & UV_FS_FREE_PTR)
+    free(req->ptr);
+
+  req->path = NULL;
+  req->pathw = NULL;
+  req->new_pathw = NULL;
+  req->ptr = NULL;
+
+  req->flags |= UV_FS_CLEANEDUP;
 }
 
 
@@ -1696,6 +1792,26 @@ int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     return 0;
   } else {
     fs__mkdir(req);
+    return req->result;
+  }
+}
+
+
+int uv_fs_mkdtemp(uv_loop_t* loop, uv_fs_t* req, const char* tpl,
+    uv_fs_cb cb) {
+  int err;
+
+  uv_fs_req_init(loop, req, UV_FS_MKDTEMP, cb);
+
+  err = fs__capture_path(loop, req, tpl, NULL, TRUE);
+  if (err)
+    return uv_translate_sys_error(err);
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__mkdtemp(req);
     return req->result;
   }
 }
@@ -2064,30 +2180,3 @@ int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file fd, double atime,
     return req->result;
   }
 }
-
-
-void uv_process_fs_req(uv_loop_t* loop, uv_fs_t* req) {
-  assert(req->cb);
-  uv__req_unregister(loop, req);
-  req->cb(req);
-}
-
-
-void uv_fs_req_cleanup(uv_fs_t* req) {
-  if (req->flags & UV_FS_CLEANEDUP)
-    return;
-
-  if (req->flags & UV_FS_FREE_PATHS)
-    free(req->pathw);
-
-  if (req->flags & UV_FS_FREE_PTR)
-    free(req->ptr);
-
-  req->path = NULL;
-  req->pathw = NULL;
-  req->new_pathw = NULL;
-  req->ptr = NULL;
-
-  req->flags |= UV_FS_CLEANEDUP;
-}
-

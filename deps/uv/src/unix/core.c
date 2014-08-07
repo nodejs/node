@@ -70,6 +70,10 @@
 # endif
 #endif
 
+#ifdef _AIX
+#include <sys/ioctl.h>
+#endif
+
 static void uv__run_pending(uv_loop_t* loop);
 
 /* Verify that uv_buf_t is ABI-compatible with struct iovec. */
@@ -444,7 +448,8 @@ int uv__close(int fd) {
 }
 
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+    defined(_AIX)
 
 int uv__nonblock(int fd, int set) {
   int r;

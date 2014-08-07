@@ -61,11 +61,13 @@
         'include/uv.h',
         'include/tree.h',
         'include/uv-errno.h',
+        'include/uv-threadpool.h',
         'include/uv-version.h',
         'src/fs-poll.c',
         'src/heap-inl.h',
         'src/inet.c',
         'src/queue.h',
+        'src/threadpool.c',
         'src/uv-common.c',
         'src/uv-common.h',
         'src/version.c'
@@ -103,7 +105,6 @@
             'src/win/stream-inl.h',
             'src/win/tcp.c',
             'src/win/tty.c',
-            'src/win/threadpool.c',
             'src/win/timer.c',
             'src/win/udp.c',
             'src/win/util.c',
@@ -114,11 +115,11 @@
           ],
           'link_settings': {
             'libraries': [
-              '-ladvapi32.lib',
-              '-liphlpapi.lib',
-              '-lpsapi.lib',
-              '-lshell32.lib',
-              '-lws2_32.lib'
+              '-ladvapi32',
+              '-liphlpapi',
+              '-lpsapi',
+              '-lshell32',
+              '-lws2_32'
             ],
           },
         }, { # Not Windows i.e. POSIX
@@ -136,6 +137,7 @@
             'include/uv-sunos.h',
             'include/uv-darwin.h',
             'include/uv-bsd.h',
+            'include/uv-aix.h',
             'src/unix/async.c',
             'src/unix/atomic-ops.h',
             'src/unix/core.c',
@@ -154,7 +156,6 @@
             'src/unix/stream.c',
             'src/unix/tcp.c',
             'src/unix/thread.c',
-            'src/unix/threadpool.c',
             'src/unix/timer.c',
             'src/unix/tty.c',
             'src/unix/udp.c',
@@ -245,6 +246,7 @@
           'defines': [
             '_ALL_SOURCE',
             '_XOPEN_SOURCE=500',
+            '_LINUX_SOURCE_COMPAT',
           ],
           'link_settings': {
             'libraries': [
@@ -378,6 +380,7 @@
         'test/test-tcp-try-write.c',
         'test/test-tcp-unexpected-read.c',
         'test/test-tcp-read-stop.c',
+        'test/test-tcp-write-queue-order.c',
         'test/test-threadpool.c',
         'test/test-threadpool-cancel.c',
         'test/test-mutexes.c',
@@ -394,6 +397,7 @@
         'test/test-udp-open.c',
         'test/test-udp-options.c',
         'test/test-udp-send-and-recv.c',
+        'test/test-udp-send-immediate.c',
         'test/test-udp-multicast-join.c',
         'test/test-udp-multicast-join6.c',
         'test/test-dlerror.c',
@@ -402,6 +406,7 @@
         'test/test-ip6-addr.c',
         'test/test-udp-multicast-interface.c',
         'test/test-udp-multicast-interface6.c',
+        'test/test-udp-try-send.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
@@ -409,7 +414,7 @@
             'test/runner-win.c',
             'test/runner-win.h'
           ],
-          'libraries': [ 'ws2_32.lib' ]
+          'libraries': [ '-lws2_32' ]
         }, { # POSIX
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
@@ -473,7 +478,7 @@
             'test/runner-win.c',
             'test/runner-win.h',
           ],
-          'libraries': [ 'ws2_32.lib' ]
+          'libraries': [ '-lws2_32' ]
         }, { # POSIX
           'defines': [ '_GNU_SOURCE' ],
           'sources': [

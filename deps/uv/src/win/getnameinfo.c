@@ -27,23 +27,31 @@
 #include "internal.h"
 #include "req-inl.h"
 
+#ifndef GetNameInfo
+int WSAAPI GetNameInfoW(
+  const SOCKADDR *pSockaddr,
+  socklen_t SockaddrLength,
+  PWCHAR pNodeBuffer,
+  DWORD NodeBufferSize,
+  PWCHAR pServiceBuffer,
+  DWORD ServiceBufferSize,
+  INT Flags
+);
+#endif
 
-/* getnameinfo worker thread implementation */
-static DWORD WINAPI getnameinfo_thread_proc(void* parameter) {
-  uv_getnameinfo_t* req = (uv_getnameinfo_t*)parameter;
-  uv_loop_t* loop = req->loop;
+static void uv__getnameinfo_work(struct uv__work* w) {
+  uv_getnameinfo_t* req;
   WCHAR host[NI_MAXHOST];
   WCHAR service[NI_MAXSERV];
   int ret = 0;
 
-  assert(req != NULL);
-
+  req = container_of(w, uv_getnameinfo_t, work_req);
   ret = GetNameInfoW((struct sockaddr*)&req->storage,
                      sizeof(req->storage),
                      host,
-                     sizeof(host),
+                     ARRAY_SIZE(host),
                      service,
-                     sizeof(service),
+                     ARRAY_SIZE(service),
                      req->flags);
   req->retcode = uv__getaddrinfo_translate_error(ret);
 
@@ -65,30 +73,29 @@ static DWORD WINAPI getnameinfo_thread_proc(void* parameter) {
                       sizeof(req->service),
                       NULL,
                       NULL);
-
-  /* post getnameinfo completed */
-  POST_COMPLETION_FOR_REQ(loop, req);
-
-  return 0;
 }
 
 
 /*
 * Called from uv_run when complete.
 */
-void uv_process_getnameinfo_req(uv_loop_t* loop, uv_getnameinfo_t* req) {
+static void uv__getnameinfo_done(struct uv__work* w, int status) {
+  uv_getnameinfo_t* req;
   char* host;
   char* service;
 
-  if (req->retcode == 0) {
+  req = container_of(w, uv_getnameinfo_t, work_req);
+  uv__req_unregister(req->loop, req);
+  host = service = NULL;
+
+  if (status == UV_ECANCELED) {
+    assert(req->retcode == 0);
+    req->retcode = UV_EAI_CANCELED;
+  } else if (req->retcode == 0) {
     host = req->host;
     service = req->service;
-  } else {
-    host = NULL;
-    service = NULL;
   }
 
-  uv__req_unregister(loop, req);
   req->getnameinfo_cb(req, req->retcode, host, service);
 }
 
@@ -119,20 +126,18 @@ int uv_getnameinfo(uv_loop_t* loop,
   }
 
   uv_req_init(loop, (uv_req_t*)req);
+  uv__req_register(loop, req);
 
   req->getnameinfo_cb = getnameinfo_cb;
   req->flags = flags;
   req->type = UV_GETNAMEINFO;
   req->loop = loop;
+  req->retcode = 0;
 
-  /* Ask thread to run. Treat this as a long operation. */
-  if (QueueUserWorkItem(&getnameinfo_thread_proc,
-                        req,
-                        WT_EXECUTELONGFUNCTION) == 0) {
-    return uv_translate_sys_error(GetLastError());
-  }
-
-  uv__req_register(loop, req);
+  uv__work_submit(loop,
+                  &req->work_req,
+                  uv__getnameinfo_work,
+                  uv__getnameinfo_done);
 
   return 0;
 }

@@ -41,10 +41,6 @@ static void worker(void* arg) {
     uv_sleep(c->delay);
 
   c->worker_barrier_wait_rval = uv_barrier_wait(&c->barrier);
-  if (c->worker_barrier_wait_rval == 1) {
-    uv_barrier_destroy(&c->barrier);
-    ASSERT(c->main_barrier_wait_rval == 0);
-  }
 }
 
 
@@ -53,21 +49,16 @@ TEST_IMPL(barrier_1) {
   worker_config wc;
 
   memset(&wc, 0, sizeof(wc));
-  wc.main_barrier_wait_rval = -1;
-  wc.worker_barrier_wait_rval = -1;
 
   ASSERT(0 == uv_barrier_init(&wc.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
   uv_sleep(100);
-
   wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
-  if (wc.main_barrier_wait_rval == 1) {
-    uv_barrier_destroy(&wc.barrier);
-    ASSERT(wc.worker_barrier_wait_rval == 0);
-  }
 
   ASSERT(0 == uv_thread_join(&thread));
+  uv_barrier_destroy(&wc.barrier);
+
   ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;
@@ -80,19 +71,15 @@ TEST_IMPL(barrier_2) {
 
   memset(&wc, 0, sizeof(wc));
   wc.delay = 100;
-  wc.main_barrier_wait_rval = -1;
-  wc.worker_barrier_wait_rval = -1;
 
   ASSERT(0 == uv_barrier_init(&wc.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
   wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
-  if (wc.main_barrier_wait_rval == 1) {
-    uv_barrier_destroy(&wc.barrier);
-    ASSERT(wc.worker_barrier_wait_rval == 0);
-  }
 
   ASSERT(0 == uv_thread_join(&thread));
+  uv_barrier_destroy(&wc.barrier);
+
   ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;
@@ -104,19 +91,15 @@ TEST_IMPL(barrier_3) {
   worker_config wc;
 
   memset(&wc, 0, sizeof(wc));
-  wc.main_barrier_wait_rval = -1;
-  wc.worker_barrier_wait_rval = -1;
 
   ASSERT(0 == uv_barrier_init(&wc.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
   wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
-  if (wc.main_barrier_wait_rval == 1) {
-    uv_barrier_destroy(&wc.barrier);
-    ASSERT(wc.worker_barrier_wait_rval == 0);
-  }
 
   ASSERT(0 == uv_thread_join(&thread));
+  uv_barrier_destroy(&wc.barrier);
+
   ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;

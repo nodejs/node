@@ -91,7 +91,7 @@ TEST_IMPL(watcher_cross_stop) {
   for (i = 0; i < ARRAY_SIZE(sockets); i++)
     uv_close((uv_handle_t*) &sockets[i], close_cb);
 
-  ASSERT(0 < recv_cb_called && recv_cb_called <= ARRAY_SIZE(sockets));
+  ASSERT(recv_cb_called > 0);
   ASSERT(ARRAY_SIZE(sockets) == send_cb_called);
 
   uv_run(loop, UV_RUN_DEFAULT);

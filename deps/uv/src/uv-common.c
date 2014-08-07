@@ -233,6 +233,26 @@ int uv_udp_send(uv_udp_send_t* req,
 }
 
 
+int uv_udp_try_send(uv_udp_t* handle,
+                    const uv_buf_t bufs[],
+                    unsigned int nbufs,
+                    const struct sockaddr* addr) {
+  unsigned int addrlen;
+
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (addr->sa_family == AF_INET)
+    addrlen = sizeof(struct sockaddr_in);
+  else if (addr->sa_family == AF_INET6)
+    addrlen = sizeof(struct sockaddr_in6);
+  else
+    return UV_EINVAL;
+
+  return uv__udp_try_send(handle, bufs, nbufs, addr, addrlen);
+}
+
+
 int uv_udp_recv_start(uv_udp_t* handle,
                       uv_alloc_cb alloc_cb,
                       uv_udp_recv_cb recv_cb) {
@@ -445,6 +465,19 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   abort();
   return 0;  /* Pacify compiler. */
 }
+
+
+size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs) {
+  unsigned int i;
+  size_t bytes;
+
+  bytes = 0;
+  for (i = 0; i < nbufs; i++)
+    bytes += (size_t) bufs[i].len;
+
+  return bytes;
+}
+
 
 int uv_fs_event_getpath(uv_fs_event_t* handle, char* buf, size_t* len) {
   size_t required_len;

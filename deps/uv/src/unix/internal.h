@@ -42,6 +42,12 @@
 # include <port.h>
 #endif /* __sun */
 
+#if defined(_AIX)
+#define reqevents events
+#define rtnevents revents
+#include <sys/poll.h>
+#endif /* _AIX */
+
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <CoreServices/CoreServices.h>
 #endif
@@ -89,7 +95,7 @@
 # define UV__POLLHUP  UV__EPOLLHUP
 #endif
 
-#if defined(__sun)
+#if defined(__sun) || defined(_AIX)
 # define UV__POLLIN   POLLIN
 # define UV__POLLOUT  POLLOUT
 # define UV__POLLERR  POLLERR
@@ -209,13 +215,6 @@ int uv__next_timeout(const uv_loop_t* loop);
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
 void uv__signal_loop_cleanup(uv_loop_t* loop);
-
-/* thread pool */
-void uv__work_submit(uv_loop_t* loop,
-                     struct uv__work *w,
-                     void (*work)(struct uv__work *w),
-                     void (*done)(struct uv__work *w, int status));
-void uv__work_done(uv_async_t* handle);
 
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);
