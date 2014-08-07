@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 var nopt = require("../lib/nopt")
+  , path = require("path")
   , types = { num: Number
             , bool: Boolean
             , help: Boolean
@@ -11,6 +12,7 @@ var nopt = require("../lib/nopt")
             , clear: Boolean
             , config: Boolean
             , length: Number
+            , file: path
             }
   , shorthands = { s: [ "--str", "astring" ]
                  , b: [ "--bool" ]
@@ -22,6 +24,7 @@ var nopt = require("../lib/nopt")
                  , n: [ "--num", "125" ]
                  , c: ["--config"]
                  , l: ["--length"]
+                 , f: ["--file"]
                  }
   , parsed = nopt( types
                  , shorthands

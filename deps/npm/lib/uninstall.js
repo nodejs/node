@@ -79,14 +79,15 @@ function saver (args, nm, cb_) {
     // don't use readJson here, because we don't want all the defaults
     // filled in, for mans and other bs.
     fs.readFile(pj, 'utf8', function (er, json) {
+      var pkg
       try {
-        var pkg = JSON.parse(json)
+        pkg = JSON.parse(json)
       } catch (_) {}
       if (!pkg) return cb_(null, data)
 
       var bundle
       if (npm.config.get('save-bundle')) {
-        var bundle = pkg.bundleDependencies || pkg.bundledDependencies
+        bundle = pkg.bundleDependencies || pkg.bundledDependencies
         if (!Array.isArray(bundle)) bundle = undefined
       }
 

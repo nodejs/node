@@ -31,8 +31,8 @@ var ucData =
        path: '/',
        httponly: true } }
 
-var envData = { userconfig: common.userconfig, 'other-env-thing': '1000' }
-var envDataFix = { userconfig: common.userconfig, 'other-env-thing': 1000 }
+var envData = common.envData
+var envDataFix = common.envDataFix
 
 var gcData = { 'package-config:foo': 'boo' }
 

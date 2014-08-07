@@ -2,9 +2,7 @@
 
 module.exports = RegClient
 
-var fs = require('fs')
-, url = require('url')
-, path = require('path')
+var url = require('url')
 , npmlog
 , cacheFile = require('npm-cache-filename')
 

@@ -13,7 +13,7 @@ var cbCalled = false
 
 process.on("exit", function (code) {
   // console.error("exit", code)
-  if (!npm.config.loaded) return
+  if (!npm.config || !npm.config.loaded) return
   if (code) itWorked = false
   if (itWorked) log.info("ok")
   else {
@@ -46,7 +46,7 @@ process.on("exit", function (code) {
 function exit (code, noLog) {
   exitCode = exitCode || process.exitCode || code
 
-  var doExit = npm.config.get("_exit")
+  var doExit = npm.config ? npm.config.get("_exit") : true
   log.verbose("exit", [code, doExit])
   if (log.level === "silent") noLog = true
 
@@ -71,7 +71,7 @@ function exit (code, noLog) {
 function errorHandler (er) {
   var printStack = false
   // console.error("errorHandler", er)
-  if (!npm.config.loaded) {
+  if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
     er = er || new Error("Exit prior to config file resolving.")
     console.error(er.stack || er.message)
@@ -112,7 +112,6 @@ function errorHandler (er) {
     break
 
   case "ELIFECYCLE":
-    er.code = "ELIFECYCLE"
     log.error("", er.message)
     log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script."
               ,"This is most likely a problem with the "+er.pkgname+" package,"
@@ -126,7 +125,6 @@ function errorHandler (er) {
     break
 
   case "ENOGIT":
-    er.code = "ENOGIT"
     log.error("", er.message)
     log.error("", ["","Failed using git."
               ,"This is most likely not a problem with npm itself."
@@ -135,7 +133,6 @@ function errorHandler (er) {
     break
 
   case "EJSONPARSE":
-    er.code = "EJSONPARSE"
     log.error("", er.message)
     log.error("", "File: "+er.file)
     log.error("", ["Failed to parse package.json data."
@@ -146,7 +143,6 @@ function errorHandler (er) {
     break
 
   case "E404":
-    er.code = "E404"
     var msg = [er.message]
     if (er.pkgid && er.pkgid !== "-") {
       msg.push("", "'"+er.pkgid+"' is not in the npm registry."
@@ -168,7 +164,6 @@ function errorHandler (er) {
     break
 
   case "EPUBLISHCONFLICT":
-    er.code = "EPUBLISHCONFLICT"
     log.error("publish fail", ["Cannot publish over existing version."
               ,"Update the 'version' field in package.json and try again."
               ,""
@@ -181,7 +176,6 @@ function errorHandler (er) {
     break
 
   case "EISGIT":
-    er.code = "EISGIT"
     log.error("git", [er.message
               ,"    "+er.path
               ,"Refusing to remove it. Update manually,"
@@ -190,7 +184,6 @@ function errorHandler (er) {
     break
 
   case "ECYCLE":
-    er.code = "ECYCLE"
     log.error("cycle", [er.message
               ,"While installing: "+er.pkgid
               ,"Found a pathological dependency case that npm cannot solve."
@@ -199,7 +192,6 @@ function errorHandler (er) {
     break
 
   case "EBADPLATFORM":
-    er.code = "EBADPLATFORM"
     log.error("notsup", [er.message
               ,"Not compatible with your operating system or architecture: "+er.pkgid
               ,"Valid OS:    "+er.os.join(",")
@@ -267,6 +259,22 @@ function errorHandler (er) {
                 ].join("\n"))
       break
     } // else passthrough
+
+  case "ENOSPC":
+    log.error("nospc", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to insufficient space on your system."
+              ].join("\n"))
+    break
+
+  case "EROFS":
+    log.error("rofs", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to the file system being read-only."
+              ,"\nOften virtualized file systems, or other file systems"
+              ,"that don't support symlinks, give this error."
+              ].join("\n"))
+    break
 
   default:
     log.error("", er.stack || er.message || er)

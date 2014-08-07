@@ -158,21 +158,21 @@ tap.test("singularize repositories", function(t) {
 tap.test("treat visionmedia/express as github repo", function(t) {
   var d = {repository: {type: "git", url: "visionmedia/express"}}
   normalize(d)
-  t.same(d.repository, { type: "git", url: "git://github.com/visionmedia/express" })
+  t.same(d.repository, { type: "git", url: "https://github.com/visionmedia/express" })
   t.end()
 });
 
 tap.test("treat isaacs/node-graceful-fs as github repo", function(t) {
   var d = {repository: {type: "git", url: "isaacs/node-graceful-fs"}}
   normalize(d)
-  t.same(d.repository, { type: "git", url: "git://github.com/isaacs/node-graceful-fs" })
+  t.same(d.repository, { type: "git", url: "https://github.com/isaacs/node-graceful-fs" })
   t.end()
 });
 
 tap.test("homepage field will set to github url if repository is a github repo", function(t) {
   var a
   normalize(a={
-    repository: { type: "git", url: "git://github.com/isaacs/node-graceful-fs" }
+    repository: { type: "git", url: "https://github.com/isaacs/node-graceful-fs" }
   })
   t.same(a.homepage, 'https://github.com/isaacs/node-graceful-fs')
   t.end()
@@ -199,7 +199,7 @@ tap.test("homepage field will set to github gist url if repository is a shorthan
 tap.test("treat isaacs/node-graceful-fs as github repo in dependencies", function(t) {
   var d = {dependencies: {"node-graceful-fs": "isaacs/node-graceful-fs"}}
   normalize(d)
-  t.same(d.dependencies, {"node-graceful-fs": "git://github.com/isaacs/node-graceful-fs" })
+  t.same(d.dependencies, {"node-graceful-fs": "git+https://github.com/isaacs/node-graceful-fs" })
   t.end()
 });
 

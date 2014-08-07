@@ -26,7 +26,12 @@
 module.exports = PassThrough;
 
 var Transform = require('./_stream_transform');
-var util = require('util');
+
+/*<replacement>*/
+var util = require('core-util-is');
+util.inherits = require('inherits');
+/*</replacement>*/
+
 util.inherits(PassThrough, Transform);
 
 function PassThrough(options) {

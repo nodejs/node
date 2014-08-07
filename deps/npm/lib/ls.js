@@ -15,6 +15,7 @@ var npm = require("./npm.js")
   , semver = require("semver")
   , url = require("url")
   , isGitUrl = require("./utils/is-git-url.js")
+  , color = require("ansicolors")
 
 ls.usage = "npm ls"
 
@@ -68,15 +69,10 @@ function ls (args, silent, cb) {
 
     // if any errors were found, then complain and exit status 1
     if (lite.problems && lite.problems.length) {
-      er = lite.problems.join('\n')
+      er = lite.problems.join("\n")
     }
     cb(er, data, lite)
   })
-}
-
-// only include
-function filter (data, args) {
-
 }
 
 function alphasort (a, b) {
@@ -128,6 +124,7 @@ function getLite (data, noname) {
       var dep = data.dependencies[d]
       if (typeof dep === "string") {
         lite.problems = lite.problems || []
+        var p
         if (data.depth > maxDepth) {
           p = "max depth reached: "
         } else {
@@ -220,14 +217,12 @@ function makeArchy (data, long, dir) {
 }
 
 function makeArchy_ (data, long, dir, depth, parent, d) {
-  var color = npm.color
   if (typeof data === "string") {
     if (depth -1 <= npm.config.get("depth")) {
       // just missing
-      var p = parent.link || parent.path
       var unmet = "UNMET DEPENDENCY"
-      if (color) {
-        unmet = "\033[31;40m" + unmet + "\033[0m"
+      if (npm.color) {
+        unmet = color.bgBlack(color.red(unmet))
       }
       data = unmet + " " + d + "@" + data
     } else {
@@ -240,35 +235,37 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   // the top level is a bit special.
   out.label = data._id || ""
   if (data._found === true && data._id) {
-    var pre = color ? "\033[33;40m" : ""
-      , post = color ? "\033[m" : ""
-    out.label = pre + out.label.trim() + post + " "
+    if (npm.color) {
+      out.label = color.bgBlack(color.yellow(out.label.trim())) + " "
+    }
+    else {
+      out.label = out.label.trim() + " "
+    }
   }
   if (data.link) out.label += " -> " + data.link
 
   if (data.invalid) {
     if (data.realName !== data.name) out.label += " ("+data.realName+")"
-    out.label += " " + (color ? "\033[31;40m" : "")
-              + "invalid"
-              + (color ? "\033[0m" : "")
+    var invalid = "invalid"
+    if (npm.color) invalid = color.bgBlack(color.red(invalid))
+    out.label += " " + invalid
   }
 
   if (data.peerInvalid) {
-    out.label += " " + (color ? "\033[31;40m" : "")
-              + "peer invalid"
-              + (color ? "\033[0m" : "")
+    var peerInvalid = "peer invalid"
+    if (npm.color) peerInvalid = color.bgBlack(color.red(peerInvalid))
+    out.label += " " + peerInvalid
   }
 
   if (data.extraneous && data.path !== dir) {
-    out.label += " " + (color ? "\033[32;40m" : "")
-              + "extraneous"
-              + (color ? "\033[0m" : "")
+    var extraneous = "extraneous"
+    if (npm.color) extraneous = color.bgBlack(color.green(extraneous))
+    out.label += " " + extraneous
   }
 
   // add giturl to name@version
   if (data._resolved) {
-    var p = url.parse(data._resolved)
-    if (isGitUrl(p))
+    if (isGitUrl(url.parse(data._resolved)))
       out.label += " (" + data._resolved + ")"
   }
 
@@ -293,7 +290,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   return out
 }
 
-function getExtras (data, dir) {
+function getExtras (data) {
   var extras = []
 
   if (data.description) extras.push(data.description)
@@ -328,7 +325,6 @@ function makeParseable_ (data, long, dir, depth, parent, d) {
 
   if (typeof data === "string") {
     if (data.depth < npm.config.get("depth")) {
-      var p = parent.link || parent.path
       data = npm.config.get("long")
            ? path.resolve(parent.path, "node_modules", d)
            + ":"+d+"@"+JSON.stringify(data)+":INVALID:MISSING"

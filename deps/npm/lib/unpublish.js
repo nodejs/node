@@ -1,7 +1,8 @@
 
 module.exports = unpublish
 
-var log = require("npmlog")
+var url = require("url")
+  , log = require("npmlog")
   , npm = require("./npm.js")
   , registry = npm.registry
   , readJson = require("read-package-json")
@@ -13,7 +14,8 @@ unpublish.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length >= 3) return cb()
   var un = encodeURIComponent(npm.config.get("username"))
   if (!un) return cb()
-  registry.get("/-/by-user/"+un, function (er, pkgs) {
+  var uri = url.resolve(npm.config.get("registry"), "-/by-user/"+un)
+  registry.get(uri, null, function (er, pkgs) {
     // do a bit of filtering at this point, so that we don't need
     // to fetch versions for more than one thing, but also don't
     // accidentally a whole project.
@@ -21,12 +23,12 @@ unpublish.completion = function (opts, cb) {
     if (!pkgs || !pkgs.length) return cb()
     var partial = opts.partialWord.split("@")
       , pp = partial.shift()
-      , pv = partial.join("@")
     pkgs = pkgs.filter(function (p) {
       return p.indexOf(pp) === 0
     })
     if (pkgs.length > 1) return cb(null, pkgs)
-    registry.get(pkgs[0], function (er, d) {
+    var uri = url.resolve(npm.config.get("registry"), pkgs[0])
+    registry.get(uri, null, function (er, d) {
       if (er) return cb(er)
       var vers = Object.keys(d.versions)
       if (!vers.length) return cb(null, pkgs)
@@ -38,7 +40,6 @@ unpublish.completion = function (opts, cb) {
 }
 
 function unpublish (args, cb) {
-
   if (args.length > 1) return cb(unpublish.usage)
 
   var thing = args.length ? args.shift().split("@") : []
@@ -78,6 +79,7 @@ function gotProject (project, version, cb_) {
       return cb(er)
     }
 
-    registry.unpublish(project, version, cb)
+    var uri = url.resolve(npm.config.get("registry"), project)
+    registry.unpublish(uri, version, cb)
   })
 }

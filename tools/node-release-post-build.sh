@@ -39,7 +39,7 @@ make email.md
 ( echo ""
   echo "Shasums:"
   echo '```'
-  cat SHASUMS.txt
+  cat SHASUMS.txt.asc
   echo '```' ) >> email.md
 ( echo -n "date: "
   date

@@ -207,6 +207,8 @@ descriptor) has been closed. Not all streams will emit this.
 
 #### Event: 'error'
 
+* {Error Object}
+
 Emitted if there was an error receiving data.
 
 #### readable.read([size])
@@ -616,6 +618,8 @@ reader.unpipe(writer);
 ```
 
 #### Event: 'error'
+
+* {Error object}
 
 Emitted if there was an error when writing or piping data.
 

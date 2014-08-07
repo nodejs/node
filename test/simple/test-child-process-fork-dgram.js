@@ -19,6 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+/*
+ * The purpose of this test is to make sure that when forking a process,
+ * sending a fd representing a UDP socket to the child and sending messages
+ * to this endpoint, these messages are distributed to the parent and the
+ * child process.
+ *
+ * Because it's not really possible to predict how the messages will be
+ * distributed among the parent and the child processes, we keep sending
+ * messages until both the parent and the child received at least one
+ * message. The worst case scenario is when either one never receives
+ * a message. In this case the test runner will timeout after 60 secs
+ * and the test will fail.
+ */
+
 var dgram = require('dgram');
 var fork = require('child_process').fork;
 var assert = require('assert');
@@ -38,12 +52,11 @@ if (process.argv[2] === 'child') {
       server = clusterServer;
 
       server.on('message', function () {
-        childCollected += 1;
+        process.send('gotMessage');
       });
 
     } else if (msg === 'stop') {
       server.close();
-      process.send(childCollected);
       process.removeListener('message', removeMe);
     }
   });
@@ -52,48 +65,49 @@ if (process.argv[2] === 'child') {
   var server = dgram.createSocket('udp4');
   var client = dgram.createSocket('udp4');
   var child = fork(__filename, ['child']);
+
   var msg = new Buffer('Some bytes');
 
-  var parentCollected = 0;
-  var childCollected = 0;
+  var childGotMessage = false;
+  var parentGotMessage = false;
+
   server.on('message', function (msg, rinfo) {
-    parentCollected += 1;
+    parentGotMessage = true;
   });
 
   server.on('listening', function () {
     child.send('server', server);
 
+    child.once('message', function (msg) {
+      if (msg === 'gotMessage') {
+        childGotMessage = true;
+      }
+    });
+
     sendMessages();
   });
 
   var sendMessages = function () {
-    var wait = 0;
-    var send = 0;
-    var total = 100;
-
     var timer = setInterval(function () {
-      send += 1;
-      if (send === total) {
-        clearInterval(timer);
-      }
-
       client.send(msg, 0, msg.length, common.PORT, '127.0.0.1', function(err) {
           if (err) throw err;
-
-          wait += 1;
-          if (wait === total) {
-            shutdown();
-          }
         }
       );
+
+      /*
+       * Both the parent and the child got at least one message,
+       * test passed, clean up everyting.
+       */
+      if (parentGotMessage && childGotMessage) {
+        clearInterval(timer);
+        shutdown();
+      }
+
     }, 1);
   };
 
   var shutdown = function () {
     child.send('stop');
-    child.once('message', function (collected) {
-      childCollected = collected;
-    });
 
     server.close();
     client.close();
@@ -102,7 +116,7 @@ if (process.argv[2] === 'child') {
   server.bind(common.PORT, '127.0.0.1');
 
   process.once('exit', function () {
-    assert(childCollected > 0);
-    assert(parentCollected > 0);
+    assert(parentGotMessage);
+    assert(childGotMessage);
   });
 }

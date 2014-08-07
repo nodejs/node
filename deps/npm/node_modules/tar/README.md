@@ -19,6 +19,8 @@ Returns a through stream. Use
 pack stream and you will receive tar archive data from the pack
 stream.
 
+This only works with directories, it does not work with individual files.
+
 The optional `properties` object are used to set properties in the tar
 'Global Extended Header'.
 

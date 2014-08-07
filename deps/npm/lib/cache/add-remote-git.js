@@ -1,7 +1,6 @@
 var mkdir = require("mkdirp")
   , assert = require("assert")
-  , spawn = require("child_process").spawn
-  , exec = require("child_process").execFile
+  , git = require("../utils/git.js")
   , once = require("once")
   , fs = require("graceful-fs")
   , log = require("npmlog")
@@ -86,64 +85,22 @@ function checkGitDir (p, u, co, origUrl, silent, cb) {
       cloneGitRemote(p, u, co, origUrl, silent, cb)
     })
 
-    var git = npm.config.get("git")
     var args = [ "config", "--get", "remote.origin.url" ]
     var env = gitEnv()
 
     // check for git
-    which(git, function (err) {
-      if (err) {
-        err.code = "ENOGIT"
-        return cb(err)
+    git.whichAndExec(args, {cwd: p, env: env}, function (er, stdout, stderr) {
+      var stdoutTrimmed = (stdout + "\n" + stderr).trim()
+      if (er || u !== stdout.trim()) {
+        log.warn( "`git config --get remote.origin.url` returned "
+                + "wrong result ("+u+")", stdoutTrimmed )
+        return rm(p, function (er){
+          if (er) return cb(er)
+          cloneGitRemote(p, u, co, origUrl, silent, cb)
+        })
       }
-      exec(git, args, {cwd: p, env: env}, function (er, stdout, stderr) {
-        var stdoutTrimmed = (stdout + "\n" + stderr).trim()
-        if (er || u !== stdout.trim()) {
-          log.warn( "`git config --get remote.origin.url` returned "
-                  + "wrong result ("+u+")", stdoutTrimmed )
-          return rm(p, function (er){
-            if (er) return cb(er)
-            cloneGitRemote(p, u, co, origUrl, silent, cb)
-          })
-        }
-        log.verbose("git remote.origin.url", stdoutTrimmed)
-        archiveGitRemote(p, u, co, origUrl, cb)
-      })
-    })
-  })
-}
-
-function checkGitDir (p, u, co, origUrl, silent, cb) {
-  fs.stat(p, function (er, s) {
-    if (er) return cloneGitRemote(p, u, co, origUrl, silent, cb)
-    if (!s.isDirectory()) return rm(p, function (er){
-      if (er) return cb(er)
-      cloneGitRemote(p, u, co, origUrl, silent, cb)
-    })
-
-    var git = npm.config.get("git")
-    var args = [ "config", "--get", "remote.origin.url" ]
-    var env = gitEnv()
-
-    // check for git
-    which(git, function (err) {
-      if (err) {
-        err.code = "ENOGIT"
-        return cb(err)
-      }
-      exec(git, args, {cwd: p, env: env}, function (er, stdout, stderr) {
-        var stdoutTrimmed = (stdout + "\n" + stderr).trim()
-        if (er || u !== stdout.trim()) {
-          log.warn( "`git config --get remote.origin.url` returned "
-                  + "wrong result ("+u+")", stdoutTrimmed )
-          return rm(p, function (er){
-            if (er) return cb(er)
-            cloneGitRemote(p, u, co, origUrl, silent, cb)
-          })
-        }
-        log.verbose("git remote.origin.url", stdoutTrimmed)
-        archiveGitRemote(p, u, co, origUrl, cb)
-      })
+      log.verbose("git remote.origin.url", stdoutTrimmed)
+      archiveGitRemote(p, u, co, origUrl, cb)
     })
   })
 }
@@ -152,35 +109,27 @@ function cloneGitRemote (p, u, co, origUrl, silent, cb) {
   mkdir(p, function (er) {
     if (er) return cb(er)
 
-    var git = npm.config.get("git")
     var args = [ "clone", "--mirror", u, p ]
     var env = gitEnv()
 
     // check for git
-    which(git, function (err) {
-      if (err) {
-        err.code = "ENOGIT"
-        return cb(err)
-      }
-      exec(git, args, {cwd: p, env: env}, function (er, stdout, stderr) {
-        stdout = (stdout + "\n" + stderr).trim()
-        if (er) {
-          if (silent) {
-            log.verbose("git clone " + u, stdout)
-          } else {
-            log.error("git clone " + u, stdout)
-          }
-          return cb(er)
+    git.whichAndExec(args, {cwd: p, env: env}, function (er, stdout, stderr) {
+      stdout = (stdout + "\n" + stderr).trim()
+      if (er) {
+        if (silent) {
+          log.verbose("git clone " + u, stdout)
+        } else {
+          log.error("git clone " + u, stdout)
         }
-        log.verbose("git clone " + u, stdout)
-        archiveGitRemote(p, u, co, origUrl, cb)
-      })
+        return cb(er)
+      }
+      log.verbose("git clone " + u, stdout)
+      archiveGitRemote(p, u, co, origUrl, cb)
     })
   })
 }
 
 function archiveGitRemote (p, u, co, origUrl, cb) {
-  var git = npm.config.get("git")
   var archive = [ "fetch", "-a", "origin" ]
   var resolve = [ "rev-list", "-n1", co ]
   var env = gitEnv()
@@ -188,7 +137,7 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
   var resolved = null
   var tmp
 
-  exec(git, archive, {cwd: p, env: env}, function (er, stdout, stderr) {
+  git.whichAndExec(archive, {cwd: p, env: env}, function (er, stdout, stderr) {
     stdout = (stdout + "\n" + stderr).trim()
     if (er) {
       log.error("git fetch -a origin ("+u+")", stdout)
@@ -221,7 +170,7 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
   }
 
   function resolveHead () {
-    exec(git, resolve, {cwd: p, env: env}, function (er, stdout, stderr) {
+    git.whichAndExec(resolve, {cwd: p, env: env}, function (er, stdout, stderr) {
       stdout = (stdout + "\n" + stderr).trim()
       if (er) {
         log.error("Failed resolving git HEAD (" + u + ")", stderr)
@@ -250,12 +199,11 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
     mkdir(path.dirname(tmp), function (er) {
       if (er) return cb(er)
       var gzip = zlib.createGzip({ level: 9 })
-      var git = npm.config.get("git")
       var args = ["archive", co, "--format=tar", "--prefix=package/"]
       var out = fs.createWriteStream(tmp)
       var env = gitEnv()
       cb = once(cb)
-      var cp = spawn(git, args, { env: env, cwd: p })
+      var cp = git.spawn(args, { env: env, cwd: p })
       cp.on("error", cb)
       cp.stderr.on("data", function(chunk) {
         log.silly(chunk.toString(), "git archive")

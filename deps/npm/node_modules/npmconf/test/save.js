@@ -72,3 +72,13 @@ test('saving configs', function (t) {
   })
 })
 
+test('setting prefix', function (t) {
+  npmconf.load(function (er, conf) {
+    if (er)
+      throw er
+
+    conf.prefix = 'newvalue'
+    t.same(conf.prefix, 'newvalue');
+    t.end();
+  })
+})

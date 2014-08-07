@@ -3,10 +3,8 @@ module.exports = publish
 
 var npm = require("./npm.js")
   , log = require("npmlog")
-  , tar = require("./utils/tar.js")
   , path = require("path")
   , readJson = require("read-package-json")
-  , fs = require("graceful-fs")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
   , Conf = require("npmconf").Conf
@@ -70,6 +68,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
 
   // check for publishConfig hash
   var registry = npm.registry
+  var registryURI = npm.config.get("registry")
   if (data.publishConfig) {
     var pubConf = new Conf(npm.config)
     pubConf.save = npm.config.save.bind(npm.config)
@@ -81,6 +80,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       return s
     }, {}))
     registry = new RegClient(pubConf)
+    registryURI = pubConf.get("registry")
   }
 
   data._npmVersion = npm.version
@@ -93,7 +93,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     +"Remove the 'private' field from the package.json to publish it."))
 
   var tarball = cachedir + ".tgz"
-  registry.publish(data, tarball, function (er) {
+  registry.publish(registryURI, data, tarball, function (er) {
     if (er && er.code === "EPUBLISHCONFLICT"
         && npm.config.get("force") && !isRetry) {
       log.warn("publish", "Forced publish over "+data._id)

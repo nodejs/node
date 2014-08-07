@@ -1,5 +1,5 @@
 var test = require("tap").test
-var fs = require("fs")
+var fs = require("../fs.js")
 
 var readdir = fs.readdir
 fs.readdir = function(path, cb) {

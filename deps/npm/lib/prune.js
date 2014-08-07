@@ -15,7 +15,7 @@ prune.completion = require("./utils/completion/installed-deep.js")
 function prune (args, cb) {
   //check if is a valid package.json file
   var jsonFile = path.resolve(npm.dir, "..", "package.json" )
-  readJson(jsonFile, log.warn, function (er, data) {
+  readJson(jsonFile, log.warn, function (er) {
     if (er) return cb(er)
     next()
   })
