@@ -971,7 +971,7 @@ function SourceWrapper(options) {
       self._source.readStop();
   };
 
-  // When the source ends, we push the EOF-signalling `null` chunk
+  // When the source ends, we push the EOF-signaling `null` chunk
   this._source.onend = function() {
     self.push(null);
   };

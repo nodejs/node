@@ -154,7 +154,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     `RC4` is used as a fallback for clients that speak on older version of
     the TLS protocol.  `RC4` has in recent years come under suspicion and
     should be considered compromised for anything that is truly sensitive.
-    It is speculated that state-level actors posess the ability to break it.
+    It is speculated that state-level actors possess the ability to break it.
 
     **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
@@ -573,8 +573,9 @@ Typical flow:
 5. Client validates the response and either destroys socket or performs a
    handshake.
 
-NOTE: `issuer` could be null, if certficiate is self-signed or if issuer is not
-in the root certificates list. (You could provide an issuer via `ca` option.)
+NOTE: `issuer` could be null, if the certificate is self-signed or if the issuer
+is not in the root certificates list. (You could provide an issuer via `ca`
+option.)
 
 NOTE: adding this event listener will have an effect only on connections
 established after addition of event listener.
