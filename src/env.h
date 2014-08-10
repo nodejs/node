@@ -37,8 +37,8 @@
 // a nightmare so let's make the preprocessor generate them for us.
 //
 // Make sure that any macros defined here are undefined again at the bottom
-// of context-inl.h. The sole exception is NODE_CONTEXT_EMBEDDER_DATA_INDEX,
-// it may have been defined externally.
+// of context-inl.h. The exceptions are NODE_CONTEXT_EMBEDDER_DATA_INDEX
+// and NODE_ISOLATE_SLOT, they may have been defined externally.
 namespace node {
 
 // Pick an index that's hopefully out of the way when we're embedded inside
@@ -47,6 +47,14 @@ namespace node {
 // worst case we pay a one-time penalty for resizing the array.
 #ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
 #define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
+#endif
+
+// The slot 0 and 1 had already been taken by "gin" and "blink" in Chrome,
+// and the size of isolate's slots is 4 by default, so using 3 should
+// hopefully make node work independently when embedded into other
+// application.
+#ifndef NODE_ISOLATE_SLOT
+#define NODE_ISOLATE_SLOT 3
 #endif
 
 // Strings are per-isolate primitives but Environment proxies them
@@ -430,7 +438,7 @@ class Environment {
 #undef V
 
  private:
-  static const int kIsolateSlot = 0;
+  static const int kIsolateSlot = NODE_ISOLATE_SLOT;
 
   class GCInfo;
   class IsolateData;
