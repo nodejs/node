@@ -69,8 +69,18 @@ assert.throws(function() {
   return !(err instanceof TypeError);
 }, 'Unexpected error');
 
+/*
+ * Make sure that dns.lookup throws if hints does not represent a valid flag.
+ * (dns.V4MAPPED | dns.ADDRCONFIG) + 1 is invalid because:
+ * - it's different from dns.V4MAPPED and dns.ADDRCONFIG.
+ * - it's different from them bitwise ored.
+ * - it's different from 0.
+ * - it's an odd number different than 1, and thus is invalid, because
+ * flags are either === 1 or even.
+ */
 assert.throws(function() {
-  dns.lookup('www.google.com', { hints: 1 }, noop);
+  dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
+    noop);
 });
 
 assert.throws(function() {
