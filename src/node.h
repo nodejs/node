@@ -232,8 +232,10 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
   v8::Handle<v8::Signature> s = v8::Signature::New(isolate, recv);
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, callback, v8::Handle<v8::Value>(), s);
-  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name),
-                                 t->GetFunction());
+  v8::Local<v8::Function> fn = t->GetFunction();
+  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name), fn);
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
+  fn->SetName(fn_name);
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
