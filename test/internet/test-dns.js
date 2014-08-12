@@ -63,7 +63,6 @@ function checkWrap(req) {
   assert.ok(typeof req === 'object');
 }
 
-
 TEST(function test_resolve4(done) {
   var req = dns.resolve4('www.google.com', function(err, ips) {
     if (err) throw err;
@@ -354,7 +353,7 @@ TEST(function test_lookup_ipv4_explicit_object(done) {
 
 TEST(function test_lookup_ipv4_hint_addrconfig(done) {
   var req = dns.lookup('www.google.com', {
-    hint: dns.ADDRCONFIG
+    hints: dns.ADDRCONFIG
   }, function(err, ip, family) {
     if (err) throw err;
     assert.ok(net.isIPv4(ip));
@@ -411,8 +410,9 @@ TEST(function test_lookup_ipv6_explicit_object(done) {
 
 
 TEST(function test_lookup_ipv6_hint(done) {
-  var req = dns.lookup('ipv6.google.com', {
-    hint: dns.V4MAPPED
+  var req = dns.lookup('www.google.com', {
+    family: 6,
+    hints: dns.V4MAPPED
   }, function(err, ip, family) {
     if (err) throw err;
     assert.ok(net.isIPv6(ip));
@@ -494,7 +494,7 @@ TEST(function test_lookup_localhost_ipv4(done) {
 TEST(function test_lookupservice_ip_ipv4(done) {
   var req = dns.lookupService('127.0.0.1', 80, function(err, host, service) {
     if (err) throw err;
-    assert.strictEqual(host, 'localhost');
+    assert.ok(common.isValidHostname(host));
 
     /*
      * Retrieve the actual HTTP service name as setup on the host currently
@@ -523,14 +523,7 @@ TEST(function test_lookupservice_ip_ipv4(done) {
 TEST(function test_lookupservice_ip_ipv6(done) {
   var req = dns.lookupService('::1', 80, function(err, host, service) {
     if (err) throw err;
-    /*
-     * On some systems, ::1 can be set to "localhost", on others it
-     * can be set to "ip6-localhost". There does not seem to be
-     * a consensus on that. Ultimately, it could be set to anything
-     * else just by changing /etc/hosts for instance, but it seems
-     * that most sane platforms use either one of these two by default.
-     */
-    assert(host === 'localhost' || host === 'ip6-localhost');
+    assert.ok(common.isValidHostname(host));
 
     /*
      * Retrieve the actual HTTP service name as setup on the host currently
