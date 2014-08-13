@@ -401,7 +401,8 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
     // String chunk
     Handle<String> string = chunk->ToString();
-    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    enum encoding encoding = ParseEncoding(env->isolate(),
+                                           chunks->Get(i * 2 + 1));
     size_t chunk_size;
     if (encoding == UTF8 && string->Length() > 65535)
       chunk_size = StringBytes::Size(env->isolate(), string, encoding);
@@ -444,7 +445,8 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     size_t str_size = storage_size - offset;
 
     Handle<String> string = chunk->ToString();
-    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    enum encoding encoding = ParseEncoding(env->isolate(),
+                                           chunks->Get(i * 2 + 1));
     str_size = StringBytes::Write(env->isolate(),
                                   str_storage,
                                   str_size,

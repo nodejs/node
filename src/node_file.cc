@@ -836,7 +836,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
                                      string,
                                      const_cast<const char**>(&buf),
                                      &len)) {
-    enum encoding enc = ParseEncoding(args[3], UTF8);
+    enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);
     len = StringBytes::StorageSize(env->isolate(), string, enc);
     buf = new char[len];
     // StorageSize may return too large a char, so correct the actual length
