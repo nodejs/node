@@ -324,6 +324,12 @@
             ],
         }],
       ],
+      'msvs_settings': {
+        'VCManifestTool': {
+          'EmbedManifest': 'true',
+          'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
+        }
+      },
     },
     # generate ETW header and resource files
     {
