@@ -587,7 +587,7 @@
   };
 
   startup.processKillAndExit = function() {
-    process.exitCode = 0;
+
     process.exit = function(code) {
       if (code || code === 0)
         process.exitCode = code;
