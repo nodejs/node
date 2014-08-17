@@ -661,9 +661,11 @@ const char *CRYPTO_get_lock_name(int type)
 		return(sk_OPENSSL_STRING_value(app_locks,type-CRYPTO_NUM_LOCKS));
 	}
 
-#if	defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
+#if	!defined(_ARM_ARCH__) && \
+	(defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
 	defined(__INTEL__) || \
-	defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
+	defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || \
+	defined(_M_X64))
 
 unsigned int  OPENSSL_ia32cap_P[2];
 unsigned long *OPENSSL_ia32cap_loc(void)

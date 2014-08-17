@@ -939,7 +939,10 @@
           ],
         }],
         ['target_arch=="arm"', {
-          'sources': ['openssl/crypto/armcap.c'],
+          'sources': [
+            'openssl/crypto/armcap.c',
+            'openssl/crypto/armv4cpuid.S',
+          ],
         }],
       ],
       'include_dirs': [

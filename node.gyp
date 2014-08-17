@@ -162,7 +162,7 @@
                 ],
               },
               'conditions': [
-                ['OS=="linux"', {
+                ['OS in "linux freebsd"', {
                   'ldflags': [
                     '-Wl,--whole-archive <(PRODUCT_DIR)/libopenssl.a -Wl,--no-whole-archive',
                   ],
@@ -318,7 +318,7 @@
           ],
         }],
         [
-          'OS=="linux" and node_shared_v8=="false"', {
+          'OS in "linux freebsd" and node_shared_v8=="false"', {
             'ldflags': [
               '-Wl,--whole-archive <(V8_BASE) -Wl,--no-whole-archive',
             ],

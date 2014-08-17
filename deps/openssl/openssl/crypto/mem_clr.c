@@ -61,6 +61,8 @@
 
 unsigned char cleanse_ctr = 0;
 
+#if	!defined(_ARM_ARCH__)
+
 void OPENSSL_cleanse(void *ptr, size_t len)
 	{
 	unsigned char *p = ptr;
@@ -75,3 +77,4 @@ void OPENSSL_cleanse(void *ptr, size_t len)
 		ctr += (63 + (size_t)p);
 	cleanse_ctr = (unsigned char)ctr;
 	}
+#endif
