@@ -1,4 +1,21 @@
-2014.07.31, Version 0.10.30 (Stable)
+2014.08.19, Version 0.10.31 (Stable)
+
+* v8: backport CVE-2013-6668
+
+* openssl: Update to v1.0.1i
+
+* npm: Update to v1.4.23
+
+* cluster: disconnect should not be synchronous (Sam Roberts)
+
+* fs: fix fs.readFileSync fd leak when get RangeError (Jackson Tian)
+
+* stream: fix Readable.wrap objectMode falsy values (James Halliday)
+
+* timers: fix timers with non-integer delay hanging. (Julien Gilli)
+
+
+2014.07.31, Version 0.10.30 (Stable), bc0ff830aff1e016163d855e86ded5c98b0899e8
 
 * uv: Upgrade to v0.10.28
 
