@@ -3617,6 +3617,7 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   {
     Locker locker(node_isolate);
+    Isolate::Scope isolate_scope(node_isolate);
     HandleScope handle_scope(node_isolate);
     Local<Context> context = Context::New(node_isolate);
     Environment* env = CreateEnvironment(
