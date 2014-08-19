@@ -99,6 +99,8 @@ function writeShim_ (from, to, prog, args, cb) {
   // @IF EXIST "%~dp0\node.exe" (
   //   "%~dp0\node.exe" "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
   // ) ELSE (
+  //   SETLOCAL
+  //   SET PATHEXT=%PATHEXT:;.JS;=;%
   //   node "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
   // )
   var cmd
@@ -106,6 +108,8 @@ function writeShim_ (from, to, prog, args, cb) {
     cmd = "@IF EXIST " + longProg + " (\r\n"
         + "  " + longProg + " " + args + " " + target + " %*\r\n"
         + ") ELSE (\r\n"
+        + "  @SETLOCAL\r\n"
+        + "  @SET PATHEXT=%PATHEXT:;.JS;=;%\r\n"
         + "  " + prog + " " + args + " " + target + " %*\r\n"
         + ")"
   } else {

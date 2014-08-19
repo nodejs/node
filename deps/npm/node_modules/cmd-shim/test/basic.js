@@ -50,6 +50,8 @@ test('env shebang', function (t) {
             "@IF EXIST \"%~dp0\\node.exe\" (\r"+
             "\n  \"%~dp0\\node.exe\"  \"%~dp0\\from.env\" %*\r"+
             "\n) ELSE (\r"+
+            "\n  @SETLOCAL\r"+
+            "\n  @SET PATHEXT=%PATHEXT:;.JS;=;%\r"+
             "\n  node  \"%~dp0\\from.env\" %*\r"+
             "\n)")
     t.end()
@@ -86,6 +88,8 @@ test('env shebang with args', function (t) {
             "@IF EXIST \"%~dp0\\node.exe\" (\r"+
             "\n  \"%~dp0\\node.exe\"  --expose_gc \"%~dp0\\from.env.args\" %*\r"+
             "\n) ELSE (\r"+
+            "\n  @SETLOCAL\r"+
+            "\n  @SET PATHEXT=%PATHEXT:;.JS;=;%\r"+
             "\n  node  --expose_gc \"%~dp0\\from.env.args\" %*\r"+
             "\n)")
     t.end()
@@ -123,6 +127,8 @@ test('explicit shebang', function (t) {
             "@IF EXIST \"%~dp0\\/usr/bin/sh.exe\" (\r" +
             "\n  \"%~dp0\\/usr/bin/sh.exe\"  \"%~dp0\\from.sh\" %*\r" +
             "\n) ELSE (\r" +
+            "\n  @SETLOCAL\r"+
+            "\n  @SET PATHEXT=%PATHEXT:;.JS;=;%\r"+
             "\n  /usr/bin/sh  \"%~dp0\\from.sh\" %*\r" +
             "\n)")
     t.end()
@@ -160,6 +166,8 @@ test('explicit shebang with args', function (t) {
             "@IF EXIST \"%~dp0\\/usr/bin/sh.exe\" (\r" +
             "\n  \"%~dp0\\/usr/bin/sh.exe\"  -x \"%~dp0\\from.sh.args\" %*\r" +
             "\n) ELSE (\r" +
+            "\n  @SETLOCAL\r"+
+            "\n  @SET PATHEXT=%PATHEXT:;.JS;=;%\r"+
             "\n  /usr/bin/sh  -x \"%~dp0\\from.sh.args\" %*\r" +
             "\n)")
     t.end()
