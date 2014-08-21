@@ -3546,7 +3546,11 @@ class BoundsCheckBbData: public ZoneObject {
   void MoveIndexIfNecessary(HValue* index_raw,
                             HBoundsCheck* insert_before,
                             HInstruction* end_of_scan_range) {
-    ASSERT(index_raw->IsAdd() || index_raw->IsSub());
+    if (!index_raw->IsAdd() && !index_raw->IsSub()) {
+      // index_raw can be HAdd(index_base, offset), HSub(index_base, offset),
+      // or index_base directly. In the latter case, no need to move anything.
+      return;
+    }
     HBinaryOperation* index =
         HArithmeticBinaryOperation::cast(index_raw);
     HValue* left_input = index->left();
@@ -3581,7 +3585,6 @@ class BoundsCheckBbData: public ZoneObject {
                     HBoundsCheck* tighter_check) {
     ASSERT(original_check->length() == tighter_check->length());
     MoveIndexIfNecessary(tighter_check->index(), original_check, tighter_check);
-    original_check->ReplaceAllUsesWith(original_check->index());
     original_check->SetOperandAt(0, tighter_check->index());
   }
 };
@@ -3624,7 +3627,9 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                             BoundsCheckTable* table) {
   BoundsCheckBbData* bb_data_list = NULL;
 
-  for (HInstruction* i = bb->first(); i != NULL; i = i->next()) {
+  HInstruction* next;
+  for (HInstruction* i = bb->first(); i != NULL; i = next) {
+    next = i->next();
     if (!i->IsBoundsCheck()) continue;
 
     HBoundsCheck* check = HBoundsCheck::cast(i);
