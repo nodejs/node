@@ -373,8 +373,8 @@ class Parser : public BaseObject {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
+    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
 
     Parser* parser = Unwrap<Parser>(args.Holder());
     assert(parser->current_buffer_.IsEmpty());
