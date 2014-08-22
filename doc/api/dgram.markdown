@@ -188,6 +188,32 @@ Example of a UDP server listening on port 41234:
     // server listening 0.0.0.0:41234
 
 
+### socket.bind(options, [callback])
+
+* `options` {Object} - Required. Supports the following properties:
+  * `port` {Number} - Required.
+  * `address` {String} - Optional.
+  * `exclusive` {Boolean} - Optional.
+* `callback` {Function} - Optional.
+
+The `port` and `address` properties of `options`, as well as the optional
+callback function, behave as they do on a call to
+[socket.bind(port, \[address\], \[callback\])
+](#dgram_socket_bind_port_address_callback).
+
+If `exclusive` is `false` (default), then cluster workers will use the same
+underlying handle, allowing connection handling duties to be shared. When
+`exclusive` is `true`, the handle is not shared, and attempted port sharing
+results in an error. An example which listens on an exclusive port is
+shown below.
+
+    socket.bind({
+      address: 'localhost',
+      port: 8000,
+      exclusive: true
+    });
+
+
 ### socket.close()
 
 Close the underlying socket and stop listening for data on it.
