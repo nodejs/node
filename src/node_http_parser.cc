@@ -169,12 +169,14 @@ class Parser : public BaseObject {
       : BaseObject(env, wrap),
         current_buffer_len_(0),
         current_buffer_data_(NULL) {
-    MakeWeak<Parser>(this);
+    Wrap(object(), this);
     Init(type);
   }
 
 
   ~Parser() {
+    ClearWrap(object());
+    persistent().Reset();
   }
 
 
@@ -354,6 +356,13 @@ class Parser : public BaseObject {
         static_cast<http_parser_type>(args[0]->Int32Value());
     assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     new Parser(env, args.This(), type);
+  }
+
+
+  static void Close(const FunctionCallbackInfo<Value>& args) {
+    HandleScope handle_scope(args.GetIsolate());
+    Parser* parser = Unwrap<Parser>(args.Holder());
+    delete parser;
   }
 
 
@@ -591,6 +600,7 @@ void InitHttpParser(Handle<Object> target,
 #undef V
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
+  NODE_SET_PROTOTYPE_METHOD(t, "close", Parser::Close);
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
   NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
