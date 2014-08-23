@@ -577,6 +577,7 @@ class PublicKeyCipher {
   static bool Cipher(const char* key_pem,
                      int key_pem_len,
                      const char* passphrase,
+                     int padding,
                      const unsigned char* data,
                      int len,
                      unsigned char** out,

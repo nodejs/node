@@ -950,6 +950,30 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #define NPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
 #endif
+
+#ifdef RSA_PKCS1_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
+#endif
+
+#ifdef RSA_SSLV23_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_SSLV23_PADDING);
+#endif
+
+#ifdef RSA_NO_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_NO_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_OAEP_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_OAEP_PADDING);
+#endif
+
+#ifdef RSA_X931_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_X931_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_PSS_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
+#endif
 }
 
 void DefineSystemConstants(Handle<Object> target) {

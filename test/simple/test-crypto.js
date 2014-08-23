@@ -857,6 +857,30 @@ assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
   });
 })();
 
+function test_rsa(padding) {
+  var input = new Buffer(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
+  for (var i = 0; i < input.length; i++)
+    input[i] = (i * 7 + 11) & 0xff;
+  var bufferToEncrypt = new Buffer(input);
+
+  padding = constants[padding];
+
+  var encryptedBuffer = crypto.publicEncrypt({
+    key: rsaPubPem,
+    padding: padding
+  }, bufferToEncrypt);
+
+  var decryptedBuffer = crypto.privateDecrypt({
+    key: rsaKeyPem,
+    padding: padding
+  }, encryptedBuffer);
+  assert.equal(input, decryptedBuffer.toString());
+}
+
+test_rsa('RSA_NO_PADDING');
+test_rsa('RSA_PKCS1_PADDING');
+test_rsa('RSA_PKCS1_OAEP_PADDING');
+
 // Test RSA key signing/verification
 var rsaSign = crypto.createSign('RSA-SHA1');
 var rsaVerify = crypto.createVerify('RSA-SHA1');
