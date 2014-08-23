@@ -3552,6 +3552,7 @@ template <PublicKeyCipher::Operation operation,
 bool PublicKeyCipher::Cipher(const char* key_pem,
                              int key_pem_len,
                              const char* passphrase,
+                             int padding,
                              const unsigned char* data,
                              int len,
                              unsigned char** out,
@@ -3610,8 +3611,9 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
     goto exit;
   if (EVP_PKEY_cipher_init(ctx) <= 0)
     goto exit;
-  if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0)
+  if (EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0)
     goto exit;
+
   if (EVP_PKEY_cipher(ctx, NULL, out_len, data, len) <= 0)
     goto exit;
 
@@ -3649,7 +3651,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   char* buf = Buffer::Data(args[1]);
   ssize_t len = Buffer::Length(args[1]);
 
-  String::Utf8Value passphrase(args[2]);
+  int padding = args[2]->Uint32Value();
+
+  String::Utf8Value passphrase(args[3]);
 
   unsigned char* out_value = NULL;
   size_t out_len = -1;
@@ -3658,6 +3662,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       kbuf,
       klen,
       args.Length() >= 3 && !args[2]->IsNull() ? *passphrase : NULL,
+      padding,
       reinterpret_cast<const unsigned char*>(buf),
       len,
       &out_value,
