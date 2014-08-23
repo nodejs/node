@@ -54,6 +54,12 @@ parser.add_option('--no-ifaddrs',
     dest='no_ifaddrs',
     help='use on deprecated SunOS systems that do not support ifaddrs.h')
 
+parser.add_option("--fully-static",
+    action="store_true",
+    dest="fully_static",
+    help="Generate an executable without external dynamic libraries. This "
+         "will not work on OSX when using default compilation environment")
+
 # deprecated
 parser.add_option('--openssl-includes',
     action='store',
@@ -650,6 +656,14 @@ def configure_openssl(o):
       o['cflags'] += cflags.split()
 
 
+def configure_fullystatic(o):
+  if options.fully_static:
+    o['libraries'] += ['-static']
+    if flavor == 'mac':
+      print("Generation of static executable will not work on OSX "
+            "when using default compilation environment")
+
+
 def configure_winsdk(o):
   if flavor != 'win':
     return
@@ -697,6 +711,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
 configure_icu(output)
+configure_fullystatic(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
