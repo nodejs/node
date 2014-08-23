@@ -2111,7 +2111,6 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   SSLWrap<Connection>::Kind kind =
       is_server ? SSLWrap<Connection>::kServer : SSLWrap<Connection>::kClient;
   Connection* conn = new Connection(env, args.This(), sc, kind);
-  conn->ssl_ = SSL_new(sc->ctx_);
   conn->bio_read_ = NodeBIO::New();
   conn->bio_write_ = NodeBIO::New();
 
