@@ -50,6 +50,7 @@ using v8::PropertyAttribute;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
+using v8::Boolean;
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
@@ -82,6 +83,18 @@ void TCPWrap::Initialize(Handle<Object> target,
                                      Handle<Value>(),
                                      v8::DEFAULT,
                                      attributes);
+
+  // Init properties
+  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
+                             Boolean::New(env->isolate(), false));
+  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "owner"),
+                             Null(env->isolate()));
+  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "onread"),
+                             Null(env->isolate()));
+  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(),
+                                                 "onconnection"),
+                             Null(env->isolate()));
+
 
   NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
 
