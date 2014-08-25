@@ -671,12 +671,15 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> internal = args[1].As<Object>();
 
-  internal->Set(env->byte_length_string(),
-                FunctionTemplate::New(
-                    env->isolate(), ByteLength)->GetFunction());
-  internal->Set(env->compare_string(),
-                FunctionTemplate::New(
-                    env->isolate(), Compare)->GetFunction());
+  Local<Function> byte_length = FunctionTemplate::New(
+                    env->isolate(), ByteLength)->GetFunction();
+  byte_length->SetName(env->byte_length_string());
+  internal->Set(env->byte_length_string(), byte_length);
+
+  Local<Function> compare = FunctionTemplate::New(
+                    env->isolate(), Compare)->GetFunction();
+  compare->SetName(env->compare_string());
+  internal->Set(env->compare_string(), compare);
 }
 
 
