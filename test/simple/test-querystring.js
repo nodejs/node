@@ -229,3 +229,11 @@ assert.equal(0xeb, b[16]);
 assert.equal(0xd8, b[17]);
 assert.equal(0xa2, b[18]);
 assert.equal(0xe6, b[19]);
+
+// test overriding .unescape
+var prevUnescape = qs.unescape;
+qs.unescape = function (str) {
+  return str.replace(/o/g, '_');
+};
+assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});
+qs.unescape = prevUnescape;
