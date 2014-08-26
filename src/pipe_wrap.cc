@@ -50,8 +50,23 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
+
 // TODO(bnoordhuis) share with TCPWrap?
-typedef class ReqWrap<uv_connect_t> ConnectWrap;
+class PipeConnectWrap : public ReqWrap<uv_connect_t> {
+ public:
+  PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+};
+
+
+PipeConnectWrap::PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPEWRAP) {
+  Wrap<PipeConnectWrap>(req_wrap_obj, this);
+}
+
+
+static void NewPipeConnectWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
 
 
 uv_pipe_t* PipeWrap::UVHandle() {
@@ -119,6 +134,14 @@ void PipeWrap::Initialize(Handle<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe"), t->GetFunction());
   env->set_pipe_constructor_template(t);
+
+  // Create FunctionTemplate for PipeConnectWrap.
+  Local<FunctionTemplate> cwt =
+      FunctionTemplate::New(env->isolate(), NewPipeConnectWrap);
+  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap"),
+              cwt->GetFunction());
 }
 
 
@@ -224,7 +247,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
 void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  PipeConnectWrap* req_wrap = static_cast<PipeConnectWrap*>(req->data);
   PipeWrap* wrap = static_cast<PipeWrap*>(req->handle->data);
   assert(req_wrap->env() == wrap->env());
   Environment* env = wrap->env();
@@ -287,9 +310,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value name(args[1]);
 
-  ConnectWrap* req_wrap = new ConnectWrap(env,
-                                          req_wrap_obj,
-                                          AsyncWrap::PROVIDER_CONNECTWRAP);
+  PipeConnectWrap* req_wrap = new PipeConnectWrap(env, req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,
                   &wrap->handle_,
                   *name,
