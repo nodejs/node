@@ -36,8 +36,8 @@ class ReqWrap : public AsyncWrap {
  public:
   ReqWrap(Environment* env,
           v8::Handle<v8::Object> object,
-          AsyncWrap::ProviderType provider = AsyncWrap::PROVIDER_REQWRAP)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_REQWRAP) {
+          AsyncWrap::ProviderType provider)
+      : AsyncWrap(env, object, provider) {
     if (env->in_domain())
       object->Set(env->domain_string(), env->domain_array()->Get(0));
 

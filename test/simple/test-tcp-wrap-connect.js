@@ -22,11 +22,13 @@
 var common = require('../common');
 var assert = require('assert');
 var TCP = process.binding('tcp_wrap').TCP;
+var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+var ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
 
 function makeConnection() {
   var client = new TCP();
 
-  var req = {};
+  var req = new TCPConnectWrap();
   var err = client.connect(req, '127.0.0.1', common.PORT);
   assert.equal(err, 0);
 
@@ -36,7 +38,7 @@ function makeConnection() {
     assert.equal(req, req_);
 
     console.log('connected');
-    var shutdownReq = {};
+    var shutdownReq = new ShutdownWrap();
     var err = client.shutdown(shutdownReq);
     assert.equal(err, 0);
 
