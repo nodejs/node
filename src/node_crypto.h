@@ -39,6 +39,8 @@
 #include "v8.h"
 
 #include <openssl/ssl.h>
+#include <openssl/ec.h>
+#include <openssl/ecdh.h>
 #ifndef OPENSSL_NO_ENGINE
 # include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -633,6 +635,42 @@ class DiffieHellman : public BaseObject {
   bool initialised_;
   int verifyError_;
   DH* dh;
+};
+
+class ECDH : public BaseObject {
+ public:
+  ~ECDH() {
+    if (key_ != NULL)
+      EC_KEY_free(key_);
+    key_ = NULL;
+    group_ = NULL;
+  }
+
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+
+ protected:
+  ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
+      : BaseObject(env, wrap),
+        generated_(false),
+        key_(key),
+        group_(EC_KEY_get0_group(key_)) {
+    MakeWeak<ECDH>(this);
+    ASSERT(group_ != NULL);
+  }
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  EC_POINT* BufferToPoint(char* data, size_t len);
+
+  bool generated_;
+  EC_KEY* key_;
+  const EC_GROUP* group_;
 };
 
 class Certificate : public AsyncWrap {
