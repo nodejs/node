@@ -517,6 +517,85 @@ Example (obtaining a shared secret):
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
 
+## crypto.createECDH(curve_name)
+
+Creates a Elliptic Curve (EC) Diffie-Hellman key exchange object using a
+predefined curve specified by `curve_name` string.
+
+## Class: ECDH
+
+The class for creating EC Diffie-Hellman key exchanges.
+
+Returned by `crypto.createECDH`.
+
+### ECDH.generateKeys([encoding[, format]])
+
+Generates private and public EC Diffie-Hellman key values, and returns
+the public key in the specified format and encoding. This key should be
+transferred to the other party.
+
+Format specifies point encoding and can be `'compressed'`, `'uncompressed'`, or
+`'hybrid'`. If no format is provided - the point will be returned in
+`'uncompressed'` format.
+
+Encoding can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is provided,
+then a buffer is returned.
+
+### ECDH.computeSecret(other_public_key, [input_encoding], [output_encoding])
+
+Computes the shared secret using `other_public_key` as the other
+party's public key and returns the computed shared secret. Supplied
+key is interpreted using specified `input_encoding`, and secret is
+encoded using specified `output_encoding`. Encodings can be
+`'binary'`, `'hex'`, or `'base64'`. If the input encoding is not
+provided, then a buffer is expected.
+
+If no output encoding is given, then a buffer is returned.
+
+### ECDH.getPublicKey([encoding[, format]])
+
+Returns the EC Diffie-Hellman public key in the specified encoding and format.
+
+Format specifies point encoding and can be `'compressed'`, `'uncompressed'`, or
+`'hybrid'`. If no format is provided - the point will be returned in
+`'uncompressed'` format.
+
+Encoding can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is provided,
+then a buffer is returned.
+
+### ECDH.getPrivateKey([encoding])
+
+Returns the EC Diffie-Hellman private key in the specified encoding,
+which can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is
+provided, then a buffer is returned.
+
+### ECDH.setPublicKey(public_key, [encoding])
+
+Sets the EC Diffie-Hellman public key. Key encoding can be `'binary'`,
+`'hex'` or `'base64'`. If no encoding is provided, then a buffer is
+expected.
+
+### ECDH.setPrivateKey(private_key, [encoding])
+
+Sets the EC Diffie-Hellman private key. Key encoding can be `'binary'`,
+`'hex'` or `'base64'`. If no encoding is provided, then a buffer is
+expected.
+
+Example (obtaining a shared secret):
+
+    var crypto = require('crypto');
+    var alice = crypto.createECDH('secp256k1');
+    var bob = crypto.createECDH('secp256k1');
+
+    alice.generateKeys();
+    bob.generateKeys();
+
+    var alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+    var bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+
+    /* alice_secret and bob_secret should be the same */
+    console.log(alice_secret == bob_secret);
+
 ## crypto.pbkdf2(password, salt, iterations, keylen, [digest], callback)
 
 Asynchronous PBKDF2 function.  Applies the selected HMAC digest function

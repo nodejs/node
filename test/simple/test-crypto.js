@@ -1167,3 +1167,38 @@ assert.throws(function() {
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));
+
+// Test ECDH
+var ecdh1 = crypto.createECDH('prime256v1');
+var ecdh2 = crypto.createECDH('prime256v1');
+var key1 = ecdh1.generateKeys();
+var key2 = ecdh2.generateKeys('hex');
+var secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
+var secret2 = ecdh2.computeSecret(key1, 'binary', 'buffer');
+
+assert.equal(secret1, secret2.toString('base64'));
+
+// Point formats
+assert.equal(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
+var firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
+assert(firstByte === 2 || firstByte === 3);
+var firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
+assert(firstByte === 6 || firstByte === 7);
+
+// ECDH should check that point is on curve
+var ecdh3 = crypto.createECDH('secp256k1');
+var key3 = ecdh3.generateKeys();
+
+assert.throws(function() {
+  var secret3 = ecdh2.computeSecret(key3, 'binary', 'buffer');
+});
+
+// ECDH should allow .setPrivateKey()/.setPublicKey()
+var ecdh4 = crypto.createECDH('prime256v1');
+
+ecdh4.setPrivateKey(ecdh1.getPrivateKey());
+ecdh4.setPublicKey(ecdh1.getPublicKey());
+
+assert.throws(function() {
+  ecdh4.setPublicKey(ecdh3.getPublicKey());
+});

@@ -4085,6 +4085,224 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
+void ECDH::Initialize(Environment* env, Handle<Object> target) {
+  HandleScope scope(env->isolate());
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+
+  NODE_SET_PROTOTYPE_METHOD(t, "generateKeys", GenerateKeys);
+  NODE_SET_PROTOTYPE_METHOD(t, "computeSecret", ComputeSecret);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", GetPublicKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPrivateKey", GetPrivateKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", SetPublicKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
+              t->GetFunction());
+}
+
+
+void ECDH::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  // TODO(indutny): Support raw curves?
+  CHECK(args[0]->IsString());
+  node::Utf8Value curve(args[0]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return env->ThrowTypeError("First argument should be a valid curve name");
+
+  EC_KEY* key = EC_KEY_new_by_curve_name(nid);
+  if (key == NULL)
+    return env->ThrowError("Failed to create EC_KEY using curve name");
+
+  new ECDH(env, args.This(), key);
+}
+
+
+void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!EC_KEY_generate_key(ecdh->key_))
+    return env->ThrowError("Failed to generate EC_KEY");
+
+  ecdh->generated_ = true;
+}
+
+
+EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
+  EC_POINT* pub;
+  int r;
+
+  pub = EC_POINT_new(group_);
+  if (pub == NULL) {
+    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    return NULL;
+  }
+
+  r = EC_POINT_oct2point(
+      group_,
+      pub,
+      reinterpret_cast<unsigned char*>(data),
+      len,
+      NULL);
+  if (!r) {
+    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
+    goto fatal;
+  }
+
+  return pub;
+
+ fatal:
+  EC_POINT_free(pub);
+  return NULL;
+}
+
+
+void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
+                                      Buffer::Length(args[0]));
+  if (pub == NULL)
+    return;
+
+  // NOTE: field_size is in bits
+  int field_size = EC_GROUP_get_degree(ecdh->group_);
+  size_t out_len = (field_size + 7) / 8;
+  char* out = static_cast<char*>(malloc(out_len));
+  CHECK_NE(out, NULL);
+
+  int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, NULL);
+  EC_POINT_free(pub);
+  if (!r) {
+    free(out);
+    return env->ThrowError("Failed to compute ECDH key");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env, out, out_len));
+}
+
+
+void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  // Conversion form
+  CHECK_EQ(args.Length(), 1);
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!ecdh->generated_)
+    return env->ThrowError("You should generate ECDH keys first");
+
+  const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
+  if (pub == NULL)
+    return env->ThrowError("Failed to get ECDH public key");
+
+  int size;
+  point_conversion_form_t form =
+      static_cast<point_conversion_form_t>(args[0]->Uint32Value());
+
+  size = EC_POINT_point2oct(ecdh->group_, pub, form, NULL, 0, NULL);
+  if (size == 0)
+    return env->ThrowError("Failed to get public key length");
+
+  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  CHECK_NE(out, NULL);
+
+  int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, NULL);
+  if (r != size) {
+    free(out);
+    return env->ThrowError("Failed to get public key");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env,
+                                        reinterpret_cast<char*>(out),
+                                        size));
+}
+
+
+void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!ecdh->generated_)
+    return env->ThrowError("You should generate ECDH keys first");
+
+  const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
+  if (b == NULL)
+    return env->ThrowError("Failed to get ECDH private key");
+
+  int size = BN_num_bytes(b);
+  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  CHECK_NE(out, NULL);
+
+  if (size != BN_bn2bin(b, out)) {
+    free(out);
+    return env->ThrowError("Failed to convert ECDH private key to Buffer");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env,
+                                        reinterpret_cast<char*>(out),
+                                        size));
+}
+
+
+void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  BIGNUM* priv = BN_bin2bn(
+      reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
+      Buffer::Length(args[0].As<Object>()),
+      NULL);
+  if (priv == NULL)
+    return env->ThrowError("Failed to convert Buffer to BN");
+
+  if (!EC_KEY_set_private_key(ecdh->key_, priv))
+    return env->ThrowError("Failed to convert BN to a private key");
+}
+
+
+void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
+                                      Buffer::Length(args[0].As<Object>()));
+  if (pub == NULL)
+    return;
+
+  int r = EC_KEY_set_public_key(ecdh->key_, pub);
+  EC_POINT_free(pub);
+  if (!r)
+    return env->ThrowError("Failed to convert BN to a private key");
+}
+
+
 class PBKDF2Request : public AsyncWrap {
  public:
   PBKDF2Request(Environment* env,
@@ -4855,6 +5073,7 @@ void InitCrypto(Handle<Object> target,
   Connection::Initialize(env, target);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
+  ECDH::Initialize(env, target);
   Hmac::Initialize(env, target);
   Hash::Initialize(env, target);
   Sign::Initialize(env, target);

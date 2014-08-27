@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 
 #if HAVE_OPENSSL
+# include <openssl/ec.h>
 # include <openssl/ssl.h>
 # ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
@@ -974,6 +975,13 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #ifdef RSA_PKCS1_PSS_PADDING
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 #endif
+
+  // NOTE: These are not defines
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
 }
 
 void DefineSystemConstants(Handle<Object> target) {
