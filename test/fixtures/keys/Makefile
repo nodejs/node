@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem ec-cert.pem
+all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem
 
 
 #
@@ -144,6 +144,15 @@ ec-cert.pem: ec-csr.pem ec-key.pem
 		-in ec-csr.pem \
 		-signkey ec-key.pem \
 		-out ec-cert.pem
+
+dh512.pem:
+	openssl dhparam -out dh512.pem 512
+
+dh1024.pem:
+	openssl dhparam -out dh1024.pem 1024
+
+dh2048.pem:
+	openssl dhparam -out dh2048.pem 2048
 
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial

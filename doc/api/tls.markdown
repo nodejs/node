@@ -165,6 +165,10 @@ automatically set as a listener for the [secureConnection][] event.  The
 
     Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
+  - `dhparam`: DH parameter file to use for DHE key agreement. Use
+    `openssl dhparam` command to create it. If the file is invalid to
+    load, it is silently discarded.
+
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.
 
