@@ -142,14 +142,16 @@ automatically set as a listener for the [secureConnection][] event.  The
     conjunction with the `honorCipherOrder` option described below to
     prioritize the non-CBC cipher.
 
-    Defaults to `ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH`.
-    Consult the [OpenSSL cipher list format documentation] for details on the
-    format.
+    Defaults to
+    `ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL`.
+    Consult the [OpenSSL cipher list format documentation] for details
+    on the format.
 
-    `ECDHE-RSA-AES128-SHA256` and `AES128-GCM-SHA256` are TLS v1.2 ciphers and
-    used when node.js is linked against OpenSSL 1.0.1 or newer, such as the
-    bundled version of OpenSSL.  Note that it is still possible for a TLS v1.2
-    client to negotiate a weaker cipher unless `honorCipherOrder` is enabled.
+    `ECDHE-RSA-AES128-SHA256`, `DHE-RSA-AES128-SHA256` and
+    `AES128-GCM-SHA256` are TLS v1.2 ciphers and used when node.js is
+    linked against OpenSSL 1.0.1 or newer, such as the bundled version
+    of OpenSSL.  Note that it is still possible for a TLS v1.2 client
+    to negotiate a weaker cipher unless `honorCipherOrder` is enabled.
 
     `RC4` is used as a fallback for clients that speak on older version of
     the TLS protocol.  `RC4` has in recent years come under suspicion and
