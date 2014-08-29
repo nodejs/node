@@ -976,12 +976,14 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 #endif
 
+#if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+#endif
 }
 
 void DefineSystemConstants(Handle<Object> target) {
