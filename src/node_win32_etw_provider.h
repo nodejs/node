@@ -92,8 +92,8 @@ INLINE bool NODE_NET_SOCKET_READ_ENABLED();
 INLINE bool NODE_NET_SOCKET_WRITE_ENABLED();
 INLINE bool NODE_V8SYMBOL_ENABLED();
 
-#define NODE_NET_SOCKET_READ(arg0, arg1)
-#define NODE_NET_SOCKET_WRITE(arg0, arg1)
+#define NODE_NET_SOCKET_READ(arg0, arg1, arg2, arg3)
+#define NODE_NET_SOCKET_WRITE(arg0, arg1, arg2, arg3)
 }  // namespace node
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_H_

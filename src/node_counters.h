@@ -37,7 +37,7 @@
 #define NODE_COUNT_NET_BYTES_SENT(bytes)
 #define NODE_COUNT_NET_BYTES_RECV(bytes)
 #define NODE_COUNT_GET_GC_RAWTIME()
-#define NODE_COUNT_GC_PERCENTTIME()
+#define NODE_COUNT_GC_PERCENTTIME(percent)
 #define NODE_COUNT_PIPE_BYTES_SENT(bytes)
 #define NODE_COUNT_PIPE_BYTES_RECV(bytes)
 #endif
