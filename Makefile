@@ -7,7 +7,12 @@ DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
 
-NODE ?= ./node
+# Determine EXEEXT
+EXEEXT=$(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('EXE'))")
+
+NODE ?= ./node$(EXEEXT)
+NODE_EXE = node$(EXEEXT)
+NODE_G_EXE = node_g$(EXEEXT)
 
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
@@ -23,31 +28,31 @@ endif
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
-all: out/Makefile node
+all: out/Makefile $(NODE_EXE)
 else
-all: out/Makefile node node_g
+all: out/Makefile $(NODE_EXE) $(NODE_G_EXE)
 endif
 
 # The .PHONY is needed to ensure that we recursively use the out/Makefile
 # to check for changes.
-.PHONY: node node_g
+.PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
 ifeq ($(USE_NINJA),1)
-node: config.gypi
+$(NODE_EXE): config.gypi
 	$(NINJA) -C out/Release/
-	ln -fs out/Release/node node
+	ln -fs out/Release/$(NODE_EXE) $@
 
-node_g: config.gypi
+$(NODE_G_EXE): config.gypi
 	$(NINJA) -C out/Debug/
-	ln -fs out/Debug/node $@
+	ln -fs out/Debug/$(NODE_EXE) $@
 else
-node: config.gypi out/Makefile
+$(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
-	ln -fs out/Release/node node
+	ln -fs out/Release/$(NODE_EXE) $@
 
-node_g: config.gypi out/Makefile
+$(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	ln -fs out/Debug/node $@
+	ln -fs out/Debug/$(NODE_EXE) $@
 endif
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/toolchain.gypi deps/v8/build/features.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
@@ -72,7 +77,7 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node blog.html email.md
+	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) blog.html email.md
 	-find out/ -name '*.o' -o -name '*.a' | xargs rm -rf
 	-rm -rf node_modules
 
@@ -80,7 +85,7 @@ distclean:
 	-rm -rf out
 	-rm -f config.gypi
 	-rm -f config.mk
-	-rm -rf node node_g blog.html email.md
+	-rm -rf $(NODE_EXE) $(NODE_G_EXE) blog.html email.md
 	-rm -rf node_modules
 
 test: all
@@ -95,8 +100,8 @@ test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
 test/gc/node_modules/weak/build/Release/weakref.node:
-	@if [ ! -f node ]; then make all; fi
-	./node deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+	@if [ ! -f $(NODE_EXE) ]; then make all; fi
+	./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
@@ -146,11 +151,11 @@ test-internet: all
 test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
-test-npm: node
-	./node deps/npm/test/run.js
+test-npm: $(NODE_EXE)
+	./$(NODE_EXE) deps/npm/test/run.js
 
-test-npm-publish: node
-	npm_package_config_publishtest=true ./node deps/npm/test/run.js
+test-npm-publish: $(NODE_EXE)
+	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
 
 test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
@@ -174,7 +179,7 @@ website_files = \
 	out/doc/sh_main.js    \
 	out/doc/sh_javascript.min.js
 
-doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ out/doc/changelog.html node
+doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ out/doc/changelog.html $(NODE_EXE)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -182,24 +187,24 @@ $(apidoc_dirs):
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
-out/doc/changelog.html: ChangeLog doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh node
+out/doc/changelog.html: ChangeLog doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
 	bash tools/build-changelog.sh
 
 out/doc/%: doc/%
 	cp -r $< $@
 
-out/doc/api/%.json: doc/api/%.markdown node
-	out/Release/node tools/doc/generate.js --format=json $< > $@
+out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
+	out/Release/$(NODE_EXE) tools/doc/generate.js --format=json $< > $@
 
-out/doc/api/%.html: doc/api/%.markdown node
-	out/Release/node tools/doc/generate.js --format=html --template=doc/template.html $< > $@
+out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
+	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
 email.md: ChangeLog tools/email-footer.md
 	bash tools/changelog-head.sh | sed 's|^\* #|* \\#|g' > $@
 	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
 
 blog.html: email.md
-	cat $< | ./node tools/doc/node_modules/.bin/marked > $@
+	cat $< | ./$(NODE_EXE) tools/doc/node_modules/.bin/marked > $@
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
@@ -300,7 +305,7 @@ $(PKG): release-only
 		--out $(PKG)
 	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
-$(TARBALL): release-only node doc
+$(TARBALL): release-only $(NODE_EXE) doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -387,9 +392,9 @@ bench-http-simple:
 	 benchmark/http_simple_bench.sh
 
 bench-idle:
-	./node benchmark/idle_server.js &
+	./$(NODE_EXE) benchmark/idle_server.js &
 	sleep 1
-	./node benchmark/idle_clients.js &
+	./$(NODE_EXE) benchmark/idle_clients.js &
 
 jslintfix:
 	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js

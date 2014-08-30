@@ -905,7 +905,7 @@ if options.use_ninja:
   gyp_args += ['-f', 'ninja-' + flavor]
 elif options.use_xcode:
   gyp_args += ['-f', 'xcode']
-elif flavor == 'win':
+elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:
   gyp_args += ['-f', 'make-' + flavor]
