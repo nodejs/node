@@ -225,7 +225,7 @@ void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
   TLSCallbacks* callbacks = NULL;
   WITH_GENERIC_STREAM(env, stream, {
     callbacks = new TLSCallbacks(env, kind, sc, wrap->callbacks());
-    wrap->OverrideCallbacks(callbacks);
+    wrap->OverrideCallbacks(callbacks, true);
   });
 
   if (callbacks == NULL) {
