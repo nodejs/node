@@ -3283,11 +3283,8 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   EVP_PKEY* pkey = NULL;
   bool fatal = true;
 
-  bp = BIO_new(BIO_s_mem());
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == NULL)
-    goto exit;
-
-  if (!BIO_write(bp, key_pem, key_pem_len))
     goto exit;
 
   pkey = PEM_read_bio_PrivateKey(bp,
@@ -3475,11 +3472,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   bool fatal = true;
   int r = 0;
 
-  bp = BIO_new(BIO_s_mem());
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == NULL)
-    goto exit;
-
-  if (!BIO_write(bp, key_pem, key_pem_len))
     goto exit;
 
   // Check if this is a PKCS#8 or RSA public key before trying as X.509.
@@ -3595,11 +3589,8 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   X509* x509 = NULL;
   bool fatal = true;
 
-  bp = BIO_new(BIO_s_mem());
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == NULL)
-    goto exit;
-
-  if (!BIO_write(bp, key_pem, key_pem_len))
     goto exit;
 
   // Check if this is a PKCS#8 or RSA public key before trying as X.509 and
