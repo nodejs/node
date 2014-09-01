@@ -122,12 +122,12 @@ automatically set as a listener for the [secureConnection][] event.  The
     the `key`, `cert` and `ca` options.)
 
   - `key`: A string or `Buffer` containing the private key of the server in
-    PEM format. (Required)
+    PEM format. (Could be an array of keys). (Required)
 
   - `passphrase`: A string of passphrase for the private key or pfx.
 
   - `cert`: A string or `Buffer` containing the certificate key of the server in
-    PEM format. (Required)
+    PEM format. (Could be an array of certs). (Required)
 
   - `ca`: An array of strings or `Buffer`s of trusted certificates in PEM
     format. If this is omitted several well known "root" CAs will be used,
@@ -303,12 +303,12 @@ Creates a new client connection to the given `port` and `host` (old API) or
     CA certs of the client in PFX or PKCS12 format.
 
   - `key`: A string or `Buffer` containing the private key of the client in
-    PEM format.
+    PEM format. (Could be an array of keys).
 
   - `passphrase`: A string of passphrase for the private key or pfx.
 
   - `cert`: A string or `Buffer` containing the certificate key of the client in
-    PEM format.
+    PEM format. (Could be an array of certs).
 
   - `ca`: An array of strings or `Buffer`s of trusted certificates in PEM
     format. If this is omitted several well known "root" CAs will be used,
