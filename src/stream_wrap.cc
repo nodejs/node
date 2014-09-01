@@ -63,7 +63,8 @@ StreamWrap::StreamWrap(Environment* env,
     : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream), provider),
       stream_(stream),
       default_callbacks_(this),
-      callbacks_(&default_callbacks_) {
+      callbacks_(&default_callbacks_),
+      callbacks_gc_(false) {
 }
 
 

@@ -105,9 +105,10 @@ class StreamWrapCallbacks {
 
 class StreamWrap : public HandleWrap {
  public:
-  void OverrideCallbacks(StreamWrapCallbacks* callbacks) {
+  void OverrideCallbacks(StreamWrapCallbacks* callbacks, bool gc) {
     StreamWrapCallbacks* old = callbacks_;
     callbacks_ = callbacks;
+    callbacks_gc_ = gc;
     if (old != &default_callbacks_)
       delete old;
   }
@@ -160,10 +161,10 @@ class StreamWrap : public HandleWrap {
              AsyncWrap::ProviderType provider);
 
   ~StreamWrap() {
-    if (callbacks_ != &default_callbacks_) {
+    if (!callbacks_gc_ && callbacks_ != &default_callbacks_) {
       delete callbacks_;
-      callbacks_ = NULL;
     }
+    callbacks_ = NULL;
   }
 
   void StateChange() { }
@@ -191,6 +192,7 @@ class StreamWrap : public HandleWrap {
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
   StreamWrapCallbacks* callbacks_;  // Overridable callbacks
+  bool callbacks_gc_;
 
   friend class StreamWrapCallbacks;
 };
