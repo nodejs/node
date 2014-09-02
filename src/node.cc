@@ -1032,13 +1032,11 @@ Handle<Value> MakeDomainCallback(Environment* env,
         return Undefined(env->isolate());
       }
 
-      Local<Function> enter =
-          domain->Get(env->enter_string()).As<Function>();
-      assert(enter->IsFunction());
-      enter->Call(domain, 0, NULL);
-
-      if (try_catch.HasCaught()) {
-        return Undefined(env->isolate());
+      Local<Function> enter = domain->Get(env->enter_string()).As<Function>();
+      if (enter->IsFunction()) {
+        enter->Call(domain, 0, NULL);
+        if (try_catch.HasCaught())
+          return Undefined(env->isolate());
       }
     }
   }
@@ -1050,13 +1048,11 @@ Handle<Value> MakeDomainCallback(Environment* env,
   }
 
   if (has_domain) {
-    Local<Function> exit =
-        domain->Get(env->exit_string()).As<Function>();
-    assert(exit->IsFunction());
-    exit->Call(domain, 0, NULL);
-
-    if (try_catch.HasCaught()) {
-      return Undefined(env->isolate());
+    Local<Function> exit = domain->Get(env->exit_string()).As<Function>();
+    if (exit->IsFunction()) {
+      exit->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env->isolate());
     }
   }
 
