@@ -6,6 +6,7 @@
   'variables': {
     'is_clang': 0,
     'gcc_version': 0,
+    'openssl_no_asm%': 0
   },
 
   'targets': [
@@ -651,7 +652,7 @@
         ['exclude', 'store/.*$']
       ],
       'conditions': [
-        ['target_arch!="ia32" and target_arch!="x64" and target_arch!="arm"', {
+        ['target_arch!="ia32" and target_arch!="x64" and target_arch!="arm" or openssl_no_asm!=0', {
           # Disable asm
           'defines': [
             'OPENSSL_NO_ASM'

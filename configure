@@ -82,6 +82,11 @@ parser.add_option("--shared-openssl-libname",
     dest="shared_openssl_libname",
     help="Alternative lib name to link to (default: 'crypto,ssl')")
 
+parser.add_option("--openssl-no-asm",
+    action="store_true",
+    dest="openssl_no_asm",
+    help="Do not build optimized assembly for OpenSSL")
+
 # deprecated
 parser.add_option("--openssl-use-sys",
     action="store_true",
@@ -609,6 +614,8 @@ def configure_v8(o):
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
+  o['variables']['openssl_no_asm'] = (
+    1 if options.openssl_no_asm else 0)
 
   if options.without_ssl:
     return
