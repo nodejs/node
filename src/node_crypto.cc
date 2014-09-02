@@ -3688,7 +3688,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   String::Utf8Value passphrase(args[3]);
 
   unsigned char* out_value = NULL;
-  size_t out_len = -1;
+  size_t out_len = 0;
 
   bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
       kbuf,
@@ -3700,7 +3700,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       &out_value,
       &out_len);
 
-  if (out_len <= 0 || !r) {
+  if (out_len == 0 || !r) {
     delete[] out_value;
     out_value = NULL;
     out_len = 0;
