@@ -4506,13 +4506,14 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
+  ASSERT_IS_BUFFER(args[1]);
+
   pass = static_cast<char*>(malloc(passlen));
   if (pass == NULL) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
-  ASSERT_IS_BUFFER(args[1]);
   saltlen = Buffer::Length(args[1]);
   if (saltlen < 0) {
     type_error = "Bad salt";
