@@ -125,6 +125,8 @@ class StreamWrap : public HandleWrap {
   static void WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteBinaryString(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 

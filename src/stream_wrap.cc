@@ -499,6 +499,10 @@ void StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
   WriteStringImpl<UCS2>(args);
 }
 
+void StreamWrap::WriteBinaryString(const FunctionCallbackInfo<Value>& args) {
+  WriteStringImpl<BINARY>(args);
+}
+
 void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
