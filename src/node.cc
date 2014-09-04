@@ -967,6 +967,10 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse"));
 }
 
+void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
+  args.GetIsolate()->RunMicrotasks();
+}
+
 
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   HandleScope handle_scope(args.GetIsolate());
@@ -974,6 +978,7 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
   assert(args[0]->IsObject());
   assert(args[1]->IsFunction());
+  assert(args[2]->IsObject());
 
   // Values use to cross communicate with processNextTick.
   Local<Object> tick_info_obj = args[0].As<Object>();
@@ -983,6 +988,8 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
       env->tick_info()->fields_count());
 
   env->set_tick_callback_function(args[1].As<Function>());
+
+  NODE_SET_METHOD(args[2].As<Object>(), "runMicrotasks", RunMicrotasks);
 
   // Do a little housekeeping.
   env->process_object()->Delete(
