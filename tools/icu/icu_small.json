@@ -1,0 +1,47 @@
+{
+  "copyright": "Copyright (c) 2014 IBM Corporation and Others. All Rights Reserved.",
+  "comment": "icutrim.py config: Trim down ICU to just English, needed for node.js use.",
+  "variables": {
+    "none": {
+      "only": []
+    },
+    "en_only": {
+      "only": [
+        "root",
+        "en"
+      ]
+    },
+    "leavealone": {
+    }
+  },
+  "trees": {
+    "ROOT": "en_only",
+    "brkitr": "none",
+    "coll": "en_only",
+    "curr": "en_only",
+    "lang": "none",
+    "rbnf": "none",
+    "region": "none",
+    "zone": "en_only",
+    "converters": "none",
+    "stringprep": "none",
+    "translit": "none",
+    "brkfiles": "none",
+    "brkdict": "none",
+    "confusables": "none"
+  },
+  "remove": [
+    "cnvalias.icu",
+    "postalCodeData.res",
+    "uts46.nrm",
+    "genderList.res",
+    "brkitr/root.res",
+    "unames.icu"
+  ],
+  "keep": [
+    "pool.res",
+    "supplementalData.res",
+    "zoneinfo64.res",
+    "likelySubtags.res"
+  ]
+}

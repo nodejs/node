@@ -19,17 +19,6 @@ make
 make install
 ```
 
-With libicu i18n support:
-
-```sh
-svn checkout --force --revision 214189 \
-   http://src.chromium.org/svn/trunk/deps/third_party/icu46 \
-   deps/v8/third_party/icu46
-./configure --with-icu-path=deps/v8/third_party/icu46/icu.gyp
-make
-make install
-```
-
 If your python binary is in a non-standard location or has a
 non-standard name, run the following instead:
 
@@ -47,7 +36,9 @@ Prerequisites (Windows only):
 
 Windows:
 
-    vcbuild nosign
+```sh
+vcbuild nosign
+```
 
 You can download pre-built binaries for various operating systems from
 [http://nodejs.org/download/](http://nodejs.org/download/).  The Windows
@@ -90,6 +81,35 @@ make doc
 
 ```sh
 man doc/node.1
+```
+
+### To build `Intl` (ECMA-402) support:
+
+*Note:* more docs, including how to reduce disk footprint, are on
+[the wiki](https://github.com/joyent/node/wiki/Intl).
+
+#### Use existing installed ICU (Unix/Macintosh only):
+
+```sh
+pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
+```
+
+#### Build ICU from source:
+
+First: Unpack latest ICU
+  [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
+  as `deps/icu` (You'll have: `deps/icu/source/...`)
+
+Unix/Macintosh:
+
+```sh
+./configure --with-intl=full-icu
+```
+
+Windows:
+
+```sh
+vcbuild full-icu
 ```
 
 Resources for Newcomers

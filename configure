@@ -241,6 +241,11 @@ parser.add_option('--with-icu-path',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
 
+parser.add_option('--with-intl',
+    action='store',
+    dest='with_intl',
+    help='Intl mode: none, full-icu, small-icu (default is none)')
+
 parser.add_option('--with-perfctr',
     action='store_true',
     dest='with_perfctr',
@@ -686,13 +691,138 @@ def configure_winsdk(o):
   print('ctrpp not found in WinSDK path--using pre-gen files '
         'from tools/msvs/genfiles.')
 
+def glob_to_var(dir_base, dir_sub):
+  list = []
+  dir_all = os.path.join(dir_base, dir_sub)
+  files = os.walk(dir_all)
+  for ent in files:
+    (path, dirs, files) = ent
+    for file in files:
+      if file.endswith('.cpp') or file.endswith('.c') or file.endswith('.h'):
+        list.append('%s/%s' % (dir_sub, file))
+    break
+  return list
 
-def configure_icu(o):
+
+def configure_intl(o):
+  # small ICU is off by default.
+  # always set icu_small, node.gyp depends on it being defined.
+  o['variables']['icu_small'] = b(False)
+
+  with_intl = options.with_intl
   have_icu_path = bool(options.with_icu_path)
-  o['variables']['v8_enable_i18n_support'] = int(have_icu_path)
-  if have_icu_path:
+  if have_icu_path and with_intl:
+    print 'Error: Cannot specify both --with-icu-path and --with-intl'
+    sys.exit(1)
+  elif have_icu_path:
+    # Chromium .gyp mode: --with-icu-path
+    o['variables']['v8_enable_i18n_support'] = 1
+    # use the .gyp given
     o['variables']['icu_gyp_path'] = options.with_icu_path
+    return
+  # --with-intl=<with_intl>
+  if with_intl == 'none' or with_intl is None:
+    o['variables']['v8_enable_i18n_support'] = 0
+    return  # no Intl
+  elif with_intl == 'small-icu':
+    # small ICU (English only)
+    o['variables']['v8_enable_i18n_support'] = 1
+    o['variables']['icu_small'] = b(True)
+  elif with_intl == 'full-icu':
+    # full ICU
+    o['variables']['v8_enable_i18n_support'] = 1
+  elif with_intl == 'system-icu':
+    # ICU from pkg-config.
+    o['variables']['v8_enable_i18n_support'] = 1
+    pkgicu = pkg_config('icu-i18n')
+    if not pkgicu:
+      print 'Error: could not load pkg-config data for "icu-i18n".'
+      print 'See above errors or the README.md.'
+      sys.exit(1)
+    (libs, cflags) = pkgicu
+    o['libraries'] += libs.split()
+    o['cflags'] += cflags.split()
+    # use the "system" .gyp
+    o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
+    return
+  else:
+    print 'Error: unknown value --with-intl=%s' % with_intl
+    sys.exit(1)
+  # Note: non-ICU implementations could use other 'with_intl'
+  # values.
 
+  # ICU mode. (icu-generic.gyp)
+  byteorder = sys.byteorder
+  o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
+  # ICU source dir relative to root
+  icu_full_path = os.path.join(root_dir, 'deps/icu')
+  o['variables']['icu_path'] = icu_full_path
+  if not os.path.isdir(icu_full_path):
+    print 'Error: ICU path is not a directory: %s' % (icu_full_path)
+    sys.exit(1)
+  # Now, what version of ICU is it? We just need the "major", such as 54.
+  # uvernum.h contains it as a #define.
+  uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
+  if not os.path.isfile(uvernum_h):
+    print 'Error: could not load %s - is ICU installed?' % uvernum_h
+    sys.exit(1)
+  icu_ver_major = None
+  matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
+  match_version = re.compile(matchVerExp)
+  for line in open(uvernum_h).readlines():
+    m = match_version.match(line)
+    if m:
+      icu_ver_major = m.group(1)
+  if not icu_ver_major:
+    print 'Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
+    sys.exit(1)
+  icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+  o['variables']['icu_ver_major'] = icu_ver_major
+  o['variables']['icu_endianness'] = icu_endianness
+  icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
+  icu_data_file = 'icudt%s%s.dat' % (icu_ver_major, icu_endianness)
+  # relative to configure
+  icu_data_path = os.path.join(icu_full_path,
+                               'source/data/in',
+                               icu_data_file_l)
+  # relative to dep..
+  icu_data_in = os.path.join('../../deps/icu/source/data/in', icu_data_file_l)
+  if not os.path.isfile(icu_data_path) and icu_endianness != 'l':
+    # use host endianness
+    icu_data_path = os.path.join(icu_full_path,
+                                 'source/data/in',
+                                 icu_data_file)
+    # relative to dep..
+    icu_data_in = os.path.join('icu/source/data/in',
+                               icu_data_file)
+  # this is the input '.dat' file to use .. icudt*.dat
+  # may be little-endian if from a icu-project.org tarball
+  o['variables']['icu_data_in'] = icu_data_in
+  # this is the icudt*.dat file which node will be using (platform endianness)
+  o['variables']['icu_data_file'] = icu_data_file
+  if not os.path.isfile(icu_data_path):
+    print 'Error: ICU prebuilt data file %s does not exist.' % icu_data_path
+    print 'See the README.md.'
+    # .. and we're not about to build it from .gyp!
+    sys.exit(1)
+  # map from variable name to subdirs
+  icu_src = {
+    'stubdata': 'stubdata',
+    'common': 'common',
+    'i18n': 'i18n',
+    'io': 'io',
+    'tools': 'tools/toolutil',
+    'genccode': 'tools/genccode',
+    'genrb': 'tools/genrb',
+    'icupkg': 'tools/icupkg',
+  }
+  # this creates a variable icu_src_XXX for each of the subdirs
+  # with a list of the src files to use
+  for i in icu_src:
+    var  = 'icu_src_%s' % i
+    path = '../../deps/icu/source/%s' % icu_src[i]
+    o['variables'][var] = glob_to_var('tools/icu', path)
+  return  # end of configure_intl
 
 # determine the "flavor" (operating system) we're building for,
 # leveraging gyp's GetFlavor function
@@ -717,7 +847,7 @@ configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
-configure_icu(output)
+configure_intl(output)
 configure_fullystatic(output)
 
 # variables should be a root level element,

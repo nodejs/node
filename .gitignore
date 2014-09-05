@@ -45,6 +45,7 @@ ipch/
 /test/addons/doc-*/
 email.md
 deps/v8-*
+deps/icu
 ./node_modules
 .svn/
 
