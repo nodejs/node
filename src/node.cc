@@ -3102,9 +3102,12 @@ static void EnableDebug(Isolate* isolate, bool wait_connect) {
   fprintf(stderr, "Debugger listening on port %d\n", debug_port);
   fflush(stderr);
 
-  Environment* env = Environment::GetCurrentChecked(isolate);
-  if (env == NULL)
+  if (isolate == NULL)
     return;  // Still starting up.
+  Local<Context> context = isolate->GetCurrentContext();
+  if (context.IsEmpty())
+    return;  // Still starting up.
+  Environment* env = Environment::GetCurrent(context);
 
   // Assign environment to the debugger's context
   env->AssignToContext(v8::Debug::GetDebugContext());
@@ -3624,7 +3627,7 @@ int Start(int argc, char** argv) {
       env->AssignToContext(v8::Debug::GetDebugContext());
     }
     // This Context::Scope is here so EnableDebug() can look up the current
-    // environment with Environment::GetCurrentChecked().
+    // environment with Environment::GetCurrent().
     // TODO(bnoordhuis) Reorder the debugger initialization logic so it can
     // be removed.
     {

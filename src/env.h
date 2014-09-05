@@ -359,8 +359,6 @@ class Environment {
 
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
-  static inline Environment* GetCurrentChecked(v8::Isolate* isolate);
-  static inline Environment* GetCurrentChecked(v8::Local<v8::Context> context);
 
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(v8::Local<v8::Context> context);
