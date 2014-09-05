@@ -196,6 +196,10 @@ automatically set as a listener for the [secureConnection][] event.  The
     which is not authorized with the list of supplied CAs. This option only
     has an effect if `requestCert` is `true`. Default: `false`.
 
+  - `checkServerIdentity(servername, cert)`: Provide an override for checking
+    server's hostname against the certificate. Should return an error if verification
+    fails. Return `undefined` if passing.
+
   - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
     should be ordered by their priority).
 
