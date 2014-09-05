@@ -103,6 +103,7 @@
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
         'src/node_zlib.cc',
+        'src/node_i18n.cc',
         'src/pipe_wrap.cc',
         'src/signal_wrap.cc',
         'src/smalloc.cc',
@@ -134,6 +135,7 @@
         'src/node_version.h',
         'src/node_watchdog.h',
         'src/node_wrap.h',
+        'src/node_i18n.h',
         'src/pipe_wrap.h',
         'src/queue.h',
         'src/smalloc.h',
@@ -164,6 +166,17 @@
       ],
 
       'conditions': [
+        [ 'v8_enable_i18n_support==1', {
+          'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+          'conditions': [
+            [ 'icu_small=="true"', {
+              'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
+          }]],
+        }],
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [

@@ -35,6 +35,10 @@
 #include "node_crypto.h"
 #endif
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#include "node_i18n.h"
+#endif
+
 #if defined HAVE_DTRACE || defined HAVE_ETW
 #include "node_dtrace.h"
 #endif
@@ -134,6 +138,11 @@ static bool v8_is_profiling = false;
 static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_addon;
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+// Path to ICU data (for i18n / Intl)
+static const char* icu_data_dir = NULL;
+#endif
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -2953,6 +2962,14 @@ static void PrintHelp() {
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "  --icu-data-dir=dir   set ICU data load path to dir\n"
+         "                         (overrides NODE_ICU_DATA)\n"
+#if !defined(NODE_HAVE_SMALL_ICU)
+         "                       Note: linked-in ICU data is\n"
+         "                       present.\n"
+#endif
+#endif
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -2964,6 +2981,12 @@ static void PrintHelp() {
          "NODE_MODULE_CONTEXTS   Set to 1 to load modules in their own\n"
          "                       global contexts.\n"
          "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "NODE_ICU_DATA          Data path for ICU (Intl object) data\n"
+#if !defined(NODE_HAVE_SMALL_ICU)
+         "                       (will extend linked-in data)\n"
+#endif
+#endif
          "\n"
          "Documentation can be found at http://nodejs.org/\n");
 }
@@ -3054,6 +3077,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
+#if defined(NODE_HAVE_I18N_SUPPORT)
+    } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
+      icu_data_dir = arg + 15;
+#endif
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -3410,6 +3437,18 @@ void Init(int* argc,
     }
   }
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  if (icu_data_dir == NULL) {
+    // if the parameter isn't given, use the env variable.
+    icu_data_dir = getenv("NODE_ICU_DATA");
+  }
+  // Initialize ICU.
+  // If icu_data_dir is NULL here, it will load the 'minimal' data.
+  if (!i18n::InitializeICUDirectory(icu_data_dir)) {
+    FatalError(NULL, "Could not initialize ICU "
+                     "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+  }
+#endif
   // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
   // the argv array or the elements it points to.
   V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
