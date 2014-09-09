@@ -2297,13 +2297,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We need a temporary register for write barrier of the map field.
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
-  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (!instr->access().IsExternalMemory() &&
-      instr->field_representation().IsHeapObject() &&
-      !instr->value()->type().IsHeapObject()) {
-    result = AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 
@@ -2556,7 +2550,7 @@ LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
 
 LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   LOperand* object = UseRegister(instr->object());
-  LOperand* index = UseRegister(instr->index());
+  LOperand* index = UseTempRegister(instr->index());
   LLoadFieldByIndex* load = new(zone()) LLoadFieldByIndex(object, index);
   LInstruction* result = DefineSameAsFirst(load);
   return AssignPointerMap(result);

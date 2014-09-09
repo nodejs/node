@@ -2199,6 +2199,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
   if (IsGrowStoreMode(store_mode)) {
     NoObservableSideEffectsScope no_effects(this);
+    Representation representation = HStoreKeyed::RequiredValueRepresentation(
+        elements_kind, STORE_TO_INITIALIZED_ENTRY);
+    val = AddUncasted<HForceRepresentation>(val, representation);
     elements = BuildCheckForCapacityGrow(checked_object, elements,
                                          elements_kind, length, key,
                                          is_js_array, access_type);
@@ -2370,9 +2373,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
       val = Add<HClampToUint8>(val);
     }
     return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
-                            elements_kind == FAST_SMI_ELEMENTS
-                              ? STORE_TO_INITIALIZED_ENTRY
-                              : INITIALIZING_STORE);
+                            STORE_TO_INITIALIZED_ENTRY);
   }
 
   ASSERT(access_type == LOAD);
@@ -5409,16 +5410,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
                                     value, STORE_TO_INITIALIZED_ENTRY);
     }
   } else {
+    if (field_access.representation().IsHeapObject()) {
+      BuildCheckHeapObject(value);
+    }
+
     if (!info->field_maps()->is_empty()) {
       ASSERT(field_access.representation().IsHeapObject());
-      BuildCheckHeapObject(value);
       value = Add<HCheckMaps>(value, info->field_maps());
-
-      // TODO(bmeurer): This is a dirty hack to avoid repeating the smi check
-      // that was already performed by the HCheckHeapObject above in the
-      // HStoreNamedField below. We should really do this right instead and
-      // make Crankshaft aware of Representation::HeapObject().
-      field_access = field_access.WithRepresentation(Representation::Tagged());
     }
 
     // This is a normal store.
@@ -8050,10 +8048,12 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   HValue* function = Pop();  // f
   Drop(1);  // apply
 
+  HValue* checked_function = AddCheckMap(function, function_map);
+
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
-    HValue* wrapped_receiver = BuildWrapReceiver(receiver, function);
+    HValue* wrapped_receiver = BuildWrapReceiver(receiver, checked_function);
     HInstruction* result = New<HApplyArguments>(function,
                                                 wrapped_receiver,
                                                 length,
@@ -8069,7 +8069,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     const ZoneList<HValue*>* arguments_values = args->arguments_values();
     int arguments_count = arguments_values->length();
     Push(function);
-    Push(BuildWrapReceiver(receiver, function));
+    Push(BuildWrapReceiver(receiver, checked_function));
     for (int i = 1; i < arguments_count; i++) {
       Push(arguments_values->at(i));
     }

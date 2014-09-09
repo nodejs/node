@@ -580,7 +580,7 @@ class HCheckMapsEffects : public ZoneObject {
     switch (instr->opcode()) {
       case HValue::kStoreNamedField: {
         HStoreNamedField* store = HStoreNamedField::cast(instr);
-        if (store->access().IsMap() && store->has_transition()) {
+        if (store->access().IsMap() || store->has_transition()) {
           objects_.Add(store->object(), zone);
         }
         break;

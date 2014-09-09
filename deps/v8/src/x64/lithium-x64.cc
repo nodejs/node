@@ -2311,15 +2311,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = (!is_in_object || needs_write_barrier ||
       needs_write_barrier_for_map) ? TempRegister() : NULL;
 
-  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (!instr->access().IsExternalMemory() &&
-      instr->field_representation().IsHeapObject() &&
-      (val->IsConstantOperand()
-       ? HConstant::cast(instr->value())->HasSmiValue()
-       : !instr->value()->type().IsHeapObject())) {
-    result = AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 

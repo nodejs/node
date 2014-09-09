@@ -155,9 +155,9 @@ class GlobalHandles {
   static bool IsWeak(Object** location);
 
   // Process pending weak handles.
-  // Returns true if next major GC is likely to collect more garbage.
-  bool PostGarbageCollectionProcessing(GarbageCollector collector,
-                                       GCTracer* tracer);
+  // Returns the number of freed nodes.
+  int PostGarbageCollectionProcessing(GarbageCollector collector,
+                                      GCTracer* tracer);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);

@@ -2634,6 +2634,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
         ClearDependentCode(DependentCode::cast(value));
         table->set(key_index, heap_->the_hole_value());
         table->set(value_index, heap_->the_hole_value());
+        table->ElementRemoved();
       }
     }
   }

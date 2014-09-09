@@ -6141,6 +6141,11 @@ class Map: public HeapObject {
       StoreMode store_mode,
       PropertyAttributes attributes,
       const char* reason);
+  static Handle<Map> CopyGeneralizeAllRepresentations(
+      Handle<Map> map,
+      int modify_index,
+      StoreMode store_mode,
+      const char* reason);
 
   static Handle<Map> Normalize(Handle<Map> map, PropertyNormalizationMode mode);
 

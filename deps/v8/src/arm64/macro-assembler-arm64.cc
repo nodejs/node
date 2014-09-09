@@ -557,6 +557,11 @@ void MacroAssembler::Store(const Register& rt,
     Str(rt.W(), addr);
   } else {
     ASSERT(rt.Is64Bits());
+    if (r.IsHeapObject()) {
+      AssertNotSmi(rt);
+    } else if (r.IsSmi()) {
+      AssertSmi(rt);
+    }
     Str(rt, addr);
   }
 }

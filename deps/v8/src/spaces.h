@@ -985,8 +985,8 @@ class CodeRange {
   // Finds a block on the allocation list that contains at least the
   // requested amount of memory.  If none is found, sorts and merges
   // the existing free memory blocks, and searches again.
-  // If none can be found, terminates V8 with FatalProcessOutOfMemory.
-  void GetNextAllocationBlock(size_t requested);
+  // If none can be found, returns false.
+  bool GetNextAllocationBlock(size_t requested);
   // Compares the start addresses of two free blocks.
   static int CompareFreeBlockAddress(const FreeBlock* left,
                                      const FreeBlock* right);
