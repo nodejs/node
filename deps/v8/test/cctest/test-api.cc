@@ -21341,23 +21341,6 @@ THREADED_TEST(Regress142088) {
 }
 
 
-THREADED_TEST(Regress3337) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<v8::Object> o1 = Object::New(isolate);
-  Local<v8::Object> o2 = Object::New(isolate);
-  i::Handle<i::JSObject> io1 = v8::Utils::OpenHandle(*o1);
-  i::Handle<i::JSObject> io2 = v8::Utils::OpenHandle(*o2);
-  CHECK(io1->map() == io2->map());
-  o1->SetIndexedPropertiesToExternalArrayData(
-      NULL, v8::kExternalUint32Array, 0);
-  o2->SetIndexedPropertiesToExternalArrayData(
-      NULL, v8::kExternalUint32Array, 0);
-  CHECK(io1->map() == io2->map());
-}
-
-
 THREADED_TEST(Regress137496) {
   i::FLAG_expose_gc = true;
   LocalContext context;

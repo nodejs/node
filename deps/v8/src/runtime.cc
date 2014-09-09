@@ -10026,7 +10026,7 @@ class ArrayConcatVisitor {
       // getters on the arrays increasing the length of later arrays
       // during iteration.
       // This shouldn't happen in anything but pathological cases.
-      SetDictionaryMode(index);
+      SetDictionaryMode();
       // Fall-through to dictionary mode.
     }
     ASSERT(!fast_elements_);
@@ -10046,6 +10046,14 @@ class ArrayConcatVisitor {
       index_offset_ = JSObject::kMaxElementCount;
     } else {
       index_offset_ += delta;
+    }
+    // If the initial length estimate was off (see special case in visit()),
+    // but the array blowing the limit didn't contain elements beyond the
+    // provided-for index range, go to dictionary mode now.
+    if (fast_elements_ &&
+        index_offset_ >
+            static_cast<uint32_t>(FixedArrayBase::cast(*storage_)->length())) {
+      SetDictionaryMode();
     }
   }
 
@@ -10068,7 +10076,7 @@ class ArrayConcatVisitor {
 
  private:
   // Convert storage to dictionary mode.
-  void SetDictionaryMode(uint32_t index) {
+  void SetDictionaryMode() {
     ASSERT(fast_elements_);
     Handle<FixedArray> current_storage(*storage_);
     Handle<SeededNumberDictionary> slow_storage(

@@ -2345,6 +2345,18 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
 }
 
 
+// static
+Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
+                                                  int modify_index,
+                                                  StoreMode store_mode,
+                                                  const char* reason) {
+  PropertyDetails details =
+      map->instance_descriptors()->GetDetails(modify_index);
+  return CopyGeneralizeAllRepresentations(map, modify_index, store_mode,
+                                          details.attributes(), reason);
+}
+
+
 void Map::DeprecateTransitionTree() {
   if (is_deprecated()) return;
   if (HasTransitionArray()) {
@@ -2590,8 +2602,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Check the state of the root map.
   Handle<Map> root_map(old_map->FindRootMap(), isolate);
   if (!old_map->EquivalentToForTransition(*root_map)) {
-    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-        old_details.attributes(), "not equivalent");
+    return CopyGeneralizeAllRepresentations(
+        old_map, modify_index, store_mode, "not equivalent");
   }
   int root_nof = root_map->NumberOfOwnDescriptors();
   if (modify_index < root_nof) {
@@ -2600,8 +2612,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         (old_details.type() == FIELD &&
          (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
           !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-          old_details.attributes(), "root modification");
+      return CopyGeneralizeAllRepresentations(
+          old_map, modify_index, store_mode, "root modification");
     }
   }
 
@@ -2623,8 +2635,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
          (tmp_type != old_type ||
           tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
       return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
+          old_map, modify_index, store_mode, "incompatible");
     }
     Representation old_representation = old_details.representation();
     Representation tmp_representation = tmp_details.representation();
@@ -2688,8 +2699,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
          (tmp_details.type() != old_details.type() ||
           tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
       return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
+          old_map, modify_index, store_mode, "incompatible");
     }
     target_map = tmp_map;
   }
@@ -2732,6 +2742,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       target_details = target_details.CopyWithRepresentation(
           new_representation.generalize(target_details.representation()));
     }
+    ASSERT_EQ(old_details.attributes(), target_details.attributes());
     if (old_details.type() == FIELD ||
         target_details.type() == FIELD ||
         (modify_index == i && store_mode == FORCE_FIELD) ||
@@ -3362,16 +3373,9 @@ static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
       ? to_kind
       : TERMINAL_FAST_ELEMENTS_KIND;
 
-  // Support for legacy API: SetIndexedPropertiesTo{External,Pixel}Data
-  // allows to change elements from arbitrary kind to any ExternalArray
-  // elements kind. Satisfy its requirements, checking whether we already
-  // have the cached transition.
+  // Support for legacy API.
   if (IsExternalArrayElementsKind(to_kind) &&
       !IsFixedTypedArrayElementsKind(map->elements_kind())) {
-    if (map->HasElementsTransition()) {
-        Map* next_map = map->elements_transition_map();
-        if (next_map->elements_kind() == to_kind) return next_map;
-    }
     return map;
   }
 
@@ -12375,8 +12379,17 @@ void DependentCode::AddToDependentICList(Handle<Code> stub) {
   DisallowHeapAllocation no_heap_allocation;
   GroupStartIndexes starts(this);
   int i = starts.at(kWeakICGroup);
-  stub->set_next_code_link(object_at(i));
-  set_object_at(i, *stub);
+  Object* head = object_at(i);
+  // Try to insert the stub after the head of the list to minimize number of
+  // writes to the DependentCode array, since a write to the array can make it
+  // strong if it was alread marked by incremental marker.
+  if (head->IsCode()) {
+    stub->set_next_code_link(Code::cast(head)->next_code_link());
+    Code::cast(head)->set_next_code_link(*stub);
+  } else {
+    stub->set_next_code_link(head);
+    set_object_at(i, *stub);
+  }
 }
 
 
@@ -16177,7 +16190,10 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
   int entry = table->FindEntry(key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    table->set(EntryToValueIndex(entry), *value);
+    // TODO(ulan): Skipping write barrier is a temporary solution to avoid
+    // memory leaks. Remove this once we have special visitor for weak fixed
+    // arrays.
+    table->set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
     return table;
   }
 
@@ -16193,8 +16209,11 @@ void WeakHashTable::AddEntry(int entry,
                              Handle<Object> key,
                              Handle<Object> value) {
   DisallowHeapAllocation no_allocation;
-  set(EntryToIndex(entry), *key);
-  set(EntryToValueIndex(entry), *value);
+  // TODO(ulan): Skipping write barrier is a temporary solution to avoid
+  // memory leaks. Remove this once we have special visitor for weak fixed
+  // arrays.
+  set(EntryToIndex(entry), *key, SKIP_WRITE_BARRIER);
+  set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
   ElementAdded();
 }
 

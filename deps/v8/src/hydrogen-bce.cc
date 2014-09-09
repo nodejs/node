@@ -47,10 +47,7 @@ class BoundsCheckKey : public ZoneObject {
     } else if (check->index()->IsSub()) {
       HSub* index = HSub::cast(check->index());
       is_sub = true;
-      if (index->left()->IsConstant()) {
-        constant = HConstant::cast(index->left());
-        index_base = index->right();
-      } else if (index->right()->IsConstant()) {
+      if (index->right()->IsConstant()) {
         constant = HConstant::cast(index->right());
         index_base = index->left();
       }

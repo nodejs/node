@@ -1087,20 +1087,13 @@ class Heap {
   static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kLumpOfMemory;
 
   // The executable size has to be a multiple of Page::kPageSize.
-  static const int kMaxExecutableSizeLowMemoryDevice = 128 * kLumpOfMemory;
-  static const int kMaxExecutableSizeMediumMemoryDevice = 256 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHighMemoryDevice = 512 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+  static const int kMaxExecutableSizeLowMemoryDevice = 96 * kLumpOfMemory;
+  static const int kMaxExecutableSizeMediumMemoryDevice = 192 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHighMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHugeMemoryDevice = 256 * kLumpOfMemory;
 
-  intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size) {
-    intptr_t limit = FLAG_stress_compaction
-        ? old_gen_size + old_gen_size / 10
-        : old_gen_size * old_space_growing_factor_;
-    limit = Max(limit, kMinimumOldGenerationAllocationLimit);
-    limit += new_space_.Capacity();
-    intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
-    return Min(limit, halfway_to_the_max);
-  }
+  intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size,
+                                        int freed_global_handles);
 
   // Indicates whether inline bump-pointer allocation has been disabled.
   bool inline_allocation_disabled() { return inline_allocation_disabled_; }
@@ -1495,11 +1488,6 @@ class Heap {
   intptr_t max_executable_size_;
   intptr_t maximum_committed_;
 
-  // The old space growing factor is used in the old space heap growing
-  // strategy. The new old space size is the current old space size times
-  // old_space_growing_factor_.
-  int old_space_growing_factor_;
-
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
   int survived_since_last_expansion_;
@@ -1571,9 +1559,6 @@ class Heap {
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
   intptr_t old_generation_allocation_limit_;
-
-  // Used to adjust the limits that control the timing of the next GC.
-  intptr_t size_of_old_gen_at_last_old_space_gc_;
 
   // Limit on the amount of externally allocated memory allowed
   // between global GCs. If reached a global GC is forced.
