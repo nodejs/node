@@ -1351,20 +1351,10 @@ template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
-  if (sizeof(*dest) == sizeof(*src)) {
-    if (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest))) {
-      MemCopy(dest, src, chars * sizeof(*dest));
-      return;
-    }
-    // Number of characters in a uintptr_t.
-    static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
-    DCHECK(dest + kStepSize > dest);  // Check for overflow.
-    while (dest + kStepSize <= limit) {
-      *reinterpret_cast<uintptr_t*>(dest) =
-          *reinterpret_cast<const uintptr_t*>(src);
-      dest += kStepSize;
-      src += kStepSize;
-    }
+  if ((sizeof(*dest) == sizeof(*src)) &&
+      (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
+    MemCopy(dest, src, chars * sizeof(*dest));
+    return;
   }
 #endif
   while (dest < limit) {
