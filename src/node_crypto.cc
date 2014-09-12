@@ -81,6 +81,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::External;
 using v8::False;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -285,6 +286,11 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t,
                             "getIssuer",
                             SecureContext::GetCertificate<false>);
+
+  NODE_SET_EXTERNAL(
+      t->PrototypeTemplate(),
+      "_external",
+      CtxGetter);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"),
               t->GetFunction());
@@ -956,6 +962,16 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SecureContext::CtxGetter(Local<String> property,
+                              const PropertyCallbackInfo<Value>& info) {
+  HandleScope scope(info.GetIsolate());
+
+  SSL_CTX* ctx = Unwrap<SecureContext>(info.Holder())->ctx_;
+  Local<External> ext = External::New(info.GetIsolate(), ctx);
+  info.GetReturnValue().Set(ext);
+}
+
+
 template <bool primary>
 void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
@@ -1008,6 +1024,11 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
   NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
 #endif  // OPENSSL_NPN_NEGOTIATED
+
+  NODE_SET_EXTERNAL(
+      t->PrototypeTemplate(),
+      "_external",
+      SSLGetter);
 }
 
 
@@ -1844,6 +1865,17 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
   }
 }
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
+
+
+template <class Base>
+void SSLWrap<Base>::SSLGetter(Local<String> property,
+                        const PropertyCallbackInfo<Value>& info) {
+  HandleScope scope(info.GetIsolate());
+
+  SSL* ssl = Unwrap<Base>(info.Holder())->ssl_;
+  Local<External> ext = External::New(info.GetIsolate(), ssl);
+  info.GetReturnValue().Set(ext);
+}
 
 
 void Connection::OnClientHelloParseEnd(void* arg) {
