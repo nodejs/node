@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem
+all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem
 
 
 #
@@ -132,6 +132,31 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf
 		-out ca2-crl.pem \
 		-passin 'pass:password'
 
+#
+# agent5 is signed by ca2 (client cert)
+#
+
+agent5-key.pem:
+	openssl genrsa -out agent5-key.pem 1024
+
+agent5-csr.pem: agent5.cnf agent5-key.pem
+	openssl req -new -config agent5.cnf -key agent5-key.pem -out agent5-csr.pem
+
+agent5-cert.pem: agent5-csr.pem ca2-cert.pem ca2-key.pem
+	openssl x509 -req \
+		-days 9999 \
+		-passin "pass:password" \
+		-in agent5-csr.pem \
+		-CA ca2-cert.pem \
+		-CAkey ca2-key.pem \
+		-CAcreateserial \
+		-extfile agent5.cnf \
+		-extensions ext_key_usage \
+		-out agent5-cert.pem
+
+agent5-verify: agent5-cert.pem ca2-cert.pem
+	openssl verify -CAfile ca2-cert.pem agent5-cert.pem
+
 ec-key.pem:
 	openssl ecparam -genkey -out ec-key.pem -name prime256v1
 
@@ -157,7 +182,7 @@ dh2048.pem:
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial
 
-test: agent1-verify agent2-verify agent3-verify agent4-verify
+test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify
 
 
-.PHONY: all clean test agent1-verify agent2-verify agent3-verify agent4-verify
+.PHONY: all clean test agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify
