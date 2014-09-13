@@ -69,7 +69,7 @@ static const char CERTIFICATE_PFX[] =  "-----BEGIN CERTIFICATE-----";
 static const int CERTIFICATE_PFX_LEN = sizeof(CERTIFICATE_PFX) - 1;
 
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
-                                 | ASN1_STRFLGS_ESC_MSB
+                                 | ASN1_STRFLGS_UTF8_CONVERT
                                  | XN_FLAG_SEP_MULTILINE
                                  | XN_FLAG_FN_SN;
 
@@ -1130,7 +1130,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                          X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
     info->Set(env->subject_string(),
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
   }
   (void) BIO_reset(bio);
 
@@ -1138,7 +1139,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
     info->Set(env->issuer_string(),
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
   }
   (void) BIO_reset(bio);
 
@@ -1162,7 +1164,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
     BIO_get_mem_ptr(bio, &mem);
     info->Set(keys[i],
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
 
     (void) BIO_reset(bio);
   }
@@ -1176,13 +1179,15 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       BN_print(bio, rsa->n);
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->modulus_string(),
-                OneByteString(env->isolate(), mem->data, mem->length));
+                String::NewFromUtf8(env->isolate(), mem->data,
+                                    String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
       BN_print(bio, rsa->e);
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
-                OneByteString(env->isolate(), mem->data, mem->length));
+                String::NewFromUtf8(env->isolate(), mem->data,
+                                    String::kNormalString, mem->length));
       (void) BIO_reset(bio);
   }
 
@@ -1198,13 +1203,15 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   ASN1_TIME_print(bio, X509_get_notBefore(cert));
   BIO_get_mem_ptr(bio, &mem);
   info->Set(env->valid_from_string(),
-            OneByteString(env->isolate(), mem->data, mem->length));
+            String::NewFromUtf8(env->isolate(), mem->data,
+                                String::kNormalString, mem->length));
   (void) BIO_reset(bio);
 
   ASN1_TIME_print(bio, X509_get_notAfter(cert));
   BIO_get_mem_ptr(bio, &mem);
   info->Set(env->valid_to_string(),
-            OneByteString(env->isolate(), mem->data, mem->length));
+            String::NewFromUtf8(env->isolate(), mem->data,
+                                String::kNormalString, mem->length));
   BIO_free_all(bio);
 
   unsigned int md_size, i;
