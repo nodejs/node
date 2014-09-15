@@ -347,6 +347,7 @@ typedef void (*addon_context_register_func)(
     void* priv);
 
 #define NM_F_BUILTIN 0x01
+#define NM_F_LINKED  0x02
 
 struct node_module {
   int nm_version;
@@ -361,6 +362,7 @@ struct node_module {
 };
 
 node_module* get_builtin_module(const char *name);
+node_module* get_linked_module(const char *name);
 
 extern "C" NODE_EXTERN void node_module_register(void* mod);
 
