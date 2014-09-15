@@ -9026,36 +9026,7 @@ template <typename Char>
 static inline bool CompareRawStringContents(const Char* const a,
                                             const Char* const b,
                                             int length) {
-  int i = 0;
-#ifndef V8_HOST_CAN_READ_UNALIGNED
-  // If this architecture isn't comfortable reading unaligned ints
-  // then we have to check that the strings are aligned before
-  // comparing them blockwise.
-  const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
-  uintptr_t pa_addr = reinterpret_cast<uintptr_t>(a);
-  uintptr_t pb_addr = reinterpret_cast<uintptr_t>(b);
-  if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
-#endif
-    const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
-    int endpoint = length - kStepSize;
-    // Compare blocks until we reach near the end of the string.
-    for (; i <= endpoint; i += kStepSize) {
-      uint32_t wa = *reinterpret_cast<const uint32_t*>(a + i);
-      uint32_t wb = *reinterpret_cast<const uint32_t*>(b + i);
-      if (wa != wb) {
-        return false;
-      }
-    }
-#ifndef V8_HOST_CAN_READ_UNALIGNED
-  }
-#endif
-  // Compare the remaining characters that didn't fit into a block.
-  for (; i < length; i++) {
-    if (a[i] != b[i]) {
-      return false;
-    }
-  }
-  return true;
+  return CompareChars(a, b, length) == 0;
 }
 
 

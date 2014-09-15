@@ -24,15 +24,6 @@ RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 
-bool RegExpMacroAssembler::CanReadUnaligned() {
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  return true;
-#else
-  return false;
-#endif
-}
-
-
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Zone* zone)

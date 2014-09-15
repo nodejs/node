@@ -24,14 +24,10 @@ SnapshotByteSource::~SnapshotByteSource() { }
 
 int32_t SnapshotByteSource::GetUnalignedInt() {
   DCHECK(position_ < length_);  // Require at least one byte left.
-#if defined(V8_HOST_CAN_READ_UNALIGNED) &&  __BYTE_ORDER == __LITTLE_ENDIAN
-  int32_t answer = *reinterpret_cast<const int32_t*>(data_ + position_);
-#else
   int32_t answer = data_[position_];
   answer |= data_[position_ + 1] << 8;
   answer |= data_[position_ + 2] << 16;
   answer |= data_[position_ + 3] << 24;
-#endif
   return answer;
 }
 

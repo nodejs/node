@@ -48,7 +48,7 @@ class RegExpMacroAssembler {
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack() = 0;
-  virtual bool CanReadUnaligned();
+  virtual bool CanReadUnaligned() = 0;
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
   // Continues execution from the position pushed on the top of the backtrack
