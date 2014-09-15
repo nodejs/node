@@ -131,8 +131,10 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
 static bool v8_is_profiling = false;
+static bool node_is_initialized = false;
 static node_module* modpending;
 static node_module* modlist_builtin;
+static node_module* modlist_linked;
 static node_module* modlist_addon;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -2051,8 +2053,16 @@ extern "C" void node_module_register(void* m) {
   if (mp->nm_flags & NM_F_BUILTIN) {
     mp->nm_link = modlist_builtin;
     modlist_builtin = mp;
+  } else if (!node_is_initialized) {
+    // "Linked" modules are included as part of the node project.
+    // Like builtins they are registered *before* node::Init runs.
+    mp->nm_flags = NM_F_LINKED;
+    mp->nm_link = modlist_linked;
+    modlist_linked = mp;
   } else {
-    assert(modpending == NULL);
+    // Once node::Init was called we can only register dynamic modules.
+    // See DLOpen.
+    CHECK_NE(modpending, NULL);
     modpending = mp;
   }
 }
@@ -2067,6 +2077,18 @@ struct node_module* get_builtin_module(const char* name) {
 
   assert(mp == NULL || (mp->nm_flags & NM_F_BUILTIN) != 0);
   return (mp);
+}
+
+struct node_module* get_linked_module(const char* name) {
+  struct node_module* mp;
+
+  for (mp = modlist_linked; mp != NULL; mp = mp->nm_link) {
+    if (strcmp(mp->nm_modname, name) == 0)
+      break;
+  }
+
+  CHECK(mp == NULL || (mp->nm_flags & NM_F_LINKED) != 0);
+  return mp;
 }
 
 typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
@@ -2275,6 +2297,46 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(exports);
 }
 
+static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+
+  Local<String> module = args[0]->ToString();
+
+  Local<Object> cache = env->binding_cache_object();
+  Local<Value> exports_v = cache->Get(module);
+
+  if (exports_v->IsObject())
+    return args.GetReturnValue().Set(exports_v.As<Object>());
+
+  node::Utf8Value module_v(module);
+  node_module* mod = get_linked_module(*module_v);
+
+  if (mod == NULL) {
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "No such module was linked: %s",
+             *module_v);
+    return env->ThrowError(errmsg);
+  }
+
+  Local<Object> exports = Object::New(env->isolate());
+
+  if (mod->nm_context_register_func != NULL) {
+    mod->nm_context_register_func(exports,
+                                  module,
+                                  env->context(),
+                                  mod->nm_priv);
+  } else if (mod->nm_register_func != NULL) {
+    mod->nm_register_func(exports, module, mod->nm_priv);
+  } else {
+    return env->ThrowError("Linked module has no declared entry point.");
+  }
+
+  cache->Set(module, exports);
+
+  args.GetReturnValue().Set(exports);
+}
 
 static void ProcessTitleGetter(Local<String> property,
                                const PropertyCallbackInfo<Value>& info) {
@@ -2816,6 +2878,7 @@ void SetupProcessObject(Environment* env,
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);
+  NODE_SET_METHOD(process, "_linkedBinding", LinkedBinding);
 
   NODE_SET_METHOD(process, "_setupAsyncListener", SetupAsyncListener);
   NODE_SET_METHOD(process, "_setupNextTick", SetupNextTick);
@@ -3724,6 +3787,7 @@ int Start(int argc, char** argv) {
 
   int code;
   V8::Initialize();
+  node_is_initialized = true;
   {
     Locker locker(node_isolate);
     Isolate::Scope isolate_scope(node_isolate);
