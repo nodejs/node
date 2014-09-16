@@ -3984,6 +3984,8 @@ Handle<Value> PBKDF2(const Arguments& args) {
   if (args[4]->IsFunction()) {
     req->obj = Persistent<Object>::New(Object::New());
     req->obj->Set(String::New("ondone"), args[4]);
+    SetActiveDomain(req->obj);
+
     uv_queue_work(uv_default_loop(),
                   &req->work_req,
                   EIO_PBKDF2,
@@ -4111,6 +4113,7 @@ Handle<Value> RandomBytes(const Arguments& args) {
   if (args[1]->IsFunction()) {
     req->obj_ = Persistent<Object>::New(Object::New());
     req->obj_->Set(String::New("ondone"), args[1]);
+    SetActiveDomain(req->obj_);
 
     uv_queue_work(uv_default_loop(),
                   &req->work_req_,
