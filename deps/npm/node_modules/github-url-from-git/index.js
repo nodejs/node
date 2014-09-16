@@ -21,7 +21,7 @@ function re(opts) {
   var baseUrls = ['gist.github.com', 'github.com'].concat(opts.extraBaseUrls || []);
   // build regex from whitelist.
   return new RegExp(
-    /^(?:https?:\/\/|git:\/\/)?(?:[^@]+@)?/.source +
+    /^(?:https?:\/\/|git:\/\/|git\+ssh:\/\/|git\+https:\/\/)?(?:[^@]+@)?/.source +
     '(' + baseUrls.join('|') + ')' +
     /[:\/]([^\/]+\/[^\/]+?|[0-9]+)$/.source
   );

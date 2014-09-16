@@ -24,7 +24,7 @@ function ForeverAgent(options) {
       self.freeSockets[name].push(socket)
       
       // if an error happens while we don't use the socket anyway, meh, throw the socket away
-      function onIdleError() {
+      var onIdleError = function() {
         socket.destroy()
       }
       socket._onIdleError = onIdleError

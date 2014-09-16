@@ -11,14 +11,14 @@
 
 <h1><a href="../cli/npm-version.html">npm-version</a></h1> <p>Bump a package version</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm version [&lt;newversion&gt; | major | minor | patch]
+<pre><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Run this in a package directory to bump the version and write the new
 data back to the package.json file.</p>
-<p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a valid
-second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, or
-&quot;major&quot;). In the second case, the existing version will be incremented
-by 1 in the specified field.</p>
+<p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a
+valid second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, &quot;major&quot;,
+&quot;prepatch&quot;, &quot;preminor&quot;, &quot;premajor&quot;, &quot;prerelease&quot;). In the second case,
+the existing version will be incremented by 1 in the specified field.</p>
 <p>If run in a git repo, it will also create a version commit and tag, and
 fail if the repo is not clean.</p>
 <p>If supplied with <code>--message</code> (shorthand: <code>-m</code>) config option, npm will
@@ -55,5 +55,5 @@ Enter passphrase:
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-version &mdash; npm@1.4.23</p>
+<p id="footer">npm-version &mdash; npm@1.4.28</p>
 

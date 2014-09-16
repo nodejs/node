@@ -178,6 +178,39 @@ var tap = require("tap")
         fill: '' } ]
 
     , [ 'entry',
+      { path: 'fixtures/dir/',
+        mode: 488,
+        uid: uid,
+        gid: gid,
+        size: 0,
+        type: '5',
+        linkpath: '',
+        ustar: 'ustar\u0000',
+        ustarver: '00',
+        uname: '',
+        gname: '',
+        devmaj: 0,
+        devmin: 0,
+        fill: '' } ]
+
+    , [ 'entry',
+      { path: 'fixtures/dir/sub/',
+        mode: 488,
+        uid: uid,
+        gid: gid,
+        size: 0,
+        type: '5',
+        linkpath: '',
+        ustar: 'ustar\u0000',
+        ustarver: '00',
+        uname: '',
+        gname: '',
+        devmaj: 0,
+        devmin: 0,
+        fill: '' } ]
+
+
+    , [ 'entry',
       { path: 'fixtures/foo.js',
         mode: 420,
         uid: uid,
@@ -868,11 +901,15 @@ function runTest (t, doGH) {
     }
     t.equal(ev, wanted[0], "event type should be "+wanted[0])
 
-    // if (ev !== wanted[0] || e.path !== wanted[1].path) {
-    //   console.error(wanted)
-    //   console.error([ev, e.props])
-    //   throw "break"
-    // }
+    if (ev !== wanted[0] || e.path !== wanted[1].path) {
+      console.error("wanted", wanted)
+      console.error([ev, e.props])
+      e.on("end", function () {
+        console.error(e.fields)
+        throw "break"
+      })
+    }
+
 
     t.has(e.props, wanted[1], "properties "+wanted[1].path)
     if (wanted[2]) {

@@ -38,6 +38,16 @@ describe('parse(url)', function(){
     parse(url).should.eql('https://github.com/bcoe/thumbd');
   })
 
+  it('should parse git+https://github.com/bcoe/thumbd.git', function() {
+    var url = 'git+https://github.com/bcoe/thumbd.git';
+    parse(url).should.eql('https://github.com/bcoe/thumbd');
+  })
+
+  it('should parse git+ssh://github.com/bcoe/thumbd.git', function() {
+    var url = 'git+ssh://github.com/bcoe/thumbd.git';
+    parse(url).should.eql('https://github.com/bcoe/thumbd');
+  })
+
   it('should parse https://EastCloud@github.com/EastCloud/node-websockets.git', function() {
     var url = 'https://EastCloud@github.com/EastCloud/node-websockets.git';
     parse(url).should.eql('https://github.com/EastCloud/node-websockets');

@@ -70,9 +70,9 @@ case $dest in
   *.[1357])
     ./node_modules/.bin/ronn --roff $src \
     | sed "s|@VERSION@|$version|g" \
-    | perl -pi -e 's/(npm\\-)?([^\(]*)\(1\)/npm help \2/g' \
-    | perl -pi -e 's/(npm\\-)?([^\(]*)\([57]\)/npm help \3 \2/g' \
-    | perl -pi -e 's/(npm\\-)?([^\(]*)\(3\)/npm apihelp \2/g' \
+    | perl -pi -e 's/(npm\\-)?([a-zA-Z\\\.\-]*)\(1\)/npm help \2/g' \
+    | perl -pi -e 's/(npm\\-)?([a-zA-Z\\\.\-]*)\(([57])\)/npm help \3 \2/g' \
+    | perl -pi -e 's/(npm\\-)?([a-zA-Z\\\.\-]*)\(3\)/npm apihelp \2/g' \
     | perl -pi -e 's/npm\(1\)/npm help npm/g' \
     | perl -pi -e 's/npm\(3\)/npm apihelp npm/g' \
     > $dest

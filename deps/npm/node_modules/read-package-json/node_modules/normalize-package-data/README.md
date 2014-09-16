@@ -68,7 +68,7 @@ If the supplied data has an invalid name or version vield, `normalizeData` will 
 * If `bundledDependencies` field (a typo) exists and `bundleDependencies` field does not, `bundledDependencies` will get renamed to `bundleDependencies`.
 * If the value of any of the dependencies fields  (`dependencies`, `devDependencies`, `optionalDependencies`) is a string, it gets converted into an object with familiar `name=>value` pairs.
 * The values in `optionalDependencies` get added to `dependencies`. The `optionalDependencies` array is left untouched.
-* If `description` field does not exists, but `readme` field does, then (more or less) the first paragraph of text that's found in the readme is taken as value for `description`.
+* If `description` field does not exist, but `readme` field does, then (more or less) the first paragraph of text that's found in the readme is taken as value for `description`.
 * If `repository` field is a string, it will become an object with `url` set to the original string value, and `type` set to `"git"`.
 * If `repository.url` is not a valid url, but in the style of "[owner-name]/[repo-name]", `repository.url` will be set to git://github.com/[owner-name]/[repo-name]
 * If `bugs` field is a string, the value of `bugs` field is changed into an object with `url` set to the original string value.

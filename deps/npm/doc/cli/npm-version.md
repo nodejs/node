@@ -3,17 +3,17 @@ npm-version(1) -- Bump a package version
 
 ## SYNOPSIS
 
-    npm version [<newversion> | major | minor | patch]
+    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 
 ## DESCRIPTION
 
 Run this in a package directory to bump the version and write the new
 data back to the package.json file.
 
-The `newversion` argument should be a valid semver string, *or* a valid
-second argument to semver.inc (one of "patch", "minor", or
-"major"). In the second case, the existing version will be incremented
-by 1 in the specified field.
+The `newversion` argument should be a valid semver string, *or* a
+valid second argument to semver.inc (one of "patch", "minor", "major",
+"prepatch", "preminor", "premajor", "prerelease"). In the second case,
+the existing version will be incremented by 1 in the specified field.
 
 If run in a git repo, it will also create a version commit and tag, and
 fail if the repo is not clean.

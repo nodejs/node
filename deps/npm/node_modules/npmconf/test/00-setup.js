@@ -15,15 +15,18 @@ process.env.npm_config_userconfig = exports.userconfig
 process.env.npm_config_other_env_thing = 1000
 process.env.random_env_var = 'asdf'
 process.env.npm_config__underbar_env_thing = 'underful'
+process.env.NPM_CONFIG_UPPERCASE_ENV_THING = 42
 
 exports.envData = {
   userconfig: exports.userconfig,
   '_underbar-env-thing': 'underful',
+  'uppercase-env-thing': '42',
   'other-env-thing': '1000'
 }
 exports.envDataFix = {
   userconfig: exports.userconfig,
   '_underbar-env-thing': 'underful',
+  'uppercase-env-thing': 42,
   'other-env-thing': 1000,
 }
 

@@ -62,6 +62,7 @@ CombinedStream.prototype.append = function(stream) {
 CombinedStream.prototype.pipe = function(dest, options) {
   Stream.prototype.pipe.call(this, dest, options);
   this.resume();
+  return dest;
 };
 
 CombinedStream.prototype._getNext = function() {

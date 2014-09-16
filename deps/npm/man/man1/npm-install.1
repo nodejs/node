@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-INSTALL" "1" "July 2014" "" ""
+.TH "NPM\-INSTALL" "1" "September 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-install\fR \-\- Install a package
@@ -24,7 +24,7 @@ npm i (with any of the previous argument usage)
 .SH "DESCRIPTION"
 This command installs a package, and any packages that it depends on\. If the
 package has a shrinkwrap file, the installation of dependencies will be driven
-npm help by that\. See npm\-shrinkwrap\.
+by that\. See npm help shrinkwrap\.
 .
 .P
 A \fBpackage\fR is:
@@ -39,7 +39,7 @@ b) a gzipped tarball containing (a)
 c) a url that resolves to (b)
 .
 .IP "\(bu" 4
-d) a \fB<name>@<version>\fR that is published on the registry (npm help  see \fBnpm\-registry\fR) with (c)
+d) a \fB<name>@<version>\fR that is published on the registry (see npm help 7 \fBnpm\-registry\fR) with (c)
 .
 .IP "\(bu" 4
 e) a \fB<name>@<tag>\fR that points to (d)
@@ -125,7 +125,7 @@ Example:
 \fBnpm install <name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fR:
 .
 .IP
-Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config\. (npm help  See \fBnpm\-config\fR\|\.)
+Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config\. (See npm help 7 \fBnpm\-config\fR\|\.)
 .
 .IP
 In most cases, this will install the latest version
@@ -222,7 +222,7 @@ Example:
 .
 .IP
 Install a version of the package matching the specified version range\.  This
-npm help  will follow the same rules for resolving dependencies described in \fBpackage\.json\fR\|\.
+will follow the same rules for resolving dependencies described in npm help 5 \fBpackage\.json\fR\|\.
 .
 .IP
 Note that most version ranges must be put in quotes so that your shell will
@@ -298,7 +298,7 @@ npm install sax \-\-force
 .
 .P
 The \fB\-\-global\fR argument will cause npm to install the package globally
-npm help  rather than locally\.  See \fBnpm\-folders\fR\|\.
+rather than locally\.  See npm help 5 \fBnpm\-folders\fR\|\.
 .
 .P
 The \fB\-\-link\fR argument will cause npm to link global installs into the
@@ -321,7 +321,7 @@ The \fB\-\-nodedir=/path/to/node/source\fR argument will allow npm to find the
 node source code so that npm can compile native modules\.
 .
 .P
-npm help  See \fBnpm\-config\fR\|\.  Many of the configuration params have some
+See npm help 7 \fBnpm\-config\fR\|\.  Many of the configuration params have some
 effect on installation, since that\'s most of what npm does\.
 .
 .SH "ALGORITHM"
@@ -365,7 +365,7 @@ That is, the dependency from B to C is satisfied by the fact that A
 already caused C to be installed at a higher level\.
 .
 .P
-npm help  See npm\-folders for a more detailed description of the specific
+See npm help 5 folders for a more detailed description of the specific
 folder structures that npm creates\.
 .
 .SS "Limitations of npm&#39;s Install Algorithm"
@@ -399,7 +399,7 @@ affects a real use\-case, it will be investigated\.
 .SH "SEE ALSO"
 .
 .IP "\(bu" 4
-npm help  folders
+npm help 5 folders
 .
 .IP "\(bu" 4
 npm help update
@@ -411,7 +411,7 @@ npm help link
 npm help rebuild
 .
 .IP "\(bu" 4
-npm help  scripts
+npm help 7 scripts
 .
 .IP "\(bu" 4
 npm help build
@@ -420,13 +420,13 @@ npm help build
 npm help config
 .
 .IP "\(bu" 4
-npm help  config
+npm help 7 config
 .
 .IP "\(bu" 4
-npm help  npmrc
+npm help 5 npmrc
 .
 .IP "\(bu" 4
-npm help  registry
+npm help 7 registry
 .
 .IP "\(bu" 4
 npm help tag

@@ -18,7 +18,7 @@ function testOutput (t, command, er, code, stdout, stderr) {
   if (stderr)
     throw new Error('npm ' + command + ' stderr: ' + stderr.toString())
 
-  stdout = stdout.trim().split('\n')
+  stdout = stdout.trim().split(/\n|\r/)
   stdout = stdout[stdout.length - 1]
   t.equal(stdout, command)
   t.end()

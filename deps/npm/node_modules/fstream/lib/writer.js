@@ -246,6 +246,9 @@ function endUtimes (me, want, current, path, cb) {
 Writer.prototype._finish = function () {
   var me = this
 
+  if (me._finishing) return
+  me._finishing = true
+
   // console.error(" W Finish", me._path, me.size)
 
   // set up all the things.
