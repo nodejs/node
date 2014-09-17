@@ -22,12 +22,13 @@
 var spawn = require('child_process').spawn,
   assert = require('assert'),
   windows = (process.platform === 'win32'),
-  cmd = (windows) ? 'ls' : 'dir',
+  cmd = (windows) ? 'dir' : 'ls',
+  invalidcmd = (windows) ? 'ls' : 'dir',
   errors = 0;
 
 try {
   // Ensure this throws a TypeError
-  var child = spawn(cmd, 'this is not an array');
+  var child = spawn(invalidcmd, 'this is not an array');
 
   child.on('error', function (err) {
     errors++;
@@ -36,6 +37,11 @@ try {
 } catch (e) {
   assert.equal(e instanceof TypeError, true);
 }
+
+// verify that args argument is optional
+assert.doesNotThrow(function() {
+  spawn(cmd, {});
+});
 
 process.on('exit', function() {
   assert.equal(errors, 0);
