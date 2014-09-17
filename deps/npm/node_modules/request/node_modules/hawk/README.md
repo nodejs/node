@@ -548,11 +548,9 @@ and suggestions.
 
 ### Where can I find **Hawk** implementations in other languages?
 
-**Hawk**'s only reference implementation is provided in JavaScript as a node.js module. However, others are actively porting it to other
-platforms. There is already a [PHP](https://github.com/alexbilbie/PHP-Hawk),
-[.NET](https://github.com/pcibraro/hawknet), and [JAVA](https://github.com/wealdtech/hawk) libraries available. The full list
-is maintained [here](https://github.com/hueniverse/hawk/issues?labels=port). Please add an issue if you are working on another
-port. A cross-platform test-suite is in the works.
+**Hawk**'s only reference implementation is provided in JavaScript as a node.js module. However, it has been ported to other languages.
+The full list is maintained [here](https://github.com/hueniverse/hawk/issues?labels=port&state=closed). Please add an issue if you are
+working on another port. A cross-platform test-suite is in the works.
 
 ### Why isn't the algorithm part of the challenge or dynamically negotiated?
 

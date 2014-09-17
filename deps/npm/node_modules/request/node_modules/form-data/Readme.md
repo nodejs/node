@@ -149,6 +149,18 @@ form.submit({
 });
 ```
 
+In case you need to also send custom HTTP headers with the POST request, you can use the `headers` key in first parameter of `form.submit()`:
+
+``` javascript
+form.submit({
+  host: 'example.com',
+  path: '/surelynot.php',
+  headers: {'x-test-header': 'test-header-value'}
+}, function(err, res) {
+  console.log(res.statusCode);
+});
+```
+
 ## Notes
 
 - ```getLengthSync()``` method DOESN'T calculate length for streams, use ```knownLength``` options as workaround.

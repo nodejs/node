@@ -1,25 +1,23 @@
 var tap = require("tap")
 var normalize = require("../lib/normalize")
-var path = require("path")
 var fs = require("fs")
-var _ = require("underscore")
 var async = require("async")
 
-var data, clonedData
+var data
 var warn
 
 tap.test("consistent normalization", function(t) {
-  entries = [
+  var entries = [
     'read-package-json.json',
     'http-server.json',
     "movefile.json",
     "node-module_exist.json"
   ]
-  verifyConsistency = function(entryName, next) {
-    warn = function(msg) { 
+  var verifyConsistency = function(entryName, next) {
+    warn = function(msg) {
       // t.equal("",msg) // uncomment to have some kind of logging of warnings
     }
-    filename = __dirname + "/fixtures/" + entryName
+    var filename = __dirname + "/fixtures/" + entryName
     fs.readFile(filename, function(err, contents) {
       if (err) return next(err)
       data = JSON.parse(contents.toString())

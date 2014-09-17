@@ -26,7 +26,8 @@ function asyncMap () {
     , a = l * n
   if (!a) return cb_(null, [])
   function cb (er) {
-    if (errState) return
+    if (er && !errState) errState = er
+
     var argLen = arguments.length
     for (var i = 1; i < argLen; i ++) if (arguments[i] !== undefined) {
       data[i - 1] = (data[i - 1] || []).concat(arguments[i])
@@ -43,10 +44,7 @@ function asyncMap () {
       })
     }
 
-    if (er || --a === 0) {
-      errState = er
-      cb_.apply(null, [errState].concat(data))
-    }
+    if (--a === 0) cb_.apply(null, [errState].concat(data))
   }
   // expect the supplied cb function to be called
   // "n" times for each thing in the array.

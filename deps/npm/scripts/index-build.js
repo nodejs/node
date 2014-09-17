@@ -35,15 +35,16 @@ function output (files) {
     "==============================================\n")
 
   writeLines(files, 0)
-  writeLines(files, 1, "Command Line Documentation")
-  writeLines(files, 3, "API Documentation")
-  writeLines(files, 5, "Files")
-  writeLines(files, 7, "Misc")
+  writeLines(files, 1, "Command Line Documentation", "Using npm on the command line")
+  writeLines(files, 3, "API Documentation", "Using npm in your Node programs")
+  writeLines(files, 5, "Files", "File system structures npm uses")
+  writeLines(files, 7, "Misc", "Various other bits and bobs")
 }
 
-function writeLines (files, sxn, heading) {
-  if (heading)
-    console.log("# %s\n", heading)
+function writeLines (files, sxn, heading, desc) {
+  if (heading) {
+    console.log("## %s\n\n%s\n", heading, desc)
+  }
   files.filter(function (f) {
     return f[0] === sxn
   }).forEach(writeLine)
@@ -57,6 +58,6 @@ function writeLine (sd) {
 
   var content = fs.readFileSync(doc, "utf8").split("\n")[0].split("-- ")[1]
 
-  console.log("## %s(%d)\n", d, sxn)
+  console.log("### %s(%d)\n", d, sxn)
   console.log(content + "\n")
 }

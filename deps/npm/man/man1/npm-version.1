@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-VERSION" "1" "July 2014" "" ""
+.TH "NPM\-VERSION" "1" "September 2014" "" ""
 .
 .SH "NAME"
 \fBnpm-version\fR \-\- Bump a package version
@@ -9,7 +9,7 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm version [<newversion> | major | minor | patch]
+npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 .
 .fi
 .
@@ -18,10 +18,10 @@ Run this in a package directory to bump the version and write the new
 data back to the package\.json file\.
 .
 .P
-The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a valid
-second argument to semver\.inc (one of "patch", "minor", or
-"major")\. In the second case, the existing version will be incremented
-by 1 in the specified field\.
+The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a
+valid second argument to semver\.inc (one of "patch", "minor", "major",
+"prepatch", "preminor", "premajor", "prerelease")\. In the second case,
+the existing version will be incremented by 1 in the specified field\.
 .
 .P
 If run in a git repo, it will also create a version commit and tag, and
@@ -66,10 +66,10 @@ Enter passphrase:
 npm help init
 .
 .IP "\(bu" 4
-npm help  package\.json
+npm help 5 package\.json
 .
 .IP "\(bu" 4
-npm help  semver
+npm help 7 semver
 .
 .IP "" 0
 

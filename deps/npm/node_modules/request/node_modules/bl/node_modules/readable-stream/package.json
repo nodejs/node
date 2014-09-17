@@ -1,0 +1,69 @@
+{
+  "name": "readable-stream",
+  "version": "1.0.31",
+  "description": "Streams2, a user-land copy of the stream library from Node.js v0.10.x",
+  "main": "readable.js",
+  "dependencies": {
+    "core-util-is": "~1.0.0",
+    "isarray": "0.0.1",
+    "string_decoder": "~0.10.x",
+    "inherits": "~2.0.1"
+  },
+  "devDependencies": {
+    "tap": "~0.2.6"
+  },
+  "scripts": {
+    "test": "tap test/simple/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/readable-stream"
+  },
+  "keywords": [
+    "readable",
+    "stream",
+    "pipe"
+  ],
+  "browser": {
+    "util": false
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/isaacs/readable-stream/issues"
+  },
+  "homepage": "https://github.com/isaacs/readable-stream",
+  "_id": "readable-stream@1.0.31",
+  "_shasum": "8f2502e0bc9e3b0da1b94520aabb4e2603ecafae",
+  "_from": "readable-stream@~1.0.26",
+  "_npmVersion": "1.4.9",
+  "_npmUser": {
+    "name": "rvagg",
+    "email": "rod@vagg.org"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "tootallnate",
+      "email": "nathan@tootallnate.net"
+    },
+    {
+      "name": "rvagg",
+      "email": "rod@vagg.org"
+    }
+  ],
+  "dist": {
+    "shasum": "8f2502e0bc9e3b0da1b94520aabb4e2603ecafae",
+    "tarball": "http://registry.npmjs.org/readable-stream/-/readable-stream-1.0.31.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-1.0.31.tgz",
+  "readme": "ERROR: No README data found!"
+}

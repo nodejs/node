@@ -109,3 +109,10 @@ exports.calculateTsMac = function (ts, credentials) {
     return hmac.digest('base64');
 };
 
+
+exports.timestampMessage = function (credentials, localtimeOffsetMsec) {
+
+    var now = Math.floor((Utils.now() + (localtimeOffsetMsec || 0)) / 1000);
+    var tsm = exports.calculateTsMac(now, credentials);
+    return { ts: now, tsm: tsm };
+};

@@ -21,6 +21,13 @@ tap.test("brace expansion", function (t) {
         , "a4b"
         , "a5b" ] ]
     , [ "a{b}c", ["a{b}c"] ]
+    , [ "a{00..05}b"
+      , ["a00b"
+        ,"a01b"
+        ,"a02b"
+        ,"a03b"
+        ,"a04b"
+        ,"a05b" ] ]
   ].forEach(function (tc) {
     var p = tc[0]
       , expect = tc[1]

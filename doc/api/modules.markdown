@@ -161,7 +161,7 @@ parent directory of the current module, and adds `/node_modules`, and
 attempts to load the module from that location.
 
 If it is not found there, then it moves to the parent directory, and so
-on, until the root of the tree is reached.
+on, until the root of the file system is reached.
 
 For example, if the file at `'/home/ry/projects/foo.js'` called
 `require('bar.js')`, then node would look in the following locations, in
@@ -394,7 +394,8 @@ in pseudocode of what require.resolve does:
        b. let M = X + (json main field)
        c. LOAD_AS_FILE(M)
     2. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
-    3. If X/index.node is a file, load X/index.node as binary addon.  STOP
+    3. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+    4. If X/index.node is a file, load X/index.node as binary addon.  STOP
 
     LOAD_NODE_MODULES(X, START)
     1. let DIRS=NODE_MODULES_PATHS(START)
@@ -404,15 +405,14 @@ in pseudocode of what require.resolve does:
 
     NODE_MODULES_PATHS(START)
     1. let PARTS = path split(START)
-    2. let ROOT = index of first instance of "node_modules" in PARTS, or 0
-    3. let I = count of PARTS - 1
-    4. let DIRS = []
-    5. while I > ROOT,
+    2. let I = count of PARTS - 1
+    3. let DIRS = []
+    4. while I >= 0,
        a. if PARTS[I] = "node_modules" CONTINUE
        c. DIR = path join(PARTS[0 .. I] + "node_modules")
        b. DIRS = DIRS + DIR
        c. let I = I - 1
-    6. return DIRS
+    5. return DIRS
 
 ## Loading from the global folders
 

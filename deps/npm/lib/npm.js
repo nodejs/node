@@ -38,6 +38,8 @@ npm.config = {
 
 npm.commands = {}
 
+npm.rollbacks = []
+
 try {
   var pv = process.version.replace(/^v/, '')
   // startup, ok to do this synchronously

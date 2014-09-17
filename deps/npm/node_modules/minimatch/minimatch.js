@@ -260,6 +260,13 @@ minimatch.braceExpand = function (pattern, options) {
 }
 
 Minimatch.prototype.braceExpand = braceExpand
+
+function pad(n, width, z) {
+  z = z || '0';
+  n = n + '';
+  return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
+
 function braceExpand (pattern, options) {
   options = options || this.options
   pattern = typeof pattern === "undefined"
@@ -332,13 +339,18 @@ function braceExpand (pattern, options) {
     this.debug("numset", numset[1], numset[2])
     var suf = braceExpand.call(this, pattern.substr(numset[0].length), options)
       , start = +numset[1]
+      , needPadding = numset[1][0] === '0'
+      , startWidth = numset[1].length
+      , padded
       , end = +numset[2]
       , inc = start > end ? -1 : 1
       , set = []
+
     for (var i = start; i != (end + inc); i += inc) {
+      padded = needPadding ? pad(i, startWidth) : i + ''
       // append all the suffixes
       for (var ii = 0, ll = suf.length; ii < ll; ii ++) {
-        set.push(i + suf[ii])
+        set.push(padded + suf[ii])
       }
     }
     return set
