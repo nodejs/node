@@ -4723,7 +4723,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   // maybe allow a buffer to write to? cuts down on object creation
   // when generating random data in a loop
   if (!args[0]->IsUint32()) {
-    return env->ThrowTypeError("Argument #1 must be number > 0");
+    return env->ThrowTypeError("size must be a number >= 0");
   }
 
   const uint32_t size = args[0]->Uint32Value();
