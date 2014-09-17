@@ -120,8 +120,7 @@ X509_STORE* root_cert_store;
 template class SSLWrap<TLSCallbacks>;
 template void SSLWrap<TLSCallbacks>::AddMethods(Environment* env,
                                                 Handle<FunctionTemplate> t);
-template void SSLWrap<TLSCallbacks>::InitNPN(SecureContext* sc,
-                                             TLSCallbacks* base);
+template void SSLWrap<TLSCallbacks>::InitNPN(SecureContext* sc);
 template SSL_SESSION* SSLWrap<TLSCallbacks>::GetSessionCallback(
     SSL* s,
     unsigned char* key,
@@ -1013,26 +1012,21 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
 
 
 template <class Base>
-void SSLWrap<Base>::InitNPN(SecureContext* sc, Base* base) {
-  if (base->is_server()) {
+void SSLWrap<Base>::InitNPN(SecureContext* sc) {
 #ifdef OPENSSL_NPN_NEGOTIATED
-    // Server should advertise NPN protocols
-    SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
-                                          AdvertiseNextProtoCallback,
-                                          base);
+  // Server should advertise NPN protocols
+  SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
+                                        AdvertiseNextProtoCallback,
+                                        NULL);
+  // Client should select protocol from list of advertised
+  // If server supports NPN
+  SSL_CTX_set_next_proto_select_cb(sc->ctx_, SelectNextProtoCallback, NULL);
 #endif  // OPENSSL_NPN_NEGOTIATED
-  } else {
-#ifdef OPENSSL_NPN_NEGOTIATED
-    // Client should select protocol from list of advertised
-    // If server supports NPN
-    SSL_CTX_set_next_proto_select_cb(sc->ctx_, SelectNextProtoCallback, base);
-#endif  // OPENSSL_NPN_NEGOTIATED
-  }
 
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
   // OCSP stapling
   SSL_CTX_set_tlsext_status_cb(sc->ctx_, TLSExtStatusCallback);
-  SSL_CTX_set_tlsext_status_arg(sc->ctx_, base);
+  SSL_CTX_set_tlsext_status_arg(sc->ctx_, NULL);
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
 }
 
@@ -1688,7 +1682,7 @@ int SSLWrap<Base>::AdvertiseNextProtoCallback(SSL* s,
                                               const unsigned char** data,
                                               unsigned int* len,
                                               void* arg) {
-  Base* w = static_cast<Base*>(arg);
+  Base* w = static_cast<Base*>(SSL_get_app_data(s));
   Environment* env = w->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -1714,7 +1708,7 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
                                            const unsigned char* in,
                                            unsigned int inlen,
                                            void* arg) {
-  Base* w = static_cast<Base*>(arg);
+  Base* w = static_cast<Base*>(SSL_get_app_data(s));
   Environment* env = w->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -1806,7 +1800,7 @@ void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
 template <class Base>
 int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
-  Base* w = static_cast<Base*>(arg);
+  Base* w = static_cast<Base*>(SSL_get_app_data(s));
   Environment* env = w->env();
   HandleScope handle_scope(env->isolate());
 
@@ -2122,7 +2116,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       if (secure_context_constructor_template->HasInstance(ret)) {
         conn->sniContext_.Reset(env->isolate(), ret);
         SecureContext* sc = Unwrap<SecureContext>(ret.As<Object>());
-        InitNPN(sc, conn);
+        InitNPN(sc);
         SSL_set_SSL_CTX(s, sc->ctx_);
       } else {
         return SSL_TLSEXT_ERR_NOACK;
@@ -2158,7 +2152,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   if (is_server)
     SSL_set_info_callback(conn->ssl_, SSLInfoCallback);
 
-  InitNPN(sc, conn);
+  InitNPN(sc);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server) {
