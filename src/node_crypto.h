@@ -188,7 +188,7 @@ class SSLWrap {
   inline bool is_waiting_new_session() const { return new_session_wait_; }
 
  protected:
-  static void InitNPN(SecureContext* sc, Base* base);
+  static void InitNPN(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Handle<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
