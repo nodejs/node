@@ -85,18 +85,18 @@ IgnoreReader.prototype.addIgnoreFiles = function () {
 
   this.pause()
 
-  var then = function then (er) {
+  var then = function (er) {
     if (errState) return
     if (er) return this.emit("error", errState = er)
     if (-- count === 0) {
       this.filterEntries()
       this.resume()
+    } else {
+      this.addIgnoreFile(newIg[newIg.length - count], then)
     }
   }.bind(this)
 
-  newIg.forEach(function (ig) {
-    this.addIgnoreFile(ig, then)
-  }, this)
+  this.addIgnoreFile(newIg[0], then)
 }
 
 

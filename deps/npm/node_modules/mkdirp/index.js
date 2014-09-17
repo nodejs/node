@@ -3,27 +3,36 @@ var fs = require('fs');
 
 module.exports = mkdirP.mkdirp = mkdirP.mkdirP = mkdirP;
 
-function mkdirP (p, mode, f, made) {
-    if (typeof mode === 'function' || mode === undefined) {
-        f = mode;
+function mkdirP (p, opts, f, made) {
+    if (typeof opts === 'function') {
+        f = opts;
+        opts = {};
+    }
+    else if (!opts || typeof opts !== 'object') {
+        opts = { mode: opts };
+    }
+    
+    var mode = opts.mode;
+    var xfs = opts.fs || fs;
+    
+    if (mode === undefined) {
         mode = 0777 & (~process.umask());
     }
     if (!made) made = null;
-
+    
     var cb = f || function () {};
-    if (typeof mode === 'string') mode = parseInt(mode, 8);
     p = path.resolve(p);
-
-    fs.mkdir(p, mode, function (er) {
+    
+    xfs.mkdir(p, mode, function (er) {
         if (!er) {
             made = made || p;
             return cb(null, made);
         }
         switch (er.code) {
             case 'ENOENT':
-                mkdirP(path.dirname(p), mode, function (er, made) {
+                mkdirP(path.dirname(p), opts, function (er, made) {
                     if (er) cb(er, made);
-                    else mkdirP(p, mode, cb, made);
+                    else mkdirP(p, opts, cb, made);
                 });
                 break;
 
@@ -31,7 +40,7 @@ function mkdirP (p, mode, f, made) {
             // there already.  If so, then hooray!  If not, then something
             // is borked.
             default:
-                fs.stat(p, function (er2, stat) {
+                xfs.stat(p, function (er2, stat) {
                     // if the stat fails, then that's super weird.
                     // let the original error be the failure reason.
                     if (er2 || !stat.isDirectory()) cb(er, made)
@@ -42,24 +51,30 @@ function mkdirP (p, mode, f, made) {
     });
 }
 
-mkdirP.sync = function sync (p, mode, made) {
+mkdirP.sync = function sync (p, opts, made) {
+    if (!opts || typeof opts !== 'object') {
+        opts = { mode: opts };
+    }
+    
+    var mode = opts.mode;
+    var xfs = opts.fs || fs;
+    
     if (mode === undefined) {
         mode = 0777 & (~process.umask());
     }
     if (!made) made = null;
 
-    if (typeof mode === 'string') mode = parseInt(mode, 8);
     p = path.resolve(p);
 
     try {
-        fs.mkdirSync(p, mode);
+        xfs.mkdirSync(p, mode);
         made = made || p;
     }
     catch (err0) {
         switch (err0.code) {
             case 'ENOENT' :
-                made = sync(path.dirname(p), mode, made);
-                sync(p, mode, made);
+                made = sync(path.dirname(p), opts, made);
+                sync(p, opts, made);
                 break;
 
             // In the case of any other error, just see if there's a dir
@@ -68,7 +83,7 @@ mkdirP.sync = function sync (p, mode, made) {
             default:
                 var stat;
                 try {
-                    stat = fs.statSync(p);
+                    stat = xfs.statSync(p);
                 }
                 catch (err1) {
                     throw err0;

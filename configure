@@ -60,6 +60,11 @@ parser.add_option("--fully-static",
     help="Generate an executable without external dynamic libraries. This "
          "will not work on OSX when using default compilation environment")
 
+parser.add_option("--openssl-no-asm",
+    action="store_true",
+    dest="openssl_no_asm",
+    help="Do not build optimized assembly for OpenSSL")
+
 # deprecated
 parser.add_option('--openssl-includes',
     action='store',
@@ -629,6 +634,8 @@ def configure_v8(o):
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
+  o['variables']['openssl_no_asm'] = (
+    1 if options.openssl_no_asm else 0)
 
   if options.without_ssl:
     return

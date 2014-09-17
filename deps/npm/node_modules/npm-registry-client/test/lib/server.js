@@ -3,6 +3,7 @@
 var http = require('http')
 var server = http.createServer(handler)
 var port = server.port = process.env.PORT || 1337
+var assert = require("assert")
 server.listen(port)
 
 module.exports = server
@@ -11,6 +12,13 @@ server._expect = {}
 
 function handler (req, res) {
   req.connection.setTimeout(1000)
+
+  // If we got authorization, make sure it's the right password.
+  if (req.headers.authorization) {
+    var auth = req.headers.authorization.replace(/^Basic /, "")
+    auth = new Buffer(auth, "base64").toString("utf8")
+    assert.equal(auth, "username:%1234@asdf%")
+  }
 
   var u = '* ' + req.url
   , mu = req.method + ' ' + req.url

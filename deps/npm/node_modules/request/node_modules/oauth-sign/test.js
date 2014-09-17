@@ -46,4 +46,18 @@ console.log(upsign)
 console.log('yOahq5m0YjDDjfjxHaXEsW9D+X0=')
 assert.equal(upsign, 'yOahq5m0YjDDjfjxHaXEsW9D+X0=')
 
+// example in rfc5849
+var params = qs.parse('b5=%3D%253D&a3=a&c%40=&a2=r%20b' + '&' + 'c2&a3=2+q')
+params.oauth_consumer_key = '9djdj82h48djs9d2'
+params.oauth_token = 'kkk9d7dh3k39sjv7'
+params.oauth_nonce = '7d8f3e4a'
+params.oauth_signature_method = 'HMAC-SHA1'
+params.oauth_timestamp = '137131201'
+
+var rfc5849sign = hmacsign('POST', 'http://example.com/request',
+  params, "j49sk3j29djd", "dh893hdasih9")
+
+console.log(rfc5849sign)
+console.log('r6/TJjbCOr97/+UU0NsvSne7s5g=')
+assert.equal(rfc5849sign, 'r6/TJjbCOr97/+UU0NsvSne7s5g=')
 

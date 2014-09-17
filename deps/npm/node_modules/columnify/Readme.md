@@ -191,7 +191,7 @@ module2 0.2.0
 
 ## Other Configuration Options
 
-### Align Right
+### Align Right/Center
 
 ```js
 var data = {
@@ -209,6 +209,27 @@ KEY                  VALUE
 mocha@1.18.2             1
 commander@2.0.0          1
 debug@0.8.1              1
+```
+
+Align Center works in a similar way.
+
+
+### Padding
+
+```js
+var data = {
+  "shortKey": "veryVeryVeryVeryVeryLongVal",
+  "veryVeryVeryVeryVeryLongKey": "shortVal"
+}
+
+columnify(data, { paddingChr: '.'})
+```
+
+####  Output:
+```
+KEY........................ VALUE......................
+shortKey................... veryVeryVeryVeryVeryLongVal
+veryVeryVeryVeryVeryLongKey shortVal...................
 ```
 
 ### Preserve existing newlines
@@ -344,5 +365,3 @@ module-one               some description                   0.0.1
 ## License
 
 MIT
-
-

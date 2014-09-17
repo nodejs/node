@@ -42,6 +42,13 @@ OUTPUTS	= \
 	x64-elf-gas/whrlpool/wp-x86_64.s \
 	x64-elf-gas/modes/ghash-x86_64.s \
 	x64-elf-gas/x86_64cpuid.s \
+	arm-elf-gas/aes/aes-armv4.S \
+	arm-elf-gas/bn/armv4-mont.S \
+	arm-elf-gas/bn/armv4-gf2m.S \
+	arm-elf-gas/sha/sha1-armv4-large.S \
+	arm-elf-gas/sha/sha256-armv4.S \
+	arm-elf-gas/sha/sha512-armv4.S \
+	arm-elf-gas/modes/ghash-armv4.S \
 	x86-macosx-gas/aes/aes-586.s \
 	x86-macosx-gas/aes/aesni-x86.s \
 	x86-macosx-gas/aes/vpaes-x86.s \
@@ -121,7 +128,7 @@ OUTPUTS	= \
 	x64-win32-masm/modes/ghash-x86_64.asm \
 	x64-win32-masm/x86_64cpuid.asm \
 
-x64-elf-gas/%.s x86-elf-gas/%.s:
+arm-elf-gas/%.S x64-elf-gas/%.s x86-elf-gas/%.s:
 	$(PERL) $< elf > $@
 
 x64-macosx-gas/%.s x86-macosx-gas/%.s:
@@ -262,3 +269,10 @@ x86-win32-masm/sha/sha512-586.asm: ../openssl/crypto/sha/asm/sha512-586.pl
 x86-win32-masm/whrlpool/wp-mmx.asm: ../openssl/crypto/whrlpool/asm/wp-mmx.pl
 x86-win32-masm/modes/ghash-x86.asm: ../openssl/crypto/modes/asm/ghash-x86.pl
 x86-win32-masm/x86cpuid.asm: ../openssl/crypto/x86cpuid.pl
+arm-elf-gas/aes/aes-armv4.S: ../openssl/crypto/aes/asm/aes-armv4.pl
+arm-elf-gas/bn/armv4-mont.S: ../openssl/crypto/bn/asm/armv4-mont.pl
+arm-elf-gas/bn/armv4-gf2m.S: ../openssl/crypto/bn/asm/armv4-gf2m.pl
+arm-elf-gas/sha/sha1-armv4-large.S: ../openssl/crypto/sha/asm/sha1-armv4-large.pl
+arm-elf-gas/sha/sha512-armv4.S: ../openssl/crypto/sha/asm/sha512-armv4.pl
+arm-elf-gas/sha/sha256-armv4.S: ../openssl/crypto/sha/asm/sha256-armv4.pl
+arm-elf-gas/modes/ghash-armv4.S: ../openssl/crypto/modes/asm/ghash-armv4.pl

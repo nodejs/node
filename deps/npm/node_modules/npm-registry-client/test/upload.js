@@ -8,10 +8,10 @@ var server = require("./lib/server.js")
 var cache = require("./fixtures/underscore/cache.json")
 
 var client = common.freshClient({
-  username      : "othiym23",
-  password      : "password",
+  username      : "username",
+  password      : "%1234@asdf%",
   email         : "ogd@aoaioxxysz.net",
-  _auth         : new Buffer("username  : password").toString("base64"),
+  _auth         : new Buffer("username:%1234@asdf%").toString("base64"),
   "always-auth" : true
 })
 

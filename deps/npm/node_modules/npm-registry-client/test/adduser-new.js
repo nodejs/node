@@ -4,7 +4,7 @@ var server = require("./lib/server.js")
 var common = require("./lib/common.js")
 var client = common.freshClient()
 
-var password = "password"
+var password = "%1234@asdf%"
 , username = "username"
 , email = "i@izs.me"
 , userdata = {

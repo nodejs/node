@@ -1,23 +1,21 @@
 var mkdirp = require('../');
 var path = require('path');
 var fs = require('fs');
+var exists = fs.exists || path.exists;
 var test = require('tap').test;
 
 test('async perm', function (t) {
-    t.plan(2);
+    t.plan(5);
     var file = '/tmp/' + (Math.random() * (1<<30)).toString(16);
     
     mkdirp(file, 0755, function (err) {
-        if (err) t.fail(err);
-        else path.exists(file, function (ex) {
-            if (!ex) t.fail('file not created')
-            else fs.stat(file, function (err, stat) {
-                if (err) t.fail(err)
-                else {
-                    t.equal(stat.mode & 0777, 0755);
-                    t.ok(stat.isDirectory(), 'target not a directory');
-                    t.end();
-                }
+        t.ifError(err);
+        exists(file, function (ex) {
+            t.ok(ex, 'file created');
+            fs.stat(file, function (err, stat) {
+                t.ifError(err);
+                t.equal(stat.mode & 0777, 0755);
+                t.ok(stat.isDirectory(), 'target not a directory');
             })
         })
     });

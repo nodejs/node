@@ -9,6 +9,8 @@ var cbCalled = false
   , path = require("path")
   , wroteLogFile = false
   , exitCode = 0
+  , rollbacks = npm.rollbacks
+  , chain = require("slide").chain
 
 
 process.on("exit", function (code) {
@@ -50,8 +52,24 @@ function exit (code, noLog) {
   log.verbose("exit", [code, doExit])
   if (log.level === "silent") noLog = true
 
-  if (code && !noLog) writeLogFile(reallyExit)
-  else rm("npm-debug.log", function () { rm(npm.tmp, reallyExit) })
+  if (rollbacks.length) {
+    chain(rollbacks.map(function (f) {
+      return function (cb) {
+        npm.commands.unbuild([f], true, cb)
+      }
+    }), function (er) {
+      if (er) {
+        log.error("error rolling back", er)
+        if (!code) errorHandler(er)
+        else reallyExit(er)
+      } else {
+        rm("npm-debug.log", reallyExit)
+      }
+    })
+    rollbacks.length = 0
+  }
+  else if (code && !noLog) writeLogFile(reallyExit)
+  else reallyExit()
 
   function reallyExit() {
     // truncate once it's been written.
