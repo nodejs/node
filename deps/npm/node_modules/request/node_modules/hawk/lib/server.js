@@ -191,9 +191,8 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
             // Check timestamp staleness
 
             if (Math.abs((attributes.ts * 1000) - now) > (options.timestampSkewSec * 1000)) {
-                var fresh = Math.floor((Utils.now() + (options.localtimeOffsetMsec || 0)) / 1000);            // Get fresh now
-                var tsm = Crypto.calculateTsMac(fresh, credentials);
-                return callback(Boom.unauthorized('Stale timestamp', 'Hawk', { ts: fresh, tsm: tsm }), credentials, artifacts);
+                var tsm = Crypto.timestampMessage(credentials, options.localtimeOffsetMsec);
+                return callback(Boom.unauthorized('Stale timestamp', 'Hawk', tsm), credentials, artifacts);
             }
 
             // Successful authentication

@@ -191,7 +191,7 @@
                 ],
               },
               'conditions': [
-                ['OS=="linux"', {
+                ['OS in "linux freebsd"', {
                   'ldflags': [
                     '-Wl,--whole-archive <(PRODUCT_DIR)/libopenssl.a -Wl,--no-whole-archive',
                   ],
@@ -319,6 +319,9 @@
           'defines': [ '__POSIX__' ],
         }],
         [ 'OS=="mac"', {
+          # linking Corefoundation is needed since certain OSX debugging tools
+          # like Instruments require it for some features
+          'libraries': [ '-framework CoreFoundation' ],
           'defines!': [
             'PLATFORM="mac"',
           ],
@@ -348,7 +351,7 @@
           ],
         }],
         [
-          'OS=="linux" and node_shared_v8=="false"', {
+          'OS in "linux freebsd" and node_shared_v8=="false"', {
             'ldflags': [
               '-Wl,--whole-archive <(V8_BASE) -Wl,--no-whole-archive',
             ],

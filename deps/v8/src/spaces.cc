@@ -156,12 +156,12 @@ int CodeRange::CompareFreeBlockAddress(const FreeBlock* left,
 }
 
 
-void CodeRange::GetNextAllocationBlock(size_t requested) {
+bool CodeRange::GetNextAllocationBlock(size_t requested) {
   for (current_allocation_block_index_++;
        current_allocation_block_index_ < allocation_list_.length();
        current_allocation_block_index_++) {
     if (requested <= allocation_list_[current_allocation_block_index_].size) {
-      return;  // Found a large enough allocation block.
+      return true;  // Found a large enough allocation block.
     }
   }
 
@@ -188,12 +188,12 @@ void CodeRange::GetNextAllocationBlock(size_t requested) {
        current_allocation_block_index_ < allocation_list_.length();
        current_allocation_block_index_++) {
     if (requested <= allocation_list_[current_allocation_block_index_].size) {
-      return;  // Found a large enough allocation block.
+      return true;  // Found a large enough allocation block.
     }
   }
-
+  current_allocation_block_index_ = 0;
   // Code range is full or too fragmented.
-  V8::FatalProcessOutOfMemory("CodeRange::GetNextAllocationBlock");
+  return false;
 }
 
 
@@ -203,9 +203,8 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   ASSERT(commit_size <= requested_size);
   ASSERT(current_allocation_block_index_ < allocation_list_.length());
   if (requested_size > allocation_list_[current_allocation_block_index_].size) {
-    // Find an allocation block large enough.  This function call may
-    // call V8::FatalProcessOutOfMemory if it cannot find a large enough block.
-    GetNextAllocationBlock(requested_size);
+    // Find an allocation block large enough.
+    if (!GetNextAllocationBlock(requested_size)) return NULL;
   }
   // Commit the requested memory at the start of the current allocation block.
   size_t aligned_requested = RoundUp(requested_size, MemoryChunk::kAlignment);
@@ -228,7 +227,8 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   allocation_list_[current_allocation_block_index_].start += *allocated;
   allocation_list_[current_allocation_block_index_].size -= *allocated;
   if (*allocated == current.size) {
-    GetNextAllocationBlock(0);  // This block is used up, get the next one.
+    // This block is used up, get the next one.
+    if (!GetNextAllocationBlock(0)) return NULL;
   }
   return current.start;
 }

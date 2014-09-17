@@ -344,8 +344,10 @@ A hash that stores the active worker objects, keyed by `id` field. Makes it
 easy to loop through all the workers. It is only available in the master
 process.
 
-A worker is removed from cluster.workers just before the `'disconnect'` or
-`'exit'` event is emitted.
+A worker is removed from cluster.workers after the worker has disconnected _and_
+exited. The order between these two events cannot be determined in advance.
+However, it is guaranteed that the removal from the cluster.workers list happens
+before last `'disconnect'` or `'exit'` event is emitted.
 
     // Go through all workers
     function eachWorker(callback) {
@@ -510,6 +512,17 @@ the `disconnect` event has not been emitted after some time.
         }
       });
     }
+
+### worker.isDead()
+
+This function returns `true` if the worker's process has terminated (either
+because of exiting or being signaled). Otherwise, it returns `false`.
+
+### worker.isConnected()
+
+This function returns `true` if the worker is connected to its master via its IPC
+channel, `false` otherwise. A worker is connected to its master after it's been
+created. It is disconnected after the `disconnect` event is emitted.
 
 ### Event: 'message'
 

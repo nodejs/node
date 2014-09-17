@@ -55,6 +55,13 @@ assert.throws(function() { process.kill(+'not a number'); }, TypeError);
 assert.throws(function() { process.kill(1/0); }, TypeError);
 assert.throws(function() { process.kill(-1/0); }, TypeError);
 
+/* Sending SIGHUP is not supported on Windows */
+if (process.platform === 'win32') {
+  pass = true;
+  clearInterval(wait);
+  return;
+}
+
 process.once('SIGHUP', function() {
   process.once('SIGHUP', function() {
     pass = true;

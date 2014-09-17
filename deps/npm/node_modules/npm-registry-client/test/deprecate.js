@@ -6,7 +6,7 @@ var client = common.freshClient({
   username      : "username",
   password      : "password",
   email         : "ogd@aoaioxxysz.net",
-  _auth         : new Buffer("username  : password").toString("base64"),
+  _auth         : new Buffer("username:%1234@asdf%").toString("base64"),
   "always-auth" : true
 })
 

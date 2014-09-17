@@ -135,9 +135,13 @@ console.log(common.PIPE);
 pingPongTest(common.PIPE);
 pingPongTest(common.PORT);
 pingPongTest(common.PORT + 1, 'localhost');
-pingPongTest(common.PORT + 2, '::1');
+if (common.hasIPv6)
+  pingPongTest(common.PORT + 2, '::1');
 
 process.on('exit', function() {
-  assert.equal(4, tests_run);
+  if (common.hasIPv6)
+    assert.equal(4, tests_run);
+  else
+    assert.equal(3, tests_run);
   console.log('done');
 });

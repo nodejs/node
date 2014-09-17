@@ -833,7 +833,7 @@ Local<Value> UVException(Isolate* isolate,
 #ifdef _WIN32
 // Does about the same as strerror(),
 // but supports all windows error messages
-static const char *winapi_strerror(const int errorno) {
+static const char *winapi_strerror(const int errorno, bool* must_free) {
   char *errmsg = NULL;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
@@ -841,6 +841,8 @@ static const char *winapi_strerror(const int errorno) {
       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
 
   if (errmsg) {
+    *must_free = true;
+
     // Remove trailing newlines
     for (int i = strlen(errmsg) - 1;
         i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
@@ -850,6 +852,7 @@ static const char *winapi_strerror(const int errorno) {
     return errmsg;
   } else {
     // FormatMessage failed
+    *must_free = false;
     return "Unknown error";
   }
 }
@@ -862,8 +865,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
                                   const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
   Local<Value> e;
+  bool must_free = false;
   if (!msg || !msg[0]) {
-    msg = winapi_strerror(errorno);
+    msg = winapi_strerror(errorno, &must_free);
   }
   Local<String> message = OneByteString(env->isolate(), msg);
 
@@ -889,6 +893,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   if (syscall != NULL) {
     obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
+
+  if (must_free)
+    LocalFree((HLOCAL)msg);
 
   return e;
 }
@@ -1025,13 +1032,11 @@ Handle<Value> MakeDomainCallback(Environment* env,
         return Undefined(env->isolate());
       }
 
-      Local<Function> enter =
-          domain->Get(env->enter_string()).As<Function>();
-      assert(enter->IsFunction());
-      enter->Call(domain, 0, NULL);
-
-      if (try_catch.HasCaught()) {
-        return Undefined(env->isolate());
+      Local<Function> enter = domain->Get(env->enter_string()).As<Function>();
+      if (enter->IsFunction()) {
+        enter->Call(domain, 0, NULL);
+        if (try_catch.HasCaught())
+          return Undefined(env->isolate());
       }
     }
   }
@@ -1043,13 +1048,11 @@ Handle<Value> MakeDomainCallback(Environment* env,
   }
 
   if (has_domain) {
-    Local<Function> exit =
-        domain->Get(env->exit_string()).As<Function>();
-    assert(exit->IsFunction());
-    exit->Call(domain, 0, NULL);
-
-    if (try_catch.HasCaught()) {
-      return Undefined(env->isolate());
+    Local<Function> exit = domain->Get(env->exit_string()).As<Function>();
+    if (exit->IsFunction()) {
+      exit->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env->isolate());
     }
   }
 
@@ -3099,9 +3102,12 @@ static void EnableDebug(Isolate* isolate, bool wait_connect) {
   fprintf(stderr, "Debugger listening on port %d\n", debug_port);
   fflush(stderr);
 
-  Environment* env = Environment::GetCurrentChecked(isolate);
-  if (env == NULL)
+  if (isolate == NULL)
     return;  // Still starting up.
+  Local<Context> context = isolate->GetCurrentContext();
+  if (context.IsEmpty())
+    return;  // Still starting up.
+  Environment* env = Environment::GetCurrent(context);
 
   // Assign environment to the debugger's context
   env->AssignToContext(v8::Debug::GetDebugContext());
@@ -3610,6 +3616,7 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   {
     Locker locker(node_isolate);
+    Isolate::Scope isolate_scope(node_isolate);
     HandleScope handle_scope(node_isolate);
     Local<Context> context = Context::New(node_isolate);
     Environment* env = CreateEnvironment(
@@ -3620,7 +3627,7 @@ int Start(int argc, char** argv) {
       env->AssignToContext(v8::Debug::GetDebugContext());
     }
     // This Context::Scope is here so EnableDebug() can look up the current
-    // environment with Environment::GetCurrentChecked().
+    // environment with Environment::GetCurrent().
     // TODO(bnoordhuis) Reorder the debugger initialization logic so it can
     // be removed.
     {

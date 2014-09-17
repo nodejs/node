@@ -107,6 +107,10 @@ void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
   object->SetAlignedPointerInInternalField(0, pointer);
 }
 
+void ClearWrap(v8::Local<v8::Object> object) {
+  Wrap<void>(object, NULL);
+}
+
 template <typename TypeName>
 TypeName* Unwrap(v8::Local<v8::Object> object) {
   assert(!object.IsEmpty());

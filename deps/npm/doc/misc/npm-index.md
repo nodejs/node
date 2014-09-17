@@ -1,415 +1,423 @@
 npm-index(7) -- Index of all npm documentation
 ==============================================
 
-## README(1)
+### README(1)
 
 node package manager
 
-# Command Line Documentation
+## Command Line Documentation
 
-## npm(1)
+Using npm on the command line
+
+### npm(1)
 
 node package manager
 
-## npm-adduser(1)
+### npm-adduser(1)
 
 Add a registry user account
 
-## npm-bin(1)
+### npm-bin(1)
 
 Display npm bin folder
 
-## npm-bugs(1)
+### npm-bugs(1)
 
 Bugs for a package in a web browser maybe
 
-## npm-build(1)
+### npm-build(1)
 
 Build a package
 
-## npm-bundle(1)
+### npm-bundle(1)
 
 REMOVED
 
-## npm-cache(1)
+### npm-cache(1)
 
 Manipulates packages cache
 
-## npm-completion(1)
+### npm-completion(1)
 
 Tab Completion for npm
 
-## npm-config(1)
+### npm-config(1)
 
 Manage the npm configuration files
 
-## npm-dedupe(1)
+### npm-dedupe(1)
 
 Reduce duplication
 
-## npm-deprecate(1)
+### npm-deprecate(1)
 
 Deprecate a version of a package
 
-## npm-docs(1)
+### npm-docs(1)
 
 Docs for a package in a web browser maybe
 
-## npm-edit(1)
+### npm-edit(1)
 
 Edit an installed package
 
-## npm-explore(1)
+### npm-explore(1)
 
 Browse an installed package
 
-## npm-help-search(1)
+### npm-help-search(1)
 
 Search npm help documentation
 
-## npm-help(1)
+### npm-help(1)
 
 Get help on npm
 
-## npm-init(1)
+### npm-init(1)
 
 Interactively create a package.json file
 
-## npm-install(1)
+### npm-install(1)
 
 Install a package
 
-## npm-link(1)
+### npm-link(1)
 
 Symlink a package folder
 
-## npm-ls(1)
+### npm-ls(1)
 
 List installed packages
 
-## npm-outdated(1)
+### npm-outdated(1)
 
 Check for outdated packages
 
-## npm-owner(1)
+### npm-owner(1)
 
 Manage package owners
 
-## npm-pack(1)
+### npm-pack(1)
 
 Create a tarball from a package
 
-## npm-prefix(1)
+### npm-prefix(1)
 
 Display prefix
 
-## npm-prune(1)
+### npm-prune(1)
 
 Remove extraneous packages
 
-## npm-publish(1)
+### npm-publish(1)
 
 Publish a package
 
-## npm-rebuild(1)
+### npm-rebuild(1)
 
 Rebuild a package
 
-## npm-repo(1)
+### npm-repo(1)
 
 Open package repository page in the browser
 
-## npm-restart(1)
+### npm-restart(1)
 
 Start a package
 
-## npm-rm(1)
+### npm-rm(1)
 
 Remove a package
 
-## npm-root(1)
+### npm-root(1)
 
 Display npm root
 
-## npm-run-script(1)
+### npm-run-script(1)
 
 Run arbitrary package scripts
 
-## npm-search(1)
+### npm-search(1)
 
 Search for packages
 
-## npm-shrinkwrap(1)
+### npm-shrinkwrap(1)
 
 Lock down dependency versions
 
-## npm-star(1)
+### npm-star(1)
 
 Mark your favorite packages
 
-## npm-stars(1)
+### npm-stars(1)
 
 View packages marked as favorites
 
-## npm-start(1)
+### npm-start(1)
 
 Start a package
 
-## npm-stop(1)
+### npm-stop(1)
 
 Stop a package
 
-## npm-submodule(1)
+### npm-submodule(1)
 
 Add a package as a git submodule
 
-## npm-tag(1)
+### npm-tag(1)
 
 Tag a published version
 
-## npm-test(1)
+### npm-test(1)
 
 Test a package
 
-## npm-uninstall(1)
+### npm-uninstall(1)
 
 Remove a package
 
-## npm-unpublish(1)
+### npm-unpublish(1)
 
 Remove a package from the registry
 
-## npm-update(1)
+### npm-update(1)
 
 Update a package
 
-## npm-version(1)
+### npm-version(1)
 
 Bump a package version
 
-## npm-view(1)
+### npm-view(1)
 
 View registry info
 
-## npm-whoami(1)
+### npm-whoami(1)
 
 Display npm username
 
-# API Documentation
+## API Documentation
 
-## npm(3)
+Using npm in your Node programs
+
+### npm(3)
 
 node package manager
 
-## npm-bin(3)
+### npm-bin(3)
 
 Display npm bin folder
 
-## npm-bugs(3)
+### npm-bugs(3)
 
 Bugs for a package in a web browser maybe
 
-## npm-cache(3)
+### npm-cache(3)
 
 manage the npm cache programmatically
 
-## npm-commands(3)
+### npm-commands(3)
 
 npm commands
 
-## npm-config(3)
+### npm-config(3)
 
 Manage the npm configuration files
 
-## npm-deprecate(3)
+### npm-deprecate(3)
 
 Deprecate a version of a package
 
-## npm-docs(3)
+### npm-docs(3)
 
 Docs for a package in a web browser maybe
 
-## npm-edit(3)
+### npm-edit(3)
 
 Edit an installed package
 
-## npm-explore(3)
+### npm-explore(3)
 
 Browse an installed package
 
-## npm-help-search(3)
+### npm-help-search(3)
 
 Search the help pages
 
-## npm-init(3)
+### npm-init(3)
 
 Interactively create a package.json file
 
-## npm-install(3)
+### npm-install(3)
 
 install a package programmatically
 
-## npm-link(3)
+### npm-link(3)
 
 Symlink a package folder
 
-## npm-load(3)
+### npm-load(3)
 
 Load config settings
 
-## npm-ls(3)
+### npm-ls(3)
 
 List installed packages
 
-## npm-outdated(3)
+### npm-outdated(3)
 
 Check for outdated packages
 
-## npm-owner(3)
+### npm-owner(3)
 
 Manage package owners
 
-## npm-pack(3)
+### npm-pack(3)
 
 Create a tarball from a package
 
-## npm-prefix(3)
+### npm-prefix(3)
 
 Display prefix
 
-## npm-prune(3)
+### npm-prune(3)
 
 Remove extraneous packages
 
-## npm-publish(3)
+### npm-publish(3)
 
 Publish a package
 
-## npm-rebuild(3)
+### npm-rebuild(3)
 
 Rebuild a package
 
-## npm-repo(3)
+### npm-repo(3)
 
 Open package repository page in the browser
 
-## npm-restart(3)
+### npm-restart(3)
 
 Start a package
 
-## npm-root(3)
+### npm-root(3)
 
 Display npm root
 
-## npm-run-script(3)
+### npm-run-script(3)
 
 Run arbitrary package scripts
 
-## npm-search(3)
+### npm-search(3)
 
 Search for packages
 
-## npm-shrinkwrap(3)
+### npm-shrinkwrap(3)
 
 programmatically generate package shrinkwrap file
 
-## npm-start(3)
+### npm-start(3)
 
 Start a package
 
-## npm-stop(3)
+### npm-stop(3)
 
 Stop a package
 
-## npm-submodule(3)
+### npm-submodule(3)
 
 Add a package as a git submodule
 
-## npm-tag(3)
+### npm-tag(3)
 
 Tag a published version
 
-## npm-test(3)
+### npm-test(3)
 
 Test a package
 
-## npm-uninstall(3)
+### npm-uninstall(3)
 
 uninstall a package programmatically
 
-## npm-unpublish(3)
+### npm-unpublish(3)
 
 Remove a package from the registry
 
-## npm-update(3)
+### npm-update(3)
 
 Update a package
 
-## npm-version(3)
+### npm-version(3)
 
 Bump a package version
 
-## npm-view(3)
+### npm-view(3)
 
 View registry info
 
-## npm-whoami(3)
+### npm-whoami(3)
 
 Display npm username
 
-# Files
+## Files
 
-## npm-folders(5)
+File system structures npm uses
+
+### npm-folders(5)
 
 Folder Structures Used by npm
 
-## npmrc(5)
+### npmrc(5)
 
 The npm config files
 
-## package.json(5)
+### package.json(5)
 
 Specifics of npm's package.json handling
 
-# Misc
+## Misc
 
-## npm-coding-style(7)
+Various other bits and bobs
+
+### npm-coding-style(7)
 
 npm's "funny" coding style
 
-## npm-config(7)
+### npm-config(7)
 
 More than you probably want to know about npm configuration
 
-## npm-developers(7)
+### npm-developers(7)
 
 Developer Guide
 
-## npm-disputes(7)
+### npm-disputes(7)
 
 Handling Module Name Disputes
 
-## npm-faq(7)
+### npm-faq(7)
 
 Frequently Asked Questions
 
-## npm-index(7)
+### npm-index(7)
 
 Index of all npm documentation
 
-## npm-registry(7)
+### npm-registry(7)
 
 The JavaScript Package Registry
 
-## npm-scripts(7)
+### npm-scripts(7)
 
 How npm handles the "scripts" field
 
-## removing-npm(7)
+### removing-npm(7)
 
 Cleaning the Slate
 
-## semver(7)
+### semver(7)
 
 The semantic versioner for npm
 

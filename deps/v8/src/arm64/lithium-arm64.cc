@@ -2381,13 +2381,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     temp0 = TempRegister();
   }
 
-  LStoreNamedField* result =
-      new(zone()) LStoreNamedField(object, value, temp0, temp1);
-  if (instr->field_representation().IsHeapObject() &&
-      !instr->value()->type().IsHeapObject()) {
-    return AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(object, value, temp0, temp1);
 }
 
 
@@ -2686,7 +2680,7 @@ LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
 
 LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   LOperand* object = UseRegisterAtStart(instr->object());
-  LOperand* index = UseRegister(instr->index());
+  LOperand* index = UseRegisterAndClobber(instr->index());
   LLoadFieldByIndex* load = new(zone()) LLoadFieldByIndex(object, index);
   LInstruction* result = DefineSameAsFirst(load);
   return AssignPointerMap(result);

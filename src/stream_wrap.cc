@@ -63,7 +63,8 @@ StreamWrap::StreamWrap(Environment* env,
     : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream), provider),
       stream_(stream),
       default_callbacks_(this),
-      callbacks_(&default_callbacks_) {
+      callbacks_(&default_callbacks_),
+      callbacks_gc_(false) {
 }
 
 
@@ -401,7 +402,8 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 
     // String chunk
     Handle<String> string = chunk->ToString();
-    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    enum encoding encoding = ParseEncoding(env->isolate(),
+                                           chunks->Get(i * 2 + 1));
     size_t chunk_size;
     if (encoding == UTF8 && string->Length() > 65535)
       chunk_size = StringBytes::Size(env->isolate(), string, encoding);
@@ -444,7 +446,8 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
     size_t str_size = storage_size - offset;
 
     Handle<String> string = chunk->ToString();
-    enum encoding encoding = ParseEncoding(chunks->Get(i * 2 + 1));
+    enum encoding encoding = ParseEncoding(env->isolate(),
+                                           chunks->Get(i * 2 + 1));
     str_size = StringBytes::Write(env->isolate(),
                                   str_storage,
                                   str_size,
@@ -495,6 +498,10 @@ void StreamWrap::WriteUtf8String(const FunctionCallbackInfo<Value>& args) {
 
 void StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
   WriteStringImpl<UCS2>(args);
+}
+
+void StreamWrap::WriteBinaryString(const FunctionCallbackInfo<Value>& args) {
+  WriteStringImpl<BINARY>(args);
 }
 
 void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {

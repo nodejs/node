@@ -101,11 +101,11 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
 
     v8::Local<v8::Function> enter =
       domain->Get(env()->enter_string()).As<v8::Function>();
-    assert(enter->IsFunction());
-    enter->Call(domain, 0, NULL);
-
-    if (try_catch.HasCaught())
-      return Undefined(env()->isolate());
+    if (enter->IsFunction()) {
+      enter->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env()->isolate());
+    }
   }
 
   v8::Local<v8::Value> ret = cb->Call(context, argc, argv);
@@ -117,11 +117,11 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
   if (has_domain) {
     v8::Local<v8::Function> exit =
       domain->Get(env()->exit_string()).As<v8::Function>();
-    assert(exit->IsFunction());
-    exit->Call(domain, 0, NULL);
-
-    if (try_catch.HasCaught())
-      return Undefined(env()->isolate());
+    if (exit->IsFunction()) {
+      exit->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env()->isolate());
+    }
   }
 
   if (has_async_listener()) {

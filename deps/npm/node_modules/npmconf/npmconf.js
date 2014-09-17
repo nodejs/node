@@ -359,7 +359,8 @@ Conf.prototype.addEnv = function (env) {
 
       // leave first char untouched, even if
       // it is a "_" - convert all other to "-"
-      var p = k.replace(/^npm_config_/, '')
+      var p = k.toLowerCase()
+               .replace(/^npm_config_/, '')
                .replace(/(?!^)_/g, '-')
       conf[p] = env[k]
     })

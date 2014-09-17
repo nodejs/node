@@ -64,9 +64,14 @@ Callback is called with `cb(error, isLocked)`.
 ### opts.wait
 
 A number of milliseconds to wait for locks to expire before giving up.
-Only used by lockFile.lock.  Relies on fs.watch.  If the lock is not
-cleared by the time the wait expires, then it returns with the original
-error.
+Only used by lockFile.lock.  Poll for `opts.wait` ms.  If the lock is
+not cleared by the time the wait expires, then it returns with the
+original error.
+
+### opts.pollPeriod
+
+When using `opts.wait`, this is the period in ms in which it polls to
+check if the lock has expired.  Defaults to `100`.
 
 ### opts.stale
 

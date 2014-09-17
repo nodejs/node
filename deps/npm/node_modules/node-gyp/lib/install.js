@@ -72,6 +72,9 @@ function install (gyp, argv, callback) {
   version = version.version
   log.verbose('install', 'installing version: %s', version)
 
+  // distributions starting with 0.10.0 contain sha256 checksums
+  var checksumAlgo = semver.gte(version, '0.10.0') ? 'sha256' : 'sha1'
+
   // the directory where the dev files will be installed
   var devDir = path.resolve(gyp.devDir, version)
 
@@ -153,7 +156,7 @@ function install (gyp, argv, callback) {
   }
 
   function getContentSha(res, callback) {
-    var shasum = crypto.createHash('sha1')
+    var shasum = crypto.createHash(checksumAlgo)
     res.on('data', function (chunk) {
       shasum.update(chunk)
     }).on('end', function () {
@@ -243,11 +246,11 @@ function install (gyp, argv, callback) {
           cb(new Error(res.statusCode + ' status code downloading tarball'))
           return
         }
-        // content sha1
-        getContentSha(res, function (_, sha1) {
+        // content checksum
+        getContentSha(res, function (_, checksum) {
           var filename = path.basename(tarballUrl).trim()
-          contentShasums[filename] = sha1
-          log.verbose('content sha1', filename, sha1)
+          contentShasums[filename] = checksum
+          log.verbose('content checksum', filename, checksum)
         })
 
         // start unzipping and untaring
@@ -288,12 +291,12 @@ function install (gyp, argv, callback) {
 
           async--
           if (!async) {
-            log.verbose('download contents shasums', JSON.stringify(contentShasums))
+            log.verbose('download contents checksum', JSON.stringify(contentShasums))
             // check content shasums
             for (var k in contentShasums) {
-              log.verbose('validating download shasum for ' + k, '(%s == %s)', contentShasums[k], expectShasums[k])
+              log.verbose('validating download checksum for ' + k, '(%s == %s)', contentShasums[k], expectShasums[k])
               if (contentShasums[k] !== expectShasums[k]) {
-                cb(new Error(k + ' local sha1 ' + contentShasums[k] + ' not match remote ' + expectShasums[k]))
+                cb(new Error(k + ' local checksum ' + contentShasums[k] + ' not match remote ' + expectShasums[k]))
                 return
               }
             }
@@ -303,17 +306,18 @@ function install (gyp, argv, callback) {
       }
 
       function downloadShasums(done) {
-        log.verbose('check download content sha1, need to download `SHASUMS.txt`...')
-        var shasumsPath = path.resolve(devDir, 'SHASUMS.txt')
-          , shasumsUrl = distUrl + '/v' + version + '/SHASUMS.txt'
+        var shasumsFile = (checksumAlgo === 'sha256') ? 'SHASUMS256.txt' : 'SHASUMS.txt'
+        log.verbose('check download content checksum, need to download `' + shasumsFile + '`...')
+        var shasumsPath = path.resolve(devDir, shasumsFile)
+          , shasumsUrl = distUrl + '/v' + version + '/' + shasumsFile
 
-        log.verbose('`SHASUMS.txt` url', shasumsUrl)
+        log.verbose('checksum url', shasumsUrl)
         var req = download(shasumsUrl)
         if (!req) return
         req.on('error', done)
         req.on('response', function (res) {
           if (res.statusCode !== 200) {
-            done(new Error(res.statusCode + ' status code downloading SHASUMS.txt'))
+            done(new Error(res.statusCode + ' status code downloading checksum'))
             return
           }
 
@@ -332,7 +336,7 @@ function install (gyp, argv, callback) {
               expectShasums[name] = items[0]
             })
 
-            log.verbose('`SHASUMS.txt` data', JSON.stringify(expectShasums))
+            log.verbose('checksum data', JSON.stringify(expectShasums))
             done()
           })
         })
@@ -366,9 +370,9 @@ function install (gyp, argv, callback) {
               return
             }
 
-            getContentSha(res, function (_, sha1) {
-              contentShasums['node.lib'] = sha1
-              log.verbose('content sha1', 'node.lib', sha1)
+            getContentSha(res, function (_, checksum) {
+              contentShasums['node.lib'] = checksum
+              log.verbose('content checksum', 'node.lib', checksum)
             })
 
             var ws = fs.createWriteStream(nodeLibPath32)
@@ -392,9 +396,9 @@ function install (gyp, argv, callback) {
               return
             }
 
-            getContentSha(res, function (_, sha1) {
-              contentShasums['x64/node.lib'] = sha1
-              log.verbose('content sha1', 'x64/node.lib', sha1)
+            getContentSha(res, function (_, checksum) {
+              contentShasums['x64/node.lib'] = checksum
+              log.verbose('content checksum', 'x64/node.lib', checksum)
             })
 
             var ws = fs.createWriteStream(nodeLibPath64)

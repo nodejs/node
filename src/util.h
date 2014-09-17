@@ -112,6 +112,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 
 inline void Wrap(v8::Local<v8::Object> object, void* pointer);
 
+inline void ClearWrap(v8::Local<v8::Object> object);
+
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 

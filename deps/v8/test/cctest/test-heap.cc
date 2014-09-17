@@ -40,7 +40,6 @@
 
 using namespace v8::internal;
 
-
 // Go through all incremental marking steps in one swoop.
 static void SimulateIncrementalMarking() {
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
@@ -3898,6 +3897,42 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   ASSERT(code->marked_for_deoptimization());
 }
 
+
+TEST(NoWeakHashTableLeakWithIncrementalMarking) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (!i::FLAG_incremental_marking) return;
+  i::FLAG_weak_embedded_objects_in_optimized_code = true;
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_compilation_cache = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_crankshaft()) return;
+  HandleScope outer_scope(heap->isolate());
+  for (int i = 0; i < 3; i++) {
+    SimulateIncrementalMarking();
+    {
+      LocalContext context;
+      HandleScope scope(heap->isolate());
+      EmbeddedVector<char, 256> source;
+      OS::SNPrintF(source,
+                   "function bar%d() {"
+                   "  return foo%d(1);"
+                   "};"
+                   "function foo%d(x) { with (x) { return 1 + x; } };"
+                   "bar%d();"
+                   "bar%d();"
+                   "bar%d();"
+                   "%OptimizeFunctionOnNextCall(bar%d);"
+                   "bar%d();", i, i, i, i, i, i, i, i);
+      CompileRun(source.start());
+    }
+    heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  }
+  WeakHashTable* table = WeakHashTable::cast(heap->weak_object_to_code_table());
+  CHECK_EQ(0, table->NumberOfElements());
+}
 
 
 static Handle<JSFunction> OptimizeDummyFunction(const char* name) {

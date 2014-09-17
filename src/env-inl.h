@@ -207,23 +207,6 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
 }
 
-inline Environment* Environment::GetCurrentChecked(v8::Isolate* isolate) {
-  if (isolate == NULL) {
-    return NULL;
-  } else {
-    return GetCurrentChecked(isolate->GetCurrentContext());
-  }
-}
-
-inline Environment* Environment::GetCurrentChecked(
-    v8::Local<v8::Context> context) {
-  if (context.IsEmpty()) {
-    return NULL;
-  } else {
-    return GetCurrent(context);
-  }
-}
-
 inline Environment::Environment(v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),

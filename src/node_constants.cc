@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 
 #if HAVE_OPENSSL
+# include <openssl/ec.h>
 # include <openssl/ssl.h>
 # ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
@@ -949,6 +950,39 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #ifdef OPENSSL_NPN_NEGOTIATED
 #define NPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
+#endif
+
+#ifdef RSA_PKCS1_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
+#endif
+
+#ifdef RSA_SSLV23_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_SSLV23_PADDING);
+#endif
+
+#ifdef RSA_NO_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_NO_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_OAEP_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_OAEP_PADDING);
+#endif
+
+#ifdef RSA_X931_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_X931_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_PSS_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
+#endif
+
+#if HAVE_OPENSSL
+  // NOTE: These are not defines
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
 #endif
 }
 

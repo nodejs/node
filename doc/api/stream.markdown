@@ -310,6 +310,24 @@ readable.on('data', function(chunk) {
 })
 ```
 
+#### readable.isPaused()
+
+* Return: `Boolean`
+
+This method returns whether or not the `readable` has been **explicitly**
+paused by client code (using `readable.pause()` without a corresponding
+`readable.resume()`).
+
+```javascript
+var readable = new stream.Readable
+
+readable.isPaused() // === false
+readable.pause()
+readable.isPaused() // === true
+readable.resume()
+readable.isPaused() // === false
+```
+
 #### readable.pipe(destination, [options])
 
 * `destination` {[Writable][] Stream} The destination for writing data
@@ -971,7 +989,7 @@ function SourceWrapper(options) {
       self._source.readStop();
   };
 
-  // When the source ends, we push the EOF-signalling `null` chunk
+  // When the source ends, we push the EOF-signaling `null` chunk
   this._source.onend = function() {
     self.push(null);
   };

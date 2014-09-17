@@ -6,6 +6,7 @@
   'variables': {
     'is_clang': 0,
     'gcc_version': 0,
+    'openssl_no_asm%': 0
   },
 
   'targets': [
@@ -651,7 +652,7 @@
         ['exclude', 'store/.*$']
       ],
       'conditions': [
-        ['target_arch!="ia32" and target_arch!="x64"', {
+        ['target_arch!="ia32" and target_arch!="x64" and target_arch!="arm" or openssl_no_asm!=0', {
           # Disable asm
           'defines': [
             'OPENSSL_NO_ASM'
@@ -676,27 +677,32 @@
           # Enable asm
           'defines': [
             'AES_ASM',
-            'VPAES_ASM',
-            'BF_ASM',
-            'BNCO_ASM',
-            'BN_ASM',
             'CPUID_ASM',
-            'DES_ASM',
-            'LIB_BN_ASM',
-            'MD5_ASM',
-            'OPENSSL_BN_ASM',
             'OPENSSL_BN_ASM_MONT',
             'OPENSSL_CPUID_OBJ',
-            'RIP_ASM',
-            'RMD160_ASM',
             'SHA1_ASM',
             'SHA256_ASM',
             'SHA512_ASM',
             'GHASH_ASM',
-            'WHIRLPOOL_ASM',
-            'WP_ASM'
           ],
           'conditions': [
+            # Extended assembly on non-arm platforms
+            ['target_arch!="arm"', {
+              'defines': [
+                'VPAES_ASM',
+                'BN_ASM',
+                'BF_ASM',
+                'BNCO_ASM',
+                'DES_ASM',
+                'LIB_BN_ASM',
+                'MD5_ASM',
+                'OPENSSL_BN_ASM',
+                'RIP_ASM',
+                'RMD160_ASM',
+                'WHIRLPOOL_ASM',
+                'WP_ASM',
+              ],
+            }],
             ['OS!="win" and OS!="mac" and target_arch=="ia32"', {
               'sources': [
                 'asm/x86-elf-gas/aes/aes-586.s',
@@ -821,6 +827,33 @@
                 'openssl/crypto/des/fcrypt_b.c'
               ]
             }],
+            ['target_arch=="arm"', {
+              'sources': [
+                'asm/arm-elf-gas/aes/aes-armv4.s',
+                'asm/arm-elf-gas/bn/armv4-mont.s',
+                'asm/arm-elf-gas/bn/armv4-gf2m.s',
+                'asm/arm-elf-gas/sha/sha1-armv4-large.s',
+                'asm/arm-elf-gas/sha/sha512-armv4.s',
+                'asm/arm-elf-gas/sha/sha256-armv4.s',
+                'asm/arm-elf-gas/modes/ghash-armv4.s',
+                # No asm available
+                'openssl/crypto/aes/aes_cbc.c',
+                'openssl/crypto/bf/bf_enc.c',
+                'openssl/crypto/bn/bn_asm.c',
+                'openssl/crypto/cast/c_enc.c',
+                'openssl/crypto/camellia/camellia.c',
+                'openssl/crypto/camellia/cmll_cbc.c',
+                'openssl/crypto/camellia/cmll_misc.c',
+                'openssl/crypto/des/des_enc.c',
+                'openssl/crypto/des/fcrypt_b.c',
+                'openssl/crypto/rc4/rc4_enc.c',
+                'openssl/crypto/rc4/rc4_skey.c',
+                'openssl/crypto/whrlpool/wp_block.c',
+                # PCAP stuff
+                'openssl/crypto/armcap.c',
+                'openssl/crypto/armv4cpuid.S',
+              ]
+            }],
             ['OS=="win" and target_arch=="ia32"', {
               'sources': [
                 'asm/x86-win32-masm/aes/aes-586.asm',
@@ -937,9 +970,6 @@
             'DSO_DLFCN',
             'HAVE_DLFCN_H'
           ],
-        }],
-        ['target_arch=="arm"', {
-          'sources': ['openssl/crypto/armcap.c'],
         }],
       ],
       'include_dirs': [

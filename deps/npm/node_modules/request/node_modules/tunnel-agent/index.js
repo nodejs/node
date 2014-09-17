@@ -67,8 +67,17 @@ function TunnelingAgent(options) {
 }
 util.inherits(TunnelingAgent, events.EventEmitter)
 
-TunnelingAgent.prototype.addRequest = function addRequest(req, host, port) {
+TunnelingAgent.prototype.addRequest = function addRequest(req, options) {
   var self = this
+
+   // Legacy API: addRequest(req, host, port, path)
+  if (typeof options === 'string') {
+    options = {
+      host: options,
+      port: arguments[2],
+      path: arguments[3]
+    };
+  }
 
   if (self.sockets.length >= this.maxSockets) {
     // We are over limit so we'll add it to the queue.
@@ -77,14 +86,14 @@ TunnelingAgent.prototype.addRequest = function addRequest(req, host, port) {
   }
 
   // If we are under maxSockets create a new one.
-  self.createSocket({host: host, port: port, request: req}, function(socket) {
+  self.createSocket({host: options.host, port: options.port, request: req}, function(socket) {
     socket.on('free', onFree)
     socket.on('close', onCloseOrRemove)
     socket.on('agentRemove', onCloseOrRemove)
     req.onSocket(socket)
 
     function onFree() {
-      self.emit('free', socket, host, port)
+      self.emit('free', socket, options.host, options.port)
     }
 
     function onCloseOrRemove(err) {

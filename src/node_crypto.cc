@@ -65,8 +65,11 @@ static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
 static const char PUBRSA_KEY_PFX[] =  "-----BEGIN RSA PUBLIC KEY-----";
 static const int PUBRSA_KEY_PFX_LEN = sizeof(PUBRSA_KEY_PFX) - 1;
+static const char CERTIFICATE_PFX[] =  "-----BEGIN CERTIFICATE-----";
+static const int CERTIFICATE_PFX_LEN = sizeof(CERTIFICATE_PFX) - 1;
+
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
-                                 | ASN1_STRFLGS_ESC_MSB
+                                 | ASN1_STRFLGS_UTF8_CONVERT
                                  | XN_FLAG_SEP_MULTILINE
                                  | XN_FLAG_FN_SN;
 
@@ -267,6 +270,7 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
   NODE_SET_PROTOTYPE_METHOD(t, "setECDHCurve", SecureContext::SetECDHCurve);
+  NODE_SET_PROTOTYPE_METHOD(t, "setDHParam", SecureContext::SetDHParam);
   NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
   NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
                                SecureContext::SetSessionIdContext);
@@ -743,6 +747,37 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
+  HandleScope scope(args.GetIsolate());
+
+  SecureContext* sc = Unwrap<SecureContext>(args.This());
+  Environment* env = sc->env();
+
+  // Auto DH is not supported in openssl 1.0.1, so dhparam needs
+  // to be specifed explicitly
+  if (args.Length() != 1)
+    return env->ThrowTypeError("Bad parameter");
+
+  // Invalid dhparam is silently discarded and DHE is no longer used.
+  BIO* bio = LoadBIO(env, args[0]);
+  if (!bio)
+    return;
+
+  DH* dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+  BIO_free_all(bio);
+
+  if (dh == NULL)
+    return;
+
+  SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
+  int r = SSL_CTX_set_tmp_dh(sc->ctx_, dh);
+  DH_free(dh);
+
+  if (!r)
+    return env->ThrowTypeError("Error setting temp DH parameter");
+}
+
+
 void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
 
@@ -1095,7 +1130,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                          X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
     info->Set(env->subject_string(),
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
   }
   (void) BIO_reset(bio);
 
@@ -1103,7 +1139,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
     info->Set(env->issuer_string(),
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
   }
   (void) BIO_reset(bio);
 
@@ -1127,7 +1164,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
     BIO_get_mem_ptr(bio, &mem);
     info->Set(keys[i],
-              OneByteString(env->isolate(), mem->data, mem->length));
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
 
     (void) BIO_reset(bio);
   }
@@ -1141,13 +1179,15 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       BN_print(bio, rsa->n);
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->modulus_string(),
-                OneByteString(env->isolate(), mem->data, mem->length));
+                String::NewFromUtf8(env->isolate(), mem->data,
+                                    String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
       BN_print(bio, rsa->e);
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
-                OneByteString(env->isolate(), mem->data, mem->length));
+                String::NewFromUtf8(env->isolate(), mem->data,
+                                    String::kNormalString, mem->length));
       (void) BIO_reset(bio);
   }
 
@@ -1163,13 +1203,15 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   ASN1_TIME_print(bio, X509_get_notBefore(cert));
   BIO_get_mem_ptr(bio, &mem);
   info->Set(env->valid_from_string(),
-            OneByteString(env->isolate(), mem->data, mem->length));
+            String::NewFromUtf8(env->isolate(), mem->data,
+                                String::kNormalString, mem->length));
   (void) BIO_reset(bio);
 
   ASN1_TIME_print(bio, X509_get_notAfter(cert));
   BIO_get_mem_ptr(bio, &mem);
   info->Set(env->valid_to_string(),
-            OneByteString(env->isolate(), mem->data, mem->length));
+            String::NewFromUtf8(env->isolate(), mem->data,
+                                String::kNormalString, mem->length));
   BIO_free_all(bio);
 
   unsigned int md_size, i;
@@ -2108,7 +2150,6 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   SSLWrap<Connection>::Kind kind =
       is_server ? SSLWrap<Connection>::kServer : SSLWrap<Connection>::kClient;
   Connection* conn = new Connection(env, args.This(), sc, kind);
-  conn->ssl_ = SSL_new(sc->ctx_);
   conn->bio_read_ = NodeBIO::New();
   conn->bio_write_ = NodeBIO::New();
 
@@ -3249,11 +3290,8 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   EVP_PKEY* pkey = NULL;
   bool fatal = true;
 
-  bp = BIO_new(BIO_s_mem());
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == NULL)
-    goto exit;
-
-  if (!BIO_write(bp, key_pem, key_pem_len))
     goto exit;
 
   pkey = PEM_read_bio_PrivateKey(bp,
@@ -3441,11 +3479,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   bool fatal = true;
   int r = 0;
 
-  bp = BIO_new(BIO_s_mem());
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == NULL)
-    goto exit;
-
-  if (!BIO_write(bp, key_pem, key_pem_len))
     goto exit;
 
   // Check if this is a PKCS#8 or RSA public key before trying as X.509.
@@ -3541,6 +3576,141 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   if (err != kSignOk)
     return verify->CheckThrow(err);
   args.GetReturnValue().Set(verify_result);
+}
+
+
+template <PublicKeyCipher::Operation operation,
+          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+bool PublicKeyCipher::Cipher(const char* key_pem,
+                             int key_pem_len,
+                             const char* passphrase,
+                             int padding,
+                             const unsigned char* data,
+                             int len,
+                             unsigned char** out,
+                             size_t* out_len) {
+  EVP_PKEY* pkey = NULL;
+  EVP_PKEY_CTX* ctx = NULL;
+  BIO* bp = NULL;
+  X509* x509 = NULL;
+  bool fatal = true;
+
+  bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
+  if (bp == NULL)
+    goto exit;
+
+  // Check if this is a PKCS#8 or RSA public key before trying as X.509 and
+  // private key.
+  if (operation == kEncrypt &&
+      strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
+    pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
+    if (pkey == NULL)
+      goto exit;
+  } else if (operation == kEncrypt &&
+             strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+    if (rsa) {
+      pkey = EVP_PKEY_new();
+      if (pkey)
+        EVP_PKEY_set1_RSA(pkey, rsa);
+      RSA_free(rsa);
+    }
+    if (pkey == NULL)
+      goto exit;
+  } else if (operation == kEncrypt &&
+             strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
+    x509 = PEM_read_bio_X509(bp, NULL, CryptoPemCallback, NULL);
+    if (x509 == NULL)
+      goto exit;
+
+    pkey = X509_get_pubkey(x509);
+    if (pkey == NULL)
+      goto exit;
+  } else {
+    pkey = PEM_read_bio_PrivateKey(bp,
+                                   NULL,
+                                   CryptoPemCallback,
+                                   const_cast<char*>(passphrase));
+    if (pkey == NULL)
+      goto exit;
+  }
+
+  ctx = EVP_PKEY_CTX_new(pkey, NULL);
+  if (!ctx)
+    goto exit;
+  if (EVP_PKEY_cipher_init(ctx) <= 0)
+    goto exit;
+  if (EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0)
+    goto exit;
+
+  if (EVP_PKEY_cipher(ctx, NULL, out_len, data, len) <= 0)
+    goto exit;
+
+  *out = new unsigned char[*out_len];
+
+  if (EVP_PKEY_cipher(ctx, *out, out_len, data, len) <= 0)
+    goto exit;
+
+  fatal = false;
+
+ exit:
+  if (pkey != NULL)
+    EVP_PKEY_free(pkey);
+  if (bp != NULL)
+    BIO_free_all(bp);
+  if (ctx != NULL)
+    EVP_PKEY_CTX_free(ctx);
+
+  return !fatal;
+}
+
+
+template <PublicKeyCipher::Operation operation,
+          PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+          PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
+void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ASSERT_IS_BUFFER(args[0]);
+  char* kbuf = Buffer::Data(args[0]);
+  ssize_t klen = Buffer::Length(args[0]);
+
+  ASSERT_IS_BUFFER(args[1]);
+  char* buf = Buffer::Data(args[1]);
+  ssize_t len = Buffer::Length(args[1]);
+
+  int padding = args[2]->Uint32Value();
+
+  String::Utf8Value passphrase(args[3]);
+
+  unsigned char* out_value = NULL;
+  size_t out_len = 0;
+
+  bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
+      kbuf,
+      klen,
+      args.Length() >= 3 && !args[2]->IsNull() ? *passphrase : NULL,
+      padding,
+      reinterpret_cast<const unsigned char*>(buf),
+      len,
+      &out_value,
+      &out_len);
+
+  if (out_len == 0 || !r) {
+    delete[] out_value;
+    out_value = NULL;
+    out_len = 0;
+    if (!r) {
+      return ThrowCryptoError(env,
+        ERR_get_error());
+    }
+  }
+
+  args.GetReturnValue().Set(
+      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len));
+  delete[] out_value;
 }
 
 
@@ -3945,6 +4115,224 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
+void ECDH::Initialize(Environment* env, Handle<Object> target) {
+  HandleScope scope(env->isolate());
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+
+  NODE_SET_PROTOTYPE_METHOD(t, "generateKeys", GenerateKeys);
+  NODE_SET_PROTOTYPE_METHOD(t, "computeSecret", ComputeSecret);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", GetPublicKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPrivateKey", GetPrivateKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", SetPublicKey);
+  NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
+              t->GetFunction());
+}
+
+
+void ECDH::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  // TODO(indutny): Support raw curves?
+  CHECK(args[0]->IsString());
+  node::Utf8Value curve(args[0]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return env->ThrowTypeError("First argument should be a valid curve name");
+
+  EC_KEY* key = EC_KEY_new_by_curve_name(nid);
+  if (key == NULL)
+    return env->ThrowError("Failed to create EC_KEY using curve name");
+
+  new ECDH(env, args.This(), key);
+}
+
+
+void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!EC_KEY_generate_key(ecdh->key_))
+    return env->ThrowError("Failed to generate EC_KEY");
+
+  ecdh->generated_ = true;
+}
+
+
+EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
+  EC_POINT* pub;
+  int r;
+
+  pub = EC_POINT_new(group_);
+  if (pub == NULL) {
+    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    return NULL;
+  }
+
+  r = EC_POINT_oct2point(
+      group_,
+      pub,
+      reinterpret_cast<unsigned char*>(data),
+      len,
+      NULL);
+  if (!r) {
+    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
+    goto fatal;
+  }
+
+  return pub;
+
+ fatal:
+  EC_POINT_free(pub);
+  return NULL;
+}
+
+
+void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
+                                      Buffer::Length(args[0]));
+  if (pub == NULL)
+    return;
+
+  // NOTE: field_size is in bits
+  int field_size = EC_GROUP_get_degree(ecdh->group_);
+  size_t out_len = (field_size + 7) / 8;
+  char* out = static_cast<char*>(malloc(out_len));
+  CHECK_NE(out, NULL);
+
+  int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, NULL);
+  EC_POINT_free(pub);
+  if (!r) {
+    free(out);
+    return env->ThrowError("Failed to compute ECDH key");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env, out, out_len));
+}
+
+
+void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  // Conversion form
+  CHECK_EQ(args.Length(), 1);
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!ecdh->generated_)
+    return env->ThrowError("You should generate ECDH keys first");
+
+  const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
+  if (pub == NULL)
+    return env->ThrowError("Failed to get ECDH public key");
+
+  int size;
+  point_conversion_form_t form =
+      static_cast<point_conversion_form_t>(args[0]->Uint32Value());
+
+  size = EC_POINT_point2oct(ecdh->group_, pub, form, NULL, 0, NULL);
+  if (size == 0)
+    return env->ThrowError("Failed to get public key length");
+
+  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  CHECK_NE(out, NULL);
+
+  int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, NULL);
+  if (r != size) {
+    free(out);
+    return env->ThrowError("Failed to get public key");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env,
+                                        reinterpret_cast<char*>(out),
+                                        size));
+}
+
+
+void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  if (!ecdh->generated_)
+    return env->ThrowError("You should generate ECDH keys first");
+
+  const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
+  if (b == NULL)
+    return env->ThrowError("Failed to get ECDH private key");
+
+  int size = BN_num_bytes(b);
+  unsigned char* out = static_cast<unsigned char*>(malloc(size));
+  CHECK_NE(out, NULL);
+
+  if (size != BN_bn2bin(b, out)) {
+    free(out);
+    return env->ThrowError("Failed to convert ECDH private key to Buffer");
+  }
+
+  args.GetReturnValue().Set(Buffer::Use(env,
+                                        reinterpret_cast<char*>(out),
+                                        size));
+}
+
+
+void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  BIGNUM* priv = BN_bin2bn(
+      reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
+      Buffer::Length(args[0].As<Object>()),
+      NULL);
+  if (priv == NULL)
+    return env->ThrowError("Failed to convert Buffer to BN");
+
+  if (!EC_KEY_set_private_key(ecdh->key_, priv))
+    return env->ThrowError("Failed to convert BN to a private key");
+}
+
+
+void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  ASSERT_IS_BUFFER(args[0]);
+
+  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
+                                      Buffer::Length(args[0].As<Object>()));
+  if (pub == NULL)
+    return;
+
+  int r = EC_KEY_set_public_key(ecdh->key_, pub);
+  EC_POINT_free(pub);
+  if (!r)
+    return env->ThrowError("Failed to convert BN to a private key");
+}
+
+
 class PBKDF2Request : public AsyncWrap {
  public:
   PBKDF2Request(Environment* env,
@@ -4116,13 +4504,14 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
+  ASSERT_IS_BUFFER(args[1]);
+
   pass = static_cast<char*>(malloc(passlen));
   if (pass == NULL) {
     FatalError("node::PBKDF2()", "Out of Memory");
   }
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
-  ASSERT_IS_BUFFER(args[1]);
   saltlen = Buffer::Length(args[1]);
   if (saltlen < 0) {
     type_error = "Bad salt";
@@ -4715,6 +5104,7 @@ void InitCrypto(Handle<Object> target,
   Connection::Initialize(env, target);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
+  ECDH::Initialize(env, target);
   Hmac::Initialize(env, target);
   Hash::Initialize(env, target);
   Sign::Initialize(env, target);
@@ -4730,6 +5120,16 @@ void InitCrypto(Handle<Object> target,
   NODE_SET_METHOD(target, "getSSLCiphers", GetSSLCiphers);
   NODE_SET_METHOD(target, "getCiphers", GetCiphers);
   NODE_SET_METHOD(target, "getHashes", GetHashes);
+  NODE_SET_METHOD(target,
+                  "publicEncrypt",
+                  PublicKeyCipher::Cipher<PublicKeyCipher::kEncrypt,
+                                          EVP_PKEY_encrypt_init,
+                                          EVP_PKEY_encrypt>);
+  NODE_SET_METHOD(target,
+                  "privateDecrypt",
+                  PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
+                                          EVP_PKEY_decrypt_init,
+                                          EVP_PKEY_decrypt>);
 }
 
 }  // namespace crypto

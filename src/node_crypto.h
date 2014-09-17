@@ -39,6 +39,8 @@
 #include "v8.h"
 
 #include <openssl/ssl.h>
+#include <openssl/ec.h>
+#include <openssl/ecdh.h>
 #ifndef OPENSSL_NO_ENGINE
 # include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -93,6 +95,7 @@ class SecureContext : public BaseObject {
   static void AddRootCerts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetDHParam(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -559,6 +562,36 @@ class Verify : public SignBase {
   }
 };
 
+class PublicKeyCipher {
+ public:
+  typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX *ctx);
+  typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX *ctx,
+                                   unsigned char *out, size_t *outlen,
+                                   const unsigned char *in, size_t inlen);
+
+  enum Operation {
+    kEncrypt,
+    kDecrypt
+  };
+
+  template <Operation operation,
+            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  static bool Cipher(const char* key_pem,
+                     int key_pem_len,
+                     const char* passphrase,
+                     int padding,
+                     const unsigned char* data,
+                     int len,
+                     unsigned char** out,
+                     size_t* out_len);
+
+  template <Operation operation,
+            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
+            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  static void Cipher(const v8::FunctionCallbackInfo<v8::Value>& args);
+};
+
 class DiffieHellman : public BaseObject {
  public:
   ~DiffieHellman() {
@@ -603,6 +636,42 @@ class DiffieHellman : public BaseObject {
   bool initialised_;
   int verifyError_;
   DH* dh;
+};
+
+class ECDH : public BaseObject {
+ public:
+  ~ECDH() {
+    if (key_ != NULL)
+      EC_KEY_free(key_);
+    key_ = NULL;
+    group_ = NULL;
+  }
+
+  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+
+ protected:
+  ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
+      : BaseObject(env, wrap),
+        generated_(false),
+        key_(key),
+        group_(EC_KEY_get0_group(key_)) {
+    MakeWeak<ECDH>(this);
+    ASSERT(group_ != NULL);
+  }
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  EC_POINT* BufferToPoint(char* data, size_t len);
+
+  bool generated_;
+  EC_KEY* key_;
+  const EC_GROUP* group_;
 };
 
 class Certificate : public AsyncWrap {

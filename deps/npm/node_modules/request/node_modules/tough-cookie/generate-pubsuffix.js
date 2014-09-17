@@ -18,13 +18,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+'use strict';
 var fs = require('fs');
 var assert = require('assert');
 var punycode = require('punycode');
 
 fs.readFile('./public-suffix.txt', 'utf8', function(err,string) {
-  if (err) throw err;
+  if (err) {
+    throw err;
+  }
   var lines = string.split("\n");
   process.nextTick(function() {
     processList(lines);
@@ -38,7 +40,9 @@ function processList(lines) {
   while (lines.length) {
     var line = lines.shift();
     line = line.replace(COMMENT,'').trim();
-    if (!line) continue;
+    if (!line) {
+      continue;
+    }
     addToIndex(index,line);
   }
 
@@ -47,7 +51,7 @@ function processList(lines) {
   var w = fs.createWriteStream('./lib/pubsuffix.js',{
     flags: 'w',
     encoding: 'utf8',
-    mode: 0644,
+    mode: parseInt('644',8)
   });
   w.on('end', process.exit);
   w.write("/****************************************************\n");
@@ -76,11 +80,12 @@ function addToIndex(index,line) {
     line = line.slice(prefix.length);
   }
   line = prefix + punycode.toASCII(line);
- 
-  if (line.substr(0,1) == '!')
+
+  if (line.substr(0,1) == '!') {
     index[line.substr(1)] = false;
-  else
+  } else {
     index[line] = true;
+  }
 }
 
 // include the licence in the function since it gets written to pubsuffix.js
@@ -105,8 +110,12 @@ function getPublicSuffix(domain) {
    * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
    * IN THE SOFTWARE.
    */
-  if (!domain) return null;
-  if (domain.match(/^\./)) return null;
+  if (!domain) {
+    return null;
+  }
+  if (domain.match(/^\./)) {
+    return null;
+  }
 
   domain = domain.toLowerCase();
   var parts = domain.split('.').reverse();

@@ -22,6 +22,7 @@
 var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
+var os = require('os');
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -45,6 +46,13 @@ if (process.platform === 'win32') {
   exports.faketimeCli = path.join(__dirname, "..", "tools", "faketime", "src",
     "faketime");
 }
+
+var ifaces = os.networkInterfaces();
+exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
+  return /lo/.test(name) && ifaces[name].some(function(info) {
+    return info.family === 'IPv6';
+  });
+});
 
 var util = require('util');
 for (var i in util) exports[i] = util[i];
@@ -226,3 +234,67 @@ exports.checkSpawnSyncRet = function(ret) {
   assert.strictEqual(ret.status, 0);
   assert.strictEqual(ret.error, undefined);
 };
+
+var etcServicesFileName = path.join('/etc', 'services');
+if (process.platform === 'win32') {
+  etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
+    'etc', 'services');
+}
+
+/*
+ * Returns a string that represents the service name associated
+ * to the service bound to port "port" and using protocol "protocol".
+ *
+ * If the service is not defined in the services file, it returns
+ * the port number as a string.
+ *
+ * Returns undefined if /etc/services (or its equivalent on non-UNIX
+ * platforms) can't be read.
+ */
+exports.getServiceName = function getServiceName(port, protocol) {
+  if (port == null) {
+    throw new Error("Missing port number");
+  }
+
+  if (typeof protocol !== 'string') {
+    throw new Error("Protocol must be a string");
+  }
+
+  /*
+   * By default, if a service can't be found in /etc/services,
+   * its name is considered to be its port number.
+   */
+  var serviceName = port.toString();
+
+  try {
+    /*
+     * I'm not a big fan of readFileSync, but reading /etc/services asynchronously
+     * here would require implementing a simple line parser, which seems overkill
+     * for a simple utility function that is not running concurrently with any
+     * other one.
+     */
+    var servicesContent = fs.readFileSync(etcServicesFileName,
+      { encoding: 'utf8'});
+    var regexp = util.format('^(\\w+)\\s+\\s%d/%s\\s', port, protocol);
+    var re = new RegExp(regexp, 'm');
+
+    var matches = re.exec(servicesContent);
+    if (matches && matches.length > 1) {
+      serviceName = matches[1];
+    }
+  } catch(e) {
+    console.error('Cannot read file: ', etcServicesFileName);
+    return undefined;
+  }
+
+  return serviceName;
+}
+
+exports.isValidHostname = function(str) {
+  // See http://stackoverflow.com/a/3824105
+  var re = new RegExp(
+    '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])' +
+    '(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]))*$');
+
+  return !!str.match(re) && str.length <= 255;
+}

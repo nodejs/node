@@ -618,6 +618,40 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2014.09.16, Version 0.10.32 (Stable)
+
+* npm: Update to 1.4.28
+
+* v8: fix a crash introduced by previous release (Fedor Indutny)
+
+* configure: add --openssl-no-asm flag (Fedor Indutny)
+
+* crypto: use domains for any callback-taking method (Chris Dickinson)
+
+* http: do not send `0\r\n\r\n` in TE HEAD responses (Fedor Indutny)
+
+* querystring: fix unescape override (Tristan Berger)
+
+* url: Add support for RFC 3490 separators (Mathias Bynens)
+
+
+2014.08.19, Version 0.10.31 (Stable), 7fabdc23d843cb705d2d0739e7bbdaaf50aa3292
+
+* v8: backport CVE-2013-6668
+
+* openssl: Update to v1.0.1i
+
+* npm: Update to v1.4.23
+
+* cluster: disconnect should not be synchronous (Sam Roberts)
+
+* fs: fix fs.readFileSync fd leak when get RangeError (Jackson Tian)
+
+* stream: fix Readable.wrap objectMode falsy values (James Halliday)
+
+* timers: fix timers with non-integer delay hanging. (Julien Gilli)
+
+
 2014.07.31, Version 0.10.30 (Stable), bc0ff830aff1e016163d855e86ded5c98b0899e8
 
 * uv: Upgrade to v0.10.28

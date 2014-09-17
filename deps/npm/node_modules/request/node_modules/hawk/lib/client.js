@@ -54,6 +54,7 @@ exports.header = function (uri, method, options) {
         !method || typeof method !== 'string' ||
         !options || typeof options !== 'object') {
 
+        result.err = 'Invalid argument type';
         return result;
     }
 
@@ -69,11 +70,12 @@ exports.header = function (uri, method, options) {
         !credentials.key ||
         !credentials.algorithm) {
 
-        // Invalid credential object
+        result.err = 'Invalid credential object';
         return result;
     }
 
     if (Crypto.algorithms.indexOf(credentials.algorithm) === -1) {
+        result.err = 'Unknown algorithm';
         return result;
     }
 
@@ -155,6 +157,8 @@ exports.authenticate = function (res, credentials, artifacts, options) {
         if (attributes instanceof Error) {
             return false;
         }
+
+        // Validate server timestamp (not used to update clock since it is done via the SNPT client)
 
         if (attributes.ts) {
             var tsm = Crypto.calculateTsMac(attributes.ts, credentials);

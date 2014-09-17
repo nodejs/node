@@ -250,3 +250,11 @@ var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
 assert.equal(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
+
+// test overriding .unescape
+var prevUnescape = qs.unescape;
+qs.unescape = function (str) {
+  return str.replace(/o/g, '_');
+};
+assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});
+qs.unescape = prevUnescape;
