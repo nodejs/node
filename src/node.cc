@@ -1941,7 +1941,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
-  exit(args[0]->IntegerValue());
+  exit(args[0]->Int32Value());
 }
 
 
@@ -1993,7 +1993,7 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Bad argument.");
   }
 
-  int pid = args[0]->IntegerValue();
+  int pid = args[0]->Int32Value();
   int sig = args[1]->Int32Value();
   int err = uv_kill(pid, sig);
   args.GetReturnValue().Set(err);
@@ -2502,7 +2502,7 @@ static void DebugPortSetter(Local<String> property,
                             const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
-  debug_port = value->NumberValue();
+  debug_port = value->Int32Value();
 }
 
 
@@ -3375,7 +3375,7 @@ void Init(int* argc,
           int* exec_argc,
           const char*** exec_argv) {
   // Initialize prog_start_time to get relative uptime.
-  prog_start_time = uv_now(uv_default_loop());
+  prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
@@ -3530,7 +3530,7 @@ int EmitExit(Environment* env) {
   process_object->Set(env->exiting_string(), True(env->isolate()));
 
   Handle<String> exitCode = env->exit_code_string();
-  int code = process_object->Get(exitCode)->IntegerValue();
+  int code = process_object->Get(exitCode)->Int32Value();
 
   Local<Value> args[] = {
     env->exit_string(),
@@ -3540,7 +3540,7 @@ int EmitExit(Environment* env) {
   MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
 
   // Reload exit code, it may be changed by `emit('exit')`
-  return process_object->Get(exitCode)->IntegerValue();
+  return process_object->Get(exitCode)->Int32Value();
 }
 
 
