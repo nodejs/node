@@ -38,6 +38,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <uvm/uvm_extern.h>
 
 #include <unistd.h>
 #include <time.h>

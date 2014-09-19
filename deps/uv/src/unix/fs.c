@@ -38,7 +38,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <dirent.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <utime.h>
@@ -296,9 +295,9 @@ done:
 
 
 #if defined(__OpenBSD__) || (defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_8))
-static int uv__fs_readdir_filter(struct dirent* dent) {
+static int uv__fs_readdir_filter(uv__dirent_t* dent) {
 #else
-static int uv__fs_readdir_filter(const struct dirent* dent) {
+static int uv__fs_readdir_filter(const uv__dirent_t* dent) {
 #endif
   return strcmp(dent->d_name, ".") != 0 && strcmp(dent->d_name, "..") != 0;
 }
@@ -306,12 +305,8 @@ static int uv__fs_readdir_filter(const struct dirent* dent) {
 
 /* This should have been called uv__fs_scandir(). */
 static ssize_t uv__fs_readdir(uv_fs_t* req) {
-  struct dirent **dents;
+  uv__dirent_t **dents;
   int saved_errno;
-  size_t off;
-  size_t len;
-  char *buf;
-  int i;
   int n;
 
   dents = NULL;
@@ -322,32 +317,17 @@ static ssize_t uv__fs_readdir(uv_fs_t* req) {
   else if (n == -1)
     return n;
 
-  len = 0;
+  /* NOTE: We will use nbufs as an index field */
+  req->ptr = dents;
+  req->nbufs = 0;
 
-  for (i = 0; i < n; i++)
-    len += strlen(dents[i]->d_name) + 1;
-
-  buf = malloc(len);
-
-  if (buf == NULL) {
-    errno = ENOMEM;
-    n = -1;
-    goto out;
-  }
-
-  off = 0;
-
-  for (i = 0; i < n; i++) {
-    len = strlen(dents[i]->d_name) + 1;
-    memcpy(buf + off, dents[i]->d_name, len);
-    off += len;
-  }
-
-  req->ptr = buf;
+  return n;
 
 out:
   saved_errno = errno;
   if (dents != NULL) {
+    int i;
+
     for (i = 0; i < n; i++)
       free(dents[i]);
     free(dents);
@@ -1183,6 +1163,9 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   free((void*) req->path);
   req->path = NULL;
   req->new_path = NULL;
+
+  if (req->fs_type == UV_FS_READDIR && req->ptr != NULL)
+    uv__fs_readdir_cleanup(req);
 
   if (req->ptr != &req->statbuf)
     free(req->ptr);

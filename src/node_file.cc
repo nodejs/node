@@ -207,21 +207,26 @@ static void After(uv_fs_t *req) {
 
       case UV_FS_READDIR:
         {
-          char *namebuf = static_cast<char*>(req->ptr);
-          int nnames = req->result;
+          int r;
+          Local<Array> names = Array::New(env->isolate(), 0);
 
-          Local<Array> names = Array::New(env->isolate(), nnames);
+          for (int i = 0; ; i++) {
+            uv_dirent_t ent;
 
-          for (int i = 0; i < nnames; i++) {
-            Local<String> name = String::NewFromUtf8(env->isolate(), namebuf);
+            r = uv_fs_readdir_next(req, &ent);
+            if (r == UV_EOF)
+              break;
+            if (r != 0) {
+              argv[0] = UVException(r,
+                                    NULL,
+                                    req_wrap->syscall(),
+                                    static_cast<const char*>(req->path));
+              break;
+            }
+
+            Local<String> name = String::NewFromUtf8(env->isolate(),
+                                                     ent.name);
             names->Set(i, name);
-#ifndef NDEBUG
-            namebuf += strlen(namebuf);
-            assert(*namebuf == '\0');
-            namebuf += 1;
-#else
-            namebuf += strlen(namebuf) + 1;
-#endif
           }
 
           argv[1] = names;
@@ -710,19 +715,21 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     SYNC_CALL(readdir, *path, *path, 0 /*flags*/)
 
     assert(SYNC_REQ.result >= 0);
-    char* namebuf = static_cast<char*>(SYNC_REQ.ptr);
-    uint32_t nnames = SYNC_REQ.result;
-    Local<Array> names = Array::New(env->isolate(), nnames);
+    int r;
+    Local<Array> names = Array::New(env->isolate(), 0);
 
-    for (uint32_t i = 0; i < nnames; ++i) {
-      names->Set(i, String::NewFromUtf8(env->isolate(), namebuf));
-#ifndef NDEBUG
-      namebuf += strlen(namebuf);
-      assert(*namebuf == '\0');
-      namebuf += 1;
-#else
-      namebuf += strlen(namebuf) + 1;
-#endif
+    for (int i = 0; ; i++) {
+      uv_dirent_t ent;
+
+      r = uv_fs_readdir_next(&SYNC_REQ, &ent);
+      if (r == UV_EOF)
+        break;
+      if (r != 0)
+        return env->ThrowUVException(r, "readdir", "", *path);
+
+      Local<String> name = String::NewFromUtf8(env->isolate(),
+                                               ent.name);
+      names->Set(i, name);
     }
 
     args.GetReturnValue().Set(names);

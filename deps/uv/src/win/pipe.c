@@ -101,6 +101,7 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->pending_ipc_info.queue_len = 0;
   handle->ipc = ipc;
   handle->non_overlapped_writes_tail = NULL;
+  handle->readfile_thread = NULL;
 
   uv_req_init(loop, (uv_req_t*) &handle->ipc_header_write_req);
 
@@ -112,6 +113,12 @@ static void uv_pipe_connection_init(uv_pipe_t* handle) {
   uv_connection_init((uv_stream_t*) handle);
   handle->read_req.data = handle;
   handle->eof_timer = NULL;
+  assert(!(handle->flags & UV_HANDLE_PIPESERVER));
+  if (pCancelSynchronousIo &&
+      handle->flags & UV_HANDLE_NON_OVERLAPPED_PIPE) {
+      uv_mutex_init(&handle->readfile_mutex);
+      handle->flags |= UV_HANDLE_PIPE_READ_CANCELABLE;
+  }
 }
 
 
@@ -320,6 +327,11 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
   IO_STATUS_BLOCK io_status;
   FILE_PIPE_LOCAL_INFORMATION pipe_info;
   uv__ipc_queue_item_t* item;
+
+  if (handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+    handle->flags &= ~UV_HANDLE_PIPE_READ_CANCELABLE;
+    uv_mutex_destroy(&handle->readfile_mutex);
+  }
 
   if ((handle->flags & UV_HANDLE_CONNECTION) &&
       handle->shutdown_req != NULL &&
@@ -658,11 +670,48 @@ error:
 }
 
 
+void uv__pipe_pause_read(uv_pipe_t* handle) {
+  if (handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+      /* Pause the ReadFile task briefly, to work
+         around the Windows kernel bug that causes
+         any access to a NamedPipe to deadlock if
+         any process has called ReadFile */
+      HANDLE h;
+      uv_mutex_lock(&handle->readfile_mutex);
+      h = handle->readfile_thread;
+      while (h) {
+        /* spinlock: we expect this to finish quickly,
+           or we are probably about to deadlock anyways
+           (in the kernel), so it doesn't matter */
+        pCancelSynchronousIo(h);
+        SwitchToThread(); /* yield thread control briefly */
+        h = handle->readfile_thread;
+      }
+  }
+}
+
+
+void uv__pipe_unpause_read(uv_pipe_t* handle) {
+  if (handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+    uv_mutex_unlock(&handle->readfile_mutex);
+  }
+}
+
+
+void uv__pipe_stop_read(uv_pipe_t* handle) {
+  handle->flags &= ~UV_HANDLE_READING;
+  uv__pipe_pause_read((uv_pipe_t*)handle);
+  uv__pipe_unpause_read((uv_pipe_t*)handle);
+}
+
+
 /* Cleans up uv_pipe_t (server or connection) and all resources associated */
 /* with it. */
 void uv_pipe_cleanup(uv_loop_t* loop, uv_pipe_t* handle) {
   int i;
   HANDLE pipeHandle;
+
+  uv__pipe_stop_read(handle);
 
   if (handle->name) {
     free(handle->name);
@@ -689,6 +738,7 @@ void uv_pipe_cleanup(uv_loop_t* loop, uv_pipe_t* handle) {
     CloseHandle(handle->handle);
     handle->handle = INVALID_HANDLE_VALUE;
   }
+
 }
 
 
@@ -867,19 +917,61 @@ static DWORD WINAPI uv_pipe_zero_readfile_thread_proc(void* parameter) {
   uv_read_t* req = (uv_read_t*) parameter;
   uv_pipe_t* handle = (uv_pipe_t*) req->data;
   uv_loop_t* loop = handle->loop;
+  HANDLE hThread = NULL;
+  DWORD err;
+  uv_mutex_t *m = &handle->readfile_mutex;
 
   assert(req != NULL);
   assert(req->type == UV_READ);
   assert(handle->type == UV_NAMED_PIPE);
 
+  if (handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+    uv_mutex_lock(m); /* mutex controls *setting* of readfile_thread */
+    if (DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                        GetCurrentProcess(), &hThread,
+                        0, TRUE, DUPLICATE_SAME_ACCESS)) {
+      handle->readfile_thread = hThread;
+    } else {
+      hThread = NULL;
+    }
+    uv_mutex_unlock(m);
+  }
+restart_readfile:
   result = ReadFile(handle->handle,
                     &uv_zero_,
                     0,
                     &bytes,
                     NULL);
+  if (!result) {
+    err = GetLastError();
+    if (err == ERROR_OPERATION_ABORTED &&
+        handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+      if (handle->flags & UV_HANDLE_READING) {
+        /* just a brief break to do something else */
+        handle->readfile_thread = NULL;
+        /* resume after it is finished */
+        uv_mutex_lock(m);
+        handle->readfile_thread = hThread;
+        uv_mutex_unlock(m);
+        goto restart_readfile;
+      } else {
+        result = 1; /* successfully stopped reading */
+      }
+    }
+  }
+  if (hThread) {
+    assert(hThread == handle->readfile_thread);
+    /* mutex does not control clearing readfile_thread */
+    handle->readfile_thread = NULL;
+    uv_mutex_lock(m);
+    /* only when we hold the mutex lock is it safe to
+       open or close the handle */
+    CloseHandle(hThread);
+    uv_mutex_unlock(m);
+  }
 
   if (!result) {
-    SET_REQ_ERROR(req, GetLastError());
+    SET_REQ_ERROR(req, err);
   }
 
   POST_COMPLETION_FOR_REQ(loop, req);
@@ -1836,6 +1928,8 @@ int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
     return UV_EINVAL;
   }
 
+  uv__pipe_pause_read((uv_pipe_t*)handle); /* cast away const warning */
+
   nt_status = pNtQueryInformationFile(handle->handle,
                                       &io_status,
                                       &tmp_name_info,
@@ -1846,7 +1940,8 @@ int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
     name_info = malloc(name_size);
     if (!name_info) {
       *len = 0;
-      return UV_ENOMEM;
+      err = UV_ENOMEM;
+      goto cleanup;
     }
 
     nt_status = pNtQueryInformationFile(handle->handle,
@@ -1918,10 +2013,14 @@ int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
   buf[addrlen++] = '\0';
   *len = addrlen;
 
-  return 0;
+  err = 0;
+  goto cleanup;
 
 error:
   free(name_info);
+
+cleanup:
+  uv__pipe_unpause_read((uv_pipe_t*)handle); /* cast away const warning */
   return err;
 }
 

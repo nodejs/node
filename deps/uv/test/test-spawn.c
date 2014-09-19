@@ -1295,23 +1295,25 @@ TEST_IMPL(closed_fd_events) {
 TEST_IMPL(spawn_reads_child_path) {
   int r;
   int len;
+  char file[64];
   char path[1024];
   char *env[2] = {path, NULL};
 
   /* Set up the process, but make sure that the file to run is relative and */
   /* requires a lookup into PATH */
   init_process_options("spawn_helper1", exit_cb);
-  options.file = "run-tests";
-  args[0] = "run-tests";
 
   /* Set up the PATH env variable */
   for (len = strlen(exepath);
        exepath[len - 1] != '/' && exepath[len - 1] != '\\';
        len--);
+  strcpy(file, exepath + len);
   exepath[len] = 0;
   strcpy(path, "PATH=");
   strcpy(path + 5, exepath);
 
+  options.file = file;
+  options.args[0] = file;
   options.env = env;
 
   r = uv_spawn(uv_default_loop(), &process, &options);

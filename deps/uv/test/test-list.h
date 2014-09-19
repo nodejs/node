@@ -29,6 +29,7 @@ TEST_DECLARE   (loop_close)
 TEST_DECLARE   (loop_stop)
 TEST_DECLARE   (loop_update_time)
 TEST_DECLARE   (loop_backend_timeout)
+TEST_DECLARE   (default_loop_close)
 TEST_DECLARE   (barrier_1)
 TEST_DECLARE   (barrier_2)
 TEST_DECLARE   (barrier_3)
@@ -55,6 +56,9 @@ TEST_DECLARE   (tcp_ping_pong_v6)
 TEST_DECLARE   (pipe_ping_pong)
 TEST_DECLARE   (delayed_accept)
 TEST_DECLARE   (multiple_listen)
+#ifndef _WIN32
+TEST_DECLARE   (tcp_write_after_connect)
+#endif
 TEST_DECLARE   (tcp_writealot)
 TEST_DECLARE   (tcp_try_write)
 TEST_DECLARE   (tcp_write_queue_order)
@@ -89,6 +93,7 @@ TEST_DECLARE   (udp_bind)
 TEST_DECLARE   (udp_bind_reuseaddr)
 TEST_DECLARE   (udp_send_and_recv)
 TEST_DECLARE   (udp_send_immediate)
+TEST_DECLARE   (udp_send_unreachable)
 TEST_DECLARE   (udp_multicast_join)
 TEST_DECLARE   (udp_multicast_join6)
 TEST_DECLARE   (udp_multicast_ttl)
@@ -109,6 +114,7 @@ TEST_DECLARE   (pipe_connect_bad_name)
 TEST_DECLARE   (pipe_connect_to_file)
 TEST_DECLARE   (pipe_getsockname)
 TEST_DECLARE   (pipe_getsockname_abstract)
+TEST_DECLARE   (pipe_getsockname_blocking)
 TEST_DECLARE   (pipe_sendmsg)
 TEST_DECLARE   (pipe_server_close)
 TEST_DECLARE   (connection_fail)
@@ -128,6 +134,7 @@ TEST_DECLARE   (timer_huge_timeout)
 TEST_DECLARE   (timer_huge_repeat)
 TEST_DECLARE   (timer_run_once)
 TEST_DECLARE   (timer_from_check)
+TEST_DECLARE   (timer_null_callback)
 TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
@@ -155,6 +162,9 @@ TEST_DECLARE   (pipe_ref)
 TEST_DECLARE   (pipe_ref2)
 TEST_DECLARE   (pipe_ref3)
 TEST_DECLARE   (pipe_ref4)
+#ifndef _WIN32
+TEST_DECLARE   (pipe_close_stdout_read_stdin)
+#endif
 TEST_DECLARE   (process_ref)
 TEST_DECLARE   (has_ref)
 TEST_DECLARE   (active)
@@ -165,6 +175,7 @@ TEST_DECLARE   (get_currentexe)
 TEST_DECLARE   (process_title)
 TEST_DECLARE   (cwd_and_chdir)
 TEST_DECLARE   (get_memory)
+TEST_DECLARE   (handle_fileno)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_fail)
 TEST_DECLARE   (getaddrinfo_basic)
@@ -175,6 +186,7 @@ TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
 TEST_DECLARE   (fail_always)
 TEST_DECLARE   (pass_always)
+TEST_DECLARE   (socket_buffer_size)
 TEST_DECLARE   (spawn_fails)
 TEST_DECLARE   (spawn_exit_code)
 TEST_DECLARE   (spawn_stdout)
@@ -275,6 +287,7 @@ TEST_DECLARE   (closed_fd_events)
 #endif
 #ifdef __APPLE__
 TEST_DECLARE   (osx_select)
+TEST_DECLARE   (osx_select_many_fds)
 #endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
@@ -296,6 +309,7 @@ TASK_LIST_START
   TEST_ENTRY  (loop_stop)
   TEST_ENTRY  (loop_update_time)
   TEST_ENTRY  (loop_backend_timeout)
+  TEST_ENTRY  (default_loop_close)
   TEST_ENTRY  (barrier_1)
   TEST_ENTRY  (barrier_2)
   TEST_ENTRY  (barrier_3)
@@ -312,6 +326,9 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_connect_to_file)
 
   TEST_ENTRY  (pipe_server_close)
+#ifndef _WIN32
+  TEST_ENTRY  (pipe_close_stdout_read_stdin)
+#endif
   TEST_ENTRY  (tty)
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ip6_pton)
@@ -334,6 +351,10 @@ TASK_LIST_START
 
   TEST_ENTRY  (delayed_accept)
   TEST_ENTRY  (multiple_listen)
+
+#ifndef _WIN32
+  TEST_ENTRY  (tcp_write_after_connect)
+#endif
 
   TEST_ENTRY  (tcp_writealot)
   TEST_HELPER (tcp_writealot, tcp4_echo_server)
@@ -381,6 +402,7 @@ TASK_LIST_START
   TEST_ENTRY  (udp_bind_reuseaddr)
   TEST_ENTRY  (udp_send_and_recv)
   TEST_ENTRY  (udp_send_immediate)
+  TEST_ENTRY  (udp_send_unreachable)
   TEST_ENTRY  (udp_dgram_too_big)
   TEST_ENTRY  (udp_dual_stack)
   TEST_ENTRY  (udp_ipv6_only)
@@ -402,6 +424,7 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_listen_without_bind)
   TEST_ENTRY  (pipe_getsockname)
   TEST_ENTRY  (pipe_getsockname_abstract)
+  TEST_ENTRY  (pipe_getsockname_blocking)
   TEST_ENTRY  (pipe_sendmsg)
 
   TEST_ENTRY  (connection_fail)
@@ -432,6 +455,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer_huge_repeat)
   TEST_ENTRY  (timer_run_once)
   TEST_ENTRY  (timer_from_check)
+  TEST_ENTRY  (timer_null_callback)
 
   TEST_ENTRY  (idle_starvation)
 
@@ -487,6 +511,8 @@ TASK_LIST_START
 
   TEST_ENTRY  (get_loadavg)
 
+  TEST_ENTRY  (handle_fileno)
+
   TEST_ENTRY  (hrtime)
 
   TEST_ENTRY_CUSTOM (getaddrinfo_fail, 0, 0, 10000)
@@ -503,6 +529,8 @@ TASK_LIST_START
   TEST_ENTRY  (poll_duplex)
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
+
+  TEST_ENTRY  (socket_buffer_size)
 
   TEST_ENTRY  (spawn_fails)
   TEST_ENTRY  (spawn_exit_code)
@@ -549,6 +577,7 @@ TASK_LIST_START
 
 #ifdef __APPLE__
   TEST_ENTRY (osx_select)
+  TEST_ENTRY (osx_select_many_fds)
 #endif
 
   TEST_ENTRY  (fs_file_noent)

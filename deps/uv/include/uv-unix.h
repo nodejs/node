@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -117,13 +118,14 @@ struct uv__async {
 #endif
 
 /* Note: May be cast to struct iovec. See writev(2). */
-typedef struct {
+typedef struct uv_buf_t {
   char* base;
   size_t len;
 } uv_buf_t;
 
 typedef int uv_file;
 typedef int uv_os_sock_t;
+typedef int uv_os_fd_t;
 
 #define UV_ONCE_INIT PTHREAD_ONCE_INIT
 
@@ -155,6 +157,47 @@ typedef pthread_barrier_t uv_barrier_t;
 typedef gid_t uv_gid_t;
 typedef uid_t uv_uid_t;
 
+typedef struct dirent uv__dirent_t;
+
+#if defined(DT_UNKNOWN)
+# define HAVE_DIRENT_TYPES
+# if defined(DT_REG)
+#  define UV__DT_FILE DT_REG
+# else
+#  define UV__DT_FILE -1
+# endif
+# if defined(DT_DIR)
+#  define UV__DT_DIR DT_DIR
+# else
+#  define UV__DT_DIR -2
+# endif
+# if defined(DT_LNK)
+#  define UV__DT_LINK DT_LNK
+# else
+#  define UV__DT_LINK -3
+# endif
+# if defined(DT_FIFO)
+#  define UV__DT_FIFO DT_FIFO
+# else
+#  define UV__DT_FIFO -4
+# endif
+# if defined(DT_SOCK)
+#  define UV__DT_SOCKET DT_SOCK
+# else
+#  define UV__DT_SOCKET -5
+# endif
+# if defined(DT_CHR)
+#  define UV__DT_CHAR DT_CHR
+# else
+#  define UV__DT_CHAR -6
+# endif
+# if defined(DT_BLK)
+#  define UV__DT_BLOCK DT_BLK
+# else
+#  define UV__DT_BLOCK -7
+# endif
+#endif
+
 /* Platform-specific definitions for uv_dlopen support. */
 #define UV_DYNAMIC /* empty */
 
@@ -176,7 +219,7 @@ typedef struct {
   uv_async_t wq_async;                                                        \
   uv_rwlock_t cloexec_lock;                                                   \
   uv_handle_t* closing_handles;                                               \
-  void* process_handles[1][2];                                                \
+  void* process_handles[2];                                                   \
   void* prepare_handles[2];                                                   \
   void* check_handles[2];                                                     \
   void* idle_handles[2];                                                      \

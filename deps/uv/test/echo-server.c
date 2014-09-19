@@ -51,20 +51,21 @@ static void after_write(uv_write_t* req, int status) {
   /* Free the read/write buffer and the request */
   wr = (write_req_t*) req;
   free(wr->buf.base);
+  free(wr);
 
-  if (status == 0) {
-    free(wr);
+  if (status == 0)
     return;
-  }
 
   fprintf(stderr,
           "uv_write error: %s - %s\n",
           uv_err_name(status),
           uv_strerror(status));
+}
 
-  if (!uv_is_closing((uv_handle_t*) req->handle))
-    uv_close((uv_handle_t*) req->handle, on_close);
-  free(wr);
+
+static void after_shutdown(uv_shutdown_t* req, int status) {
+  uv_close((uv_handle_t*) req->handle, on_close);
+  free(req);
 }
 
 
@@ -73,16 +74,15 @@ static void after_read(uv_stream_t* handle,
                        const uv_buf_t* buf) {
   int i;
   write_req_t *wr;
+  uv_shutdown_t* sreq;
 
   if (nread < 0) {
     /* Error or EOF */
     ASSERT(nread == UV_EOF);
 
-    if (buf->base) {
-      free(buf->base);
-    }
-
-    uv_close((uv_handle_t*) handle, on_close);
+    free(buf->base);
+    sreq = malloc(sizeof* sreq);
+    ASSERT(0 == uv_shutdown(sreq, handle, after_shutdown));
     return;
   }
 

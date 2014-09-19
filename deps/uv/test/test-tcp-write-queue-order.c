@@ -26,7 +26,7 @@
 #include "uv.h"
 #include "task.h"
 
-#define REQ_COUNT 100000
+#define REQ_COUNT 10000
 
 static uv_timer_t timer;
 static uv_tcp_t server;

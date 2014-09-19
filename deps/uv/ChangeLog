@@ -1,4 +1,101 @@
-2014.08.08, Version 0.11.28 (Unstable)
+2014.09.18, Version 1.0.0-rc1 (Unstable), 0c28bbf7b42882853d1799ab96ff68b07f7f8d49
+
+* windows: improve timer precision (Alexis Campailla)
+
+* build, gyp: set xcode flags (Recep ASLANTAS)
+
+* ignore: include m4 files which are created manually (Recep ASLANTAS)
+
+* build: add m4 for feature/flag-testing (Recep ASLANTAS)
+
+* ignore: ignore Xcode project and workspace files (Recep ASLANTAS)
+
+* unix: fix warnings about dollar symbol usage in identifiers (Recep ASLANTAS)
+
+* unix: fix warnings when loading functions with dlsym (Recep ASLANTAS)
+
+* linux: try epoll_pwait if epoll_wait is missing (Michael Hudson-Doyle)
+
+* test: add test for closing and recreating default loop (Saúl Ibarra Corretgé)
+
+* windows: properly close the default loop (Saúl Ibarra Corretgé)
+
+* version: add ability to specify a version suffix (Saúl Ibarra Corretgé)
+
+* doc: add API documentation (Saúl Ibarra Corretgé)
+
+* test: don't close connection on write error (Trevor Norris)
+
+* windows: further simplify the code for timers (Saúl Ibarra Corretgé)
+
+* gyp: remove UNLIMITED_SELECT from dependent define (Fedor Indutny)
+
+* darwin: allocate enough space for select() hack (Fedor Indutny)
+
+* unix, windows: don't allow a NULL callback on timers (Saúl Ibarra Corretgé)
+
+* windows: simplify code in uv_timer_again (Saúl Ibarra Corretgé)
+
+* test: use less requests on tcp-write-queue-order (Saúl Ibarra Corretgé)
+
+* unix: stop child process watcher after last one exits (Saúl Ibarra Corretgé)
+
+* unix: simplify how process handle queue is managed (Saúl Ibarra Corretgé)
+
+* windows: remove duplicated field (mattn)
+
+* core: add a reserved field to uv_handle_t and uv_req_t (Saúl Ibarra Corretgé)
+
+* windows: fix buffer leak after failed udp send (Bert Belder)
+
+* windows: make sure sockets and handles are reset on close (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_fileno (Saúl Ibarra Corretgé)
+
+* build: use same CFLAGS in autotools build as in gyp (Saúl Ibarra Corretgé)
+
+* build: remove unneeded define in uv.gyp (Saúl Ibarra Corretgé)
+
+* test: fix watcher_cross_stop on Windows (Saúl Ibarra Corretgé)
+
+* unix, windows: move includes for EAI constants (Saúl Ibarra Corretgé)
+
+* unix: fix exposing EAI_* glibc-isms (Saúl Ibarra Corretgé)
+
+* unix: fix tcp write after bad connect freezing (Andrius Bentkus)
+
+
+2014.08.20, Version 0.11.29 (Unstable), 35451fed830807095bbae8ef981af004a4b9259e
+
+Changes since version 0.11.28:
+
+* windows: make uv_read_stop immediately stop reading (Jameson Nash)
+
+* windows: fix uv__getaddrinfo_translate_error (Alexis Campailla)
+
+* netbsd: fix build (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_recv_buffer_size and uv_send_buffer_size (Andrius
+  Bentkus)
+
+* windows: add support for UNC paths on uv_spawn (Paul Goldsmith)
+
+* windows: replace use of inet_addr with uv_inet_pton (Saúl Ibarra Corretgé)
+
+* unix: replace some asserts with returning errors (Andrius Bentkus)
+
+* windows: use OpenBSD implementation for uv_fs_mkdtemp (Pavel Platto)
+
+* windows: fix GetNameInfoW error handling (Alexis Campailla)
+
+* fs: introduce uv_readdir_next() and report types (Fedor Indutny)
+
+* fs: extend reported types in uv_fs_readdir_next (Saúl Ibarra Corretgé)
+
+* unix: read on stream even when UV__POLLHUP set. (Julien Gilli)
+
+
+2014.08.08, Version 0.11.28 (Unstable), fc9e2a0bc487b299c0cd3b2c9a23aeb554b5d8d1
 
 Changes since version 0.11.27:
 
