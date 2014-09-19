@@ -85,7 +85,7 @@ returns the result. Running code does not have access to local scope. The
 
 `vm.runInContext` takes the same options as `vm.runInThisContext`.
 
-Example: compile and execute differnt scripts in a single existing context.
+Example: compile and execute different scripts in a single existing context.
 
     var util = require('util');
     var vm = require('vm');
