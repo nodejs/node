@@ -65,7 +65,6 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 /* Used by all handles. */
 #define UV_HANDLE_CLOSED                        0x00000002
 #define UV_HANDLE_ENDGAME_QUEUED                0x00000004
-#define UV_HANDLE_ACTIVE                        0x00000010
 
 /* uv-common.h: #define UV__HANDLE_CLOSING      0x00000001 */
 /* uv-common.h: #define UV__HANDLE_ACTIVE       0x00000040 */
@@ -100,6 +99,7 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 /* Only used by uv_pipe_t handles. */
 #define UV_HANDLE_NON_OVERLAPPED_PIPE           0x01000000
 #define UV_HANDLE_PIPESERVER                    0x02000000
+#define UV_HANDLE_PIPE_READ_CANCELABLE          0x04000000
 
 /* Only used by uv_tty_t handles. */
 #define UV_HANDLE_TTY_READABLE                  0x01000000
@@ -181,6 +181,9 @@ int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
 int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
     const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle,
     uv_write_cb cb);
+void uv__pipe_pause_read(uv_pipe_t* handle);
+void uv__pipe_unpause_read(uv_pipe_t* handle);
+void uv__pipe_stop_read(uv_pipe_t* handle);
 
 void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_req_t* req);
@@ -319,6 +322,7 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
  */
 void uv__util_init();
 
+uint64_t uv__hrtime(double scale);
 int uv_parent_pid();
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 

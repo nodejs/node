@@ -525,7 +525,7 @@ static int uv__fsevents_global_init(void) {
   err = -ENOENT;
 #define V(handle, symbol)                                                     \
   do {                                                                        \
-    p ## symbol = dlsym((handle), #symbol);                                   \
+    *(void **)(&p ## symbol) = dlsym((handle), #symbol);                      \
     if (p ## symbol == NULL)                                                  \
       goto out;                                                               \
   }                                                                           \

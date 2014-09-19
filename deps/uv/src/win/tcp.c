@@ -196,6 +196,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
 
     if (!(handle->flags & UV_HANDLE_TCP_SOCKET_CLOSED)) {
       closesocket(handle->socket);
+      handle->socket = INVALID_SOCKET;
       handle->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
     }
 
@@ -1368,6 +1369,7 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
 
   if (close_socket) {
     closesocket(tcp->socket);
+    tcp->socket = INVALID_SOCKET;
     tcp->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
   }
 

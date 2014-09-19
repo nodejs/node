@@ -106,7 +106,11 @@ int uv_read_stop(uv_stream_t* handle) {
   if (handle->type == UV_TTY) {
     err = uv_tty_read_stop((uv_tty_t*) handle);
   } else {
-    handle->flags &= ~UV_HANDLE_READING;
+    if (handle->type == UV_NAMED_PIPE) {
+      uv__pipe_stop_read((uv_pipe_t*) handle);
+    } else {
+      handle->flags &= ~UV_HANDLE_READING;
+    }
     DECREASE_ACTIVE_COUNT(handle->loop, handle);
   }
 

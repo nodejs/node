@@ -39,6 +39,20 @@ typedef struct pollfd {
 } WSAPOLLFD, *PWSAPOLLFD, *LPWSAPOLLFD;
 #endif
 
+#ifndef LOCALE_INVARIANT
+# define LOCALE_INVARIANT 0x007f
+#endif
+
+#ifndef _malloca
+# if defined(_DEBUG)
+#  define _malloca(size) malloc(size)
+#  define _freea(ptr) free(ptr)
+# else
+#  define _malloca(size) alloca(size)
+#  define _freea(ptr)
+# endif
+#endif
+
 #include <mswsock.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -215,8 +229,8 @@ typedef struct uv_buf_t {
 } uv_buf_t;
 
 typedef int uv_file;
-
 typedef SOCKET uv_os_sock_t;
+typedef HANDLE uv_os_fd_t;
 
 typedef HANDLE uv_thread_t;
 
@@ -275,6 +289,19 @@ typedef struct uv_once_s {
 typedef unsigned char uv_uid_t;
 typedef unsigned char uv_gid_t;
 
+typedef struct uv__dirent_s {
+  int d_type;
+  char d_name[1];
+} uv__dirent_t;
+
+#define UV__DT_DIR     UV_DIRENT_DIR
+#define UV__DT_FILE    UV_DIRENT_FILE
+#define UV__DT_LINK    UV_DIRENT_LINK
+#define UV__DT_FIFO    UV_DIRENT_FIFO
+#define UV__DT_SOCKET  UV_DIRENT_SOCKET
+#define UV__DT_CHAR    UV_DIRENT_CHAR
+#define UV__DT_BLOCK   UV_DIRENT_BLOCK
+
 /* Platform-specific definitions for uv_dlopen support. */
 #define UV_DYNAMIC FAR WINAPI
 typedef struct {
@@ -289,8 +316,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   HANDLE iocp;                                                                \
   /* The current time according to the event loop. in msecs. */               \
   uint64_t time;                                                              \
-  /* GetTickCount() result when the event loop time was last updated. */      \
-  DWORD last_tick_count;                                                      \
   /* Tail of a single-linked circular queue of pending reqs. If the queue */  \
   /* is empty, tail_ is NULL. If there is only one item, */                   \
   /* tail_->next_req == tail_ */                                              \
@@ -443,7 +468,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     int queue_len;                                                            \
   } pending_ipc_info;                                                         \
   uv_write_t* non_overlapped_writes_tail;                                     \
-  void* reserved;
+  uv_mutex_t readfile_mutex;                                                  \
+  volatile HANDLE readfile_thread;
 
 #define UV_PIPE_PRIVATE_FIELDS                                                \
   HANDLE handle;                                                              \

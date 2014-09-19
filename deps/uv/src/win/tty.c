@@ -1903,6 +1903,7 @@ void uv_tty_close(uv_tty_t* handle) {
   if (handle->flags & UV_HANDLE_READING)
     uv_tty_read_stop(handle);
 
+  handle->handle = INVALID_HANDLE_VALUE;
   handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   uv__handle_closing(handle);
 

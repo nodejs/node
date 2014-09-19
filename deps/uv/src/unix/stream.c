@@ -53,6 +53,10 @@ struct uv__stream_select_s {
   int fake_fd;
   int int_fd;
   int fd;
+  fd_set* sread;
+  size_t sread_sz;
+  fd_set* swrite;
+  size_t swrite_sz;
 };
 #endif /* defined(__APPLE__) */
 
@@ -127,8 +131,6 @@ static void uv__stream_osx_select(void* arg) {
   uv_stream_t* stream;
   uv__stream_select_t* s;
   char buf[1024];
-  fd_set sread;
-  fd_set swrite;
   int events;
   int fd;
   int r;
@@ -149,17 +151,17 @@ static void uv__stream_osx_select(void* arg) {
       break;
 
     /* Watch fd using select(2) */
-    FD_ZERO(&sread);
-    FD_ZERO(&swrite);
+    memset(s->sread, 0, s->sread_sz);
+    memset(s->swrite, 0, s->swrite_sz);
 
     if (uv__io_active(&stream->io_watcher, UV__POLLIN))
-      FD_SET(fd, &sread);
+      FD_SET(fd, s->sread);
     if (uv__io_active(&stream->io_watcher, UV__POLLOUT))
-      FD_SET(fd, &swrite);
-    FD_SET(s->int_fd, &sread);
+      FD_SET(fd, s->swrite);
+    FD_SET(s->int_fd, s->sread);
 
     /* Wait indefinitely for fd events */
-    r = select(max_fd + 1, &sread, &swrite, NULL, NULL);
+    r = select(max_fd + 1, s->sread, s->swrite, NULL, NULL);
     if (r == -1) {
       if (errno == EINTR)
         continue;
@@ -173,7 +175,7 @@ static void uv__stream_osx_select(void* arg) {
       continue;
 
     /* Empty socketpair's buffer in case of interruption */
-    if (FD_ISSET(s->int_fd, &sread))
+    if (FD_ISSET(s->int_fd, s->sread))
       while (1) {
         r = read(s->int_fd, buf, sizeof(buf));
 
@@ -194,12 +196,12 @@ static void uv__stream_osx_select(void* arg) {
 
     /* Handle events */
     events = 0;
-    if (FD_ISSET(fd, &sread))
+    if (FD_ISSET(fd, s->sread))
       events |= UV__POLLIN;
-    if (FD_ISSET(fd, &swrite))
+    if (FD_ISSET(fd, s->swrite))
       events |= UV__POLLOUT;
 
-    assert(events != 0 || FD_ISSET(s->int_fd, &sread));
+    assert(events != 0 || FD_ISSET(s->int_fd, s->sread));
     if (events != 0) {
       ACCESS_ONCE(int, s->events) = events;
 
@@ -261,6 +263,9 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   int ret;
   int kq;
   int old_fd;
+  int max_fd;
+  size_t sread_sz;
+  size_t swrite_sz;
 
   kq = kqueue();
   if (kq == -1) {
@@ -284,31 +289,48 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
     return 0;
 
   /* At this point we definitely know that this fd won't work with kqueue */
-  s = malloc(sizeof(*s));
-  if (s == NULL)
-    return -ENOMEM;
+
+  /*
+   * Create fds for io watcher and to interrupt the select() loop.
+   * NOTE: do it ahead of malloc below to allocate enough space for fd_sets
+   */
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
+    return -errno;
+
+  max_fd = *fd;
+  if (fds[1] > max_fd)
+    max_fd = fds[1];
+
+  sread_sz = (max_fd + NBBY) / NBBY;
+  swrite_sz = sread_sz;
+
+  s = malloc(sizeof(*s) + sread_sz + swrite_sz);
+  if (s == NULL) {
+    err = -ENOMEM;
+    goto failed_malloc;
+  }
 
   s->events = 0;
   s->fd = *fd;
+  s->sread = (fd_set*) ((char*) s + sizeof(*s));
+  s->sread_sz = sread_sz;
+  s->swrite = (fd_set*) ((char*) s->sread + sread_sz);
+  s->swrite_sz = swrite_sz;
 
   err = uv_async_init(stream->loop, &s->async, uv__stream_osx_select_cb);
-  if (err) {
-    free(s);
-    return err;
-  }
+  if (err)
+    goto failed_async_init;
 
   s->async.flags |= UV__HANDLE_INTERNAL;
   uv__handle_unref(&s->async);
 
-  if (uv_sem_init(&s->close_sem, 0))
-    goto fatal1;
+  err = uv_sem_init(&s->close_sem, 0);
+  if (err != 0)
+    goto failed_close_sem_init;
 
-  if (uv_sem_init(&s->async_sem, 0))
-    goto fatal2;
-
-  /* Create fds for io watcher and to interrupt the select() loop. */
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
-    goto fatal3;
+  err = uv_sem_init(&s->async_sem, 0);
+  if (err != 0)
+    goto failed_async_sem_init;
 
   s->fake_fd = fds[0];
   s->int_fd = fds[1];
@@ -318,26 +340,36 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   stream->select = s;
   *fd = s->fake_fd;
 
-  if (uv_thread_create(&s->thread, uv__stream_osx_select, stream))
-    goto fatal4;
+  err = uv_thread_create(&s->thread, uv__stream_osx_select, stream);
+  if (err != 0)
+    goto failed_thread_create;
 
   return 0;
 
-fatal4:
+failed_thread_create:
   s->stream = NULL;
   stream->select = NULL;
   *fd = old_fd;
-  uv__close(s->fake_fd);
-  uv__close(s->int_fd);
-  s->fake_fd = -1;
-  s->int_fd = -1;
-fatal3:
+
   uv_sem_destroy(&s->async_sem);
-fatal2:
+
+failed_async_sem_init:
   uv_sem_destroy(&s->close_sem);
-fatal1:
+
+failed_close_sem_init:
+  uv__close(fds[0]);
+  uv__close(fds[1]);
   uv_close((uv_handle_t*) &s->async, uv__stream_osx_cb_close);
-  return -errno;
+  return err;
+
+failed_async_init:
+  free(s);
+
+failed_malloc:
+  uv__close(fds[0]);
+  uv__close(fds[1]);
+
+  return err;
 }
 #endif /* defined(__APPLE__) */
 
@@ -361,10 +393,22 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
 }
 
 
-void uv__stream_destroy(uv_stream_t* stream) {
+void uv__stream_flush_write_queue(uv_stream_t* stream, int error) {
   uv_write_t* req;
   QUEUE* q;
+  while (!QUEUE_EMPTY(&stream->write_queue)) {
+    q = QUEUE_HEAD(&stream->write_queue);
+    QUEUE_REMOVE(q);
 
+    req = QUEUE_DATA(q, uv_write_t, queue);
+    req->error = error;
+
+    QUEUE_INSERT_TAIL(&stream->write_completed_queue, &req->queue);
+  }
+}
+
+
+void uv__stream_destroy(uv_stream_t* stream) {
   assert(!uv__io_active(&stream->io_watcher, UV__POLLIN | UV__POLLOUT));
   assert(stream->flags & UV_CLOSED);
 
@@ -374,16 +418,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
     stream->connect_req = NULL;
   }
 
-  while (!QUEUE_EMPTY(&stream->write_queue)) {
-    q = QUEUE_HEAD(&stream->write_queue);
-    QUEUE_REMOVE(q);
-
-    req = QUEUE_DATA(q, uv_write_t, queue);
-    req->error = -ECANCELED;
-
-    QUEUE_INSERT_TAIL(&stream->write_completed_queue, &req->queue);
-  }
-
+  uv__stream_flush_write_queue(stream, -ECANCELED);
   uv__write_callbacks(stream);
 
   if (stream->shutdown_req) {
@@ -537,7 +572,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
       break;
 
     default:
-      assert(0);
+      return -EINVAL;
   }
 
 done:
@@ -573,7 +608,6 @@ done:
 int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
   int err;
 
-  err = -EINVAL;
   switch (stream->type) {
   case UV_TCP:
     err = uv_tcp_listen((uv_tcp_t*)stream, backlog, cb);
@@ -584,7 +618,7 @@ int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
     break;
 
   default:
-    assert(0);
+    err = -EINVAL;
   }
 
   if (err == 0)
@@ -1163,7 +1197,7 @@ static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   assert(uv__stream_fd(stream) >= 0);
 
   /* Ignore POLLHUP here. Even it it's set, there may still be data to read. */
-  if (events & (UV__POLLIN | UV__POLLERR))
+  if (events & (UV__POLLIN | UV__POLLERR | UV__POLLHUP))
     uv__read(stream);
 
   if (uv__stream_fd(stream) == -1)
@@ -1233,10 +1267,21 @@ static void uv__stream_connect(uv_stream_t* stream) {
 
   stream->connect_req = NULL;
   uv__req_unregister(stream->loop, req);
-  uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLOUT);
+
+  if (error < 0 || QUEUE_EMPTY(&stream->write_queue)) {
+    uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLOUT);
+  }
 
   if (req->cb)
     req->cb(req, error);
+
+  if (uv__stream_fd(stream) == -1)
+    return;
+
+  if (error < 0) {
+    uv__stream_flush_write_queue(stream, -ECANCELED);
+    uv__write_callbacks(stream);
+  }
 }
 
 

@@ -23,7 +23,7 @@ CLEANFILES =
 
 lib_LTLIBRARIES = libuv.la
 libuv_la_CFLAGS = @CFLAGS@
-libuv_la_LDFLAGS = -no-undefined -version-info 11:0:0
+libuv_la_LDFLAGS = -no-undefined -version-info 1:0:0
 libuv_la_SOURCES = src/fs-poll.c \
                    src/heap-inl.h \
                    src/inet.c \
@@ -81,6 +81,7 @@ else  # WINNT
 
 include_HEADERS += include/uv-unix.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/unix
+libuv_la_CFLAGS += -g --std=gnu89 -pedantic -Wall -Wextra -Wno-unused-parameter
 libuv_la_SOURCES += src/unix/async.c \
                    src/unix/atomic-ops.h \
                    src/unix/core.c \
@@ -126,6 +127,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-condvar.c \
                          test/test-connection-fail.c \
                          test/test-cwd-and-chdir.c \
+                         test/test-default-loop-close.c \
                          test/test-delayed-accept.c \
                          test/test-dlerror.c \
                          test/test-embed.c \
@@ -141,6 +143,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-getaddrinfo.c \
                          test/test-getnameinfo.c \
                          test/test-getsockname.c \
+                         test/test-handle-fileno.c \
                          test/test-hrtime.c \
                          test/test-idle.c \
                          test/test-ip4-addr.c \
@@ -163,6 +166,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-pipe-getsockname.c \
                          test/test-pipe-sendmsg.c \
                          test/test-pipe-server-close.c \
+                         test/test-pipe-close-stdout-read-stdin.c \
                          test/test-platform-output.c \
                          test/test-poll-close.c \
                          test/test-poll-closesocket.c \
@@ -177,6 +181,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-shutdown-twice.c \
                          test/test-signal-multiple-loops.c \
                          test/test-signal.c \
+                         test/test-socket-buffer-size.c \
                          test/test-spawn.c \
                          test/test-stdio-over-pipes.c \
                          test/test-tcp-bind-error.c \
@@ -194,6 +199,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-shutdown-after-write.c \
                          test/test-tcp-unexpected-read.c \
                          test/test-tcp-write-to-half-open-connection.c \
+                         test/test-tcp-write-after-connect.c \
                          test/test-tcp-writealot.c \
                          test/test-tcp-try-write.c \
                          test/test-tcp-write-queue-order.c \
@@ -216,6 +222,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-udp-options.c \
                          test/test-udp-send-and-recv.c \
                          test/test-udp-send-immediate.c \
+                         test/test-udp-send-unreachable.c \
                          test/test-udp-try-send.c \
                          test/test-walk-handles.c \
                          test/test-watcher-cross-stop.c
@@ -253,6 +260,7 @@ endif
 if DARWIN
 include_HEADERS += include/uv-darwin.h
 libuv_la_CFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
+libuv_la_CFLAGS += -D_DARWIN_UNLIMITED_SELECT=1
 libuv_la_SOURCES += src/unix/darwin.c \
                     src/unix/darwin-proctitle.c \
                     src/unix/fsevents.c \
