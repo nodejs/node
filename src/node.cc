@@ -1091,6 +1091,10 @@ Handle<Value> MakeDomainCallback(Environment* env,
   }
 
   if (tick_info->length() == 0) {
+    env->isolate()->RunMicrotasks();
+  }
+
+  if (tick_info->length() == 0) {
     tick_info->set_index(0);
     return ret;
   }
@@ -1152,6 +1156,10 @@ Handle<Value> MakeCallback(Environment* env,
 
   if (tick_info->in_tick()) {
     return ret;
+  }
+
+  if (tick_info->length() == 0) {
+    env->isolate()->RunMicrotasks();
   }
 
   if (tick_info->length() == 0) {
@@ -3593,6 +3601,8 @@ Environment* CreateEnvironment(Isolate* isolate,
 
   Context::Scope context_scope(context);
   Environment* env = Environment::New(context);
+
+  isolate->SetAutorunMicrotasks(false);
 
   uv_check_init(env->event_loop(), env->immediate_check_handle());
   uv_unref(
