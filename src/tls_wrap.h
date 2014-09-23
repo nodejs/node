@@ -46,6 +46,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
                      public StreamWrapCallbacks,
                      public AsyncWrap {
  public:
+  ~TLSCallbacks();
+
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
@@ -94,7 +96,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
                Kind kind,
                v8::Handle<v8::Object> sc,
                StreamWrapCallbacks* old);
-  ~TLSCallbacks();
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
