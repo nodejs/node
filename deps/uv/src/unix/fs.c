@@ -312,14 +312,15 @@ static ssize_t uv__fs_readdir(uv_fs_t* req) {
   dents = NULL;
   n = scandir(req->path, &dents, uv__fs_readdir_filter, alphasort);
 
+  /* NOTE: We will use nbufs as an index field */
+  req->nbufs = 0;
+
   if (n == 0)
     goto out; /* osx still needs to deallocate some memory */
   else if (n == -1)
     return n;
 
-  /* NOTE: We will use nbufs as an index field */
   req->ptr = dents;
-  req->nbufs = 0;
 
   return n;
 
@@ -333,6 +334,8 @@ out:
     free(dents);
   }
   errno = saved_errno;
+
+  req->ptr = NULL;
 
   return n;
 }
