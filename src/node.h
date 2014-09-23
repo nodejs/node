@@ -66,7 +66,7 @@
 
 #include "node_object_wrap.h"
 
-#if NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 # include "node_internals.h"
 #endif
 
