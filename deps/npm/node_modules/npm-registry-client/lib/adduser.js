@@ -29,15 +29,13 @@ function adduser (base, username, password, email, cb) {
 
   // pluck off any other username/password/token.  it needs to be the
   // same as the user we're becoming now.  replace them on error.
-  var pre = { username: this.conf.get('username')
-            , password: this.conf.get('_password')
-            , auth: this.conf.get('_auth')
+  var c = this.conf.getCredentialsByURI(base)
+  var pre = { username: c.username
+            , password: c.password
+            , email: c.email
             , token: this.conf.get('_token') }
 
   this.conf.del('_token')
-  this.conf.del('username')
-  this.conf.del('_auth')
-  this.conf.del('_password')
   if (this.couchLogin) {
     this.couchLogin.token = null
   }
@@ -61,13 +59,15 @@ function adduser (base, username, password, email, cb) {
     , function (error, data, json, response) {
         // if it worked, then we just created a new user, and all is well.
         // but if we're updating a current record, then it'll 409 first
-        if (error && !this.conf.get('_auth')) {
+        var c = this.conf.getCredentialsByURI(base)
+        if (error && !c.auth) {
           // must be trying to re-auth on a new machine.
           // use this info as auth
-          var b = new Buffer(username + ":" + password)
-          this.conf.set('_auth', b.toString("base64"))
-          this.conf.set('username', username)
-          this.conf.set('_password', password)
+          this.conf.setCredentialsByURI(base, {
+            username : username,
+            password : password,
+            email    : email
+          })
         }
 
         if (!error || !response || response.statusCode !== 409) {
@@ -94,39 +94,43 @@ function adduser (base, username, password, email, cb) {
                 , cb)
             }.bind(this))
       }.bind(this))
-}
 
-function done (cb, pre) {
-  return function (error, data, json, response) {
-    if (!error && (!response || response.statusCode === 201)) {
-      return cb(error, data, json, response)
-    }
-
-    // there was some kind of error, re-instate previous auth/token/etc.
-    this.conf.set('_token', pre.token)
-    if (this.couchLogin) {
-      this.couchLogin.token = pre.token
-      if (this.couchLogin.tokenSet) {
-        this.couchLogin.tokenSet(pre.token)
+  function done (cb, pre) {
+    return function (error, data, json, response) {
+      if (!error && (!response || response.statusCode === 201)) {
+        return cb(error, data, json, response)
       }
-    }
-    this.conf.set('username', pre.username)
-    this.conf.set('_password', pre.password)
-    this.conf.set('_auth', pre.auth)
 
-    this.log.verbose("adduser", "back", [error, data, json])
-    if (!error) {
-      error = new Error( (response && response.statusCode || "") + " "+
-      "Could not create user\n"+JSON.stringify(data))
-    }
-    if (response
-        && (response.statusCode === 401 || response.statusCode === 403)) {
-      this.log.warn("adduser", "Incorrect username or password\n"
-              +"You can reset your account by visiting:\n"
-              +"\n"
-              +"    https://npmjs.org/forgot\n")
-    }
+      // there was some kind of error, re-instate previous auth/token/etc.
+      this.conf.set('_token', pre.token)
+      if (this.couchLogin) {
+        this.couchLogin.token = pre.token
+        if (this.couchLogin.tokenSet) {
+          this.couchLogin.tokenSet(pre.token)
+        }
+      }
+      this.conf.setCredentialsByURI(base, {
+        username : pre.username,
+        password : pre.password,
+        email    : pre.email
+      })
 
-    return cb(error)
-  }.bind(this)
+      this.log.verbose("adduser", "back", [error, data, json])
+      if (!error) {
+        error = new Error(
+          (response && response.statusCode || "") + " " +
+          "Could not create user\n" + JSON.stringify(data)
+        )
+      }
+
+      if (response && (response.statusCode === 401 || response.statusCode === 403)) {
+        this.log.warn("adduser", "Incorrect username or password\n" +
+                                 "You can reset your account by visiting:\n" +
+                                 "\n" +
+                                 "    https://npmjs.org/forgot\n")
+      }
+
+      return cb(error)
+    }.bind(this)
+  }
 }

@@ -9,7 +9,6 @@ var path = require("path")
 var ca = path.resolve(__dirname, "../../node_modules/npm-registry-couchapp")
 
 var which = require("which")
-var hasCouch = false
 
 which("couchdb", function(er, couch) {
   if (er) {
@@ -23,6 +22,10 @@ which("couchdb", function(er, couch) {
 })
 
 function runTests () {
+  var env = {}
+  for (var i in process.env) env[i] = process.env[i]
+  env.npm = npmExec
+
   spawn(process.execPath, [
     npmExec, "install"
   ], {
@@ -31,14 +34,11 @@ function runTests () {
   }).on("close", function (code, sig) {
     if (code || sig) {
       return test("need install to work", function (t) {
-        t.fail("install failed with: " (code || sig))
+        t.fail("install failed with: " + (code || sig))
         t.end()
       })
 
     } else {
-      var env = {}
-      for (var i in process.env) env[i] = process.env[i]
-      env.npm = npmExec
 
       spawn(process.execPath, [
         npmExec, "test"
@@ -47,7 +47,15 @@ function runTests () {
         env: env,
         stdio: "inherit"
       }).on("close", function (code, sig) {
-        process.exit(code || sig)
+        spawn(process.execPath, [
+          npmExec, "prune", "--production"
+        ], {
+          cwd: ca,
+          env: env,
+          stdio: "inherit"
+        }).on("close", function (code2, sig2) {
+          process.exit(code || code2 || 0)
+        })
       })
     }
 

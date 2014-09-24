@@ -3,10 +3,10 @@ npm-ls(1) -- List installed packages
 
 ## SYNOPSIS
 
-    npm list [<pkg> ...]
-    npm ls [<pkg> ...]
-    npm la [<pkg> ...]
-    npm ll [<pkg> ...]
+    npm list [[@<scope>/]<pkg> ...]
+    npm ls [[@<scope>/]<pkg> ...]
+    npm la [[@<scope>/]<pkg> ...]
+    npm ll [[@<scope>/]<pkg> ...]
 
 ## DESCRIPTION
 

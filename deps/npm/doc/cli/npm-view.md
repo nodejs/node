@@ -3,8 +3,8 @@ npm-view(1) -- View registry info
 
 ## SYNOPSIS
 
-    npm view <name>[@<version>] [<field>[.<subfield>]...]
-    npm v <name>[@<version>] [<field>[.<subfield>]...]
+    npm view [@<scope>/]<name>[@<version>] [<field>[.<subfield>]...]
+    npm v [@<scope>/]<name>[@<version>] [<field>[.<subfield>]...]
 
 ## DESCRIPTION
 

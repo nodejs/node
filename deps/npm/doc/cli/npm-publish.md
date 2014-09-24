@@ -11,6 +11,10 @@ npm-publish(1) -- Publish a package
 
 Publishes a package to the registry so that it can be installed by name.
 
+By default npm will publish to the public registry. This can be overridden by
+specifying a different default registry or using a `npm-scope(7)` in the name
+(see `package.json(5)`).
+
 * `<folder>`:
   A folder containing a package.json file
 
@@ -24,7 +28,7 @@ Publishes a package to the registry so that it can be installed by name.
   and `npm install` installs the `latest` tag.
 
 Fails if the package name and version combination already exists in
-the registry.
+the specified registry.
 
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if

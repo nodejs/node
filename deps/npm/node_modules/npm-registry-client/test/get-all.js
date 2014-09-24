@@ -10,7 +10,7 @@ tap.test("basic request", function (t) {
   })
 
   client.get("http://localhost:1337/-/all", null, function (er) {
-    t.notOk(er, "no error")
+    t.ifError(er, "no error")
     t.end()
   })
 })

@@ -37,7 +37,6 @@ var util = require('core-util-is');
 util.inherits = require('inherits');
 /*</replacement>*/
 
-
 var Stream = require('stream');
 
 util.inherits(Writable, Stream);

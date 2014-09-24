@@ -6,26 +6,26 @@ fi
 set -o errexit
 set -o pipefail
 
-if ! [ -x node_modules/.bin/ronn ]; then
+if ! [ -x node_modules/.bin/marked-man ]; then
   ps=0
-  if [ -f .building_ronn ]; then
-    pid=$(cat .building_ronn)
+  if [ -f .building_marked-man ]; then
+    pid=$(cat .building_marked-man)
     ps=$(ps -p $pid | grep $pid | wc -l) || true
   fi
 
-  if [ -f .building_ronn ] && [ $ps != 0 ]; then
-    while [ -f .building_ronn ]; do
+  if [ -f .building_marked-man ] && [ $ps != 0 ]; then
+    while [ -f .building_marked-man ]; do
       sleep 1
     done
   else
-    # a race to see which make process will be the one to install ronn
-    echo $$ > .building_ronn
+    # a race to see which make process will be the one to install marked-man
+    echo $$ > .building_marked-man
     sleep 1
-    if [ $(cat .building_ronn) == $$ ]; then
-      make node_modules/.bin/ronn
-      rm .building_ronn
+    if [ $(cat .building_marked-man) == $$ ]; then
+      make node_modules/.bin/marked-man
+      rm .building_marked-man
     else
-      while [ -f .building_ronn ]; do
+      while [ -f .building_marked-man ]; do
         sleep 1
       done
     fi
@@ -68,7 +68,7 @@ mkdir -p $(dirname $dest)
 
 case $dest in
   *.[1357])
-    ./node_modules/.bin/ronn --roff $src \
+    ./node_modules/.bin/marked-man --roff $src \
     | sed "s|@VERSION@|$version|g" \
     | perl -pi -e 's/(npm\\-)?([a-zA-Z\\\.\-]*)\(1\)/npm help \2/g' \
     | perl -pi -e 's/(npm\\-)?([a-zA-Z\\\.\-]*)\(([57])\)/npm help \3 \2/g' \

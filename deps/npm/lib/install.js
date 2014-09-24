@@ -34,28 +34,34 @@ install.completion = function (opts, cb) {
   // if it starts with https?://, then just give up, because it's a url
   // for now, not yet implemented.
   var registry = npm.registry
-    , uri = url.resolve(npm.config.get("registry"), "-/short")
-  registry.get(uri, null, function (er, pkgs) {
-    if (er) return cb()
-    if (!opts.partialWord) return cb(null, pkgs)
+  mapToRegistry("-/short", npm.config, function (er, uri) {
+    if (er) return cb(er)
 
-    var name = opts.partialWord.split("@").shift()
-    pkgs = pkgs.filter(function (p) {
-      return p.indexOf(name) === 0
-    })
-
-    if (pkgs.length !== 1 && opts.partialWord === name) {
-      return cb(null, pkgs)
-    }
-
-    uri = url.resolve(npm.config.get("registry"), pkgs[0])
-    registry.get(uri, null, function (er, d) {
+    registry.get(uri, null, function (er, pkgs) {
       if (er) return cb()
-      return cb(null, Object.keys(d["dist-tags"] || {})
-                .concat(Object.keys(d.versions || {}))
-                .map(function (t) {
-                  return pkgs[0] + "@" + t
-                }))
+      if (!opts.partialWord) return cb(null, pkgs)
+
+      var name = npa(opts.partialWord).name
+      pkgs = pkgs.filter(function (p) {
+        return p.indexOf(name) === 0
+      })
+
+      if (pkgs.length !== 1 && opts.partialWord === name) {
+        return cb(null, pkgs)
+      }
+
+      mapToRegistry(pkgs[0], npm.config, function (er, uri) {
+        if (er) return cb(er)
+
+        registry.get(uri, null, function (er, d) {
+          if (er) return cb()
+          return cb(null, Object.keys(d["dist-tags"] || {})
+                    .concat(Object.keys(d.versions || {}))
+                    .map(function (t) {
+                      return pkgs[0] + "@" + t
+                    }))
+        })
+      })
     })
   })
 }
@@ -74,9 +80,10 @@ var npm = require("./npm.js")
   , mkdir = require("mkdirp")
   , lifecycle = require("./utils/lifecycle.js")
   , archy = require("archy")
-  , isGitUrl = require("./utils/is-git-url.js")
   , npmInstallChecks = require("npm-install-checks")
   , sortedObject = require("sorted-object")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
 
 function install (args, cb_) {
   var hasArguments = !!args.length
@@ -112,7 +119,7 @@ function install (args, cb_) {
     where = args
     args = [].concat(cb_) // pass in [] to do default dep-install
     cb_ = arguments[2]
-    log.verbose("install", "where,what", [where, args])
+    log.verbose("install", "where, what", [where, args])
   }
 
   if (!npm.config.get("global")) {
@@ -206,7 +213,7 @@ function findPeerInvalid_ (packageMap, fpiList) {
     var pkg = packageMap[packageName]
 
     if (pkg.peerInvalid) {
-      var peersDepending = {};
+      var peersDepending = {}
       for (var peerName in packageMap) {
         var peer = packageMap[peerName]
         if (peer.peerDependencies && peer.peerDependencies[packageName]) {
@@ -338,21 +345,33 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
     return cb(null, installed, tree, pretty)
   }
 
-  var saveBundle = npm.config.get('save-bundle')
-  var savePrefix = npm.config.get('save-prefix') || "^";
+  var saveBundle = npm.config.get("save-bundle")
+  var savePrefix = npm.config.get("save-prefix") || "^"
 
   // each item in the tree is a top-level thing that should be saved
   // to the package.json file.
   // The relevant tree shape is { <folder>: {what:<pkg>} }
   var saveTarget = path.resolve(where, "package.json")
-    , things = Object.keys(tree).map(function (k) {
-        // if "what" was a url, then save that instead.
-        var t = tree[k]
-          , u = url.parse(t.from)
-          , w = t.what.split("@")
-        if (u && u.protocol) w[1] = t.from
-        return w
-      }).reduce(function (set, k) {
+
+  asyncMap(Object.keys(tree), function (k, cb) {
+    // if "what" was a url, then save that instead.
+    var t = tree[k]
+      , u = url.parse(t.from)
+      , a = npa(t.what)
+      , w = [a.name, a.spec]
+
+
+    fs.stat(t.from, function (er){
+      if (!er) {
+        w[1] = "file:" + t.from
+      } else if (u && u.protocol) {
+        w[1] = t.from
+      }
+      cb(null, [w])
+    })
+  }
+  , function (er, arr) {
+      var things = arr.reduce(function (set, k) {
         var rangeDescriptor = semver.valid(k[1], true) &&
                               semver.gte(k[1], "0.1.0", true) &&
                               !npm.config.get("save-exact")
@@ -361,47 +380,49 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
         return set
       }, {})
 
-  // don't use readJson, because we don't want to do all the other
-  // tricky npm-specific stuff that's in there.
-  fs.readFile(saveTarget, function (er, data) {
-    // ignore errors here, just don't save it.
-    try {
-      data = JSON.parse(data.toString("utf8"))
-    } catch (ex) {
-      er = ex
-    }
 
-    if (er) {
-      return cb(null, installed, tree, pretty)
-    }
+    // don't use readJson, because we don't want to do all the other
+    // tricky npm-specific stuff that's in there.
+    fs.readFile(saveTarget, function (er, data) {
+      // ignore errors here, just don't save it.
+      try {
+        data = JSON.parse(data.toString("utf8"))
+      } catch (ex) {
+        er = ex
+      }
 
-    var deps = npm.config.get("save-optional") ? "optionalDependencies"
-             : npm.config.get("save-dev") ? "devDependencies"
-             : "dependencies"
+      if (er) {
+        return cb(null, installed, tree, pretty)
+      }
 
-    if (saveBundle) {
-      var bundle = data.bundleDependencies || data.bundledDependencies
-      delete data.bundledDependencies
-      if (!Array.isArray(bundle)) bundle = []
-      data.bundleDependencies = bundle.sort()
-    }
+      var deps = npm.config.get("save-optional") ? "optionalDependencies"
+               : npm.config.get("save-dev") ? "devDependencies"
+               : "dependencies"
 
-    log.verbose('saving', things)
-    data[deps] = data[deps] || {}
-    Object.keys(things).forEach(function (t) {
-      data[deps][t] = things[t]
       if (saveBundle) {
-        var i = bundle.indexOf(t)
-        if (i === -1) bundle.push(t)
+        var bundle = data.bundleDependencies || data.bundledDependencies
+        delete data.bundledDependencies
+        if (!Array.isArray(bundle)) bundle = []
         data.bundleDependencies = bundle.sort()
       }
-    })
 
-    data[deps] = sortedObject(data[deps])
+      log.verbose("saving", things)
+      data[deps] = data[deps] || {}
+      Object.keys(things).forEach(function (t) {
+        data[deps][t] = things[t]
+        if (saveBundle) {
+          var i = bundle.indexOf(t)
+          if (i === -1) bundle.push(t)
+          data.bundleDependencies = bundle.sort()
+        }
+      })
 
-    data = JSON.stringify(data, null, 2) + "\n"
-    fs.writeFile(saveTarget, data, function (er) {
-      cb(er, installed, tree, pretty)
+      data[deps] = sortedObject(data[deps])
+
+      data = JSON.stringify(data, null, 2) + "\n"
+      fs.writeFile(saveTarget, data, function (er) {
+        cb(er, installed, tree, pretty)
+      })
     })
   })
 }
@@ -412,22 +433,22 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
 // that the submodules are not immediately require()able.
 // TODO: Show the complete tree, ls-style, but only if --long is provided
 function prettify (tree, installed) {
-  if (npm.config.get("json")) {
-    function red (set, kv) {
-      set[kv[0]] = kv[1]
-      return set
-    }
+  function red (set, kv) {
+    set[kv[0]] = kv[1]
+    return set
+  }
 
+  if (npm.config.get("json")) {
     tree = Object.keys(tree).map(function (p) {
       if (!tree[p]) return null
-      var what = tree[p].what.split("@")
-        , name = what.shift()
-        , version = what.join("@")
+      var what = npa(tree[p].what)
+        , name = what.name
+        , version = what.spec
         , o = { name: name, version: version, from: tree[p].from }
       o.dependencies = tree[p].children.map(function P (dep) {
-         var what = dep.what.split("@")
-           , name = what.shift()
-           , version = what.join("@")
+         var what = npa(dep.what)
+           , name = what.name
+           , version = what.spec
            , o = { version: version, from: dep.from }
          o.dependencies = dep.children.map(P).reduce(red, {})
          return [name, o]
@@ -615,60 +636,70 @@ function installMany (what, where, context, cb) {
 }
 
 function targetResolver (where, context, deps) {
-  var alreadyInstalledManually = context.explicit ? [] : null
+  var alreadyInstalledManually = []
+    , resolveLeft = 0
     , nm = path.resolve(where, "node_modules")
     , parent = context.parent
     , wrap = context.wrap
 
-  if (!context.explicit) fs.readdir(nm, function (er, inst) {
-    if (er) return alreadyInstalledManually = []
+  if (!context.explicit) readdir(nm)
 
-    // don't even mess with non-package looking things
-    inst = inst.filter(function (p) {
-      return !p.match(/^[\._-]/)
-    })
+  function readdir(name) {
+    resolveLeft++
+    fs.readdir(name, function (er, inst) {
+      if (er) return resolveLeft--
 
-    asyncMap(inst, function (pkg, cb) {
-      readJson(path.resolve(nm, pkg, "package.json"), log.warn, function (er, d) {
-        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-        // error means it's not a package, most likely.
-        if (er) return cb(null, [])
+      // don't even mess with non-package looking things
+      inst = inst.filter(function (p) {
+        if (!p.match(/^[@\._-]/)) return true
+        // scope pacakges
+        var scopepath = path.join(name, p)
+        readdir(scopepath)
+      })
 
-        // if it's a bundled dep, then assume that anything there is valid.
-        // otherwise, make sure that it's a semver match with what we want.
-        var bd = parent.bundleDependencies
-        if (bd && bd.indexOf(d.name) !== -1 ||
-            semver.satisfies(d.version, deps[d.name] || "*", true) ||
-            deps[d.name] === d._resolved) {
-          return cb(null, d.name)
-        }
+      asyncMap(inst, function (pkg, cb) {
+        readJson(path.resolve(name, pkg, "package.json"), log.warn, function (er, d) {
+          if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+          // error means it's not a package, most likely.
+          if (er) return cb(null, [])
 
-        // see if the package had been previously linked
-        fs.lstat(path.resolve(nm, pkg), function(err, s) {
-          if (err) return cb(null, [])
-          if (s.isSymbolicLink()) {
+          // if it's a bundled dep, then assume that anything there is valid.
+          // otherwise, make sure that it's a semver match with what we want.
+          var bd = parent.bundleDependencies
+          if (bd && bd.indexOf(d.name) !== -1 ||
+              semver.satisfies(d.version, deps[d.name] || "*", true) ||
+              deps[d.name] === d._resolved) {
             return cb(null, d.name)
           }
 
-          // something is there, but it's not satisfactory.  Clobber it.
-          return cb(null, [])
+          // see if the package had been previously linked
+          fs.lstat(path.resolve(nm, pkg), function(err, s) {
+            if (err) return cb(null, [])
+            if (s.isSymbolicLink()) {
+              return cb(null, d.name)
+            }
+
+            // something is there, but it's not satisfactory.  Clobber it.
+            return cb(null, [])
+          })
         })
+      }, function (er, inst) {
+        // this is the list of things that are valid and should be ignored.
+        alreadyInstalledManually = alreadyInstalledManually.concat(inst)
+        resolveLeft--
       })
-    }, function (er, inst) {
-      // this is the list of things that are valid and should be ignored.
-      alreadyInstalledManually = inst
     })
-  })
+  }
 
   var to = 0
   return function resolver (what, cb) {
-    if (!alreadyInstalledManually) return setTimeout(function () {
+    if (resolveLeft) return setTimeout(function () {
       resolver(what, cb)
     }, to++)
 
     // now we know what's been installed here manually,
     // or tampered with in some way that npm doesn't want to overwrite.
-    if (alreadyInstalledManually.indexOf(what.split("@").shift()) !== -1) {
+    if (alreadyInstalledManually.indexOf(npa(what).name) !== -1) {
       log.verbose("already installed", "skipping %s %s", what, where)
       return cb(null, [])
     }
@@ -692,7 +723,7 @@ function targetResolver (where, context, deps) {
     }
 
     if (wrap) {
-      var name = what.split(/@/).shift()
+      var name = npa(what).name
       if (wrap[name]) {
         var wrapTarget = readWrap(wrap[name])
         what = name + "@" + wrapTarget
@@ -709,19 +740,16 @@ function targetResolver (where, context, deps) {
     // already has a matching copy.
     // If it's not a git repo, and the parent already has that pkg, then
     // we can skip installing it again.
-    cache.add(what, null, false, function (er, data) {
+    var pkgroot = path.resolve(npm.prefix, (parent && parent._from) || "")
+    cache.add(what, null, pkgroot, false, function (er, data) {
       if (er && parent && parent.optionalDependencies &&
-          parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
+          parent.optionalDependencies.hasOwnProperty(npa(what).name)) {
         log.warn("optional dep failed, continuing", what)
         log.verbose("optional dep failed, continuing", [what, er])
         return cb(null, [])
       }
 
-      var isGit = false
-        , maybeGit = what.split("@").slice(1).join()
-
-      if (maybeGit)
-        isGit = isGitUrl(url.parse(maybeGit))
+      var isGit = npa(what).type === "git"
 
       if (!er &&
           data &&
@@ -732,6 +760,7 @@ function targetResolver (where, context, deps) {
         log.info("already installed", data.name + "@" + data.version)
         return cb(null, [])
       }
+
 
       if (data && !data._from) data._from = what
       if (er && parent && parent.name) er.parent = parent.name
@@ -771,6 +800,13 @@ function localLink (target, where, context, cb) {
     , parent = context.parent
 
   readJson(jsonFile, log.warn, function (er, data) {
+    function thenLink () {
+      npm.commands.link([target.name], function (er, d) {
+        log.silly("localLink", "back from link", [er, d])
+        cb(er, [resultList(target, where, parent && parent._id)])
+      })
+    }
+
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er || data._id === target._id) {
       if (er) {
@@ -781,14 +817,6 @@ function localLink (target, where, context, cb) {
           thenLink()
         })
       } else thenLink()
-
-      function thenLink () {
-        npm.commands.link([target.name], function (er, d) {
-          log.silly("localLink", "back from link", [er, d])
-          cb(er, [resultList(target, where, parent && parent._id)])
-        })
-      }
-
     } else {
       log.verbose("localLink", "install locally (no link)", target._id)
       installOne_(target, where, context, cb)

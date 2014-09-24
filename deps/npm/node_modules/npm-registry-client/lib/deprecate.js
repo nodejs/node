@@ -4,7 +4,8 @@ var url = require("url")
 var semver = require("semver")
 
 function deprecate (uri, ver, message, cb) {
-  if (!this.conf.get('username')) {
+  var c = this.conf.getCredentialsByURI(uri)
+  if (!(c.token || c.auth)) {
     return cb(new Error("Must be logged in to deprecate a package"))
   }
 

@@ -19,10 +19,12 @@ var pkg = {
 
 zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
   tap.test("request gzip package content", function (t) {
+    t.ifError(err, "example package compressed")
+
     server.expect("GET", "/some-package-gzip/1.2.3", function (req, res) {
       res.statusCode = 200
-      res.setHeader("Content-Encoding", "gzip");
-      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Encoding", "gzip")
+      res.setHeader("Content-Type", "application/json")
       res.end(pkgGzip)
     })
 
@@ -46,4 +48,4 @@ zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
       t.end()
     })
   })
-});
+})

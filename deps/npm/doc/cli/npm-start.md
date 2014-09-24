@@ -3,7 +3,7 @@ npm-start(1) -- Start a package
 
 ## SYNOPSIS
 
-    npm start <name>
+    npm start [-- <args>]
 
 ## DESCRIPTION
 

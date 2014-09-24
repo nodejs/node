@@ -9,7 +9,6 @@ var npm = require("./npm.js")
   , git = require("./utils/git.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
-  , which = require("which")
 
 submodule.usage = "npm submodule <pkg>"
 
@@ -23,7 +22,7 @@ function submodule (args, cb) {
   if (args.length === 0) return cb(submodule.usage)
 
   asyncMap(args, function (arg, cb) {
-    cache.add(arg, null, false, cb)
+    cache.add(arg, null, null, false, cb)
   }, function (er, pkgs) {
     if (er) return cb(er)
     chain(pkgs.map(function (pkg) { return function (cb) {
@@ -71,7 +70,7 @@ function addSubmodule (name, url, cb) {
 var getSubmodules = function (cb) {
   var args = [ "submodule", "status" ]
 
-  
+
   git.whichAndExec(args, function _(er, stdout) {
     if (er) return cb(er)
     var res = stdout.trim().split(/\n/).map(function (line) {
