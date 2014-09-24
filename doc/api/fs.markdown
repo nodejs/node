@@ -208,7 +208,7 @@ the completion callback.
 
 Synchronous link(2).
 
-## fs.symlink(srcpath, dstpath, [type], callback)
+## fs.symlink(srcpath, dstpath[, type], callback)
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -217,7 +217,7 @@ is `'file'`) and is only available on Windows (ignored on other platforms).
 Note that Windows junction points require the destination path to be absolute.  When using
 `'junction'`, the `destination` argument will automatically be normalized to absolute path.
 
-## fs.symlinkSync(srcpath, dstpath, [type])
+## fs.symlinkSync(srcpath, dstpath[, type])
 
 Synchronous symlink(2).
 
@@ -230,7 +230,7 @@ linkString)`.
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
-## fs.realpath(path, [cache], callback)
+## fs.realpath(path[, cache], callback)
 
 Asynchronous realpath(2). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
@@ -245,7 +245,7 @@ Example:
       console.log(resolvedPath);
     });
 
-## fs.realpathSync(path, [cache])
+## fs.realpathSync(path[, cache])
 
 Synchronous realpath(2). Returns the resolved path.
 
@@ -267,12 +267,12 @@ to the completion callback.
 
 Synchronous rmdir(2).
 
-## fs.mkdir(path, [mode], callback)
+## fs.mkdir(path[, mode], callback)
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
 to the completion callback. `mode` defaults to `0777`.
 
-## fs.mkdirSync(path, [mode])
+## fs.mkdirSync(path[, mode])
 
 Synchronous mkdir(2).
 
@@ -296,7 +296,7 @@ to the completion callback.
 
 Synchronous close(2).
 
-## fs.open(path, flags, [mode], callback)
+## fs.open(path, flags[, mode], callback)
 
 Asynchronous file open. See open(2). `flags` can be:
 
@@ -353,7 +353,7 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-## fs.openSync(path, flags, [mode])
+## fs.openSync(path, flags[, mode])
 
 Synchronous version of `fs.open()`.
 
@@ -451,7 +451,7 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
-## fs.readFile(filename, [options], callback)
+## fs.readFile(filename[, options], callback)
 
 * `filename` {String}
 * `options` {Object}
@@ -472,7 +472,7 @@ contents of the file.
 If no encoding is specified, then the raw buffer is returned.
 
 
-## fs.readFileSync(filename, [options])
+## fs.readFileSync(filename[, options])
 
 Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
 
@@ -480,7 +480,7 @@ If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
 
-## fs.writeFile(filename, data, [options], callback)
+## fs.writeFile(filename, data[, options], callback)
 
 * `filename` {String}
 * `data` {String | Buffer}
@@ -503,11 +503,11 @@ Example:
       console.log('It\'s saved!');
     });
 
-## fs.writeFileSync(filename, data, [options])
+## fs.writeFileSync(filename, data[, options])
 
 The synchronous version of `fs.writeFile`.
 
-## fs.appendFile(filename, data, [options], callback)
+## fs.appendFile(filename, data[, options], callback)
 
 * `filename` {String}
 * `data` {String | Buffer}
@@ -527,11 +527,11 @@ Example:
       console.log('The "data to append" was appended to file!');
     });
 
-## fs.appendFileSync(filename, data, [options])
+## fs.appendFileSync(filename, data[, options])
 
 The synchronous version of `fs.appendFile`.
 
-## fs.watchFile(filename, [options], listener)
+## fs.watchFile(filename[, options], listener)
 
     Stability: 2 - Unstable.  Use fs.watch instead, if possible.
 
@@ -557,7 +557,7 @@ These stat objects are instances of `fs.Stat`.
 If you want to be notified when the file was modified, not just accessed
 you need to compare `curr.mtime` and `prev.mtime`.
 
-## fs.unwatchFile(filename, [listener])
+## fs.unwatchFile(filename[, listener])
 
     Stability: 2 - Unstable.  Use fs.watch instead, if possible.
 
@@ -568,7 +568,7 @@ have effectively stopped watching `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-## fs.watch(filename, [options], [listener])
+## fs.watch(filename[, options]\[, listener])
 
     Stability: 2 - Unstable.
 
@@ -728,7 +728,7 @@ Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
-## fs.createReadStream(path, [options])
+## fs.createReadStream(path[, options])
 
 Returns a new ReadStream object (See `Readable Stream`).
 
@@ -767,7 +767,7 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 Emitted when the ReadStream's file is opened.
 
 
-## fs.createWriteStream(path, [options])
+## fs.createWriteStream(path[, options])
 
 Returns a new WriteStream object (See `Writable Stream`).
 

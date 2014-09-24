@@ -539,7 +539,7 @@ An example of the possible output looks like:
          target_arch: 'x64',
          v8_use_snapshot: 'true' } }
 
-## process.kill(pid, [signal])
+## process.kill(pid[, signal])
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like

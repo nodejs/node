@@ -6,7 +6,7 @@ The `net` module provides you with an asynchronous network wrapper. It contains
 methods for creating both servers and clients (called streams). You can include
 this module with `require('net');`
 
-## net.createServer([options], [connectionListener])
+## net.createServer([options]\[, connectionListener])
 
 Creates a new TCP server. The `connectionListener` argument is
 automatically set as a listener for the ['connection'][] event.
@@ -50,8 +50,8 @@ Use `nc` to connect to a UNIX domain socket server:
 
     nc -U /tmp/echo.sock
 
-## net.connect(options, [connectionListener])
-## net.createConnection(options, [connectionListener])
+## net.connect(options[, connectionListener])
+## net.createConnection(options[, connectionListener])
 
 A factory method, which returns a new ['net.Socket'](#net_class_net_socket)
 and connects to the supplied address and port.
@@ -107,8 +107,8 @@ changed to
 
     var client = net.connect({path: '/tmp/echo.sock'});
 
-## net.connect(port, [host], [connectListener])
-## net.createConnection(port, [host], [connectListener])
+## net.connect(port[, host]\[, connectListener])
+## net.createConnection(port[, host]\[, connectListener])
 
 Creates a TCP connection to `port` on `host`. If `host` is omitted,
 `'localhost'` will be assumed.
@@ -117,8 +117,8 @@ The `connectListener` parameter will be added as an listener for the
 
 Is a factory method which returns a new ['net.Socket'](#net_class_net_socket).
 
-## net.connect(path, [connectListener])
-## net.createConnection(path, [connectListener])
+## net.connect(path[, connectListener])
+## net.createConnection(path[, connectListener])
 
 Creates unix socket connection to `path`.
 The `connectListener` parameter will be added as an listener for the
@@ -130,7 +130,7 @@ A factory method which returns a new ['net.Socket'](#net_class_net_socket).
 
 This class is used to create a TCP or local server.
 
-### server.listen(port, [host], [backlog], [callback])
+### server.listen(port[, host]\[, backlog]\[, callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the
 `host` is omitted, the server will accept connections directed to any
@@ -162,7 +162,7 @@ would be to wait a second and then try again. This can be done with
 (Note: All sockets in Node set `SO_REUSEADDR` already)
 
 
-### server.listen(path, [callback])
+### server.listen(path[, callback])
 
 * `path` {String}
 * `callback` {Function}
@@ -189,7 +189,7 @@ double-backslashes, such as:
     net.createServer().listen(
         path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
 
-### server.listen(handle, [callback])
+### server.listen(handle[, callback])
 
 * `handle` {Object}
 * `callback` {Function}
@@ -208,7 +208,7 @@ This function is asynchronous.  When the server has been bound,
 the last parameter `callback` will be added as an listener for the
 ['listening'][] event.
 
-### server.listen(options, [callback])
+### server.listen(options[, callback])
 
 * `options` {Object} - Required. Supports the following properties:
   * `port` {Number} - Optional.
@@ -352,8 +352,8 @@ Set `readable` and/or `writable` to `true` to allow reads and/or writes on this
 socket (NOTE: Works only when `fd` is passed).
 About `allowHalfOpen`, refer to `createServer()` and `'end'` event.
 
-### socket.connect(port, [host], [connectListener])
-### socket.connect(path, [connectListener])
+### socket.connect(port[, host]\[, connectListener])
+### socket.connect(path[, connectListener])
 
 Opens the connection for a given socket. If `port` and `host` are given,
 then the socket will be opened as a TCP socket, if `host` is omitted,
@@ -395,7 +395,7 @@ Users who experience large or growing `bufferSize` should attempt to
 Set the encoding for the socket as a Readable Stream. See
 [stream.setEncoding()][] for more information.
 
-### socket.write(data, [encoding], [callback])
+### socket.write(data[, encoding]\[, callback])
 
 Sends data on the socket. The second parameter specifies the encoding in the
 case of a string--it defaults to UTF8 encoding.
@@ -407,7 +407,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-### socket.end([data], [encoding])
+### socket.end([data]\[, encoding])
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
 server will still send some data.
@@ -429,7 +429,7 @@ Useful to throttle back an upload.
 
 Resumes reading after a call to `pause()`.
 
-### socket.setTimeout(timeout, [callback])
+### socket.setTimeout(timeout[, callback])
 
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
 the socket. By default `net.Socket` do not have a timeout.
@@ -450,7 +450,7 @@ algorithm, they buffer data before sending it off. Setting `true` for
 `noDelay` will immediately fire off data each time `socket.write()` is called.
 `noDelay` defaults to `true`.
 
-### socket.setKeepAlive([enable], [initialDelay])
+### socket.setKeepAlive([enable]\[, initialDelay])
 
 Enable/disable keep-alive functionality, and optionally set the initial
 delay before the first keepalive probe is sent on an idle socket.

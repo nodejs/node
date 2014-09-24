@@ -65,7 +65,7 @@ string will not be in the parsed object. Examples are shown for the URL
 
 The following methods are provided by the URL module:
 
-## url.parse(urlStr, [parseQueryString], [slashesDenoteHost])
+## url.parse(urlStr[, parseQueryString]\[, slashesDenoteHost])
 
 Take a URL string, and return an object.
 

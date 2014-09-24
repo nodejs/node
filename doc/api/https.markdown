@@ -18,7 +18,7 @@ See [http.Server#setTimeout()][].
 
 See [http.Server#timeout][].
 
-## https.createServer(options, [requestListener])
+## https.createServer(options[, requestListener])
 
 Returns a new HTTPS web server object. The `options` is similar to
 [tls.createServer()][].  The `requestListener` is a function which is
@@ -55,9 +55,9 @@ Or
     }).listen(8000);
 
 
-### server.listen(port, [host], [backlog], [callback])
-### server.listen(path, [callback])
-### server.listen(handle, [callback])
+### server.listen(port[, host]\[, backlog]\[, callback])
+### server.listen(path[, callback])
+### server.listen(handle[, callback])
 
 See [http.listen()][] for details.
 

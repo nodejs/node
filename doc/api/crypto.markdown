@@ -12,7 +12,7 @@ It also offers a set of wrappers for OpenSSL's hash, hmac, cipher,
 decipher, sign and verify methods.
 
 
-## crypto.setEngine(engine, [flags])
+## crypto.setEngine(engine[, flags])
 
 Load and set engine for some/all OpenSSL functions (selected by flags).
 
@@ -122,7 +122,7 @@ digest.  The legacy `update` and `digest` methods are also supported.
 
 Returned by `crypto.createHash`.
 
-### hash.update(data, [input_encoding])
+### hash.update(data[, input_encoding])
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
@@ -214,7 +214,7 @@ writable.  The written plain text data is used to produce the
 encrypted data on the readable side.  The legacy `update` and `final`
 methods are also supported.
 
-### cipher.update(data, [input_encoding], [output_encoding])
+### cipher.update(data[, input_encoding]\[, output_encoding])
 
 Updates the cipher with `data`, the encoding of which is given in
 `input_encoding` and can be `'utf8'`, `'ascii'` or `'binary'`.  If no
@@ -280,7 +280,7 @@ writable.  The written enciphered data is used to produce the
 plain-text data on the the readable side.  The legacy `update` and
 `final` methods are also supported.
 
-### decipher.update(data, [input_encoding], [output_encoding])
+### decipher.update(data[, input_encoding]\[, output_encoding])
 
 Updates the decipher with `data`, which is encoded in `'binary'`,
 `'base64'` or `'hex'`.  If no encoding is provided, then a buffer is
@@ -345,7 +345,7 @@ written, the `sign` method will return the signature.  The legacy
 Updates the sign object with data.  This can be called many times
 with new data as it is streamed.
 
-### sign.sign(private_key, [output_format])
+### sign.sign(private_key[, output_format])
 
 Calculates the signature on all the updated data passed through the
 sign.
@@ -387,7 +387,7 @@ supported.
 Updates the verifier object with data.  This can be called many times
 with new data as it is streamed.
 
-### verifier.verify(object, signature, [signature_format])
+### verifier.verify(object, signature[, signature_format])
 
 Verifies the signed data by using the `object` and `signature`.
 `object` is  a string containing a PEM encoded object, which can be
@@ -402,13 +402,13 @@ the data and public key.
 Note: `verifier` object can not be used after `verify()` method has been
 called.
 
-## crypto.createDiffieHellman(prime_length, [generator])
+## crypto.createDiffieHellman(prime_length[, generator])
 
 Creates a Diffie-Hellman key exchange object and generates a prime of
 `prime_length` bits and using an optional specific numeric `generator`.
 If no `generator` is specified, then `2` is used.
 
-## crypto.createDiffieHellman(prime, [prime_encoding], [generator], [generator_encoding])
+## crypto.createDiffieHellman(prime[, prime_encoding]\[, generator]\[, generator_encoding])
 
 Creates a Diffie-Hellman key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -442,7 +442,7 @@ the public key in the specified encoding. This key should be
 transferred to the other party. Encoding can be `'binary'`, `'hex'`,
 or `'base64'`.  If no encoding is provided, then a buffer is returned.
 
-### diffieHellman.computeSecret(other_public_key, [input_encoding], [output_encoding])
+### diffieHellman.computeSecret(other_public_key[, input_encoding]\[, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. Supplied
@@ -477,13 +477,13 @@ Returns the Diffie-Hellman private key in the specified encoding,
 which can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is
 provided, then a buffer is returned.
 
-### diffieHellman.setPublicKey(public_key, [encoding])
+### diffieHellman.setPublicKey(public_key[, encoding])
 
 Sets the Diffie-Hellman public key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
 expected.
 
-### diffieHellman.setPrivateKey(private_key, [encoding])
+### diffieHellman.setPrivateKey(private_key[, encoding])
 
 Sets the Diffie-Hellman private key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
@@ -541,7 +541,7 @@ Format specifies point encoding and can be `'compressed'`, `'uncompressed'`, or
 Encoding can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is provided,
 then a buffer is returned.
 
-### ECDH.computeSecret(other_public_key, [input_encoding], [output_encoding])
+### ECDH.computeSecret(other_public_key[, input_encoding]\[, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. Supplied
@@ -569,13 +569,13 @@ Returns the EC Diffie-Hellman private key in the specified encoding,
 which can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is
 provided, then a buffer is returned.
 
-### ECDH.setPublicKey(public_key, [encoding])
+### ECDH.setPublicKey(public_key[, encoding])
 
 Sets the EC Diffie-Hellman public key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
 expected.
 
-### ECDH.setPrivateKey(private_key, [encoding])
+### ECDH.setPrivateKey(private_key[, encoding])
 
 Sets the EC Diffie-Hellman private key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
@@ -596,7 +596,7 @@ Example (obtaining a shared secret):
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
 
-## crypto.pbkdf2(password, salt, iterations, keylen, [digest], callback)
+## crypto.pbkdf2(password, salt, iterations, keylen[, digest], callback)
 
 Asynchronous PBKDF2 function.  Applies the selected HMAC digest function
 (default: SHA1) to derive a key of the requested length from the password,
@@ -614,11 +614,11 @@ Example:
 You can get a list of supported digest functions with
 [crypto.getHashes()](#crypto_crypto_gethashes).
 
-## crypto.pbkdf2Sync(password, salt, iterations, keylen, [digest])
+## crypto.pbkdf2Sync(password, salt, iterations, keylen[, digest])
 
 Synchronous PBKDF2 function.  Returns derivedKey or throws error.
 
-## crypto.randomBytes(size, [callback])
+## crypto.randomBytes(size[, callback])
 
 Generates cryptographically strong pseudo-random data. Usage:
 
@@ -642,7 +642,7 @@ accumulated entropy to generate cryptographically strong data. In other words,
 `crypto.randomBytes` without callback will not block even if all entropy sources
 are drained.
 
-## crypto.pseudoRandomBytes(size, [callback])
+## crypto.pseudoRandomBytes(size[, callback])
 
 Generates *non*-cryptographically strong pseudo-random data. The data
 returned will be unique if it is sufficiently long, but is not

@@ -328,7 +328,7 @@ readable.resume()
 readable.isPaused() // === false
 ```
 
-#### readable.pipe(destination, [options])
+#### readable.pipe(destination[, options])
 
 * `destination` {[Writable][] Stream} The destination for writing data
 * `options` {Object} Pipe options
@@ -501,7 +501,7 @@ Examples of writable streams include:
 * [child process stdin](child_process.html#child_process_child_stdin)
 * [process.stdout][], [process.stderr][]
 
-#### writable.write(chunk, [encoding], [callback])
+#### writable.write(chunk[, encoding]\[, callback])
 
 * `chunk` {String | Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -564,7 +564,7 @@ Buffered data will be flushed either at `.uncork()` or at `.end()` call.
 
 Flush all data, buffered since `.cork()` call.
 
-#### writable.end([chunk], [encoding], [callback])
+#### writable.end([chunk]\[, encoding]\[, callback])
 
 * `chunk` {String | Buffer} Optional data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -943,7 +943,7 @@ TLS, may ignore this argument, and simply provide data whenever it
 becomes available.  There is no need, for example to "wait" until
 `size` bytes are available before calling [`stream.push(chunk)`][].
 
-#### readable.push(chunk, [encoding])
+#### readable.push(chunk[, encoding])
 
 * `chunk` {Buffer | null | String} Chunk of data to push into the read queue
 * `encoding` {String} Encoding of String chunks.  Must be a valid
