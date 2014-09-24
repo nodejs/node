@@ -43,7 +43,7 @@ environment variable set, then it will not print anything.
 You may separate multiple `NODE_DEBUG` environment variables with a
 comma.  For example, `NODE_DEBUG=fs,net,tls`.
 
-## util.format(format, [...])
+## util.format(format[, ...])
 
 Returns a formatted string using the first argument as a `printf`-like format.
 
@@ -81,7 +81,7 @@ Output with timestamp on `stdout`.
 
     require('util').log('Timestamped message.');
 
-## util.inspect(object, [options])
+## util.inspect(object[, options])
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -297,7 +297,7 @@ Deprecated predecessor of `console.log`.
 Deprecated predecessor of `console.log`.
 
 
-## util.pump(readableStream, writableStream, [callback])
+## util.pump(readableStream, writableStream[, callback])
 
     Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
 

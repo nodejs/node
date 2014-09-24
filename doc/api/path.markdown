@@ -22,7 +22,7 @@ Example:
     // returns
     '/foo/bar/baz/asdf'
 
-## path.join([path1], [path2], [...])
+## path.join([path1]\[, path2]\[, ...])
 
 Join all arguments together and normalize the resulting path.
 
@@ -127,7 +127,7 @@ Example:
     // returns
     '/foo/bar/baz/asdf'
 
-## path.basename(p, [ext])
+## path.basename(p[, ext])
 
 Return the last portion of a path.  Similar to the Unix `basename` command.
 

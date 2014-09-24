@@ -128,7 +128,7 @@ Resumes the readline `input` stream.
 Closes the `Interface` instance, relinquishing control on the `input` and
 `output` streams. The "close" event will also be emitted.
 
-### rl.write(data, [key])
+### rl.write(data[, key])
 
 Writes `data` to `output` stream. `key` is an object literal to represent a key
 sequence; available if the terminal is a TTY.

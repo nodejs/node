@@ -9,35 +9,35 @@ access it with `require('assert')`.
 
 Throws an exception that displays the values for `actual` and `expected` separated by the provided operator.
 
-## assert(value, message), assert.ok(value, [message])
+## assert(value, message), assert.ok(value[, message])
 
 Tests if value is truthy, it is equivalent to `assert.equal(true, !!value, message);`
 
-## assert.equal(actual, expected, [message])
+## assert.equal(actual, expected[, message])
 
 Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
-## assert.notEqual(actual, expected, [message])
+## assert.notEqual(actual, expected[, message])
 
 Tests shallow, coercive non-equality with the not equal comparison operator ( `!=` ).
 
-## assert.deepEqual(actual, expected, [message])
+## assert.deepEqual(actual, expected[, message])
 
 Tests for deep equality.
 
-## assert.notDeepEqual(actual, expected, [message])
+## assert.notDeepEqual(actual, expected[, message])
 
 Tests for any deep inequality.
 
-## assert.strictEqual(actual, expected, [message])
+## assert.strictEqual(actual, expected[, message])
 
 Tests strict equality, as determined by the strict equality operator ( `===` )
 
-## assert.notStrictEqual(actual, expected, [message])
+## assert.notStrictEqual(actual, expected[, message])
 
 Tests strict non-equality, as determined by the strict not equal operator ( `!==` )
 
-## assert.throws(block, [error], [message])
+## assert.throws(block[, error]\[, message])
 
 Expects `block` to throw an error. `error` can be constructor, `RegExp` or
 validation function.
@@ -74,7 +74,7 @@ Custom error validation:
       "unexpected error"
     );
 
-## assert.doesNotThrow(block, [message])
+## assert.doesNotThrow(block[, message])
 
 Expects `block` not to throw an error, see `assert.throws` for details.
 
