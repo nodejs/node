@@ -5,9 +5,12 @@ repo.usage = "npm repo <pkgname>"
 
 repo.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
-  var uri = url_.resolve(npm.config.get("registry"), "/-/short")
-  registry.get(uri, { timeout : 60000 }, function (er, list) {
-    return cb(null, list || [])
+  mapToRegistry("/-/short", npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri, { timeout : 60000 }, function (er, list) {
+      return cb(null, list || [])
+    })
   })
 }
 
@@ -19,10 +22,12 @@ var npm = require("./npm.js")
   , path = require("path")
   , readJson = require("read-package-json")
   , fs = require("fs")
-  , url_ = require('url')
+  , url_ = require("url")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
 
 function repo (args, cb) {
-  var n = args.length && args[0].split("@").shift() || '.'
+  var n = args.length && npa(args[0]).name || "."
   fs.stat(n, function (er, s) {
     if (er && er.code === "ENOENT") return callRegistry(n, cb)
     else if (er) return cb(er)
@@ -35,8 +40,8 @@ function repo (args, cb) {
 }
 
 function getUrlAndOpen (d, cb) {
-  var r = d.repository;
-  if (!r) return cb(new Error('no repository'));
+  var r = d.repository
+  if (!r) return cb(new Error('no repository'))
   // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
   // from https://github.com/npm/npm-www/issues/418
   if (githubUserRepo(r.url))
@@ -52,10 +57,13 @@ function getUrlAndOpen (d, cb) {
 }
 
 function callRegistry (n, cb) {
-  var uri = url_.resolve(npm.config.get("registry"), n + "/latest")
-  registry.get(uri, { timeout : 3600 }, function (er, d) {
+  mapToRegistry(n, npm.config, function (er, uri) {
     if (er) return cb(er)
-    getUrlAndOpen(d, cb)
+
+    registry.get(uri + "/latest", { timeout : 3600 }, function (er, d) {
+      if (er) return cb(er)
+      getUrlAndOpen(d, cb)
+    })
   })
 }
 

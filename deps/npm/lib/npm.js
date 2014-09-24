@@ -46,16 +46,6 @@ try {
   var j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "../package.json"))+"")
   npm.version = j.version
-  npm.nodeVersionRequired = j.engines.node
-  if (!semver.satisfies(pv, j.engines.node)) {
-    log.warn("unsupported version", [""
-            ,"npm requires node version: "+j.engines.node
-            ,"And you have: "+pv
-            ,"which is not satisfactory."
-            ,""
-            ,"Bad things will likely happen.  You have been warned."
-            ,""].join("\n"))
-  }
 } catch (ex) {
   try {
     log.info("error reading version", ex)
@@ -153,6 +143,7 @@ var commandCache = {}
               ]
   , plumbing = [ "build"
                , "unbuild"
+               , "isntall"
                , "xmas"
                , "substack"
                , "visnup"

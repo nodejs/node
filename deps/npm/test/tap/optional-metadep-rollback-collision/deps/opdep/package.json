@@ -1,0 +1,15 @@
+{
+  "name": "opdep",
+  "version": "1.0.0",
+  "description": "To explode, of course!",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "node bad-server.js"
+  },
+  "dependencies": {
+    "d1": "file:../d1",
+    "d2": "file:../d2"
+  },
+  "author": "Forrest L Norvell <ogd@aoaioxxysz.net>",
+  "license": "ISC"
+}

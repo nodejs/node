@@ -3,7 +3,7 @@ npm-restart(1) -- Start a package
 
 ## SYNOPSIS
 
-    npm restart <name>
+    npm restart [-- <args>]
 
 ## DESCRIPTION
 

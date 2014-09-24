@@ -71,11 +71,6 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     , p = wd.split("node_modules")
     , acc = path.resolve(p.shift())
 
-  // first add the directory containing the `node` executable currently
-  // running, so that any lifecycle script that invoke "node" will execute
-  // this same one.
-  pathArr.unshift(path.dirname(process.execPath))
-
   p.forEach(function (pp) {
     pathArr.unshift(path.join(acc, "node_modules", ".bin"))
     acc = path.join(acc, "node_modules", pp)
@@ -353,13 +348,9 @@ function makeEnv (data, prefix, env) {
 
 function cmd (stage) {
   function CMD (args, cb) {
-    if (args.length) {
-      chain(args.map(function (p) {
-        return [npm.commands, "run-script", [p, stage]]
-      }), cb)
-    } else npm.commands["run-script"]([stage], cb)
+    npm.commands["run-script"]([stage].concat(args), cb)
   }
-  CMD.usage = "npm "+stage+" <name>"
+  CMD.usage = "npm "+stage+" [-- <args>]"
   var installedShallow = require("./completion/installed-shallow.js")
   CMD.completion = function (opts, cb) {
     installedShallow(opts, function (d) {

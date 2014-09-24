@@ -1,119 +1,100 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
-.
 .TH "NPM\-LINK" "1" "September 2014" "" ""
-.
 .SH "NAME"
-\fBnpm-link\fR \-\- Symlink a package folder
-.
-.SH "SYNOPSIS"
-.
-.nf
+\fBnpm-link\fR \- Symlink a package folder
+.SH SYNOPSIS
+.P
+.RS 2
+.EX
 npm link (in package folder)
-npm link <pkgname>
+npm link [@<scope>/]<pkgname>
 npm ln (with any of the previous argument usage)
-.
-.fi
-.
-.SH "DESCRIPTION"
+.EE
+.RE
+.SH DESCRIPTION
+.P
 Package linking is a two\-step process\.
-.
 .P
 First, \fBnpm link\fR in a package folder will create a globally\-installed
-symbolic link from \fBprefix/package\-name\fR to the current folder\.
-.
+symbolic link from \fBprefix/package\-name\fR to the current folder (see
+npm help 7 \fBnpm\-config\fR for the value of \fBprefix\fR)\.
 .P
 Next, in some other location, \fBnpm link package\-name\fR will create a
 symlink from the local \fBnode_modules\fR folder to the global symlink\.
-.
 .P
 Note that \fBpackage\-name\fR is taken from \fBpackage\.json\fR,
 not from directory name\.
-.
+.P
+The package name can be optionally prefixed with a scope\. See npm help 7 \fBnpm\-scope\fR\|\.
+The scope must by preceded by an @\-symbol and followed by a slash\.
 .P
 When creating tarballs for \fBnpm publish\fR, the linked packages are
 "snapshotted" to their current state by resolving the symbolic links\.
-.
 .P
-This is
-handy for installing your own stuff, so that you can work on it and test it
-iteratively without having to continually rebuild\.
-.
+This is handy for installing your own stuff, so that you can work on it and
+test it iteratively without having to continually rebuild\.
 .P
 For example:
-.
-.IP "" 4
-.
-.nf
+.P
+.RS 2
+.EX
 cd ~/projects/node\-redis    # go into the package directory
 npm link                    # creates global link
 cd ~/projects/node\-bloggy   # go into some other package directory\.
 npm link redis              # link\-install the package
-.
-.fi
-.
-.IP "" 0
-.
+.EE
+.RE
 .P
 Now, any changes to ~/projects/node\-redis will be reflected in
 ~/projects/node\-bloggy/node_modules/redis/
-.
 .P
 You may also shortcut the two steps in one\.  For example, to do the
 above use\-case in a shorter way:
-.
-.IP "" 4
-.
-.nf
+.P
+.RS 2
+.EX
 cd ~/projects/node\-bloggy  # go into the dir of your main project
 npm link \.\./node\-redis     # link the dir of your dependency
-.
-.fi
-.
-.IP "" 0
-.
+.EE
+.RE
 .P
 The second line is the equivalent of doing:
-.
-.IP "" 4
-.
-.nf
+.P
+.RS 2
+.EX
 (cd \.\./node\-redis; npm link)
 npm link redis
-.
-.fi
-.
-.IP "" 0
-.
+.EE
+.RE
 .P
 That is, it first creates a global link, and then links the global
-installation target into your project\'s \fBnode_modules\fR folder\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+installation target into your project's \fBnode_modules\fR folder\.
+.P
+If your linked package is scoped (see npm help 7 \fBnpm\-scope\fR) your link command must
+include that scope, e\.g\.
+.P
+.RS 2
+.EX
+npm link @myorg/privatepackage
+.EE
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help 7 developers
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 faq
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 package\.json
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "" 0
+
+.RE
 

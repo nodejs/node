@@ -47,9 +47,15 @@ adding a name@range:
 adding a local tarball:
 1. untar to tmp/random/{blah}
 2. goto folder(2)
+
+adding a namespaced package:
+1. lookup registry for @namespace
+2. namespace_registry.get('name')
+3. add url(namespace/latest.tarball)
 */
 
 exports = module.exports = cache
+
 cache.unpack = unpack
 cache.clean = clean
 cache.read = read
@@ -61,17 +67,18 @@ var npm = require("./npm.js")
   , readJson = require("read-package-json")
   , log = require("npmlog")
   , path = require("path")
-  , url = require("url")
   , asyncMap = require("slide").asyncMap
   , tar = require("./utils/tar.js")
   , fileCompletion = require("./utils/completion/file-completion.js")
-  , isGitUrl = require("./utils/is-git-url.js")
   , deprCheck = require("./utils/depr-check.js")
   , addNamed = require("./cache/add-named.js")
   , addLocal = require("./cache/add-local.js")
   , addRemoteTarball = require("./cache/add-remote-tarball.js")
   , addRemoteGit = require("./cache/add-remote-git.js")
+  , maybeGithub = require("./cache/maybe-github.js")
   , inflight = require("inflight")
+  , npa = require("npm-package-arg")
+  , getStat = require("./cache/get-stat.js")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -108,9 +115,8 @@ function cache (args, cb) {
   switch (cmd) {
     case "rm": case "clear": case "clean": return clean(args, cb)
     case "list": case "sl": case "ls": return ls(args, cb)
-    case "add": return add(args, cb)
-    default: return cb(new Error(
-      "Invalid cache action: "+cmd))
+    case "add": return add(args, npm.prefix, cb)
+    default: return cb("Usage: "+cache.usage)
   }
 }
 
@@ -147,15 +153,30 @@ function read (name, ver, forceBypass, cb) {
   })
 }
 
+function normalize (args) {
+  var normalized = ""
+  if (args.length > 0) {
+    var a = npa(args[0])
+    if (a.name) normalized = a.name
+    if (a.rawSpec) normalized = [normalized, a.rawSpec].join("/")
+    if (args.length > 1) normalized = [normalized].concat(args.slice(1)).join("/")
+  }
+
+  if (normalized.substr(-1) === "/") {
+    normalized = normalized.substr(0, normalized.length - 1)
+  }
+  log.silly("ls", "normalized", normalized)
+
+  return normalized
+}
+
 // npm cache ls [<path>]
 function ls (args, cb) {
-  args = args.join("/").split("@").join("/")
-  if (args.substr(-1) === "/") args = args.substr(0, args.length - 1)
   var prefix = npm.config.get("cache")
-  if (0 === prefix.indexOf(process.env.HOME)) {
+  if (prefix.indexOf(process.env.HOME) === 0) {
     prefix = "~" + prefix.substr(process.env.HOME.length)
   }
-  ls_(args, npm.config.get("depth"), function (er, files) {
+  ls_(normalize(args), npm.config.get("depth"), function (er, files) {
     console.log(files.map(function (f) {
       return path.join(prefix, f)
     }).join("\n").trim())
@@ -174,9 +195,7 @@ function clean (args, cb) {
 
   if (!args) args = []
 
-  args = args.join("/").split("@").join("/")
-  if (args.substr(-1) === "/") args = args.substr(0, args.length - 1)
-  var f = path.join(npm.cache, path.normalize(args))
+  var f = path.join(npm.cache, path.normalize(normalize(args)))
   if (f === npm.cache) {
     fs.readdir(npm.cache, function (er, files) {
       if (er) return cb()
@@ -187,30 +206,30 @@ function clean (args, cb) {
                 })
               , rm, cb )
     })
-  } else rm(path.join(npm.cache, path.normalize(args)), cb)
+  } else rm(path.join(npm.cache, path.normalize(normalize(args))), cb)
 }
 
 // npm cache add <tarball-url>
 // npm cache add <pkg> <ver>
 // npm cache add <tarball>
 // npm cache add <folder>
-cache.add = function (pkg, ver, scrub, cb) {
+cache.add = function (pkg, ver, where, scrub, cb) {
   assert(typeof pkg === "string", "must include name of package to install")
   assert(typeof cb === "function", "must include callback")
 
   if (scrub) {
     return clean([], function (er) {
       if (er) return cb(er)
-      add([pkg, ver], cb)
+      add([pkg, ver], where, cb)
     })
   }
   log.verbose("cache add", [pkg, ver])
-  return add([pkg, ver], cb)
+  return add([pkg, ver], where, cb)
 }
 
 
 var adding = 0
-function add (args, cb) {
+function add (args, where, cb) {
   // this is hot code.  almost everything passes through here.
   // the args can be any of:
   // ["url"]
@@ -226,60 +245,69 @@ function add (args, cb) {
             + "    npm cache add <pkg>@<ver>\n"
             + "    npm cache add <tarball>\n"
             + "    npm cache add <folder>\n"
-    , name
     , spec
+    , p
 
   if (args[1] === undefined) args[1] = null
 
   // at this point the args length must ==2
   if (args[1] !== null) {
-    name = args[0]
-    spec = args[1]
+    spec = args[0]+"@"+args[1]
   } else if (args.length === 2) {
     spec = args[0]
   }
 
-  log.verbose("cache add", "name=%j spec=%j args=%j", name, spec, args)
+  log.verbose("cache add", "spec=%j args=%j", spec, args)
 
-  if (!name && !spec) return cb(usage)
+  if (!spec) return cb(usage)
 
   if (adding <= 0) {
     npm.spinner.start()
   }
   adding ++
-  cb = afterAdd([name, spec], cb)
+  cb = afterAdd(cb)
 
-  // see if the spec is a url
-  // otherwise, treat as name@version
-  var p = url.parse(spec) || {}
-  log.verbose("parsed url", p)
+  // package.json can have local URI ("file:") dependencies which require
+  // normalization
+  p = npa(spec)
+  if (p.type === "local" && where) spec = path.resolve(where, p.spec)
+  log.verbose("parsed spec", p)
 
-  // If there's a /, and it's a path, then install the path.
-  // If not, and there's a @, it could be that we got name@http://blah
-  // in that case, we will not have a protocol now, but if we
-  // split and check, we will.
-  if (!name && !p.protocol) {
-    return maybeFile(spec, cb)
-  }
-  else {
-    switch (p.protocol) {
-      case "http:":
-      case "https:":
-        return addRemoteTarball(spec, { name: name }, null, cb)
+  // short-circuit local installs
+  fs.stat(spec, function (er, s) {
+    if (er) return addNonLocal(spec, cb)
+    if (!s.isDirectory()) return addAndLogLocal(spec, cb)
+    fs.stat(path.join(spec, "package.json"), function (er) {
+      if (er) return addNonLocal(spec, cb)
+      addAndLogLocal(spec, cb)
+    })
+  })
+}
 
+function addAndLogLocal (spec, cb) {
+    log.verbose("cache add", "local package", path.resolve(spec))
+    return addLocal(spec, null, cb)
+}
+
+function addNonLocal (spec, cb) {
+    var p = npa(spec)
+    log.verbose("parsed spec", p)
+
+    switch (p.type) {
+      case "remote":
+        addRemoteTarball(p.spec, {name : p.name}, null, cb)
+        break
+      case "git":
+        addRemoteGit(p.spec, false, cb)
+        break
+      case "github":
+        maybeGithub(p.spec, cb)
+        break
       default:
-        if (isGitUrl(p)) return addRemoteGit(spec, p, false, cb)
+        if (p.name) return addNamed(p.name, p.spec, null, cb)
 
-        // if we have a name and a spec, then try name@spec
-        if (name) {
-          addNamed(name, spec, null, cb)
-        }
-        // if not, then try just spec (which may try name@"" if not found)
-        else {
-          addLocal(spec, {}, cb)
-        }
+        cb(new Error("couldn't figure out how to install " + spec))
     }
-  }
 }
 
 function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
@@ -304,7 +332,7 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
   })
 }
 
-function afterAdd (arg, cb) { return function (er, data) {
+function afterAdd (cb) { return function (er, data) {
   adding --
   if (adding <= 0) {
     npm.spinner.stop()
@@ -322,49 +350,32 @@ function afterAdd (arg, cb) { return function (er, data) {
 
   var done = inflight(pj, cb)
 
-  if (!done) return
+  if (!done) return undefined
 
   fs.writeFile(tmp, JSON.stringify(data), "utf8", function (er) {
     if (er) return done(er)
-    fs.rename(tmp, pj, function (er) {
-      done(er, data)
+    getStat(function (er, cs) {
+      if (er) return done(er)
+      fs.rename(tmp, pj, function (er) {
+        if (cs.uid && cs.gid) {
+          fs.chown(pj, cs.uid, cs.gid, function (er) {
+            return done(er, data)
+          })
+        } else {
+          done(er, data)
+        }
+      })
     })
   })
 }}
 
-function maybeFile (spec, cb) {
-  // split name@2.3.4 only if name is a valid package name,
-  // don't split in case of "./test@example.com/" (local path)
-  fs.stat(spec, function (er) {
-    if (!er) {
-      // definitely a local thing
-      return addLocal(spec, {}, cb)
-    }
-
-    maybeAt(spec, cb)
-  })
-}
-
-function maybeAt (spec, cb) {
-  if (spec.indexOf("@") !== -1) {
-    var tmp = spec.split("@")
-
-    var name = tmp.shift()
-    spec = tmp.join("@")
-    add([name, spec], cb)
-  } else {
-    // already know it's not a url, so must be local
-    addLocal(spec, {}, cb)
-  }
-}
-
-function needName(er, data) {
+function needName (er, data) {
   return er ? er
        : (data && !data.name) ? new Error("No name provided")
        : null
 }
 
-function needVersion(er, data) {
+function needVersion (er, data) {
   return er ? er
        : (data && !data.version) ? new Error("No version provided")
        : null

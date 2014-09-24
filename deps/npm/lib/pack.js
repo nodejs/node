@@ -40,9 +40,14 @@ function printFiles (files, cb) {
 
 // add to cache, then cp to the cwd
 function pack_ (pkg, cb) {
-  cache.add(pkg, null, false, function (er, data) {
+  cache.add(pkg, null, null, false, function (er, data) {
     if (er) return cb(er)
-    var fname = path.resolve(data._id.replace(/@/g, "-") + ".tgz")
+
+    var name = data.name
+    // scoped packages get special treatment
+    if (name[0] === "@") name = name.substr(1).replace(/\//g, "-")
+
+    var fname = name + "-" + data.version + ".tgz"
       , cached = path.resolve( npm.cache
                              , data.name
                              , data.version

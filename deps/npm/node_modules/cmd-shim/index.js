@@ -11,11 +11,7 @@
 module.exports = cmdShim
 cmdShim.ifExists = cmdShimIfExists
 
-try {
-  var fs = require("graceful-fs")
-} catch (e) {
-  var fs = require("fs")
-}
+var fs = require("graceful-fs")
 
 var mkdir = require("mkdirp")
   , path = require("path")

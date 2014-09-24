@@ -16,12 +16,20 @@ tap.test("basic request", function (t) {
     res.json(usroot)
   })
 
-  t.plan(2)
+  server.expect("/@bigco%2funderscore", function (req, res) {
+    res.json(usroot)
+  })
+
+  t.plan(3)
   client.get("http://localhost:1337/underscore/1.3.3", null, function (er, data) {
     t.deepEqual(data, us)
   })
 
   client.get("http://localhost:1337/underscore", null, function (er, data) {
+    t.deepEqual(data, usroot)
+  })
+
+  client.get("http://localhost:1337/@bigco%2funderscore", null, function (er, data) {
     t.deepEqual(data, usroot)
   })
 })

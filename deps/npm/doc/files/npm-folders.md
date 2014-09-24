@@ -42,6 +42,12 @@ Global installs on Unix systems go to `{prefix}/lib/node_modules`.
 Global installs on Windows go to `{prefix}/node_modules` (that is, no
 `lib` folder.)
 
+Scoped packages are installed the same way, except they are grouped together
+in a sub-folder of the relevant `node_modules` folder with the name of that
+scope prefix by the @ symbol, e.g. `npm install @myorg/package` would place
+the package in `{prefix}/node_modules/@myorg/package`. See `scopes(7)` for
+more details.
+
 If you wish to `require()` a package, then install it locally.
 
 ### Executables

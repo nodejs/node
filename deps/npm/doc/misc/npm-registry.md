@@ -12,15 +12,14 @@ write APIs as well, to allow for publishing packages and managing user
 account information.
 
 The official public npm registry is at <http://registry.npmjs.org/>.  It
-is powered by a CouchDB database at
-<http://isaacs.iriscouch.com/registry>.  The code for the couchapp is
-available at <http://github.com/npm/npmjs.org>.  npm user accounts
-are CouchDB users, stored in the <http://isaacs.iriscouch.com/_users>
-database.
+is powered by a CouchDB database, of which there is a public mirror at
+<http://skimdb.npmjs.com/registry>.  The code for the couchapp is
+available at <http://github.com/npm/npm-registry-couchapp>.
 
-The registry URL is supplied by the `registry` config parameter.  See
-`npm-config(1)`, `npmrc(5)`, and `npm-config(7)` for more on managing
-npm's configuration.
+The registry URL used is determined by the scope of the package (see
+`npm-scope(7)`). If no scope is specified, the default registry is used, which is
+supplied by the `registry` config parameter.  See `npm-config(1)`,
+`npmrc(5)`, and `npm-config(7)` for more on managing npm's configuration.
 
 ## Can I run my own private registry?
 

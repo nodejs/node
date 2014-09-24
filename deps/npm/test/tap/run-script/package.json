@@ -1,0 +1,6 @@
+{"name":"runscript"
+,"version":"1.2.3"
+,"scripts":{
+  "start":"node -e 'console.log(process.argv[1] || \"start\")'"
+  }
+}

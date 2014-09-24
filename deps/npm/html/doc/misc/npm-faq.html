@@ -59,17 +59,16 @@ program that uses it.</p>
 in a shell script if you really wanted to.</p>
 <p>npm will not help you do something that is known to be a bad idea.</p>
 <h2 id="should-i-check-my-node_modules-folder-into-git-">Should I check my <code>node_modules</code> folder into git?</h2>
-<p>Mikeal Rogers answered this question very well:</p>
-<p><a href="http://www.futurealoof.com/posts/nodemodules-in-git.html">http://www.futurealoof.com/posts/nodemodules-in-git.html</a></p>
-<p>tl;dr</p>
-<ul>
-<li>Check <code>node_modules</code> into git for things you <strong>deploy</strong>, such as
-websites and apps.</li>
-<li>Do not check <code>node_modules</code> into git for libraries and modules
-intended to be reused.</li>
-<li>Use npm to manage dependencies in your dev environment, but not in
-your deployment scripts.</li>
-</ul>
+<p>Usually, no. Allow npm to resolve dependencies for your packages.</p>
+<p>For packages you <strong>deploy</strong>, such as websites and apps,
+you should use npm shrinkwrap to lock down your full dependency tree:</p>
+<p><a href="https://www.npmjs.org/doc/cli/npm-shrinkwrap.html">https://www.npmjs.org/doc/cli/npm-shrinkwrap.html</a></p>
+<p>If you are paranoid about depending on the npm ecosystem,
+you should run a private npm mirror or a private cache.</p>
+<p>If you want 100% confidence in being able to reproduce the specific bytes
+included in a deployment, you should use an additional mechanism that can
+verify contents rather than versions. For example,
+Amazon machine images, DigitalOcean snapshots, Heroku slugs, or simple tarballs.</p>
 <h2 id="is-it-npm-or-npm-or-npm-">Is it &#39;npm&#39; or &#39;NPM&#39; or &#39;Npm&#39;?</h2>
 <p>npm should never be capitalized unless it is being displayed in a
 location that is customarily all-caps (such as the title of man pages.)</p>
@@ -237,7 +236,7 @@ that has a package.json in its root, or a git url.
 <p>To check if the registry is down, open up
 <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a> in a web browser.  This will also tell
 you if you are just unable to access the internet for some reason.</p>
-<p>If the registry IS down, let us know by emailing <a href="&#109;&#97;&#x69;&#108;&#116;&#111;&#58;&#115;&#117;&#x70;&#112;&#x6f;&#x72;&#x74;&#x40;&#x6e;&#112;&#109;&#x6a;&#x73;&#46;&#x63;&#x6f;&#x6d;">&#115;&#117;&#x70;&#112;&#x6f;&#x72;&#x74;&#x40;&#x6e;&#112;&#109;&#x6a;&#x73;&#46;&#x63;&#x6f;&#x6d;</a>
+<p>If the registry IS down, let us know by emailing <a href="&#109;&#x61;&#x69;&#108;&#116;&#x6f;&#58;&#115;&#117;&#112;&#112;&#111;&#x72;&#116;&#64;&#x6e;&#x70;&#x6d;&#x6a;&#115;&#46;&#x63;&#x6f;&#x6d;">&#115;&#117;&#112;&#112;&#111;&#x72;&#116;&#64;&#x6e;&#x70;&#x6d;&#x6a;&#115;&#46;&#x63;&#x6f;&#x6d;</a>
 or posting an issue at <a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a>.  If it&#39;s
 down for the world (and not just on your local network) then we&#39;re
 probably already being pinged about it.</p>
@@ -285,5 +284,5 @@ good folks at <a href="http://www.npmjs.com">npm, Inc.</a></p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-faq &mdash; npm@1.4.28</p>
+<p id="footer">npm-faq &mdash; npm@2.0.0</p>
 

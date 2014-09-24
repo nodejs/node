@@ -75,7 +75,7 @@ function linkStuff (pkg, folder, global, didRB, cb) {
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
   // otherwise, then bins are in folder/../.bin
-  var parent = path.dirname(folder)
+  var parent = pkg.name[0] === "@" ? path.dirname(path.dirname(folder)) : path.dirname(folder)
     , gnm = global && npm.globalDir
     , gtop = parent === gnm
 
@@ -95,7 +95,7 @@ function linkStuff (pkg, folder, global, didRB, cb) {
 function shouldWarn(pkg, folder, global, cb) {
   var parent = path.dirname(folder)
     , top = parent === npm.dir
-    , cwd = process.cwd()
+    , cwd = npm.localPrefix
 
   readJson(path.resolve(cwd, "package.json"), function(er, topPkg) {
     if (er) return cb(er)

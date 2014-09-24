@@ -191,7 +191,15 @@ function addTmpTarball_ (tgz, data, shasum, cb) {
   var target = path.resolve(root, "package.tgz")
   getCacheStat(function (er, cs) {
     if (er) return cb(er)
-    mkdir(pkg, function (er) {
+    mkdir(pkg, function (er, created) {
+
+      // chown starting from the first dir created by mkdirp,
+      // or the root dir, if none had to be created, so that
+      // we know that we get all the children.
+      function chown (er) {
+        chownr(created || root, cs.uid, cs.gid, done)
+      }
+
       if (er) return cb(er)
       var read = fs.createReadStream(tgz)
       var write = fs.createWriteStream(target)
@@ -199,9 +207,6 @@ function addTmpTarball_ (tgz, data, shasum, cb) {
       read.on("error", cb).pipe(write).on("error", cb).on("close", fin)
     })
 
-    function chown () {
-      chownr(root, cs.uid, cs.gid, done)
-    }
   })
 
   function done() {

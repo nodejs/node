@@ -5,18 +5,21 @@ docs.usage += "\n"
 docs.usage += "npm docs ."
 
 docs.completion = function (opts, cb) {
-  var uri = url_.resolve(npm.config.get("registry"), "/-/short")
-  registry.get(uri, { timeout : 60000 }, function (er, list) {
-    return cb(null, list || [])
+  mapToRegistry("/-/short", npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri, { timeout : 60000 }, function (er, list) {
+      return cb(null, list || [])
+    })
   })
 }
 
-var url_ = require("url")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
   , registry = npm.registry
   , opener = require("opener")
   , path = require("path")
   , log = require("npmlog")
+  , mapToRegistry = require("./utils/map-to-registry.js")
 
 function url (json) {
   return json.homepage ? json.homepage : "https://npmjs.org/package/" + json.name
@@ -38,7 +41,7 @@ function docs (args, cb) {
 
 function getDoc (project, cb) {
   project = project || '.'
-  var package = path.resolve(process.cwd(), "package.json")
+  var package = path.resolve(npm.localPrefix, "package.json")
 
   if (project === '.' || project === './') {
     var json
@@ -54,8 +57,13 @@ function getDoc (project, cb) {
     return opener(url(json), { command: npm.config.get("browser") }, cb)
   }
 
-  var uri = url_.resolve(npm.config.get("registry"), project + "/latest")
-  registry.get(uri, { timeout : 3600 }, function (er, json) {
+  mapToRegistry(project, npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri + "/latest", { timeout : 3600 }, next)
+  })
+
+  function next (er, json) {
     var github = "https://github.com/" + project + "#readme"
 
     if (er) {
@@ -64,5 +72,5 @@ function getDoc (project, cb) {
     }
 
     return opener(url(json), { command: npm.config.get("browser") }, cb)
-  })
+  }
 }
