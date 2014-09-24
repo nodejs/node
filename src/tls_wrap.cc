@@ -192,6 +192,8 @@ void TLSCallbacks::InitSSL() {
   if (is_server()) {
     SSL_set_accept_state(ssl_);
   } else if (is_client()) {
+    // Enough space for server response (hello, cert)
+    NodeBIO::FromBIO(enc_in_)->set_initial(kInitialClientBufferLength);
     SSL_set_connect_state(ssl_);
   } else {
     // Unexpected
@@ -254,6 +256,7 @@ void TLSCallbacks::Receive(const FunctionCallbackInfo<Value>& args) {
     wrap->DoAlloc(reinterpret_cast<uv_handle_t*>(stream), len, &buf);
     size_t copy = buf.len > len ? len : buf.len;
     memcpy(buf.base, data, copy);
+    buf.len = copy;
     wrap->DoRead(stream, buf.len, &buf, UV_UNKNOWN_HANDLE);
 
     data += copy;
@@ -615,8 +618,9 @@ void TLSCallbacks::AfterWrite(WriteWrap* w) {
 void TLSCallbacks::DoAlloc(uv_handle_t* handle,
                            size_t suggested_size,
                            uv_buf_t* buf) {
-  buf->base = NodeBIO::FromBIO(enc_in_)->PeekWritable(&suggested_size);
-  buf->len = suggested_size;
+  size_t size = 0;
+  buf->base = NodeBIO::FromBIO(enc_in_)->PeekWritable(&size);
+  buf->len = size;
 }
 
 
@@ -720,6 +724,7 @@ void TLSCallbacks::EnableHelloParser(const FunctionCallbackInfo<Value>& args) {
 
   TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
+  NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSCallbacks>::OnClientHello,
                             OnClientHelloParseEnd,
                             wrap);
