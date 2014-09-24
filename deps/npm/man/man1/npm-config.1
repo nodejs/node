@@ -1,14 +1,10 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
-.
 .TH "NPM\-CONFIG" "1" "September 2014" "" ""
-.
 .SH "NAME"
-\fBnpm-config\fR \-\- Manage the npm configuration files
-.
-.SH "SYNOPSIS"
-.
-.nf
+\fBnpm-config\fR \- Manage the npm configuration files
+.SH SYNOPSIS
+.P
+.RS 2
+.EX
 npm config set <key> <value> [\-\-global]
 npm config get <key>
 npm config delete <key>
@@ -17,97 +13,83 @@ npm config edit
 npm c [set|get|delete|list]
 npm get <key>
 npm set <key> <value> [\-\-global]
-.
-.fi
-.
-.SH "DESCRIPTION"
+.EE
+.RE
+.SH DESCRIPTION
+.P
 npm gets its config settings from the command line, environment
 variables, \fBnpmrc\fR files, and in some cases, the \fBpackage\.json\fR file\.
-.
 .P
 See npm help 5 npmrc for more information about the npmrc files\.
-.
 .P
 See npm help 7 \fBnpm\-config\fR for a more thorough discussion of the mechanisms
 involved\.
-.
 .P
 The \fBnpm config\fR command can be used to update and edit the contents
 of the user and global npmrc files\.
-.
-.SH "Sub\-commands"
+.SH Sub\-commands
+.P
 Config supports the following sub\-commands:
-.
-.SS "set"
-.
-.nf
+.SS set
+.P
+.RS 2
+.EX
 npm config set key value
-.
-.fi
-.
+.EE
+.RE
 .P
 Sets the config key to the value\.
-.
 .P
 If value is omitted, then it sets it to "true"\.
-.
-.SS "get"
-.
-.nf
+.SS get
+.P
+.RS 2
+.EX
 npm config get key
-.
-.fi
-.
+.EE
+.RE
 .P
 Echo the config value to stdout\.
-.
-.SS "list"
-.
-.nf
+.SS list
+.P
+.RS 2
+.EX
 npm config list
-.
-.fi
-.
+.EE
+.RE
 .P
 Show all the config settings\.
-.
-.SS "delete"
-.
-.nf
+.SS delete
+.P
+.RS 2
+.EX
 npm config delete key
-.
-.fi
-.
+.EE
+.RE
 .P
 Deletes the key from all configuration files\.
-.
-.SS "edit"
-.
-.nf
+.SS edit
+.P
+.RS 2
+.EX
 npm config edit
-.
-.fi
-.
+.EE
+.RE
 .P
 Opens the config file in an editor\.  Use the \fB\-\-global\fR flag to edit the
 global config\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 package\.json
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help npm
-.
-.IP "" 0
+
+.RE
 

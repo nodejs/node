@@ -30,6 +30,9 @@ The name is what your thing is called.  Some tips:
 * You may want to check the npm registry to see if there's something by that name
   already, before you get too attached to it.  http://registry.npmjs.org/
 
+A name can be optionally prefixed by a scope, e.g. `@myorg/mypackage`. See
+`npm-scope(7)` for more detail.
+
 ## version
 
 The *most* important things in your package.json are the name and version fields.
@@ -320,6 +323,8 @@ See semver(7) for more details about specifying version ranges.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
+* `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
+* `path/path/path` See Local Paths below
 
 For example, these are all valid:
 
@@ -334,6 +339,8 @@ For example, these are all valid:
       , "elf" : "~1.2.3"
       , "two" : "2.x"
       , "thr" : "3.3.x"
+      , "lat" : "latest"
+      , "dyl" : "~/projects/dyl"
       }
     }
 
@@ -368,6 +375,21 @@ As of version 1.1.65, you can refer to GitHub urls as just "foo": "user/foo-proj
         "express": "visionmedia/express"
       }
     }
+
+## Local Paths
+
+As of version 2.0.0 you can provide a path to a local directory that
+contains a package. Local paths can be in the form:
+
+    ../foo/bar
+    ~/foo/bar
+    ./foo/bar
+    /foo/bar
+
+This feature is helpful for local offline development and creating
+tests that require npm installing where you don't want to hit an
+external server, but should not be used when publishing packages
+to the public registry.
 
 ## devDependencies
 

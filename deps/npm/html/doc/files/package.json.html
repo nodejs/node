@@ -34,6 +34,8 @@ be something short, but also reasonably descriptive.</li>
 <li>You may want to check the npm registry to see if there&#39;s something by that name
 already, before you get too attached to it.  <a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a></li>
 </ul>
+<p>A name can be optionally prefixed by a scope, e.g. <code>@myorg/mypackage</code>. See
+<code><a href="../misc/npm-scope.html">npm-scope(7)</a></code> for more detail.</p>
 <h2 id="version">version</h2>
 <p>The <em>most</em> important things in your package.json are the name and version fields.
 Those are actually required, and your package won&#39;t install without
@@ -234,6 +236,8 @@ a tarball or git URL.</p>
 <li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li>
 <li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li>
 <li><code>user/repo</code> See &#39;GitHub URLs&#39; below</li>
+<li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-tag.html">npm-tag(1)</a></code></li>
+<li><code>path/path/path</code> See Local Paths below</li>
 </ul>
 <p>For example, these are all valid:</p>
 <pre><code>{ &quot;dependencies&quot; :
@@ -247,6 +251,8 @@ a tarball or git URL.</p>
   , &quot;elf&quot; : &quot;~1.2.3&quot;
   , &quot;two&quot; : &quot;2.x&quot;
   , &quot;thr&quot; : &quot;3.3.x&quot;
+  , &quot;lat&quot; : &quot;latest&quot;
+  , &quot;dyl&quot; : &quot;~/projects/dyl&quot;
   }
 }
 </code></pre><h3 id="urls-as-dependencies">URLs as Dependencies</h3>
@@ -271,7 +277,18 @@ an argument to <code>git checkout</code>.  The default is <code>master</code>.</
     &quot;express&quot;: &quot;visionmedia/express&quot;
   }
 }
-</code></pre><h2 id="devdependencies">devDependencies</h2>
+</code></pre><h2 id="local-paths">Local Paths</h2>
+<p>As of version 2.0.0 you can provide a path to a local directory that
+contains a package. Local paths can be in the form:</p>
+<pre><code>../foo/bar
+~/foo/bar
+./foo/bar
+/foo/bar
+</code></pre><p>This feature is helpful for local offline development and creating
+tests that require npm installing where you don&#39;t want to hit an
+external server, but should not be used when publishing packages
+to the public registry.</p>
+<h2 id="devdependencies">devDependencies</h2>
 <p>If someone is planning on downloading and using your module in their
 program, then they probably don&#39;t want or need to download and build
 the external test or documentation framework that you use.</p>
@@ -459,5 +476,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@1.4.28</p>
+<p id="footer">package.json &mdash; npm@2.0.0</p>
 

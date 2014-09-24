@@ -3,6 +3,30 @@ var userconfigSrc = path.resolve(__dirname, 'fixtures', 'userconfig')
 exports.userconfig = userconfigSrc + '-with-gc'
 exports.globalconfig = path.resolve(__dirname, 'fixtures', 'globalconfig')
 exports.builtin = path.resolve(__dirname, 'fixtures', 'builtin')
+exports.ucData =
+  { globalconfig: exports.globalconfig,
+    email: 'i@izs.me',
+    'env-thing': 'asdf',
+    'init.author.name': 'Isaac Z. Schlueter',
+    'init.author.email': 'i@izs.me',
+    'init.author.url': 'http://blog.izs.me/',
+    'init.version': '1.2.3',
+    'proprietary-attribs': false,
+    'npm:publishtest': true,
+    '_npmjs.org:couch': 'https://admin:password@localhost:5984/registry',
+    'npm-www:nocache': '1',
+    nodedir: '/Users/isaacs/dev/js/node-v0.8',
+    'sign-git-tag': true,
+    message: 'v%s',
+    'strict-ssl': false,
+    'tmp': process.env.HOME + '/.tmp',
+    _auth: 'dXNlcm5hbWU6cGFzc3dvcmQ=',
+    _token:
+     { AuthSession: 'yabba-dabba-doodle',
+       version: '1',
+       expires: '1345001053415',
+       path: '/',
+       httponly: true } }
 
 // set the userconfig in the env
 // unset anything else that npm might be trying to foist on us

@@ -26,7 +26,7 @@ exports.npm = function (cmd, opts, cb) {
 
   child.on("error", cb)
 
-  child.on("close", function (code, signal) {
+  child.on("close", function (code) {
     cb(null, code, stdout, stderr)
   })
 }

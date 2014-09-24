@@ -409,6 +409,10 @@ Index of all npm documentation
 
 The JavaScript Package Registry
 
+### npm-scope(7)
+
+Scoped packages
+
 ### npm-scripts(7)
 
 How npm handles the "scripts" field

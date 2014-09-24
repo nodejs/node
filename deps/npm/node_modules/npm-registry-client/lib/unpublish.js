@@ -22,7 +22,7 @@ function unpublish (uri, ver, cb) {
     // remove all if no version specified
     if (!ver) {
       this.log.info("unpublish", "No version specified, removing all")
-      return this.request("DELETE", uri+'/-rev/'+data._rev, null, cb)
+      return this.request("DELETE", uri+"/-rev/"+data._rev, null, cb)
     }
 
     var versions = data.versions || {}
@@ -72,7 +72,7 @@ function unpublish (uri, ver, cb) {
 function detacher (uri, data, dist, cb) {
   return function (er) {
     if (er) return cb(er)
-    this.get(url.resolve(uri, data.name), null, function (er, data) {
+    this.get(escape(uri, data.name), null, function (er, data) {
       if (er) return cb(er)
 
       var tb = url.parse(dist.tarball)
@@ -96,10 +96,15 @@ function detach (uri, data, path, rev, cb) {
     this.log.info("detach", path)
     return this.request("DELETE", url.resolve(uri, path), null, cb)
   }
-  this.get(url.resolve(uri, data.name), null, function (er, data) {
+  this.get(escape(uri, data.name), null, function (er, data) {
     rev = data._rev
     if (!rev) return cb(new Error(
       "No _rev found in "+data._id))
     detach.call(this, data, path, rev, cb)
   }.bind(this))
+}
+
+function escape (base, name) {
+  var escaped = name.replace(/\//, "%2f")
+  return url.resolve(base, escaped)
 }

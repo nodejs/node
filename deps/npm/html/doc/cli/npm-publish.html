@@ -15,6 +15,9 @@
 npm publish &lt;folder&gt; [--tag &lt;tag&gt;]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Publishes a package to the registry so that it can be installed by name.</p>
+<p>By default npm will publish to the public registry. This can be overridden by
+specifying a different default registry or using a <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code> in the name
+(see <code><a href="../files/package.json.html">package.json(5)</a></code>).</p>
 <ul>
 <li><p><code>&lt;folder&gt;</code>:
 A folder containing a package.json file</p>
@@ -30,7 +33,7 @@ and <code>npm install</code> installs the <code>latest</code> tag.</p>
 </li>
 </ul>
 <p>Fails if the package name and version combination already exists in
-the registry.</p>
+the specified registry.</p>
 <p>Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with <a href="../cli/npm-unpublish.html">npm-unpublish(1)</a>.</p>
@@ -54,5 +57,5 @@ it is removed with <a href="../cli/npm-unpublish.html">npm-unpublish(1)</a>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-publish &mdash; npm@1.4.28</p>
+<p id="footer">npm-publish &mdash; npm@2.0.0</p>
 

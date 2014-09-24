@@ -8,7 +8,7 @@ var lifecycle = require("./utils/lifecycle.js")
   , log = require("npmlog")
   , chain = require("slide").chain
 
-runScript.usage = "npm run-script [<pkg>] <command>"
+runScript.usage = "npm run-script <command> [-- <args>]"
 
 runScript.completion = function (opts, cb) {
 
@@ -21,7 +21,7 @@ runScript.completion = function (opts, cb) {
   if (argv.length === 3) {
     // either specified a script locally, in which case, done,
     // or a package, in which case, complete against its scripts
-    var json = path.join(npm.prefix, "package.json")
+    var json = path.join(npm.localPrefix, "package.json")
     return readJson(json, function (er, d) {
       if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
       if (er) d = {}
@@ -30,7 +30,7 @@ runScript.completion = function (opts, cb) {
       if (scripts.indexOf(argv[2]) !== -1) return cb()
       // ok, try to find out which package it was, then
       var pref = npm.config.get("global") ? npm.config.get("prefix")
-               : npm.prefix
+               : npm.localPrefix
       var pkgDir = path.resolve( pref, "node_modules"
                                , argv[2], "package.json" )
       readJson(pkgDir, function (er, d) {
@@ -54,7 +54,7 @@ runScript.completion = function (opts, cb) {
   })
 
   if (npm.config.get("global")) scripts = [], next()
-  else readJson(path.join(npm.prefix, "package.json"), function (er, d) {
+  else readJson(path.join(npm.localPrefix, "package.json"), function (er, d) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     d = d || {}
     scripts = Object.keys(d.scripts || {})
@@ -69,18 +69,18 @@ runScript.completion = function (opts, cb) {
 
 function runScript (args, cb) {
   if (!args.length) return list(cb)
-  var pkgdir = args.length === 1 ? process.cwd()
-             : path.resolve(npm.dir, args[0])
-    , cmd = args.pop()
+
+  var pkgdir = npm.localPrefix
+    , cmd = args.shift()
 
   readJson(path.resolve(pkgdir, "package.json"), function (er, d) {
     if (er) return cb(er)
-    run(d, pkgdir, cmd, cb)
+    run(d, pkgdir, cmd, args, cb)
   })
 }
 
 function list(cb) {
-  var json = path.join(npm.prefix, 'package.json')
+  var json = path.join(npm.localPrefix, 'package.json')
   return readJson(json, function(er, d) {
     if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
     if (er) d = {}
@@ -109,7 +109,7 @@ function list(cb) {
   })
 }
 
-function run (pkg, wd, cmd, cb) {
+function run (pkg, wd, cmd, args, cb) {
   var cmds = []
   if (!pkg.scripts) pkg.scripts = {}
   if (cmd === "restart") {
@@ -124,7 +124,21 @@ function run (pkg, wd, cmd, cb) {
   }
   log.verbose("run-script", cmds)
   chain(cmds.map(function (c) {
+    // pass cli arguments after -- to script.
+    if (pkg.scripts[c]) pkg.scripts[c] = pkg.scripts[c] + joinArgs(args)
+
     // when running scripts explicitly, assume that they're trusted.
     return [lifecycle, pkg, c, wd, true]
   }), cb)
+}
+
+// join arguments after '--' and pass them to script,
+// handle special characters such as ', ", ' '.
+function joinArgs (args) {
+  var joinedArgs = ''
+  args.forEach(function(arg, i) {
+    if (arg.match(/[ '"]/)) arg = '"' + arg.replace(/"/g, '\\"') + '"'
+    joinedArgs += ' ' + arg
+  })
+  return joinedArgs
 }

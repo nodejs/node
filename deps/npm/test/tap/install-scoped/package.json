@@ -1,0 +1,7 @@
+{
+  "name": "@scoped/package",
+  "version": "0.0.0",
+  "bin": {
+    "hello": "./world.js"
+  }
+}

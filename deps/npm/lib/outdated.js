@@ -28,12 +28,13 @@ var path = require("path")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
   , url = require("url")
-  , isGitUrl = require("./utils/is-git-url.js")
   , color = require("ansicolors")
   , styles = require("ansistyles")
   , table = require("text-table")
   , semver = require("semver")
   , os = require("os")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -43,7 +44,7 @@ function outdated (args, silent, cb) {
     if (npm.config.get("json")) {
       console.log(makeJSON(list))
     } else if (npm.config.get("parseable")) {
-      console.log(makeParseable(list));
+      console.log(makeParseable(list))
     } else {
       var outList = list.map(makePretty)
       var outTable = [[ "Package"
@@ -99,7 +100,7 @@ function makePretty (p) {
 
 function ansiTrim (str) {
   var r = new RegExp("\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|" +
-        "\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)", "g");
+        "\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)", "g")
   return str.replace(r, "")
 }
 
@@ -114,7 +115,7 @@ function makeParseable (list) {
       , dir = path.resolve(p[0], "node_modules", dep)
       , has = p[2]
       , want = p[3]
-      , latest = p[4];
+      , latest = p[4]
 
     return [ dir
            , dep + "@" + want
@@ -264,20 +265,25 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
     return skip()
   }
 
-  if (isGitUrl(url.parse(req)))
+  if (npa(req).type === "git")
     return doIt("git", "git")
 
   // search for the latest package
-  var uri = url.resolve(npm.config.get("registry"), dep)
-  npm.registry.get(uri, null, function (er, d) {
+  mapToRegistry(dep, npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    npm.registry.get(uri, null, updateDeps)
+  })
+
+  function updateDeps (er, d) {
     if (er) return cb()
-    if (!d || !d['dist-tags'] || !d.versions) return cb()
-    var l = d.versions[d['dist-tags'].latest]
+    if (!d || !d["dist-tags"] || !d.versions) return cb()
+    var l = d.versions[d["dist-tags"].latest]
     if (!l) return cb()
 
     var r = req
-    if (d['dist-tags'][req])
-      r = d['dist-tags'][req]
+    if (d["dist-tags"][req])
+      r = d["dist-tags"][req]
 
     if (semver.validRange(r, true)) {
       // some kind of semver range.
@@ -290,13 +296,13 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
     }
 
     // We didn't find the version in the doc.  See if cache can find it.
-    cache.add(dep, req, false, onCacheAdd)
+    cache.add(dep, req, null, false, onCacheAdd)
 
     function onCacheAdd(er, d) {
       // if this fails, then it means we can't update this thing.
       // it's probably a thing that isn't published.
       if (er) {
-        if (er.code && er.code === 'ETARGET') {
+        if (er.code && er.code === "ETARGET") {
           // no viable version found
           return skip(er)
         }
@@ -315,6 +321,5 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
       else
         skip()
     }
-
-  })
+  }
 }

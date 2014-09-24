@@ -1,5 +1,11 @@
 language: node_js
-script: "npm run-script tap"
 node_js:
   - "0.11"
   - "0.10"
+env:
+  - DEPLOY_VERSION=testing
+before_install:
+  - "npm config set spin false"
+  - "npm install -g npm@^2"
+  - "sudo mkdir -p /var/run/couchdb"
+script: "npm run-script tap"

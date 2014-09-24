@@ -1,7 +1,6 @@
 var npm = require.resolve("../../")
 var test = require("tap").test
 var path = require("path")
-var fs = require("fs")
 var rimraf = require("rimraf")
 var mkdirp = require("mkdirp")
 var mr = require("npm-registry-mock")
@@ -44,7 +43,7 @@ test("compare", function(t) {
   var d = path.resolve(__dirname, "cache-shasum/request")
   var p = path.resolve(d, "2.27.0/package.tgz")
   var r = require("./cache-shasum/localhost_1337/request/.cache.json")
-  var rshasum = r.versions['2.27.0'].dist.shasum
+  var rshasum = r.versions["2.27.0"].dist.shasum
   sha.get(p, function (er, pshasum) {
     if (er)
       throw er

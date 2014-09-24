@@ -4,21 +4,26 @@ module.exports = view
 view.usage = "npm view pkg[@version] [<field>[.subfield]...]"
 
 view.completion = function (opts, cb) {
-  var uri
   if (opts.conf.argv.remain.length <= 2) {
-    uri = url.resolve(npm.config.get("registry"), "-/short")
-    return registry.get(uri, null, cb)
+    return mapToRegistry("-/short", npm.config, function (er, uri) {
+      if (er) return cb(er)
+
+      registry.get(uri, null, cb)
+    })
   }
   // have the package, get the fields.
   var tag = npm.config.get("tag")
-  uri = url.resolve(npm.config.get("registry"), opts.conf.argv.remain[2])
-  registry.get(uri, null, function (er, d) {
+  mapToRegistry(opts.conf.argv.remain[2], npm.config, function (er, uri) {
     if (er) return cb(er)
-    var dv = d.versions[d["dist-tags"][tag]]
-      , fields = []
-    d.versions = Object.keys(d.versions).sort(semver.compareLoose)
-    fields = getFields(d).concat(getFields(dv))
-    cb(null, fields)
+
+    registry.get(uri, null, function (er, d) {
+      if (er) return cb(er)
+      var dv = d.versions[d["dist-tags"][tag]]
+        , fields = []
+      d.versions = Object.keys(d.versions).sort(semver.compareLoose)
+      fields = getFields(d).concat(getFields(dv))
+      cb(null, fields)
+    })
   })
 
   function getFields (d, f, pref) {
@@ -42,71 +47,75 @@ view.completion = function (opts, cb) {
   }
 }
 
-var url = require("url")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , util = require("util")
   , semver = require("semver")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
 
 function view (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
   if (!args.length) return cb("Usage: "+view.usage)
   var pkg = args.shift()
-    , nv = pkg.split("@")
-    , name = nv.shift()
-    , version = nv.join("@") || npm.config.get("tag")
+    , nv = npa(pkg)
+    , name = nv.name
+    , version = nv.rawSpec || npm.config.get("tag")
 
   if (name === ".") return cb(view.usage)
 
   // get the data about this package
-  var uri = url.resolve(npm.config.get("registry"), name)
-  registry.get(uri, null, function (er, data) {
+  mapToRegistry(name, npm.config, function (er, uri) {
     if (er) return cb(er)
-    if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
-      version = data["dist-tags"][version]
-    }
 
-    if (data.time && data.time.unpublished) {
-      var u = data.time.unpublished
-      er = new Error("Unpublished by " + u.name + " on " + u.time)
-      er.statusCode = 404
-      er.code = "E404"
-      er.pkgid = data._id
-      return cb(er, data)
-    }
+    registry.get(uri, null, function (er, data) {
+      if (er) return cb(er)
+      if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
+        version = data["dist-tags"][version]
+      }
+
+      if (data.time && data.time.unpublished) {
+        var u = data.time.unpublished
+        er = new Error("Unpublished by " + u.name + " on " + u.time)
+        er.statusCode = 404
+        er.code = "E404"
+        er.pkgid = data._id
+        return cb(er, data)
+      }
 
 
-    var results = []
-      , error = null
-      , versions = data.versions || {}
-    data.versions = Object.keys(versions).sort(semver.compareLoose)
-    if (!args.length) args = [""]
+      var results = []
+        , error = null
+        , versions = data.versions || {}
+      data.versions = Object.keys(versions).sort(semver.compareLoose)
+      if (!args.length) args = [""]
 
-    // remove readme unless we asked for it
-    if (-1 === args.indexOf("readme")) {
-      delete data.readme
-    }
+      // remove readme unless we asked for it
+      if (-1 === args.indexOf("readme")) {
+        delete data.readme
+      }
 
-    Object.keys(versions).forEach(function (v) {
-      if (semver.satisfies(v, version, true)) args.forEach(function (args) {
-        // remove readme unless we asked for it
-        if (-1 === args.indexOf("readme")) {
-          delete versions[v].readme
-        }
-        results.push(showFields(data, versions[v], args))
+      Object.keys(versions).forEach(function (v) {
+        if (semver.satisfies(v, version, true)) args.forEach(function (args) {
+          // remove readme unless we asked for it
+          if (-1 === args.indexOf("readme")) {
+            delete versions[v].readme
+          }
+          results.push(showFields(data, versions[v], args))
+        })
       })
+      results = results.reduce(reducer, {})
+      var retval = results
+
+      if (args.length === 1 && args[0] === "") {
+        retval = cleanBlanks(retval)
+        log.silly("cleanup", retval)
+      }
+
+      if (error || silent) cb(error, retval)
+      else printData(results, data._id, cb.bind(null, error, retval))
     })
-    results = results.reduce(reducer, {})
-    var retval = results
-
-    if (args.length === 1 && args[0] === "") {
-      retval = cleanBlanks(retval)
-      log.silly("cleanup", retval)
-    }
-
-    if (error || silent) cb(error, retval)
-    else printData(results, data._id, cb.bind(null, error, retval))
   })
 }
 

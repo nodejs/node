@@ -13,8 +13,8 @@ var path = require("path")
   , locker = require("../utils/locker.js")
   , lock = locker.lock
   , unlock = locker.unlock
-  , maybeGithub = require("./maybe-github.js")
   , addRemoteTarball = require("./add-remote-tarball.js")
+  , mapToRegistry = require("../utils/map-to-registry.js")
 
 
 module.exports = addNamed
@@ -48,7 +48,7 @@ function addNamed (name, version, data, cb_) {
   })
 }
 
-function addNameTag (name, tag, data, cb_) {
+function addNameTag (name, tag, data, cb) {
   log.info("addNameTag", [name, tag])
   var explicit = true
   if (!tag) {
@@ -56,17 +56,13 @@ function addNameTag (name, tag, data, cb_) {
     tag = npm.config.get("tag")
   }
 
-  function cb(er, data) {
-    // might be username/project
-    // in that case, try it as a github url.
-    if (er && tag.split("/").length === 2) {
-      return maybeGithub(tag, er, cb_)
-    }
-    return cb_(er, data)
-  }
+  mapToRegistry(name, npm.config, function (er, uri) {
+    if (er) return cb(er)
 
-  var uri = url.resolve(npm.config.get("registry"), name)
-  registry.get(uri, null, function (er, data, json, resp) {
+    registry.get(uri, null, next)
+  })
+
+  function next (er, data, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }
@@ -83,7 +79,7 @@ function addNameTag (name, tag, data, cb_) {
 
     er = installTargetsError(tag, data)
     return cb(er)
-  })
+  }
 }
 
 function engineFilter (data) {
@@ -114,22 +110,28 @@ function addNameVersion (name, v, data, cb) {
     response = null
     return next()
   }
-  var uri = url.resolve(npm.config.get("registry"), name)
-  registry.get(uri, null, function (er, d, json, resp) {
+
+  mapToRegistry(name, npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri, null, setData)
+  })
+
+  function setData (er, d, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }
     if (er) return cb(er)
     data = d && d.versions[ver]
     if (!data) {
-      er = new Error('version not found: ' + name + '@' + ver)
+      er = new Error("version not found: "+name+"@"+ver)
       er.package = name
       er.statusCode = 404
       return cb(er)
     }
     response = resp
     next()
-  })
+  }
 
   function next () {
     deprCheck(data)
@@ -166,10 +168,9 @@ function addNameVersion (name, v, data, cb) {
         return cb(new Error("Cannot fetch: "+dist.tarball))
       }
 
-      // use the same protocol as the registry.
-      // https registry --> https tarballs, but
-      // only if they're the same hostname, or else
-      // detached tarballs may not work.
+      // Use the same protocol as the registry.  https registry --> https
+      // tarballs, but only if they're the same hostname, or else detached
+      // tarballs may not work.
       var tb = url.parse(dist.tarball)
       var rp = url.parse(npm.config.get("registry"))
       if (tb.hostname === rp.hostname
@@ -179,8 +180,8 @@ function addNameVersion (name, v, data, cb) {
       }
       tb = url.format(tb)
 
-      // only add non-shasum'ed packages if --forced.
-      // only ancient things would lack this for good reasons nowadays.
+      // Only add non-shasum'ed packages if --forced. Only ancient things
+      // would lack this for good reasons nowadays.
       if (!dist.shasum && !npm.config.get("force")) {
         return cb(new Error("package lacks shasum: " + data._id))
       }
@@ -197,15 +198,21 @@ function addNameRange (name, range, data, cb) {
   log.silly("addNameRange", {name:name, range:range, hasData:!!data})
 
   if (data) return next()
-  var uri = url.resolve(npm.config.get("registry"), name)
-  registry.get(uri, null, function (er, d, json, resp) {
+
+  mapToRegistry(name, npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri, null, setData)
+  })
+
+  function setData (er, d, json, resp) {
     if (!er) {
       er = errorResponse(name, resp)
     }
     if (er) return cb(er)
     data = d
     next()
-  })
+  }
 
   function next () {
     log.silly( "addNameRange", "number 2"

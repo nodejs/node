@@ -9,19 +9,23 @@ var npm = require("./npm.js")
   , opener = require("opener")
   , path = require("path")
   , readJson = require("read-package-json")
+  , npa = require("npm-package-arg")
   , fs = require("fs")
-  , url = require("url")
+  , mapToRegistry = require("./utils/map-to-registry.js")
 
 bugs.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
-  var uri = url.resolve(npm.config.get("registry"), "-/short")
-  registry.get(uri, { timeout : 60000 }, function (er, list) {
-    return cb(null, list || [])
+  mapToRegistry("-/short", npm.config, function (er, uri) {
+    if (er) return cb(er)
+
+    registry.get(uri, { timeout : 60000 }, function (er, list) {
+      return cb(null, list || [])
+    })
   })
 }
 
 function bugs (args, cb) {
-  var n = args.length && args[0].split("@").shift() || '.'
+  var n = args.length && npa(args[0]).name || '.'
   fs.stat(n, function (er, s) {
     if (er && er.code === "ENOENT") return callRegistry(n, cb)
     else if (er) return cb (er)
@@ -56,9 +60,13 @@ function getUrlAndOpen (d, cb) {
 }
 
 function callRegistry (n, cb) {
-  var uri = url.resolve(npm.config.get("registry"), n + "/latest")
-  registry.get(uri, { timeout : 3600 }, function (er, d) {
+  mapToRegistry(n, npm.config, function (er, uri) {
     if (er) return cb(er)
-    getUrlAndOpen (d, cb)
+
+    registry.get(uri + "/latest", { timeout : 3600 }, function (er, d) {
+      if (er) return cb(er)
+
+      getUrlAndOpen (d, cb)
+    })
   })
 }

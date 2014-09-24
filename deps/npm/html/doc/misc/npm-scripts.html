@@ -41,8 +41,9 @@ Run by the <code>npm start</code> command.</li>
 Run by the <code>npm restart</code> command. Note: <code>npm restart</code> will run the
 stop and start scripts if no <code>restart</code> script is provided.</li>
 </ul>
-<p>Additionally, arbitrary scripts can be run by doing
-<code>npm run-script &lt;pkg&gt; &lt;stage&gt;</code>.</p>
+<p>Additionally, arbitrary scripts can be executed by running `npm run-script</p>
+<p><pkg> <stage><code>. *Pre* and *post* commands with matching names will be run for
+those as well (e.g.</code>premyscript<code>,</code>myscript<code>,</code>postmyscript`).</p>
 <h2 id="note-install-scripts-are-an-antipattern">NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN</h2>
 <p><strong>tl;dr</strong> Don&#39;t use <code>install</code>.  Use a <code>.gyp</code> file for compilation, and
 <code>prepublish</code> for anything else.</p>
@@ -218,5 +219,5 @@ the user will sudo the npm command in question.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@1.4.28</p>
+<p id="footer">npm-scripts &mdash; npm@2.0.0</p>
 

@@ -24,13 +24,18 @@ process.on("exit", function (code) {
     }
 
     if (wroteLogFile) {
-      log.error("", [""
-                ,"Additional logging details can be found in:"
+      // just a line break
+      if (log.levels[log.level] <= log.levels.error) console.error("")
+
+      log.error("",
+                ["Please include the following file with any support request:"
                 ,"    " + path.resolve("npm-debug.log")
                 ].join("\n"))
       wroteLogFile = false
     }
-    log.error("not ok", "code", code)
+    if (code) {
+      log.error("code", code)
+    }
   }
 
   var doExit = npm.config.get("_exit")
@@ -87,7 +92,6 @@ function exit (code, noLog) {
 
 
 function errorHandler (er) {
-  var printStack = false
   // console.error("errorHandler", er)
   if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
@@ -112,13 +116,55 @@ function errorHandler (er) {
   var m = er.code || er.message.match(/^(?:Error: )?(E[A-Z]+)/)
   if (m && !er.code) er.code = m
 
+  ; [ "type"
+    , "fstream_path"
+    , "fstream_unc_path"
+    , "fstream_type"
+    , "fstream_class"
+    , "fstream_finish_call"
+    , "fstream_linkpath"
+    , "stack"
+    , "fstream_stack"
+    , "statusCode"
+    , "pkgid"
+    ].forEach(function (k) {
+      var v = er[k]
+      if (!v) return
+      if (k === "fstream_stack") v = v.join("\n")
+      log.verbose(k, v)
+    })
+
+  log.verbose("cwd", process.cwd())
+
+  var os = require("os")
+  // log.error("System", os.type() + " " + os.release())
+  // log.error("command", process.argv.map(JSON.stringify).join(" "))
+  // log.error("node -v", process.version)
+  // log.error("npm -v", npm.version)
+  log.error("", os.type() + " " + os.release())
+  log.error("argv", process.argv.map(JSON.stringify).join(" "))
+  log.error("node", process.version)
+  log.error("npm ", "v" + npm.version)
+
+  ; [ "file"
+    , "path"
+    , "code"
+    , "errno"
+    , "syscall"
+    ].forEach(function (k) {
+      var v = er[k]
+      if (v) log.error(k, v)
+    })
+
+  // just a line break
+  if (log.levels[log.level] <= log.levels.error) console.error("")
+
   switch (er.code) {
   case "ECONNREFUSED":
     log.error("", er)
     log.error("", ["\nIf you are behind a proxy, please make sure that the"
               ,"'proxy' config is set properly.  See: 'npm help config'"
               ].join("\n"))
-    printStack = true
     break
 
   case "EACCES":
@@ -126,7 +172,6 @@ function errorHandler (er) {
     log.error("", er)
     log.error("", ["\nPlease try running this command again as root/Administrator."
               ].join("\n"))
-    printStack = true
     break
 
   case "ELIFECYCLE":
@@ -160,33 +205,28 @@ function errorHandler (er) {
               ].join("\n"), "JSON.parse")
     break
 
+  // TODO(isaacs)
+  // Add a special case here for E401 and E403 explaining auth issues?
+
   case "E404":
     var msg = [er.message]
     if (er.pkgid && er.pkgid !== "-") {
       msg.push("", "'"+er.pkgid+"' is not in the npm registry."
-              ,"You should bug the author to publish it")
+              ,"You should bug the author to publish it (or use the name yourself!)")
       if (er.parent) {
         msg.push("It was specified as a dependency of '"+er.parent+"'")
       }
-      if (er.pkgid.match(/^node[\.\-]|[\.\-]js$/)) {
-        var s = er.pkgid.replace(/^node[\.\-]|[\.\-]js$/g, "")
-        if (s !== er.pkgid) {
-          s = s.replace(/[^a-z0-9]/g, ' ')
-          msg.push("\nMaybe try 'npm search " + s + "'")
-        }
-      }
       msg.push("\nNote that you can also install from a"
-              ,"tarball, folder, or http url, or git url.")
+              ,"tarball, folder, http url, or git url.")
     }
+    // There's no need to have 404 in the message as well.
+    msg[0] = msg[0].replace(/^404\s+/, "")
     log.error("404", msg.join("\n"))
     break
 
   case "EPUBLISHCONFLICT":
     log.error("publish fail", ["Cannot publish over existing version."
               ,"Update the 'version' field in package.json and try again."
-              ,""
-              ,"If the previous version was published in error, see:"
-              ,"    npm help unpublish"
               ,""
               ,"To automatically increment version numbers, see:"
               ,"    npm help version"
@@ -295,49 +335,12 @@ function errorHandler (er) {
     break
 
   default:
-    log.error("", er.stack || er.message || er)
-    log.error("", ["If you need help, you may report this *entire* log,"
-                  ,"including the npm and node versions, at:"
+    log.error("", er.message || er)
+    log.error("", ["", "If you need help, you may report this error at:"
                   ,"    <http://github.com/npm/npm/issues>"
                   ].join("\n"))
-    printStack = false
     break
   }
-
-  var os = require("os")
-  // just a line break
-  if (log.levels[log.level] <= log.levels.error) console.error("")
-  log.error("System", os.type() + " " + os.release())
-  log.error("command", process.argv
-            .map(JSON.stringify).join(" "))
-  log.error("cwd", process.cwd())
-  log.error("node -v", process.version)
-  log.error("npm -v", npm.version)
-
-  ; [ "file"
-    , "path"
-    , "type"
-    , "syscall"
-    , "fstream_path"
-    , "fstream_unc_path"
-    , "fstream_type"
-    , "fstream_class"
-    , "fstream_finish_call"
-    , "fstream_linkpath"
-    , "code"
-    , "errno"
-    , "stack"
-    , "fstream_stack"
-    ].forEach(function (k) {
-      var v = er[k]
-      if (k === "stack") {
-        if (!printStack) return
-        if (!v) v = er.message
-      }
-      if (!v) return
-      if (k === "fstream_stack") v = v.join("\n")
-      log.error(k, v)
-    })
 
   exit(typeof er.errno === "number" ? er.errno : 1)
 }
@@ -350,17 +353,16 @@ function writeLogFile (cb) {
 
   var fs = require("graceful-fs")
     , fstr = fs.createWriteStream("npm-debug.log")
-    , util = require("util")
     , os = require("os")
     , out = ""
 
   log.record.forEach(function (m) {
     var pref = [m.id, m.level]
     if (m.prefix) pref.push(m.prefix)
-    pref = pref.join(' ')
+    pref = pref.join(" ")
 
     m.message.trim().split(/\r?\n/).map(function (line) {
-      return (pref + ' ' + line).trim()
+      return (pref + " " + line).trim()
     }).forEach(function (line) {
       out += line + os.EOL
     })
