@@ -29,9 +29,10 @@ namespace node {
 
 class NodeBIO {
  public:
-  NodeBIO() : length_(0), read_head_(&head_), write_head_(&head_) {
-    // Loop head
-    head_.next_ = &head_;
+  NodeBIO() : initial_(kInitialBufferLength),
+              length_(0),
+              read_head_(NULL),
+              write_head_(NULL) {
   }
 
   ~NodeBIO();
@@ -42,7 +43,7 @@ class NodeBIO {
   void TryMoveReadHead();
 
   // Allocate new buffer for write if needed
-  void TryAllocateForWrite();
+  void TryAllocateForWrite(size_t hint);
 
   // Read `len` bytes maximum into `out`, return actual number of read bytes
   size_t Read(char* out, size_t size);
@@ -76,9 +77,14 @@ class NodeBIO {
   // Commit reserved data
   void Commit(size_t size);
 
+
   // Return size of buffer in bytes
-  size_t inline Length() {
+  inline size_t Length() const {
     return length_;
+  }
+
+  inline void set_initial(size_t initial) {
+    initial_ = initial;
   }
 
   static inline NodeBIO* FromBIO(BIO* bio) {
@@ -95,24 +101,34 @@ class NodeBIO {
   static int Gets(BIO* bio, char* out, int size);
   static long Ctrl(BIO* bio, int cmd, long num, void* ptr);
 
-  // NOTE: Size is maximum TLS frame length, this is required if we want
-  // to fit whole ClientHello into one Buffer of NodeBIO.
-  static const size_t kBufferLength = 16 * 1024 + 5;
+  // Enough to handle the most of the client hellos
+  static const size_t kInitialBufferLength = 1024;
+  static const size_t kThroughputBufferLength = 16384;
+
   static const BIO_METHOD method;
 
   class Buffer {
    public:
-    Buffer() : read_pos_(0), write_pos_(0), next_(NULL) {
+    explicit Buffer(size_t len) : read_pos_(0),
+                                  write_pos_(0),
+                                  len_(len),
+                                  next_(NULL) {
+      data_ = new char[len];
+    }
+
+    ~Buffer() {
+      delete[] data_;
     }
 
     size_t read_pos_;
     size_t write_pos_;
+    size_t len_;
     Buffer* next_;
-    char data_[kBufferLength];
+    char* data_;
   };
 
+  size_t initial_;
   size_t length_;
-  Buffer head_;
   Buffer* read_head_;
   Buffer* write_head_;
 };

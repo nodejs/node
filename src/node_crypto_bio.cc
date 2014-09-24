@@ -272,6 +272,8 @@ size_t NodeBIO::Read(char* out, size_t size) {
 
 
 void NodeBIO::FreeEmpty() {
+  if (write_head_ == NULL)
+    return;
   Buffer* child = write_head_->next_;
   if (child == write_head_ || child == read_head_)
     return;
@@ -281,13 +283,6 @@ void NodeBIO::FreeEmpty() {
 
   Buffer* prev = child;
   while (cur != read_head_) {
-    // Skip embedded buffer, and continue deallocating again starting from it
-    if (cur == &head_) {
-      prev->next_ = cur;
-      prev = cur;
-      cur = head_.next_;
-      continue;
-    }
     assert(cur != write_head_);
     assert(cur->write_pos_ == cur->read_pos_);
 
@@ -295,7 +290,6 @@ void NodeBIO::FreeEmpty() {
     delete cur;
     cur = next;
   }
-  assert(prev == child || prev == &head_);
   prev->next_ = cur;
 }
 
@@ -330,7 +324,7 @@ size_t NodeBIO::IndexOf(char delim, size_t limit) {
     }
 
     // Move to next buffer
-    if (current->read_pos_ + avail == kBufferLength) {
+    if (current->read_pos_ + avail == current->len_) {
       current = current->next_;
     }
   }
@@ -343,10 +337,14 @@ size_t NodeBIO::IndexOf(char delim, size_t limit) {
 void NodeBIO::Write(const char* data, size_t size) {
   size_t offset = 0;
   size_t left = size;
+
+  // Allocate initial buffer if the ring is empty
+  TryAllocateForWrite(left);
+
   while (left > 0) {
     size_t to_write = left;
-    assert(write_head_->write_pos_ <= kBufferLength);
-    size_t avail = kBufferLength - write_head_->write_pos_;
+    assert(write_head_->write_pos_ <= write_head_->len_);
+    size_t avail = write_head_->len_ - write_head_->write_pos_;
 
     if (to_write > avail)
       to_write = avail;
@@ -361,12 +359,12 @@ void NodeBIO::Write(const char* data, size_t size) {
     offset += to_write;
     length_ += to_write;
     write_head_->write_pos_ += to_write;
-    assert(write_head_->write_pos_ <= kBufferLength);
+    assert(write_head_->write_pos_ <= write_head_->len_);
 
     // Go to next buffer if there still are some bytes to write
     if (left != 0) {
-      assert(write_head_->write_pos_ == kBufferLength);
-      TryAllocateForWrite();
+      assert(write_head_->write_pos_ == write_head_->len_);
+      TryAllocateForWrite(left);
       write_head_ = write_head_->next_;
 
       // Additionally, since we're moved to the next buffer, read head
@@ -379,7 +377,9 @@ void NodeBIO::Write(const char* data, size_t size) {
 
 
 char* NodeBIO::PeekWritable(size_t* size) {
-  size_t available = kBufferLength - write_head_->write_pos_;
+  TryAllocateForWrite(*size);
+
+  size_t available = write_head_->len_ - write_head_->write_pos_;
   if (*size != 0 && available > *size)
     available = *size;
   else
@@ -392,12 +392,12 @@ char* NodeBIO::PeekWritable(size_t* size) {
 void NodeBIO::Commit(size_t size) {
   write_head_->write_pos_ += size;
   length_ += size;
-  assert(write_head_->write_pos_ <= kBufferLength);
+  assert(write_head_->write_pos_ <= write_head_->len_);
 
   // Allocate new buffer if write head is full,
   // and there're no other place to go
-  TryAllocateForWrite();
-  if (write_head_->write_pos_ == kBufferLength) {
+  TryAllocateForWrite(0);
+  if (write_head_->write_pos_ == write_head_->len_) {
     write_head_ = write_head_->next_;
 
     // Additionally, since we're moved to the next buffer, read head
@@ -407,19 +407,35 @@ void NodeBIO::Commit(size_t size) {
 }
 
 
-void NodeBIO::TryAllocateForWrite() {
+void NodeBIO::TryAllocateForWrite(size_t hint) {
+  Buffer* w = write_head_;
+  Buffer* r = read_head_;
   // If write head is full, next buffer is either read head or not empty.
-  if (write_head_->write_pos_ == kBufferLength &&
-      (write_head_->next_ == read_head_ ||
-       write_head_->next_->write_pos_ != 0)) {
-    Buffer* next = new Buffer();
-    next->next_ = write_head_->next_;
-    write_head_->next_ = next;
+  if (w == NULL ||
+      (w->write_pos_ == w->len_ &&
+       (w->next_ == r || w->next_->write_pos_ != 0))) {
+    size_t len = w == NULL ? initial_ :
+                             kThroughputBufferLength;
+    if (len < hint)
+      len = hint;
+    Buffer* next = new Buffer(len);
+
+    if (w == NULL) {
+      next->next_ = next;
+      write_head_ = next;
+      read_head_ = next;
+    } else {
+      next->next_ = w->next_;
+      w->next_ = next;
+    }
   }
 }
 
 
 void NodeBIO::Reset() {
+  if (read_head_ == NULL)
+    return;
+
   while (read_head_->read_pos_ != read_head_->write_pos_) {
     assert(read_head_->write_pos_ > read_head_->read_pos_);
 
@@ -435,12 +451,15 @@ void NodeBIO::Reset() {
 
 
 NodeBIO::~NodeBIO() {
-  Buffer* current = head_.next_;
-  while (current != &head_) {
+  if (read_head_ == NULL)
+    return;
+
+  Buffer* current = read_head_;
+  do {
     Buffer* next = current->next_;
     delete current;
     current = next;
-  }
+  } while (current != read_head_);
 
   read_head_ = NULL;
   write_head_ = NULL;
