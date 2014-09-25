@@ -51,7 +51,7 @@ Windows:
 
 You can download pre-built binaries for various operating systems from
 [http://nodejs.org/download/](http://nodejs.org/download/).  The Windows
-and OS X installers will prompt you for the location to install to.
+and OS X installers will prompt you for the location in which to install.
 The tarballs are self-contained; you can extract them to a local directory
 with:
 
