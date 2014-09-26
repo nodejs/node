@@ -19,30 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var spawn = require('child_process').spawn,
-  assert = require('assert'),
-  windows = (process.platform === 'win32'),
-  cmd = (windows) ? 'dir' : 'ls',
-  invalidcmd = (windows) ? 'ls' : 'dir',
-  errors = 0;
+var assert = require('assert');
+var child_process = require('child_process');
+var spawn = child_process.spawn;
+var cmd = (process.platform === 'win32') ? 'dir' : 'ls';
 
-try {
-  // Ensure this throws a TypeError
-  var child = spawn(invalidcmd, 'this is not an array');
 
-  child.on('error', function (err) {
-    errors++;
-  });
-
-} catch (e) {
-  assert.equal(e instanceof TypeError, true);
-}
+// verify that args argument must be an array
+assert.throws(function() {
+  spawn(cmd, 'this is not an array');
+}, TypeError);
 
 // verify that args argument is optional
 assert.doesNotThrow(function() {
   spawn(cmd, {});
-});
-
-process.on('exit', function() {
-  assert.equal(errors, 0);
 });
