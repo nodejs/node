@@ -811,3 +811,9 @@ Test it with:
     var result = addon.add(obj1, obj2);
 
     console.log(result); // 30
+
+
+### AtExit
+
+Lets native addons register exit hooks that run after the event loop has quit
+but before the VM is killed.
