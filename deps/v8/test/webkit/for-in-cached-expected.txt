@@ -34,8 +34,8 @@ PASS forIn3({ __proto__: { __proto__: { y3 : 2 } } }) is ['x', 'y3']
 PASS forIn4(objectWithArrayAsProto) is []
 PASS forIn4(objectWithArrayAsProto) is ['0']
 PASS forIn5({get foo() { return 'called getter'} }) is ['foo', 'called getter']
-PASS forIn5({set foo() { } }) is ['foo', undefined]
-PASS forIn5({get foo() { return 'called getter'}, set foo() { }}) is ['foo', 'called getter']
+PASS forIn5({set foo(v) { } }) is ['foo', undefined]
+PASS forIn5({get foo() { return 'called getter'}, set foo(v) { }}) is ['foo', 'called getter']
 PASS successfullyParsed is true
 
 TEST COMPLETE

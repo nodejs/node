@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --es5_readonly
-// Flags: --harmony-proxies
+// Flags: --allow-natives-syntax --harmony-proxies
 
 // Different ways to create an object.
 

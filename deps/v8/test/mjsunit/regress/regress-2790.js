@@ -26,6 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Test that we can create arrays of any size.
-for (var i = 1000; i < 1000000; i += 197) {
+for (var i = 1000; i < 1000000; i += 19703) {
   new Array(i);
 }

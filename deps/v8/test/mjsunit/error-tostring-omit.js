@@ -37,23 +37,15 @@ function veryLongString() {
          "Nam accumsan dignissim turpis a turpis duis.";
 }
 
+assertTrue(veryLongString().length > 256);
 
-var re = /omitted/;
-
-try {
-  veryLongString.nonexistentMethod();
-} catch (e) {
-  assertTrue(e.message.length < 350);
-  // TODO(verwaest): Proper error message.
-  // assertTrue(re.test(e.message));
-}
+var re = /...<omitted>.../;
 
 try {
-  veryLongString().nonexistentMethod();
+  Number.prototype.toFixed.call(veryLongString);
 } catch (e) {
-  assertTrue(e.message.length < 350);
-  // TODO(verwaest): Proper error message.
-  // assertTrue(re.test(e.message));
+  assertTrue(e.message.length < 256);
+  assertTrue(re.test(e.message));
 }
 
 try {

@@ -28,14 +28,19 @@ class FuzzNativesTestSuite(testsuite.TestSuite):
     if output.exit_code != 0:
       print output.stdout
       print output.stderr
-      assert false, "Failed to get natives list."
+      assert False, "Failed to get natives list."
     tests = []
     for line in output.stdout.strip().split():
-      (name, argc) = line.split(",")
-      flags = ["--allow-natives-syntax",
-               "-e", "var NAME = '%s', ARGC = %s;" % (name, argc)]
-      test = testcase.TestCase(self, name, flags)
-      tests.append(test)
+      try:
+        (name, argc) = line.split(",")
+        flags = ["--allow-natives-syntax",
+                 "-e", "var NAME = '%s', ARGC = %s;" % (name, argc)]
+        test = testcase.TestCase(self, name, flags)
+        tests.append(test)
+      except:
+        # Work-around: If parsing didn't work, it might have been due to output
+        # caused by other d8 flags.
+        pass
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):

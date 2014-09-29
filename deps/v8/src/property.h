@@ -5,12 +5,16 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
-#include "isolate.h"
-#include "factory.h"
-#include "types.h"
+#include "src/factory.h"
+#include "src/field-index.h"
+#include "src/field-index-inl.h"
+#include "src/isolate.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
+
+class OStream;
 
 // Abstraction for elements in instance-descriptor arrays.
 //
@@ -26,13 +30,9 @@ class Descriptor BASE_EMBEDDED {
     }
   }
 
-  Handle<Name> GetKey() { return key_; }
-  Handle<Object> GetValue() { return value_; }
-  PropertyDetails GetDetails() { return details_; }
-
-#ifdef OBJECT_PRINT
-  void Print(FILE* out);
-#endif
+  Handle<Name> GetKey() const { return key_; }
+  Handle<Object> GetValue() const { return value_; }
+  PropertyDetails GetDetails() const { return details_; }
 
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
@@ -68,6 +68,9 @@ class Descriptor BASE_EMBEDDED {
   friend class DescriptorArray;
   friend class Map;
 };
+
+
+OStream& operator<<(OStream& os, const Descriptor& d);
 
 
 class FieldDescriptor V8_FINAL : public Descriptor {
@@ -108,56 +111,6 @@ class CallbacksDescriptor V8_FINAL : public Descriptor {
 };
 
 
-// Holds a property index value distinguishing if it is a field index or an
-// index inside the object header.
-class PropertyIndex V8_FINAL {
- public:
-  static PropertyIndex NewFieldIndex(int index) {
-    return PropertyIndex(index, false);
-  }
-  static PropertyIndex NewHeaderIndex(int index) {
-    return PropertyIndex(index, true);
-  }
-
-  bool is_field_index() { return (index_ & kHeaderIndexBit) == 0; }
-  bool is_header_index() { return (index_ & kHeaderIndexBit) != 0; }
-
-  int field_index() {
-    ASSERT(is_field_index());
-    return value();
-  }
-  int header_index() {
-    ASSERT(is_header_index());
-    return value();
-  }
-
-  bool is_inobject(Handle<JSObject> holder) {
-    if (is_header_index()) return true;
-    return field_index() < holder->map()->inobject_properties();
-  }
-
-  int translate(Handle<JSObject> holder) {
-    if (is_header_index()) return header_index();
-    int index = field_index() - holder->map()->inobject_properties();
-    if (index >= 0) return index;
-    return index + holder->map()->instance_size() / kPointerSize;
-  }
-
- private:
-  static const int kHeaderIndexBit = 1 << 31;
-  static const int kIndexMask = ~kHeaderIndexBit;
-
-  int value() { return index_ & kIndexMask; }
-
-  PropertyIndex(int index, bool is_header_based)
-      : index_(index | (is_header_based ? kHeaderIndexBit : 0)) {
-    ASSERT(index <= kIndexMask);
-  }
-
-  int index_;
-};
-
-
 class LookupResult V8_FINAL BASE_EMBEDDED {
  public:
   explicit LookupResult(Isolate* isolate)
@@ -172,7 +125,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   ~LookupResult() {
-    ASSERT(isolate()->top_lookup_result() == this);
+    DCHECK(isolate()->top_lookup_result() == this);
     isolate()->set_top_lookup_result(next_);
   }
 
@@ -194,7 +147,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
         return value->FitsRepresentation(representation()) &&
             GetFieldType()->NowContains(value);
       case CONSTANT:
-        ASSERT(GetConstant() != *value ||
+        DCHECK(GetConstant() != *value ||
                value->FitsRepresentation(representation()));
         return GetConstant() == *value;
       case CALLBACKS:
@@ -247,29 +200,29 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   JSObject* holder() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return JSObject::cast(holder_);
   }
 
   JSProxy* proxy() const {
-    ASSERT(IsHandler());
+    DCHECK(IsHandler());
     return JSProxy::cast(holder_);
   }
 
   PropertyType type() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return details_.type();
   }
 
   Representation representation() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.representation();
   }
 
   PropertyAttributes GetAttributes() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.attributes();
   }
 
@@ -278,34 +231,34 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   bool IsFastPropertyType() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return IsTransition() || type() != NORMAL;
   }
 
   // Property callbacks does not include transitions to callbacks.
   bool IsPropertyCallbacks() const {
-    ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
+    DCHECK(!(details_.type() == CALLBACKS && !IsFound()));
     return !IsTransition() && details_.type() == CALLBACKS;
   }
 
   bool IsReadOnly() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.IsReadOnly();
   }
 
   bool IsField() const {
-    ASSERT(!(details_.type() == FIELD && !IsFound()));
+    DCHECK(!(details_.type() == FIELD && !IsFound()));
     return IsDescriptorOrDictionary() && type() == FIELD;
   }
 
   bool IsNormal() const {
-    ASSERT(!(details_.type() == NORMAL && !IsFound()));
+    DCHECK(!(details_.type() == NORMAL && !IsFound()));
     return IsDescriptorOrDictionary() && type() == NORMAL;
   }
 
   bool IsConstant() const {
-    ASSERT(!(details_.type() == CONSTANT && !IsFound()));
+    DCHECK(!(details_.type() == CONSTANT && !IsFound()));
     return IsDescriptorOrDictionary() && type() == CONSTANT;
   }
 
@@ -345,7 +298,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
             return true;
           case CALLBACKS: {
             Object* callback = GetCallbackObject();
-            ASSERT(!callback->IsForeign());
+            DCHECK(!callback->IsForeign());
             return callback->IsAccessorInfo();
           }
           case HANDLER:
@@ -374,7 +327,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
       case DICTIONARY_TYPE:
         switch (type()) {
           case FIELD:
-            return holder()->RawFastPropertyAt(GetFieldIndex().field_index());
+            return holder()->RawFastPropertyAt(GetFieldIndex());
           case NORMAL: {
             Object* value = holder()->property_dictionary()->ValueAt(
                 GetDictionaryEntry());
@@ -399,7 +352,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Map* GetTransitionTarget() const {
-    ASSERT(IsTransition());
+    DCHECK(IsTransition());
     return transition_;
   }
 
@@ -412,14 +365,14 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   int GetDescriptorIndex() const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE);
     return number_;
   }
 
-  PropertyIndex GetFieldIndex() const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+  FieldIndex GetFieldIndex() const {
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
+    return FieldIndex::ForLookupResult(this);
   }
 
   int GetLocalFieldIndexFromMap(Map* map) const {
@@ -427,17 +380,17 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   int GetDictionaryEntry() const {
-    ASSERT(lookup_type_ == DICTIONARY_TYPE);
+    DCHECK(lookup_type_ == DICTIONARY_TYPE);
     return number_;
   }
 
   JSFunction* GetConstantFunction() const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return JSFunction::cast(GetValue());
   }
 
   Object* GetConstantFromMap(Map* map) const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return GetValueFromMap(map);
   }
 
@@ -446,19 +399,15 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Object* GetConstant() const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return GetValue();
   }
 
   Object* GetCallbackObject() const {
-    ASSERT(!IsTransition());
-    ASSERT(type() == CALLBACKS);
+    DCHECK(!IsTransition());
+    DCHECK(type() == CALLBACKS);
     return GetValue();
   }
-
-#ifdef OBJECT_PRINT
-  void Print(FILE* out);
-#endif
 
   Object* GetValue() const {
     if (lookup_type_ == DESCRIPTOR_TYPE) {
@@ -467,37 +416,37 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
       return GetValueFromMap(transition_);
     }
     // In the dictionary case, the data is held in the value field.
-    ASSERT(lookup_type_ == DICTIONARY_TYPE);
+    DCHECK(lookup_type_ == DICTIONARY_TYPE);
     return holder()->GetNormalizedProperty(this);
   }
 
   Object* GetValueFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetValue(number_);
   }
 
   int GetFieldIndexFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetFieldIndex(number_);
   }
 
   HeapType* GetFieldType() const {
-    ASSERT(type() == FIELD);
+    DCHECK(type() == FIELD);
     if (lookup_type_ == DESCRIPTOR_TYPE) {
       return GetFieldTypeFromMap(holder()->map());
     }
-    ASSERT(lookup_type_ == TRANSITION_TYPE);
+    DCHECK(lookup_type_ == TRANSITION_TYPE);
     return GetFieldTypeFromMap(transition_);
   }
 
   HeapType* GetFieldTypeFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetFieldType(number_);
   }
 
@@ -506,10 +455,16 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Map* GetFieldOwnerFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->FindFieldOwner(number_);
+  }
+
+  bool ReceiverIsHolder(Handle<Object> receiver) {
+    if (*receiver == holder()) return true;
+    if (lookup_type_ == TRANSITION_TYPE) return true;
+    return false;
   }
 
   void Iterate(ObjectVisitor* visitor);
@@ -535,6 +490,8 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   PropertyDetails details_;
 };
 
+
+OStream& operator<<(OStream& os, const LookupResult& r);
 } }  // namespace v8::internal
 
 #endif  // V8_PROPERTY_H_

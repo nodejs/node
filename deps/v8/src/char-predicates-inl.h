@@ -5,7 +5,7 @@
 #ifndef V8_CHAR_PREDICATES_INL_H_
 #define V8_CHAR_PREDICATES_INL_H_
 
-#include "char-predicates.h"
+#include "src/char-predicates.h"
 
 namespace v8 {
 namespace internal {
@@ -30,7 +30,7 @@ inline bool IsLineFeed(uc32 c) {
 
 
 inline bool IsInRange(int value, int lower_limit, int higher_limit) {
-  ASSERT(lower_limit <= higher_limit);
+  DCHECK(lower_limit <= higher_limit);
   return static_cast<unsigned int>(value - lower_limit) <=
       static_cast<unsigned int>(higher_limit - lower_limit);
 }

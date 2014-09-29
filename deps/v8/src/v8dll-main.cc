@@ -5,10 +5,10 @@
 // The GYP based build ends up defining USING_V8_SHARED when compiling this
 // file.
 #undef USING_V8_SHARED
-#include "../include/v8.h"
+#include "include/v8.h"
 
 #if V8_OS_WIN
-#include "win32-headers.h"
+#include "src/base/win32-headers.h"
 
 extern "C" {
 BOOL WINAPI DllMain(HANDLE hinstDLL,

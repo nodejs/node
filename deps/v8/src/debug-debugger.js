@@ -19,7 +19,9 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     ScriptCollected: 6 };
+                     CompileError: 6,
+                     PromiseEvent: 7,
+                     AsyncTaskEvent: 8 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -986,20 +988,15 @@ ExecutionState.prototype.debugCommandProcessor = function(opt_is_running) {
 };
 
 
-function MakeBreakEvent(exec_state, break_points_hit) {
-  return new BreakEvent(exec_state, break_points_hit);
+function MakeBreakEvent(break_id, break_points_hit) {
+  return new BreakEvent(break_id, break_points_hit);
 }
 
 
-function BreakEvent(exec_state, break_points_hit) {
-  this.exec_state_ = exec_state;
+function BreakEvent(break_id, break_points_hit) {
+  this.frame_ = new FrameMirror(break_id, 0);
   this.break_points_hit_ = break_points_hit;
 }
-
-
-BreakEvent.prototype.executionState = function() {
-  return this.exec_state_;
-};
 
 
 BreakEvent.prototype.eventType = function() {
@@ -1008,22 +1005,22 @@ BreakEvent.prototype.eventType = function() {
 
 
 BreakEvent.prototype.func = function() {
-  return this.exec_state_.frame(0).func();
+  return this.frame_.func();
 };
 
 
 BreakEvent.prototype.sourceLine = function() {
-  return this.exec_state_.frame(0).sourceLine();
+  return this.frame_.sourceLine();
 };
 
 
 BreakEvent.prototype.sourceColumn = function() {
-  return this.exec_state_.frame(0).sourceColumn();
+  return this.frame_.sourceColumn();
 };
 
 
 BreakEvent.prototype.sourceLineText = function() {
-  return this.exec_state_.frame(0).sourceLineText();
+  return this.frame_.sourceLineText();
 };
 
 
@@ -1036,8 +1033,7 @@ BreakEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
             event: "break",
-            body: { invocationText: this.exec_state_.frame(0).invocationText(),
-                  }
+            body: { invocationText: this.frame_.invocationText() }
           };
 
   // Add script related information to the event if available.
@@ -1070,22 +1066,17 @@ BreakEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeExceptionEvent(exec_state, exception, uncaught, promise) {
-  return new ExceptionEvent(exec_state, exception, uncaught, promise);
+function MakeExceptionEvent(break_id, exception, uncaught, promise) {
+  return new ExceptionEvent(break_id, exception, uncaught, promise);
 }
 
 
-function ExceptionEvent(exec_state, exception, uncaught, promise) {
-  this.exec_state_ = exec_state;
+function ExceptionEvent(break_id, exception, uncaught, promise) {
+  this.exec_state_ = new ExecutionState(break_id);
   this.exception_ = exception;
   this.uncaught_ = uncaught;
   this.promise_ = promise;
 }
-
-
-ExceptionEvent.prototype.executionState = function() {
-  return this.exec_state_;
-};
 
 
 ExceptionEvent.prototype.eventType = function() {
@@ -1154,29 +1145,19 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeCompileEvent(exec_state, script, before) {
-  return new CompileEvent(exec_state, script, before);
+function MakeCompileEvent(script, type) {
+  return new CompileEvent(script, type);
 }
 
 
-function CompileEvent(exec_state, script, before) {
-  this.exec_state_ = exec_state;
+function CompileEvent(script, type) {
   this.script_ = MakeMirror(script);
-  this.before_ = before;
+  this.type_ = type;
 }
-
-
-CompileEvent.prototype.executionState = function() {
-  return this.exec_state_;
-};
 
 
 CompileEvent.prototype.eventType = function() {
-  if (this.before_) {
-    return Debug.DebugEvent.BeforeCompile;
-  } else {
-    return Debug.DebugEvent.AfterCompile;
-  }
+  return this.type_;
 };
 
 
@@ -1188,45 +1169,17 @@ CompileEvent.prototype.script = function() {
 CompileEvent.prototype.toJSONProtocol = function() {
   var o = new ProtocolMessage();
   o.running = true;
-  if (this.before_) {
-    o.event = "beforeCompile";
-  } else {
-    o.event = "afterCompile";
+  switch (this.type_) {
+    case Debug.DebugEvent.BeforeCompile:
+      o.event = "beforeCompile";
+    case Debug.DebugEvent.AfterCompile:
+      o.event = "afterCompile";
+    case Debug.DebugEvent.CompileError:
+      o.event = "compileError";
   }
   o.body = {};
   o.body.script = this.script_;
 
-  return o.toJSONProtocol();
-};
-
-
-function MakeScriptCollectedEvent(exec_state, id) {
-  return new ScriptCollectedEvent(exec_state, id);
-}
-
-
-function ScriptCollectedEvent(exec_state, id) {
-  this.exec_state_ = exec_state;
-  this.id_ = id;
-}
-
-
-ScriptCollectedEvent.prototype.id = function() {
-  return this.id_;
-};
-
-
-ScriptCollectedEvent.prototype.executionState = function() {
-  return this.exec_state_;
-};
-
-
-ScriptCollectedEvent.prototype.toJSONProtocol = function() {
-  var o = new ProtocolMessage();
-  o.running = true;
-  o.event = "scriptCollected";
-  o.body = {};
-  o.body.script = { id: this.id() };
   return o.toJSONProtocol();
 };
 
@@ -1245,6 +1198,66 @@ function MakeScriptObject_(script, include_source) {
     o.source = script.source();
   }
   return o;
+}
+
+
+function MakePromiseEvent(event_data) {
+  return new PromiseEvent(event_data);
+}
+
+
+function PromiseEvent(event_data) {
+  this.promise_ = event_data.promise;
+  this.parentPromise_ = event_data.parentPromise;
+  this.status_ = event_data.status;
+  this.value_ = event_data.value;
+}
+
+
+PromiseEvent.prototype.promise = function() {
+  return MakeMirror(this.promise_);
+}
+
+
+PromiseEvent.prototype.parentPromise = function() {
+  return MakeMirror(this.parentPromise_);
+}
+
+
+PromiseEvent.prototype.status = function() {
+  return this.status_;
+}
+
+
+PromiseEvent.prototype.value = function() {
+  return MakeMirror(this.value_);
+}
+
+
+function MakeAsyncTaskEvent(event_data) {
+  return new AsyncTaskEvent(event_data);
+}
+
+
+function AsyncTaskEvent(event_data) {
+  this.type_ = event_data.type;
+  this.name_ = event_data.name;
+  this.id_ = event_data.id;
+}
+
+
+AsyncTaskEvent.prototype.type = function() {
+  return this.type_;
+}
+
+
+AsyncTaskEvent.prototype.name = function() {
+  return this.name_;
+}
+
+
+AsyncTaskEvent.prototype.id = function() {
+  return this.id_;
 }
 
 
@@ -1388,63 +1401,10 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         }
       }
 
-      if (request.command == 'continue') {
-        this.continueRequest_(request, response);
-      } else if (request.command == 'break') {
-        this.breakRequest_(request, response);
-      } else if (request.command == 'setbreakpoint') {
-        this.setBreakPointRequest_(request, response);
-      } else if (request.command == 'changebreakpoint') {
-        this.changeBreakPointRequest_(request, response);
-      } else if (request.command == 'clearbreakpoint') {
-        this.clearBreakPointRequest_(request, response);
-      } else if (request.command == 'clearbreakpointgroup') {
-        this.clearBreakPointGroupRequest_(request, response);
-      } else if (request.command == 'disconnect') {
-        this.disconnectRequest_(request, response);
-      } else if (request.command == 'setexceptionbreak') {
-        this.setExceptionBreakRequest_(request, response);
-      } else if (request.command == 'listbreakpoints') {
-        this.listBreakpointsRequest_(request, response);
-      } else if (request.command == 'backtrace') {
-        this.backtraceRequest_(request, response);
-      } else if (request.command == 'frame') {
-        this.frameRequest_(request, response);
-      } else if (request.command == 'scopes') {
-        this.scopesRequest_(request, response);
-      } else if (request.command == 'scope') {
-        this.scopeRequest_(request, response);
-      } else if (request.command == 'setVariableValue') {
-        this.setVariableValueRequest_(request, response);
-      } else if (request.command == 'evaluate') {
-        this.evaluateRequest_(request, response);
-      } else if (request.command == 'lookup') {
-        this.lookupRequest_(request, response);
-      } else if (request.command == 'references') {
-        this.referencesRequest_(request, response);
-      } else if (request.command == 'source') {
-        this.sourceRequest_(request, response);
-      } else if (request.command == 'scripts') {
-        this.scriptsRequest_(request, response);
-      } else if (request.command == 'threads') {
-        this.threadsRequest_(request, response);
-      } else if (request.command == 'suspend') {
-        this.suspendRequest_(request, response);
-      } else if (request.command == 'version') {
-        this.versionRequest_(request, response);
-      } else if (request.command == 'changelive') {
-        this.changeLiveRequest_(request, response);
-      } else if (request.command == 'restartframe') {
-        this.restartFrameRequest_(request, response);
-      } else if (request.command == 'flags') {
-        this.debuggerFlagsRequest_(request, response);
-      } else if (request.command == 'v8flags') {
-        this.v8FlagsRequest_(request, response);
-
-      // GC tools:
-      } else if (request.command == 'gc') {
-        this.gcRequest_(request, response);
-
+      var key = request.command.toLowerCase();
+      var handler = DebugCommandProcessor.prototype.dispatch_[key];
+      if (IS_FUNCTION(handler)) {
+        %_CallFunction(this, request, response, handler);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -2492,6 +2452,40 @@ DebugCommandProcessor.prototype.gcRequest_ = function(request, response) {
 };
 
 
+DebugCommandProcessor.prototype.dispatch_ = (function() {
+  var proto = DebugCommandProcessor.prototype;
+  return {
+    "continue":             proto.continueRequest_,
+    "break"   :             proto.breakRequest_,
+    "setbreakpoint" :       proto.setBreakPointRequest_,
+    "changebreakpoint":     proto.changeBreakPointRequest_,
+    "clearbreakpoint":      proto.clearBreakPointRequest_,
+    "clearbreakpointgroup": proto.clearBreakPointGroupRequest_,
+    "disconnect":           proto.disconnectRequest_,
+    "setexceptionbreak":    proto.setExceptionBreakRequest_,
+    "listbreakpoints":      proto.listBreakpointsRequest_,
+    "backtrace":            proto.backtraceRequest_,
+    "frame":                proto.frameRequest_,
+    "scopes":               proto.scopesRequest_,
+    "scope":                proto.scopeRequest_,
+    "setvariablevalue":     proto.setVariableValueRequest_,
+    "evaluate":             proto.evaluateRequest_,
+    "lookup":               proto.lookupRequest_,
+    "references":           proto.referencesRequest_,
+    "source":               proto.sourceRequest_,
+    "scripts":              proto.scriptsRequest_,
+    "threads":              proto.threadsRequest_,
+    "suspend":              proto.suspendRequest_,
+    "version":              proto.versionRequest_,
+    "changelive":           proto.changeLiveRequest_,
+    "restartframe":         proto.restartFrameRequest_,
+    "flags":                proto.debuggerFlagsRequest_,
+    "v8flag":               proto.v8FlagsRequest_,
+    "gc":                   proto.gcRequest_,
+  };
+})();
+
+
 // Check whether the previously processed command caused the VM to become
 // running.
 DebugCommandProcessor.prototype.isRunning = function() {
@@ -2502,17 +2496,6 @@ DebugCommandProcessor.prototype.isRunning = function() {
 DebugCommandProcessor.prototype.systemBreak = function(cmd, args) {
   return %SystemBreak();
 };
-
-
-function NumberToHex8Str(n) {
-  var r = "";
-  for (var i = 0; i < 8; ++i) {
-    var c = hexCharArray[n & 0x0F];  // hexCharArray is defined in uri.js
-    r = c + r;
-    n = n >>> 4;
-  }
-  return r;
-}
 
 
 /**

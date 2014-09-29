@@ -5,9 +5,9 @@
 #ifndef V8_EFFECTS_H_
 #define V8_EFFECTS_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "types.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +33,7 @@ struct Effect {
   Bounds bounds;
 
   Effect() : modality(DEFINITE) {}
-  Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
+  explicit Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
 
   // The unknown effect.
   static Effect Unknown(Zone* zone) {
@@ -195,15 +195,15 @@ class EffectsBase {
   typedef typename Mapping::Locator Locator;
 
   bool Contains(Var var) {
-    ASSERT(var != kNoVar);
+    DCHECK(var != kNoVar);
     return map_->Contains(var);
   }
   bool Find(Var var, Locator* locator) {
-    ASSERT(var != kNoVar);
+    DCHECK(var != kNoVar);
     return map_->Find(var, locator);
   }
   bool Insert(Var var, Locator* locator) {
-    ASSERT(var != kNoVar);
+    DCHECK(var != kNoVar);
     return map_->Insert(var, locator);
   }
 
@@ -259,7 +259,7 @@ class NestedEffectsBase {
   bool is_empty() { return node_ == NULL; }
 
   bool Contains(Var var) {
-    ASSERT(var != kNoVar);
+    DCHECK(var != kNoVar);
     for (Node* node = node_; node != NULL; node = node->previous) {
       if (node->effects.Contains(var)) return true;
     }
@@ -267,7 +267,7 @@ class NestedEffectsBase {
   }
 
   bool Find(Var var, Locator* locator) {
-    ASSERT(var != kNoVar);
+    DCHECK(var != kNoVar);
     for (Node* node = node_; node != NULL; node = node->previous) {
       if (node->effects.Find(var, locator)) return true;
     }
@@ -293,7 +293,7 @@ class NestedEffectsBase {
 
 template<class Var, Var kNoVar>
 bool NestedEffectsBase<Var, kNoVar>::Insert(Var var, Locator* locator) {
-  ASSERT(var != kNoVar);
+  DCHECK(var != kNoVar);
   if (!node_->effects.Insert(var, locator)) return false;
   Locator shadowed;
   for (Node* node = node_->previous; node != NULL; node = node->previous) {
@@ -326,7 +326,7 @@ class NestedEffects: public
   NestedEffects Pop() {
     NestedEffects result = *this;
     result.pop();
-    ASSERT(!this->is_empty());
+    DCHECK(!this->is_empty());
     return result;
   }
 };

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "ia32/lithium-gap-resolver-ia32.h"
-#include "ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-gap-resolver-ia32.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ LGapResolver::LGapResolver(LCodeGen* owner)
 
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
-  ASSERT(HasBeenReset());
+  DCHECK(HasBeenReset());
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
 
@@ -38,13 +38,13 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
   // Perform the moves with constant sources.
   for (int i = 0; i < moves_.length(); ++i) {
     if (!moves_[i].IsEliminated()) {
-      ASSERT(moves_[i].source()->IsConstantOperand());
+      DCHECK(moves_[i].source()->IsConstantOperand());
       EmitMove(i);
     }
   }
 
   Finish();
-  ASSERT(HasBeenReset());
+  DCHECK(HasBeenReset());
 }
 
 
@@ -70,12 +70,12 @@ void LGapResolver::PerformMove(int index) {
   // which means that a call to PerformMove could change any source operand
   // in the move graph.
 
-  ASSERT(!moves_[index].IsPending());
-  ASSERT(!moves_[index].IsRedundant());
+  DCHECK(!moves_[index].IsPending());
+  DCHECK(!moves_[index].IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
   // destination is saved on the side.
-  ASSERT(moves_[index].source() != NULL);  // Or else it will look eliminated.
+  DCHECK(moves_[index].source() != NULL);  // Or else it will look eliminated.
   LOperand* destination = moves_[index].destination();
   moves_[index].set_destination(NULL);
 
@@ -116,7 +116,7 @@ void LGapResolver::PerformMove(int index) {
   for (int i = 0; i < moves_.length(); ++i) {
     LMoveOperands other_move = moves_[i];
     if (other_move.Blocks(destination)) {
-      ASSERT(other_move.IsPending());
+      DCHECK(other_move.IsPending());
       EmitSwap(index);
       return;
     }
@@ -142,13 +142,13 @@ void LGapResolver::RemoveMove(int index) {
   LOperand* source = moves_[index].source();
   if (source->IsRegister()) {
     --source_uses_[source->index()];
-    ASSERT(source_uses_[source->index()] >= 0);
+    DCHECK(source_uses_[source->index()] >= 0);
   }
 
   LOperand* destination = moves_[index].destination();
   if (destination->IsRegister()) {
     --destination_uses_[destination->index()];
-    ASSERT(destination_uses_[destination->index()] >= 0);
+    DCHECK(destination_uses_[destination->index()] >= 0);
   }
 
   moves_[index].Eliminate();
@@ -190,12 +190,12 @@ bool LGapResolver::HasBeenReset() {
 
 
 void LGapResolver::Verify() {
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
   // No operand should be the destination for more than one move.
   for (int i = 0; i < moves_.length(); ++i) {
     LOperand* destination = moves_[i].destination();
     for (int j = i + 1; j < moves_.length(); ++j) {
-      SLOW_ASSERT(!destination->Equals(moves_[j].destination()));
+      SLOW_DCHECK(!destination->Equals(moves_[j].destination()));
     }
   }
 #endif
@@ -259,13 +259,13 @@ void LGapResolver::EmitMove(int index) {
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = cgen_->ToRegister(source);
     Operand dst = cgen_->ToOperand(destination);
     __ mov(dst, src);
 
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Operand src = cgen_->ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
@@ -295,26 +295,17 @@ void LGapResolver::EmitMove(int index) {
       uint64_t int_val = BitCast<uint64_t, double>(v);
       int32_t lower = static_cast<int32_t>(int_val);
       int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
-      if (CpuFeatures::IsSupported(SSE2)) {
-        CpuFeatureScope scope(cgen_->masm(), SSE2);
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        if (int_val == 0) {
-          __ xorps(dst, dst);
-        } else {
-          __ push(Immediate(upper));
-          __ push(Immediate(lower));
-          __ movsd(dst, Operand(esp, 0));
-          __ add(esp, Immediate(kDoubleSize));
-        }
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      if (int_val == 0) {
+        __ xorps(dst, dst);
       } else {
         __ push(Immediate(upper));
         __ push(Immediate(lower));
-        X87Register dst = cgen_->ToX87Register(destination);
-        cgen_->X87Mov(dst, MemOperand(esp, 0));
+        __ movsd(dst, Operand(esp, 0));
         __ add(esp, Immediate(kDoubleSize));
       }
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
       Representation r = cgen_->IsSmi(constant_source)
           ? Representation::Smi() : Representation::Integer32();
@@ -328,59 +319,27 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope scope(cgen_->masm(), SSE2);
-      XMMRegister src = cgen_->ToDoubleRegister(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movaps(dst, src);
-      } else {
-        ASSERT(destination->IsDoubleStackSlot());
-        Operand dst = cgen_->ToOperand(destination);
-        __ movsd(dst, src);
-      }
+    XMMRegister src = cgen_->ToDoubleRegister(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movaps(dst, src);
     } else {
-      // load from the register onto the stack, store in destination, which must
-      // be a double stack slot in the non-SSE2 case.
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      X87Register src = cgen_->ToX87Register(source);
-      cgen_->X87Mov(dst, src);
+      __ movsd(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope scope(cgen_->masm(), SSE2);
-      ASSERT(destination->IsDoubleRegister() ||
-             destination->IsDoubleStackSlot());
-      Operand src = cgen_->ToOperand(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movsd(dst, src);
-      } else {
-        // We rely on having xmm0 available as a fixed scratch register.
-        Operand dst = cgen_->ToOperand(destination);
-        __ movsd(xmm0, src);
-        __ movsd(dst, xmm0);
-      }
+    DCHECK(destination->IsDoubleRegister() ||
+           destination->IsDoubleStackSlot());
+    Operand src = cgen_->ToOperand(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movsd(dst, src);
     } else {
-      // load from the stack slot on top of the floating point stack, and then
-      // store in destination. If destination is a double register, then it
-      // represents the top of the stack and nothing needs to be done.
-      if (destination->IsDoubleStackSlot()) {
-        Register tmp = EnsureTempRegister();
-        Operand src0 = cgen_->ToOperand(source);
-        Operand src1 = cgen_->HighOperand(source);
-        Operand dst0 = cgen_->ToOperand(destination);
-        Operand dst1 = cgen_->HighOperand(destination);
-        __ mov(tmp, src0);  // Then use tmp to copy source to destination.
-        __ mov(dst0, tmp);
-        __ mov(tmp, src1);
-        __ mov(dst1, tmp);
-      } else {
-        Operand src = cgen_->ToOperand(source);
-        X87Register dst = cgen_->ToX87Register(destination);
-        cgen_->X87Mov(dst, src);
-      }
+      // We rely on having xmm0 available as a fixed scratch register.
+      Operand dst = cgen_->ToOperand(destination);
+      __ movsd(xmm0, src);
+      __ movsd(dst, xmm0);
     }
   } else {
     UNREACHABLE();
@@ -445,7 +404,6 @@ void LGapResolver::EmitSwap(int index) {
       __ mov(src, tmp0);
     }
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // XMM register-register swap. We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = cgen_->ToDoubleRegister(source);
@@ -454,10 +412,9 @@ void LGapResolver::EmitSwap(int index) {
     __ movaps(src, dst);
     __ movaps(dst, xmm0);
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
-    ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
+    DCHECK(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
     XMMRegister reg = cgen_->ToDoubleRegister(source->IsDoubleRegister()
                                               ? source
                                               : destination);
@@ -467,7 +424,6 @@ void LGapResolver::EmitSwap(int index) {
     __ movsd(other, reg);
     __ movaps(reg, xmm0);
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
-    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general
     // purpose temporary register and also rely on having xmm0 available as
     // a fixed scratch register.

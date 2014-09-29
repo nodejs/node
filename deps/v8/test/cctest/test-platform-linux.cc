@@ -31,16 +31,16 @@
 #include <stdlib.h>
 #include <unistd.h>  // for usleep()
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 
 
 TEST(VirtualMemory) {
-  VirtualMemory* vm = new VirtualMemory(1 * MB);
+  v8::base::VirtualMemory* vm = new v8::base::VirtualMemory(1 * MB);
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();
   size_t block_size = 4 * KB;
@@ -50,9 +50,4 @@ TEST(VirtualMemory) {
   addr[KB-1] = 2;
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
-}
-
-
-TEST(GetCurrentProcessId) {
-  CHECK_EQ(static_cast<int>(getpid()), OS::GetCurrentProcessId());
 }

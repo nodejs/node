@@ -15,11 +15,35 @@ var $WeakSet = global.WeakSet;
 // -------------------------------------------------------------------
 // Harmony WeakMap
 
-function WeakMapConstructor() {
-  if (%_IsConstructCall()) {
-    %WeakCollectionInitialize(this);
-  } else {
+function WeakMapConstructor(iterable) {
+  if (!%_IsConstructCall()) {
     throw MakeTypeError('constructor_not_function', ['WeakMap']);
+  }
+
+  var iter, adder;
+
+  if (!IS_NULL_OR_UNDEFINED(iterable)) {
+    iter = GetIterator(iterable);
+    adder = this.set;
+    if (!IS_SPEC_FUNCTION(adder)) {
+      throw MakeTypeError('property_not_function', ['set', this]);
+    }
+  }
+
+  %WeakCollectionInitialize(this);
+
+  if (IS_UNDEFINED(iter)) return;
+
+  var next, done, nextItem;
+  while (!(next = iter.next()).done) {
+    if (!IS_SPEC_OBJECT(next)) {
+      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    }
+    nextItem = next.value;
+    if (!IS_SPEC_OBJECT(nextItem)) {
+      throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+    }
+    %_CallFunction(this, nextItem[0], nextItem[1], adder);
   }
 }
 
@@ -89,7 +113,7 @@ function SetUpWeakMap() {
 
   %SetCode($WeakMap, WeakMapConstructor);
   %FunctionSetPrototype($WeakMap, new $Object());
-  %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
+  %AddNamedProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
   InstallFunctions($WeakMap.prototype, DONT_ENUM, $Array(
@@ -107,11 +131,31 @@ SetUpWeakMap();
 // -------------------------------------------------------------------
 // Harmony WeakSet
 
-function WeakSetConstructor() {
-  if (%_IsConstructCall()) {
-    %WeakCollectionInitialize(this);
-  } else {
+function WeakSetConstructor(iterable) {
+  if (!%_IsConstructCall()) {
     throw MakeTypeError('constructor_not_function', ['WeakSet']);
+  }
+
+  var iter, adder;
+
+  if (!IS_NULL_OR_UNDEFINED(iterable)) {
+    iter = GetIterator(iterable);
+    adder = this.add;
+    if (!IS_SPEC_FUNCTION(adder)) {
+      throw MakeTypeError('property_not_function', ['add', this]);
+    }
+  }
+
+  %WeakCollectionInitialize(this);
+
+  if (IS_UNDEFINED(iter)) return;
+
+  var next, done;
+  while (!(next = iter.next()).done) {
+    if (!IS_SPEC_OBJECT(next)) {
+      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    }
+    %_CallFunction(this, next.value, adder);
   }
 }
 
@@ -169,7 +213,7 @@ function SetUpWeakSet() {
 
   %SetCode($WeakSet, WeakSetConstructor);
   %FunctionSetPrototype($WeakSet, new $Object());
-  %SetProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
+  %AddNamedProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakSet prototype object.
   InstallFunctions($WeakSet.prototype, DONT_ENUM, $Array(

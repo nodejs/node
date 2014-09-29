@@ -337,6 +337,50 @@ TestGenerator(
     "foo",
     [2, "1foo3", 5, "4foo6", "foofoo"]);
 
+// Yield with no arguments yields undefined.
+TestGenerator(
+    function* g26() { return yield yield },
+    [undefined, undefined, undefined],
+    "foo",
+    [undefined, "foo", "foo"]);
+
+// A newline causes the parser to stop looking for an argument to yield.
+TestGenerator(
+    function* g27() {
+      yield
+      3
+      return
+    },
+    [undefined, undefined],
+    "foo",
+    [undefined, undefined]);
+
+// TODO(wingo): We should use TestGenerator for these, except that
+// currently yield* will unconditionally propagate a throw() to the
+// delegate iterator, which fails for these iterators that don't have
+// throw().  See http://code.google.com/p/v8/issues/detail?id=3484.
+(function() {
+    function* g28() {
+      yield* [1, 2, 3];
+    }
+    var iter = g28();
+    assertIteratorResult(1, false, iter.next());
+    assertIteratorResult(2, false, iter.next());
+    assertIteratorResult(3, false, iter.next());
+    assertIteratorResult(undefined, true, iter.next());
+})();
+
+(function() {
+    function* g29() {
+      yield* "abc";
+    }
+    var iter = g29();
+    assertIteratorResult("a", false, iter.next());
+    assertIteratorResult("b", false, iter.next());
+    assertIteratorResult("c", false, iter.next());
+    assertIteratorResult(undefined, true, iter.next());
+})();
+
 // Generator function instances.
 TestGenerator(GeneratorFunction(),
               [undefined],
@@ -375,12 +419,16 @@ function TestDelegatingYield() {
     function next() {
       return results[i++];
     }
-    return { next: next }
+    var iter = { next: next };
+    var ret = {};
+    ret[Symbol.iterator] = function() { return iter; };
+    return ret;
   }
   function* yield_results(expected) {
     return yield* results(expected);
   }
-  function collect_results(iter) {
+  function collect_results(iterable) {
+    var iter = iterable[Symbol.iterator]();
     var ret = [];
     var result;
     do {

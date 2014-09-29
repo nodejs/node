@@ -84,7 +84,7 @@ class StringSearch : private StringSearchBase {
       // ASCII needle.
       return kAsciiAlphabetSize;
     } else {
-      ASSERT(sizeof(PatternChar) == 2);
+      DCHECK(sizeof(PatternChar) == 2);
       // UC16 needle.
       return kUC16AlphabetSize;
     }
@@ -196,7 +196,7 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     StringSearch<PatternChar, SubjectChar>* search,
     Vector<const SubjectChar> subject,
     int index) {
-  ASSERT_EQ(1, search->pattern_.length());
+  DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
   int i = index;
   if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
@@ -230,7 +230,7 @@ template <typename PatternChar, typename SubjectChar>
 inline bool CharCompare(const PatternChar* pattern,
                         const SubjectChar* subject,
                         int length) {
-  ASSERT(length > 0);
+  DCHECK(length > 0);
   int pos = 0;
   do {
     if (pattern[pos] != subject[pos]) {
@@ -249,7 +249,7 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
     Vector<const SubjectChar> subject,
     int index) {
   Vector<const PatternChar> pattern = search->pattern_;
-  ASSERT(pattern.length() > 1);
+  DCHECK(pattern.length() > 1);
   int pattern_length = pattern.length();
   PatternChar pattern_first_char = pattern[0];
   int i = index;

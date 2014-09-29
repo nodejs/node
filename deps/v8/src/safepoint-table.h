@@ -5,10 +5,10 @@
 #ifndef V8_SAFEPOINT_TABLE_H_
 #define V8_SAFEPOINT_TABLE_H_
 
-#include "allocation.h"
-#include "heap.h"
-#include "v8memory.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/heap/heap.h"
+#include "src/v8memory.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,7 @@ class SafepointEntry BASE_EMBEDDED {
   SafepointEntry() : info_(0), bits_(NULL) {}
 
   SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
 
   bool is_valid() const { return bits_ != NULL; }
@@ -35,7 +35,7 @@ class SafepointEntry BASE_EMBEDDED {
   }
 
   int deoptimization_index() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return DeoptimizationIndexField::decode(info_);
   }
 
@@ -55,17 +55,17 @@ class SafepointEntry BASE_EMBEDDED {
                     kSaveDoublesFieldBits> { }; // NOLINT
 
   int argument_count() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return ArgumentsField::decode(info_);
   }
 
   bool has_doubles() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return SaveDoublesField::decode(info_);
   }
 
   uint8_t* bits() {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return bits_;
   }
 
@@ -89,12 +89,12 @@ class SafepointTable BASE_EMBEDDED {
   unsigned entry_size() const { return entry_size_; }
 
   unsigned GetPcOffset(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
   SafepointEntry GetEntry(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
     return SafepointEntry(info, bits);
@@ -103,7 +103,7 @@ class SafepointTable BASE_EMBEDDED {
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(unsigned index, FILE* out = stdout) const;
+  void PrintEntry(unsigned index, OStream& os) const;  // NOLINT
 
  private:
   static const uint8_t kNoRegisters = 0xFF;
@@ -126,7 +126,8 @@ class SafepointTable BASE_EMBEDDED {
     return GetPcOffsetLocation(index) + kPcSize;
   }
 
-  static void PrintBits(FILE* out, uint8_t byte, int digits);
+  static void PrintBits(OStream& os,  // NOLINT
+                        uint8_t byte, int digits);
 
   DisallowHeapAllocation no_allocation_;
   Code* code_;

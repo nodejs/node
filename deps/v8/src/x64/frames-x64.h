@@ -18,8 +18,6 @@ const RegList kJSCallerSaved =
 
 const int kNumJSCallerSaved = 5;
 
-typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
-
 // Number of registers for which space is reserved in safepoints.
 const int kNumSafepointRegisters = 16;
 

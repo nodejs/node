@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "dtoa.h"
+#include "src/dtoa.h"
 
-#include "cctest.h"
-#include "double.h"
-#include "gay-fixed.h"
-#include "gay-precision.h"
-#include "gay-shortest.h"
-#include "platform.h"
+#include "src/base/platform/platform.h"
+#include "src/double.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/gay-fixed.h"
+#include "test/cctest/gay-precision.h"
+#include "test/cctest/gay-shortest.h"
 
 
 using namespace v8::internal;

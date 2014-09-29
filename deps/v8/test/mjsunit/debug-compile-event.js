@@ -32,6 +32,7 @@ Debug = debug.Debug
 var exception = false;  // Exception in debug event listener.
 var before_compile_count = 0;
 var after_compile_count = 0;
+var compile_error_count = 0;
 var current_source = '';  // Current source being compiled.
 var source_count = 0;  // Total number of scources compiled.
 var host_compilations = 0;  // Number of scources compiled through the API.
@@ -48,11 +49,12 @@ function compileSource(source) {
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.BeforeCompile ||
-        event == Debug.DebugEvent.AfterCompile) {
+        event == Debug.DebugEvent.AfterCompile ||
+        event == Debug.DebugEvent.CompileError) {
       // Count the events.
       if (event == Debug.DebugEvent.BeforeCompile) {
         before_compile_count++;
-      } else {
+      } else if (event == Debug.DebugEvent.AfterCompile) {
         after_compile_count++;
         switch (event_data.script().compilationType()) {
           case Debug.ScriptCompilationType.Host:
@@ -62,6 +64,8 @@ function listener(event, exec_state, event_data, data) {
             eval_compilations++;
             break;
         }
+      } else {
+        compile_error_count++;
       }
 
       // If the compiled source contains 'eval' there will be additional compile
@@ -81,9 +85,11 @@ function listener(event, exec_state, event_data, data) {
       assertTrue('context' in msg.body.script);
 
       // Check that we pick script name from //# sourceURL, iff present
-      assertEquals(current_source.indexOf('sourceURL') >= 0 ?
-                     'myscript.js' : undefined,
-                   event_data.script().name());
+      if (event == Debug.DebugEvent.AfterCompile) {
+        assertEquals(current_source.indexOf('sourceURL') >= 0 ?
+            'myscript.js' : undefined,
+                     event_data.script().name());
+      }
     }
   } catch (e) {
     exception = e
@@ -105,11 +111,17 @@ compileSource('JSON.parse(\'{"a":1,"b":2}\')');
 // Using JSON.parse does not causes additional compilation events.
 compileSource('x=1; //# sourceURL=myscript.js');
 
+try {
+  compileSource('}');
+} catch(e) {
+}
+
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")
 
-// Number of before and after compile events should be the same.
-assertEquals(before_compile_count, after_compile_count);
+// Number of before and after + error events should be the same.
+assertEquals(before_compile_count, after_compile_count + compile_error_count);
+assertEquals(compile_error_count, 1);
 
 // Check the actual number of events (no compilation through the API as all
 // source compiled through eval).

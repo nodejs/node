@@ -23,11 +23,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
-#include "arm64/decoder-arm64.h"
-#include "arm64/decoder-arm64-inl.h"
-#include "arm64/disasm-arm64.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/arm64/decoder-arm64-inl.h"
+#include "src/arm64/disasm-arm64.h"
 
 using namespace v8::internal;
 

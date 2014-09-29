@@ -26,25 +26,25 @@
 #endif
 
 // Basic includes
-#include "../include/v8.h"
-#include "../include/v8-platform.h"
-#include "v8globals.h"
-#include "v8checks.h"
-#include "allocation.h"
-#include "assert-scope.h"
-#include "utils.h"
-#include "flags.h"
+#include "include/v8.h"
+#include "include/v8-platform.h"
+#include "src/checks.h"  // NOLINT
+#include "src/allocation.h"  // NOLINT
+#include "src/assert-scope.h"  // NOLINT
+#include "src/utils.h"  // NOLINT
+#include "src/flags.h"  // NOLINT
+#include "src/globals.h"  // NOLINT
 
 // Objects & heap
-#include "objects-inl.h"
-#include "spaces-inl.h"
-#include "heap-inl.h"
-#include "incremental-marking-inl.h"
-#include "mark-compact-inl.h"
-#include "log-inl.h"
-#include "handles-inl.h"
-#include "types-inl.h"
-#include "zone-inl.h"
+#include "src/objects-inl.h"  // NOLINT
+#include "src/heap/spaces-inl.h"               // NOLINT
+#include "src/heap/heap-inl.h"                 // NOLINT
+#include "src/heap/incremental-marking-inl.h"  // NOLINT
+#include "src/heap/mark-compact-inl.h"         // NOLINT
+#include "src/log-inl.h"  // NOLINT
+#include "src/handles-inl.h"  // NOLINT
+#include "src/types-inl.h"  // NOLINT
+#include "src/zone-inl.h"  // NOLINT
 
 namespace v8 {
 namespace internal {

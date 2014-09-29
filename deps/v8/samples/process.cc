@@ -25,10 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
+#include <include/v8.h>
 
-#include <string>
+#include <include/libplatform/libplatform.h>
+
 #include <map>
+#include <string>
 
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #error Using compressed startup data is not supported for this sample
@@ -574,7 +576,7 @@ StringHttpRequest::StringHttpRequest(const string& path,
 
 void ParseOptions(int argc,
                   char* argv[],
-                  map<string, string>& options,
+                  map<string, string>* options,
                   string* file) {
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
@@ -584,7 +586,7 @@ void ParseOptions(int argc,
     } else {
       string key = arg.substr(0, index);
       string value = arg.substr(index+1);
-      options[key] = value;
+      (*options)[key] = value;
     }
   }
 }
@@ -644,14 +646,17 @@ void PrintMap(map<string, string>* m) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   map<string, string> options;
   string file;
-  ParseOptions(argc, argv, options, &file);
+  ParseOptions(argc, argv, &options, &file);
   if (file.empty()) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = Isolate::New();
+  Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);
   Handle<String> source = ReadFile(isolate, file);
   if (source.IsEmpty()) {

@@ -28,7 +28,7 @@
 // Flags: --harmony-scoping
 
 // Test let declarations in various settings.
-// TODO(ES6): properly activate extended mode
+
 "use strict";
 
 // Global
@@ -56,11 +56,11 @@ if (true) {
 // an exception in eval code during parsing, before even compiling or executing
 // the code. Thus the generated function is not called here.
 function TestLocalThrows(str, expect) {
-  assertThrows("(function(){ 'use strict'; " + str + "})", expect);
+  assertThrows("(function(arg){ 'use strict'; " + str + "})", expect);
 }
 
 function TestLocalDoesNotThrow(str) {
-  assertDoesNotThrow("(function(){ 'use strict'; " + str + "})()");
+  assertDoesNotThrow("(function(arg){ 'use strict'; " + str + "})()");
 }
 
 // Test let declarations in statement positions.
@@ -107,6 +107,28 @@ TestLocalDoesNotThrow("label: var x;");
 TestLocalDoesNotThrow("for (;false;) var x;");
 TestLocalDoesNotThrow("switch (true) { case true: var x; }");
 TestLocalDoesNotThrow("switch (true) { default: var x; }");
+
+// Test that redeclarations of functions are only allowed in outermost scope.
+TestLocalThrows("{ let f; var f; }");
+TestLocalThrows("{ var f; let f; }");
+TestLocalThrows("{ function f() {} let f; }");
+TestLocalThrows("{ let f; function f() {} }");
+TestLocalThrows("{ function f() {} var f; }");
+TestLocalThrows("{ var f; function f() {} }");
+TestLocalThrows("{ function f() {} function f() {} }");
+TestLocalThrows("function f() {} let f;");
+TestLocalThrows("let f; function f() {}");
+TestLocalDoesNotThrow("function arg() {}");
+TestLocalDoesNotThrow("function f() {} var f;");
+TestLocalDoesNotThrow("var f; function f() {}");
+TestLocalDoesNotThrow("function f() {} function f() {}");
+
+function g(f) {
+  function f() { return 1 }
+  return f()
+}
+assertEquals(1, g(function() { return 2 }))
+
 
 // Test function declarations in source element and
 // sloppy statement positions.

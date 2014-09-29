@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "code-stubs.h"
-#include "test-code-stubs.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
-#include "simulator.h"
+#include "src/base/platform/platform.h"
+#include "src/code-stubs.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/simulator.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-code-stubs.h"
 
 using namespace v8::internal;
 
@@ -46,10 +46,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                                               Register destination_reg,
                                               bool inline_fastpath) {
   // Allocate an executable page of memory.
-  size_t actual_size = 2 * Assembler::kMinimalBufferSize;
-  byte* buffer = static_cast<byte*>(OS::Allocate(actual_size,
-                                                 &actual_size,
-                                                 true));
+  size_t actual_size = 4 * Assembler::kMinimalBufferSize;
+  byte* buffer = static_cast<byte*>(
+      v8::base::OS::Allocate(actual_size, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
@@ -123,7 +122,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  CPU::FlushICache(buffer, actual_size);
+  CpuFeatures::FlushICache(buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }

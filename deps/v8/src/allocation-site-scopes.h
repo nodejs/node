@@ -5,10 +5,10 @@
 #ifndef V8_ALLOCATION_SITE_SCOPES_H_
 #define V8_ALLOCATION_SITE_SCOPES_H_
 
-#include "ast.h"
-#include "handles.h"
-#include "objects.h"
-#include "zone.h"
+#include "src/ast.h"
+#include "src/handles.h"
+#include "src/objects.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,7 @@ class AllocationSiteContext {
  public:
   explicit AllocationSiteContext(Isolate* isolate) {
     isolate_ = isolate;
-  };
+  }
 
   Handle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }
@@ -75,7 +75,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
       // Advance current site
       Object* nested_site = current()->nested_site();
       // Something is wrong if we advance to the end of the list here.
-      ASSERT(nested_site->IsAllocationSite());
+      DCHECK(nested_site->IsAllocationSite());
       update_current_site(AllocationSite::cast(nested_site));
     }
     return Handle<AllocationSite>(*current(), isolate());
@@ -85,7 +85,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
                         Handle<JSObject> object) {
     // This assert ensures that we are pointing at the right sub-object in a
     // recursive walk of a nested literal.
-    ASSERT(object.is_null() || *object == scope_site->transition_info());
+    DCHECK(object.is_null() || *object == scope_site->transition_info());
   }
 
   bool ShouldCreateMemento(Handle<JSObject> object);

@@ -5,9 +5,9 @@
 #ifndef V8_HASHMAP_H_
 #define V8_HASHMAP_H_
 
-#include "allocation.h"
-#include "checks.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/base/logging.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -164,7 +164,7 @@ void* TemplateHashMapImpl<AllocationPolicy>::Remove(void* key, uint32_t hash) {
 
   // This guarantees loop termination as there is at least one empty entry so
   // eventually the removed entry will have an empty entry after it.
-  ASSERT(occupancy_ < capacity_);
+  DCHECK(occupancy_ < capacity_);
 
   // p is the candidate entry to clear. q is used to scan forwards.
   Entry* q = p;  // Start at the entry to remove.
@@ -224,7 +224,7 @@ template<class AllocationPolicy>
 typename TemplateHashMapImpl<AllocationPolicy>::Entry*
     TemplateHashMapImpl<AllocationPolicy>::Next(Entry* p) const {
   const Entry* end = map_end();
-  ASSERT(map_ - 1 <= p && p < end);
+  DCHECK(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
     if (p->key != NULL) {
       return p;
@@ -237,14 +237,14 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 template<class AllocationPolicy>
 typename TemplateHashMapImpl<AllocationPolicy>::Entry*
     TemplateHashMapImpl<AllocationPolicy>::Probe(void* key, uint32_t hash) {
-  ASSERT(key != NULL);
+  DCHECK(key != NULL);
 
-  ASSERT(IsPowerOf2(capacity_));
+  DCHECK(IsPowerOf2(capacity_));
   Entry* p = map_ + (hash & (capacity_ - 1));
   const Entry* end = map_end();
-  ASSERT(map_ <= p && p < end);
+  DCHECK(map_ <= p && p < end);
 
-  ASSERT(occupancy_ < capacity_);  // Guarantees loop termination.
+  DCHECK(occupancy_ < capacity_);  // Guarantees loop termination.
   while (p->key != NULL && (hash != p->hash || !match_(key, p->key))) {
     p++;
     if (p >= end) {
@@ -259,7 +259,7 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 template<class AllocationPolicy>
 void TemplateHashMapImpl<AllocationPolicy>::Initialize(
     uint32_t capacity, AllocationPolicy allocator) {
-  ASSERT(IsPowerOf2(capacity));
+  DCHECK(IsPowerOf2(capacity));
   map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
   if (map_ == NULL) {
     v8::internal::FatalProcessOutOfMemory("HashMap::Initialize");

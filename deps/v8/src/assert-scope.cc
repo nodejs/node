@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-#include "assert-scope.h"
-#include "v8.h"
+#include "src/assert-scope.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

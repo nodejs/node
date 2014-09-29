@@ -27,8 +27,8 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "profiler-extension.h"
-#include "checks.h"
+#include "src/base/logging.h"
+#include "test/cctest/profiler-extension.h"
 
 namespace v8 {
 namespace internal {

@@ -5,9 +5,9 @@
 #ifndef V8_SAMPLER_H_
 #define V8_SAMPLER_H_
 
-#include "atomicops.h"
-#include "frames.h"
-#include "v8globals.h"
+#include "src/base/atomicops.h"
+#include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -44,10 +44,11 @@ struct TickSample {
     Address tos;   // Top stack value (*sp).
     Address external_callback;
   };
-  static const int kMaxFramesCount = 64;
+  static const unsigned kMaxFramesCountLog2 = 8;
+  static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   Address stack[kMaxFramesCount];  // Call stack.
-  TimeTicks timestamp;
-  int frames_count : 8;  // Number of captured frames.
+  base::TimeTicks timestamp;
+  unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   StackFrame::Type top_frame_type : 4;
 };
@@ -74,20 +75,20 @@ class Sampler {
 
   // Whether the sampling thread should use this Sampler for CPU profiling?
   bool IsProfiling() const {
-    return NoBarrier_Load(&profiling_) > 0 &&
-        !NoBarrier_Load(&has_processing_thread_);
+    return base::NoBarrier_Load(&profiling_) > 0 &&
+        !base::NoBarrier_Load(&has_processing_thread_);
   }
   void IncreaseProfilingDepth();
   void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return NoBarrier_Load(&active_); }
+  bool IsActive() const { return base::NoBarrier_Load(&active_); }
 
   void DoSample();
   // If true next sample must be initiated on the profiler event processor
   // thread right after latest sample is processed.
   void SetHasProcessingThread(bool value) {
-    NoBarrier_Store(&has_processing_thread_, value);
+    base::NoBarrier_Store(&has_processing_thread_, value);
   }
 
   // Used in tests to make sure that stack sampling is performed.
@@ -108,13 +109,13 @@ class Sampler {
   virtual void Tick(TickSample* sample) = 0;
 
  private:
-  void SetActive(bool value) { NoBarrier_Store(&active_, value); }
+  void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
 
   Isolate* isolate_;
   const int interval_;
-  Atomic32 profiling_;
-  Atomic32 has_processing_thread_;
-  Atomic32 active_;
+  base::Atomic32 profiling_;
+  base::Atomic32 has_processing_thread_;
+  base::Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
   bool is_counting_samples_;
   // Counts stack samples taken in JS VM state.

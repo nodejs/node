@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X64
 
-#include "cpu-profiler.h"
-#include "serialize.h"
-#include "unicode.h"
-#include "log.h"
-#include "regexp-stack.h"
-#include "macro-assembler.h"
-#include "regexp-macro-assembler.h"
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/cpu-profiler.h"
+#include "src/log.h"
+#include "src/macro-assembler.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/serialize.h"
+#include "src/unicode.h"
+#include "src/x64/regexp-macro-assembler-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -109,7 +109,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
       success_label_(),
       backtrack_label_(),
       exit_label_() {
-  ASSERT_EQ(0, registers_to_save % 2);
+  DCHECK_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code when we know more.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -140,8 +140,8 @@ void RegExpMacroAssemblerX64::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerX64::AdvanceRegister(int reg, int by) {
-  ASSERT(reg >= 0);
-  ASSERT(reg < num_registers_);
+  DCHECK(reg >= 0);
+  DCHECK(reg < num_registers_);
   if (by != 0) {
     __ addp(register_location(reg), Immediate(by));
   }
@@ -295,7 +295,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ movp(rdi, r11);
     __ subq(rdi, rsi);
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     // Save important/volatile registers before calling C function.
 #ifndef _WIN64
     // Caller save on Linux and callee save in Windows.
@@ -404,7 +404,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
     __ movzxbl(rax, Operand(rdx, 0));
     __ cmpb(rax, Operand(rbx, 0));
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     __ movzxwl(rax, Operand(rdx, 0));
     __ cmpw(rax, Operand(rbx, 0));
   }
@@ -465,7 +465,7 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  ASSERT(minus < String::kMaxUtf16CodeUnit);
+  DCHECK(minus < String::kMaxUtf16CodeUnit);
   __ leap(rax, Operand(current_character(), -minus));
   __ andp(rax, Immediate(mask));
   __ cmpl(rax, Immediate(c));
@@ -596,7 +596,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
       BranchOrBacktrack(above, on_no_match);
     }
     __ Move(rbx, ExternalReference::re_word_character_map());
-    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
     BranchOrBacktrack(zero, on_no_match);
@@ -610,7 +610,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
       __ j(above, &done);
     }
     __ Move(rbx, ExternalReference::re_word_character_map());
-    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
     BranchOrBacktrack(not_zero, on_no_match);
@@ -669,12 +669,12 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
-  ASSERT_EQ(kInputString, -1 * kRegisterSize);
-  ASSERT_EQ(kStartIndex, -2 * kRegisterSize);
-  ASSERT_EQ(kInputStart, -3 * kRegisterSize);
-  ASSERT_EQ(kInputEnd, -4 * kRegisterSize);
-  ASSERT_EQ(kRegisterOutput, -5 * kRegisterSize);
-  ASSERT_EQ(kNumOutputRegisters, -6 * kRegisterSize);
+  DCHECK_EQ(kInputString, -1 * kRegisterSize);
+  DCHECK_EQ(kStartIndex, -2 * kRegisterSize);
+  DCHECK_EQ(kInputStart, -3 * kRegisterSize);
+  DCHECK_EQ(kInputEnd, -4 * kRegisterSize);
+  DCHECK_EQ(kRegisterOutput, -5 * kRegisterSize);
+  DCHECK_EQ(kNumOutputRegisters, -6 * kRegisterSize);
   __ pushq(rdi);
   __ pushq(rsi);
   __ pushq(rdx);
@@ -1022,8 +1022,8 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacter(int cp_offset,
                                                    Label* on_end_of_input,
                                                    bool check_bounds,
                                                    int characters) {
-  ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
-  ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
+  DCHECK(cp_offset >= -1);      // ^ and \b can look behind one character.
+  DCHECK(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   if (check_bounds) {
     CheckPosition(cp_offset + characters - 1, on_end_of_input);
   }
@@ -1104,7 +1104,7 @@ void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
 
 
 void RegExpMacroAssemblerX64::SetRegister(int register_index, int to) {
-  ASSERT(register_index >= num_saved_registers_);  // Reserved for positions!
+  DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ movp(register_location(register_index), Immediate(to));
 }
 
@@ -1127,7 +1127,7 @@ void RegExpMacroAssemblerX64::WriteCurrentPositionToRegister(int reg,
 
 
 void RegExpMacroAssemblerX64::ClearRegisters(int reg_from, int reg_to) {
-  ASSERT(reg_from <= reg_to);
+  DCHECK(reg_from <= reg_to);
   __ movp(rax, Operand(rbp, kInputStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
     __ movp(register_location(reg), rax);
@@ -1183,7 +1183,8 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  if (isolate->stack_guard()->IsStackOverflow()) {
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
     isolate->StackOverflow();
     return EXCEPTION;
   }
@@ -1206,11 +1207,11 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   // Current string.
   bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
-  ASSERT(re_code->instruction_start() <= *return_address);
-  ASSERT(*return_address <=
+  DCHECK(re_code->instruction_start() <= *return_address);
+  DCHECK(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
-  Object* result = Execution::HandleStackGuardInterrupt(isolate);
+  Object* result = isolate->stack_guard()->HandleInterrupts();
 
   if (*code_handle != re_code) {  // Return address no longer valid
     intptr_t delta = code_handle->address() - re_code->address();
@@ -1246,7 +1247,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   // be a sequential or external string with the same content.
   // Update the start and end pointers in the stack frame to the current
   // location (whether it has actually moved or not).
-  ASSERT(StringShape(*subject_tmp).IsSequential() ||
+  DCHECK(StringShape(*subject_tmp).IsSequential() ||
       StringShape(*subject_tmp).IsExternal());
 
   // The original start address of the characters to match.
@@ -1278,7 +1279,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
 
 
 Operand RegExpMacroAssemblerX64::register_location(int register_index) {
-  ASSERT(register_index < (1<<30));
+  DCHECK(register_index < (1<<30));
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1329,7 +1330,7 @@ void RegExpMacroAssemblerX64::SafeReturn() {
 
 
 void RegExpMacroAssemblerX64::Push(Register source) {
-  ASSERT(!source.is(backtrack_stackpointer()));
+  DCHECK(!source.is(backtrack_stackpointer()));
   // Notice: This updates flags, unlike normal Push.
   __ subp(backtrack_stackpointer(), Immediate(kIntSize));
   __ movl(Operand(backtrack_stackpointer(), 0), source);
@@ -1369,7 +1370,7 @@ void RegExpMacroAssemblerX64::Push(Label* backtrack_target) {
 
 
 void RegExpMacroAssemblerX64::Pop(Register target) {
-  ASSERT(!target.is(backtrack_stackpointer()));
+  DCHECK(!target.is(backtrack_stackpointer()));
   __ movsxlq(target, Operand(backtrack_stackpointer(), 0));
   // Notice: This updates flags, unlike normal Pop.
   __ addp(backtrack_stackpointer(), Immediate(kIntSize));
@@ -1418,16 +1419,16 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ movzxwl(current_character(), Operand(rsi, rdi, times_1, cp_offset));
     } else {
-      ASSERT(characters == 1);
+      DCHECK(characters == 1);
       __ movzxbl(current_character(), Operand(rsi, rdi, times_1, cp_offset));
     }
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     if (characters == 2) {
       __ movl(current_character(),
               Operand(rsi, rdi, times_1, cp_offset * sizeof(uc16)));
     } else {
-      ASSERT(characters == 1);
+      DCHECK(characters == 1);
       __ movzxwl(current_character(),
                  Operand(rsi, rdi, times_1, cp_offset * sizeof(uc16)));
     }

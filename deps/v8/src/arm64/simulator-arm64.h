@@ -8,16 +8,16 @@
 #include <stdarg.h>
 #include <vector>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "globals.h"
-#include "utils.h"
-#include "allocation.h"
-#include "assembler.h"
-#include "arm64/assembler-arm64.h"
-#include "arm64/decoder-arm64.h"
-#include "arm64/disasm-arm64.h"
-#include "arm64/instrument-arm64.h"
+#include "src/allocation.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/arm64/disasm-arm64.h"
+#include "src/arm64/instrument-arm64.h"
+#include "src/assembler.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
@@ -53,9 +53,6 @@ typedef int (*arm64_regexp_matcher)(String* input,
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   (FUNCTION_CAST<arm64_regexp_matcher>(entry)(                                \
       p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
 
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
@@ -136,35 +133,28 @@ class SimSystemRegister {
 
 
 // Represent a register (r0-r31, v0-v31).
-template<int kSizeInBytes>
 class SimRegisterBase {
  public:
   template<typename T>
-  void Set(T new_value, unsigned size = sizeof(T)) {
-    ASSERT(size <= kSizeInBytes);
-    ASSERT(size <= sizeof(new_value));
-    // All AArch64 registers are zero-extending; Writing a W register clears the
-    // top bits of the corresponding X register.
-    memset(value_, 0, kSizeInBytes);
-    memcpy(value_, &new_value, size);
+  void Set(T new_value) {
+    value_ = 0;
+    memcpy(&value_, &new_value, sizeof(T));
   }
 
-  // Copy 'size' bytes of the register to the result, and zero-extend to fill
-  // the result.
   template<typename T>
-  T Get(unsigned size = sizeof(T)) const {
-    ASSERT(size <= kSizeInBytes);
+  T Get() const {
     T result;
-    memset(&result, 0, sizeof(result));
-    memcpy(&result, value_, size);
+    memcpy(&result, &value_, sizeof(T));
     return result;
   }
 
  protected:
-  uint8_t value_[kSizeInBytes];
+  int64_t value_;
 };
-typedef SimRegisterBase<kXRegSize> SimRegister;      // r0-r31
-typedef SimRegisterBase<kDRegSize> SimFPRegister;    // v0-v31
+
+
+typedef SimRegisterBase SimRegister;      // r0-r31
+typedef SimRegisterBase SimFPRegister;    // v0-v31
 
 
 class Simulator : public DecoderVisitor {
@@ -221,13 +211,14 @@ class Simulator : public DecoderVisitor {
    public:
     template<typename T>
     explicit CallArgument(T argument) {
-      ASSERT(sizeof(argument) <= sizeof(bits_));
+      bits_ = 0;
+      DCHECK(sizeof(argument) <= sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = X_ARG;
     }
 
     explicit CallArgument(double argument) {
-      ASSERT(sizeof(argument) == sizeof(bits_));
+      DCHECK(sizeof(argument) == sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
@@ -238,10 +229,10 @@ class Simulator : public DecoderVisitor {
       UNIMPLEMENTED();
       // Make the D register a NaN to try to trap errors if the callee expects a
       // double. If it expects a float, the callee should ignore the top word.
-      ASSERT(sizeof(kFP64SignallingNaN) == sizeof(bits_));
+      DCHECK(sizeof(kFP64SignallingNaN) == sizeof(bits_));
       memcpy(&bits_, &kFP64SignallingNaN, sizeof(kFP64SignallingNaN));
       // Write the float payload to the S register.
-      ASSERT(sizeof(argument) <= sizeof(bits_));
+      DCHECK(sizeof(argument) <= sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
@@ -299,7 +290,7 @@ class Simulator : public DecoderVisitor {
   // Simulation helpers.
   template <typename T>
   void set_pc(T new_pc) {
-    ASSERT(sizeof(T) == sizeof(pc_));
+    DCHECK(sizeof(T) == sizeof(pc_));
     memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
@@ -318,7 +309,7 @@ class Simulator : public DecoderVisitor {
   }
 
   void ExecuteInstruction() {
-    ASSERT(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
     CheckBreakNext();
     Decode(pc_);
     LogProcessorState();
@@ -331,98 +322,65 @@ class Simulator : public DecoderVisitor {
   VISITOR_LIST(DECLARE)
   #undef DECLARE
 
-  // Register accessors.
+  bool IsZeroRegister(unsigned code, Reg31Mode r31mode) const {
+    return ((code == 31) && (r31mode == Reg31IsZeroRegister));
+  }
 
+  // Register accessors.
   // Return 'size' bits of the value of an integer register, as the specified
   // type. The value is zero-extended to fill the result.
   //
-  // The only supported values of 'size' are kXRegSizeInBits and
-  // kWRegSizeInBits.
-  template<typename T>
-  T reg(unsigned size, unsigned code,
-        Reg31Mode r31mode = Reg31IsZeroRegister) const {
-    unsigned size_in_bytes = size / 8;
-    ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kXRegSizeInBits) || (size == kWRegSizeInBits));
-    ASSERT(code < kNumberOfRegisters);
-
-    if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
-      T result;
-      memset(&result, 0, sizeof(result));
-      return result;
-    }
-    return registers_[code].Get<T>(size_in_bytes);
-  }
-
-  // Like reg(), but infer the access size from the template type.
   template<typename T>
   T reg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
-    return reg<T>(sizeof(T) * 8, code, r31mode);
+    DCHECK(code < kNumberOfRegisters);
+    if (IsZeroRegister(code, r31mode)) {
+      return 0;
+    }
+    return registers_[code].Get<T>();
   }
 
   // Common specialized accessors for the reg() template.
-  int32_t wreg(unsigned code,
-               Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  int32_t wreg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<int32_t>(code, r31mode);
   }
 
-  int64_t xreg(unsigned code,
-               Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  int64_t xreg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<int64_t>(code, r31mode);
-  }
-
-  int64_t reg(unsigned size, unsigned code,
-              Reg31Mode r31mode = Reg31IsZeroRegister) const {
-    return reg<int64_t>(size, code, r31mode);
   }
 
   // Write 'size' bits of 'value' into an integer register. The value is
   // zero-extended. This behaviour matches AArch64 register writes.
-  //
-  // The only supported values of 'size' are kXRegSizeInBits and
-  // kWRegSizeInBits.
-  template<typename T>
-  void set_reg(unsigned size, unsigned code, T value,
-               Reg31Mode r31mode = Reg31IsZeroRegister) {
-    unsigned size_in_bytes = size / 8;
-    ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kXRegSizeInBits) || (size == kWRegSizeInBits));
-    ASSERT(code < kNumberOfRegisters);
-
-    if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
-      return;
-    }
-    return registers_[code].Set(value, size_in_bytes);
-  }
 
   // Like set_reg(), but infer the access size from the template type.
   template<typename T>
   void set_reg(unsigned code, T value,
                Reg31Mode r31mode = Reg31IsZeroRegister) {
-    set_reg(sizeof(value) * 8, code, value, r31mode);
+    DCHECK(code < kNumberOfRegisters);
+    if (!IsZeroRegister(code, r31mode))
+      registers_[code].Set(value);
   }
 
   // Common specialized accessors for the set_reg() template.
   void set_wreg(unsigned code, int32_t value,
                 Reg31Mode r31mode = Reg31IsZeroRegister) {
-    set_reg(kWRegSizeInBits, code, value, r31mode);
+    set_reg(code, value, r31mode);
   }
 
   void set_xreg(unsigned code, int64_t value,
                 Reg31Mode r31mode = Reg31IsZeroRegister) {
-    set_reg(kXRegSizeInBits, code, value, r31mode);
+    set_reg(code, value, r31mode);
   }
 
   // Commonly-used special cases.
   template<typename T>
   void set_lr(T value) {
-    ASSERT(sizeof(T) == kPointerSize);
+    DCHECK(sizeof(T) == kPointerSize);
     set_reg(kLinkRegCode, value);
   }
 
   template<typename T>
   void set_sp(T value) {
-    ASSERT(sizeof(T) == kPointerSize);
+    DCHECK(sizeof(T) == kPointerSize);
     set_reg(31, value, Reg31IsStackPointer);
   }
 
@@ -435,24 +393,10 @@ class Simulator : public DecoderVisitor {
 
   Address get_sp() { return reg<Address>(31, Reg31IsStackPointer); }
 
-  // Return 'size' bits of the value of a floating-point register, as the
-  // specified type. The value is zero-extended to fill the result.
-  //
-  // The only supported values of 'size' are kDRegSizeInBits and
-  // kSRegSizeInBits.
-  template<typename T>
-  T fpreg(unsigned size, unsigned code) const {
-    unsigned size_in_bytes = size / 8;
-    ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kDRegSizeInBits) || (size == kSRegSizeInBits));
-    ASSERT(code < kNumberOfFPRegisters);
-    return fpregisters_[code].Get<T>(size_in_bytes);
-  }
-
-  // Like fpreg(), but infer the access size from the template type.
   template<typename T>
   T fpreg(unsigned code) const {
-    return fpreg<T>(sizeof(T) * 8, code);
+    DCHECK(code < kNumberOfRegisters);
+    return fpregisters_[code].Get<T>();
   }
 
   // Common specialized accessors for the fpreg() template.
@@ -486,9 +430,9 @@ class Simulator : public DecoderVisitor {
   // This behaviour matches AArch64 register writes.
   template<typename T>
   void set_fpreg(unsigned code, T value) {
-    ASSERT((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
-    ASSERT(code < kNumberOfFPRegisters);
-    fpregisters_[code].Set(value, sizeof(value));
+    DCHECK((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
+    DCHECK(code < kNumberOfFPRegisters);
+    fpregisters_[code].Set(value);
   }
 
   // Common specialized accessors for the set_fpreg() template.
@@ -628,14 +572,19 @@ class Simulator : public DecoderVisitor {
     return !ConditionPassed(cond);
   }
 
-  void AddSubHelper(Instruction* instr, int64_t op2);
-  int64_t AddWithCarry(unsigned reg_size,
-                       bool set_flags,
-                       int64_t src1,
-                       int64_t src2,
-                       int64_t carry_in = 0);
-  void LogicalHelper(Instruction* instr, int64_t op2);
-  void ConditionalCompareHelper(Instruction* instr, int64_t op2);
+  template<typename T>
+  void AddSubHelper(Instruction* instr, T op2);
+  template<typename T>
+  T AddWithCarry(bool set_flags,
+                 T src1,
+                 T src2,
+                 T carry_in = 0);
+  template<typename T>
+  void AddSubWithCarry(Instruction* instr);
+  template<typename T>
+  void LogicalHelper(Instruction* instr, T op2);
+  template<typename T>
+  void ConditionalCompareHelper(Instruction* instr, T op2);
   void LoadStoreHelper(Instruction* instr,
                        int64_t offset,
                        AddrMode addrmode);
@@ -662,18 +611,21 @@ class Simulator : public DecoderVisitor {
   void MemoryWrite64(uint8_t* address, uint64_t value);
   void MemoryWriteFP64(uint8_t* address, double value);
 
-  int64_t ShiftOperand(unsigned reg_size,
-                       int64_t value,
-                       Shift shift_type,
-                       unsigned amount);
-  int64_t Rotate(unsigned reg_width,
-                 int64_t value,
+
+  template <typename T>
+  T ShiftOperand(T value,
                  Shift shift_type,
                  unsigned amount);
-  int64_t ExtendValue(unsigned reg_width,
-                      int64_t value,
-                      Extend extend_type,
-                      unsigned left_shift = 0);
+  template <typename T>
+  T ExtendValue(T value,
+                Extend extend_type,
+                unsigned left_shift = 0);
+  template <typename T>
+  void Extract(Instruction* instr);
+  template <typename T>
+  void DataProcessing2Source(Instruction* instr);
+  template <typename T>
+  void BitfieldHelper(Instruction* instr);
 
   uint64_t ReverseBits(uint64_t value, unsigned num_bits);
   uint64_t ReverseBytes(uint64_t value, ReverseByteMode mode);
@@ -757,6 +709,9 @@ class Simulator : public DecoderVisitor {
   void CorruptAllCallerSavedCPURegisters();
 #endif
 
+  // Pseudo Printf instruction
+  void DoPrintf(Instruction* instr);
+
   // Processor state ---------------------------------------
 
   // Output stream.
@@ -789,15 +744,16 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    ASSERT(fpcr().FZ() == 0);             // No flush-to-zero support.
-    ASSERT(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
+    DCHECK(fpcr().FZ() == 0);             // No flush-to-zero support.
+    DCHECK(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 
     // The simulator does not support half-precision operations so fpcr().AHP()
     // is irrelevant, and is not checked here.
   }
 
-  static int CalcNFlag(uint64_t result, unsigned reg_size) {
-    return (result >> (reg_size - 1)) & 1;
+  template <typename T>
+  static int CalcNFlag(T result) {
+    return (result >> (sizeof(T) * 8 - 1)) & 1;
   }
 
   static int CalcZFlag(uint64_t result) {
@@ -853,10 +809,6 @@ class Simulator : public DecoderVisitor {
   Simulator::current(Isolate::Current())->CallRegExp(                          \
       entry,                                                                   \
       p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

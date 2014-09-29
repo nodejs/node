@@ -26,12 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "debug.h"
-#include "runtime.h"
-#include "cctest.h"
+#include "src/api.h"
+#include "src/debug.h"
+#include "src/runtime.h"
+#include "test/cctest/cctest.h"
 
 
 using ::v8::internal::CStrVector;

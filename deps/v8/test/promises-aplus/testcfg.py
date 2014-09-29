@@ -31,9 +31,9 @@ import os
 import shutil
 import sys
 import tarfile
-import urllib
 
 from testrunner.local import testsuite
+from testrunner.local import utils
 from testrunner.objects import testcase
 
 
@@ -102,7 +102,7 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
     directory = os.path.join(self.root, TEST_NAME)
     if not os.path.exists(archive):
       print('Downloading {0} from {1} ...'.format(TEST_NAME, TEST_URL))
-      urllib.urlretrieve(TEST_URL, archive)
+      utils.URLRetrieve(TEST_URL, archive)
       if os.path.exists(directory):
         shutil.rmtree(directory)
 
@@ -129,7 +129,7 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
       os.mkdir(directory)
     path = os.path.join(directory, SINON_FILENAME)
     if not os.path.exists(path):
-      urllib.urlretrieve(SINON_URL, path)
+      utils.URLRetrieve(SINON_URL, path)
     hash = hashlib.sha256()
     with open(path, 'rb') as f:
       for chunk in iter(lambda: f.read(8192), ''):

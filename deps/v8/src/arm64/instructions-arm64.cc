@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
 #define ARM64_DEFINE_FP_STATICS
 
-#include "arm64/instructions-arm64.h"
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/instructions-arm64.h"
 
 namespace v8 {
 namespace internal {
@@ -67,7 +67,7 @@ bool Instruction::IsStore() const {
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
-  ASSERT(width <= 64);
+  DCHECK(width <= 64);
   rotate &= 63;
   return ((value & ((1UL << rotate) - 1UL)) << (width - rotate)) |
          (value >> rotate);
@@ -77,9 +77,9 @@ static uint64_t RotateRight(uint64_t value,
 static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
                                     uint64_t value,
                                     unsigned width) {
-  ASSERT((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
+  DCHECK((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
          (width == 32));
-  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  DCHECK((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
   uint64_t result = value & ((1UL << width) - 1UL);
   for (unsigned i = width; i < reg_size; i *= 2) {
     result |= (result << i);
@@ -193,7 +193,7 @@ ptrdiff_t Instruction::ImmPCOffset() {
     offset = ImmBranch() << kInstructionSizeLog2;
   } else {
     // Load literal (offset from PC).
-    ASSERT(IsLdrLiteral());
+    DCHECK(IsLdrLiteral());
     // The offset is always shifted by 2 bits, even for loads to 64-bits
     // registers.
     offset = ImmLLiteral() << kInstructionSizeLog2;
@@ -231,9 +231,9 @@ void Instruction::SetImmPCOffsetTarget(Instruction* target) {
 
 void Instruction::SetPCRelImmTarget(Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
-  ASSERT(IsAdr());
+  DCHECK(IsAdr());
 
-  int target_offset = DistanceTo(target);
+  ptrdiff_t target_offset = DistanceTo(target);
   Instr imm;
   if (Instruction::IsValidPCRelOffset(target_offset)) {
     imm = Assembler::ImmPCRelAddress(target_offset);
@@ -241,13 +241,13 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
   } else {
     PatchingAssembler patcher(this,
                               PatchingAssembler::kAdrFarPatchableNInstrs);
-    patcher.PatchAdrFar(target);
+    patcher.PatchAdrFar(target_offset);
   }
 }
 
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
-  ASSERT(IsAligned(DistanceTo(target), kInstructionSize));
+  DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;
   ptrdiff_t offset = DistanceTo(target) >> kInstructionSizeLog2;
@@ -279,8 +279,8 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 
 
 void Instruction::SetImmLLiteral(Instruction* source) {
-  ASSERT(IsAligned(DistanceTo(source), kInstructionSize));
-  ptrdiff_t offset = DistanceTo(source) >> kLiteralEntrySizeLog2;
+  DCHECK(IsAligned(DistanceTo(source), kInstructionSize));
+  ptrdiff_t offset = DistanceTo(source) >> kLoadLiteralScaleLog2;
   Instr imm = Assembler::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;
 
@@ -304,7 +304,7 @@ bool InstructionSequence::IsInlineData() const {
 // xzr and Register are not defined in that header. Consider adding
 // instructions-arm64-inl.h to work around this.
 uint64_t InstructionSequence::InlineData() const {
-  ASSERT(IsInlineData());
+  DCHECK(IsInlineData());
   uint64_t payload = ImmMoveWide();
   // TODO(all): If we extend ::InlineData() to support bigger data, we need
   // to update this method too.

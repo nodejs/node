@@ -5,13 +5,13 @@
 #ifndef V8_OPTIMIZING_COMPILER_THREAD_H_
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
-#include "atomicops.h"
-#include "flags.h"
-#include "list.h"
-#include "platform.h"
-#include "platform/mutex.h"
-#include "platform/time.h"
-#include "unbound-queue-inl.h"
+#include "src/base/atomicops.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/flags.h"
+#include "src/list.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -20,25 +20,26 @@ class HOptimizedGraphBuilder;
 class OptimizedCompileJob;
 class SharedFunctionInfo;
 
-class OptimizingCompilerThread : public Thread {
+class OptimizingCompilerThread : public base::Thread {
  public:
-  explicit OptimizingCompilerThread(Isolate *isolate) :
-      Thread("OptimizingCompilerThread"),
+  explicit OptimizingCompilerThread(Isolate* isolate)
+      : Thread(Options("OptimizingCompilerThread")),
 #ifdef DEBUG
-      thread_id_(0),
+        thread_id_(0),
 #endif
-      isolate_(isolate),
-      stop_semaphore_(0),
-      input_queue_semaphore_(0),
-      input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
-      input_queue_length_(0),
-      input_queue_shift_(0),
-      osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
-      osr_buffer_cursor_(0),
-      osr_hits_(0),
-      osr_attempts_(0),
-      blocked_jobs_(0) {
-    NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
+        isolate_(isolate),
+        stop_semaphore_(0),
+        input_queue_semaphore_(0),
+        input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
+        input_queue_length_(0),
+        input_queue_shift_(0),
+        osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
+        osr_buffer_cursor_(0),
+        osr_hits_(0),
+        osr_attempts_(0),
+        blocked_jobs_(0) {
+    base::NoBarrier_Store(&stop_thread_,
+                          static_cast<base::AtomicWord>(CONTINUE));
     input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
     if (FLAG_concurrent_osr) {
       // Allocate and mark OSR buffer slots as empty.
@@ -62,7 +63,7 @@ class OptimizingCompilerThread : public Thread {
   bool IsQueuedForOSR(JSFunction* function);
 
   inline bool IsQueueAvailable() {
-    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
     return input_queue_length_ < input_queue_capacity_;
   }
 
@@ -97,26 +98,26 @@ class OptimizingCompilerThread : public Thread {
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
-    ASSERT_LE(0, result);
-    ASSERT_LT(result, input_queue_capacity_);
+    DCHECK_LE(0, result);
+    DCHECK_LT(result, input_queue_capacity_);
     return result;
   }
 
 #ifdef DEBUG
   int thread_id_;
-  Mutex thread_id_mutex_;
+  base::Mutex thread_id_mutex_;
 #endif
 
   Isolate* isolate_;
-  Semaphore stop_semaphore_;
-  Semaphore input_queue_semaphore_;
+  base::Semaphore stop_semaphore_;
+  base::Semaphore input_queue_semaphore_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
   OptimizedCompileJob** input_queue_;
   int input_queue_capacity_;
   int input_queue_length_;
   int input_queue_shift_;
-  Mutex input_queue_mutex_;
+  base::Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<OptimizedCompileJob*> output_queue_;
@@ -126,9 +127,9 @@ class OptimizingCompilerThread : public Thread {
   int osr_buffer_capacity_;
   int osr_buffer_cursor_;
 
-  volatile AtomicWord stop_thread_;
-  TimeDelta time_spent_compiling_;
-  TimeDelta time_spent_total_;
+  volatile base::AtomicWord stop_thread_;
+  base::TimeDelta time_spent_compiling_;
+  base::TimeDelta time_spent_total_;
 
   int osr_hits_;
   int osr_attempts_;

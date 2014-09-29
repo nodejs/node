@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X64
 
-#include "assembler.h"
-#include "assembler-x64.h"
-#include "assembler-x64-inl.h"
-#include "frames.h"
+#include "src/assembler.h"
+#include "src/frames.h"
+#include "src/x64/assembler-x64-inl.h"
+#include "src/x64/assembler-x64.h"
 
 namespace v8 {
 namespace internal {

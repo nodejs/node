@@ -6,15 +6,19 @@
 #define V8_SIMULATOR_H_
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
+#include "src/ia32/simulator-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
+#include "src/x64/simulator-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/simulator-arm64.h"
+#include "src/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
+#include "src/arm/simulator-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
+#include "src/mips/simulator-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/simulator-mips64.h"
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/simulator-x87.h"
 #else
 #error Unsupported target architecture.
 #endif

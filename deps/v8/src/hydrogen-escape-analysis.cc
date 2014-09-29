@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-escape-analysis.h"
+#include "src/hydrogen-escape-analysis.h"
 
 namespace v8 {
 namespace internal {
@@ -144,7 +144,7 @@ HValue* HEscapeAnalysisPhase::NewLoadReplacement(
     HLoadNamedField* load, HValue* load_value) {
   HValue* replacement = load_value;
   Representation representation = load->representation();
-  if (representation.IsSmi()) {
+  if (representation.IsSmiOrInteger32() || representation.IsDouble()) {
     Zone* zone = graph()->zone();
     HInstruction* new_instr =
         HForceRepresentation::New(zone, NULL, load_value, representation);
@@ -189,7 +189,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           HLoadNamedField* load = HLoadNamedField::cast(instr);
           int index = load->access().offset() / kPointerSize;
           if (load->object() != allocate) continue;
-          ASSERT(load->access().IsInobject());
+          DCHECK(load->access().IsInobject());
           HValue* replacement =
             NewLoadReplacement(load, state->OperandAt(index));
           load->DeleteAndReplaceWith(replacement);
@@ -203,7 +203,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           HStoreNamedField* store = HStoreNamedField::cast(instr);
           int index = store->access().offset() / kPointerSize;
           if (store->object() != allocate) continue;
-          ASSERT(store->access().IsInobject());
+          DCHECK(store->access().IsInobject());
           state = NewStateCopy(store->previous(), state);
           state->SetOperandAt(index, store->value());
           if (store->has_transition()) {
@@ -286,7 +286,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
   }
 
   // All uses have been handled.
-  ASSERT(allocate->HasNoUses());
+  DCHECK(allocate->HasNoUses());
   allocate->DeleteAndReplaceWith(NULL);
 }
 
@@ -299,14 +299,14 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     int size_in_bytes = allocate->size()->GetInteger32Constant();
     number_of_values_ = size_in_bytes / kPointerSize;
     number_of_objects_++;
-    block_states_.Clear();
+    block_states_.Rewind(0);
 
     // Perform actual analysis step.
     AnalyzeDataFlow(allocate);
 
     cumulative_values_ += number_of_values_;
-    ASSERT(allocate->HasNoUses());
-    ASSERT(!allocate->IsLinked());
+    DCHECK(allocate->HasNoUses());
+    DCHECK(!allocate->IsLinked());
   }
 }
 
@@ -320,7 +320,7 @@ void HEscapeAnalysisPhase::Run() {
     CollectCapturedValues();
     if (captured_.is_empty()) break;
     PerformScalarReplacement();
-    captured_.Clear();
+    captured_.Rewind(0);
   }
 }
 

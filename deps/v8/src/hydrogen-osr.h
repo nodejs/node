@@ -5,9 +5,9 @@
 #ifndef V8_HYDROGEN_OSR_H_
 #define V8_HYDROGEN_OSR_H_
 
-#include "hydrogen.h"
-#include "ast.h"
-#include "zone.h"
+#include "src/hydrogen.h"
+#include "src/ast.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

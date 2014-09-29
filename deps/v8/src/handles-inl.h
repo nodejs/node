@@ -6,10 +6,10 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
-#include "api.h"
-#include "handles.h"
-#include "heap.h"
-#include "isolate.h"
+#include "src/api.h"
+#include "src/handles.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +29,7 @@ Handle<T>::Handle(T* obj, Isolate* isolate) {
 template <typename T>
 inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
   // Dereferencing deferred handles to check object equality is safe.
-  SLOW_ASSERT(
+  SLOW_DCHECK(
       (location_ == NULL || IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
       (o.location_ == NULL || o.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
   if (location_ == o.location_) return true;
@@ -40,13 +40,13 @@ inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
 
 template <typename T>
 inline T* Handle<T>::operator*() const {
-  SLOW_ASSERT(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
+  SLOW_DCHECK(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return *BitCast<T**>(location_);
 }
 
 template <typename T>
 inline T** Handle<T>::location() const {
-  SLOW_ASSERT(location_ == NULL ||
+  SLOW_DCHECK(location_ == NULL ||
               IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return location_;
 }
@@ -54,7 +54,7 @@ inline T** Handle<T>::location() const {
 #ifdef DEBUG
 template <typename T>
 bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
-  ASSERT(location_ != NULL);
+  DCHECK(location_ != NULL);
   Object* object = *BitCast<T**>(location_);
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);
@@ -123,7 +123,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
-  ASSERT(current->level > 0);
+  DCHECK(current->level > 0);
   Handle<T> result(CreateHandle<T>(isolate_, value));
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
@@ -136,14 +136,14 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 
 template <typename T>
 T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
-  ASSERT(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* current = isolate->handle_scope_data();
 
   internal::Object** cur = current->next;
   if (cur == current->limit) cur = Extend(isolate);
   // Update the current next field, set the value in the created
   // handle, and return the result.
-  ASSERT(cur < current->limit);
+  DCHECK(cur < current->limit);
   current->next = cur + 1;
 
   T** result = reinterpret_cast<T**>(cur);
@@ -170,9 +170,9 @@ inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
   HandleScopeData* current = isolate_->handle_scope_data();
-  ASSERT_EQ(0, current->level);
+  DCHECK_EQ(0, current->level);
   current->level = level_;
-  ASSERT_EQ(current->next, current->limit);
+  DCHECK_EQ(current->next, current->limit);
   current->limit = limit_;
 }
 

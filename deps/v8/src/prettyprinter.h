@@ -5,8 +5,8 @@
 #ifndef V8_PRETTYPRINTER_H_
 #define V8_PRETTYPRINTER_H_
 
-#include "allocation.h"
-#include "ast.h"
+#include "src/allocation.h"
+#include "src/ast.h"
 
 namespace v8 {
 namespace internal {
@@ -44,9 +44,10 @@ class PrettyPrinter: public AstVisitor {
   const char* Output() const { return output_; }
 
   virtual void PrintStatements(ZoneList<Statement*>* statements);
-  void PrintLabels(ZoneStringList* labels);
+  void PrintLabels(ZoneList<const AstRawString*>* labels);
   virtual void PrintArguments(ZoneList<Expression*>* arguments);
   void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(const AstRawString* value, bool quote);
   void PrintParameters(Scope* scope);
   void PrintDeclarations(ZoneList<Declaration*>* declarations);
   void PrintFunctionLiteral(FunctionLiteral* function);
@@ -83,7 +84,7 @@ class AstPrinter: public PrettyPrinter {
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
                                     Handle<Object> value);
-  void PrintLabelsIndented(ZoneStringList* labels);
+  void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

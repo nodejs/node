@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/full-codegen.h"
+#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 12;
+const int Deoptimizer::table_entry_size_ = 8;
 
 
 int Deoptimizer::patch_size() {
@@ -49,9 +49,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* shared =
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
@@ -68,13 +65,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
                                                        deopt_entry,
                                                        RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
-    ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
-    ASSERT(call_size_in_bytes <= patch_size());
+    DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
+    DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -105,7 +102,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler_);
+  ApiFunction function(descriptor->deoptimization_handler());
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
   int params = descriptor->GetHandlerParameterCount();
@@ -128,11 +125,6 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 }
 
 
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
-}
-
-
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
@@ -150,8 +142,8 @@ void Deoptimizer::EntryGenerator::Generate() {
       kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  ASSERT(kDoubleRegZero.code() == 14);
-  ASSERT(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 14);
+  DCHECK(kScratchDoubleReg.code() == 15);
 
   // Check CPU flags for number of registers, setting the Z condition flag.
   __ CheckFor32DRegs(ip);
@@ -202,7 +194,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  ASSERT(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r2, MemOperand(sp, i * kPointerSize));
@@ -333,11 +325,11 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     int start = masm()->pc_offset();
     USE(start);
     __ mov(ip, Operand(i));
-    __ push(ip);
     __ b(&done);
-    ASSERT(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
+  __ push(ip);
 }
 
 
@@ -352,7 +344,7 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  ASSERT(FLAG_enable_ool_constant_pool);
+  DCHECK(FLAG_enable_ool_constant_pool);
   SetFrameSlot(offset, value);
 }
 

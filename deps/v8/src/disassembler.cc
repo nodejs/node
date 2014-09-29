@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "code-stubs.h"
-#include "codegen.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "macro-assembler.h"
-#include "serialize.h"
-#include "string-stream.h"
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
+#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +50,7 @@ class V8NameConverter: public disasm::NameConverter {
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   const char* name = code_->GetIsolate()->builtins()->Lookup(pc);
   if (name != NULL) {
-    OS::SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
+    SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
     return v8_buffer_.start();
   }
 
@@ -58,7 +58,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      OS::SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
+      SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
       return v8_buffer_.start();
     }
   }
@@ -95,7 +95,6 @@ static int DecodeIt(Isolate* isolate,
   SealHandleScope shs(isolate);
   DisallowHeapAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder(isolate);
-  Heap* heap = isolate->heap();
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
@@ -114,27 +113,27 @@ static int DecodeIt(Isolate* isolate,
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
     if (constants > 0) {
-      OS::SNPrintF(decode_buffer,
-                   "%08x       constant",
-                   *reinterpret_cast<int32_t*>(pc));
+      SNPrintF(decode_buffer,
+               "%08x       constant",
+               *reinterpret_cast<int32_t*>(pc));
       constants--;
       pc += 4;
     } else {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
-        OS::SNPrintF(decode_buffer,
-                     "%08x       constant pool begin",
-                     *reinterpret_cast<int32_t*>(pc));
+        SNPrintF(decode_buffer,
+                 "%08x       constant pool begin",
+                 *reinterpret_cast<int32_t*>(pc));
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
           it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
-        OS::SNPrintF(decode_buffer,
-                     "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
-                     ptr,
-                     ptr - begin);
+        SNPrintF(decode_buffer,
+                 "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
+                 reinterpret_cast<intptr_t>(ptr),
+                 ptr - begin);
         pc += 4;
       } else {
         decode_buffer[0] = '\0';
@@ -226,29 +225,21 @@ static int DecodeIt(Isolate* isolate,
             out.AddFormatted(", %s", Code::StubType2String(type));
           }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
-          // Reverse lookup required as the minor key cannot be retrieved
-          // from the code object.
-          Object* obj = heap->code_stubs()->SlowReverseLookup(code);
-          if (obj != heap->undefined_value()) {
-            ASSERT(obj->IsSmi());
-            // Get the STUB key and extract major and minor key.
-            uint32_t key = Smi::cast(obj)->value();
-            uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-            CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-            ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
-            out.AddFormatted(" %s, %s, ",
-                             Code::Kind2String(kind),
-                             CodeStub::MajorName(major_key, false));
-            switch (major_key) {
-              case CodeStub::CallFunction: {
-                int argc =
-                    CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
-                out.AddFormatted("argc = %d", argc);
-                break;
-              }
-              default:
-                out.AddFormatted("minor: %d", minor_key);
+          // Get the STUB key and extract major and minor key.
+          uint32_t key = code->stub_key();
+          uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+          CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+          DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
+          out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                           CodeStub::MajorName(major_key, false));
+          switch (major_key) {
+            case CodeStub::CallFunction: {
+              int argc = CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
+              out.AddFormatted("argc = %d", argc);
+              break;
             }
+            default:
+              out.AddFormatted("minor: %d", minor_key);
           }
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));

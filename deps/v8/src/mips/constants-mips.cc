@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "constants-mips.h"
+#include "src/mips/constants-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -151,7 +151,7 @@ bool Instruction::IsForbiddenInBranchDelay() const {
           return true;
         default:
           return false;
-      };
+      }
       break;
     case SPECIAL:
       switch (FunctionFieldRaw()) {
@@ -160,11 +160,11 @@ bool Instruction::IsForbiddenInBranchDelay() const {
           return true;
         default:
           return false;
-      };
+      }
       break;
     default:
       return false;
-  };
+  }
 }
 
 
@@ -180,17 +180,17 @@ bool Instruction::IsLinkingInstruction() const {
           return true;
       default:
         return false;
-      };
+      }
     case SPECIAL:
       switch (FunctionFieldRaw()) {
         case JALR:
           return true;
         default:
           return false;
-      };
+      }
     default:
       return false;
-  };
+  }
 }
 
 
@@ -209,7 +209,7 @@ bool Instruction::IsTrap() const {
         return true;
       default:
         return false;
-    };
+    }
   }
 }
 
@@ -255,7 +255,7 @@ Instruction::Type Instruction::InstructionType() const {
           return kRegisterType;
         default:
           return kUnsupported;
-      };
+      }
       break;
     case SPECIAL2:
       switch (FunctionFieldRaw()) {
@@ -264,7 +264,7 @@ Instruction::Type Instruction::InstructionType() const {
           return kRegisterType;
         default:
           return kUnsupported;
-      };
+      }
       break;
     case SPECIAL3:
       switch (FunctionFieldRaw()) {
@@ -273,7 +273,7 @@ Instruction::Type Instruction::InstructionType() const {
           return kRegisterType;
         default:
           return kUnsupported;
-      };
+      }
       break;
     case COP1:    // Coprocessor instructions.
       switch (RsFieldRawNoAssert()) {
@@ -281,7 +281,7 @@ Instruction::Type Instruction::InstructionType() const {
           return kImmediateType;
         default:
           return kRegisterType;
-      };
+      }
       break;
     case COP1X:
       return kRegisterType;
@@ -326,7 +326,7 @@ Instruction::Type Instruction::InstructionType() const {
       return kJumpType;
     default:
       return kUnsupported;
-  };
+  }
   return kUnsupported;
 }
 

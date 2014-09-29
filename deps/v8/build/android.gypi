@@ -35,9 +35,6 @@
     'variables': {
       'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
       'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
-      # This is set when building the Android WebView inside the Android build
-      # system, using the 'android' gyp backend.
-      'android_webview_build%': 0,
     },
     'conditions': [
       ['android_ndk_root==""', {
@@ -64,9 +61,6 @@
     # link the NDK one?
     'use_system_stlport%': '<(android_webview_build)',
     'android_stlport_library': 'stlport_static',
-    # Copy it out one scope.
-    'android_webview_build%': '<(android_webview_build)',
-    'OS': 'android',
   },  # variables
   'target_defaults': {
     'defines': [
@@ -81,7 +75,12 @@
       },  # Release
     },  # configurations
     'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter',
-                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions', ],
+                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
+                # Note: Using -std=c++0x will define __STRICT_ANSI__, which in
+                # turn will leave out some template stuff for 'long long'. What
+                # we want is -std=c++11, but this is not supported by GCC 4.6 or
+                # Xcode 4.2
+                '-std=gnu++0x' ],
     'target_conditions': [
       ['_toolset=="target"', {
         'cflags!': [
@@ -179,7 +178,7 @@
                   '-L<(android_stlport_libs)/mips',
                 ],
               }],
-              ['target_arch=="ia32"', {
+              ['target_arch=="ia32" or target_arch=="x87"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
                 ],
@@ -196,7 +195,7 @@
               }],
             ],
           }],
-          ['target_arch=="ia32"', {
+          ['target_arch=="ia32" or target_arch=="x87"', {
             # The x86 toolchain currently has problems with stack-protector.
             'cflags!': [
               '-fstack-protector',
@@ -213,6 +212,15 @@
             ],
             'cflags': [
               '-fno-stack-protector',
+            ],
+          }],
+          ['target_arch=="arm64" or target_arch=="x64"', {
+            # TODO(ulan): Enable PIE for other architectures (crbug.com/373219).
+            'cflags': [
+              '-fPIE',
+            ],
+            'ldflags': [
+              '-pie',
             ],
           }],
         ],
@@ -257,15 +265,8 @@
       }],  # _toolset=="target"
       # Settings for building host targets using the system toolchain.
       ['_toolset=="host"', {
-        'conditions': [
-          ['target_arch=="x64"', {
-            'cflags': [ '-m64', '-pthread' ],
-            'ldflags': [ '-m64', '-pthread' ],
-          }, {
-            'cflags': [ '-m32', '-pthread' ],
-            'ldflags': [ '-m32', '-pthread' ],
-          }],
-        ],
+        'cflags': [ '-pthread' ],
+        'ldflags': [ '-pthread' ],
         'ldflags!': [
           '-Wl,-z,noexecstack',
           '-Wl,--gc-sections',

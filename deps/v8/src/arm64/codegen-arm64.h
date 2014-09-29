@@ -5,8 +5,8 @@
 #ifndef V8_ARM64_CODEGEN_ARM64_H_
 #define V8_ARM64_CODEGEN_ARM64_H_
 
-#include "ast.h"
-#include "ic-inl.h"
+#include "src/ast.h"
+#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {

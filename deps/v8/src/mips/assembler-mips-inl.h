@@ -37,14 +37,18 @@
 #ifndef V8_MIPS_ASSEMBLER_MIPS_INL_H_
 #define V8_MIPS_ASSEMBLER_MIPS_INL_H_
 
-#include "mips/assembler-mips.h"
+#include "src/mips/assembler-mips.h"
 
-#include "cpu.h"
-#include "debug.h"
+#include "src/assembler.h"
+#include "src/debug.h"
 
 
 namespace v8 {
 namespace internal {
+
+
+bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
+
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
@@ -96,11 +100,11 @@ int DoubleRegister::NumAllocatableRegisters() {
 
 
 int FPURegister::ToAllocationIndex(FPURegister reg) {
-  ASSERT(reg.code() % 2 == 0);
-  ASSERT(reg.code() / 2 < kMaxNumAllocatableRegisters);
-  ASSERT(reg.is_valid());
-  ASSERT(!reg.is(kDoubleRegZero));
-  ASSERT(!reg.is(kLithiumScratchDouble));
+  DCHECK(reg.code() % 2 == 0);
+  DCHECK(reg.code() / 2 < kMaxNumAllocatableRegisters);
+  DCHECK(reg.is_valid());
+  DCHECK(!reg.is(kDoubleRegZero));
+  DCHECK(!reg.is(kLithiumScratchDouble));
   return (reg.code() / 2);
 }
 
@@ -108,7 +112,7 @@ int FPURegister::ToAllocationIndex(FPURegister reg) {
 // -----------------------------------------------------------------------------
 // RelocInfo.
 
-void RelocInfo::apply(intptr_t delta) {
+void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
   if (IsCodeTarget(rmode_)) {
     uint32_t scope1 = (uint32_t) target_address() & ~kImm28Mask;
     uint32_t scope2 = reinterpret_cast<uint32_t>(pc_) & ~kImm28Mask;
@@ -121,19 +125,19 @@ void RelocInfo::apply(intptr_t delta) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
     int count = Assembler::RelocateInternalReference(p, delta);
-    CPU::FlushICache(p, count * sizeof(uint32_t));
+    CpuFeatures::FlushICache(p, count * sizeof(uint32_t));
   }
 }
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) ||
+  DCHECK(IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          rmode_ == EMBEDDED_OBJECT ||
          rmode_ == EXTERNAL_REFERENCE);
@@ -167,10 +171,13 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target);
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
+void RelocInfo::set_target_address(Address target,
+                                   WriteBarrierMode write_barrier_mode,
+                                   ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
+      host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
@@ -183,25 +190,32 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::break_address_from_return_address(Address pc) {
+  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
+}
+
+
 Object* RelocInfo::target_object() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
       Assembler::target_address_at(pc_, host_)));
 }
 
 
-void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  ASSERT(!target->IsConsString());
+void RelocInfo::set_target_object(Object* target,
+                                  WriteBarrierMode write_barrier_mode,
+                                  ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(pc_, host_,
-                                   reinterpret_cast<Address>(target));
-  if (mode == UPDATE_WRITE_BARRIER &&
+                                   reinterpret_cast<Address>(target),
+                                   icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWrite(
@@ -211,42 +225,46 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 
 
 Address RelocInfo::target_reference() {
-  ASSERT(rmode_ == EXTERNAL_REFERENCE);
+  DCHECK(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
 }
 
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  ASSERT(IsRuntimeEntry(rmode_));
+  DCHECK(IsRuntimeEntry(rmode_));
   return target_address();
 }
 
 
 void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode mode) {
-  ASSERT(IsRuntimeEntry(rmode_));
-  if (target_address() != target) set_target_address(target, mode);
+                                         WriteBarrierMode write_barrier_mode,
+                                         ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  if (target_address() != target)
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
 }
 
 
 Handle<Cell> RelocInfo::target_cell_handle() {
-  ASSERT(rmode_ == RelocInfo::CELL);
+  DCHECK(rmode_ == RelocInfo::CELL);
   Address address = Memory::Address_at(pc_);
   return Handle<Cell>(reinterpret_cast<Cell**>(address));
 }
 
 
 Cell* RelocInfo::target_cell() {
-  ASSERT(rmode_ == RelocInfo::CELL);
+  DCHECK(rmode_ == RelocInfo::CELL);
   return Cell::FromValueAddress(Memory::Address_at(pc_));
 }
 
 
-void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
-  ASSERT(rmode_ == RelocInfo::CELL);
+void RelocInfo::set_target_cell(Cell* cell,
+                                WriteBarrierMode write_barrier_mode,
+                                ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::CELL);
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
     // TODO(1550) We are passing NULL as a slot because cell can never be on
     // evacuation candidate.
     host()->GetHeap()->incremental_marking()->RecordWrite(
@@ -265,14 +283,15 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 
 
 Code* RelocInfo::code_age_stub() {
-  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   return Code::GetCodeFromTargetAddress(
       Assembler::target_address_at(pc_ + Assembler::kInstrSize, host_));
 }
 
 
-void RelocInfo::set_code_age_stub(Code* stub) {
-  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+void RelocInfo::set_code_age_stub(Code* stub,
+                                  ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   Assembler::set_target_address_at(pc_ + Assembler::kInstrSize,
                                    host_,
                                    stub->instruction_start());
@@ -280,7 +299,7 @@ void RelocInfo::set_code_age_stub(Code* stub) {
 
 
 Address RelocInfo::call_address() {
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // The pc_ offset of 0 assumes mips patched return sequence per
   // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
@@ -290,7 +309,7 @@ Address RelocInfo::call_address() {
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // The pc_ offset of 0 assumes mips patched return sequence per
   // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
@@ -310,7 +329,7 @@ Object* RelocInfo::call_object() {
 
 
 Object** RelocInfo::call_object_address() {
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   return reinterpret_cast<Object**>(pc_ + 2 * Assembler::kInstrSize);
 }
@@ -322,7 +341,7 @@ void RelocInfo::set_call_object(Object* target) {
 
 
 void RelocInfo::WipeOut() {
-  ASSERT(IsEmbeddedObject(rmode_) ||
+  DCHECK(IsEmbeddedObject(rmode_) ||
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));

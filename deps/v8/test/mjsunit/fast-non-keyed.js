@@ -108,6 +108,6 @@ var obj3 = {};
 AddProps3(obj3);
 assertTrue(%HasFastProperties(obj3));
 
-var bad_name = {};
-bad_name[".foo"] = 0;
-assertFalse(%HasFastProperties(bad_name));
+var funny_name = {};
+funny_name[".foo"] = 0;
+assertTrue(%HasFastProperties(funny_name));

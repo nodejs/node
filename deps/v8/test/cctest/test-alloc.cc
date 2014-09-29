@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "accessors.h"
-#include "api.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "cctest.h"
+#include "src/accessors.h"
+#include "src/api.h"
 
 
 using namespace v8::internal;
@@ -50,7 +50,6 @@ static AllocationResult AllocateAfterFailures() {
   // for specific kinds.
   heap->AllocateFixedArray(100).ToObjectChecked();
   heap->AllocateHeapNumber(0.42).ToObjectChecked();
-  heap->AllocateArgumentsObject(Smi::FromInt(87), 10).ToObjectChecked();
   Object* object = heap->AllocateJSObject(
       *CcTest::i_isolate()->object_function()).ToObjectChecked();
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
@@ -67,7 +66,7 @@ static AllocationResult AllocateAfterFailures() {
   static const int kLargeObjectSpaceFillerLength = 300000;
   static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
       kLargeObjectSpaceFillerLength);
-  ASSERT(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
+  DCHECK(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     heap->AllocateFixedArray(
         kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
@@ -137,8 +136,8 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
   // Force the creation of an initial map and set the code to
   // something empty.
   factory->NewJSObject(function);
@@ -147,7 +146,7 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  ASSERT(instance_descriptors->IsEmpty());
+  DCHECK(instance_descriptors->IsEmpty());
 
   PropertyAttributes attrs = static_cast<PropertyAttributes>(0);
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
@@ -196,13 +195,13 @@ class Block {
 
 
 TEST(CodeRange) {
-  const int code_range_size = 32*MB;
+  const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
   CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
   code_range.SetUp(code_range_size);
-  int current_allocated = 0;
-  int total_allocated = 0;
-  List<Block> blocks(1000);
+  size_t current_allocated = 0;
+  size_t total_allocated = 0;
+  List< ::Block> blocks(1000);
 
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
@@ -219,7 +218,7 @@ TEST(CodeRange) {
                                                   requested,
                                                   &allocated);
       CHECK(base != NULL);
-      blocks.Add(Block(base, static_cast<int>(allocated)));
+      blocks.Add(::Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {

@@ -4,53 +4,15 @@
 
 // The common functionality when building with or without snapshots.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "serialize.h"
-#include "snapshot.h"
-#include "platform.h"
+#include "src/api.h"
+#include "src/base/platform/platform.h"
+#include "src/serialize.h"
+#include "src/snapshot.h"
 
 namespace v8 {
 namespace internal {
-
-
-static void ReserveSpaceForSnapshot(Deserializer* deserializer,
-                                    const char* file_name) {
-  int file_name_length = StrLength(file_name) + 10;
-  Vector<char> name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(name, "%s.size", file_name);
-  FILE* fp = OS::FOpen(name.start(), "r");
-  CHECK_NE(NULL, fp);
-  int new_size, pointer_size, data_size, code_size, map_size, cell_size,
-      property_cell_size;
-#ifdef _MSC_VER
-  // Avoid warning about unsafe fscanf from MSVC.
-  // Please note that this is only fine if %c and %s are not being used.
-#define fscanf fscanf_s
-#endif
-  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
-  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
-  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
-  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
-  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
-  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
-  CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
-#ifdef _MSC_VER
-#undef fscanf
-#endif
-  fclose(fp);
-  deserializer->set_reservation(NEW_SPACE, new_size);
-  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_size);
-  deserializer->set_reservation(OLD_DATA_SPACE, data_size);
-  deserializer->set_reservation(CODE_SPACE, code_size);
-  deserializer->set_reservation(MAP_SPACE, map_size);
-  deserializer->set_reservation(CELL_SPACE, cell_size);
-  deserializer->set_reservation(PROPERTY_CELL_SPACE,
-                                property_cell_size);
-  name.Dispose();
-}
-
 
 void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
   deserializer->set_reservation(NEW_SPACE, new_space_used_);
@@ -64,22 +26,9 @@ void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
 }
 
 
-bool Snapshot::Initialize(const char* snapshot_file) {
-  if (snapshot_file) {
-    int len;
-    byte* str = ReadBytes(snapshot_file, &len);
-    if (!str) return false;
-    bool success;
-    {
-      SnapshotByteSource source(str, len);
-      Deserializer deserializer(&source);
-      ReserveSpaceForSnapshot(&deserializer, snapshot_file);
-      success = V8::Initialize(&deserializer);
-    }
-    DeleteArray(str);
-    return success;
-  } else if (size_ > 0) {
-    ElapsedTimer timer;
+bool Snapshot::Initialize() {
+  if (size_ > 0) {
+    base::ElapsedTimer timer;
     if (FLAG_profile_deserialization) {
       timer.Start();
     }
@@ -122,5 +71,16 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   CHECK(root->IsContext());
   return Handle<Context>(Context::cast(root));
 }
+
+
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+// Dummy implementations of Set*FromFile(..) APIs.
+//
+// These are meant for use with snapshot-external.cc. Should this file
+// be compiled with those options we just supply these dummy implementations
+// below. This happens when compiling the mksnapshot utility.
+void SetNativesFromFile(StartupData* data) { CHECK(false); }
+void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 } }  // namespace v8::internal

@@ -27,11 +27,11 @@
 
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "global-handles.h"
-#include "snapshot.h"
-#include "cctest.h"
+#include "src/global-handles.h"
+#include "src/snapshot.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -46,10 +46,12 @@ static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
   Handle<Map> map = factory->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
   Handle<JSObject> weakmap_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
-  // Do not use handles for the hash table, it would make entries strong.
-  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
-  weakmap->set_table(*table);
-  weakmap->set_next(Smi::FromInt(0));
+  // Do not leak handles for the hash table, it would make entries strong.
+  {
+    HandleScope scope(isolate);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+    weakmap->set_table(*table);
+  }
   return weakmap;
 }
 
@@ -69,7 +71,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  ASSERT_EQ(1234, p->second);
+  DCHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }
@@ -185,8 +187,8 @@ TEST(Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
@@ -225,8 +227,8 @@ TEST(Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();
@@ -252,4 +254,21 @@ TEST(Regress2060b) {
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   heap->CollectAllGarbage(Heap::kNoGCFlags);
+}
+
+
+TEST(Regress399527) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  {
+    HandleScope scope(isolate);
+    AllocateJSWeakMap(isolate);
+    SimulateIncrementalMarking(heap);
+  }
+  // The weak map is marked black here but leaving the handle scope will make
+  // the object unreachable. Aborting incremental marking will clear all the
+  // marking bits which makes the weak map garbage.
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }

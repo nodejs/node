@@ -27,16 +27,17 @@
 
 #include <stdio.h>
 #include <cstring>
-#include "cctest.h"
 
-#include "v8.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "macro-assembler.h"
-#include "arm64/assembler-arm64.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/decoder-arm64-inl.h"
-#include "arm64/disasm-arm64.h"
-#include "arm64/utils-arm64.h"
+#include "src/macro-assembler.h"
+
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/decoder-arm64-inl.h"
+#include "src/arm64/disasm-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/utils-arm64.h"
 
 using namespace v8::internal;
 
@@ -1601,7 +1602,7 @@ TEST_(system_nop) {
 TEST_(debug) {
   SET_UP();
 
-  ASSERT(kImmExceptionIsDebug == 0xdeb0);
+  DCHECK(kImmExceptionIsDebug == 0xdeb0);
 
   // All debug codes should produce the same instruction, and the debug code
   // can be any uint32_t.

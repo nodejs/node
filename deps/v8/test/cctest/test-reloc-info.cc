@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "cctest.h"
-#include "assembler.h"
+#include "src/assembler.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

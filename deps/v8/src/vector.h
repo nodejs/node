@@ -8,9 +8,9 @@
 #include <string.h>
 #include <algorithm>
 
-#include "allocation.h"
-#include "checks.h"
-#include "globals.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ class Vector {
  public:
   Vector() : start_(NULL), length_(0) {}
   Vector(T* data, int length) : start_(data), length_(length) {
-    ASSERT(length == 0 || (length > 0 && data != NULL));
+    DCHECK(length == 0 || (length > 0 && data != NULL));
   }
 
   static Vector<T> New(int length) {
@@ -31,9 +31,9 @@ class Vector {
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) {
-    SLOW_ASSERT(to <= length_);
-    SLOW_ASSERT(from < to);
-    ASSERT(0 <= from);
+    SLOW_DCHECK(to <= length_);
+    SLOW_DCHECK(from < to);
+    DCHECK(0 <= from);
     return Vector<T>(start() + from, to - from);
   }
 
@@ -48,7 +48,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](int index) const {
-    ASSERT(0 <= index && index < length_);
+    DCHECK(0 <= index && index < length_);
     return start_[index];
   }
 
@@ -74,7 +74,7 @@ class Vector {
   }
 
   void Truncate(int length) {
-    ASSERT(length <= length_);
+    DCHECK(length <= length_);
     length_ = length;
   }
 
@@ -87,7 +87,7 @@ class Vector {
   }
 
   inline Vector<T> operator+(int offset) {
-    ASSERT(offset < length_);
+    DCHECK(offset < length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
 
@@ -98,6 +98,17 @@ class Vector {
   static Vector<T> cast(Vector<S> input) {
     return Vector<T>(reinterpret_cast<T*>(input.start()),
                      input.length() * sizeof(S) / sizeof(T));
+  }
+
+  bool operator==(const Vector<T>& other) const {
+    if (length_ != other.length_) return false;
+    if (start_ == other.start_) return true;
+    for (int i = 0; i < length_; ++i) {
+      if (start_[i] != other.start_[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
  protected:
@@ -135,7 +146,7 @@ class ScopedVector : public Vector<T> {
 
 inline int StrLength(const char* string) {
   size_t length = strlen(string);
-  ASSERT(length == static_cast<size_t>(static_cast<int>(length)));
+  DCHECK(length == static_cast<size_t>(static_cast<int>(length)));
   return static_cast<int>(length);
 }
 

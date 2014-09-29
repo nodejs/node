@@ -5,8 +5,8 @@
 #ifndef V8_MISC_INTRINSICS_H_
 #define V8_MISC_INTRINSICS_H_
 
-#include "../include/v8.h"
-#include "globals.h"
+#include "include/v8.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

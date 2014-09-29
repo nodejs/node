@@ -4,9 +4,9 @@
 //
 // This file was generated at 2014-02-07 15:31:16.733174
 
-#include "unicode-inl.h"
-#include <stdlib.h>
+#include "src/unicode-inl.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 namespace unibrow {
 
@@ -271,7 +271,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer,
   while (stream_length != 0) {
     unsigned cursor = 0;
     uint32_t character = Utf8::ValueOf(stream, stream_length, &cursor);
-    ASSERT(cursor > 0 && cursor <= stream_length);
+    DCHECK(cursor > 0 && cursor <= stream_length);
     stream += cursor;
     stream_length -= cursor;
     bool is_two_characters = character > Utf16::kMaxNonSurrogateCharCode;
@@ -296,7 +296,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer,
     }
     // Have gone over buffer.
     // Last char of buffer is unused, set cursor back.
-    ASSERT(is_two_characters);
+    DCHECK(is_two_characters);
     writing_to_buffer = false;
     last_byte_of_buffer_unused_ = true;
     unbuffered_start_ = stream - cursor;
@@ -317,7 +317,7 @@ void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
     if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *data++ = Utf16::LeadSurrogate(character);
       *data++ = Utf16::TrailSurrogate(character);
-      ASSERT(data_length > 1);
+      DCHECK(data_length > 1);
       data_length -= 2;
     } else {
       *data++ = character;

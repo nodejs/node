@@ -5,9 +5,9 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
-#include "heap-snapshot-generator-inl.h"
-#include "isolate.h"
-#include "smart-pointers.h"
+#include "src/heap-snapshot-generator-inl.h"
+#include "src/isolate.h"
+#include "src/smart-pointers.h"
 
 namespace v8 {
 namespace internal {

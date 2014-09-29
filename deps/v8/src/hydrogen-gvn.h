@@ -5,13 +5,15 @@
 #ifndef V8_HYDROGEN_GVN_H_
 #define V8_HYDROGEN_GVN_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
-#include "zone.h"
+#include "src/compiler.h"
+#include "src/hydrogen.h"
+#include "src/hydrogen-instructions.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
+
+class OStream;
 
 // This class extends GVNFlagSet with additional "special" dynamic side effects,
 // which can be used to represent side effects that cannot be expressed using
@@ -22,7 +24,7 @@ class SideEffects V8_FINAL {
   static const int kNumberOfSpecials = 64 - kNumberOfFlags;
 
   SideEffects() : bits_(0) {
-    ASSERT(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
+    DCHECK(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
   }
   explicit SideEffects(GVNFlagSet flags) : bits_(flags.ToIntegral()) {}
   bool IsEmpty() const { return bits_ == 0; }
@@ -38,15 +40,14 @@ class SideEffects V8_FINAL {
   void RemoveFlag(GVNFlag flag) { bits_ &= ~MaskFlag(flag); }
   void RemoveAll() { bits_ = 0; }
   uint64_t ToIntegral() const { return bits_; }
-  void PrintTo(StringStream* stream) const;
 
  private:
   uint64_t MaskFlag(GVNFlag flag) const {
     return static_cast<uint64_t>(1) << static_cast<unsigned>(flag);
   }
   uint64_t MaskSpecial(int special) const {
-    ASSERT(special >= 0);
-    ASSERT(special < kNumberOfSpecials);
+    DCHECK(special >= 0);
+    DCHECK(special < kNumberOfSpecials);
     return static_cast<uint64_t>(1) << static_cast<unsigned>(
         special + kNumberOfFlags);
   }
@@ -54,6 +55,8 @@ class SideEffects V8_FINAL {
   uint64_t bits_;
 };
 
+
+struct TrackedEffects;
 
 // Tracks global variable and inobject field loads/stores in a fine grained
 // fashion, and represents them using the "special" dynamic side effects of the
@@ -65,20 +68,20 @@ class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
   SideEffectsTracker() : num_global_vars_(0), num_inobject_fields_(0) {}
   SideEffects ComputeChanges(HInstruction* instr);
   SideEffects ComputeDependsOn(HInstruction* instr);
-  void PrintSideEffectsTo(StringStream* stream, SideEffects side_effects) const;
 
  private:
+  friend OStream& operator<<(OStream& os, const TrackedEffects& f);
   bool ComputeGlobalVar(Unique<Cell> cell, int* index);
   bool ComputeInobjectField(HObjectAccess access, int* index);
 
   static int GlobalVar(int index) {
-    ASSERT(index >= 0);
-    ASSERT(index < kNumberOfGlobalVars);
+    DCHECK(index >= 0);
+    DCHECK(index < kNumberOfGlobalVars);
     return index;
   }
   static int InobjectField(int index) {
-    ASSERT(index >= 0);
-    ASSERT(index < kNumberOfInobjectFields);
+    DCHECK(index >= 0);
+    DCHECK(index < kNumberOfInobjectFields);
     return index + kNumberOfGlobalVars;
   }
 
@@ -93,6 +96,18 @@ class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
   HObjectAccess inobject_fields_[kNumberOfInobjectFields];
   int num_inobject_fields_;
 };
+
+
+// Helper class for printing, because the effects don't know their tracker.
+struct TrackedEffects {
+  TrackedEffects(SideEffectsTracker* t, SideEffects e)
+      : tracker(t), effects(e) {}
+  SideEffectsTracker* tracker;
+  SideEffects effects;
+};
+
+
+OStream& operator<<(OStream& os, const TrackedEffects& f);
 
 
 // Perform common subexpression elimination and loop-invariant code motion.
@@ -114,6 +129,9 @@ class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
                         SideEffects loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
+  TrackedEffects Print(SideEffects side_effects) {
+    return TrackedEffects(&side_effects_tracker_, side_effects);
+  }
 
   SideEffectsTracker side_effects_tracker_;
   bool removed_side_effects_;

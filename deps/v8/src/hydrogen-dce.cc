@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-dce.h"
-#include "v8.h"
+#include "src/hydrogen-dce.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -32,16 +32,14 @@ void HDeadCodeEliminationPhase::MarkLive(
 
 
 void HDeadCodeEliminationPhase::PrintLive(HValue* ref, HValue* instr) {
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
+  OFStream os(stdout);
+  os << "[MarkLive ";
   if (ref != NULL) {
-    ref->PrintTo(&stream);
+    os << *ref;
   } else {
-    stream.Add("root ");
+    os << "root ";
   }
-  stream.Add(" -> ");
-  instr->PrintTo(&stream);
-  PrintF("[MarkLive %s]\n", stream.ToCString().get());
+  os << " -> " << *instr << "]" << endl;
 }
 
 
@@ -61,7 +59,7 @@ void HDeadCodeEliminationPhase::MarkLiveInstructions() {
     }
   }
 
-  ASSERT(worklist.is_empty());  // Should have processed everything.
+  DCHECK(worklist.is_empty());  // Should have processed everything.
 }
 
 

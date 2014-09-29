@@ -6,17 +6,27 @@
 
 #include <cmath>
 
-#include "scanner.h"
+#include "src/v8.h"
 
-#include "../include/v8stdint.h"
-#include "char-predicates-inl.h"
-#include "conversions-inl.h"
-#include "list-inl.h"
-#include "v8.h"
-#include "parser.h"
+#include "include/v8stdint.h"
+#include "src/ast-value-factory.h"
+#include "src/char-predicates-inl.h"
+#include "src/conversions-inl.h"
+#include "src/list-inl.h"
+#include "src/parser.h"
+#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {
+
+
+Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
+  if (is_one_byte()) {
+    return isolate->factory()->InternalizeOneByteString(one_byte_literal());
+  }
+  return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
+}
+
 
 // ----------------------------------------------------------------------------
 // Scanner
@@ -43,7 +53,7 @@ void Scanner::Initialize(Utf16CharacterStream* source) {
 
 
 uc32 Scanner::ScanHexNumber(int expected_length) {
-  ASSERT(expected_length <= 4);  // prevent overflow
+  DCHECK(expected_length <= 4);  // prevent overflow
 
   uc32 digits[4] = { 0, 0, 0, 0 };
   uc32 x = 0;
@@ -294,8 +304,70 @@ Token::Value Scanner::SkipSingleLineComment() {
 }
 
 
+Token::Value Scanner::SkipSourceURLComment() {
+  TryToParseSourceURLComment();
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+    Advance();
+  }
+
+  return Token::WHITESPACE;
+}
+
+
+void Scanner::TryToParseSourceURLComment() {
+  // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
+  // function will just return if it cannot parse a magic comment.
+  if (!unicode_cache_->IsWhiteSpace(c0_))
+    return;
+  Advance();
+  LiteralBuffer name;
+  while (c0_ >= 0 && !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) &&
+         c0_ != '=') {
+    name.AddChar(c0_);
+    Advance();
+  }
+  if (!name.is_one_byte()) return;
+  Vector<const uint8_t> name_literal = name.one_byte_literal();
+  LiteralBuffer* value;
+  if (name_literal == STATIC_ASCII_VECTOR("sourceURL")) {
+    value = &source_url_;
+  } else if (name_literal == STATIC_ASCII_VECTOR("sourceMappingURL")) {
+    value = &source_mapping_url_;
+  } else {
+    return;
+  }
+  if (c0_ != '=')
+    return;
+  Advance();
+  value->Reset();
+  while (c0_ >= 0 && unicode_cache_->IsWhiteSpace(c0_)) {
+    Advance();
+  }
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+    // Disallowed characters.
+    if (c0_ == '"' || c0_ == '\'') {
+      value->Reset();
+      return;
+    }
+    if (unicode_cache_->IsWhiteSpace(c0_)) {
+      break;
+    }
+    value->AddChar(c0_);
+    Advance();
+  }
+  // Allow whitespace at the end.
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+    if (!unicode_cache_->IsWhiteSpace(c0_)) {
+      value->Reset();
+      break;
+    }
+    Advance();
+  }
+}
+
+
 Token::Value Scanner::SkipMultiLineComment() {
-  ASSERT(c0_ == '*');
+  DCHECK(c0_ == '*');
   Advance();
 
   while (c0_ >= 0) {
@@ -322,7 +394,7 @@ Token::Value Scanner::SkipMultiLineComment() {
 
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
-  ASSERT(c0_ == '!');
+  DCHECK(c0_ == '!');
   Advance();
   if (c0_ == '-') {
     Advance();
@@ -330,7 +402,7 @@ Token::Value Scanner::ScanHtmlComment() {
     PushBack('-');  // undo Advance()
   }
   PushBack('!');  // undo Advance()
-  ASSERT(c0_ == '!');
+  DCHECK(c0_ == '!');
   return Token::LT;
 }
 
@@ -394,10 +466,12 @@ void Scanner::Scan() {
         break;
 
       case '=':
-        // = == ===
+        // = == === =>
         Advance();
         if (c0_ == '=') {
           token = Select('=', Token::EQ_STRICT, Token::EQ);
+        } else if (c0_ == '>') {
+          token = Select(Token::ARROW);
         } else {
           token = Token::ASSIGN;
         }
@@ -458,7 +532,14 @@ void Scanner::Scan() {
         // /  // /* /=
         Advance();
         if (c0_ == '/') {
-          token = SkipSingleLineComment();
+          Advance();
+          if (c0_ == '@' || c0_ == '#') {
+            Advance();
+            token = SkipSourceURLComment();
+          } else {
+            PushBack(c0_);
+            token = SkipSingleLineComment();
+          }
         } else if (c0_ == '*') {
           token = SkipMultiLineComment();
         } else if (c0_ == '=') {
@@ -580,9 +661,9 @@ void Scanner::SeekForward(int pos) {
   // the "next" token. The "current" token will be invalid.
   if (pos == next_.location.beg_pos) return;
   int current_pos = source_pos();
-  ASSERT_EQ(next_.location.end_pos, current_pos);
+  DCHECK_EQ(next_.location.end_pos, current_pos);
   // Positions inside the lookahead token aren't supported.
-  ASSERT(pos >= current_pos);
+  DCHECK(pos >= current_pos);
   if (pos != current_pos) {
     source_->SeekForward(pos - source_->pos());
     Advance();
@@ -702,7 +783,7 @@ void Scanner::ScanDecimalDigits() {
 
 
 Token::Value Scanner::ScanNumber(bool seen_period) {
-  ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
+  DCHECK(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
   enum { DECIMAL, HEX, OCTAL, IMPLICIT_OCTAL, BINARY } kind = DECIMAL;
 
@@ -781,7 +862,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
   // scan exponent, if any
   if (c0_ == 'e' || c0_ == 'E') {
-    ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+    DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (kind != DECIMAL) return Token::ILLEGAL;
     // scan exponent
     AddLiteralCharAdvance();
@@ -890,7 +971,7 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length,
                                              bool harmony_scoping,
                                              bool harmony_modules) {
-  ASSERT(input_length >= 1);
+  DCHECK(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
   if (input_length < kMinLength || input_length > kMaxLength) {
@@ -927,8 +1008,18 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 }
 
 
+bool Scanner::IdentifierIsFutureStrictReserved(
+    const AstRawString* string) const {
+  // Keywords are always 1-byte strings.
+  return string->is_one_byte() &&
+         Token::FUTURE_STRICT_RESERVED_WORD ==
+             KeywordOrIdentifierToken(string->raw_data(), string->length(),
+                                      harmony_scoping_, harmony_modules_);
+}
+
+
 Token::Value Scanner::ScanIdentifierOrKeyword() {
-  ASSERT(unicode_cache_->IsIdentifierStart(c0_));
+  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
   // Scan identifier start character.
   if (c0_ == '\\') {
@@ -1044,7 +1135,7 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 
 
 bool Scanner::ScanLiteralUnicodeEscape() {
-  ASSERT(c0_ == '\\');
+  DCHECK(c0_ == '\\');
   uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
   Advance();
   int i = 1;
@@ -1093,31 +1184,24 @@ bool Scanner::ScanRegExpFlags() {
 }
 
 
-Handle<String> Scanner::AllocateNextLiteralString(Isolate* isolate,
-                                                  PretenureFlag tenured) {
-  if (is_next_literal_one_byte()) {
-    return isolate->factory()->NewStringFromOneByte(
-        next_literal_one_byte_string(), tenured).ToHandleChecked();
-  } else {
-    return isolate->factory()->NewStringFromTwoByte(
-        next_literal_two_byte_string(), tenured).ToHandleChecked();
+const AstRawString* Scanner::CurrentSymbol(AstValueFactory* ast_value_factory) {
+  if (is_literal_one_byte()) {
+    return ast_value_factory->GetOneByteString(literal_one_byte_string());
   }
+  return ast_value_factory->GetTwoByteString(literal_two_byte_string());
 }
 
 
-Handle<String> Scanner::AllocateInternalizedString(Isolate* isolate) {
-  if (is_literal_one_byte()) {
-    return isolate->factory()->InternalizeOneByteString(
-        literal_one_byte_string());
-  } else {
-    return isolate->factory()->InternalizeTwoByteString(
-        literal_two_byte_string());
+const AstRawString* Scanner::NextSymbol(AstValueFactory* ast_value_factory) {
+  if (is_next_literal_one_byte()) {
+    return ast_value_factory->GetOneByteString(next_literal_one_byte_string());
   }
+  return ast_value_factory->GetTwoByteString(next_literal_two_byte_string());
 }
 
 
 double Scanner::DoubleValue() {
-  ASSERT(is_literal_one_byte());
+  DCHECK(is_literal_one_byte());
   return StringToDouble(
       unicode_cache_,
       literal_one_byte_string(),
@@ -1162,7 +1246,7 @@ int DuplicateFinder::AddSymbol(Vector<const uint8_t> key,
 
 
 int DuplicateFinder::AddNumber(Vector<const uint8_t> key, int value) {
-  ASSERT(key.length() > 0);
+  DCHECK(key.length() > 0);
   // Quick check for already being in canonical form.
   if (IsNumberCanonical(key)) {
     return AddOneByteSymbol(key, value);

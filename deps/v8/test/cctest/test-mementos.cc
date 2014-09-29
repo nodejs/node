@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -89,10 +89,7 @@ TEST(PretenuringCallNew) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
 
-  // We need to create several instances to get past the slack-tracking
-  // phase, where mementos aren't emitted.
   int call_count = 10;
-  CHECK_GE(call_count, SharedFunctionInfo::kGenerousAllocationCount);
   i::ScopedVector<char> test_buf(1024);
   const char* program =
       "function f() {"
@@ -105,7 +102,7 @@ TEST(PretenuringCallNew) {
       "  a = new f();"
       "}"
       "a;";
-  i::OS::SNPrintF(test_buf, program, call_count);
+  i::SNPrintF(test_buf, program, call_count);
   v8::Local<v8::Value> res = CompileRun(test_buf.start());
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
@@ -117,8 +114,8 @@ TEST(PretenuringCallNew) {
   CHECK_EQ(memento->map(), heap->allocation_memento_map());
 
   // Furthermore, how many mementos did we create? The count should match
-  // call_count - SharedFunctionInfo::kGenerousAllocationCount.
+  // call_count. Note, that mementos are allocated during the inobject slack
+  // tracking phase.
   AllocationSite* site = memento->GetAllocationSite();
-  CHECK_EQ(call_count - SharedFunctionInfo::kGenerousAllocationCount,
-           site->pretenure_create_count()->value());
+  CHECK_EQ(call_count, site->pretenure_create_count()->value());
 }

@@ -36,29 +36,29 @@ function testIntroduceGlobal() {
   var source =
       // Deleting 'x' removes the local const property.
       "delete x;" +
-      // Initialization turns into assignment to global 'x'.
+      // Initialization redefines global 'x'.
       "const x = 3; assertEquals(3, x);" +
-      // No constness of the global 'x'.
-      "x = 4; assertEquals(4, x);";
+      // Test constness of the global 'x'.
+      "x = 4; assertEquals(3, x);";
   eval(source);
 }
 
 testIntroduceGlobal();
-assertEquals(4, x);
+assertEquals("undefined", typeof x);
 
 function testAssignExistingGlobal() {
   var source =
       // Delete 'x' to remove the local const property.
       "delete x;" +
-      // Initialization turns into assignment to global 'x'.
+      // Initialization redefines global 'x'.
       "const x = 5; assertEquals(5, x);" +
-      // No constness of the global 'x'.
-      "x = 6; assertEquals(6, x);";
+      // Test constness of the global 'x'.
+      "x = 6; assertEquals(5, x);";
   eval(source);
 }
 
 testAssignExistingGlobal();
-assertEquals(6, x);
+assertEquals("undefined", typeof x);
 
 function testAssignmentArgument(x) {
   function local() {
@@ -66,7 +66,7 @@ function testAssignmentArgument(x) {
     eval(source);
   }
   local();
-  assertEquals(7, x);
+  assertEquals("undefined", typeof x);
 }
 
 for (var i = 0; i < 5; i++) {
@@ -74,17 +74,18 @@ for (var i = 0; i < 5; i++) {
 }
 %OptimizeFunctionOnNextCall(testAssignmentArgument);
 testAssignmentArgument();
-assertEquals(6, x);
+assertEquals("undefined", typeof x);
 
 __defineSetter__('x', function() { throw 42; });
-function testAssignGlobalThrows() {
-  // Initialization turns into assignment to global 'x' which
-  // throws an exception.
-  var source = "delete x; const x = 8";
+var finished = false;
+function testRedefineGlobal() {
+  // Initialization redefines global 'x'.
+  var source = "delete x; const x = 8; finished = true;";
   eval(source);
 }
 
-assertThrows("testAssignGlobalThrows()");
+testRedefineGlobal();
+assertTrue(finished);
 
 function testInitFastCaseExtension() {
   var source = "const x = 9; assertEquals(9, x); x = 10; assertEquals(9, x)";
@@ -111,7 +112,7 @@ function testAssignSurroundingContextSlot() {
     eval(source);
   }
   local();
-  assertEquals(13, x);
+  assertEquals(12, x);
 }
 
 testAssignSurroundingContextSlot();

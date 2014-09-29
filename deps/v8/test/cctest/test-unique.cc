@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "factory.h"
-#include "global-handles.h"
-#include "unique.h"
-#include "cctest.h"
+#include "src/factory.h"
+#include "src/global-handles.h"
+#include "src/unique.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

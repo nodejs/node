@@ -54,6 +54,7 @@ build/class
 build/deprecated
 build/endif_comment
 build/forward_decl
+build/include_alpha
 build/include_order
 build/printf_format
 build/storage_class
@@ -61,7 +62,6 @@ legal/copyright
 readability/boost
 readability/braces
 readability/casting
-readability/check
 readability/constructors
 readability/fn_size
 readability/function
@@ -80,7 +80,6 @@ runtime/mutex
 runtime/nonconf
 runtime/printf
 runtime/printf_format
-runtime/references
 runtime/rtti
 runtime/sizeof
 runtime/string
@@ -101,6 +100,7 @@ whitespace/tab
 whitespace/todo
 """.split()
 
+# TODO(bmeurer): Fix and re-enable readability/check
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 
@@ -200,7 +200,8 @@ class SourceFileProcessor(object):
 
   def IgnoreDir(self, name):
     return (name.startswith('.') or
-            name in ('data', 'kraken', 'octane', 'sunspider'))
+            name in ('buildtools', 'data', 'gmock', 'gtest', 'kraken',
+                     'octane', 'sunspider'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
@@ -235,7 +236,10 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples',
+            join('test', 'base-unittests'),
+            join('test', 'cctest'),
+            join('test', 'compiler-unittests')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -305,7 +309,8 @@ class SourceProcessor(SourceFileProcessor):
           if self.IgnoreDir(dir_part):
             break
         else:
-          if self.IsRelevant(file) and not self.IgnoreFile(file):
+          if (self.IsRelevant(file) and os.path.exists(file)
+              and not self.IgnoreFile(file)):
             result.append(join(path, file))
       if output.wait() == 0:
         return result
@@ -415,6 +420,19 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
+def CheckGeneratedRuntimeTests(workspace):
+  code = subprocess.call(
+      [sys.executable, join(workspace, "tools", "generate-runtime-tests.py"),
+       "check"])
+  return code == 0
+
+
+def CheckExternalReferenceRegistration(workspace):
+  code = subprocess.call(
+      [sys.executable, join(workspace, "tools", "external-reference-check.py")])
+  return code == 0
+
+
 def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
@@ -433,6 +451,8 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
+  success = CheckGeneratedRuntimeTests(workspace) and success
+  success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0
   else:

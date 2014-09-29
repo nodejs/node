@@ -5,8 +5,8 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "code-stubs.h"
-#include "runtime.h"
+#include "src/code-stubs.h"
+#include "src/runtime.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
@@ -46,15 +46,19 @@
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/codegen-ia32.h"
+#include "src/ia32/codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "x64/codegen-x64.h"
+#include "src/x64/codegen-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/codegen-arm64.h"
+#include "src/arm64/codegen-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "arm/codegen-arm.h"
+#include "src/arm/codegen-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/codegen-mips.h"
+#include "src/mips/codegen-mips.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/codegen-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/codegen-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
@@ -113,15 +117,30 @@ class ElementsTransitionGenerator : public AllStatic {
  public:
   // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,
   // |allocation_memento_found| may be NULL.
-  static void GenerateMapChangeElementsTransition(MacroAssembler* masm,
+  static void GenerateMapChangeElementsTransition(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
       AllocationSiteMode mode,
       Label* allocation_memento_found);
-  static void GenerateSmiToDouble(MacroAssembler* masm,
-                                  AllocationSiteMode mode,
-                                  Label* fail);
-  static void GenerateDoubleToObject(MacroAssembler* masm,
-                                     AllocationSiteMode mode,
-                                     Label* fail);
+  static void GenerateSmiToDouble(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
+      AllocationSiteMode mode,
+      Label* fail);
+  static void GenerateDoubleToObject(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
+      AllocationSiteMode mode,
+      Label* fail);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);

@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "double.h"
-#include "fixed-dtoa.h"
-#include "gay-fixed.h"
+#include "src/base/platform/platform.h"
+#include "src/double.h"
+#include "src/fixed-dtoa.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/gay-fixed.h"
 
 using namespace v8::internal;
 

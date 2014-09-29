@@ -5,16 +5,15 @@
 #ifndef V8_TYPE_INFO_H_
 #define V8_TYPE_INFO_H_
 
-#include "allocation.h"
-#include "globals.h"
-#include "types.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/globals.h"
+#include "src/types.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class ICStub;
 class SmallMapList;
 
 
@@ -41,10 +40,8 @@ class TypeFeedbackOracle: public ZoneObject {
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  void PropertyReceiverTypes(TypeFeedbackId id,
-                             Handle<String> name,
-                             SmallMapList* receiver_types,
-                             bool* is_prototype);
+  void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
+                             SmallMapList* receiver_types);
   void KeyedPropertyReceiverTypes(TypeFeedbackId id,
                                   SmallMapList* receiver_types,
                                   bool* is_string);
@@ -65,11 +62,11 @@ class TypeFeedbackOracle: public ZoneObject {
                                     Context* native_context);
 
   Handle<JSFunction> GetCallTarget(int slot);
+  Handle<AllocationSite> GetCallAllocationSite(int slot);
   Handle<JSFunction> GetCallNewTarget(int slot);
   Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
-  bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in

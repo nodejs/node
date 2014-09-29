@@ -32,40 +32,43 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "assembler.h"
+#include "src/assembler.h"
 
 #include <cmath>
-#include "api.h"
-#include "builtins.h"
-#include "counters.h"
-#include "cpu.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "ic.h"
-#include "isolate-inl.h"
-#include "jsregexp.h"
-#include "lazy-instance.h"
-#include "platform.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
-#include "runtime.h"
-#include "serialize.h"
-#include "store-buffer-inl.h"
-#include "stub-cache.h"
-#include "token.h"
+#include "src/api.h"
+#include "src/base/cpu.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/platform.h"
+#include "src/builtins.h"
+#include "src/counters.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/ic.h"
+#include "src/isolate-inl.h"
+#include "src/jsregexp.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/runtime.h"
+#include "src/serialize.h"
+#include "src/stub-cache.h"
+#include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/assembler-ia32-inl.h"
+#include "src/ia32/assembler-ia32-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "x64/assembler-x64-inl.h"
+#include "src/x64/assembler-x64-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm-inl.h"
+#include "src/arm/assembler-arm-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/assembler-mips-inl.h"
+#include "src/mips/assembler-mips-inl.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/assembler-mips64-inl.h"  // NOLINT
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/assembler-x87-inl.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif
@@ -73,15 +76,19 @@
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
@@ -94,16 +101,13 @@ namespace internal {
 // Common double constants.
 
 struct DoubleConstant BASE_EMBEDDED {
-  double min_int;
-  double one_half;
-  double minus_one_half;
-  double minus_zero;
-  double zero;
-  double uint8_max_value;
-  double negative_infinity;
-  double canonical_non_hole_nan;
-  double the_hole_nan;
-  double uint32_bias;
+double min_int;
+double one_half;
+double minus_one_half;
+double negative_infinity;
+double canonical_non_hole_nan;
+double the_hole_nan;
+double uint32_bias;
 };
 
 static DoubleConstant double_constants;
@@ -111,7 +115,7 @@ static DoubleConstant double_constants;
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 static bool math_exp_data_initialized = false;
-static Mutex* math_exp_data_mutex = NULL;
+static base::Mutex* math_exp_data_mutex = NULL;
 static double* math_exp_constants_array = NULL;
 static double* math_exp_log_table_array = NULL;
 
@@ -123,26 +127,16 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       jit_cookie_(0),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
-      predictable_code_size_(false) {
+      predictable_code_size_(false),
+      // We may use the assembler without an isolate.
+      serializer_enabled_(isolate && isolate->serializer_enabled()) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-      if (isolate->assembler_spare_buffer() != NULL) {
-        buffer = isolate->assembler_spare_buffer();
-        isolate->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) buffer = NewArray<byte>(buffer_size);
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    own_buffer_ = false;
-  }
+  own_buffer_ = buffer == NULL;
+  if (buffer_size == 0) buffer_size = kMinimalBufferSize;
+  DCHECK(buffer_size > 0);
+  if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
 
@@ -151,15 +145,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
 
 
 AssemblerBase::~AssemblerBase() {
-  if (own_buffer_) {
-    if (isolate() != NULL &&
-        isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
+  if (own_buffer_) DeleteArray(buffer_);
 }
 
 
@@ -191,7 +177,7 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
 #ifdef DEBUG
 CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
     : assembler_(assembler) {
-  ASSERT(CpuFeatures::IsSafeForSnapshot(assembler_->isolate(), f));
+  DCHECK(CpuFeatures::IsSupported(f));
   old_enabled_ = assembler_->enabled_cpu_features();
   uint64_t mask = static_cast<uint64_t>(1) << f;
   // TODO(svenpanne) This special case below doesn't belong here!
@@ -211,23 +197,9 @@ CpuFeatureScope::~CpuFeatureScope() {
 #endif
 
 
-// -----------------------------------------------------------------------------
-// Implementation of PlatformFeatureScope
-
-PlatformFeatureScope::PlatformFeatureScope(Isolate* isolate, CpuFeature f)
-    : isolate_(isolate), old_cross_compile_(CpuFeatures::cross_compile_) {
-  // CpuFeatures is a global singleton, therefore this is only safe in
-  // single threaded code.
-  ASSERT(Serializer::enabled(isolate));
-  uint64_t mask = static_cast<uint64_t>(1) << f;
-  CpuFeatures::cross_compile_ |= mask;
-  USE(isolate_);
-}
-
-
-PlatformFeatureScope::~PlatformFeatureScope() {
-  CpuFeatures::cross_compile_ = old_cross_compile_;
-}
+bool CpuFeatures::initialized_ = false;
+unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::cache_line_size_ = 0;
 
 
 // -----------------------------------------------------------------------------
@@ -362,7 +334,7 @@ uint32_t RelocInfoWriter::WriteVariableLengthPCJump(uint32_t pc_delta) {
   if (is_uintn(pc_delta, kSmallPCDeltaBits)) return pc_delta;
   WriteExtraTag(kPCJumpExtraTag, kVariableLengthPCJumpTopTag);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
-  ASSERT(pc_jump > 0);
+  DCHECK(pc_jump > 0);
   // Write kChunkBits size chunks of the pc_jump.
   for (; pc_jump > 0; pc_jump = pc_jump >> kChunkBits) {
     byte b = pc_jump & kChunkMask;
@@ -436,9 +408,9 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
-  ASSERT(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
-  ASSERT(rinfo->pc() - last_pc_ >= 0);
-  ASSERT(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM - RelocInfo::LAST_COMPACT_ENUM
+  DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
+  DCHECK(rinfo->pc() - last_pc_ >= 0);
+  DCHECK(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM - RelocInfo::LAST_COMPACT_ENUM
          <= kMaxStandardNonCompactModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
@@ -449,10 +421,10 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
-    ASSERT(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
+    DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
     // Use signed delta-encoding for id.
-    ASSERT(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
     int id_delta = static_cast<int>(rinfo->data()) - last_id_;
     // Check if delta is small enough to fit in a tagged byte.
     if (is_intn(id_delta, kSmallDataBits)) {
@@ -466,7 +438,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     last_id_ = static_cast<int>(rinfo->data());
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for position.
-    ASSERT(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
     int pos_delta = static_cast<int>(rinfo->data()) - last_position_;
     int pos_type_tag = (rmode == RelocInfo::POSITION) ? kNonstatementPositionTag
                                                       : kStatementPositionTag;
@@ -484,23 +456,23 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     // Comments are normally not generated, so we use the costly encoding.
     WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
     WriteExtraTaggedData(rinfo->data(), kCommentTag);
-    ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
+    DCHECK(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else if (RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode)) {
       WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
       WriteExtraTaggedPoolData(static_cast<int>(rinfo->data()),
                                RelocInfo::IsConstPool(rmode) ? kConstPoolTag
                                                              : kVeneerPoolTag);
   } else {
-    ASSERT(rmode > RelocInfo::LAST_COMPACT_ENUM);
+    DCHECK(rmode > RelocInfo::LAST_COMPACT_ENUM);
     int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
-    ASSERT(saved_mode < kPCJumpExtraTag && saved_mode < kDataJumpExtraTag);
+    DCHECK(saved_mode < kPCJumpExtraTag && saved_mode < kDataJumpExtraTag);
     WriteExtraTaggedPC(pc_delta, saved_mode);
   }
   last_pc_ = rinfo->pc();
 #ifdef DEBUG
-  ASSERT(begin_pos - pos_ <= kMaxSize);
+  DCHECK(begin_pos - pos_ <= kMaxSize);
 #endif
 }
 
@@ -606,7 +578,7 @@ inline void RelocIterator::ReadTaggedPosition() {
 
 
 static inline RelocInfo::Mode GetPositionModeFromTag(int tag) {
-  ASSERT(tag == kNonstatementPositionTag ||
+  DCHECK(tag == kNonstatementPositionTag ||
          tag == kStatementPositionTag);
   return (tag == kNonstatementPositionTag) ?
          RelocInfo::POSITION :
@@ -615,7 +587,7 @@ static inline RelocInfo::Mode GetPositionModeFromTag(int tag) {
 
 
 void RelocIterator::next() {
-  ASSERT(!done());
+  DCHECK(!done());
   // Basically, do the opposite of RelocInfoWriter::Write.
   // Reading of data is as far as possible avoided for unwanted modes,
   // but we must always update the pc.
@@ -641,7 +613,7 @@ void RelocIterator::next() {
       } else {
         // Compact encoding is never used for comments,
         // so it must be a position.
-        ASSERT(locatable_tag == kNonstatementPositionTag ||
+        DCHECK(locatable_tag == kNonstatementPositionTag ||
                locatable_tag == kStatementPositionTag);
         if (mode_mask_ & RelocInfo::kPositionMask) {
           ReadTaggedPosition();
@@ -649,7 +621,7 @@ void RelocIterator::next() {
         }
       }
     } else {
-      ASSERT(tag == kDefaultTag);
+      DCHECK(tag == kDefaultTag);
       int extra_tag = GetExtraTag();
       if (extra_tag == kPCJumpExtraTag) {
         if (GetTopTag() == kVariableLengthPCJumpTopTag) {
@@ -666,7 +638,7 @@ void RelocIterator::next() {
           }
           Advance(kIntSize);
         } else if (locatable_tag != kCommentTag) {
-          ASSERT(locatable_tag == kNonstatementPositionTag ||
+          DCHECK(locatable_tag == kNonstatementPositionTag ||
                  locatable_tag == kStatementPositionTag);
           if (mode_mask_ & RelocInfo::kPositionMask) {
             AdvanceReadPosition();
@@ -675,7 +647,7 @@ void RelocIterator::next() {
             Advance(kIntSize);
           }
         } else {
-          ASSERT(locatable_tag == kCommentTag);
+          DCHECK(locatable_tag == kCommentTag);
           if (SetMode(RelocInfo::COMMENT)) {
             AdvanceReadData();
             return;
@@ -684,7 +656,7 @@ void RelocIterator::next() {
         }
       } else if (extra_tag == kPoolExtraTag) {
         int pool_type = GetTopTag();
-        ASSERT(pool_type == kConstPoolTag || pool_type == kVeneerPoolTag);
+        DCHECK(pool_type == kConstPoolTag || pool_type == kVeneerPoolTag);
         RelocInfo::Mode rmode = (pool_type == kConstPoolTag) ?
           RelocInfo::CONST_POOL : RelocInfo::VENEER_POOL;
         if (SetMode(rmode)) {
@@ -821,39 +793,36 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print(Isolate* isolate, FILE* out) {
-  PrintF(out, "%p  %s", pc_, RelocModeName(rmode_));
+void RelocInfo::Print(Isolate* isolate, OStream& os) {  // NOLINT
+  os << pc_ << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
-    PrintF(out, "  (%s)", reinterpret_cast<char*>(data_));
+    os << "  (" << reinterpret_cast<char*>(data_) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
-    PrintF(out, "  (");
-    target_object()->ShortPrint(out);
-    PrintF(out, ")");
+    os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
-    PrintF(out, " (%s)  (%p)",
-           ref_encoder.NameOfAddress(target_reference()),
-           target_reference());
+    os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
+       << target_reference() << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
-    PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
-           target_address());
+    os << " (" << Code::Kind2String(code->kind()) << ")  (" << target_address()
+       << ")";
     if (rmode_ == CODE_TARGET_WITH_ID) {
-      PrintF(out, " (id=%d)", static_cast<int>(data_));
+      os << " (id=" << static_cast<int>(data_) << ")";
     }
   } else if (IsPosition(rmode_)) {
-    PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
+    os << "  (" << data() << ")";
   } else if (IsRuntimeEntry(rmode_) &&
              isolate->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         isolate, target_address(), Deoptimizer::EAGER);
     if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      PrintF(out, "  (deoptimization bailout %d)", id);
+      os << "  (deoptimization bailout " << id << ")";
     }
   }
 
-  PrintF(out, "\n");
+  os << "\n";
 }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -898,7 +867,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       UNREACHABLE();
       break;
     case CODE_AGE_SEQUENCE:
-      ASSERT(Code::IsYoungSequence(isolate, pc_) || code_age_stub()->IsCode());
+      DCHECK(Code::IsYoungSequence(isolate, pc_) || code_age_stub()->IsCode());
       break;
   }
 }
@@ -912,16 +881,13 @@ void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
-  double_constants.minus_zero = -0.0;
-  double_constants.uint8_max_value = 255;
-  double_constants.zero = 0.0;
-  double_constants.canonical_non_hole_nan = OS::nan_value();
+  double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 
-  math_exp_data_mutex = new Mutex();
+  math_exp_data_mutex = new base::Mutex();
 }
 
 
@@ -929,7 +895,7 @@ void ExternalReference::InitializeMathExpData() {
   // Early return?
   if (math_exp_data_initialized) return;
 
-  LockGuard<Mutex> lock_guard(math_exp_data_mutex);
+  base::LockGuard<base::Mutex> lock_guard(math_exp_data_mutex);
   if (!math_exp_data_initialized) {
     // If this is changed, generated code must be adapted too.
     const int kTableSizeBits = 11;
@@ -1009,9 +975,6 @@ ExternalReference::ExternalReference(const IC_Utility& ic_utility,
                                      Isolate* isolate)
   : address_(Redirect(isolate, ic_utility.address())) {}
 
-ExternalReference::ExternalReference(const Debug_Address& debug_address,
-                                     Isolate* isolate)
-  : address_(debug_address.address(isolate)) {}
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -1042,7 +1005,8 @@ ExternalReference ExternalReference::
 
 
 ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CPU::FlushICache)));
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CpuFeatures::FlushICache)));
 }
 
 
@@ -1174,13 +1138,6 @@ ExternalReference ExternalReference::new_space_allocation_top_address(
 }
 
 
-ExternalReference ExternalReference::heap_always_allocate_scope_depth(
-    Isolate* isolate) {
-  Heap* heap = isolate->heap();
-  return ExternalReference(heap->always_allocate_scope_depth_address());
-}
-
-
 ExternalReference ExternalReference::new_space_allocation_limit_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
@@ -1212,13 +1169,6 @@ ExternalReference ExternalReference::old_data_space_allocation_limit_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->heap()->OldDataSpaceAllocationLimitAddress());
-}
-
-
-ExternalReference ExternalReference::
-    new_space_high_promotion_mode_active_address(Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->NewSpaceHighPromotionModeActiveAddress());
 }
 
 
@@ -1277,23 +1227,6 @@ ExternalReference ExternalReference::address_of_one_half() {
 ExternalReference ExternalReference::address_of_minus_one_half() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.minus_one_half));
-}
-
-
-ExternalReference ExternalReference::address_of_minus_zero() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.minus_zero));
-}
-
-
-ExternalReference ExternalReference::address_of_zero() {
-  return ExternalReference(reinterpret_cast<void*>(&double_constants.zero));
-}
-
-
-ExternalReference ExternalReference::address_of_uint8_max_value() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.uint8_max_value));
 }
 
 
@@ -1360,6 +1293,10 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#elif V8_TARGET_ARCH_MIPS64
+  function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#elif V8_TARGET_ARCH_X87
+  function = FUNCTION_ADDR(RegExpMacroAssemblerX87::CheckStackGuardState);
 #else
   UNREACHABLE();
 #endif
@@ -1415,14 +1352,14 @@ ExternalReference ExternalReference::math_log_double_function(
 
 
 ExternalReference ExternalReference::math_exp_constants(int constant_index) {
-  ASSERT(math_exp_data_initialized);
+  DCHECK(math_exp_data_initialized);
   return ExternalReference(
       reinterpret_cast<void*>(math_exp_constants_array + constant_index));
 }
 
 
 ExternalReference ExternalReference::math_exp_log_table() {
-  ASSERT(math_exp_data_initialized);
+  DCHECK(math_exp_data_initialized);
   return ExternalReference(reinterpret_cast<void*>(math_exp_log_table_array));
 }
 
@@ -1435,6 +1372,32 @@ ExternalReference ExternalReference::page_flags(Page* page) {
 
 ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
   return ExternalReference(entry);
+}
+
+
+ExternalReference ExternalReference::cpu_features() {
+  DCHECK(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
+
+
+ExternalReference ExternalReference::debug_is_active_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->is_active_address());
+}
+
+
+ExternalReference ExternalReference::debug_after_break_target_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->after_break_target_address());
+}
+
+
+ExternalReference
+    ExternalReference::debug_restarter_frame_function_pointer_address(
+        Isolate* isolate) {
+  return ExternalReference(
+      isolate->debug()->restarter_frame_function_pointer_address());
 }
 
 
@@ -1496,7 +1459,7 @@ double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return OS::nan_value();
+    return base::OS::nan_value();
   }
   return std::pow(x, y);
 }
@@ -1519,7 +1482,7 @@ ExternalReference ExternalReference::power_double_int_function(
 
 
 bool EvalComparison(Token::Value op, double op1, double op2) {
-  ASSERT(Token::IsCompareOp(op));
+  DCHECK(Token::IsCompareOp(op));
   switch (op) {
     case Token::EQ:
     case Token::EQ_STRICT: return (op1 == op2);
@@ -1555,14 +1518,9 @@ ExternalReference ExternalReference::debug_step_in_fp_address(
 
 
 void PositionsRecorder::RecordPosition(int pos) {
-  ASSERT(pos != RelocInfo::kNoPosition);
-  ASSERT(pos >= 0);
+  DCHECK(pos != RelocInfo::kNoPosition);
+  DCHECK(pos >= 0);
   state_.current_position = pos;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (gdbjit_lineinfo_ != NULL) {
-    gdbjit_lineinfo_->SetPosition(assembler_->pc_offset(), pos, false);
-  }
-#endif
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddPositionEvent(jit_handler_data_,
                                                  assembler_->pc_offset(),
@@ -1571,14 +1529,9 @@ void PositionsRecorder::RecordPosition(int pos) {
 
 
 void PositionsRecorder::RecordStatementPosition(int pos) {
-  ASSERT(pos != RelocInfo::kNoPosition);
-  ASSERT(pos >= 0);
+  DCHECK(pos != RelocInfo::kNoPosition);
+  DCHECK(pos >= 0);
   state_.current_statement_position = pos;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (gdbjit_lineinfo_ != NULL) {
-    gdbjit_lineinfo_->SetPosition(assembler_->pc_offset(), pos, true);
-  }
-#endif
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddStatementPositionEvent(
                      jit_handler_data_,
@@ -1616,7 +1569,7 @@ bool PositionsRecorder::WriteRecordedPositions() {
 
 
 MultiplierAndShift::MultiplierAndShift(int32_t d) {
-  ASSERT(d <= -2 || 2 <= d);
+  DCHECK(d <= -2 || 2 <= d);
   const uint32_t two31 = 0x80000000;
   uint32_t ad = Abs(d);
   uint32_t t = two31 + (uint32_t(d) >> 31);

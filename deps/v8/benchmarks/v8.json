@@ -1,0 +1,16 @@
+{
+  "path": ["."],
+  "main": "run.js",
+  "run_count": 2,
+  "results_regexp": "^%s: (.+)$",
+  "benchmarks": [
+    {"name": "Richards"},
+    {"name": "DeltaBlue"},
+    {"name": "Crypto"},
+    {"name": "RayTrace"},
+    {"name": "EarleyBoyer"},
+    {"name": "RegExp"},
+    {"name": "Splay"},
+    {"name": "NavierStokes"}
+  ]
+}

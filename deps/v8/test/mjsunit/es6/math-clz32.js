@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-maths --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 [NaN, Infinity, -Infinity, 0, -0, "abc", "Infinity", "-Infinity", {}].forEach(
   function(x) {
