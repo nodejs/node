@@ -22,8 +22,10 @@
 var assert = require('assert');
 var child_process = require('child_process');
 var spawn = child_process.spawn;
+var fork = child_process.fork;
 var execFile = child_process.execFile;
 var cmd = (process.platform === 'win32') ? 'dir' : 'ls';
+var empty = require('../common').fixturesDir + '/empty.js';
 
 
 // verify that args argument must be an array
@@ -44,4 +46,13 @@ assert.throws(function() {
 
 assert.doesNotThrow(function() {
   execFile(cmd, {});
+});
+
+// verify that fork has same argument parsing behaviour as spawn
+assert.throws(function() {
+  fork(empty, 'this is not an array');
+}, TypeError);
+
+assert.doesNotThrow(function() {
+  execFile(empty, {});
 });
