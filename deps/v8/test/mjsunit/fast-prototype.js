@@ -50,6 +50,8 @@ function DoProtoMagic(proto, set__proto__) {
     (new Sub()).__proto__ = proto;
   } else {
     Sub.prototype = proto;
+    // Need to instantiate Sub to mark .prototype as prototype.
+    new Sub();
   }
 }
 
@@ -72,10 +74,15 @@ function test(use_new, add_first, set__proto__, same_map_as) {
     // Still fast
     assertTrue(%HasFastProperties(proto));
     AddProps(proto);
-    // After we add all those properties it went slow mode again :-(
-    assertFalse(%HasFastProperties(proto));
+    if (set__proto__) {
+      // After we add all those properties it went slow mode again :-(
+      assertFalse(%HasFastProperties(proto));
+    } else {
+      // .prototype keeps it fast.
+      assertTrue(%HasFastProperties(proto));
+    }
   }
-  if (same_map_as && !add_first) {
+  if (same_map_as && !add_first && set__proto__) {
     assertTrue(%HaveSameMap(same_map_as, proto));
   }
   return proto;

@@ -5,9 +5,9 @@
 #ifndef V8_SCOPEINFO_H_
 #define V8_SCOPEINFO_H_
 
-#include "allocation.h"
-#include "variables.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/variables.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -20,17 +20,14 @@ class ContextSlotCache {
  public:
   // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
-  int Lookup(Object* data,
-             String* name,
-             VariableMode* mode,
-             InitializationFlag* init_flag);
+  int Lookup(Object* data, String* name, VariableMode* mode,
+             InitializationFlag* init_flag,
+             MaybeAssignedFlag* maybe_assigned_flag);
 
   // Update an element in the cache.
-  void Update(Handle<Object> data,
-              Handle<String> name,
-              VariableMode mode,
+  void Update(Handle<Object> data, Handle<String> name, VariableMode mode,
               InitializationFlag init_flag,
-              int slot_index);
+              MaybeAssignedFlag maybe_assigned_flag, int slot_index);
 
   // Clear the cache.
   void Clear();
@@ -49,11 +46,9 @@ class ContextSlotCache {
   inline static int Hash(Object* data, String* name);
 
 #ifdef DEBUG
-  void ValidateEntry(Handle<Object> data,
-                     Handle<String> name,
-                     VariableMode mode,
-                     InitializationFlag init_flag,
-                     int slot_index);
+  void ValidateEntry(Handle<Object> data, Handle<String> name,
+                     VariableMode mode, InitializationFlag init_flag,
+                     MaybeAssignedFlag maybe_assigned_flag, int slot_index);
 #endif
 
   static const int kLength = 256;
@@ -63,18 +58,19 @@ class ContextSlotCache {
   };
 
   struct Value {
-    Value(VariableMode mode,
-          InitializationFlag init_flag,
-          int index) {
-      ASSERT(ModeField::is_valid(mode));
-      ASSERT(InitField::is_valid(init_flag));
-      ASSERT(IndexField::is_valid(index));
-      value_ = ModeField::encode(mode) |
-          IndexField::encode(index) |
-          InitField::encode(init_flag);
-      ASSERT(mode == this->mode());
-      ASSERT(init_flag == this->initialization_flag());
-      ASSERT(index == this->index());
+    Value(VariableMode mode, InitializationFlag init_flag,
+          MaybeAssignedFlag maybe_assigned_flag, int index) {
+      DCHECK(ModeField::is_valid(mode));
+      DCHECK(InitField::is_valid(init_flag));
+      DCHECK(MaybeAssignedField::is_valid(maybe_assigned_flag));
+      DCHECK(IndexField::is_valid(index));
+      value_ = ModeField::encode(mode) | IndexField::encode(index) |
+               InitField::encode(init_flag) |
+               MaybeAssignedField::encode(maybe_assigned_flag);
+      DCHECK(mode == this->mode());
+      DCHECK(init_flag == this->initialization_flag());
+      DCHECK(maybe_assigned_flag == this->maybe_assigned_flag());
+      DCHECK(index == this->index());
     }
 
     explicit inline Value(uint32_t value) : value_(value) {}
@@ -87,13 +83,18 @@ class ContextSlotCache {
       return InitField::decode(value_);
     }
 
+    MaybeAssignedFlag maybe_assigned_flag() {
+      return MaybeAssignedField::decode(value_);
+    }
+
     int index() { return IndexField::decode(value_); }
 
     // Bit fields in value_ (type, shift, size). Must be public so the
     // constants can be embedded in generated code.
-    class ModeField:  public BitField<VariableMode,       0, 4> {};
-    class InitField:  public BitField<InitializationFlag, 4, 1> {};
-    class IndexField: public BitField<int,                5, 32-5> {};
+    class ModeField : public BitField<VariableMode, 0, 4> {};
+    class InitField : public BitField<InitializationFlag, 4, 1> {};
+    class MaybeAssignedField : public BitField<MaybeAssignedFlag, 5, 1> {};
+    class IndexField : public BitField<int, 6, 32 - 6> {};
 
    private:
     uint32_t value_;

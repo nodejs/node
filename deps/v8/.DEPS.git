@@ -13,8 +13,14 @@ vars = {
 deps = {
     'v8/build/gyp':
         Var('git_url') + '/external/gyp.git@a3e2a5caf24a1e0a45401e09ad131210bf16b852',
+    'v8/buildtools':
+        Var('git_url') + '/chromium/buildtools.git@fb782d4369d5ae04f17a2fceef7de5a63e50f07b',
+    'v8/testing/gmock':
+        Var('git_url') + '/external/googlemock.git@896ba0e03f520fb9b6ed582bde2bd00847e3c3f2',
+    'v8/testing/gtest':
+        Var('git_url') + '/external/googletest.git@4650552ff637bb44ecf7784060091cbed3252211',
     'v8/third_party/icu':
-        Var('git_url') + '/chromium/deps/icu46.git@7a1ec88f69e25b3efcf76196d07f7815255db025',
+        Var('git_url') + '/chromium/deps/icu52.git@26d8859357ac0bfb86b939bf21c087b8eae22494',
 }
 
 deps_os = {
@@ -28,14 +34,68 @@ deps_os = {
 }
 
 include_rules = [
-    
+    '+include',
+    '+unicode',
+    '+third_party/fdlibm'
 ]
 
 skip_child_includes = [
-    
+    'build',
+    'third_party'
 ]
 
 hooks = [
+    {
+    'action':
+         [
+    'download_from_google_storage',
+    '--no_resume',
+    '--platform=win32',
+    '--no_auth',
+    '--bucket',
+    'chromium-clang-format',
+    '-s',
+    'v8/buildtools/win/clang-format.exe.sha1'
+],
+    'pattern':
+         '.',
+    'name':
+         'clang_format_win'
+},
+    {
+    'action':
+         [
+    'download_from_google_storage',
+    '--no_resume',
+    '--platform=darwin',
+    '--no_auth',
+    '--bucket',
+    'chromium-clang-format',
+    '-s',
+    'v8/buildtools/mac/clang-format.sha1'
+],
+    'pattern':
+         '.',
+    'name':
+         'clang_format_mac'
+},
+    {
+    'action':
+         [
+    'download_from_google_storage',
+    '--no_resume',
+    '--platform=linux*',
+    '--no_auth',
+    '--bucket',
+    'chromium-clang-format',
+    '-s',
+    'v8/buildtools/linux64/clang-format.sha1'
+],
+    'pattern':
+         '.',
+    'name':
+         'clang_format_linux'
+},
     {
     'action':
          [

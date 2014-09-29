@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 #include <stdlib.h>  // For free, malloc.
-#include "checks.h"
-#include "platform.h"
-#include "utils.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
+#include "src/utils.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
@@ -66,7 +66,7 @@ void AllStatic::operator delete(void* p) {
 char* StrDup(const char* str) {
   int length = StrLength(str);
   char* result = NewArray<char>(length + 1);
-  OS::MemCopy(result, str, length);
+  MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }
@@ -76,14 +76,14 @@ char* StrNDup(const char* str, int n) {
   int length = StrLength(str);
   if (n < length) length = n;
   char* result = NewArray<char>(length + 1);
-  OS::MemCopy(result, str, length);
+  MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }
 
 
 void* AlignedAlloc(size_t size, size_t alignment) {
-  ASSERT(IsPowerOf2(alignment) && alignment >= V8_ALIGNOF(void*));  // NOLINT
+  DCHECK(IsPowerOf2(alignment) && alignment >= V8_ALIGNOF(void*));  // NOLINT
   void* ptr;
 #if V8_OS_WIN
   ptr = _aligned_malloc(size, alignment);

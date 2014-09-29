@@ -5,11 +5,11 @@
 #ifndef V8_TRANSITIONS_H_
 #define V8_TRANSITIONS_H_
 
-#include "elements-kind.h"
-#include "heap.h"
-#include "isolate.h"
-#include "objects.h"
-#include "v8checks.h"
+#include "src/checks.h"
+#include "src/elements-kind.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -140,10 +140,7 @@ class TransitionArray: public FixedArray {
 
 #ifdef OBJECT_PRINT
   // Print all the transitions.
-  inline void PrintTransitions() {
-    PrintTransitions(stdout);
-  }
-  void PrintTransitions(FILE* out);
+  void PrintTransitions(OStream& os);  // NOLINT
 #endif
 
 #ifdef DEBUG

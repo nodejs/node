@@ -30,9 +30,8 @@
 // Test that we throw early syntax errors in harmony mode
 // when using an immutable binding in an assigment or with
 // prefix/postfix decrement/increment operators.
-// TODO(ES6): properly activate extended mode
-"use strict";
 
+"use strict";
 
 // Function local const.
 function constDecl0(use) {

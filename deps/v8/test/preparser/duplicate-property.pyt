@@ -81,7 +81,7 @@ def PropertyTest(name, propa, propb, allow_strict = True):
     """, replacement, None)
 
   StrictTest("$name-nested-set", """
-      var o = {set $id1(){}, o: {set $id2(){} } };
+      var o = {set $id1(v){}, o: {set $id2(v){} } };
     """, replacement, None)
 
 

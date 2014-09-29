@@ -5,7 +5,7 @@
 #ifndef V8_MIPS_CODE_STUBS_ARM_H_
 #define V8_MIPS_CODE_STUBS_ARM_H_
 
-#include "ic-inl.h"
+#include "src/ic-inl.h"
 
 
 namespace v8 {
@@ -28,8 +28,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
  private:
   SaveFPRegsMode save_doubles_;
 
-  Major MajorKey() { return StoreBufferOverflow; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() const { return StoreBufferOverflow; }
+  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 
 
@@ -39,16 +39,12 @@ class StringHelper : public AllStatic {
   // is allowed to spend extra time setting up conditions to make copying
   // faster. Copying of overlapping regions is not supported.
   // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharactersLong(MacroAssembler* masm,
-                                         Register dest,
-                                         Register src,
-                                         Register count,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Register scratch4,
-                                         Register scratch5,
-                                         int flags);
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     String::Encoding encoding);
 
 
   // Generate string hash.
@@ -73,36 +69,35 @@ class SubStringStub: public PlatformCodeStub {
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Major MajorKey() { return SubString; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return SubString; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
 
+
 class StoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit StoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit StoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() { return StoreRegistersState; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  Major MajorKey() const { return StoreRegistersState; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
 
 class RestoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit RestoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit RestoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() { return RestoreRegistersState; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  Major MajorKey() const { return RestoreRegistersState; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -130,8 +125,8 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch3);
 
  private:
-  virtual Major MajorKey() { return StringCompare; }
-  virtual int MinorKey() { return 0; }
+  virtual Major MajorKey() const { return StringCompare; }
+  virtual int MinorKey() const { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
@@ -160,10 +155,10 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch),
         sign_(scratch2) {
-    ASSERT(IntRegisterBits::is_valid(the_int_.code()));
-    ASSERT(HeapNumberRegisterBits::is_valid(the_heap_number_.code()));
-    ASSERT(ScratchRegisterBits::is_valid(scratch_.code()));
-    ASSERT(SignRegisterBits::is_valid(sign_.code()));
+    DCHECK(IntRegisterBits::is_valid(the_int_.code()));
+    DCHECK(HeapNumberRegisterBits::is_valid(the_heap_number_.code()));
+    DCHECK(ScratchRegisterBits::is_valid(scratch_.code()));
+    DCHECK(SignRegisterBits::is_valid(sign_.code()));
   }
 
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
@@ -180,8 +175,8 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
   class SignRegisterBits: public BitField<int, 12, 4> {};
 
-  Major MajorKey() { return WriteInt32ToHeapNumber; }
-  int MinorKey() {
+  Major MajorKey() const { return WriteInt32ToHeapNumber; }
+  int MinorKey() const {
     // Encode the parameters in a unique 16 bit value.
     return IntRegisterBits::encode(the_int_.code())
            | HeapNumberRegisterBits::encode(the_heap_number_.code())
@@ -224,14 +219,14 @@ class RecordWriteStub: public PlatformCodeStub {
     const unsigned offset = masm->instr_at(pos) & kImm16Mask;
     masm->instr_at_put(pos, BNE | (zero_reg.code() << kRsShift) |
         (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBne(masm->instr_at(pos)));
+    DCHECK(Assembler::IsBne(masm->instr_at(pos)));
   }
 
   static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
     const unsigned offset = masm->instr_at(pos) & kImm16Mask;
     masm->instr_at_put(pos, BEQ | (zero_reg.code() << kRsShift) |
         (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBeq(masm->instr_at(pos)));
+    DCHECK(Assembler::IsBeq(masm->instr_at(pos)));
   }
 
   static Mode GetMode(Code* stub) {
@@ -243,13 +238,13 @@ class RecordWriteStub: public PlatformCodeStub {
       return INCREMENTAL;
     }
 
-    ASSERT(Assembler::IsBne(first_instruction));
+    DCHECK(Assembler::IsBne(first_instruction));
 
     if (Assembler::IsBeq(second_instruction)) {
       return INCREMENTAL_COMPACTION;
     }
 
-    ASSERT(Assembler::IsBne(second_instruction));
+    DCHECK(Assembler::IsBne(second_instruction));
 
     return STORE_BUFFER_ONLY;
   }
@@ -260,22 +255,23 @@ class RecordWriteStub: public PlatformCodeStub {
                         stub->instruction_size());
     switch (mode) {
       case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
+        DCHECK(GetMode(stub) == INCREMENTAL ||
                GetMode(stub) == INCREMENTAL_COMPACTION);
         PatchBranchIntoNop(&masm, 0);
         PatchBranchIntoNop(&masm, 2 * Assembler::kInstrSize);
         break;
       case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, 0);
         break;
       case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, 2 * Assembler::kInstrSize);
         break;
     }
-    ASSERT(GetMode(stub) == mode);
-    CPU::FlushICache(stub->instruction_start(), 4 * Assembler::kInstrSize);
+    DCHECK(GetMode(stub) == mode);
+    CpuFeatures::FlushICache(stub->instruction_start(),
+                             4 * Assembler::kInstrSize);
   }
 
  private:
@@ -290,12 +286,12 @@ class RecordWriteStub: public PlatformCodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch0) {
-      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }
 
     void Save(MacroAssembler* masm) {
-      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
       // We don't have to save scratch0_ because it was given to us as
       // a scratch register.
       masm->push(scratch1_);
@@ -350,9 +346,9 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() { return RecordWrite; }
+  Major MajorKey() const { return RecordWrite; }
 
-  int MinorKey() {
+  int MinorKey() const {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
         AddressBits::encode(address_.code()) |
@@ -392,8 +388,8 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() { return DirectCEntry; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return DirectCEntry; }
+  int MinorKey() const { return 0; }
 
   bool NeedsImmovableCode() { return true; }
 };
@@ -438,11 +434,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return NameDictionaryLookup; }
+  Major MajorKey() const { return NameDictionaryLookup; }
 
-  int MinorKey() {
-    return LookupModeBits::encode(mode_);
-  }
+  int MinorKey() const { return LookupModeBits::encode(mode_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 

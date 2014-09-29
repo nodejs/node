@@ -1,35 +1,13 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <vector>
 
-#include "cctest.h"
-#include "types.h"
-#include "utils/random-number-generator.h"
+#include "src/hydrogen-types.h"
+#include "src/isolate-inl.h"
+#include "src/types.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -41,23 +19,13 @@ struct ZoneRep {
     return !IsBitset(t) && reinterpret_cast<intptr_t>(AsStruct(t)[0]) == tag;
   }
   static bool IsBitset(Type* t) { return reinterpret_cast<intptr_t>(t) & 1; }
-  static bool IsClass(Type* t) { return IsStruct(t, 0); }
-  static bool IsConstant(Type* t) { return IsStruct(t, 1); }
-  static bool IsArray(Type* t) { return IsStruct(t, 2); }
-  static bool IsFunction(Type* t) { return IsStruct(t, 3); }
-  static bool IsUnion(Type* t) { return IsStruct(t, 4); }
+  static bool IsUnion(Type* t) { return IsStruct(t, 6); }
 
   static Struct* AsStruct(Type* t) {
     return reinterpret_cast<Struct*>(t);
   }
   static int AsBitset(Type* t) {
     return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
-  }
-  static Map* AsClass(Type* t) {
-    return *static_cast<Map**>(AsStruct(t)[3]);
-  }
-  static Object* AsConstant(Type* t) {
-    return *static_cast<Object**>(AsStruct(t)[3]);
   }
   static Struct* AsUnion(Type* t) {
     return AsStruct(t);
@@ -67,6 +35,13 @@ struct ZoneRep {
   }
 
   static Zone* ToRegion(Zone* zone, Isolate* isolate) { return zone; }
+
+  struct BitsetType : Type::BitsetType {
+    using Type::BitsetType::New;
+    using Type::BitsetType::Glb;
+    using Type::BitsetType::Lub;
+    using Type::BitsetType::InherentLub;
+  };
 };
 
 
@@ -77,29 +52,32 @@ struct HeapRep {
     return t->IsFixedArray() && Smi::cast(AsStruct(t)->get(0))->value() == tag;
   }
   static bool IsBitset(Handle<HeapType> t) { return t->IsSmi(); }
-  static bool IsClass(Handle<HeapType> t) { return t->IsMap(); }
-  static bool IsConstant(Handle<HeapType> t) { return t->IsBox(); }
-  static bool IsArray(Handle<HeapType> t) { return IsStruct(t, 2); }
-  static bool IsFunction(Handle<HeapType> t) { return IsStruct(t, 3); }
-  static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 4); }
+  static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 6); }
 
   static Struct* AsStruct(Handle<HeapType> t) { return FixedArray::cast(*t); }
   static int AsBitset(Handle<HeapType> t) { return Smi::cast(*t)->value(); }
-  static Map* AsClass(Handle<HeapType> t) { return Map::cast(*t); }
-  static Object* AsConstant(Handle<HeapType> t) {
-    return Box::cast(*t)->value();
-  }
   static Struct* AsUnion(Handle<HeapType> t) { return AsStruct(t); }
   static int Length(Struct* structured) { return structured->length() - 1; }
 
   static Isolate* ToRegion(Zone* zone, Isolate* isolate) { return isolate; }
+
+  struct BitsetType : HeapType::BitsetType {
+    using HeapType::BitsetType::New;
+    using HeapType::BitsetType::Glb;
+    using HeapType::BitsetType::Lub;
+    using HeapType::BitsetType::InherentLub;
+    static int Glb(Handle<HeapType> type) { return Glb(*type); }
+    static int Lub(Handle<HeapType> type) { return Lub(*type); }
+    static int InherentLub(Handle<HeapType> type) { return InherentLub(*type); }
+  };
 };
 
 
 template<class Type, class TypeHandle, class Region>
 class Types {
  public:
-  Types(Region* region, Isolate* isolate) : region_(region) {
+  Types(Region* region, Isolate* isolate)
+      : region_(region), rng_(isolate->random_number_generator()) {
     #define DECLARE_TYPE(name, value) \
       name = Type::name(region); \
       types.push_back(name);
@@ -143,7 +121,16 @@ class Types {
       types.push_back(Type::Constant(*it, region));
     }
 
-    FloatArray = Type::Array(Float, region);
+    doubles.push_back(-0.0);
+    doubles.push_back(+0.0);
+    doubles.push_back(-std::numeric_limits<double>::infinity());
+    doubles.push_back(+std::numeric_limits<double>::infinity());
+    for (int i = 0; i < 10; ++i) {
+      doubles.push_back(rng_->NextInt());
+      doubles.push_back(rng_->NextDouble() * rng_->NextInt());
+    }
+
+    NumberArray = Type::Array(Number, region);
     StringArray = Type::Array(String, region);
     AnyArray = Type::Array(Any, region);
 
@@ -152,7 +139,7 @@ class Types {
     NumberFunction2 = Type::Function(Number, Number, Number, region);
     MethodFunction = Type::Function(String, Object, 0, region);
 
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
     }
   }
@@ -183,7 +170,7 @@ class Types {
   TypeHandle ArrayConstant;
   TypeHandle UninitializedConstant;
 
-  TypeHandle FloatArray;
+  TypeHandle NumberArray;
   TypeHandle StringArray;
   TypeHandle AnyArray;
 
@@ -195,9 +182,27 @@ class Types {
   typedef std::vector<TypeHandle> TypeVector;
   typedef std::vector<Handle<i::Map> > MapVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
+  typedef std::vector<double> DoubleVector;
+
   TypeVector types;
   MapVector maps;
   ValueVector values;
+  DoubleVector doubles;  // Some floating-point values, excluding NaN.
+
+  // Range type helper functions, partially copied from types.cc.
+  // Note: dle(dmin(x,y), dmax(x,y)) holds iff neither x nor y is NaN.
+  bool dle(double x, double y) {
+    return x <= y && (x != 0 || IsMinusZero(x) || !IsMinusZero(y));
+  }
+  bool deq(double x, double y) {
+    return dle(x, y) && dle(y, x);
+  }
+  double dmin(double x, double y) {
+    return dle(x, y) ? x : y;
+  }
+  double dmax(double x, double y) {
+    return dle(x, y) ? y : x;
+  }
 
   TypeHandle Of(Handle<i::Object> value) {
     return Type::Of(value, region_);
@@ -209,6 +214,10 @@ class Types {
 
   TypeHandle Constant(Handle<i::Object> value) {
     return Type::Constant(value, region_);
+  }
+
+  TypeHandle Range(double min, double max) {
+    return Type::Range(min, max, region_);
   }
 
   TypeHandle Class(Handle<i::Map> map) {
@@ -246,18 +255,18 @@ class Types {
   }
 
   TypeHandle Random() {
-    return types[rng_.NextInt(static_cast<int>(types.size()))];
+    return types[rng_->NextInt(static_cast<int>(types.size()))];
   }
 
   TypeHandle Fuzz(int depth = 5) {
-    switch (rng_.NextInt(depth == 0 ? 3 : 20)) {
+    switch (rng_->NextInt(depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
         int n = 0
         #define COUNT_BITSET_TYPES(type, value) + 1
         BITSET_TYPE_LIST(COUNT_BITSET_TYPES)
         #undef COUNT_BITSET_TYPES
         ;
-        int i = rng_.NextInt(n);
+        int i = rng_->NextInt(n);
         #define PICK_BITSET_TYPE(type, value) \
           if (i-- == 0) return Type::type(region_);
         BITSET_TYPE_LIST(PICK_BITSET_TYPE)
@@ -265,31 +274,37 @@ class Types {
         UNREACHABLE();
       }
       case 1: {  // class
-        int i = rng_.NextInt(static_cast<int>(maps.size()));
+        int i = rng_->NextInt(static_cast<int>(maps.size()));
         return Type::Class(maps[i], region_);
       }
       case 2: {  // constant
-        int i = rng_.NextInt(static_cast<int>(values.size()));
+        int i = rng_->NextInt(static_cast<int>(values.size()));
         return Type::Constant(values[i], region_);
       }
-      case 3: {  // array
+      case 3: {  // context
+        int depth = rng_->NextInt(3);
+        TypeHandle type = Type::Internal(region_);
+        for (int i = 0; i < depth; ++i) type = Type::Context(type, region_);
+        return type;
+      }
+      case 4: {  // array
         TypeHandle element = Fuzz(depth / 2);
         return Type::Array(element, region_);
       }
-      case 4:
       case 5:
       case 6: {  // function
         TypeHandle result = Fuzz(depth / 2);
         TypeHandle receiver = Fuzz(depth / 2);
-        int arity = rng_.NextInt(3);
+        int arity = rng_->NextInt(3);
         TypeHandle type = Type::Function(result, receiver, arity, region_);
         for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          TypeHandle parameter = Fuzz(depth - 1);
+          TypeHandle parameter = Fuzz(depth / 2);
           type->AsFunction()->InitParameter(i, parameter);
         }
+        return type;
       }
       default: {  // union
-        int n = rng_.NextInt(10);
+        int n = rng_->NextInt(10);
         TypeHandle type = None;
         for (int i = 0; i < n; ++i) {
           TypeHandle operand = Fuzz(depth - 1);
@@ -301,9 +316,11 @@ class Types {
     UNREACHABLE();
   }
 
+  Region* region() { return region_; }
+
  private:
   Region* region_;
-  RandomNumberGenerator rng_;
+  v8::base::RandomNumberGenerator* rng_;
 };
 
 
@@ -313,6 +330,7 @@ struct Tests : Rep {
   typedef typename TypesInstance::TypeVector::iterator TypeIterator;
   typedef typename TypesInstance::MapVector::iterator MapIterator;
   typedef typename TypesInstance::ValueVector::iterator ValueIterator;
+  typedef typename TypesInstance::DoubleVector::iterator DoubleIterator;
 
   Isolate* isolate;
   HandleScope scope;
@@ -328,19 +346,13 @@ struct Tests : Rep {
 
   bool Equal(TypeHandle type1, TypeHandle type2) {
     return
-        type1->Is(type2) && type2->Is(type1) &&
+        type1->Equals(type2) &&
         Rep::IsBitset(type1) == Rep::IsBitset(type2) &&
-        Rep::IsClass(type1) == Rep::IsClass(type2) &&
-        Rep::IsConstant(type1) == Rep::IsConstant(type2) &&
         Rep::IsUnion(type1) == Rep::IsUnion(type2) &&
         type1->NumClasses() == type2->NumClasses() &&
         type1->NumConstants() == type2->NumConstants() &&
         (!Rep::IsBitset(type1) ||
           Rep::AsBitset(type1) == Rep::AsBitset(type2)) &&
-        (!Rep::IsClass(type1) ||
-          Rep::AsClass(type1) == Rep::AsClass(type2)) &&
-        (!Rep::IsConstant(type1) ||
-          Rep::AsConstant(type1) == Rep::AsConstant(type2)) &&
         (!Rep::IsUnion(type1) ||
           Rep::Length(Rep::AsUnion(type1)) == Rep::Length(Rep::AsUnion(type2)));
   }
@@ -460,7 +472,7 @@ struct Tests : Rep {
     for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
       Handle<i::Map> map = *mt;
       TypeHandle type = T.Class(map);
-      CHECK(this->IsClass(type));
+      CHECK(type->IsClass());
     }
 
     // Map attribute
@@ -487,7 +499,7 @@ struct Tests : Rep {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
       TypeHandle type = T.Constant(value);
-      CHECK(this->IsConstant(type));
+      CHECK(type->IsConstant());
     }
 
     // Value attribute
@@ -507,6 +519,93 @@ struct Tests : Rep {
         CHECK(Equal(type1, type2) == (*value1 == *value2));
       }
     }
+
+    // Typing of numbers
+    Factory* fac = isolate->factory();
+    CHECK(T.Constant(fac->NewNumber(0))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(1))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.OtherSignedSmall));
+    if (SmiValuesAre31Bits()) {
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+    } else {
+      CHECK(SmiValuesAre32Bits());
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
+      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+    }
+    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.OtherUnsigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.OtherUnsigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu+1.0))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-0x7fffffff-2.0))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
+    CHECK(T.Constant(fac->NewNumber(v8::base::OS::nan_value()))->Is(T.NaN));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.OtherNumber));
+  }
+
+  void Range() {
+    // Constructor
+    for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
+      for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
+        double min = T.dmin(*i, *j);
+        double max = T.dmax(*i, *j);
+        TypeHandle type = T.Range(min, max);
+        CHECK(type->IsRange());
+      }
+    }
+
+    // Range attributes
+    for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
+      for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
+        double min = T.dmin(*i, *j);
+        double max = T.dmax(*i, *j);
+        printf("RangeType: min, max = %f, %f\n", min, max);
+        TypeHandle type = T.Range(min, max);
+        printf("RangeType: Min, Max = %f, %f\n",
+               type->AsRange()->Min(), type->AsRange()->Max());
+        CHECK(min == type->AsRange()->Min());
+        CHECK(max == type->AsRange()->Max());
+      }
+    }
+
+// TODO(neis): enable once subtyping is updated.
+//  // Functionality & Injectivity: Range(min1, max1) = Range(min2, max2) <=>
+//  //                              min1 = min2 /\ max1 = max2
+//  for (DoubleIterator i1 = T.doubles.begin(); i1 != T.doubles.end(); ++i1) {
+//    for (DoubleIterator j1 = T.doubles.begin(); j1 != T.doubles.end(); ++j1) {
+//      for (DoubleIterator i2 = T.doubles.begin();
+//           i2 != T.doubles.end(); ++i2) {
+//        for (DoubleIterator j2 = T.doubles.begin();
+//             j2 != T.doubles.end(); ++j2) {
+//          double min1 = T.dmin(*i1, *j1);
+//          double max1 = T.dmax(*i1, *j1);
+//          double min2 = T.dmin(*i2, *j2);
+//          double max2 = T.dmax(*i2, *j2);
+//          TypeHandle type1 = T.Range(min1, max1);
+//          TypeHandle type2 = T.Range(min2, max2);
+//          CHECK(Equal(type1, type2) ==
+//                (T.deq(min1, min2) && T.deq(max1, max2)));
+//        }
+//      }
+//    }
+//  }
   }
 
   void Array() {
@@ -514,7 +613,7 @@ struct Tests : Rep {
     for (int i = 0; i < 20; ++i) {
       TypeHandle type = T.Random();
       TypeHandle array = T.Array1(type);
-      CHECK(this->IsArray(array));
+      CHECK(array->IsArray());
     }
 
     // Attributes
@@ -669,6 +768,44 @@ struct Tests : Rep {
     }
   }
 
+  void Bounds() {
+    // Ordering: (T->BitsetGlb())->Is(T->BitsetLub())
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      TypeHandle glb =
+          Rep::BitsetType::New(Rep::BitsetType::Glb(type), T.region());
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
+      CHECK(glb->Is(lub));
+    }
+
+    // Lower bound: (T->BitsetGlb())->Is(T)
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      TypeHandle glb =
+          Rep::BitsetType::New(Rep::BitsetType::Glb(type), T.region());
+      CHECK(glb->Is(type));
+    }
+
+    // Upper bound: T->Is(T->BitsetLub())
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
+      CHECK(type->Is(lub));
+    }
+
+    // Inherent bound: (T->BitsetLub())->Is(T->InherentBitsetLub())
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
+      TypeHandle inherent =
+          Rep::BitsetType::New(Rep::BitsetType::InherentLub(type), T.region());
+      CHECK(lub->Is(inherent));
+    }
+  }
+
   void Is() {
     // Least Element (Bottom): None->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
@@ -772,10 +909,9 @@ struct Tests : Rep {
 
     CheckSub(T.SignedSmall, T.Number);
     CheckSub(T.Signed32, T.Number);
-    CheckSub(T.Float, T.Number);
     CheckSub(T.SignedSmall, T.Signed32);
-    CheckUnordered(T.SignedSmall, T.Float);
-    CheckUnordered(T.Signed32, T.Float);
+    CheckUnordered(T.SignedSmall, T.MinusZero);
+    CheckUnordered(T.Signed32, T.Unsigned32);
 
     CheckSub(T.UniqueName, T.Name);
     CheckSub(T.String, T.Name);
@@ -823,8 +959,8 @@ struct Tests : Rep {
     CheckUnordered(T.ObjectConstant2, T.ArrayClass);
     CheckUnordered(T.ArrayConstant, T.ObjectClass);
 
-    CheckSub(T.FloatArray, T.Array);
-    CheckSub(T.FloatArray, T.Object);
+    CheckSub(T.NumberArray, T.Array);
+    CheckSub(T.NumberArray, T.Object);
     CheckUnordered(T.StringArray, T.AnyArray);
 
     CheckSub(T.MethodFunction, T.Function);
@@ -1044,13 +1180,13 @@ struct Tests : Rep {
       }
     }
 
-    // T1->Maybe(T2) iff Intersect(T1, T2) inhabited
+    // T1->Maybe(T2) implies Intersect(T1, T2) inhabited
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         TypeHandle type1 = *it1;
         TypeHandle type2 = *it2;
         TypeHandle intersect12 = T.Intersect(type1, type2);
-        CHECK(type1->Maybe(type2) == intersect12->IsInhabited());
+        CHECK(!type1->Maybe(type2) || intersect12->IsInhabited());
       }
     }
 
@@ -1114,8 +1250,8 @@ struct Tests : Rep {
     CheckDisjoint(T.Boolean, T.Undefined, T.Semantic);
 
     CheckOverlap(T.SignedSmall, T.Number, T.Semantic);
-    CheckOverlap(T.Float, T.Number, T.Semantic);
-    CheckDisjoint(T.Signed32, T.Float, T.Semantic);
+    CheckOverlap(T.NaN, T.Number, T.Semantic);
+    CheckDisjoint(T.Signed32, T.NaN, T.Semantic);
 
     CheckOverlap(T.UniqueName, T.Name, T.Semantic);
     CheckOverlap(T.String, T.Name, T.Semantic);
@@ -1145,7 +1281,6 @@ struct Tests : Rep {
     CheckOverlap(T.SmiConstant, T.SignedSmall, T.Semantic);
     CheckOverlap(T.SmiConstant, T.Signed32, T.Semantic);
     CheckOverlap(T.SmiConstant, T.Number, T.Semantic);
-    CheckDisjoint(T.SmiConstant, T.Float, T.Semantic);
     CheckOverlap(T.ObjectConstant1, T.Object, T.Semantic);
     CheckOverlap(T.ObjectConstant2, T.Object, T.Semantic);
     CheckOverlap(T.ArrayConstant, T.Object, T.Semantic);
@@ -1160,9 +1295,9 @@ struct Tests : Rep {
     CheckDisjoint(T.ObjectConstant2, T.ArrayClass, T.Semantic);
     CheckDisjoint(T.ArrayConstant, T.ObjectClass, T.Semantic);
 
-    CheckOverlap(T.FloatArray, T.Array, T.Semantic);
-    CheckDisjoint(T.FloatArray, T.AnyArray, T.Semantic);
-    CheckDisjoint(T.FloatArray, T.StringArray, T.Semantic);
+    CheckOverlap(T.NumberArray, T.Array, T.Semantic);
+    CheckDisjoint(T.NumberArray, T.AnyArray, T.Semantic);
+    CheckDisjoint(T.NumberArray, T.StringArray, T.Semantic);
 
     CheckOverlap(T.MethodFunction, T.Function, T.Semantic);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction1, T.Semantic);
@@ -1303,22 +1438,18 @@ struct Tests : Rep {
 
     // Bitset-array
     CHECK(this->IsBitset(T.Union(T.AnyArray, T.Array)));
-    CHECK(this->IsUnion(T.Union(T.FloatArray, T.Number)));
+    CHECK(this->IsUnion(T.Union(T.NumberArray, T.Number)));
 
     CheckEqual(T.Union(T.AnyArray, T.Array), T.Array);
-    CheckSub(T.None, T.Union(T.FloatArray, T.Number));
-    CheckSub(T.Union(T.FloatArray, T.Number), T.Any);
     CheckUnordered(T.Union(T.AnyArray, T.String), T.Array);
-    CheckOverlap(T.Union(T.FloatArray, T.String), T.Object, T.Semantic);
-    CheckDisjoint(T.Union(T.FloatArray, T.String), T.Number, T.Semantic);
+    CheckOverlap(T.Union(T.NumberArray, T.String), T.Object, T.Semantic);
+    CheckDisjoint(T.Union(T.NumberArray, T.String), T.Number, T.Semantic);
 
     // Bitset-function
     CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Function)));
     CHECK(this->IsUnion(T.Union(T.NumberFunction1, T.Number)));
 
     CheckEqual(T.Union(T.MethodFunction, T.Function), T.Function);
-    CheckSub(T.None, T.Union(T.MethodFunction, T.Number));
-    CheckSub(T.Union(T.MethodFunction, T.Number), T.Any);
     CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Function);
     CheckOverlap(T.Union(T.NumberFunction2, T.String), T.Object, T.Semantic);
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number, T.Semantic);
@@ -1353,10 +1484,10 @@ struct Tests : Rep {
 
     // Bitset-union
     CheckSub(
-        T.Float,
+        T.NaN,
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
     CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float),
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Signed32),
         T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
 
     // Class-union
@@ -1380,9 +1511,9 @@ struct Tests : Rep {
 
     // Array-union
     CheckEqual(
-        T.Union(T.AnyArray, T.Union(T.FloatArray, T.AnyArray)),
-        T.Union(T.AnyArray, T.FloatArray));
-    CheckSub(T.Union(T.AnyArray, T.FloatArray), T.Array);
+        T.Union(T.AnyArray, T.Union(T.NumberArray, T.AnyArray)),
+        T.Union(T.AnyArray, T.NumberArray));
+    CheckSub(T.Union(T.AnyArray, T.NumberArray), T.Array);
 
     // Function-union
     CheckEqual(
@@ -1524,7 +1655,7 @@ struct Tests : Rep {
     CheckSub(T.Intersect(T.ObjectClass, T.Number), T.Representation);
 
     // Bitset-array
-    CheckEqual(T.Intersect(T.FloatArray, T.Object), T.FloatArray);
+    CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
     CheckSub(T.Intersect(T.AnyArray, T.Function), T.Representation);
 
     // Bitset-function
@@ -1535,24 +1666,24 @@ struct Tests : Rep {
     CheckEqual(
         T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
         T.Union(T.ObjectConstant1, T.ObjectClass));
-    CheckEqual(
-        T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number),
-        T.None);
+    CHECK(
+        !T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number)
+            ->IsInhabited());
 
     // Class-constant
-    CheckEqual(T.Intersect(T.ObjectConstant1, T.ObjectClass), T.None);
-    CheckEqual(T.Intersect(T.ArrayClass, T.ObjectConstant2), T.None);
+    CHECK(!T.Intersect(T.ObjectConstant1, T.ObjectClass)->IsInhabited());
+    CHECK(!T.Intersect(T.ArrayClass, T.ObjectConstant2)->IsInhabited());
 
     // Array-union
     CheckEqual(
-        T.Intersect(T.FloatArray, T.Union(T.FloatArray, T.ArrayClass)),
-        T.FloatArray);
+        T.Intersect(T.NumberArray, T.Union(T.NumberArray, T.ArrayClass)),
+        T.NumberArray);
     CheckEqual(
         T.Intersect(T.AnyArray, T.Union(T.Object, T.SmiConstant)),
         T.AnyArray);
-    CheckEqual(
-        T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.FloatArray),
-        T.None);
+    CHECK(
+        !T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.NumberArray)
+            ->IsInhabited());
 
     // Function-union
     CheckEqual(
@@ -1561,9 +1692,9 @@ struct Tests : Rep {
     CheckEqual(
         T.Intersect(T.NumberFunction1, T.Union(T.Object, T.SmiConstant)),
         T.NumberFunction1);
-    CheckEqual(
-        T.Intersect(T.Union(T.MethodFunction, T.Name), T.NumberFunction2),
-        T.None);
+    CHECK(
+        !T.Intersect(T.Union(T.MethodFunction, T.Name), T.NumberFunction2)
+            ->IsInhabited());
 
     // Class-union
     CheckEqual(
@@ -1572,9 +1703,9 @@ struct Tests : Rep {
     CheckEqual(
         T.Intersect(T.ArrayClass, T.Union(T.Object, T.SmiConstant)),
         T.ArrayClass);
-    CheckEqual(
-        T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant), T.ArrayClass),
-        T.None);
+    CHECK(
+        !T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant), T.ArrayClass)
+            ->IsInhabited());
 
     // Constant-union
     CheckEqual(
@@ -1584,10 +1715,10 @@ struct Tests : Rep {
     CheckEqual(
         T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
         T.SmiConstant);
-    CheckEqual(
-        T.Intersect(
-            T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1),
-        T.None);
+    CHECK(
+        !T.Intersect(
+            T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1)
+                ->IsInhabited());
 
     // Union-union
     CheckEqual(
@@ -1615,6 +1746,46 @@ struct Tests : Rep {
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
   }
 
+  void Distributivity1() {
+    // Distributivity:
+    // Union(T1, Intersect(T2, T3)) = Intersect(Union(T1, T2), Union(T1, T3))
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
+          TypeHandle type1 = *it1;
+          TypeHandle type2 = *it2;
+          TypeHandle type3 = *it3;
+          TypeHandle union12 = T.Union(type1, type2);
+          TypeHandle union13 = T.Union(type1, type3);
+          TypeHandle intersect23 = T.Intersect(type2, type3);
+          TypeHandle union1_23 = T.Union(type1, intersect23);
+          TypeHandle intersect12_13 = T.Intersect(union12, union13);
+          CHECK(Equal(union1_23, intersect12_13));
+        }
+      }
+    }
+  }
+
+  void Distributivity2() {
+    // Distributivity:
+    // Intersect(T1, Union(T2, T3)) = Union(Intersect(T1, T2), Intersect(T1,T3))
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
+          TypeHandle type1 = *it1;
+          TypeHandle type2 = *it2;
+          TypeHandle type3 = *it3;
+          TypeHandle intersect12 = T.Intersect(type1, type2);
+          TypeHandle intersect13 = T.Intersect(type1, type3);
+          TypeHandle union23 = T.Union(type2, type3);
+          TypeHandle intersect1_23 = T.Intersect(type1, union23);
+          TypeHandle union12_13 = T.Union(intersect12, intersect13);
+          CHECK(Equal(intersect1_23, union12_13));
+        }
+      }
+    }
+  }
+
   template<class Type2, class TypeHandle2, class Region2, class Rep2>
   void Convert() {
     Types<Type2, TypeHandle2, Region2> T2(
@@ -1624,6 +1795,18 @@ struct Tests : Rep {
       TypeHandle2 type2 = T2.template Convert<Type>(type1);
       TypeHandle type3 = T.template Convert<Type2>(type2);
       CheckEqual(type1, type3);
+    }
+  }
+
+  void HTypeFromType() {
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        HType htype1 = HType::FromType<Type>(type1);
+        HType htype2 = HType::FromType<Type>(type2);
+        CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
+      }
     }
   }
 };
@@ -1653,6 +1836,13 @@ TEST(ConstantType) {
 }
 
 
+TEST(RangeType) {
+  CcTest::InitializeVM();
+  ZoneTests().Range();
+  HeapTests().Range();
+}
+
+
 TEST(ArrayType) {
   CcTest::InitializeVM();
   ZoneTests().Array();
@@ -1678,6 +1868,13 @@ TEST(NowOf) {
   CcTest::InitializeVM();
   ZoneTests().NowOf();
   HeapTests().NowOf();
+}
+
+
+TEST(Bounds) {
+  CcTest::InitializeVM();
+  ZoneTests().Bounds();
+  HeapTests().Bounds();
 }
 
 
@@ -1744,8 +1941,29 @@ TEST(Intersect2) {
 }
 
 
+TEST(Distributivity1) {
+  CcTest::InitializeVM();
+  ZoneTests().Distributivity1();
+  HeapTests().Distributivity1();
+}
+
+
+TEST(Distributivity2) {
+  CcTest::InitializeVM();
+  ZoneTests().Distributivity2();
+  HeapTests().Distributivity2();
+}
+
+
 TEST(Convert) {
   CcTest::InitializeVM();
   ZoneTests().Convert<HeapType, Handle<HeapType>, Isolate, HeapRep>();
   HeapTests().Convert<Type, Type*, Zone, ZoneRep>();
+}
+
+
+TEST(HTypeFromType) {
+  CcTest::InitializeVM();
+  ZoneTests().HTypeFromType();
+  HeapTests().HTypeFromType();
 }

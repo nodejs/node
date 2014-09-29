@@ -32,12 +32,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "factory.h"
-#include "objects.h"
-#include "cctest.h"
+#include "src/api.h"
+#include "src/factory.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
 class MyRandomNumberGenerator {
@@ -77,7 +77,7 @@ class MyRandomNumberGenerator {
   }
 
   bool next(double threshold) {
-    ASSERT(threshold >= 0.0 && threshold <= 1.0);
+    DCHECK(threshold >= 0.0 && threshold <= 1.0);
     if (threshold == 1.0) return true;
     if (threshold == 0.0) return false;
     uint32_t value = next() % 100000;
@@ -1201,10 +1201,9 @@ TEST(SliceFromSlice) {
 
 TEST(AsciiArrayJoin) {
   // Set heap limits.
-  static const int K = 1024;
   v8::ResourceConstraints constraints;
-  constraints.set_max_new_space_size(2 * K * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_semi_space_size(1);
+  constraints.set_max_old_space_size(4);
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // String s is made of 2^17 = 131072 'c' characters and a is an array

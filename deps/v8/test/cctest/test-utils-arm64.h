@@ -28,12 +28,12 @@
 #ifndef V8_ARM64_TEST_UTILS_ARM64_H_
 #define V8_ARM64_TEST_UTILS_ARM64_H_
 
-#include "v8.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "macro-assembler.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/utils-arm64.h"
-#include "cctest.h"
+#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/utils-arm64.h"
+#include "src/macro-assembler.h"
 
 
 using namespace v8::internal;
@@ -59,7 +59,7 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return wspreg();
     }
-    ASSERT(RegAliasesMatch(code));
+    DCHECK(RegAliasesMatch(code));
     return dump_.w_[code];
   }
 
@@ -67,13 +67,13 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return spreg();
     }
-    ASSERT(RegAliasesMatch(code));
+    DCHECK(RegAliasesMatch(code));
     return dump_.x_[code];
   }
 
   // FPRegister accessors.
   inline uint32_t sreg_bits(unsigned code) const {
-    ASSERT(FPRegAliasesMatch(code));
+    DCHECK(FPRegAliasesMatch(code));
     return dump_.s_[code];
   }
 
@@ -82,7 +82,7 @@ class RegisterDump {
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
-    ASSERT(FPRegAliasesMatch(code));
+    DCHECK(FPRegAliasesMatch(code));
     return dump_.d_[code];
   }
 
@@ -92,19 +92,19 @@ class RegisterDump {
 
   // Stack pointer accessors.
   inline int64_t spreg() const {
-    ASSERT(SPRegAliasesMatch());
+    DCHECK(SPRegAliasesMatch());
     return dump_.sp_;
   }
 
   inline int64_t wspreg() const {
-    ASSERT(SPRegAliasesMatch());
+    DCHECK(SPRegAliasesMatch());
     return dump_.wsp_;
   }
 
   // Flags accessors.
   inline uint64_t flags_nzcv() const {
-    ASSERT(IsComplete());
-    ASSERT((dump_.flags_ & ~Flags_mask) == 0);
+    DCHECK(IsComplete());
+    DCHECK((dump_.flags_ & ~Flags_mask) == 0);
     return dump_.flags_ & Flags_mask;
   }
 
@@ -120,21 +120,21 @@ class RegisterDump {
   // w<code>. A failure of this test most likely represents a failure in the
   // ::Dump method, or a failure in the simulator.
   bool RegAliasesMatch(unsigned code) const {
-    ASSERT(IsComplete());
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(IsComplete());
+    DCHECK(code < kNumberOfRegisters);
     return ((dump_.x_[code] & kWRegMask) == dump_.w_[code]);
   }
 
   // As RegAliasesMatch, but for the stack pointer.
   bool SPRegAliasesMatch() const {
-    ASSERT(IsComplete());
+    DCHECK(IsComplete());
     return ((dump_.sp_ & kWRegMask) == dump_.wsp_);
   }
 
   // As RegAliasesMatch, but for floating-point registers.
   bool FPRegAliasesMatch(unsigned code) const {
-    ASSERT(IsComplete());
-    ASSERT(code < kNumberOfFPRegisters);
+    DCHECK(IsComplete());
+    DCHECK(code < kNumberOfFPRegisters);
     return (dump_.d_[code] & kSRegMask) == dump_.s_[code];
   }
 

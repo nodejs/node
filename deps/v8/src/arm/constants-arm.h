@@ -19,11 +19,11 @@ const int kConstantPoolMarkerMask = 0xfff000f0;
 const int kConstantPoolMarker = 0xe7f000f0;
 const int kConstantPoolLengthMaxMask = 0xffff;
 inline int EncodeConstantPoolLength(int length) {
-  ASSERT((length & kConstantPoolLengthMaxMask) == length);
+  DCHECK((length & kConstantPoolLengthMaxMask) == length);
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  ASSERT((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
 
@@ -84,13 +84,13 @@ enum Condition {
 
 
 inline Condition NegateCondition(Condition cond) {
-  ASSERT(cond != al);
+  DCHECK(cond != al);
   return static_cast<Condition>(cond ^ ne);
 }
 
 
-// Corresponds to transposing the operands of a comparison.
-inline Condition ReverseCondition(Condition cond) {
+// Commute a condition such that {a cond b == b cond' a}.
+inline Condition CommuteCondition(Condition cond) {
   switch (cond) {
     case lo:
       return hi;
@@ -110,7 +110,7 @@ inline Condition ReverseCondition(Condition cond) {
       return ge;
     default:
       return cond;
-  };
+  }
 }
 
 
@@ -406,64 +406,6 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 
 
 // -----------------------------------------------------------------------------
-// Specific instructions, constants, and masks.
-// These constants are declared in assembler-arm.cc, as they use named registers
-// and other constants.
-
-
-// add(sp, sp, 4) instruction (aka Pop())
-extern const Instr kPopInstruction;
-
-// str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
-// register r is not encoded.
-extern const Instr kPushRegPattern;
-
-// ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
-// register r is not encoded.
-extern const Instr kPopRegPattern;
-
-// mov lr, pc
-extern const Instr kMovLrPc;
-// ldr rd, [pc, #offset]
-extern const Instr kLdrPCMask;
-extern const Instr kLdrPCPattern;
-// vldr dd, [pc, #offset]
-extern const Instr kVldrDPCMask;
-extern const Instr kVldrDPCPattern;
-// blxcc rm
-extern const Instr kBlxRegMask;
-
-extern const Instr kBlxRegPattern;
-
-extern const Instr kMovMvnMask;
-extern const Instr kMovMvnPattern;
-extern const Instr kMovMvnFlip;
-extern const Instr kMovLeaveCCMask;
-extern const Instr kMovLeaveCCPattern;
-extern const Instr kMovwMask;
-extern const Instr kMovwPattern;
-extern const Instr kMovwLeaveCCFlip;
-extern const Instr kCmpCmnMask;
-extern const Instr kCmpCmnPattern;
-extern const Instr kCmpCmnFlip;
-extern const Instr kAddSubFlip;
-extern const Instr kAndBicFlip;
-
-// A mask for the Rd register for push, pop, ldr, str instructions.
-extern const Instr kLdrRegFpOffsetPattern;
-
-extern const Instr kStrRegFpOffsetPattern;
-
-extern const Instr kLdrRegFpNegOffsetPattern;
-
-extern const Instr kStrRegFpNegOffsetPattern;
-
-extern const Instr kLdrStrInstrTypeMask;
-extern const Instr kLdrStrInstrArgumentMask;
-extern const Instr kLdrStrOffsetMask;
-
-
-// -----------------------------------------------------------------------------
 // Instruction abstraction.
 
 // The class Instruction enables access to individual fields defined in the ARM
@@ -626,6 +568,7 @@ class Instruction {
   inline int Immed4Value() const { return Bits(19, 16); }
   inline int ImmedMovwMovtValue() const {
       return Immed4Value() << 12 | Offset12Value(); }
+  DECLARE_STATIC_ACCESSOR(ImmedMovwMovtValue);
 
   // Fields used in Load/Store instructions
   inline int PUValue() const { return Bits(24, 23); }

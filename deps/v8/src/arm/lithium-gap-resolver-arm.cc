@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "arm/lithium-gap-resolver-arm.h"
-#include "arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-gap-resolver-arm.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +29,7 @@ LGapResolver::LGapResolver(LCodeGen* owner)
 
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
-  ASSERT(moves_.is_empty());
+  DCHECK(moves_.is_empty());
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
 
@@ -50,13 +50,13 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
   // Perform the moves with constant sources.
   for (int i = 0; i < moves_.length(); ++i) {
     if (!moves_[i].IsEliminated()) {
-      ASSERT(moves_[i].source()->IsConstantOperand());
+      DCHECK(moves_[i].source()->IsConstantOperand());
       EmitMove(i);
     }
   }
 
   if (need_to_restore_root_) {
-    ASSERT(kSavedValueRegister.is(kRootRegister));
+    DCHECK(kSavedValueRegister.is(kRootRegister));
     __ InitializeRootRegister();
     need_to_restore_root_ = false;
   }
@@ -94,13 +94,13 @@ void LGapResolver::PerformMove(int index) {
   // An additional complication is that moves to MemOperands with large
   // offsets (more than 1K or 4K) require us to spill this spilled value to
   // the stack, to free up the register.
-  ASSERT(!moves_[index].IsPending());
-  ASSERT(!moves_[index].IsRedundant());
+  DCHECK(!moves_[index].IsPending());
+  DCHECK(!moves_[index].IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
   // destination is saved in a stack allocated local.  Multiple moves can
   // be pending because this function is recursive.
-  ASSERT(moves_[index].source() != NULL);  // Or else it will look eliminated.
+  DCHECK(moves_[index].source() != NULL);  // Or else it will look eliminated.
   LOperand* destination = moves_[index].destination();
   moves_[index].set_destination(NULL);
 
@@ -127,7 +127,7 @@ void LGapResolver::PerformMove(int index) {
   // a scratch register to break it.
   LMoveOperands other_move = moves_[root_index_];
   if (other_move.Blocks(destination)) {
-    ASSERT(other_move.IsPending());
+    DCHECK(other_move.IsPending());
     BreakCycle(index);
     return;
   }
@@ -138,12 +138,12 @@ void LGapResolver::PerformMove(int index) {
 
 
 void LGapResolver::Verify() {
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
   // No operand should be the destination for more than one move.
   for (int i = 0; i < moves_.length(); ++i) {
     LOperand* destination = moves_[i].destination();
     for (int j = i + 1; j < moves_.length(); ++j) {
-      SLOW_ASSERT(!destination->Equals(moves_[j].destination()));
+      SLOW_DCHECK(!destination->Equals(moves_[j].destination()));
     }
   }
 #endif
@@ -154,8 +154,8 @@ void LGapResolver::BreakCycle(int index) {
   // We save in a register the source of that move and we remember its
   // destination. Then we mark this move as resolved so the cycle is
   // broken and we can perform the other moves.
-  ASSERT(moves_[index].destination()->Equals(moves_[root_index_].source()));
-  ASSERT(!in_cycle_);
+  DCHECK(moves_[index].destination()->Equals(moves_[root_index_].source()));
+  DCHECK(!in_cycle_);
   in_cycle_ = true;
   LOperand* source = moves_[index].source();
   saved_destination_ = moves_[index].destination();
@@ -178,8 +178,8 @@ void LGapResolver::BreakCycle(int index) {
 
 
 void LGapResolver::RestoreValue() {
-  ASSERT(in_cycle_);
-  ASSERT(saved_destination_ != NULL);
+  DCHECK(in_cycle_);
+  DCHECK(saved_destination_ != NULL);
 
   if (saved_destination_->IsRegister()) {
     __ mov(cgen_->ToRegister(saved_destination_), kSavedValueRegister);
@@ -210,7 +210,7 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsRegister()) {
       __ mov(cgen_->ToRegister(destination), source_register);
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       __ str(source_register, cgen_->ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
@@ -218,7 +218,7 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsRegister()) {
       __ ldr(cgen_->ToRegister(destination), source_operand);
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (!destination_operand.OffsetIsUint12Encodable()) {
         // ip is overwritten while saving the value to the destination.
@@ -248,8 +248,8 @@ void LGapResolver::EmitMove(int index) {
       double v = cgen_->ToDouble(constant_source);
       __ Vmov(result, v, ip);
     } else {
-      ASSERT(destination->IsStackSlot());
-      ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
+      DCHECK(destination->IsStackSlot());
+      DCHECK(!in_cycle_);  // Constant moves happen after all cycles are gone.
       need_to_restore_root_ = true;
       Representation r = cgen_->IsSmi(constant_source)
           ? Representation::Smi() : Representation::Integer32();
@@ -267,7 +267,7 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsDoubleRegister()) {
       __ vmov(cgen_->ToDoubleRegister(destination), source_register);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       __ vstr(source_register, cgen_->ToMemOperand(destination));
     }
 
@@ -276,7 +276,7 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsDoubleRegister()) {
       __ vldr(cgen_->ToDoubleRegister(destination), source_operand);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         // kScratchDoubleReg was used to break the cycle.

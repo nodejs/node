@@ -219,19 +219,20 @@ class V8_EXPORT HeapGraphEdge {
 class V8_EXPORT HeapGraphNode {
  public:
   enum Type {
-    kHidden = 0,        // Hidden node, may be filtered when shown to user.
-    kArray = 1,         // An array of elements.
-    kString = 2,        // A string.
-    kObject = 3,        // A JS object (except for arrays and strings).
-    kCode = 4,          // Compiled code.
-    kClosure = 5,       // Function closure.
-    kRegExp = 6,        // RegExp.
-    kHeapNumber = 7,    // Number stored in the heap.
-    kNative = 8,        // Native object (not from V8 heap).
-    kSynthetic = 9,     // Synthetic object, usualy used for grouping
-                        // snapshot items together.
-    kConsString = 10,   // Concatenated string. A pair of pointers to strings.
-    kSlicedString = 11  // Sliced string. A fragment of another string.
+    kHidden = 0,         // Hidden node, may be filtered when shown to user.
+    kArray = 1,          // An array of elements.
+    kString = 2,         // A string.
+    kObject = 3,         // A JS object (except for arrays and strings).
+    kCode = 4,           // Compiled code.
+    kClosure = 5,        // Function closure.
+    kRegExp = 6,         // RegExp.
+    kHeapNumber = 7,     // Number stored in the heap.
+    kNative = 8,         // Native object (not from V8 heap).
+    kSynthetic = 9,      // Synthetic object, usualy used for grouping
+                         // snapshot items together.
+    kConsString = 10,    // Concatenated string. A pair of pointers to strings.
+    kSlicedString = 11,  // Sliced string. A fragment of another string.
+    kSymbol = 12         // A Symbol (ES6).
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -292,7 +293,7 @@ class V8_EXPORT OutputStream {  // NOLINT
    */
   virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
     return kAbort;
-  };
+  }
 };
 
 

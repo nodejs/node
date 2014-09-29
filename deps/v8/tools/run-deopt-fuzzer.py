@@ -319,8 +319,11 @@ def Main():
 
   for mode in options.mode:
     for arch in options.arch:
-      code = Execute(arch, mode, args, options, suites, workspace)
-      exit_code = exit_code or code
+      try:
+        code = Execute(arch, mode, args, options, suites, workspace)
+        exit_code = exit_code or code
+      except KeyboardInterrupt:
+        return 2
   return exit_code
 
 
@@ -366,8 +369,12 @@ def Execute(arch, mode, args, options, suites, workspace):
                         timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags,
-                        False,
-                        options.random_seed)
+                        False,  # Keep i18n on by default.
+                        options.random_seed,
+                        True,  # No sorting of test cases.
+                        0,  # Don't rerun failing tests.
+                        0,  # No use of a rerun-failing-tests maximum.
+                        False)  # No predictable mode.
 
   # Find available test suites and read test cases from them.
   variables = {
@@ -381,6 +388,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "no_snap": False,
     "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
+    "tsan": False,
   }
   all_tests = []
   num_tests = 0
@@ -409,17 +417,11 @@ def Execute(arch, mode, args, options, suites, workspace):
     print "No tests to run."
     return 0
 
-  try:
-    print(">>> Collection phase")
-    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
-    runner = execution.Runner(suites, progress_indicator, ctx)
+  print(">>> Collection phase")
+  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  runner = execution.Runner(suites, progress_indicator, ctx)
 
-    exit_code = runner.Run(options.j)
-    if runner.terminate:
-      return exit_code
-
-  except KeyboardInterrupt:
-    return 1
+  exit_code = runner.Run(options.j)
 
   print(">>> Analysis phase")
   num_tests = 0
@@ -462,19 +464,12 @@ def Execute(arch, mode, args, options, suites, workspace):
     print "No tests to run."
     return 0
 
-  try:
-    print(">>> Deopt fuzzing phase (%d test cases)" % num_tests)
-    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
-    runner = execution.Runner(suites, progress_indicator, ctx)
+  print(">>> Deopt fuzzing phase (%d test cases)" % num_tests)
+  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  runner = execution.Runner(suites, progress_indicator, ctx)
 
-    exit_code = runner.Run(options.j)
-    if runner.terminate:
-      return exit_code
-
-  except KeyboardInterrupt:
-    return 1
-
-  return exit_code
+  code = runner.Run(options.j)
+  return exit_code or code
 
 
 if __name__ == "__main__":

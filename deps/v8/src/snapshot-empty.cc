@@ -4,9 +4,9 @@
 
 // Used for building without snapshots.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "snapshot.h"
+#include "src/snapshot.h"
 
 namespace v8 {
 namespace internal {

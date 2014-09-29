@@ -5,7 +5,8 @@
 #ifndef V8_INTERFACE_H_
 #define V8_INTERFACE_H_
 
-#include "zone-inl.h"  // For operator new.
+#include "src/ast-value-factory.h"
+#include "src/zone-inl.h"  // For operator new.
 
 namespace v8 {
 namespace internal {
@@ -59,8 +60,9 @@ class Interface : public ZoneObject {
 
   // Add a name to the list of exports. If it already exists, unify with
   // interface, otherwise insert unless this is closed.
-  void Add(Handle<String> name, Interface* interface, Zone* zone, bool* ok) {
-    DoAdd(name.location(), name->Hash(), interface, zone, ok);
+  void Add(const AstRawString* name, Interface* interface, Zone* zone,
+           bool* ok) {
+    DoAdd(name, name->hash(), interface, zone, ok);
   }
 
   // Unify with another interface. If successful, both interface objects will
@@ -93,7 +95,7 @@ class Interface : public ZoneObject {
 
   // Assign an index.
   void Allocate(int index) {
-    ASSERT(IsModule() && IsFrozen() && Chase()->index_ == -1);
+    DCHECK(IsModule() && IsFrozen() && Chase()->index_ == -1);
     Chase()->index_ = index;
   }
 
@@ -122,14 +124,14 @@ class Interface : public ZoneObject {
   }
 
   int Length() {
-    ASSERT(IsModule() && IsFrozen());
+    DCHECK(IsModule() && IsFrozen());
     ZoneHashMap* exports = Chase()->exports_;
     return exports ? exports->occupancy() : 0;
   }
 
   // The context slot in the hosting global context pointing to this module.
   int Index() {
-    ASSERT(IsModule() && IsFrozen());
+    DCHECK(IsModule() && IsFrozen());
     return Chase()->index_;
   }
 
@@ -146,12 +148,12 @@ class Interface : public ZoneObject {
   class Iterator {
    public:
     bool done() const { return entry_ == NULL; }
-    Handle<String> name() const {
-      ASSERT(!done());
-      return Handle<String>(*static_cast<String**>(entry_->key));
+    const AstRawString* name() const {
+      DCHECK(!done());
+      return static_cast<const AstRawString*>(entry_->key);
     }
     Interface* interface() const {
-      ASSERT(!done());
+      DCHECK(!done());
       return static_cast<Interface*>(entry_->value);
     }
     void Advance() { entry_ = exports_->Next(entry_); }
@@ -207,7 +209,7 @@ class Interface : public ZoneObject {
     return result;
   }
 
-  void DoAdd(void* name, uint32_t hash, Interface* interface, Zone* zone,
+  void DoAdd(const void* name, uint32_t hash, Interface* interface, Zone* zone,
              bool* ok);
   void DoUnify(Interface* that, bool* ok, Zone* zone);
 };

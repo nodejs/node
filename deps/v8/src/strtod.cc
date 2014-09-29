@@ -5,12 +5,14 @@
 #include <stdarg.h>
 #include <cmath>
 
-#include "globals.h"
-#include "utils.h"
-#include "strtod.h"
-#include "bignum.h"
-#include "cached-powers.h"
-#include "double.h"
+#include "src/v8.h"
+
+#include "src/bignum.h"
+#include "src/cached-powers.h"
+#include "src/double.h"
+#include "src/globals.h"
+#include "src/strtod.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -97,7 +99,7 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer,
   }
   // The input buffer has been trimmed. Therefore the last digit must be
   // different from '0'.
-  ASSERT(buffer[buffer.length() - 1] != '0');
+  DCHECK(buffer[buffer.length() - 1] != '0');
   // Set the last digit to be non-zero. This is sufficient to guarantee
   // correct rounding.
   significant_buffer[kMaxSignificantDecimalDigits - 1] = '1';
@@ -117,7 +119,7 @@ static uint64_t ReadUint64(Vector<const char> buffer,
   int i = 0;
   while (i < buffer.length() && result <= (kMaxUint64 / 10 - 1)) {
     int digit = buffer[i++] - '0';
-    ASSERT(0 <= digit && digit <= 9);
+    DCHECK(0 <= digit && digit <= 9);
     result = 10 * result + digit;
   }
   *number_of_read_digits = i;
@@ -153,7 +155,8 @@ static void ReadDiyFp(Vector<const char> buffer,
 static bool DoubleStrtod(Vector<const char> trimmed,
                          int exponent,
                          double* result) {
-#if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87 || defined(USE_SIMULATOR)) && \
+    !defined(_MSC_VER)
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
   // 80 bits wide (as is the case on Linux) then double-rounding occurs and the
   // result is not accurate.
@@ -174,14 +177,14 @@ static bool DoubleStrtod(Vector<const char> trimmed,
     if (exponent < 0 && -exponent < kExactPowersOfTenSize) {
       // 10^-exponent fits into a double.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      ASSERT(read_digits == trimmed.length());
+      DCHECK(read_digits == trimmed.length());
       *result /= exact_powers_of_ten[-exponent];
       return true;
     }
     if (0 <= exponent && exponent < kExactPowersOfTenSize) {
       // 10^exponent fits into a double.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      ASSERT(read_digits == trimmed.length());
+      DCHECK(read_digits == trimmed.length());
       *result *= exact_powers_of_ten[exponent];
       return true;
     }
@@ -193,7 +196,7 @@ static bool DoubleStrtod(Vector<const char> trimmed,
       // 10^remaining_digits. As a result the remaining exponent now fits
       // into a double too.
       *result = static_cast<double>(ReadUint64(trimmed, &read_digits));
-      ASSERT(read_digits == trimmed.length());
+      DCHECK(read_digits == trimmed.length());
       *result *= exact_powers_of_ten[remaining_digits];
       *result *= exact_powers_of_ten[exponent - remaining_digits];
       return true;
@@ -206,11 +209,11 @@ static bool DoubleStrtod(Vector<const char> trimmed,
 // Returns 10^exponent as an exact DiyFp.
 // The given exponent must be in the range [1; kDecimalExponentDistance[.
 static DiyFp AdjustmentPowerOfTen(int exponent) {
-  ASSERT(0 < exponent);
-  ASSERT(exponent < PowersOfTenCache::kDecimalExponentDistance);
+  DCHECK(0 < exponent);
+  DCHECK(exponent < PowersOfTenCache::kDecimalExponentDistance);
   // Simply hardcode the remaining powers for the given decimal exponent
   // distance.
-  ASSERT(PowersOfTenCache::kDecimalExponentDistance == 8);
+  DCHECK(PowersOfTenCache::kDecimalExponentDistance == 8);
   switch (exponent) {
     case 1: return DiyFp(V8_2PART_UINT64_C(0xa0000000, 00000000), -60);
     case 2: return DiyFp(V8_2PART_UINT64_C(0xc8000000, 00000000), -57);
@@ -244,13 +247,13 @@ static bool DiyFpStrtod(Vector<const char> buffer,
   const int kDenominator = 1 << kDenominatorLog;
   // Move the remaining decimals into the exponent.
   exponent += remaining_decimals;
-  int error = (remaining_decimals == 0 ? 0 : kDenominator / 2);
+  int64_t error = (remaining_decimals == 0 ? 0 : kDenominator / 2);
 
   int old_e = input.e();
   input.Normalize();
   error <<= old_e - input.e();
 
-  ASSERT(exponent <= PowersOfTenCache::kMaxDecimalExponent);
+  DCHECK(exponent <= PowersOfTenCache::kMaxDecimalExponent);
   if (exponent < PowersOfTenCache::kMinDecimalExponent) {
     *result = 0.0;
     return true;
@@ -268,7 +271,7 @@ static bool DiyFpStrtod(Vector<const char> buffer,
     if (kMaxUint64DecimalDigits - buffer.length() >= adjustment_exponent) {
       // The product of input with the adjustment power fits into a 64 bit
       // integer.
-      ASSERT(DiyFp::kSignificandSize == 64);
+      DCHECK(DiyFp::kSignificandSize == 64);
     } else {
       // The adjustment power is exact. There is hence only an error of 0.5.
       error += kDenominator / 2;
@@ -310,8 +313,8 @@ static bool DiyFpStrtod(Vector<const char> buffer,
     precision_digits_count -= shift_amount;
   }
   // We use uint64_ts now. This only works if the DiyFp uses uint64_ts too.
-  ASSERT(DiyFp::kSignificandSize == 64);
-  ASSERT(precision_digits_count < 64);
+  DCHECK(DiyFp::kSignificandSize == 64);
+  DCHECK(precision_digits_count < 64);
   uint64_t one64 = 1;
   uint64_t precision_bits_mask = (one64 << precision_digits_count) - 1;
   uint64_t precision_bits = input.f() & precision_bits_mask;
@@ -355,14 +358,14 @@ static double BignumStrtod(Vector<const char> buffer,
 
   DiyFp upper_boundary = Double(guess).UpperBoundary();
 
-  ASSERT(buffer.length() + exponent <= kMaxDecimalPower + 1);
-  ASSERT(buffer.length() + exponent > kMinDecimalPower);
-  ASSERT(buffer.length() <= kMaxSignificantDecimalDigits);
+  DCHECK(buffer.length() + exponent <= kMaxDecimalPower + 1);
+  DCHECK(buffer.length() + exponent > kMinDecimalPower);
+  DCHECK(buffer.length() <= kMaxSignificantDecimalDigits);
   // Make sure that the Bignum will be able to hold all our numbers.
   // Our Bignum implementation has a separate field for exponents. Shifts will
   // consume at most one bigit (< 64 bits).
   // ln(10) == 3.3219...
-  ASSERT(((kMaxDecimalPower + 1) * 333 / 100) < Bignum::kMaxSignificantBits);
+  DCHECK(((kMaxDecimalPower + 1) * 333 / 100) < Bignum::kMaxSignificantBits);
   Bignum input;
   Bignum boundary;
   input.AssignDecimalString(buffer);

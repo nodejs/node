@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-symbols
-
 // Fake Symbol if undefined, allowing test to run in non-Harmony mode as well.
 this.Symbol = typeof Symbol != 'undefined' ? Symbol : String;
 

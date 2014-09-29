@@ -181,6 +181,17 @@ test(function mathRound() {
   assertEquals(Math.pow(2, 52) + 1, Math.round(Math.pow(2, 52) + 1));
 });
 
+test(function mathFround() {
+  assertTrue(isNaN(Math.fround(NaN)));
+  assertEquals("Infinity", String(1/Math.fround(0)));
+  assertEquals("-Infinity", String(1/Math.fround(-0)));
+  assertEquals("Infinity", String(Math.fround(Infinity)));
+  assertEquals("-Infinity", String(Math.fround(-Infinity)));
+  assertEquals("Infinity", String(Math.fround(1E200)));
+  assertEquals("-Infinity", String(Math.fround(-1E200)));
+  assertEquals(3.1415927410125732, Math.fround(Math.PI));
+});
+
 test(function mathFloor() {
   assertEquals(1, Math.floor(1.5));
   assertEquals(-2, Math.floor(-1.5));

@@ -19,8 +19,10 @@ enum DebugEvent {
   NewFunction = 3,
   BeforeCompile = 4,
   AfterCompile  = 5,
-  ScriptCollected = 6,
-  BreakForCommand = 7
+  CompileError = 6,
+  PromiseEvent = 7,
+  AsyncTaskEvent = 8,
+  BreakForCommand = 9
 };
 
 
@@ -137,7 +139,7 @@ class V8_EXPORT Debug {
    * A EventCallback2 does not take possession of the event data,
    * and must not rely on the data persisting after the handler returns.
    */
-  typedef void (*EventCallback2)(const EventDetails& event_details);
+  typedef void (*EventCallback)(const EventDetails& event_details);
 
   /**
    * Debug message callback function.
@@ -147,23 +149,14 @@ class V8_EXPORT Debug {
    * A MessageHandler2 does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
-  typedef void (*MessageHandler2)(const Message& message);
-
-  /**
-   * Debug host dispatch callback function.
-   */
-  typedef void (*HostDispatchHandler)();
+  typedef void (*MessageHandler)(const Message& message);
 
   /**
    * Callback function for the host to ensure debug messages are processed.
    */
   typedef void (*DebugMessageDispatchHandler)();
 
-  static bool SetDebugEventListener2(EventCallback2 that,
-                                     Handle<Value> data = Handle<Value>());
-
-  // Set a JavaScript debug event listener.
-  static bool SetDebugEventListener(v8::Handle<v8::Object> that,
+  static bool SetDebugEventListener(EventCallback that,
                                     Handle<Value> data = Handle<Value>());
 
   // Schedule a debugger break to happen when JavaScript code is run
@@ -181,35 +174,12 @@ class V8_EXPORT Debug {
   // stops.
   static void DebugBreakForCommand(Isolate* isolate, ClientData* data);
 
-  // TODO(svenpanne) Remove this when Chrome is updated.
-  static void DebugBreakForCommand(ClientData* data, Isolate* isolate) {
-    DebugBreakForCommand(isolate, data);
-  }
-
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler2(MessageHandler2 handler);
+  static void SetMessageHandler(MessageHandler handler);
 
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
                           ClientData* client_data = NULL);
-
-  // Dispatch interface.
-  static void SetHostDispatchHandler(HostDispatchHandler handler,
-                                     int period = 100);
-
-  /**
-   * Register a callback function to be called when a debug message has been
-   * received and is ready to be processed. For the debug messages to be
-   * processed V8 needs to be entered, and in certain embedding scenarios this
-   * callback can be used to make sure V8 is entered for the debug message to
-   * be processed. Note that debug messages will only be processed if there is
-   * a V8 break. This can happen automatically by using the option
-   * --debugger-auto-break.
-   * \param provide_locker requires that V8 acquires v8::Locker for you before
-   *        calling handler
-   */
-  static void SetDebugMessageDispatchHandler(
-      DebugMessageDispatchHandler handler, bool provide_locker = false);
 
  /**
   * Run a JavaScript function in the debugger.
@@ -237,22 +207,6 @@ class V8_EXPORT Debug {
    */
   static Local<Value> GetMirror(v8::Handle<v8::Value> obj);
 
- /**
-  * Enable the V8 builtin debug agent. The debugger agent will listen on the
-  * supplied TCP/IP port for remote debugger connection.
-  * \param name the name of the embedding application
-  * \param port the TCP/IP port to listen on
-  * \param wait_for_connection whether V8 should pause on a first statement
-  *   allowing remote debugger to connect before anything interesting happened
-  */
-  static bool EnableAgent(const char* name, int port,
-                          bool wait_for_connection = false);
-
-  /**
-    * Disable the V8 builtin debug agent. The TCP/IP connection will be closed.
-    */
-  static void DisableAgent();
-
   /**
    * Makes V8 process all pending debug messages.
    *
@@ -270,10 +224,6 @@ class V8_EXPORT Debug {
    * by default it means that processing of all debug messages will be deferred
    * until V8 gets control again; however, embedding application may improve
    * this by manually calling this method.
-   *
-   * It makes sense to call this method whenever a new debug message arrived and
-   * V8 is not already running. Method v8::Debug::SetDebugMessageDispatchHandler
-   * should help with the former condition.
    *
    * Technically this method in many senses is equivalent to executing empty
    * script:
@@ -305,11 +255,6 @@ class V8_EXPORT Debug {
    * unexpectedly used. LiveEdit is enabled by default.
    */
   static void SetLiveEditEnabled(Isolate* isolate, bool enable);
-
-  // TODO(svenpanne) Remove this when Chrome is updated.
-  static void SetLiveEditEnabled(bool enable, Isolate* isolate) {
-    SetLiveEditEnabled(isolate, enable);
-  }
 };
 
 

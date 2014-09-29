@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_INTRINSICS_H_
 #define V8_COMPILER_INTRINSICS_H_
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 

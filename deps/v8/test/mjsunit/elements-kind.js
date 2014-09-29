@@ -25,22 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc --nostress-opt --typed-array-max_size_in-heap=2048
-
-// Test element kind of objects.
-// Since --smi-only-arrays affects builtins, its default setting at compile
-// time sticks if built with snapshot.  If --smi-only-arrays is deactivated
-// by default, only a no-snapshot build actually has smi-only arrays enabled
-// in this test case.  Depending on whether smi-only arrays are actually
-// enabled, this test takes the appropriate code path to check smi-only arrays.
-
-support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
-
-if (support_smi_only_arrays) {
-  print("Tests include smi-only arrays.");
-} else {
-  print("Tests do NOT include smi-only arrays.");
-}
+// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max_size_in-heap=2048
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
@@ -131,10 +116,6 @@ function getKind(obj) {
 }
 
 function assertKind(expected, obj, name_opt) {
-  if (!support_smi_only_arrays &&
-      expected == elements_kind.fast_smi_only) {
-    expected = elements_kind.fast;
-  }
   assertEquals(expected, getKind(obj), name_opt);
 }
 
@@ -144,13 +125,11 @@ me.dance = 0xD15C0;
 me.drink = 0xC0C0A;
 assertKind(elements_kind.fast, me);
 
-if (support_smi_only_arrays) {
-  var too = [1,2,3];
-  assertKind(elements_kind.fast_smi_only, too);
-  too.dance = 0xD15C0;
-  too.drink = 0xC0C0A;
-  assertKind(elements_kind.fast_smi_only, too);
-}
+var too = [1,2,3];
+assertKind(elements_kind.fast_smi_only, too);
+too.dance = 0xD15C0;
+too.drink = 0xC0C0A;
+assertKind(elements_kind.fast_smi_only, too);
 
 // Make sure the element kind transitions from smi when a non-smi is stored.
 function test_wrapper() {
@@ -166,7 +145,9 @@ function test_wrapper() {
   }
   assertKind(elements_kind.fast, you);
 
-  assertKind(elements_kind.dictionary, new Array(0xDECAF));
+  var temp = [];
+  temp[0xDECAF] = 0;
+  assertKind(elements_kind.dictionary, temp);
 
   var fast_double_array = new Array(0xDECAF);
   for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
@@ -217,111 +198,106 @@ function test_wrapper() {
 test_wrapper();
 %ClearFunctionTypeFeedback(test_wrapper);
 
-if (support_smi_only_arrays) {
-  %NeverOptimizeFunction(construct_smis);
+%NeverOptimizeFunction(construct_smis);
 
-  // This code exists to eliminate the learning influence of AllocationSites
-  // on the following tests.
-  var __sequence = 0;
-  function make_array_string() {
-    this.__sequence = this.__sequence + 1;
-    return "/* " + this.__sequence + " */  [0, 0, 0];"
-  }
-  function make_array() {
-    return eval(make_array_string());
-  }
-
-  function construct_smis() {
-    var a = make_array();
-    a[0] = 0;  // Send the COW array map to the steak house.
-    assertKind(elements_kind.fast_smi_only, a);
-    return a;
-  }
-  %NeverOptimizeFunction(construct_doubles);
-  function construct_doubles() {
-    var a = construct_smis();
-    a[0] = 1.5;
-    assertKind(elements_kind.fast_double, a);
-    return a;
-  }
-  %NeverOptimizeFunction(construct_objects);
-  function construct_objects() {
-    var a = construct_smis();
-    a[0] = "one";
-    assertKind(elements_kind.fast, a);
-    return a;
-  }
-
-  // Test crankshafted transition SMI->DOUBLE.
-  %NeverOptimizeFunction(convert_to_double);
-  function convert_to_double(array) {
-    array[1] = 2.5;
-    assertKind(elements_kind.fast_double, array);
-    assertEquals(2.5, array[1]);
-  }
-  var smis = construct_smis();
-  for (var i = 0; i < 3; i++) convert_to_double(smis);
-  %OptimizeFunctionOnNextCall(convert_to_double);
-  smis = construct_smis();
-  convert_to_double(smis);
-  // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
-  %NeverOptimizeFunction(convert_to_fast);
-  function convert_to_fast(array) {
-    array[1] = "two";
-    assertKind(elements_kind.fast, array);
-    assertEquals("two", array[1]);
-  }
-  smis = construct_smis();
-  for (var i = 0; i < 3; i++) convert_to_fast(smis);
-  var doubles = construct_doubles();
-  for (var i = 0; i < 3; i++) convert_to_fast(doubles);
-  smis = construct_smis();
-  doubles = construct_doubles();
-  %OptimizeFunctionOnNextCall(convert_to_fast);
-  convert_to_fast(smis);
-  convert_to_fast(doubles);
-  // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
-  // transition to FAST directly).
-  %NeverOptimizeFunction(convert_mixed);
-  function convert_mixed(array, value, kind) {
-    array[1] = value;
-    assertKind(kind, array);
-    assertEquals(value, array[1]);
-  }
-  smis = construct_smis();
-  for (var i = 0; i < 3; i++) {
-    convert_mixed(smis, 1.5, elements_kind.fast_double);
-  }
-  doubles = construct_doubles();
-  for (var i = 0; i < 3; i++) {
-    convert_mixed(doubles, "three", elements_kind.fast);
-  }
-  convert_mixed(construct_smis(), "three", elements_kind.fast);
-  convert_mixed(construct_doubles(), "three", elements_kind.fast);
-  %OptimizeFunctionOnNextCall(convert_mixed);
-  smis = construct_smis();
-  doubles = construct_doubles();
-  convert_mixed(smis, 1, elements_kind.fast);
-  convert_mixed(doubles, 1, elements_kind.fast);
-  assertTrue(%HaveSameMap(smis, doubles));
+// This code exists to eliminate the learning influence of AllocationSites
+// on the following tests.
+var __sequence = 0;
+function make_array_string() {
+  this.__sequence = this.__sequence + 1;
+  return "/* " + this.__sequence + " */  [0, 0, 0];"
 }
+function make_array() {
+  return eval(make_array_string());
+}
+
+function construct_smis() {
+  var a = make_array();
+  a[0] = 0;  // Send the COW array map to the steak house.
+  assertKind(elements_kind.fast_smi_only, a);
+  return a;
+}
+  %NeverOptimizeFunction(construct_doubles);
+function construct_doubles() {
+  var a = construct_smis();
+  a[0] = 1.5;
+  assertKind(elements_kind.fast_double, a);
+  return a;
+}
+  %NeverOptimizeFunction(construct_objects);
+function construct_objects() {
+  var a = construct_smis();
+  a[0] = "one";
+  assertKind(elements_kind.fast, a);
+  return a;
+}
+
+// Test crankshafted transition SMI->DOUBLE.
+  %NeverOptimizeFunction(convert_to_double);
+function convert_to_double(array) {
+  array[1] = 2.5;
+  assertKind(elements_kind.fast_double, array);
+  assertEquals(2.5, array[1]);
+}
+var smis = construct_smis();
+for (var i = 0; i < 3; i++) convert_to_double(smis);
+  %OptimizeFunctionOnNextCall(convert_to_double);
+smis = construct_smis();
+convert_to_double(smis);
+// Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
+  %NeverOptimizeFunction(convert_to_fast);
+function convert_to_fast(array) {
+  array[1] = "two";
+  assertKind(elements_kind.fast, array);
+  assertEquals("two", array[1]);
+}
+smis = construct_smis();
+for (var i = 0; i < 3; i++) convert_to_fast(smis);
+var doubles = construct_doubles();
+for (var i = 0; i < 3; i++) convert_to_fast(doubles);
+smis = construct_smis();
+doubles = construct_doubles();
+  %OptimizeFunctionOnNextCall(convert_to_fast);
+convert_to_fast(smis);
+convert_to_fast(doubles);
+// Test transition chain SMI->DOUBLE->FAST (crankshafted function will
+// transition to FAST directly).
+  %NeverOptimizeFunction(convert_mixed);
+function convert_mixed(array, value, kind) {
+  array[1] = value;
+  assertKind(kind, array);
+  assertEquals(value, array[1]);
+}
+smis = construct_smis();
+for (var i = 0; i < 3; i++) {
+  convert_mixed(smis, 1.5, elements_kind.fast_double);
+}
+doubles = construct_doubles();
+for (var i = 0; i < 3; i++) {
+  convert_mixed(doubles, "three", elements_kind.fast);
+}
+convert_mixed(construct_smis(), "three", elements_kind.fast);
+convert_mixed(construct_doubles(), "three", elements_kind.fast);
+  %OptimizeFunctionOnNextCall(convert_mixed);
+smis = construct_smis();
+doubles = construct_doubles();
+convert_mixed(smis, 1, elements_kind.fast);
+convert_mixed(doubles, 1, elements_kind.fast);
+assertTrue(%HaveSameMap(smis, doubles));
 
 // Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
 function crankshaft_test() {
-  if (support_smi_only_arrays) {
-    var a1 = [get(1), get(2), get(3)];
-    assertKind(elements_kind.fast_smi_only, a1);
-  }
+  var a1 = [get(1), get(2), get(3)];
+  assertKind(elements_kind.fast_smi_only, a1);
+
   var a2 = new Array(get(1), get(2), get(3));
   assertKind(elements_kind.fast_smi_only, a2);
   var b = [get(1), get(2), get("three")];
   assertKind(elements_kind.fast, b);
   var c = [get(1), get(2), get(3.5)];
-  if (support_smi_only_arrays) {
-    assertKind(elements_kind.fast_double, c);
-  }
+  assertKind(elements_kind.fast_double, c);
 }
 for (var i = 0; i < 3; i++) {
   crankshaft_test();
@@ -335,85 +311,76 @@ crankshaft_test();
 // DOUBLE->OBJECT, and SMI->OBJECT. No matter in which order these three are
 // created, they must always end up with the same FAST map.
 
-// This test is meaningless without FAST_SMI_ONLY_ELEMENTS.
-if (support_smi_only_arrays) {
-  // Preparation: create one pair of identical objects for each case.
-  var a = [1, 2, 3];
-  var b = [1, 2, 3];
-  assertTrue(%HaveSameMap(a, b));
-  assertKind(elements_kind.fast_smi_only, a);
-  var c = [1, 2, 3];
-  c["case2"] = true;
-  var d = [1, 2, 3];
-  d["case2"] = true;
-  assertTrue(%HaveSameMap(c, d));
-  assertFalse(%HaveSameMap(a, c));
-  assertKind(elements_kind.fast_smi_only, c);
-  var e = [1, 2, 3];
-  e["case3"] = true;
-  var f = [1, 2, 3];
-  f["case3"] = true;
-  assertTrue(%HaveSameMap(e, f));
-  assertFalse(%HaveSameMap(a, e));
-  assertFalse(%HaveSameMap(c, e));
-  assertKind(elements_kind.fast_smi_only, e);
-  // Case 1: SMI->DOUBLE, DOUBLE->OBJECT, SMI->OBJECT.
-  a[0] = 1.5;
-  assertKind(elements_kind.fast_double, a);
-  a[0] = "foo";
-  assertKind(elements_kind.fast, a);
-  b[0] = "bar";
-  assertTrue(%HaveSameMap(a, b));
-  // Case 2: SMI->DOUBLE, SMI->OBJECT, DOUBLE->OBJECT.
-  c[0] = 1.5;
-  assertKind(elements_kind.fast_double, c);
-  assertFalse(%HaveSameMap(c, d));
-  d[0] = "foo";
-  assertKind(elements_kind.fast, d);
-  assertFalse(%HaveSameMap(c, d));
-  c[0] = "bar";
-  assertTrue(%HaveSameMap(c, d));
-  // Case 3: SMI->OBJECT, SMI->DOUBLE, DOUBLE->OBJECT.
-  e[0] = "foo";
-  assertKind(elements_kind.fast, e);
-  assertFalse(%HaveSameMap(e, f));
-  f[0] = 1.5;
-  assertKind(elements_kind.fast_double, f);
-  assertFalse(%HaveSameMap(e, f));
-  f[0] = "bar";
-  assertKind(elements_kind.fast, f);
-  assertTrue(%HaveSameMap(e, f));
-}
+// Preparation: create one pair of identical objects for each case.
+var a = [1, 2, 3];
+var b = [1, 2, 3];
+assertTrue(%HaveSameMap(a, b));
+assertKind(elements_kind.fast_smi_only, a);
+var c = [1, 2, 3];
+c["case2"] = true;
+var d = [1, 2, 3];
+d["case2"] = true;
+assertTrue(%HaveSameMap(c, d));
+assertFalse(%HaveSameMap(a, c));
+assertKind(elements_kind.fast_smi_only, c);
+var e = [1, 2, 3];
+e["case3"] = true;
+var f = [1, 2, 3];
+f["case3"] = true;
+assertTrue(%HaveSameMap(e, f));
+assertFalse(%HaveSameMap(a, e));
+assertFalse(%HaveSameMap(c, e));
+assertKind(elements_kind.fast_smi_only, e);
+// Case 1: SMI->DOUBLE, DOUBLE->OBJECT, SMI->OBJECT.
+a[0] = 1.5;
+assertKind(elements_kind.fast_double, a);
+a[0] = "foo";
+assertKind(elements_kind.fast, a);
+b[0] = "bar";
+assertTrue(%HaveSameMap(a, b));
+// Case 2: SMI->DOUBLE, SMI->OBJECT, DOUBLE->OBJECT.
+c[0] = 1.5;
+assertKind(elements_kind.fast_double, c);
+assertFalse(%HaveSameMap(c, d));
+d[0] = "foo";
+assertKind(elements_kind.fast, d);
+assertFalse(%HaveSameMap(c, d));
+c[0] = "bar";
+assertTrue(%HaveSameMap(c, d));
+// Case 3: SMI->OBJECT, SMI->DOUBLE, DOUBLE->OBJECT.
+e[0] = "foo";
+assertKind(elements_kind.fast, e);
+assertFalse(%HaveSameMap(e, f));
+f[0] = 1.5;
+assertKind(elements_kind.fast_double, f);
+assertFalse(%HaveSameMap(e, f));
+f[0] = "bar";
+assertKind(elements_kind.fast, f);
+assertTrue(%HaveSameMap(e, f));
 
 // Test if Array.concat() works correctly with DOUBLE elements.
-if (support_smi_only_arrays) {
-  var a = [1, 2];
-  assertKind(elements_kind.fast_smi_only, a);
-  var b = [4.5, 5.5];
-  assertKind(elements_kind.fast_double, b);
-  var c = a.concat(b);
-  assertEquals([1, 2, 4.5, 5.5], c);
-  assertKind(elements_kind.fast_double, c);
-}
+var a = [1, 2];
+assertKind(elements_kind.fast_smi_only, a);
+var b = [4.5, 5.5];
+assertKind(elements_kind.fast_double, b);
+var c = a.concat(b);
+assertEquals([1, 2, 4.5, 5.5], c);
+assertKind(elements_kind.fast_double, c);
 
 // Test that Array.push() correctly handles SMI elements.
-if (support_smi_only_arrays) {
-  var a = [1, 2];
-  assertKind(elements_kind.fast_smi_only, a);
-  a.push(3, 4, 5);
-  assertKind(elements_kind.fast_smi_only, a);
-  assertEquals([1, 2, 3, 4, 5], a);
-}
+var a = [1, 2];
+assertKind(elements_kind.fast_smi_only, a);
+a.push(3, 4, 5);
+assertKind(elements_kind.fast_smi_only, a);
+assertEquals([1, 2, 3, 4, 5], a);
 
 // Test that Array.splice() and Array.slice() return correct ElementsKinds.
-if (support_smi_only_arrays) {
-  var a = ["foo", "bar"];
-  assertKind(elements_kind.fast, a);
-  var b = a.splice(0, 1);
-  assertKind(elements_kind.fast, b);
-  var c = a.slice(0, 1);
-  assertKind(elements_kind.fast, c);
-}
+var a = ["foo", "bar"];
+assertKind(elements_kind.fast, a);
+var b = a.splice(0, 1);
+assertKind(elements_kind.fast, b);
+var c = a.slice(0, 1);
+assertKind(elements_kind.fast, c);
 
 // Throw away type information in the ICs for next stress run.
 gc();

@@ -4,20 +4,20 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include "include/v8stdint.h"
+#include "src/base/logging.h"
+#include "src/utils.h"
 
-#include "bignum-dtoa.h"
+#include "src/bignum-dtoa.h"
 
-#include "bignum.h"
-#include "double.h"
+#include "src/bignum.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {
 
 static int NormalizedExponent(uint64_t significand, int exponent) {
-  ASSERT(significand != 0);
+  DCHECK(significand != 0);
   while ((significand & Double::kHiddenBit) == 0) {
     significand = significand << 1;
     exponent = exponent - 1;
@@ -68,8 +68,8 @@ static void GenerateCountedDigits(int count, int* decimal_point,
 
 void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
                 Vector<char> buffer, int* length, int* decimal_point) {
-  ASSERT(v > 0);
-  ASSERT(!Double(v).IsSpecial());
+  DCHECK(v > 0);
+  DCHECK(!Double(v).IsSpecial());
   uint64_t significand = Double(v).Significand();
   bool is_even = (significand & 1) == 0;
   int exponent = Double(v).Exponent();
@@ -99,7 +99,7 @@ void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
   // 4e-324. In this case the denominator needs fewer than 324*4 binary digits.
   // The maximum double is 1.7976931348623157e308 which needs fewer than
   // 308*4 binary digits.
-  ASSERT(Bignum::kMaxSignificantBits >= 324*4);
+  DCHECK(Bignum::kMaxSignificantBits >= 324*4);
   bool need_boundary_deltas = (mode == BIGNUM_DTOA_SHORTEST);
   InitialScaledStartValues(v, estimated_power, need_boundary_deltas,
                            &numerator, &denominator,
@@ -159,7 +159,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
   while (true) {
     uint16_t digit;
     digit = numerator->DivideModuloIntBignum(*denominator);
-    ASSERT(digit <= 9);  // digit is a uint16_t and therefore always positive.
+    DCHECK(digit <= 9);  // digit is a uint16_t and therefore always positive.
     // digit = numerator / denominator (integer division).
     // numerator = numerator % denominator.
     buffer[(*length)++] = digit + '0';
@@ -205,7 +205,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
         // loop would have stopped earlier.
         // We still have an assert here in case the preconditions were not
         // satisfied.
-        ASSERT(buffer[(*length) - 1] != '9');
+        DCHECK(buffer[(*length) - 1] != '9');
         buffer[(*length) - 1]++;
       } else {
         // Halfway case.
@@ -216,7 +216,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
         if ((buffer[(*length) - 1] - '0') % 2 == 0) {
           // Round down => Do nothing.
         } else {
-          ASSERT(buffer[(*length) - 1] != '9');
+          DCHECK(buffer[(*length) - 1] != '9');
           buffer[(*length) - 1]++;
         }
       }
@@ -228,9 +228,9 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
       // Round up.
       // Note again that the last digit could not be '9' since this would have
       // stopped the loop earlier.
-      // We still have an ASSERT here, in case the preconditions were not
+      // We still have an DCHECK here, in case the preconditions were not
       // satisfied.
-      ASSERT(buffer[(*length) -1] != '9');
+      DCHECK(buffer[(*length) -1] != '9');
       buffer[(*length) - 1]++;
       return;
     }
@@ -247,11 +247,11 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
 static void GenerateCountedDigits(int count, int* decimal_point,
                                   Bignum* numerator, Bignum* denominator,
                                   Vector<char>(buffer), int* length) {
-  ASSERT(count >= 0);
+  DCHECK(count >= 0);
   for (int i = 0; i < count - 1; ++i) {
     uint16_t digit;
     digit = numerator->DivideModuloIntBignum(*denominator);
-    ASSERT(digit <= 9);  // digit is a uint16_t and therefore always positive.
+    DCHECK(digit <= 9);  // digit is a uint16_t and therefore always positive.
     // digit = numerator / denominator (integer division).
     // numerator = numerator % denominator.
     buffer[i] = digit + '0';
@@ -304,7 +304,7 @@ static void BignumToFixed(int requested_digits, int* decimal_point,
   } else if (-(*decimal_point) == requested_digits) {
     // We only need to verify if the number rounds down or up.
     // Ex: 0.04 and 0.06 with requested_digits == 1.
-    ASSERT(*decimal_point == -requested_digits);
+    DCHECK(*decimal_point == -requested_digits);
     // Initially the fraction lies in range (1, 10]. Multiply the denominator
     // by 10 so that we can compare more easily.
     denominator->Times10();
@@ -383,7 +383,7 @@ static void InitialScaledStartValuesPositiveExponent(
     Bignum* numerator, Bignum* denominator,
     Bignum* delta_minus, Bignum* delta_plus) {
   // A positive exponent implies a positive power.
-  ASSERT(estimated_power >= 0);
+  DCHECK(estimated_power >= 0);
   // Since the estimated_power is positive we simply multiply the denominator
   // by 10^estimated_power.
 
@@ -502,7 +502,7 @@ static void InitialScaledStartValuesNegativeExponentNegativePower(
   // numerator = v * 10^-estimated_power * 2 * 2^-exponent.
   // Remember: numerator has been abused as power_ten. So no need to assign it
   //  to itself.
-  ASSERT(numerator == power_ten);
+  DCHECK(numerator == power_ten);
   numerator->MultiplyByUInt64(significand);
 
   // denominator = 2 * 2^-exponent with exponent < 0.

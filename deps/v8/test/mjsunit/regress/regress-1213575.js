@@ -37,4 +37,4 @@ try {
   assertTrue(e instanceof TypeError);
   caught = true;
 }
-assertFalse(caught);
+assertTrue(caught);

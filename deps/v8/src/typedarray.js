@@ -25,163 +25,163 @@ FUNCTION(9, Uint8ClampedArray, 1)
 endmacro
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
-  function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    if (!IS_UNDEFINED(byteOffset)) {
-        byteOffset =
-            ToPositiveInteger(byteOffset,  "invalid_typed_array_length");
-    }
-    if (!IS_UNDEFINED(length)) {
-        length = ToPositiveInteger(length, "invalid_typed_array_length");
-    }
+function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
+  if (!IS_UNDEFINED(byteOffset)) {
+      byteOffset =
+          ToPositiveInteger(byteOffset,  "invalid_typed_array_length");
+  }
+  if (!IS_UNDEFINED(length)) {
+      length = ToPositiveInteger(length, "invalid_typed_array_length");
+  }
 
-    var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
-    var offset;
-    if (IS_UNDEFINED(byteOffset)) {
-      offset = 0;
+  var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
+  var offset;
+  if (IS_UNDEFINED(byteOffset)) {
+    offset = 0;
+  } else {
+    offset = byteOffset;
+
+    if (offset % ELEMENT_SIZE !== 0) {
+      throw MakeRangeError("invalid_typed_array_alignment",
+          ["start offset", "NAME", ELEMENT_SIZE]);
+    }
+    if (offset > bufferByteLength) {
+      throw MakeRangeError("invalid_typed_array_offset");
+    }
+  }
+
+  var newByteLength;
+  var newLength;
+  if (IS_UNDEFINED(length)) {
+    if (bufferByteLength % ELEMENT_SIZE !== 0) {
+      throw MakeRangeError("invalid_typed_array_alignment",
+        ["byte length", "NAME", ELEMENT_SIZE]);
+    }
+    newByteLength = bufferByteLength - offset;
+    newLength = newByteLength / ELEMENT_SIZE;
+  } else {
+    var newLength = length;
+    newByteLength = newLength * ELEMENT_SIZE;
+  }
+  if ((offset + newByteLength > bufferByteLength)
+      || (newLength > %_MaxSmi())) {
+    throw MakeRangeError("invalid_typed_array_length");
+  }
+  %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
+}
+
+function NAMEConstructByLength(obj, length) {
+  var l = IS_UNDEFINED(length) ?
+    0 : ToPositiveInteger(length, "invalid_typed_array_length");
+  if (l > %_MaxSmi()) {
+    throw MakeRangeError("invalid_typed_array_length");
+  }
+  var byteLength = l * ELEMENT_SIZE;
+  if (byteLength > %_TypedArrayMaxSizeInHeap()) {
+    var buffer = new $ArrayBuffer(byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
+  } else {
+    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
+  }
+}
+
+function NAMEConstructByArrayLike(obj, arrayLike) {
+  var length = arrayLike.length;
+  var l = ToPositiveInteger(length, "invalid_typed_array_length");
+
+  if (l > %_MaxSmi()) {
+    throw MakeRangeError("invalid_typed_array_length");
+  }
+  if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
+    for (var i = 0; i < l; i++) {
+      // It is crucial that we let any execptions from arrayLike[i]
+      // propagate outside the function.
+      obj[i] = arrayLike[i];
+    }
+  }
+}
+
+function NAMEConstructor(arg1, arg2, arg3) {
+  if (%_IsConstructCall()) {
+    if (IS_ARRAYBUFFER(arg1)) {
+      NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
+    } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
+               IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
+      NAMEConstructByLength(this, arg1);
     } else {
-      offset = byteOffset;
+      NAMEConstructByArrayLike(this, arg1);
+    }
+  } else {
+    throw MakeTypeError("constructor_not_function", ["NAME"])
+  }
+}
 
-      if (offset % ELEMENT_SIZE !== 0) {
-        throw MakeRangeError("invalid_typed_array_alignment",
-            ["start offset", "NAME", ELEMENT_SIZE]);
-      }
-      if (offset > bufferByteLength) {
-        throw MakeRangeError("invalid_typed_array_offset");
-      }
-    }
+function NAME_GetBuffer() {
+  if (!(%_ClassOf(this) === 'NAME')) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ["NAME.buffer", this]);
+  }
+  return %TypedArrayGetBuffer(this);
+}
 
-    var newByteLength;
-    var newLength;
-    if (IS_UNDEFINED(length)) {
-      if (bufferByteLength % ELEMENT_SIZE !== 0) {
-        throw MakeRangeError("invalid_typed_array_alignment",
-          ["byte length", "NAME", ELEMENT_SIZE]);
-      }
-      newByteLength = bufferByteLength - offset;
-      newLength = newByteLength / ELEMENT_SIZE;
-    } else {
-      var newLength = length;
-      newByteLength = newLength * ELEMENT_SIZE;
-    }
-    if ((offset + newByteLength > bufferByteLength)
-        || (newLength > %_MaxSmi())) {
-      throw MakeRangeError("invalid_typed_array_length");
-    }
-    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
+function NAME_GetByteLength() {
+  if (!(%_ClassOf(this) === 'NAME')) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ["NAME.byteLength", this]);
+  }
+  return %_ArrayBufferViewGetByteLength(this);
+}
+
+function NAME_GetByteOffset() {
+  if (!(%_ClassOf(this) === 'NAME')) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ["NAME.byteOffset", this]);
+  }
+  return %_ArrayBufferViewGetByteOffset(this);
+}
+
+function NAME_GetLength() {
+  if (!(%_ClassOf(this) === 'NAME')) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ["NAME.length", this]);
+  }
+  return %_TypedArrayGetLength(this);
+}
+
+var $NAME = global.NAME;
+
+function NAMESubArray(begin, end) {
+  if (!(%_ClassOf(this) === 'NAME')) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ["NAME.subarray", this]);
+  }
+  var beginInt = TO_INTEGER(begin);
+  if (!IS_UNDEFINED(end)) {
+    end = TO_INTEGER(end);
   }
 
-  function NAMEConstructByLength(obj, length) {
-    var l = IS_UNDEFINED(length) ?
-      0 : ToPositiveInteger(length, "invalid_typed_array_length");
-    if (l > %_MaxSmi()) {
-      throw MakeRangeError("invalid_typed_array_length");
-    }
-    var byteLength = l * ELEMENT_SIZE;
-    if (byteLength > %_TypedArrayMaxSizeInHeap()) {
-      var buffer = new $ArrayBuffer(byteLength);
-      %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
-    } else {
-      %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
-    }
+  var srcLength = %_TypedArrayGetLength(this);
+  if (beginInt < 0) {
+    beginInt = MathMax(0, srcLength + beginInt);
+  } else {
+    beginInt = MathMin(srcLength, beginInt);
   }
 
-  function NAMEConstructByArrayLike(obj, arrayLike) {
-    var length = arrayLike.length;
-    var l = ToPositiveInteger(length, "invalid_typed_array_length");
-
-    if (l > %_MaxSmi()) {
-      throw MakeRangeError("invalid_typed_array_length");
-    }
-    if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
-      for (var i = 0; i < l; i++) {
-        // It is crucial that we let any execptions from arrayLike[i]
-        // propagate outside the function.
-        obj[i] = arrayLike[i];
-      }
-    }
+  var endInt = IS_UNDEFINED(end) ? srcLength : end;
+  if (endInt < 0) {
+    endInt = MathMax(0, srcLength + endInt);
+  } else {
+    endInt = MathMin(endInt, srcLength);
   }
-
-  function NAMEConstructor(arg1, arg2, arg3) {
-    if (%_IsConstructCall()) {
-      if (IS_ARRAYBUFFER(arg1)) {
-        NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
-      } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
-                 IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
-        NAMEConstructByLength(this, arg1);
-      } else {
-        NAMEConstructByArrayLike(this, arg1);
-      }
-    } else {
-      throw MakeTypeError("constructor_not_function", ["NAME"])
-    }
+  if (endInt < beginInt) {
+    endInt = beginInt;
   }
-
-  function NAME_GetBuffer() {
-    if (!(%_ClassOf(this) === 'NAME')) {
-      throw MakeTypeError('incompatible_method_receiver',
-                          ["NAME.buffer", this]);
-    }
-    return %TypedArrayGetBuffer(this);
-  }
-
-  function NAME_GetByteLength() {
-    if (!(%_ClassOf(this) === 'NAME')) {
-      throw MakeTypeError('incompatible_method_receiver',
-                          ["NAME.byteLength", this]);
-    }
-    return %_ArrayBufferViewGetByteLength(this);
-  }
-
-  function NAME_GetByteOffset() {
-    if (!(%_ClassOf(this) === 'NAME')) {
-      throw MakeTypeError('incompatible_method_receiver',
-                          ["NAME.byteOffset", this]);
-    }
-    return %_ArrayBufferViewGetByteOffset(this);
-  }
-
-  function NAME_GetLength() {
-    if (!(%_ClassOf(this) === 'NAME')) {
-      throw MakeTypeError('incompatible_method_receiver',
-                          ["NAME.length", this]);
-    }
-    return %_TypedArrayGetLength(this);
-  }
-
-  var $NAME = global.NAME;
-
-  function NAMESubArray(begin, end) {
-    if (!(%_ClassOf(this) === 'NAME')) {
-      throw MakeTypeError('incompatible_method_receiver',
-                          ["NAME.subarray", this]);
-    }
-    var beginInt = TO_INTEGER(begin);
-    if (!IS_UNDEFINED(end)) {
-      end = TO_INTEGER(end);
-    }
-
-    var srcLength = %_TypedArrayGetLength(this);
-    if (beginInt < 0) {
-      beginInt = MathMax(0, srcLength + beginInt);
-    } else {
-      beginInt = MathMin(srcLength, beginInt);
-    }
-
-    var endInt = IS_UNDEFINED(end) ? srcLength : end;
-    if (endInt < 0) {
-      endInt = MathMax(0, srcLength + endInt);
-    } else {
-      endInt = MathMin(endInt, srcLength);
-    }
-    if (endInt < beginInt) {
-      endInt = beginInt;
-    }
-    var newLength = endInt - beginInt;
-    var beginByteOffset =
-        %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-    return new $NAME(%TypedArrayGetBuffer(this),
-                     beginByteOffset, newLength);
-  }
+  var newLength = endInt - beginInt;
+  var beginByteOffset =
+      %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
+  return new $NAME(%TypedArrayGetBuffer(this),
+                   beginByteOffset, newLength);
+}
 endmacro
 
 TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
@@ -299,13 +299,13 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %SetCode(global.NAME, NAMEConstructor);
   %FunctionSetPrototype(global.NAME, new $Object());
 
-  %SetProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
-               READ_ONLY | DONT_ENUM | DONT_DELETE);
-  %SetProperty(global.NAME.prototype,
-               "constructor", global.NAME, DONT_ENUM);
-  %SetProperty(global.NAME.prototype,
-               "BYTES_PER_ELEMENT", ELEMENT_SIZE,
-               READ_ONLY | DONT_ENUM | DONT_DELETE);
+  %AddNamedProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+                    READ_ONLY | DONT_ENUM | DONT_DELETE);
+  %AddNamedProperty(global.NAME.prototype,
+                    "constructor", global.NAME, DONT_ENUM);
+  %AddNamedProperty(global.NAME.prototype,
+                    "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+                    READ_ONLY | DONT_ENUM | DONT_DELETE);
   InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
   InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset);
   InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength);
@@ -357,7 +357,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   }
 }
 
-function DataViewGetBuffer() {
+function DataViewGetBufferJS() {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['DataView.buffer', this]);
@@ -398,7 +398,7 @@ function ToPositiveDataViewOffset(offset) {
 
 
 macro DATA_VIEW_GETTER_SETTER(TYPENAME)
-function DataViewGetTYPENAME(offset, little_endian) {
+function DataViewGetTYPENAMEJS(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['DataView.getTYPENAME', this]);
@@ -411,7 +411,7 @@ function DataViewGetTYPENAME(offset, little_endian) {
                           !!little_endian);
 }
 
-function DataViewSetTYPENAME(offset, value, little_endian) {
+function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['DataView.setTYPENAME', this]);
@@ -436,36 +436,36 @@ function SetupDataView() {
   %FunctionSetPrototype($DataView, new $Object);
 
   // Set up constructor property on the DataView prototype.
-  %SetProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
+  %AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
 
-  InstallGetter($DataView.prototype, "buffer", DataViewGetBuffer);
+  InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
   InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
   InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
 
   InstallFunctions($DataView.prototype, DONT_ENUM, $Array(
-      "getInt8", DataViewGetInt8,
-      "setInt8", DataViewSetInt8,
+      "getInt8", DataViewGetInt8JS,
+      "setInt8", DataViewSetInt8JS,
 
-      "getUint8", DataViewGetUint8,
-      "setUint8", DataViewSetUint8,
+      "getUint8", DataViewGetUint8JS,
+      "setUint8", DataViewSetUint8JS,
 
-      "getInt16", DataViewGetInt16,
-      "setInt16", DataViewSetInt16,
+      "getInt16", DataViewGetInt16JS,
+      "setInt16", DataViewSetInt16JS,
 
-      "getUint16", DataViewGetUint16,
-      "setUint16", DataViewSetUint16,
+      "getUint16", DataViewGetUint16JS,
+      "setUint16", DataViewSetUint16JS,
 
-      "getInt32", DataViewGetInt32,
-      "setInt32", DataViewSetInt32,
+      "getInt32", DataViewGetInt32JS,
+      "setInt32", DataViewSetInt32JS,
 
-      "getUint32", DataViewGetUint32,
-      "setUint32", DataViewSetUint32,
+      "getUint32", DataViewGetUint32JS,
+      "setUint32", DataViewSetUint32JS,
 
-      "getFloat32", DataViewGetFloat32,
-      "setFloat32", DataViewSetFloat32,
+      "getFloat32", DataViewGetFloat32JS,
+      "setFloat32", DataViewSetFloat32JS,
 
-      "getFloat64", DataViewGetFloat64,
-      "setFloat64", DataViewSetFloat64
+      "getFloat64", DataViewGetFloat64JS,
+      "setFloat64", DataViewSetFloat64JS
   ));
 }
 

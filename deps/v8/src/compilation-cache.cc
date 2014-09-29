@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assembler.h"
-#include "compilation-cache.h"
-#include "serialize.h"
+#include "src/assembler.h"
+#include "src/compilation-cache.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,7 @@ CompilationCache::~CompilationCache() {}
 
 
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
-  ASSERT(generation < generations_);
+  DCHECK(generation < generations_);
   Handle<CompilationCacheTable> result;
   if (tables_[generation]->IsUndefined()) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
@@ -193,7 +193,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   if (result != NULL) {
     Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result),
                                       isolate());
-    ASSERT(HasOrigin(shared,
+    DCHECK(HasOrigin(shared,
                      name,
                      line_offset,
                      column_offset,
@@ -335,7 +335,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
     result = eval_global_.Lookup(
         source, context, strict_mode, scope_position);
   } else {
-    ASSERT(scope_position != RelocInfo::kNoPosition);
+    DCHECK(scope_position != RelocInfo::kNoPosition);
     result = eval_contextual_.Lookup(
         source, context, strict_mode, scope_position);
   }
@@ -370,7 +370,7 @@ void CompilationCache::PutEval(Handle<String> source,
   if (context->IsNativeContext()) {
     eval_global_.Put(source, context, function_info, scope_position);
   } else {
-    ASSERT(scope_position != RelocInfo::kNoPosition);
+    DCHECK(scope_position != RelocInfo::kNoPosition);
     eval_contextual_.Put(source, context, function_info, scope_position);
   }
 }

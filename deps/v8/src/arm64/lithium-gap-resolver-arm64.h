@@ -5,15 +5,31 @@
 #ifndef V8_ARM64_LITHIUM_GAP_RESOLVER_ARM64_H_
 #define V8_ARM64_LITHIUM_GAP_RESOLVER_ARM64_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "lithium.h"
+#include "src/arm64/delayed-masm-arm64.h"
+#include "src/lithium.h"
 
 namespace v8 {
 namespace internal {
 
 class LCodeGen;
 class LGapResolver;
+
+class DelayedGapMasm : public DelayedMasm {
+ public:
+  DelayedGapMasm(LCodeGen* owner, MacroAssembler* masm)
+    : DelayedMasm(owner, masm, root) {
+    // We use the root register as an extra scratch register.
+    // The root register has two advantages:
+    //  - It is not in crankshaft allocatable registers list, so it can't
+    //    interfere with the allocatable registers.
+    //  - We don't need to push it on the stack, as we can reload it with its
+    //    value once we have finish.
+  }
+  void EndDelayedUse();
+};
+
 
 class LGapResolver BASE_EMBEDDED {
  public:
@@ -43,12 +59,32 @@ class LGapResolver BASE_EMBEDDED {
   void EmitMove(int index);
 
   // Emit a move from one stack slot to another.
-  void EmitStackSlotMove(int index);
+  void EmitStackSlotMove(int index) {
+    masm_.StackSlotMove(moves_[index].source(), moves_[index].destination());
+  }
 
   // Verify the move list before performing moves.
   void Verify();
 
+  // Registers used to solve cycles.
+  const Register& SavedValueRegister() {
+    DCHECK(!masm_.ScratchRegister().IsAllocatable());
+    return masm_.ScratchRegister();
+  }
+  // The scratch register is used to break cycles and to store constant.
+  // These two methods switch from one mode to the other.
+  void AcquireSavedValueRegister() { masm_.AcquireScratchRegister(); }
+  void ReleaseSavedValueRegister() { masm_.ReleaseScratchRegister(); }
+  const FPRegister& SavedFPValueRegister() {
+    // We use the Crankshaft floating-point scratch register to break a cycle
+    // involving double values as the MacroAssembler will not need it for the
+    // operations performed by the gap resolver.
+    DCHECK(!crankshaft_fp_scratch.IsAllocatable());
+    return crankshaft_fp_scratch;
+  }
+
   LCodeGen* cgen_;
+  DelayedGapMasm masm_;
 
   // List of moves not yet resolved.
   ZoneList<LMoveOperands> moves_;
@@ -56,10 +92,6 @@ class LGapResolver BASE_EMBEDDED {
   int root_index_;
   bool in_cycle_;
   LOperand* saved_destination_;
-
-  // We use the root register as a scratch in a few places. When that happens,
-  // this flag is set to indicate that it needs to be restored.
-  bool need_to_restore_root_;
 };
 
 } }  // namespace v8::internal

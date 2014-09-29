@@ -35,6 +35,40 @@ function* g() { yield 3; yield 4; }
 // Yield expressions.
 function* g() { (yield 3) + (yield 4); }
 
+// Yield without a RHS.
+function* g() { yield; }
+function* g() { yield }
+function* g() {
+  yield
+}
+function* g() { (yield) }
+function* g() { [yield] }
+function* g() { {yield} }
+function* g() { yield, yield }
+function* g() { yield; yield }
+function* g() { (yield) ? yield : yield }
+function* g() {
+  (yield)
+  ? yield
+  : yield
+}
+
+// If yield has a RHS, it needs to start on the same line.  The * in a
+// yield* counts as starting the RHS.
+function* g() {
+  yield *
+  foo
+}
+assertThrows("function* g() { yield\n* foo }", SyntaxError);
+assertEquals(undefined,
+             (function*(){
+               yield
+               3
+             })().next().value);
+
+// A YieldExpression is not a LogicalORExpression.
+assertThrows("function* g() { yield ? yield : yield }", SyntaxError);
+
 // You can have a generator in strict mode.
 function* g() { "use strict"; yield 3; yield 4; }
 
@@ -50,14 +84,10 @@ function* g() { yield 1; return 2; yield "dead"; }
 // Named generator expression.
 (function* g() { yield 3; });
 
-// A generator without a yield is specified as causing an early error.  This
-// behavior is currently unimplemented.  See
-// https://bugs.ecmascript.org/show_bug.cgi?id=1283.
+// You can have a generator without a yield.
 function* g() { }
 
-// A YieldExpression in the RHS of a YieldExpression is currently specified as
-// causing an early error.  This behavior is currently unimplemented.  See
-// https://bugs.ecmascript.org/show_bug.cgi?id=1283.
+// A YieldExpression is valid as the RHS of a YieldExpression.
 function* g() { yield yield 1; }
 function* g() { yield 3 + (yield 4); }
 
@@ -85,9 +115,6 @@ assertThrows("function* g() { yield: 1 }", SyntaxError)
 // Yield is only a keyword in the body of the generator, not in nested
 // functions.
 function* g() { function f() { yield (yield + yield (0)); } }
-
-// Yield needs a RHS.
-assertThrows("function* g() { yield; }", SyntaxError);
 
 // Yield in a generator is not an identifier.
 assertThrows("function* g() { yield = 10; }", SyntaxError);

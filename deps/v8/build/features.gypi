@@ -41,6 +41,8 @@
 
     'v8_use_snapshot%': 'true',
 
+    'v8_enable_verify_predictable%': 0,
+
     # With post mortem support enabled, metadata is embedded into libv8 that
     # describes various parameters of the VM for use by debuggers. See
     # tools/gen-postmortem-metadata.py for details.
@@ -57,8 +59,9 @@
     # Enable compiler warnings when using V8_DEPRECATED apis.
     'v8_deprecation_warnings%': 0,
 
-    # Use the v8 provided v8::Platform implementation.
-    'v8_use_default_platform%': 1,
+    # Use external files for startup data blobs:
+    # the JS builtins sources and the start snapshot.
+    'v8_use_external_startup_data%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -74,6 +77,9 @@
       ['v8_enable_verify_heap==1', {
         'defines': ['VERIFY_HEAP',],
       }],
+      ['v8_enable_verify_predictable==1', {
+        'defines': ['VERIFY_PREDICTABLE',],
+      }],
       ['v8_interpreted_regexp==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
       }],
@@ -83,13 +89,11 @@
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_I18N_SUPPORT',],
       }],
-      ['v8_use_default_platform==1', {
-        'defines': ['V8_USE_DEFAULT_PLATFORM',],
-      }],
       ['v8_compress_startup_data=="bz2"', {
-        'defines': [
-          'COMPRESS_STARTUP_DATA_BZ2',
-        ],
+        'defines': ['COMPRESS_STARTUP_DATA_BZ2',],
+      }],
+      ['v8_use_external_startup_data==1', {
+        'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
       }],
     ],  # conditions
     'configurations': {

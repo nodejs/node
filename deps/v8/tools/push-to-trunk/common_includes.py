@@ -28,6 +28,7 @@
 
 import argparse
 import datetime
+import httplib
 import imp
 import json
 import os
@@ -36,6 +37,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import urllib
 import urllib2
 
 from git_recipes import GitRecipesMixin
@@ -169,6 +171,16 @@ def MakeChangeLogBugReference(body):
     return ""
 
 
+def SortingKey(version):
+  """Key for sorting version number strings: '3.11' > '3.2.1.1'"""
+  version_keys = map(int, version.split("."))
+  # Fill up to full version numbers to normalize comparison.
+  while len(version_keys) < 4:  # pragma: no cover
+    version_keys.append(0)
+  # Fill digits.
+  return ".".join(map("{0:04d}".format, version_keys))
+
+
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):
@@ -207,11 +219,33 @@ class SideEffectHandler(object):  # pragma: no cover
     finally:
       url_fh.close()
 
+  def ReadClusterFuzzAPI(self, api_key, **params):
+    params["api_key"] = api_key.strip()
+    params = urllib.urlencode(params)
+
+    headers = {"Content-type": "application/x-www-form-urlencoded"}
+
+    conn = httplib.HTTPSConnection("backend-dot-cluster-fuzz.appspot.com")
+    conn.request("POST", "/_api/", params, headers)
+
+    response = conn.getresponse()
+    data = response.read()
+
+    try:
+      return json.loads(data)
+    except:
+      print data
+      print "ERROR: Could not read response. Is your key valid?"
+      raise
+
   def Sleep(self, seconds):
     time.sleep(seconds)
 
   def GetDate(self):
     return datetime.date.today().strftime("%Y-%m-%d")
+
+  def GetUTCStamp(self):
+    return time.mktime(datetime.datetime.utcnow().timetuple())
 
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
@@ -348,7 +382,7 @@ class Step(GitRecipesMixin):
 
   def DeleteBranch(self, name):
     for line in self.GitBranch().splitlines():
-      if re.match(r".*\s+%s$" % name, line):
+      if re.match(r"\*?\s*%s$" % re.escape(name), line):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
           self.GitDeleteBranch(name)
@@ -446,6 +480,25 @@ class Step(GitRecipesMixin):
     return self.GitLog(n=1, format="%H", grep=push_pattern,
                        parent_hash=parent_hash, branch=branch)
 
+  def ArrayToVersion(self, prefix):
+    return ".".join([self[prefix + "major"],
+                     self[prefix + "minor"],
+                     self[prefix + "build"],
+                     self[prefix + "patch"]])
+
+  def SetVersion(self, version_file, prefix):
+    output = ""
+    for line in FileToText(version_file).splitlines():
+      if line.startswith("#define MAJOR_VERSION"):
+        line = re.sub("\d+$", self[prefix + "major"], line)
+      elif line.startswith("#define MINOR_VERSION"):
+        line = re.sub("\d+$", self[prefix + "minor"], line)
+      elif line.startswith("#define BUILD_NUMBER"):
+        line = re.sub("\d+$", self[prefix + "build"], line)
+      elif line.startswith("#define PATCH_LEVEL"):
+        line = re.sub("\d+$", self[prefix + "patch"], line)
+      output += "%s\n" % line
+    TextToFile(output, version_file)
 
 class UploadStep(Step):
   MESSAGE = "Upload for code review."

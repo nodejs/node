@@ -27,34 +27,17 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "factory.h"
+#include "src/factory.h"
+#include "test/cctest/cctest.h"
 
 namespace {
 
 using namespace v8::internal;
 
 
-void CheckIterResultObject(Isolate* isolate,
-                           Handle<JSObject> result,
-                           Handle<Object> value,
-                           bool done) {
-  Handle<Object> value_object =
-      Object::GetProperty(isolate, result, "value").ToHandleChecked();
-  Handle<Object> done_object =
-      Object::GetProperty(isolate, result, "done").ToHandleChecked();
-
-  CHECK_EQ(*value_object, *value);
-  CHECK(done_object->IsBoolean());
-  CHECK_EQ(done_object->BooleanValue(), done);
-}
-
-
 TEST(Set) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -64,20 +47,21 @@ TEST(Set) {
   CHECK_EQ(0, ordered_set->NumberOfElements());
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
 
-  Handle<JSSetIterator> value_iterator =
-      JSSetIterator::Create(ordered_set, JSSetIterator::kKindValues);
-  Handle<JSSetIterator> value_iterator_2 =
-      JSSetIterator::Create(ordered_set, JSSetIterator::kKindValues);
-
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   CHECK(!ordered_set->Contains(obj));
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   CHECK_EQ(1, ordered_set->NumberOfElements());
   CHECK(ordered_set->Contains(obj));
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj);
+  bool was_present = false;
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(was_present);
   CHECK_EQ(0, ordered_set->NumberOfElements());
   CHECK(!ordered_set->Contains(obj));
+
+  // Removing a not-present object should set was_present to false.
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(!was_present);
 
   // Test for collisions/chaining
   Handle<JSObject> obj1 = factory->NewJSObjectFromMap(map);
@@ -90,18 +74,6 @@ TEST(Set) {
   CHECK(ordered_set->Contains(obj1));
   CHECK(ordered_set->Contains(obj2));
   CHECK(ordered_set->Contains(obj3));
-
-  // Test iteration
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj1, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj2, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj3, false);
-  CheckIterResultObject(isolate,
-                        JSSetIterator::Next(value_iterator),
-                        factory->undefined_value(),
-                        true);
 
   // Test growth
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
@@ -116,35 +88,21 @@ TEST(Set) {
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
   CHECK_EQ(4, ordered_set->NumberOfBuckets());
 
-  // Test iteration after growth
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj1, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj2, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj3, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj4, false);
-  CheckIterResultObject(isolate,
-                        JSSetIterator::Next(value_iterator_2),
-                        factory->undefined_value(),
-                        true);
-
   // Test shrinking
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj1);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj2);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj3);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj1, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj2, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj3, &was_present);
+  CHECK(was_present);
   CHECK_EQ(1, ordered_set->NumberOfElements());
   CHECK_EQ(2, ordered_set->NumberOfBuckets());
 }
 
 
 TEST(Map) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -154,11 +112,6 @@ TEST(Map) {
   CHECK_EQ(0, ordered_map->NumberOfElements());
   CHECK_EQ(0, ordered_map->NumberOfDeletedElements());
 
-  Handle<JSMapIterator> value_iterator =
-      JSMapIterator::Create(ordered_map, JSMapIterator::kKindValues);
-  Handle<JSMapIterator> key_iterator =
-      JSMapIterator::Create(ordered_map, JSMapIterator::kKindKeys);
-
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   Handle<JSObject> val = factory->NewJSObjectFromMap(map);
@@ -166,8 +119,9 @@ TEST(Map) {
   ordered_map = OrderedHashMap::Put(ordered_map, obj, val);
   CHECK_EQ(1, ordered_map->NumberOfElements());
   CHECK(ordered_map->Lookup(obj)->SameValue(*val));
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj, factory->the_hole_value());
+  bool was_present = false;
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj, &was_present);
+  CHECK(was_present);
   CHECK_EQ(0, ordered_map->NumberOfElements());
   CHECK(ordered_map->Lookup(obj)->IsTheHole());
 
@@ -186,18 +140,6 @@ TEST(Map) {
   CHECK(ordered_map->Lookup(obj2)->SameValue(*val2));
   CHECK(ordered_map->Lookup(obj3)->SameValue(*val3));
 
-  // Test iteration
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val1, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val2, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val3, false);
-  CheckIterResultObject(isolate,
-                        JSMapIterator::Next(value_iterator),
-                        factory->undefined_value(),
-                        true);
-
   // Test growth
   ordered_map = OrderedHashMap::Put(ordered_map, obj, val);
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
@@ -211,31 +153,15 @@ TEST(Map) {
   CHECK_EQ(5, ordered_map->NumberOfElements());
   CHECK_EQ(4, ordered_map->NumberOfBuckets());
 
-  // Test iteration after growth
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj1, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj2, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj3, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj4, false);
-  CheckIterResultObject(isolate,
-                        JSMapIterator::Next(key_iterator),
-                        factory->undefined_value(),
-                        true);
-
   // Test shrinking
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj1, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj2, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj3, factory->the_hole_value());
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj1, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj2, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj3, &was_present);
+  CHECK(was_present);
   CHECK_EQ(1, ordered_map->NumberOfElements());
   CHECK_EQ(2, ordered_map->NumberOfBuckets());
 }

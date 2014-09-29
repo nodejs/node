@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-alias-analysis.h"
-#include "hydrogen-load-elimination.h"
-#include "hydrogen-instructions.h"
-#include "hydrogen-flow-engine.h"
+#include "src/hydrogen-alias-analysis.h"
+#include "src/hydrogen-flow-engine.h"
+#include "src/hydrogen-instructions.h"
+#include "src/hydrogen-load-elimination.h"
 
 namespace v8 {
 namespace internal {
@@ -25,11 +25,10 @@ class HFieldApproximation : public ZoneObject {
 
   // Recursively copy the entire linked list of field approximations.
   HFieldApproximation* Copy(Zone* zone) {
-    if (this == NULL) return NULL;
     HFieldApproximation* copy = new(zone) HFieldApproximation();
     copy->object_ = this->object_;
     copy->last_value_ = this->last_value_;
-    copy->next_ = this->next_->Copy(zone);
+    copy->next_ = this->next_ == NULL ? NULL : this->next_->Copy(zone);
     return copy;
   }
 };
@@ -123,7 +122,7 @@ class HLoadEliminationTable : public ZoneObject {
                                       HLoadEliminationTable* pred_state,
                                       HBasicBlock* pred_block,
                                       Zone* zone) {
-    ASSERT(pred_state != NULL);
+    DCHECK(pred_state != NULL);
     if (succ_state == NULL) {
       return pred_state->Copy(succ_block, pred_block, zone);
     } else {
@@ -136,7 +135,7 @@ class HLoadEliminationTable : public ZoneObject {
   static HLoadEliminationTable* Finish(HLoadEliminationTable* state,
                                        HBasicBlock* block,
                                        Zone* zone) {
-    ASSERT(state != NULL);
+    DCHECK(state != NULL);
     return state;
   }
 
@@ -148,7 +147,7 @@ class HLoadEliminationTable : public ZoneObject {
         new(zone) HLoadEliminationTable(zone, aliasing_);
     copy->EnsureFields(fields_.length());
     for (int i = 0; i < fields_.length(); i++) {
-      copy->fields_[i] = fields_[i]->Copy(zone);
+      copy->fields_[i] = fields_[i] == NULL ? NULL : fields_[i]->Copy(zone);
     }
     if (FLAG_trace_load_elimination) {
       TRACE((" copy-to B%d\n", succ->block_id()));
@@ -201,7 +200,7 @@ class HLoadEliminationTable : public ZoneObject {
   // which the load should be replaced. Otherwise, return {instr}.
   HValue* load(HLoadNamedField* instr) {
     // There must be no loads from non observable in-object properties.
-    ASSERT(!instr->access().IsInobject() ||
+    DCHECK(!instr->access().IsInobject() ||
            instr->access().existing_inobject_property());
 
     int field = FieldOf(instr->access());
@@ -383,7 +382,7 @@ class HLoadEliminationTable : public ZoneObject {
   // farthest away from the current instruction.
   HFieldApproximation* ReuseLastApproximation(int field) {
     HFieldApproximation* approx = fields_[field];
-    ASSERT(approx != NULL);
+    DCHECK(approx != NULL);
 
     HFieldApproximation* prev = NULL;
     while (approx->next_ != NULL) {

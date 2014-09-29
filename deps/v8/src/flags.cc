@@ -5,26 +5,22 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "smart-pointers.h"
-#include "string-stream.h"
-
-#if V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm-inl.h"
-#endif
+#include "src/assembler.h"
+#include "src/base/platform/platform.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT
 
 namespace {
 
@@ -49,32 +45,32 @@ struct Flag {
   const char* comment() const { return cmt_; }
 
   bool* bool_variable() const {
-    ASSERT(type_ == TYPE_BOOL);
+    DCHECK(type_ == TYPE_BOOL);
     return reinterpret_cast<bool*>(valptr_);
   }
 
   MaybeBoolFlag* maybe_bool_variable() const {
-    ASSERT(type_ == TYPE_MAYBE_BOOL);
+    DCHECK(type_ == TYPE_MAYBE_BOOL);
     return reinterpret_cast<MaybeBoolFlag*>(valptr_);
   }
 
   int* int_variable() const {
-    ASSERT(type_ == TYPE_INT);
+    DCHECK(type_ == TYPE_INT);
     return reinterpret_cast<int*>(valptr_);
   }
 
   double* float_variable() const {
-    ASSERT(type_ == TYPE_FLOAT);
+    DCHECK(type_ == TYPE_FLOAT);
     return reinterpret_cast<double*>(valptr_);
   }
 
   const char* string_value() const {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char**>(valptr_);
   }
 
   void set_string_value(const char* value, bool owns_ptr) {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     const char** ptr = reinterpret_cast<const char**>(valptr_);
     if (owns_ptr_ && *ptr != NULL) DeleteArray(*ptr);
     *ptr = value;
@@ -82,32 +78,32 @@ struct Flag {
   }
 
   JSArguments* args_variable() const {
-    ASSERT(type_ == TYPE_ARGS);
+    DCHECK(type_ == TYPE_ARGS);
     return reinterpret_cast<JSArguments*>(valptr_);
   }
 
   bool bool_default() const {
-    ASSERT(type_ == TYPE_BOOL);
+    DCHECK(type_ == TYPE_BOOL);
     return *reinterpret_cast<const bool*>(defptr_);
   }
 
   int int_default() const {
-    ASSERT(type_ == TYPE_INT);
+    DCHECK(type_ == TYPE_INT);
     return *reinterpret_cast<const int*>(defptr_);
   }
 
   double float_default() const {
-    ASSERT(type_ == TYPE_FLOAT);
+    DCHECK(type_ == TYPE_FLOAT);
     return *reinterpret_cast<const double*>(defptr_);
   }
 
   const char* string_default() const {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char* const *>(defptr_);
   }
 
   JSArguments args_default() const {
-    ASSERT(type_ == TYPE_ARGS);
+    DCHECK(type_ == TYPE_ARGS);
     return *reinterpret_cast<const JSArguments*>(defptr_);
   }
 
@@ -163,7 +159,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
@@ -185,41 +181,39 @@ static const char* Type2String(Flag::FlagType type) {
 }
 
 
-static SmartArrayPointer<const char> ToString(Flag* flag) {
-  HeapStringAllocator string_allocator;
-  StringStream buffer(&string_allocator);
-  switch (flag->type()) {
+OStream& operator<<(OStream& os, const Flag& flag) {  // NOLINT
+  switch (flag.type()) {
     case Flag::TYPE_BOOL:
-      buffer.Add("%s", (*flag->bool_variable() ? "true" : "false"));
+      os << (*flag.bool_variable() ? "true" : "false");
       break;
     case Flag::TYPE_MAYBE_BOOL:
-      buffer.Add("%s", flag->maybe_bool_variable()->has_value
-                       ? (flag->maybe_bool_variable()->value ? "true" : "false")
-                       : "unset");
+      os << (flag.maybe_bool_variable()->has_value
+                 ? (flag.maybe_bool_variable()->value ? "true" : "false")
+                 : "unset");
       break;
     case Flag::TYPE_INT:
-      buffer.Add("%d", *flag->int_variable());
+      os << *flag.int_variable();
       break;
     case Flag::TYPE_FLOAT:
-      buffer.Add("%f", FmtElm(*flag->float_variable()));
+      os << *flag.float_variable();
       break;
     case Flag::TYPE_STRING: {
-      const char* str = flag->string_value();
-      buffer.Add("%s", str ? str : "NULL");
+      const char* str = flag.string_value();
+      os << (str ? str : "NULL");
       break;
     }
     case Flag::TYPE_ARGS: {
-      JSArguments args = *flag->args_variable();
+      JSArguments args = *flag.args_variable();
       if (args.argc > 0) {
-        buffer.Add("%s",  args[0]);
+        os << args[0];
         for (int i = 1; i < args.argc; i++) {
-          buffer.Add(" %s", args[i]);
+          os << args[i];
         }
       }
       break;
     }
   }
-  return buffer.ToCString();
+  return os;
 }
 
 
@@ -231,28 +225,27 @@ List<const char*>* FlagList::argv() {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
       if (f->type() == Flag::TYPE_ARGS) {
-        ASSERT(args_flag == NULL);
+        DCHECK(args_flag == NULL);
         args_flag = f;  // Must be last in arguments.
         continue;
       }
-      HeapStringAllocator string_allocator;
-      StringStream buffer(&string_allocator);
-      if (f->type() != Flag::TYPE_BOOL || *(f->bool_variable())) {
-        buffer.Add("--%s", f->name());
-      } else {
-        buffer.Add("--no%s", f->name());
+      {
+        bool disabled = f->type() == Flag::TYPE_BOOL && !*f->bool_variable();
+        OStringStream os;
+        os << (disabled ? "--no" : "--") << f->name();
+        args->Add(StrDup(os.c_str()));
       }
-      args->Add(buffer.ToCString().Detach());
       if (f->type() != Flag::TYPE_BOOL) {
-        args->Add(ToString(f).Detach());
+        OStringStream os;
+        os << *f;
+        args->Add(StrDup(os.c_str()));
       }
     }
   }
   if (args_flag != NULL) {
-    HeapStringAllocator string_allocator;
-    StringStream buffer(&string_allocator);
-    buffer.Add("--%s", args_flag->name());
-    args->Add(buffer.ToCString().Detach());
+    OStringStream os;
+    os << "--" << args_flag->name();
+    args->Add(StrDup(os.c_str()));
     JSArguments jsargs = *args_flag->args_variable();
     for (int j = 0; j < jsargs.argc; j++) {
       args->Add(StrDup(jsargs[j]));
@@ -308,7 +301,7 @@ static void SplitArgument(const char* arg,
       // make a copy so we can NUL-terminate flag name
       size_t n = arg - *name;
       CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
-      OS::MemCopy(buffer, *name, n);
+      MemCopy(buffer, *name, n);
       buffer[n] = '\0';
       *name = buffer;
       // get the value
@@ -337,15 +330,10 @@ static Flag* FindFlag(const char* name) {
 }
 
 
-bool FlagList::serializer_enabled_ = false;
-
-
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc,
                                       char** argv,
-                                      bool remove_flags,
-                                      bool serializer_enabled) {
-  serializer_enabled_ = serializer_enabled;
+                                      bool remove_flags) {
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -384,7 +372,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           value == NULL) {
         if (i < *argc) {
           value = argv[i++];
-        } else {
+        }
+        if (!value) {
           PrintF(stderr, "Error: missing value for flag %s of type %s\n"
                  "Try --help for options\n",
                  arg, Type2String(flag->type()));
@@ -483,7 +472,7 @@ static char* SkipBlackSpace(char* p) {
 int FlagList::SetFlagsFromString(const char* str, int len) {
   // make a 0-terminated copy of str
   ScopedVector<char> copy0(len + 1);
-  OS::MemCopy(copy0.start(), str, len);
+  MemCopy(copy0.start(), str, len);
   copy0[len] = '\0';
 
   // strip leading white space
@@ -525,30 +514,29 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
-#if V8_TARGET_ARCH_ARM
+  CpuFeatures::Probe(false);
   CpuFeatures::PrintTarget();
-  CpuFeatures::Probe(serializer_enabled_);
   CpuFeatures::PrintFeatures();
-#endif  // V8_TARGET_ARCH_ARM
 
-  printf("Usage:\n");
-  printf("  shell [options] -e string\n");
-  printf("    execute string in V8\n");
-  printf("  shell [options] file1 file2 ... filek\n");
-  printf("    run JavaScript scripts in file1, file2, ..., filek\n");
-  printf("  shell [options]\n");
-  printf("  shell [options] --shell [file1 file2 ... filek]\n");
-  printf("    run an interactive JavaScript shell\n");
-  printf("  d8 [options] file1 file2 ... filek\n");
-  printf("  d8 [options]\n");
-  printf("  d8 [options] --shell [file1 file2 ... filek]\n");
-  printf("    run the new debugging shell\n\n");
-  printf("Options:\n");
+  OFStream os(stdout);
+  os << "Usage:\n"
+     << "  shell [options] -e string\n"
+     << "    execute string in V8\n"
+     << "  shell [options] file1 file2 ... filek\n"
+     << "    run JavaScript scripts in file1, file2, ..., filek\n"
+     << "  shell [options]\n"
+     << "  shell [options] --shell [file1 file2 ... filek]\n"
+     << "    run an interactive JavaScript shell\n"
+     << "  d8 [options] file1 file2 ... filek\n"
+     << "  d8 [options]\n"
+     << "  d8 [options] --shell [file1 file2 ... filek]\n"
+     << "    run the new debugging shell\n\n"
+     << "Options:\n";
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
-    SmartArrayPointer<const char> value = ToString(f);
-    printf("  --%s (%s)\n        type: %s  default: %s\n",
-           f->name(), f->comment(), Type2String(f->type()), value.get());
+    os << "  --" << f->name() << " (" << f->comment() << ")\n"
+       << "        type: " << Type2String(f->type()) << "  default: " << *f
+       << "\n";
   }
 }
 
@@ -556,7 +544,7 @@ void FlagList::PrintHelp() {
 // static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
 }
 

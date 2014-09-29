@@ -5,8 +5,8 @@
 #ifndef V8_ACCESSORS_H_
 #define V8_ACCESSORS_H_
 
-#include "allocation.h"
-#include "v8globals.h"
+#include "src/allocation.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -32,6 +32,8 @@ namespace internal {
   V(ScriptName)                     \
   V(ScriptSource)                   \
   V(ScriptType)                     \
+  V(ScriptSourceUrl)                \
+  V(ScriptSourceMappingUrl)         \
   V(StringLength)
 
 // Accessors contains all predefined proxy accessors.
@@ -76,7 +78,7 @@ class Accessors : public AllStatic {
   // If true, *object_offset contains offset of object field.
   template <class T>
   static bool IsJSObjectFieldAccessor(typename T::TypeHandle type,
-                                      Handle<String> name,
+                                      Handle<Name> name,
                                       int* object_offset);
 
   static Handle<AccessorInfo> MakeAccessor(
@@ -85,6 +87,11 @@ class Accessors : public AllStatic {
       AccessorGetterCallback getter,
       AccessorSetterCallback setter,
       PropertyAttributes attributes);
+
+  static Handle<ExecutableAccessorInfo> CloneAccessor(
+      Isolate* isolate,
+      Handle<ExecutableAccessorInfo> accessor);
+
 
  private:
   // Helper functions.

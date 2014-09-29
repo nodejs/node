@@ -1,0 +1,6 @@
+include_rules = [
+  "+src",
+  "+testing/gtest",
+  "+testing/gtest-type-names.h",
+  "+testing/gmock",
+]

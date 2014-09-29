@@ -51,8 +51,8 @@ typedef std::set<MangledName> CalleesSet;
 static bool GetMangledName(clang::MangleContext* ctx,
                            const clang::NamedDecl* decl,
                            MangledName* result) {
-  if (!isa<clang::CXXConstructorDecl>(decl) &&
-      !isa<clang::CXXDestructorDecl>(decl)) {
+  if (!llvm::isa<clang::CXXConstructorDecl>(decl) &&
+      !llvm::isa<clang::CXXDestructorDecl>(decl)) {
     llvm::SmallVector<char, 512> output;
     llvm::raw_svector_ostream out(output);
     ctx->mangleName(decl, out);
@@ -74,7 +74,7 @@ static std::string STATE_TAG("enum v8::internal::StateTag");
 
 static bool IsExternalVMState(const clang::ValueDecl* var) {
   const clang::EnumConstantDecl* enum_constant =
-      dyn_cast<clang::EnumConstantDecl>(var);
+      llvm::dyn_cast<clang::EnumConstantDecl>(var);
   if (enum_constant != NULL && enum_constant->getNameAsString() == EXTERNAL) {
     clang::QualType type = enum_constant->getType();
     return (type.getAsString() == STATE_TAG);
@@ -109,11 +109,10 @@ struct Resolver {
     clang::DeclContext::lookup_result result =
         decl_ctx_->lookup(ResolveName(n));
 
-    clang::DeclContext::lookup_iterator end = result.second;
-    for (clang::DeclContext::lookup_iterator i = result.first;
-         i != end;
+    clang::DeclContext::lookup_iterator end = result.end();
+    for (clang::DeclContext::lookup_iterator i = result.begin(); i != end;
          i++) {
-      if (isa<T>(*i)) return cast<T>(*i);
+      if (llvm::isa<T>(*i)) return llvm::cast<T>(*i);
     }
 
     return NULL;
@@ -208,13 +207,13 @@ class FunctionDeclarationFinder
     : public clang::ASTConsumer,
       public clang::RecursiveASTVisitor<FunctionDeclarationFinder> {
  public:
-  explicit FunctionDeclarationFinder(clang::Diagnostic& d,
+  explicit FunctionDeclarationFinder(clang::DiagnosticsEngine& d,
                                      clang::SourceManager& sm,
                                      const std::vector<std::string>& args)
-      : d_(d), sm_(sm) { }
+      : d_(d), sm_(sm) {}
 
   virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
-    mangle_context_ = clang::createItaniumMangleContext(ctx, d_);
+    mangle_context_ = clang::ItaniumMangleContext::create(ctx, d_);
     callees_printer_ = new CalleesPrinter(mangle_context_);
 
     TraverseDecl(ctx.getTranslationUnitDecl());
@@ -228,7 +227,7 @@ class FunctionDeclarationFinder
   }
 
  private:
-  clang::Diagnostic& d_;
+  clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
   clang::MangleContext* mangle_context_;
 
@@ -508,10 +507,8 @@ class FunctionAnalyzer {
   FunctionAnalyzer(clang::MangleContext* ctx,
                    clang::DeclarationName handle_decl_name,
                    clang::CXXRecordDecl* object_decl,
-                   clang::CXXRecordDecl* smi_decl,
-                   clang::Diagnostic& d,
-                   clang::SourceManager& sm,
-                   bool dead_vars_analysis)
+                   clang::CXXRecordDecl* smi_decl, clang::DiagnosticsEngine& d,
+                   clang::SourceManager& sm, bool dead_vars_analysis)
       : ctx_(ctx),
         handle_decl_name_(handle_decl_name),
         object_decl_(object_decl),
@@ -519,8 +516,7 @@ class FunctionAnalyzer {
         d_(d),
         sm_(sm),
         block_(NULL),
-        dead_vars_analysis_(dead_vars_analysis) {
-  }
+        dead_vars_analysis_(dead_vars_analysis) {}
 
 
   // --------------------------------------------------------------------------
@@ -528,19 +524,18 @@ class FunctionAnalyzer {
   // --------------------------------------------------------------------------
 
   ExprEffect VisitExpr(clang::Expr* expr, const Environment& env) {
-#define VISIT(type) do {                                                \
-      clang::type* concrete_expr = dyn_cast_or_null<clang::type>(expr); \
-      if (concrete_expr != NULL) {                                      \
-        return Visit##type (concrete_expr, env);                        \
-      }                                                                 \
-    } while(0);
+#define VISIT(type)                                                         \
+  do {                                                                      \
+    clang::type* concrete_expr = llvm::dyn_cast_or_null<clang::type>(expr); \
+    if (concrete_expr != NULL) {                                            \
+      return Visit##type(concrete_expr, env);                               \
+    }                                                                       \
+  } while (0);
 
     VISIT(AbstractConditionalOperator);
     VISIT(AddrLabelExpr);
     VISIT(ArraySubscriptExpr);
     VISIT(BinaryOperator);
-    VISIT(BinaryTypeTraitExpr);
-    VISIT(BlockDeclRefExpr);
     VISIT(BlockExpr);
     VISIT(CallExpr);
     VISIT(CastExpr);
@@ -587,8 +582,8 @@ class FunctionAnalyzer {
     VISIT(StmtExpr);
     VISIT(StringLiteral);
     VISIT(SubstNonTypeTemplateParmPackExpr);
+    VISIT(TypeTraitExpr);
     VISIT(UnaryOperator);
-    VISIT(UnaryTypeTraitExpr);
     VISIT(VAArgExpr);
 #undef VISIT
 
@@ -604,7 +599,6 @@ class FunctionAnalyzer {
   }
 
   IGNORE_EXPR(AddrLabelExpr);
-  IGNORE_EXPR(BinaryTypeTraitExpr);
   IGNORE_EXPR(BlockExpr);
   IGNORE_EXPR(CharacterLiteral);
   IGNORE_EXPR(ChooseExpr);
@@ -633,7 +627,7 @@ class FunctionAnalyzer {
   IGNORE_EXPR(StmtExpr);
   IGNORE_EXPR(StringLiteral);
   IGNORE_EXPR(SubstNonTypeTemplateParmPackExpr);
-  IGNORE_EXPR(UnaryTypeTraitExpr);
+  IGNORE_EXPR(TypeTraitExpr);
   IGNORE_EXPR(VAArgExpr);
   IGNORE_EXPR(GNUNullExpr);
   IGNORE_EXPR(OverloadExpr);
@@ -654,12 +648,9 @@ class FunctionAnalyzer {
   }
 
   bool IsRawPointerVar(clang::Expr* expr, std::string* var_name) {
-    if (isa<clang::BlockDeclRefExpr>(expr)) {
-      *var_name = cast<clang::BlockDeclRefExpr>(expr)->getDecl()->
-          getNameAsString();
-      return true;
-    } else if (isa<clang::DeclRefExpr>(expr)) {
-      *var_name = cast<clang::DeclRefExpr>(expr)->getDecl()->getNameAsString();
+    if (llvm::isa<clang::DeclRefExpr>(expr)) {
+      *var_name =
+          llvm::cast<clang::DeclRefExpr>(expr)->getDecl()->getNameAsString();
       return true;
     }
     return false;
@@ -707,12 +698,7 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getArgument(), env);
   }
 
-  DECL_VISIT_EXPR(CXXNewExpr) {
-    return Par(expr,
-               expr->getNumConstructorArgs(),
-               expr->getConstructorArgs(),
-               env);
-  }
+  DECL_VISIT_EXPR(CXXNewExpr) { return VisitExpr(expr->getInitializer(), env); }
 
   DECL_VISIT_EXPR(ExprWithCleanups) {
     return VisitExpr(expr->getSubExpr(), env);
@@ -763,10 +749,6 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_EXPR(DeclRefExpr) {
-    return Use(expr, expr->getDecl(), env);
-  }
-
-  DECL_VISIT_EXPR(BlockDeclRefExpr) {
     return Use(expr, expr->getDecl(), env);
   }
 
@@ -844,7 +826,7 @@ class FunctionAnalyzer {
     CallProps props;
 
     clang::CXXMemberCallExpr* memcall =
-        dyn_cast_or_null<clang::CXXMemberCallExpr>(call);
+        llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(call);
     if (memcall != NULL) {
       clang::Expr* receiver = memcall->getImplicitObjectArgument();
       props.SetEffect(0, VisitExpr(receiver, env));
@@ -870,14 +852,15 @@ class FunctionAnalyzer {
   // --------------------------------------------------------------------------
 
   Environment VisitStmt(clang::Stmt* stmt, const Environment& env) {
-#define VISIT(type) do {                                                \
-      clang::type* concrete_stmt = dyn_cast_or_null<clang::type>(stmt); \
-      if (concrete_stmt != NULL) {                                      \
-        return Visit##type (concrete_stmt, env);                        \
-      }                                                                 \
-    } while(0);
+#define VISIT(type)                                                         \
+  do {                                                                      \
+    clang::type* concrete_stmt = llvm::dyn_cast_or_null<clang::type>(stmt); \
+    if (concrete_stmt != NULL) {                                            \
+      return Visit##type(concrete_stmt, env);                               \
+    }                                                                       \
+  } while (0);
 
-    if (clang::Expr* expr = dyn_cast_or_null<clang::Expr>(stmt)) {
+    if (clang::Expr* expr = llvm::dyn_cast_or_null<clang::Expr>(stmt)) {
       return env.ApplyEffect(VisitExpr(expr, env));
     }
 
@@ -1078,11 +1061,12 @@ class FunctionAnalyzer {
   const clang::TagType* ToTagType(const clang::Type* t) {
     if (t == NULL) {
       return NULL;
-    } else if (isa<clang::TagType>(t)) {
-      return cast<clang::TagType>(t);
-    } else if (isa<clang::SubstTemplateTypeParmType>(t)) {
-      return ToTagType(cast<clang::SubstTemplateTypeParmType>(t)->
-                           getReplacementType().getTypePtr());
+    } else if (llvm::isa<clang::TagType>(t)) {
+      return llvm::cast<clang::TagType>(t);
+    } else if (llvm::isa<clang::SubstTemplateTypeParmType>(t)) {
+      return ToTagType(llvm::cast<clang::SubstTemplateTypeParmType>(t)
+                           ->getReplacementType()
+                           .getTypePtr());
     } else {
       return NULL;
     }
@@ -1095,7 +1079,7 @@ class FunctionAnalyzer {
 
   bool IsRawPointerType(clang::QualType qtype) {
     const clang::PointerType* type =
-        dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
+        llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
     if (type == NULL) return false;
 
     const clang::TagType* pointee =
@@ -1103,7 +1087,7 @@ class FunctionAnalyzer {
     if (pointee == NULL) return false;
 
     clang::CXXRecordDecl* record =
-        dyn_cast_or_null<clang::CXXRecordDecl>(pointee->getDecl());
+        llvm::dyn_cast_or_null<clang::CXXRecordDecl>(pointee->getDecl());
     if (record == NULL) return false;
 
     if (!InV8Namespace(record)) return false;
@@ -1117,7 +1101,7 @@ class FunctionAnalyzer {
   }
 
   Environment VisitDecl(clang::Decl* decl, const Environment& env) {
-    if (clang::VarDecl* var = dyn_cast<clang::VarDecl>(decl)) {
+    if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
 
       if (IsRawPointerType(var->getType())) {
@@ -1177,7 +1161,8 @@ class FunctionAnalyzer {
  private:
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     d_.Report(clang::FullSourceLoc(expr->getExprLoc(), sm_),
-              d_.getCustomDiagID(clang::Diagnostic::Warning, msg));
+              d_.getCustomDiagID(clang::DiagnosticsEngine::Warning, "%0"))
+        << msg;
   }
 
 
@@ -1186,7 +1171,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* object_decl_;
   clang::CXXRecordDecl* smi_decl_;
 
-  clang::Diagnostic& d_;
+  clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
 
   Block* block_;
@@ -1197,8 +1182,7 @@ class FunctionAnalyzer {
 class ProblemsFinder : public clang::ASTConsumer,
                        public clang::RecursiveASTVisitor<ProblemsFinder> {
  public:
-  ProblemsFinder(clang::Diagnostic& d,
-                 clang::SourceManager& sm,
+  ProblemsFinder(clang::DiagnosticsEngine& d, clang::SourceManager& sm,
                  const std::vector<std::string>& args)
       : d_(d), sm_(sm), dead_vars_analysis_(false) {
     for (unsigned i = 0; i < args.size(); ++i) {
@@ -1224,14 +1208,9 @@ class ProblemsFinder : public clang::ASTConsumer,
     if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
 
     if (object_decl != NULL && smi_decl != NULL) {
-      function_analyzer_ =
-          new FunctionAnalyzer(clang::createItaniumMangleContext(ctx, d_),
-                               r.ResolveName("Handle"),
-                               object_decl,
-                               smi_decl,
-                               d_,
-                               sm_,
-                               dead_vars_analysis_);
+      function_analyzer_ = new FunctionAnalyzer(
+          clang::ItaniumMangleContext::create(ctx, d_), r.ResolveName("Handle"),
+          object_decl, smi_decl, d_, sm_, dead_vars_analysis_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {
@@ -1249,7 +1228,7 @@ class ProblemsFinder : public clang::ASTConsumer,
   }
 
  private:
-  clang::Diagnostic& d_;
+  clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
   bool dead_vars_analysis_;
 

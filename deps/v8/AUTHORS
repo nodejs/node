@@ -13,6 +13,7 @@ Bloomberg Finance L.P.
 NVIDIA Corporation
 BlackBerry Limited
 Opera Software ASA
+Intel Corporation
 
 Akinori MUSHA <knu@FreeBSD.org>
 Alexander Botero-Lowry <alexbl@FreeBSD.org>
@@ -24,6 +25,7 @@ Baptiste Afsa <baptiste.afsa@arm.com>
 Bert Belder <bertbelder@gmail.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Craig Schlenter <craig.schlenter@gmail.com>
+Chunyang Dai <chunyang.dai@intel.com>
 Daniel Andersson <kodandersson@gmail.com>
 Daniel James <dnljms@gmail.com>
 Derek J Conrod <dconrod@codeaurora.org>
@@ -64,6 +66,7 @@ Subrato K De <subratokde@codeaurora.org>
 Tobias Burnus <burnus@net-b.de>
 Vincent Belliard <vincent.belliard@arm.com>
 Vlad Burlik <vladbph@gmail.com>
+Weiliang Lin<weiliang.lin@intel.com>
 Xi Qian <xi.qian@intel.com>
 Yuqiang Xian <yuqiang.xian@intel.com>
 Zaheer Ahmad <zahmad@codeaurora.org>

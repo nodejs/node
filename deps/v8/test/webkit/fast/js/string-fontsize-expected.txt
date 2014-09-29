@@ -33,8 +33,8 @@ PASS '_'.fontsize(0x2A) is "<font size=\"42\">_</font>"
 PASS '_'.fontsize('"') is "<font size=\"&quot;\">_</font>"
 PASS '_'.fontsize('" color="b') is "<font size=\"&quot; color=&quot;b\">_</font>"
 PASS String.prototype.fontsize.call(0x2A, 0x2A) is "<font size=\"42\">42</font>"
-FAIL String.prototype.fontsize.call(undefined) should throw TypeError: Type error. Was <font size="undefined">undefined</font>.
-FAIL String.prototype.fontsize.call(null) should throw TypeError: Type error. Was <font size="undefined">null</font>.
+FAIL String.prototype.fontsize.call(undefined) should throw TypeError: Type error. Threw exception TypeError: String.prototype.fontsize called on null or undefined.
+FAIL String.prototype.fontsize.call(null) should throw TypeError: Type error. Threw exception TypeError: String.prototype.fontsize called on null or undefined.
 PASS String.prototype.fontsize.length is 1
 PASS successfullyParsed is true
 

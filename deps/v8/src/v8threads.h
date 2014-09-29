@@ -96,7 +96,7 @@ class ThreadManager {
 
   void EagerlyArchiveThread();
 
-  Mutex mutex_;
+  base::Mutex mutex_;
   ThreadId mutex_owner_;
   ThreadId lazily_archived_thread_;
   ThreadState* lazily_archived_thread_state_;

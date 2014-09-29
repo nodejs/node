@@ -5,7 +5,7 @@
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
-#include "diy-fp.h"
+#include "src/diy-fp.h"
 
 namespace v8 {
 namespace internal {
@@ -34,14 +34,14 @@ class Double {
   // The value encoded by this Double must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
-    ASSERT(Sign() > 0);
-    ASSERT(!IsSpecial());
+    DCHECK(Sign() > 0);
+    DCHECK(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
   // The value encoded by this Double must be strictly greater than 0.
   DiyFp AsNormalizedDiyFp() const {
-    ASSERT(value() > 0.0);
+    DCHECK(value() > 0.0);
     uint64_t f = Significand();
     int e = Exponent();
 
@@ -121,7 +121,7 @@ class Double {
   // Precondition: the value encoded by this Double must be greater or equal
   // than +0.0.
   DiyFp UpperBoundary() const {
-    ASSERT(Sign() > 0);
+    DCHECK(Sign() > 0);
     return DiyFp(Significand() * 2 + 1, Exponent() - 1);
   }
 
@@ -130,7 +130,7 @@ class Double {
   // exponent as m_plus.
   // Precondition: the value encoded by this Double must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
-    ASSERT(value() > 0.0);
+    DCHECK(value() > 0.0);
     DiyFp v = this->AsDiyFp();
     bool significand_is_zero = (v.f() == kHiddenBit);
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));

@@ -27,8 +27,6 @@
 
 // Test that readonly variables are treated correctly.
 
-// Flags: --es5_readonly
-
 // Create an object with a read-only length property in the prototype
 // chain by putting the string split function in the prototype chain.
 var o = {};

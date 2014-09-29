@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bootstrapper.h"
-#include "debug.h"
-#include "scopeinfo.h"
+#include "src/bootstrapper.h"
+#include "src/debug.h"
+#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ Context* Context::declaration_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsNativeContext()) {
     current = current->previous();
-    ASSERT(current->closure() == closure());
+    DCHECK(current->closure() == closure());
   }
   return current;
 }
@@ -26,7 +26,7 @@ JSBuiltinsObject* Context::builtins() {
   if (object->IsJSGlobalObject()) {
     return JSGlobalObject::cast(object)->builtins();
   } else {
-    ASSERT(object->IsJSBuiltinsObject());
+    DCHECK(object->IsJSBuiltinsObject());
     return JSBuiltinsObject::cast(object);
   }
 }
@@ -51,7 +51,7 @@ Context* Context::native_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the native context.
-  ASSERT(this->GetIsolate()->bootstrapper()->IsActive());
+  DCHECK(this->GetIsolate()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsNativeContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -68,6 +68,38 @@ JSObject* Context::global_proxy() {
 
 void Context::set_global_proxy(JSObject* object) {
   native_context()->set_global_proxy_object(object);
+}
+
+
+/**
+ * Lookups a property in an object environment, taking the unscopables into
+ * account. This is used For HasBinding spec algorithms for ObjectEnvironment.
+ */
+static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
+  Isolate* isolate = it->isolate();
+
+  Maybe<PropertyAttributes> attrs = JSReceiver::GetPropertyAttributes(it);
+  DCHECK(attrs.has_value || isolate->has_pending_exception());
+  if (!attrs.has_value || attrs.value == ABSENT) return attrs;
+
+  Handle<Symbol> unscopables_symbol(
+      isolate->native_context()->unscopables_symbol(), isolate);
+  Handle<Object> receiver = it->GetReceiver();
+  Handle<Object> unscopables;
+  MaybeHandle<Object> maybe_unscopables =
+      Object::GetProperty(receiver, unscopables_symbol);
+  if (!maybe_unscopables.ToHandle(&unscopables)) {
+    return Maybe<PropertyAttributes>();
+  }
+  if (!unscopables->IsSpecObject()) return attrs;
+  Maybe<bool> blacklist = JSReceiver::HasProperty(
+      Handle<JSReceiver>::cast(unscopables), it->name());
+  if (!blacklist.has_value) {
+    DCHECK(isolate->has_pending_exception());
+    return Maybe<PropertyAttributes>();
+  }
+  if (blacklist.value) return maybe(ABSENT);
+  return attrs;
 }
 
 
@@ -106,15 +138,22 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
+      Maybe<PropertyAttributes> maybe;
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
-        *attributes = JSReceiver::GetLocalPropertyAttribute(object, name);
+        maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
+      } else if (context->IsWithContext()) {
+        LookupIterator it(object, name);
+        maybe = UnscopableLookup(&it);
       } else {
-        *attributes = JSReceiver::GetPropertyAttribute(object, name);
+        maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
-      if (isolate->has_pending_exception()) return Handle<Object>();
 
-      if (*attributes != ABSENT) {
+      if (!maybe.has_value) return Handle<Object>();
+      DCHECK(!isolate->has_pending_exception());
+      *attributes = maybe.value;
+
+      if (maybe.value != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",
                  reinterpret_cast<void*>(*object));
@@ -137,9 +176,12 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
       VariableMode mode;
       InitializationFlag init_flag;
-      int slot_index =
-          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
-      ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
+      // TODO(sigurds) Figure out whether maybe_assigned_flag should
+      // be used to compute binding_flags.
+      MaybeAssignedFlag maybe_assigned_flag;
+      int slot_index = ScopeInfo::ContextSlotIndex(
+          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
+      DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
@@ -200,7 +242,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          ASSERT(mode == CONST_LEGACY || mode == CONST);
+          DCHECK(mode == CONST_LEGACY || mode == CONST);
           *binding_flags = (mode == CONST_LEGACY)
               ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
           return context;
@@ -236,8 +278,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
 
 void Context::AddOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
-#ifdef ENABLE_SLOW_ASSERTS
+  DCHECK(IsNativeContext());
+#ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
     while (!element->IsUndefined()) {
@@ -266,7 +308,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
     flusher->EvictCandidate(function);
   }
 
-  ASSERT(function->next_function_link()->IsUndefined());
+  DCHECK(function->next_function_link()->IsUndefined());
 
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
   set(OPTIMIZED_FUNCTIONS_LIST, function);
@@ -274,12 +316,12 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
 
 void Context::RemoveOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
   JSFunction* prev = NULL;
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    ASSERT(element_function->next_function_link()->IsUndefined() ||
+    DCHECK(element_function->next_function_link()->IsUndefined() ||
            element_function->next_function_link()->IsJSFunction());
     if (element_function == function) {
       if (prev == NULL) {
@@ -298,46 +340,46 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
 
 
 void Context::SetOptimizedFunctionsListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(OPTIMIZED_FUNCTIONS_LIST, head);
 }
 
 
 Object* Context::OptimizedFunctionsListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(OPTIMIZED_FUNCTIONS_LIST);
 }
 
 
 void Context::AddOptimizedCode(Code* code) {
-  ASSERT(IsNativeContext());
-  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
-  ASSERT(code->next_code_link()->IsUndefined());
+  DCHECK(IsNativeContext());
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->next_code_link()->IsUndefined());
   code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code);
 }
 
 
 void Context::SetOptimizedCodeListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(OPTIMIZED_CODE_LIST, head);
 }
 
 
 Object* Context::OptimizedCodeListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(OPTIMIZED_CODE_LIST);
 }
 
 
 void Context::SetDeoptimizedCodeListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(DEOPTIMIZED_CODE_LIST, head);
 }
 
 
 Object* Context::DeoptimizedCodeListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(DEOPTIMIZED_CODE_LIST);
 }
 

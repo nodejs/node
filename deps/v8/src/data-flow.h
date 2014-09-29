@@ -5,12 +5,12 @@
 #ifndef V8_DATAFLOW_H_
 #define V8_DATAFLOW_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ class BitVector: public ZoneObject {
           current_index_(0),
           current_value_(target->data_[0]),
           current_(-1) {
-      ASSERT(target->data_length_ > 0);
+      DCHECK(target->data_length_ > 0);
       Advance();
     }
     ~Iterator() { }
@@ -34,7 +34,7 @@ class BitVector: public ZoneObject {
     void Advance();
 
     int Current() const {
-      ASSERT(!Done());
+      DCHECK(!Done());
       return current_;
     }
 
@@ -66,7 +66,7 @@ class BitVector: public ZoneObject {
       : length_(length),
         data_length_(SizeFor(length)),
         data_(zone->NewArray<uint32_t>(data_length_)) {
-    ASSERT(length > 0);
+    DCHECK(length > 0);
     Clear();
   }
 
@@ -87,7 +87,7 @@ class BitVector: public ZoneObject {
   }
 
   void CopyFrom(const BitVector& other) {
-    ASSERT(other.length() <= length());
+    DCHECK(other.length() <= length());
     for (int i = 0; i < other.data_length_; i++) {
       data_[i] = other.data_[i];
     }
@@ -97,30 +97,30 @@ class BitVector: public ZoneObject {
   }
 
   bool Contains(int i) const {
-    ASSERT(i >= 0 && i < length());
+    DCHECK(i >= 0 && i < length());
     uint32_t block = data_[i / 32];
     return (block & (1U << (i % 32))) != 0;
   }
 
   void Add(int i) {
-    ASSERT(i >= 0 && i < length());
+    DCHECK(i >= 0 && i < length());
     data_[i / 32] |= (1U << (i % 32));
   }
 
   void Remove(int i) {
-    ASSERT(i >= 0 && i < length());
+    DCHECK(i >= 0 && i < length());
     data_[i / 32] &= ~(1U << (i % 32));
   }
 
   void Union(const BitVector& other) {
-    ASSERT(other.length() == length());
+    DCHECK(other.length() == length());
     for (int i = 0; i < data_length_; i++) {
       data_[i] |= other.data_[i];
     }
   }
 
   bool UnionIsChanged(const BitVector& other) {
-    ASSERT(other.length() == length());
+    DCHECK(other.length() == length());
     bool changed = false;
     for (int i = 0; i < data_length_; i++) {
       uint32_t old_data = data_[i];
@@ -131,14 +131,14 @@ class BitVector: public ZoneObject {
   }
 
   void Intersect(const BitVector& other) {
-    ASSERT(other.length() == length());
+    DCHECK(other.length() == length());
     for (int i = 0; i < data_length_; i++) {
       data_[i] &= other.data_[i];
     }
   }
 
   void Subtract(const BitVector& other) {
-    ASSERT(other.length() == length());
+    DCHECK(other.length() == length());
     for (int i = 0; i < data_length_; i++) {
       data_[i] &= ~other.data_[i];
     }
@@ -162,6 +162,15 @@ class BitVector: public ZoneObject {
       if (data_[i] != other.data_[i]) return false;
     }
     return true;
+  }
+
+  int Count() const {
+    int count = 0;
+    for (int i = 0; i < data_length_; i++) {
+      int data = data_[i];
+      if (data != 0) count += CompilerIntrinsics::CountSetBits(data);
+    }
+    return count;
   }
 
   int length() const { return length_; }

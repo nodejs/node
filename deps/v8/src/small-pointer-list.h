@@ -5,9 +5,9 @@
 #ifndef V8_SMALL_POINTER_LIST_H_
 #define V8_SMALL_POINTER_LIST_H_
 
-#include "checks.h"
-#include "v8globals.h"
-#include "zone.h"
+#include "src/base/logging.h"
+#include "src/globals.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -38,7 +38,7 @@ class SmallPointerList {
     if ((data_ & kTagMask) == kSingletonTag) {
       list->Add(single_value(), zone);
     }
-    ASSERT(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
+    DCHECK(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
     data_ = reinterpret_cast<intptr_t>(list) | kListTag;
   }
 
@@ -61,7 +61,7 @@ class SmallPointerList {
   }
 
   void Add(T* pointer, Zone* zone) {
-    ASSERT(IsAligned(reinterpret_cast<intptr_t>(pointer), kPointerAlignment));
+    DCHECK(IsAligned(reinterpret_cast<intptr_t>(pointer), kPointerAlignment));
     if ((data_ & kTagMask) == kEmptyTag) {
       data_ = reinterpret_cast<intptr_t>(pointer) | kSingletonTag;
       return;
@@ -70,7 +70,7 @@ class SmallPointerList {
       PointerList* list = new(zone) PointerList(2, zone);
       list->Add(single_value(), zone);
       list->Add(pointer, zone);
-      ASSERT(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
+      DCHECK(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
       data_ = reinterpret_cast<intptr_t>(list) | kListTag;
       return;
     }
@@ -80,9 +80,9 @@ class SmallPointerList {
   // Note: returns T* and not T*& (unlike List from list.h).
   // This makes the implementation simpler and more const correct.
   T* at(int i) const {
-    ASSERT((data_ & kTagMask) != kEmptyTag);
+    DCHECK((data_ & kTagMask) != kEmptyTag);
     if ((data_ & kTagMask) == kSingletonTag) {
-      ASSERT(i == 0);
+      DCHECK(i == 0);
       return single_value();
     }
     return list()->at(i);
@@ -104,7 +104,7 @@ class SmallPointerList {
   }
 
   T* RemoveLast() {
-    ASSERT((data_ & kTagMask) != kEmptyTag);
+    DCHECK((data_ & kTagMask) != kEmptyTag);
     if ((data_ & kTagMask) == kSingletonTag) {
       T* result = single_value();
       data_ = kEmptyTag;
@@ -115,11 +115,11 @@ class SmallPointerList {
 
   void Rewind(int pos) {
     if ((data_ & kTagMask) == kEmptyTag) {
-      ASSERT(pos == 0);
+      DCHECK(pos == 0);
       return;
     }
     if ((data_ & kTagMask) == kSingletonTag) {
-      ASSERT(pos == 0 || pos == 1);
+      DCHECK(pos == 0 || pos == 1);
       if (pos == 0) {
         data_ = kEmptyTag;
       }
@@ -155,13 +155,13 @@ class SmallPointerList {
   STATIC_ASSERT(kTagMask + 1 <= kPointerAlignment);
 
   T* single_value() const {
-    ASSERT((data_ & kTagMask) == kSingletonTag);
+    DCHECK((data_ & kTagMask) == kSingletonTag);
     STATIC_ASSERT(kSingletonTag == 0);
     return reinterpret_cast<T*>(data_);
   }
 
   PointerList* list() const {
-    ASSERT((data_ & kTagMask) == kListTag);
+    DCHECK((data_ & kTagMask) == kListTag);
     return reinterpret_cast<PointerList*>(data_ & kValueMask);
   }
 

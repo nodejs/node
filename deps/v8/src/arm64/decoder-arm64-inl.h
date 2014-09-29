@@ -5,9 +5,9 @@
 #ifndef V8_ARM64_DECODER_ARM64_INL_H_
 #define V8_ARM64_DECODER_ARM64_INL_H_
 
-#include "arm64/decoder-arm64.h"
-#include "globals.h"
-#include "utils.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 
 namespace v8 {
@@ -96,17 +96,17 @@ void Decoder<V>::Decode(Instruction *instr) {
 
 template<typename V>
 void Decoder<V>::DecodePCRelAddressing(Instruction* instr) {
-  ASSERT(instr->Bits(27, 24) == 0x0);
+  DCHECK(instr->Bits(27, 24) == 0x0);
   // We know bit 28 is set, as <b28:b27> = 0 is filtered out at the top level
   // decode.
-  ASSERT(instr->Bit(28) == 0x1);
+  DCHECK(instr->Bit(28) == 0x1);
   V::VisitPCRelAddressing(instr);
 }
 
 
 template<typename V>
 void Decoder<V>::DecodeBranchSystemException(Instruction* instr) {
-  ASSERT((instr->Bits(27, 24) == 0x4) ||
+  DCHECK((instr->Bits(27, 24) == 0x4) ||
          (instr->Bits(27, 24) == 0x5) ||
          (instr->Bits(27, 24) == 0x6) ||
          (instr->Bits(27, 24) == 0x7) );
@@ -208,7 +208,7 @@ void Decoder<V>::DecodeBranchSystemException(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeLoadStore(Instruction* instr) {
-  ASSERT((instr->Bits(27, 24) == 0x8) ||
+  DCHECK((instr->Bits(27, 24) == 0x8) ||
          (instr->Bits(27, 24) == 0x9) ||
          (instr->Bits(27, 24) == 0xC) ||
          (instr->Bits(27, 24) == 0xD) );
@@ -328,7 +328,7 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeLogical(Instruction* instr) {
-  ASSERT(instr->Bits(27, 24) == 0x2);
+  DCHECK(instr->Bits(27, 24) == 0x2);
 
   if (instr->Mask(0x80400000) == 0x00400000) {
     V::VisitUnallocated(instr);
@@ -348,7 +348,7 @@ void Decoder<V>::DecodeLogical(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
-  ASSERT(instr->Bits(27, 24) == 0x3);
+  DCHECK(instr->Bits(27, 24) == 0x3);
 
   if ((instr->Mask(0x80400000) == 0x80000000) ||
       (instr->Mask(0x80400000) == 0x00400000) ||
@@ -374,7 +374,7 @@ void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeAddSubImmediate(Instruction* instr) {
-  ASSERT(instr->Bits(27, 24) == 0x1);
+  DCHECK(instr->Bits(27, 24) == 0x1);
   if (instr->Bit(23) == 1) {
     V::VisitUnallocated(instr);
   } else {
@@ -385,7 +385,7 @@ void Decoder<V>::DecodeAddSubImmediate(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
-  ASSERT((instr->Bits(27, 24) == 0xA) ||
+  DCHECK((instr->Bits(27, 24) == 0xA) ||
          (instr->Bits(27, 24) == 0xB) );
 
   if (instr->Bit(24) == 0) {
@@ -501,7 +501,7 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeFP(Instruction* instr) {
-  ASSERT((instr->Bits(27, 24) == 0xE) ||
+  DCHECK((instr->Bits(27, 24) == 0xE) ||
          (instr->Bits(27, 24) == 0xF) );
 
   if (instr->Bit(28) == 0) {
@@ -614,7 +614,7 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
           }
         } else {
           // Bit 30 == 1 has been handled earlier.
-          ASSERT(instr->Bit(30) == 0);
+          DCHECK(instr->Bit(30) == 0);
           if (instr->Mask(0xA0800000) != 0) {
             V::VisitUnallocated(instr);
           } else {
@@ -630,7 +630,7 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
 template<typename V>
 void Decoder<V>::DecodeAdvSIMDLoadStore(Instruction* instr) {
   // TODO(all): Implement Advanced SIMD load/store instruction decode.
-  ASSERT(instr->Bits(29, 25) == 0x6);
+  DCHECK(instr->Bits(29, 25) == 0x6);
   V::VisitUnimplemented(instr);
 }
 
@@ -638,7 +638,7 @@ void Decoder<V>::DecodeAdvSIMDLoadStore(Instruction* instr) {
 template<typename V>
 void Decoder<V>::DecodeAdvSIMDDataProcessing(Instruction* instr) {
   // TODO(all): Implement Advanced SIMD data processing instruction decode.
-  ASSERT(instr->Bits(27, 25) == 0x7);
+  DCHECK(instr->Bits(27, 25) == 0x7);
   V::VisitUnimplemented(instr);
 }
 

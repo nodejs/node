@@ -61,13 +61,13 @@ function StringCharCodeAt(pos) {
 
 
 // ECMA-262, section 15.5.4.6
-function StringConcat() {
+function StringConcat(other /* and more */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
 
   var len = %_ArgumentsLength();
   var this_as_string = TO_STRING_INLINE(this);
   if (len === 1) {
-    return this_as_string + %_Arguments(0);
+    return this_as_string + other;
   }
   var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
@@ -78,12 +78,9 @@ function StringConcat() {
   return %StringBuilderConcat(parts, len + 1, "");
 }
 
-// Match ES3 and Safari
-%FunctionSetLength(StringConcat, 1);
-
 
 // ECMA-262 section 15.5.4.7
-function StringIndexOf(pattern /* position */) {  // length == 1
+function StringIndexOfJS(pattern /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.indexOf");
 
   var subject = TO_STRING_INLINE(this);
@@ -100,7 +97,7 @@ function StringIndexOf(pattern /* position */) {  // length == 1
 
 
 // ECMA-262 section 15.5.4.8
-function StringLastIndexOf(pat /* position */) {  // length == 1
+function StringLastIndexOfJS(pat /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.lastIndexOf");
 
   var sub = TO_STRING_INLINE(this);
@@ -131,7 +128,7 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
 //
 // This function is implementation specific.  For now, we do not
 // do anything locale specific.
-function StringLocaleCompare(other) {
+function StringLocaleCompareJS(other) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.localeCompare");
 
   return %StringLocaleCompare(TO_STRING_INLINE(this),
@@ -140,7 +137,7 @@ function StringLocaleCompare(other) {
 
 
 // ECMA-262 section 15.5.4.10
-function StringMatch(regexp) {
+function StringMatchJS(regexp) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
 
   var subject = TO_STRING_INLINE(this);
@@ -170,7 +167,7 @@ var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 // For now we do nothing, as proper normalization requires big tables.
 // If Intl is enabled, then i18n.js will override it and provide the the
 // proper functionality.
-function StringNormalize(form) {
+function StringNormalizeJS(form) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
@@ -585,7 +582,7 @@ function StringSlice(start, end) {
 
 
 // ECMA-262 section 15.5.4.14
-function StringSplit(separator, limit) {
+function StringSplitJS(separator, limit) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.split");
 
   var subject = TO_STRING_INLINE(this);
@@ -618,8 +615,6 @@ function StringSplit(separator, limit) {
 }
 
 
-var ArrayPushBuiltin = $Array.prototype.push;
-
 function StringSplitOnRegExp(subject, separator, limit, length) {
   if (length === 0) {
     if (DoRegExpExec(separator, subject, 0, 0) != null) {
@@ -637,15 +632,13 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
   while (true) {
 
     if (startIndex === length) {
-      %_CallFunction(result, %_SubString(subject, currentIndex, length),
-                     ArrayPushBuiltin);
+      result[result.length] = %_SubString(subject, currentIndex, length);
       break;
     }
 
     var matchInfo = DoRegExpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
-      %_CallFunction(result, %_SubString(subject, currentIndex, length),
-                     ArrayPushBuiltin);
+      result[result.length] = %_SubString(subject, currentIndex, length);
       break;
     }
     var endIndex = matchInfo[CAPTURE1];
@@ -656,8 +649,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       continue;
     }
 
-    %_CallFunction(result, %_SubString(subject, currentIndex, startMatch),
-                   ArrayPushBuiltin);
+    result[result.length] = %_SubString(subject, currentIndex, startMatch);
 
     if (result.length === limit) break;
 
@@ -666,10 +658,9 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       var start = matchInfo[i++];
       var end = matchInfo[i++];
       if (end != -1) {
-        %_CallFunction(result, %_SubString(subject, start, end),
-                       ArrayPushBuiltin);
+        result[result.length] = %_SubString(subject, start, end);
       } else {
-        %_CallFunction(result, UNDEFINED, ArrayPushBuiltin);
+        result[result.length] = UNDEFINED;
       }
       if (result.length === limit) break outer_loop;
     }
@@ -715,7 +706,7 @@ function StringSubstring(start, end) {
 }
 
 
-// This is not a part of ECMA-262.
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.1
 function StringSubstr(start, n) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
 
@@ -756,7 +747,7 @@ function StringSubstr(start, n) {
 
 
 // ECMA-262, 15.5.4.16
-function StringToLowerCase() {
+function StringToLowerCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
 
   return %StringToLowerCase(TO_STRING_INLINE(this));
@@ -772,7 +763,7 @@ function StringToLocaleLowerCase() {
 
 
 // ECMA-262, 15.5.4.18
-function StringToUpperCase() {
+function StringToUpperCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
 
   return %StringToUpperCase(TO_STRING_INLINE(this));
@@ -787,7 +778,7 @@ function StringToLocaleUpperCase() {
 }
 
 // ES5, 15.5.4.20
-function StringTrim() {
+function StringTrimJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
 
   return %StringTrim(TO_STRING_INLINE(this), true, true);
@@ -836,78 +827,99 @@ function StringFromCharCode(code) {
 }
 
 
-// Helper function for very basic XSS protection.
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return TO_STRING_INLINE(str).replace(/</g, "&lt;")
-                              .replace(/>/g, "&gt;")
-                              .replace(/"/g, "&quot;")
-                              .replace(/'/g, "&#039;");
+  return TO_STRING_INLINE(str).replace(/"/g, "&quot;");
 }
 
 
-// Compatibility support for KJS.
-// Tested by mozilla/js/tests/js1_5/Regress/regress-276103.js.
-function StringLink(s) {
-  return "<a href=\"" + HtmlEscape(s) + "\">" + this + "</a>";
-}
-
-
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.2
 function StringAnchor(name) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.anchor");
   return "<a name=\"" + HtmlEscape(name) + "\">" + this + "</a>";
 }
 
 
-function StringFontcolor(color) {
-  return "<font color=\"" + HtmlEscape(color) + "\">" + this + "</font>";
-}
-
-
-function StringFontsize(size) {
-  return "<font size=\"" + HtmlEscape(size) + "\">" + this + "</font>";
-}
-
-
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.3
 function StringBig() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.big");
   return "<big>" + this + "</big>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.4
 function StringBlink() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.blink");
   return "<blink>" + this + "</blink>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.5
 function StringBold() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.bold");
   return "<b>" + this + "</b>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.6
 function StringFixed() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.fixed");
   return "<tt>" + this + "</tt>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.7
+function StringFontcolor(color) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontcolor");
+  return "<font color=\"" + HtmlEscape(color) + "\">" + this + "</font>";
+}
+
+
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.8
+function StringFontsize(size) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontsize");
+  return "<font size=\"" + HtmlEscape(size) + "\">" + this + "</font>";
+}
+
+
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.9
 function StringItalics() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.italics");
   return "<i>" + this + "</i>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.10
+function StringLink(s) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.link");
+  return "<a href=\"" + HtmlEscape(s) + "\">" + this + "</a>";
+}
+
+
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.11
 function StringSmall() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.small");
   return "<small>" + this + "</small>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.12
 function StringStrike() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.strike");
   return "<strike>" + this + "</strike>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.13
 function StringSub() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.sub");
   return "<sub>" + this + "</sub>";
 }
 
 
+// ES6 draft, revision 26 (2014-07-18), section B.2.3.14
 function StringSup() {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.sup");
   return "<sup>" + this + "</sup>";
 }
 
@@ -921,7 +933,7 @@ function SetUpString() {
   %FunctionSetPrototype($String, new $String());
 
   // Set up the constructor property on the String prototype object.
-  %SetProperty($String.prototype, "constructor", $String, DONT_ENUM);
+  %AddNamedProperty($String.prototype, "constructor", $String, DONT_ENUM);
 
   // Set up the non-enumerable functions on the String object.
   InstallFunctions($String, DONT_ENUM, $Array(
@@ -935,22 +947,22 @@ function SetUpString() {
     "charAt", StringCharAt,
     "charCodeAt", StringCharCodeAt,
     "concat", StringConcat,
-    "indexOf", StringIndexOf,
-    "lastIndexOf", StringLastIndexOf,
-    "localeCompare", StringLocaleCompare,
-    "match", StringMatch,
-    "normalize", StringNormalize,
+    "indexOf", StringIndexOfJS,
+    "lastIndexOf", StringLastIndexOfJS,
+    "localeCompare", StringLocaleCompareJS,
+    "match", StringMatchJS,
+    "normalize", StringNormalizeJS,
     "replace", StringReplace,
     "search", StringSearch,
     "slice", StringSlice,
-    "split", StringSplit,
+    "split", StringSplitJS,
     "substring", StringSubstring,
     "substr", StringSubstr,
-    "toLowerCase", StringToLowerCase,
+    "toLowerCase", StringToLowerCaseJS,
     "toLocaleLowerCase", StringToLocaleLowerCase,
-    "toUpperCase", StringToUpperCase,
+    "toUpperCase", StringToUpperCaseJS,
     "toLocaleUpperCase", StringToLocaleUpperCase,
-    "trim", StringTrim,
+    "trim", StringTrimJS,
     "trimLeft", StringTrimLeft,
     "trimRight", StringTrimRight,
     "link", StringLink,

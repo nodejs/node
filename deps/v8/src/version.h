@@ -16,6 +16,7 @@ class Version {
   static int GetBuild() { return build_; }
   static int GetPatch() { return patch_; }
   static bool IsCandidate() { return candidate_; }
+  static int Hash() { return (major_ << 20) ^ (minor_ << 10) ^ patch_; }
 
   // Calculate the V8 version string.
   static void GetString(Vector<char> str);

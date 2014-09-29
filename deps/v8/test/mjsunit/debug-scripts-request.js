@@ -108,3 +108,5 @@ debugger;
 assertTrue(listenerComplete,
            "listener did not run to completion, exception: " + exception);
 assertFalse(exception, "exception in listener")
+
+Debug.setListener(null);

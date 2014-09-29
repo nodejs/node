@@ -25,14 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "libplatform/task-queue.h"
-#include "libplatform/worker-thread.h"
-#include "test-libplatform.h"
+#include "src/libplatform/task-queue.h"
+#include "src/libplatform/worker-thread.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-libplatform.h"
 
 using namespace v8::internal;
+using namespace v8::platform;
 
 
 TEST(WorkerThread) {
@@ -54,7 +55,7 @@ TEST(WorkerThread) {
   queue.Append(task3);
   queue.Append(task4);
 
-  // TaskQueue ASSERTs that it is empty in its destructor.
+  // TaskQueue DCHECKs that it is empty in its destructor.
   queue.Terminate();
 
   delete thread1;

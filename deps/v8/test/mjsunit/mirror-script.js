@@ -84,7 +84,7 @@ function testScriptMirror(f, file_name, file_lines, type, compilation_type,
 
 // Test the script mirror for different functions.
 testScriptMirror(function(){}, 'mirror-script.js', 98, 2, 0);
-testScriptMirror(Math.sin, 'native math.js', -1, 0, 0);
+testScriptMirror(Math.round, 'native math.js', -1, 0, 0);
 testScriptMirror(eval('(function(){})'), null, 1, 2, 1, '(function(){})', 87);
 testScriptMirror(eval('(function(){\n  })'), null, 2, 2, 1, '(function(){\n  })', 88);
 

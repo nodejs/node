@@ -30,7 +30,6 @@
 // Test debug evaluation for functions without local context, but with
 // nested catch contexts.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 var x;

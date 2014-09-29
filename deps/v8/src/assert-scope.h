@@ -5,9 +5,9 @@
 #ifndef V8_ASSERT_SCOPE_H_
 #define V8_ASSERT_SCOPE_H_
 
-#include "allocation.h"
-#include "platform.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/base/platform/platform.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,8 @@ enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
   ALLOCATION_FAILURE_ASSERT,
-  DEOPTIMIZATION_ASSERT
+  DEOPTIMIZATION_ASSERT,
+  COMPILATION_ASSERT
 };
 
 
@@ -73,7 +74,7 @@ class PerThreadAssertScopeBase {
   ~PerThreadAssertScopeBase() {
     if (!data_->decrement_level()) return;
     for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
-      ASSERT(data_->get(static_cast<PerThreadAssertType>(i)));
+      DCHECK(data_->get(static_cast<PerThreadAssertType>(i)));
     }
     delete data_;
     SetThreadLocalData(NULL);
@@ -81,16 +82,16 @@ class PerThreadAssertScopeBase {
 
   static PerThreadAssertData* GetAssertData() {
     return reinterpret_cast<PerThreadAssertData*>(
-        Thread::GetThreadLocal(thread_local_key));
+        base::Thread::GetThreadLocal(thread_local_key));
   }
 
-  static Thread::LocalStorageKey thread_local_key;
+  static base::Thread::LocalStorageKey thread_local_key;
   PerThreadAssertData* data_;
   friend class Isolate;
 
  private:
   static void SetThreadLocalData(PerThreadAssertData* data) {
-    Thread::SetThreadLocal(thread_local_key, data);
+    base::Thread::SetThreadLocal(thread_local_key, data);
   }
 };
 
@@ -254,6 +255,13 @@ typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>
 typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>
     AllowDeoptimization;
 
+// Scope to document where we do not expect deoptimization.
+typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>
+    DisallowCompilation;
+
+// Scope to introduce an exception to DisallowDeoptimization.
+typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>
+    AllowCompilation;
 } }  // namespace v8::internal
 
 #endif  // V8_ASSERT_SCOPE_H_

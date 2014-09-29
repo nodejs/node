@@ -7,7 +7,7 @@
 #ifndef V8_MSAN_H_
 #define V8_MSAN_H_
 
-#include "globals.h"
+#include "src/globals.h"
 
 #ifndef __has_feature
 # define __has_feature(x) 0

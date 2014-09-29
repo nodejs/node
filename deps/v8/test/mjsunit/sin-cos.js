@@ -157,8 +157,8 @@ assertEquals(0, Math.sin("0x00000"));
 assertEquals(1, Math.cos("0x00000"));
 assertTrue(isNaN(Math.sin(Infinity)));
 assertTrue(isNaN(Math.cos("-Infinity")));
-assertEquals("Infinity", String(Math.tan(Math.PI/2)));
-assertEquals("-Infinity", String(Math.tan(-Math.PI/2)));
+assertTrue(Math.tan(Math.PI/2) > 1e16);
+assertTrue(Math.tan(-Math.PI/2) < -1e16);
 assertEquals("-Infinity", String(1/Math.sin("-0")));
 
 // Assert that the remainder after division by pi is reasonably precise.
@@ -185,3 +185,96 @@ for (var i = -1024; i < 1024; i++) {
 assertFalse(isNaN(Math.cos(1.57079632679489700)));
 assertFalse(isNaN(Math.cos(-1e-100)));
 assertFalse(isNaN(Math.cos(-1e-323)));
+
+// Tests for specific values expected from the fdlibm implementation.
+
+var two_32 = Math.pow(2, -32);
+var two_28 = Math.pow(2, -28);
+
+// Tests for Math.sin for |x| < pi/4
+assertEquals(Infinity, 1/Math.sin(+0.0));
+assertEquals(-Infinity, 1/Math.sin(-0.0));
+// sin(x) = x for x < 2^-27
+assertEquals(two_32, Math.sin(two_32));
+assertEquals(-two_32, Math.sin(-two_32));
+// sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
+assertEquals(0.3826834323650898, Math.sin(Math.PI/8));
+assertEquals(-0.3826834323650898, -Math.sin(Math.PI/8));
+
+// Tests for Math.cos for |x| < pi/4
+// cos(x) = 1 for |x| < 2^-27
+assertEquals(1, Math.cos(two_32));
+assertEquals(1, Math.cos(-two_32));
+// Test KERNELCOS for |x| < 0.3.
+// cos(pi/20) = sqrt(sqrt(2)*sqrt(sqrt(5)+5)+4)/2^(3/2)
+assertEquals(0.9876883405951378, Math.cos(Math.PI/20));
+// Test KERNELCOS for x ~= 0.78125
+assertEquals(0.7100335477927638, Math.cos(0.7812504768371582));
+assertEquals(0.7100338835660797, Math.cos(0.78125));
+// Test KERNELCOS for |x| > 0.3.
+// cos(pi/8) = sqrt(sqrt(2)+1)/2^(3/4)
+assertEquals(0.9238795325112867, Math.cos(Math.PI/8));
+// Test KERNELTAN for |x| < 0.67434.
+assertEquals(0.9238795325112867, Math.cos(-Math.PI/8));
+
+// Tests for Math.tan for |x| < pi/4
+assertEquals(Infinity, 1/Math.tan(0.0));
+assertEquals(-Infinity, 1/Math.tan(-0.0));
+// tan(x) = x for |x| < 2^-28
+assertEquals(two_32, Math.tan(two_32));
+assertEquals(-two_32, Math.tan(-two_32));
+// Test KERNELTAN for |x| > 0.67434.
+assertEquals(0.8211418015898941, Math.tan(11/16));
+assertEquals(-0.8211418015898941, Math.tan(-11/16));
+assertEquals(0.41421356237309503, Math.tan(Math.PI / 8));
+
+// Tests for Math.sin.
+assertEquals(0.479425538604203, Math.sin(0.5));
+assertEquals(-0.479425538604203, Math.sin(-0.5));
+assertEquals(1, Math.sin(Math.PI/2));
+assertEquals(-1, Math.sin(-Math.PI/2));
+// Test that Math.sin(Math.PI) != 0 since Math.PI is not exact.
+assertEquals(1.2246467991473532e-16, Math.sin(Math.PI));
+assertEquals(-7.047032979958965e-14, Math.sin(2200*Math.PI));
+// Test Math.sin for various phases.
+assertEquals(-0.7071067811865477, Math.sin(7/4 * Math.PI));
+assertEquals(0.7071067811865474, Math.sin(9/4 * Math.PI));
+assertEquals(0.7071067811865483, Math.sin(11/4 * Math.PI));
+assertEquals(-0.7071067811865479, Math.sin(13/4 * Math.PI));
+assertEquals(-3.2103381051568376e-11, Math.sin(1048576/4 * Math.PI));
+
+// Tests for Math.cos.
+assertEquals(1, Math.cos(two_28));
+// Cover different code paths in KERNELCOS.
+assertEquals(0.9689124217106447, Math.cos(0.25));
+assertEquals(0.8775825618903728, Math.cos(0.5));
+assertEquals(0.7073882691671998, Math.cos(0.785));
+// Test that Math.cos(Math.PI/2) != 0 since Math.PI is not exact.
+assertEquals(6.123233995736766e-17, Math.cos(Math.PI/2));
+// Test Math.cos for various phases.
+assertEquals(0.7071067811865474, Math.cos(7/4 * Math.PI));
+assertEquals(0.7071067811865477, Math.cos(9/4 * Math.PI));
+assertEquals(-0.7071067811865467, Math.cos(11/4 * Math.PI));
+assertEquals(-0.7071067811865471, Math.cos(13/4 * Math.PI));
+assertEquals(0.9367521275331447, Math.cos(1000000));
+assertEquals(-3.435757038074824e-12, Math.cos(1048575/2 * Math.PI));
+
+// Tests for Math.tan.
+assertEquals(two_28, Math.tan(two_28));
+// Test that  Math.tan(Math.PI/2) != Infinity since Math.PI is not exact.
+assertEquals(1.633123935319537e16, Math.tan(Math.PI/2));
+// Cover different code paths in KERNELTAN (tangent and cotangent)
+assertEquals(0.5463024898437905, Math.tan(0.5));
+assertEquals(2.0000000000000027, Math.tan(1.107148717794091));
+assertEquals(-1.0000000000000004, Math.tan(7/4*Math.PI));
+assertEquals(0.9999999999999994, Math.tan(9/4*Math.PI));
+assertEquals(-6.420676210313675e-11, Math.tan(1048576/2*Math.PI));
+assertEquals(2.910566692924059e11, Math.tan(1048575/2*Math.PI));
+
+// Test Hayne-Panek reduction.
+assertEquals(0.377820109360752e0, Math.sin(Math.pow(2, 120)));
+assertEquals(-0.9258790228548379e0, Math.cos(Math.pow(2, 120)));
+assertEquals(-0.40806638884180424e0, Math.tan(Math.pow(2, 120)));
+assertEquals(-0.377820109360752e0, Math.sin(-Math.pow(2, 120)));
+assertEquals(-0.9258790228548379e0, Math.cos(-Math.pow(2, 120)));
+assertEquals(0.40806638884180424e0, Math.tan(-Math.pow(2, 120)));

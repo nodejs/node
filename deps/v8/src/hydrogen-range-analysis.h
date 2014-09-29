@@ -5,7 +5,7 @@
 #ifndef V8_HYDROGEN_RANGE_ANALYSIS_H_
 #define V8_HYDROGEN_RANGE_ANALYSIS_H_
 
-#include "hydrogen.h"
+#include "src/hydrogen.h"
 
 namespace v8 {
 namespace internal {

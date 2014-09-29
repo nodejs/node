@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "handles.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +24,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
 
   Object** result = current->next;
 
-  ASSERT(result == current->limit);
+  DCHECK(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
   // top of the scope stack isn't a barrier.
   if (!Utils::ApiCheck(current->level != 0,
@@ -39,7 +39,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
     Object** limit = &impl->blocks()->last()[kHandleBlockSize];
     if (current->limit != limit) {
       current->limit = limit;
-      ASSERT(limit - current->next < kHandleBlockSize);
+      DCHECK(limit - current->next < kHandleBlockSize);
     }
   }
 
@@ -66,7 +66,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 
 #ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Object** start, Object** end) {
-  ASSERT(end - start <= kHandleBlockSize);
+  DCHECK(end - start <= kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
     *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
   }
@@ -95,7 +95,7 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
-  ASSERT(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
+  DCHECK(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
   impl_->blocks()->Add(new_next);
 
 #ifdef DEBUG
@@ -111,8 +111,8 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
 
 DeferredHandleScope::~DeferredHandleScope() {
   impl_->isolate()->handle_scope_data()->level--;
-  ASSERT(handles_detached_);
-  ASSERT(impl_->isolate()->handle_scope_data()->level == prev_level_);
+  DCHECK(handles_detached_);
+  DCHECK(impl_->isolate()->handle_scope_data()->level == prev_level_);
 }
 
 

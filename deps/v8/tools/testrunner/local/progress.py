@@ -26,10 +26,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import json
+import os
 import sys
 import time
 
 from . import junit_output
+
+
+ABS_PATH_PREFIX = os.getcwd() + os.sep
+
 
 def EscapeCommand(command):
   parts = []
@@ -275,6 +281,59 @@ class JUnitTestProgressIndicator(ProgressIndicator):
         [test.GetLabel()] + self.runner.context.mode_flags + test.flags,
         test.duration,
         fail_text)
+
+
+class JsonTestProgressIndicator(ProgressIndicator):
+
+  def __init__(self, progress_indicator, json_test_results, arch, mode):
+    self.progress_indicator = progress_indicator
+    self.json_test_results = json_test_results
+    self.arch = arch
+    self.mode = mode
+    self.results = []
+
+  def Starting(self):
+    self.progress_indicator.runner = self.runner
+    self.progress_indicator.Starting()
+
+  def Done(self):
+    self.progress_indicator.Done()
+    complete_results = []
+    if os.path.exists(self.json_test_results):
+      with open(self.json_test_results, "r") as f:
+        # Buildbot might start out with an empty file.
+        complete_results = json.loads(f.read() or "[]")
+
+    complete_results.append({
+      "arch": self.arch,
+      "mode": self.mode,
+      "results": self.results,
+    })
+
+    with open(self.json_test_results, "w") as f:
+      f.write(json.dumps(complete_results))
+
+  def AboutToRun(self, test):
+    self.progress_indicator.AboutToRun(test)
+
+  def HasRun(self, test, has_unexpected_output):
+    self.progress_indicator.HasRun(test, has_unexpected_output)
+    if not has_unexpected_output:
+      # Omit tests that run as expected. Passing tests of reruns after failures
+      # will have unexpected_output to be reported here has well.
+      return
+
+    self.results.append({
+      "name": test.GetLabel(),
+      "flags": test.flags,
+      "command": EscapeCommand(self.runner.GetCommand(test)).replace(
+          ABS_PATH_PREFIX, ""),
+      "run": test.run,
+      "stdout": test.output.stdout,
+      "stderr": test.output.stderr,
+      "exit_code": test.output.exit_code,
+      "result": test.suite.GetOutcome(test),
+    })
 
 
 PROGRESS_INDICATORS = {

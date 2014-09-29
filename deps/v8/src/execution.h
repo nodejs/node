@@ -5,25 +5,10 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "handles.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
-
-// Flag used to set the interrupt causes.
-enum InterruptFlag {
-  INTERRUPT = 1 << 0,
-  DEBUGBREAK = 1 << 1,
-  DEBUGCOMMAND = 1 << 2,
-  PREEMPT = 1 << 3,
-  TERMINATE = 1 << 4,
-  GC_REQUEST = 1 << 5,
-  FULL_DEOPT = 1 << 6,
-  INSTALL_CODE = 1 << 7,
-  API_INTERRUPT = 1 << 8,
-  DEOPT_MARKED_ALLOCATION_SITES = 1 << 9
-};
-
 
 class Execution V8_FINAL : public AllStatic {
  public:
@@ -119,13 +104,6 @@ class Execution V8_FINAL : public AllStatic {
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
 
-  static Object* DebugBreakHelper(Isolate* isolate);
-  static void ProcessDebugMessages(Isolate* isolate, bool debug_command_only);
-
-  // If the stack guard is triggered, but it is not an actual
-  // stack overflow, then handle the interruption accordingly.
-  static Object* HandleStackGuardInterrupt(Isolate* isolate);
-
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Isolate* isolate,
@@ -140,13 +118,11 @@ class Execution V8_FINAL : public AllStatic {
                                                Handle<Object> object);
   static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
                                                        Handle<Object> object);
-
-  static void RunMicrotasks(Isolate* isolate);
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 
 class ExecutionAccess;
+class PostponeInterruptsScope;
 
 
 // StackGuard contains the handling of the limits that are used to limit the
@@ -170,32 +146,31 @@ class StackGuard V8_FINAL {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-  bool IsStackOverflow();
-  bool IsPreempted();
-  void Preempt();
-  bool IsInterrupted();
-  void Interrupt();
-  bool IsTerminateExecution();
-  void TerminateExecution();
-  void CancelTerminateExecution();
-  bool IsDebugBreak();
-  void DebugBreak();
-  bool IsDebugCommand();
-  void DebugCommand();
-  bool IsGCRequest();
-  void RequestGC();
-  bool IsInstallCodeRequest();
-  void RequestInstallCode();
-  bool IsFullDeopt();
-  void FullDeopt();
-  bool IsDeoptMarkedAllocationSites();
-  void DeoptMarkedAllocationSites();
-  void Continue(InterruptFlag after_what);
+#define INTERRUPT_LIST(V)                                          \
+  V(DEBUGBREAK, DebugBreak, 0)                                     \
+  V(DEBUGCOMMAND, DebugCommand, 1)                                 \
+  V(TERMINATE_EXECUTION, TerminateExecution, 2)                    \
+  V(GC_REQUEST, GC, 3)                                             \
+  V(INSTALL_CODE, InstallCode, 4)                                  \
+  V(API_INTERRUPT, ApiInterrupt, 5)                                \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 6)
 
-  void RequestInterrupt(InterruptCallback callback, void* data);
-  void ClearInterrupt();
-  bool IsAPIInterrupt();
-  void InvokeInterruptCallback();
+#define V(NAME, Name, id)                                          \
+  inline bool Check##Name() { return CheckInterrupt(NAME); }  \
+  inline void Request##Name() { RequestInterrupt(NAME); }     \
+  inline void Clear##Name() { ClearInterrupt(NAME); }
+  INTERRUPT_LIST(V)
+#undef V
+
+  // Flag used to set the interrupt causes.
+  enum InterruptFlag {
+  #define V(NAME, Name, id) NAME = (1 << id),
+    INTERRUPT_LIST(V)
+  #undef V
+  #define V(NAME, Name, id) NAME |
+    ALL_INTERRUPTS = INTERRUPT_LIST(V) 0
+  #undef V
+  };
 
   // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
@@ -218,22 +193,22 @@ class StackGuard V8_FINAL {
   Address address_of_real_jslimit() {
     return reinterpret_cast<Address>(&thread_local_.real_jslimit_);
   }
-  bool ShouldPostponeInterrupts();
+
+  // If the stack guard is triggered, but it is not an actual
+  // stack overflow, then handle the interruption accordingly.
+  Object* HandleInterrupts();
 
  private:
   StackGuard();
 
-  // You should hold the ExecutionAccess lock when calling this method.
-  bool has_pending_interrupts(const ExecutionAccess& lock) {
-    // Sanity check: We shouldn't be asking about pending interrupts
-    // unless we're not postponing them anymore.
-    ASSERT(!should_postpone_interrupts(lock));
-    return thread_local_.interrupt_flags_ != 0;
-  }
+  bool CheckInterrupt(InterruptFlag flag);
+  void RequestInterrupt(InterruptFlag flag);
+  void ClearInterrupt(InterruptFlag flag);
+  bool CheckAndClearInterrupt(InterruptFlag flag);
 
   // You should hold the ExecutionAccess lock when calling this method.
-  bool should_postpone_interrupts(const ExecutionAccess& lock) {
-    return thread_local_.postpone_interrupts_nesting_ > 0;
+  bool has_pending_interrupts(const ExecutionAccess& lock) {
+    return thread_local_.interrupt_flags_ != 0;
   }
 
   // You should hold the ExecutionAccess lock when calling this method.
@@ -247,13 +222,16 @@ class StackGuard V8_FINAL {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_64_BIT
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
+
+  void PushPostponeInterruptsScope(PostponeInterruptsScope* scope);
+  void PopPostponeInterruptsScope();
 
   class ThreadLocal V8_FINAL {
    public:
@@ -279,12 +257,8 @@ class StackGuard V8_FINAL {
     uintptr_t real_climit_;  // Actual C++ stack limit set for the VM.
     uintptr_t climit_;
 
-    int nesting_;
-    int postpone_interrupts_nesting_;
+    PostponeInterruptsScope* postpone_interrupts_;
     int interrupt_flags_;
-
-    InterruptCallback interrupt_callback_;
-    void* interrupt_callback_data_;
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

@@ -5,8 +5,8 @@
 #ifndef V8_SCOPES_H_
 #define V8_SCOPES_H_
 
-#include "ast.h"
-#include "zone.h"
+#include "src/ast.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -21,15 +21,13 @@ class VariableMap: public ZoneHashMap {
 
   virtual ~VariableMap();
 
-  Variable* Declare(Scope* scope,
-                    Handle<String> name,
-                    VariableMode mode,
-                    bool is_valid_lhs,
-                    Variable::Kind kind,
+  Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
+                    bool is_valid_lhs, Variable::Kind kind,
                     InitializationFlag initialization_flag,
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     Interface* interface = Interface::NewValue());
 
-  Variable* Lookup(Handle<String> name);
+  Variable* Lookup(const AstRawString* name);
 
   Zone* zone() const { return zone_; }
 
@@ -51,7 +49,7 @@ class DynamicScopePart : public ZoneObject {
 
   VariableMap* GetMap(VariableMode mode) {
     int index = mode - DYNAMIC;
-    ASSERT(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < 3);
     return maps_[index];
   }
 
@@ -74,7 +72,8 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType scope_type, Zone* zone);
+  Scope(Scope* outer_scope, ScopeType scope_type,
+        AstValueFactory* value_factory, Zone* zone);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -85,7 +84,9 @@ class Scope: public ZoneObject {
                                       Zone* zone);
 
   // The scope name is only used for printing/debugging.
-  void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
+  void SetScopeName(const AstRawString* scope_name) {
+    scope_name_ = scope_name;
+  }
 
   void Initialize();
 
@@ -100,55 +101,55 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  Variable* LocalLookup(Handle<String> name);
+  Variable* LookupLocal(const AstRawString* name);
 
   // This lookup corresponds to a lookup in the "intermediate" scope sitting
   // between this scope and the outer scope. (ECMA-262, 3rd., requires that
   // the name of named function literal is kept in an intermediate scope
   // in between this scope and the next outer scope.)
-  Variable* LookupFunctionVar(Handle<String> name,
+  Variable* LookupFunctionVar(const AstRawString* name,
                               AstNodeFactory<AstNullVisitor>* factory);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
-  Variable* Lookup(Handle<String> name);
+  Variable* Lookup(const AstRawString* name);
 
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
   void DeclareFunctionVar(VariableDeclaration* declaration) {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     function_ = declaration;
   }
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  void DeclareParameter(Handle<String> name, VariableMode mode);
+  Variable* DeclareParameter(const AstRawString* name, VariableMode mode);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(Handle<String> name,
-                         VariableMode mode,
+  Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag,
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                          Interface* interface = Interface::NewValue());
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
-  Variable* DeclareDynamicGlobal(Handle<String> name);
+  Variable* DeclareDynamicGlobal(const AstRawString* name);
 
   // Create a new unresolved variable.
   template<class Visitor>
   VariableProxy* NewUnresolved(AstNodeFactory<Visitor>* factory,
-                               Handle<String> name,
+                               const AstRawString* name,
                                Interface* interface = Interface::NewValue(),
                                int position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
-    ASSERT(!already_resolved());
+    DCHECK(!already_resolved());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, false, interface, position);
     unresolved_.Add(proxy, zone_);
@@ -167,13 +168,13 @@ class Scope: public ZoneObject {
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
   // around.
-  Variable* NewInternal(Handle<String> name);
+  Variable* NewInternal(const AstRawString* name);
 
   // Creates a new temporary variable in this scope.  The name is only used
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
   // around.  The name should not clash with a legitimate variable names.
-  Variable* NewTemporary(Handle<String> name);
+  Variable* NewTemporary(const AstRawString* name);
 
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
@@ -246,7 +247,7 @@ class Scope: public ZoneObject {
 
   // In some cases we want to force context allocation for a whole scope.
   void ForceContextAllocation() {
-    ASSERT(!already_resolved());
+    DCHECK(!already_resolved());
     force_context_allocation_ = true;
   }
   bool has_forced_context_allocation() const {
@@ -301,14 +302,14 @@ class Scope: public ZoneObject {
   // The variable holding the function literal for named function
   // literals, or NULL.  Only valid for function scopes.
   VariableDeclaration* function() const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return function_;
   }
 
   // Parameters. The left-most parameter has index 0.
   // Only valid for function scopes.
   Variable* parameter(int index) const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return params_[index];
   }
 
@@ -390,7 +391,7 @@ class Scope: public ZoneObject {
 
   // ---------------------------------------------------------------------------
   // Strict mode support.
-  bool IsDeclared(Handle<String> name) {
+  bool IsDeclared(const AstRawString* name) {
     // During formal parameter list parsing the scope only contains
     // two variables inserted at initialization: "this" and "arguments".
     // "this" is an invalid parameter name and "arguments" is invalid parameter
@@ -421,7 +422,7 @@ class Scope: public ZoneObject {
   ScopeType scope_type_;
 
   // Debugging support.
-  Handle<String> scope_name_;
+  const AstRawString* scope_name_;
 
   // The variables declared in this scope:
   //
@@ -497,7 +498,7 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(Handle<String> name, VariableMode mode);
+  Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
   // Variable resolution.
   // Possible results of a recursive variable lookup telling if and how a
@@ -548,7 +549,7 @@ class Scope: public ZoneObject {
   // Lookup a variable reference given by name recursively starting with this
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
-  Variable* LookupRecursive(Handle<String> name,
+  Variable* LookupRecursive(VariableProxy* proxy,
                             BindingKind* binding_kind,
                             AstNodeFactory<AstNullVisitor>* factory);
   MUST_USE_RESULT
@@ -560,7 +561,7 @@ class Scope: public ZoneObject {
                                    AstNodeFactory<AstNullVisitor>* factory);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
+  void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
   bool HasTrivialContext() const;
 
   // Predicates.
@@ -592,10 +593,12 @@ class Scope: public ZoneObject {
  private:
   // Construct a scope based on the scope info.
   Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info,
-        Zone* zone);
+        AstValueFactory* value_factory, Zone* zone);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Scope* inner_scope, Handle<String> catch_variable_name, Zone* zone);
+  Scope(Scope* inner_scope,
+        const AstRawString* catch_variable_name,
+        AstValueFactory* value_factory, Zone* zone);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
@@ -608,6 +611,7 @@ class Scope: public ZoneObject {
                    Scope* outer_scope,
                    Handle<ScopeInfo> scope_info);
 
+  AstValueFactory* ast_value_factory_;
   Zone* zone_;
 };
 

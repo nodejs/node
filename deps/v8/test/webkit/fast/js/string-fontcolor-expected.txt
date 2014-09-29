@@ -32,8 +32,8 @@ PASS '_'.fontcolor(0x2A) is "<font color=\"42\">_</font>"
 PASS '_'.fontcolor('"') is "<font color=\"&quot;\">_</font>"
 PASS '_'.fontcolor('" size="2px') is "<font color=\"&quot; size=&quot;2px\">_</font>"
 PASS String.prototype.fontcolor.call(0x2A, 0x2A) is "<font color=\"42\">42</font>"
-FAIL String.prototype.fontcolor.call(undefined) should throw TypeError: Type error. Was <font color="undefined">undefined</font>.
-FAIL String.prototype.fontcolor.call(null) should throw TypeError: Type error. Was <font color="undefined">null</font>.
+FAIL String.prototype.fontcolor.call(undefined) should throw TypeError: Type error. Threw exception TypeError: String.prototype.fontcolor called on null or undefined.
+FAIL String.prototype.fontcolor.call(null) should throw TypeError: Type error. Threw exception TypeError: String.prototype.fontcolor called on null or undefined.
 PASS String.prototype.fontcolor.length is 1
 PASS successfullyParsed is true
 

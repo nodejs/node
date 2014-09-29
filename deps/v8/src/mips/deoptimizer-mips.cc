@@ -3,12 +3,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/full-codegen.h"
+#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
@@ -48,9 +48,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* shared =
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
@@ -63,13 +60,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
                                                       RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
-    ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
-    ASSERT(call_size_in_bytes <= patch_size());
+    DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
+    DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 
 #ifdef DEBUG
     prev_call_address = call_address;
@@ -101,7 +98,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler_);
+  ApiFunction function(descriptor->deoptimization_handler());
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
   int params = descriptor->GetHandlerParameterCount();
@@ -122,11 +119,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
   // There is no dynamic alignment padding on MIPS in the input frame.
   return false;
-}
-
-
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
 }
 
 
@@ -203,7 +195,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ lw(a1, MemOperand(v0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  ASSERT(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((saved_regs & (1 << i)) != 0) {
@@ -305,7 +297,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Technically restoring 'at' should work unless zero_reg is also restored
   // but it's safer to check for this.
-  ASSERT(!(at.bit() & restored_regs));
+  DCHECK(!(at.bit() & restored_regs));
   // Restore the registers from the last output frame.
   __ mov(at, a2);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
@@ -325,39 +317,29 @@ void Deoptimizer::EntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
-const int Deoptimizer::table_entry_size_ = 7 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label table_start;
+  Label table_start, done;
   __ bind(&table_start);
   for (int i = 0; i < count(); i++) {
     Label start;
     __ bind(&start);
-    __ addiu(sp, sp, -1 * kPointerSize);
-    // Jump over the remaining deopt entries (including this one).
-    // This code is always reached by calling Jump, which puts the target (label
-    // start) into t9.
-    const int remaining_entries = (count() - i) * table_entry_size_;
-    __ Addu(t9, t9, remaining_entries);
-    // 'at' was clobbered so we can only load the current entry value here.
-    __ li(at, i);
-    __ jr(t9);  // Expose delay slot.
-    __ sw(at, MemOperand(sp, 0 * kPointerSize));  // In the delay slot.
+    DCHECK(is_int16(i));
+    __ Branch(USE_DELAY_SLOT, &done);  // Expose delay slot.
+    __ li(at, i);  // In the delay slot.
 
-    // Pad the rest of the code.
-    while (table_entry_size_ > (masm()->SizeOfCodeGeneratedSince(&start))) {
-      __ nop();
-    }
-
-    ASSERT_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
+    DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
   }
 
-  ASSERT_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
+  DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
       count() * table_entry_size_);
+  __ bind(&done);
+  __ Push(at);
 }
 
 

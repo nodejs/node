@@ -27,11 +27,11 @@
 
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "global-handles.h"
-#include "snapshot.h"
-#include "cctest.h"
+#include "src/global-handles.h"
+#include "src/snapshot.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -46,10 +46,12 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kSize);
   Handle<JSObject> weakset_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj));
-  // Do not use handles for the hash table, it would make entries strong.
-  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
-  weakset->set_table(*table);
-  weakset->set_next(Smi::FromInt(0));
+  // Do not leak handles for the hash table, it would make entries strong.
+  {
+    HandleScope scope(isolate);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+    weakset->set_table(*table);
+  }
   return weakset;
 }
 
@@ -69,7 +71,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  ASSERT_EQ(1234, p->second);
+  DCHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }
@@ -185,8 +187,8 @@ TEST(WeakSet_Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -225,8 +227,8 @@ TEST(WeakSet_Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();

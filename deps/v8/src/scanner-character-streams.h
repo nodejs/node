@@ -5,7 +5,7 @@
 #ifndef V8_SCANNER_CHARACTER_STREAMS_H_
 #define V8_SCANNER_CHARACTER_STREAMS_H_
 
-#include "scanner.h"
+#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +29,7 @@ class BufferedUtf16CharacterStream: public Utf16CharacterStream {
   virtual void SlowPushBack(uc16 character);
 
   virtual unsigned BufferSeekForward(unsigned delta) = 0;
-  virtual unsigned FillBuffer(unsigned position, unsigned length) = 0;
+  virtual unsigned FillBuffer(unsigned position) = 0;
 
   const uc16* pushback_limit_;
   uc16 buffer_[kBufferSize];
@@ -46,7 +46,7 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
 
  protected:
   virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned position, unsigned length);
+  virtual unsigned FillBuffer(unsigned position);
 
   Handle<String> string_;
   unsigned length_;
@@ -61,7 +61,7 @@ class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
 
  protected:
   virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned char_position, unsigned length);
+  virtual unsigned FillBuffer(unsigned char_position);
   void SetRawPosition(unsigned char_position);
 
   const byte* raw_data_;
@@ -82,7 +82,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   virtual ~ExternalTwoByteStringUtf16CharacterStream();
 
   virtual void PushBack(uc32 character) {
-    ASSERT(buffer_cursor_ > raw_data_);
+    DCHECK(buffer_cursor_ > raw_data_);
     buffer_cursor_--;
     pos_--;
   }

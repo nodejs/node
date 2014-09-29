@@ -124,6 +124,20 @@ class DetectLastPush(Step):
     self["last_push_bleeding_edge"] = last_push_bleeding_edge
 
 
+# TODO(machenbach): Code similarities with bump_up_version.py. Merge after
+# turning this script into a pure git script.
+class GetCurrentBleedingEdgeVersion(Step):
+  MESSAGE = "Get latest bleeding edge version."
+
+  def RunStep(self):
+    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+
+    # Store latest version.
+    self.ReadAndPersistVersion("latest_")
+    self["latest_version"] = self.ArrayToVersion("latest_")
+    print "Bleeding edge version: %s" % self["latest_version"]
+
+
 class IncrementVersion(Step):
   MESSAGE = "Increment version number."
 
@@ -131,11 +145,23 @@ class IncrementVersion(Step):
     # Retrieve current version from last trunk push.
     self.GitCheckoutFile(self.Config(VERSION_FILE), self["last_push_trunk"])
     self.ReadAndPersistVersion()
+    self["trunk_version"] = self.ArrayToVersion("")
+
+    if self["latest_build"] == "9999":  # pragma: no cover
+      # If version control on bleeding edge was switched off, just use the last
+      # trunk version.
+      self["latest_version"] = self["trunk_version"]
+
+    if SortingKey(self["trunk_version"]) < SortingKey(self["latest_version"]):
+      # If the version on bleeding_edge is newer than on trunk, use it.
+      self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+      self.ReadAndPersistVersion()
 
     if self.Confirm(("Automatically increment BUILD_NUMBER? (Saying 'n' will "
                      "fire up your EDITOR on %s so you can make arbitrary "
                      "changes. When you're done, save the file and exit your "
                      "EDITOR.)" % self.Config(VERSION_FILE))):
+
       text = FileToText(self.Config(VERSION_FILE))
       text = MSub(r"(?<=#define BUILD_NUMBER)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % str(int(self["build"]) + 1),
@@ -147,6 +173,10 @@ class IncrementVersion(Step):
     # Variables prefixed with 'new_' contain the new version numbers for the
     # ongoing trunk push.
     self.ReadAndPersistVersion("new_")
+
+    # Make sure patch level is 0 in a new push.
+    self["new_patch"] = "0"
+
     self["version"] = "%s.%s.%s" % (self["new_major"],
                                     self["new_minor"],
                                     self["new_build"])
@@ -307,20 +337,7 @@ class SetVersion(Step):
     # The version file has been modified by the patch. Reset it to the version
     # on trunk and apply the correct version.
     self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/trunk")
-    output = ""
-    for line in FileToText(self.Config(VERSION_FILE)).splitlines():
-      if line.startswith("#define MAJOR_VERSION"):
-        line = re.sub("\d+$", self["new_major"], line)
-      elif line.startswith("#define MINOR_VERSION"):
-        line = re.sub("\d+$", self["new_minor"], line)
-      elif line.startswith("#define BUILD_NUMBER"):
-        line = re.sub("\d+$", self["new_build"], line)
-      elif line.startswith("#define PATCH_LEVEL"):
-        line = re.sub("\d+$", "0", line)
-      elif line.startswith("#define IS_CANDIDATE_VERSION"):
-        line = re.sub("\d+$", "0", line)
-      output += "%s\n" % line
-    TextToFile(output, self.Config(VERSION_FILE))
+    self.SetVersion(self.Config(VERSION_FILE), "new_")
 
 
 class CommitTrunk(Step):
@@ -428,6 +445,7 @@ class PushToTrunk(ScriptsBase):
       FreshBranch,
       PreparePushRevision,
       DetectLastPush,
+      GetCurrentBleedingEdgeVersion,
       IncrementVersion,
       PrepareChangeLog,
       EditChangeLog,

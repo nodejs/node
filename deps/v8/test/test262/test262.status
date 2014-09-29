@@ -31,6 +31,13 @@
 
   '15.5.4.9_CE': [['no_i18n', SKIP]],
 
+  # TODO(turbofan): Timeouts on TurboFan need investigation.
+  '10.1.1_13': [PASS, NO_VARIANTS],
+
+  # BUG(v8:3455)
+  '11.2.3_b': [FAIL],
+  '12.2.3_b': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -38,10 +45,9 @@
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   '6.2.3': [FAIL],
   '9.2.1_2': [FAIL],
-  '9.2.5_11_g_ii_2': [FAIL],
   '9.2.6_2': [FAIL],
   '10.1.1_a': [FAIL],
-  '10.1.1_19_c': [PASS, FAIL],
+  '10.1.1_19_c': [PASS, FAIL, NO_VARIANTS],
   '10.1.2.1_4': [FAIL],
   '10.2.3_b': [PASS, FAIL],
   '10.3_a': [FAIL],
@@ -52,7 +58,6 @@
   '11.1.2.1_4': [FAIL],
   '11.3.2_FN_2': [PASS, FAIL],
   '11.3.2_TRF': [PASS, FAIL],
-  '11.3.2_TRP': [FAIL],
   '11.3_a': [FAIL],
   '12.1.1_a': [FAIL],
   '12.1.2.1_4': [FAIL],
@@ -63,14 +68,7 @@
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-  # This tests precision of Math functions.  The implementation for those
-  # trigonometric functions are platform/compiler dependent.  Furthermore, the
-  # expectation values by far deviates from the actual result given by an
-  # arbitrary-precision calculator, making those tests partly bogus.
-  'S15.8.2.7_A7': [PASS, FAIL_OK],  # Math.cos
   'S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
-  'S15.8.2.16_A7': [PASS, FAIL_OK],  # Math.sin
-  'S15.8.2.18_A7': [PASS, FAIL_OK],  # Math.tan
 
   # Linux for ia32 (and therefore simulators) default to extended 80 bit
   # floating point formats, so these tests checking 64-bit FP precision fail.
@@ -99,7 +97,12 @@
   'S15.1.3.2_A2.5_T1': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
-['arch == arm or arch == mipsel or arch == mips or arch == arm64', {
+['system == macos', {
+  '11.3.2_TRP': [FAIL],
+  '9.2.5_11_g_ii_2': [FAIL],
+}],  # system == macos
+
+['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
 
   # TODO(mstarzinger): Causes stack overflow on simulators due to eager
   # compilation of parenthesized function literals. Needs investigation.

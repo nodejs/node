@@ -29,17 +29,17 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "codegen.h"
-#include "disassembler.h"
-#include "isolate.h"
-#include "log.h"
-#include "sampler.h"
-#include "trace-extension.h"
-#include "vm-state-inl.h"
+#include "src/api.h"
+#include "src/codegen.h"
+#include "src/disassembler.h"
+#include "src/isolate.h"
+#include "src/log.h"
+#include "src/sampler.h"
+#include "src/vm-state-inl.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/trace-extension.h"
 
 using v8::Function;
 using v8::Local;
@@ -119,12 +119,12 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
                                       const char* func_name,
                                       const char* trace_func_name) {
   i::EmbeddedVector<char, 256> trace_call_buf;
-  i::OS::SNPrintF(trace_call_buf,
-                  "function %s() {"
-                  "  fp = new FPGrabber();"
-                  "  %s(fp.low_bits, fp.high_bits);"
-                  "}",
-                  func_name, trace_func_name);
+  i::SNPrintF(trace_call_buf,
+              "function %s() {"
+              "  fp = new FPGrabber();"
+              "  %s(fp.low_bits, fp.high_bits);"
+              "}",
+              func_name, trace_func_name);
 
   // Create the FPGrabber function, which grabs the caller's frame pointer
   // when called as a constructor.
@@ -172,7 +172,7 @@ TEST(CFromJSStackTrace) {
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::Trace), sample.external_callback);
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
-  int base = 0;
+  unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
 
   CHECK(IsAddressWithinFuncCode(
@@ -225,7 +225,7 @@ TEST(PureJSStackTrace) {
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::JSTrace), sample.external_callback);
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
-  int base = 0;
+  unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode(context, "JSTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode(

@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "macro-assembler.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "cctest.h"
+#include "src/debug.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -261,7 +261,7 @@ TEST(DisasmX64) {
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
+      ExternalReference::debug_after_break_target_address(isolate);
   USE(after_break_target);
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
@@ -420,6 +420,14 @@ TEST(DisasmX64) {
     }
   }
 
+  // xchg.
+  {
+    __ xchgq(rax, rax);
+    __ xchgq(rax, rbx);
+    __ xchgq(rbx, rbx);
+    __ xchgq(rbx, Operand(rsp, 12));
+  }
+
   // Nop instructions
   for (int i = 0; i < 16; i++) {
     __ Nop(i);
@@ -433,7 +441,8 @@ TEST(DisasmX64) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
   byte* begin = code->instruction_start();
   byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);

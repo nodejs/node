@@ -5,9 +5,9 @@
 #ifndef V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 #define V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 
-#include "arm/assembler-arm.h"
-#include "arm/assembler-arm-inl.h"
-#include "macro-assembler.h"
+#include "src/arm/assembler-arm.h"
+#include "src/arm/assembler-arm-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

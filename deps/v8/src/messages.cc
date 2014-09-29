@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "execution.h"
-#include "messages.h"
-#include "spaces-inl.h"
+#include "src/api.h"
+#include "src/execution.h"
+#include "src/heap/spaces-inl.h"
+#include "src/messages.h"
 
 namespace v8 {
 namespace internal {

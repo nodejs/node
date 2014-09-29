@@ -5,7 +5,8 @@
 #ifndef V8_CACHED_POWERS_H_
 #define V8_CACHED_POWERS_H_
 
-#include "diy-fp.h"
+#include "src/base/logging.h"
+#include "src/diy-fp.h"
 
 namespace v8 {
 namespace internal {

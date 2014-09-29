@@ -5,7 +5,7 @@
 #ifndef V8_SPLAY_TREE_INL_H_
 #define V8_SPLAY_TREE_INL_H_
 
-#include "splay-tree.h"
+#include "src/splay-tree.h"
 
 namespace v8 {
 namespace internal {

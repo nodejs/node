@@ -26,6 +26,7 @@ var kMessages = {
   newline_after_throw:           ["Illegal newline after throw"],
   label_redeclaration:           ["Label '", "%0", "' has already been declared"],
   var_redeclaration:             ["Identifier '", "%0", "' has already been declared"],
+  duplicate_template_property:   ["Object template has duplicate property '", "%0", "'"],
   no_catch_or_finally:           ["Missing catch or finally after try"],
   unknown_label:                 ["Undefined label '", "%0", "'"],
   uncaught_exception:            ["Uncaught ", "%0"],
@@ -89,6 +90,10 @@ var kMessages = {
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
+  not_iterable:                  ["%0", " is not iterable"],
+  not_an_iterator:               ["%0", " is not an iterator"],
+  iterator_result_not_an_object: ["Iterator result ", "%0", " is not an object"],
+  iterator_value_not_an_object:  ["Iterator value ", "%0", " is not an entry object"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
@@ -108,6 +113,7 @@ var kMessages = {
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   invalid_count_value:           ["Invalid count value"],
+  invalid_code_point:            ["Invalid code point ", "%0"],
   // ReferenceError
   invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
   invalid_lhs_in_for:            ["Invalid left-hand side in for-loop"],
@@ -122,7 +128,6 @@ var kMessages = {
   illegal_break:                 ["Illegal break statement"],
   illegal_continue:              ["Illegal continue statement"],
   illegal_return:                ["Illegal return statement"],
-  illegal_let:                   ["Illegal let declaration outside extended mode"],
   error_loading_debugger:        ["Error loading debugger"],
   no_input_to_regexp:            ["No input to ", "%0"],
   invalid_json:                  ["String '", "%0", "' is not valid JSON"],
@@ -132,8 +137,6 @@ var kMessages = {
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
-  invalid_cached_data_function:  ["Invalid cached data for function ", "%0"],
-  invalid_cached_data:           ["Invalid cached data"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
@@ -152,6 +155,8 @@ var kMessages = {
   strict_cannot_assign:          ["Cannot assign to read only '", "%0", "' in strict mode"],
   strict_poison_pill:            ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
   strict_caller:                 ["Illegal access to a strict mode caller function."],
+  malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
+  generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
   unprotected_let:               ["Illegal let declaration in unprotected statement context."],
   unprotected_const:             ["Illegal const declaration in unprotected statement context."],
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
@@ -159,6 +164,7 @@ var kMessages = {
   harmony_const_assign:          ["Assignment to constant variable."],
   symbol_to_string:              ["Cannot convert a Symbol value to a string"],
   symbol_to_primitive:           ["Cannot convert a Symbol wrapper object to a primitive value"],
+  symbol_to_number:              ["Cannot convert a Symbol value to a number"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"]
@@ -177,10 +183,6 @@ function FormatString(format, args) {
         // str is one of %0, %1, %2 or %3.
         try {
           str = NoSideEffectToString(args[arg_num]);
-          if (str.length > 256) {
-            str = %_SubString(str, 0, 239) + "...<omitted>..." +
-                  %_SubString(str, str.length - 2, str.length);
-          }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";
@@ -200,10 +202,18 @@ function FormatString(format, args) {
 function NoSideEffectToString(obj) {
   if (IS_STRING(obj)) return obj;
   if (IS_NUMBER(obj)) return %_NumberToString(obj);
-  if (IS_BOOLEAN(obj)) return x ? 'true' : 'false';
+  if (IS_BOOLEAN(obj)) return obj ? 'true' : 'false';
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
-  if (IS_FUNCTION(obj)) return  %_CallFunction(obj, FunctionToString);
+  if (IS_FUNCTION(obj)) {
+    var str = %_CallFunction(obj, FunctionToString);
+    if (str.length > 128) {
+      str = %_SubString(str, 0, 111) + "...<omitted>..." +
+            %_SubString(str, str.length - 2, str.length);
+    }
+    return str;
+  }
+  if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
@@ -278,8 +288,8 @@ function MakeGenericError(constructor, type, args) {
  * Set up the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%SetProperty(Script.prototype, 'constructor', Script,
-             DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddNamedProperty(Script.prototype, 'constructor', Script,
+                  DONT_ENUM | DONT_DELETE | READ_ONLY);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
   throw new $Error("Not supported");
@@ -551,44 +561,16 @@ function ScriptNameOrSourceURL() {
   if (this.line_offset > 0 || this.column_offset > 0) {
     return this.name;
   }
-
-  // The result is cached as on long scripts it takes noticable time to search
-  // for the sourceURL.
-  if (this.hasCachedNameOrSourceURL) {
-    return this.cachedNameOrSourceURL;
+  if (this.source_url) {
+    return this.source_url;
   }
-  this.hasCachedNameOrSourceURL = true;
-
-  // TODO(608): the spaces in a regexp below had to be escaped as \040
-  // because this file is being processed by js2c whose handling of spaces
-  // in regexps is broken. Also, ['"] are excluded from allowed URLs to
-  // avoid matches against sources that invoke evals with sourceURL.
-  // A better solution would be to detect these special comments in
-  // the scanner/parser.
-  var source = ToString(this.source);
-  var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
-  this.cachedNameOrSourceURL = this.name;
-  if (sourceUrlPos > 4) {
-    var sourceUrlPattern =
-        /\/\/[#@][\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
-    // Don't reuse lastMatchInfo here, so we create a new array with room
-    // for four captures (array with length one longer than the index
-    // of the fourth capture, where the numbering is zero-based).
-    var matchInfo = new InternalArray(CAPTURE(3) + 1);
-    var match =
-        %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
-    if (match) {
-      this.cachedNameOrSourceURL =
-          %_SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
-    }
-  }
-  return this.cachedNameOrSourceURL;
+  return this.name;
 }
 
 
 SetUpLockedPrototype(Script,
-  $Array("source", "name", "line_ends", "line_offset", "column_offset",
-         "cachedNameOrSourceURL", "hasCachedNameOrSourceURL" ),
+  $Array("source", "name", "source_url", "source_mapping_url", "line_ends",
+         "line_offset", "column_offset"),
   $Array(
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
@@ -954,12 +936,12 @@ function CallSiteToString() {
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
-          %_CallFunction(functionName, typeName, StringIndexOf) != 0) {
+          %_CallFunction(functionName, typeName, StringIndexOfJS) != 0) {
         line += typeName + ".";
       }
       line += functionName;
       if (methodName &&
-          (%_CallFunction(functionName, "." + methodName, StringIndexOf) !=
+          (%_CallFunction(functionName, "." + methodName, StringIndexOfJS) !=
            functionName.length - methodName.length - 1)) {
         line += " [as " + methodName + "]";
       }
@@ -1072,7 +1054,8 @@ function GetStackFrames(raw_stack) {
 var formatting_custom_stack_trace = false;
 
 
-function FormatStackTrace(obj, error_string, frames) {
+function FormatStackTrace(obj, raw_stack) {
+  var frames = GetStackFrames(raw_stack);
   if (IS_FUNCTION($Error.prepareStackTrace) && !formatting_custom_stack_trace) {
     var array = [];
     %MoveArrayContents(frames, array);
@@ -1089,7 +1072,7 @@ function FormatStackTrace(obj, error_string, frames) {
   }
 
   var lines = new InternalArray();
-  lines.push(error_string);
+  lines.push(FormatErrorString(obj));
   for (var i = 0; i < frames.length; i++) {
     var frame = frames[i];
     var line;
@@ -1124,45 +1107,48 @@ function GetTypeName(receiver, requireConstructor) {
 }
 
 
-function captureStackTrace(obj, cons_opt) {
-  var stackTraceLimit = $Error.stackTraceLimit;
-  if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
-  if (stackTraceLimit < 0 || stackTraceLimit > 10000) {
-    stackTraceLimit = 10000;
-  }
-  var stack = %CollectStackTrace(obj,
-                                 cons_opt ? cons_opt : captureStackTrace,
-                                 stackTraceLimit);
+var stack_trace_symbol;  // Set during bootstrapping.
+var formatted_stack_trace_symbol = NEW_PRIVATE("formatted stack trace");
 
-  var error_string = FormatErrorString(obj);
 
-  // Set the 'stack' property on the receiver.  If the receiver is the same as
-  // holder of this setter, the accessor pair is turned into a data property.
-  var setter = function(v) {
-    // Set data property on the receiver (not necessarily holder).
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
-    if (this === obj) {
-      // Release context values if holder is the same as the receiver.
-      stack = error_string = UNDEFINED;
+// Format the stack trace if not yet done, and return it.
+// Cache the formatted stack trace on the holder.
+var StackTraceGetter = function() {
+  var formatted_stack_trace = GET_PRIVATE(this, formatted_stack_trace_symbol);
+  if (IS_UNDEFINED(formatted_stack_trace)) {
+    var holder = this;
+    while (!HAS_PRIVATE(holder, stack_trace_symbol)) {
+      holder = %GetPrototype(holder);
+      if (!holder) return UNDEFINED;
     }
-  };
+    var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
+    if (IS_UNDEFINED(stack_trace)) return UNDEFINED;
+    formatted_stack_trace = FormatStackTrace(holder, stack_trace);
+    SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
+    SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
+  }
+  return formatted_stack_trace;
+};
 
-  // The holder of this getter ('obj') may not be the receiver ('this').
-  // When this getter is called the first time, we use the context values to
-  // format a stack trace string and turn this accessor pair into a data
-  // property (on the holder).
-  var getter = function() {
-    // Stack is still a raw array awaiting to be formatted.
-    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
-    // Replace this accessor to return result directly.
-    %DefineOrRedefineAccessorProperty(
-        obj, 'stack', function() { return result }, setter, DONT_ENUM);
-    // Release context values.
-    stack = error_string = UNDEFINED;
-    return result;
-  };
 
-  %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
+// If the receiver equals the holder, set the formatted stack trace that the
+// getter returns.
+var StackTraceSetter = function(v) {
+  if (HAS_PRIVATE(this, stack_trace_symbol)) {
+    SET_PRIVATE(this, stack_trace_symbol, UNDEFINED);
+    SET_PRIVATE(this, formatted_stack_trace_symbol, v);
+  }
+};
+
+
+// Use a dummy function since we do not actually want to capture a stack trace
+// when constructing the initial Error prototytpes.
+var captureStackTrace = function captureStackTrace(obj, cons_opt) {
+  // Define accessors first, as this may fail and throw.
+  ObjectDefineProperty(obj, 'stack', { get: StackTraceGetter,
+                                       set: StackTraceSetter,
+                                       configurable: true });
+  %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
 }
 
 
@@ -1177,8 +1163,9 @@ function SetUpError() {
     // effects when overwriting the error functions from
     // user code.
     var name = f.name;
-    %SetProperty(global, name, f, DONT_ENUM);
-    %SetProperty(builtins, '$' + name, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
+    %AddNamedProperty(global, name, f, DONT_ENUM);
+    %AddNamedProperty(builtins, '$' + name, f,
+                      DONT_ENUM | DONT_DELETE | READ_ONLY);
     // Configure the error function.
     if (name == 'Error') {
       // The prototype of the Error object must itself be an error.
@@ -1193,19 +1180,18 @@ function SetUpError() {
       %FunctionSetPrototype(f, new $Error());
     }
     %FunctionSetInstanceClassName(f, 'Error');
-    %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    %SetProperty(f.prototype, "name", name, DONT_ENUM);
+    %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
+    %AddNamedProperty(f.prototype, "name", name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
         // Define all the expected properties directly on the error
         // object. This avoids going through getters and setters defined
         // on prototype objects.
-        %IgnoreAttributesAndSetProperty(this, 'stack', UNDEFINED, DONT_ENUM);
+        %AddNamedProperty(this, 'stack', UNDEFINED, DONT_ENUM);
         if (!IS_UNDEFINED(m)) {
-          %IgnoreAttributesAndSetProperty(
-            this, 'message', ToString(m), DONT_ENUM);
+          %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
         }
-        captureStackTrace(this, f);
+        try { captureStackTrace(this, f); } catch (e) { }
       } else {
         return new f(m);
       }
@@ -1226,7 +1212,7 @@ SetUpError();
 
 $Error.captureStackTrace = captureStackTrace;
 
-%SetProperty($Error.prototype, 'message', '', DONT_ENUM);
+%AddNamedProperty($Error.prototype, 'message', '', DONT_ENUM);
 
 // Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.
@@ -1236,7 +1222,7 @@ var cyclic_error_marker = new $Object();
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
   var current = error;
   // Climb the prototype chain until we find the holder.
-  while (current && !%HasLocalProperty(current, name)) {
+  while (current && !%HasOwnProperty(current, name)) {
     current = %GetPrototype(current);
   }
   if (IS_NULL(current)) return UNDEFINED;
@@ -1298,40 +1284,8 @@ InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 function SetUpStackOverflowBoilerplate() {
   var boilerplate = MakeRangeError('stack_overflow', []);
 
-  var error_string = boilerplate.name + ": " + boilerplate.message;
-
-  // Set the 'stack' property on the receiver.  If the receiver is the same as
-  // holder of this setter, the accessor pair is turned into a data property.
-  var setter = function(v) {
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
-    // Tentatively clear the hidden property. If the receiver is the same as
-    // holder, we release the raw stack trace this way.
-    %GetAndClearOverflowedStackTrace(this);
-  };
-
-  // The raw stack trace is stored as a hidden property on the holder of this
-  // getter, which may not be the same as the receiver.  Find the holder to
-  // retrieve the raw stack trace and then turn this accessor pair into a
-  // data property.
-  var getter = function() {
-    var holder = this;
-    while (!IS_ERROR(holder)) {
-      holder = %GetPrototype(holder);
-      if (IS_NULL(holder)) return MakeSyntaxError('illegal_access', []);
-    }
-    var stack = %GetAndClearOverflowedStackTrace(holder);
-    // We may not have captured any stack trace.
-    if (IS_UNDEFINED(stack)) return stack;
-
-    var result = FormatStackTrace(holder, error_string, GetStackFrames(stack));
-    // Replace this accessor to return result directly.
-    %DefineOrRedefineAccessorProperty(
-        holder, 'stack', function() { return result }, setter, DONT_ENUM);
-    return result;
-  };
-
-  %DefineOrRedefineAccessorProperty(
-      boilerplate, 'stack', getter, setter, DONT_ENUM);
+  %DefineAccessorPropertyUnchecked(
+      boilerplate, 'stack', StackTraceGetter, StackTraceSetter, DONT_ENUM);
 
   return boilerplate;
 }

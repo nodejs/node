@@ -43,6 +43,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
 
   var kY1Offset = 11;               // Offset for stack frame vs. event lines.
   var kDeoptRow = 7;                // Row displaying deopts.
+  var kGetTimeHeight = 0.5;         // Height of marker displaying timed part.
   var kMaxDeoptLength = 4;          // Draw size of the largest deopt.
   var kPauseLabelPadding = 5;       // Padding for pause time labels.
   var kNumPauseLabels = 7;          // Number of biggest pauses to label.
@@ -105,6 +106,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
         new TimerEvent("recompile async", "#CC4499", false, 1),
       'V8.CompileEval':
         new TimerEvent("compile eval", "#CC4400",  true, 0),
+      'V8.IcMiss':
+        new TimerEvent("ic miss", "#CC9900", false, 0),
       'V8.Parse':
         new TimerEvent("parse", "#00CC00",  true, 0),
       'V8.PreParse':
@@ -134,6 +137,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
   var code_map = new CodeMap();
   var execution_pauses = [];
   var deopts = [];
+  var gettime = [];
   var event_stack = [];
   var last_time_stamp = [];
   for (var i = 0; i < kNumThreads; i++) {
@@ -272,6 +276,10 @@ function PlotScriptComposer(kResX, kResY, error_output) {
       deopts.push(new Deopt(time, size));
     }
 
+    var processCurrentTimeEvent = function(time) {
+      gettime.push(time);
+    }
+
     var processSharedLibrary = function(name, start, end) {
       var code_entry = new CodeMap.CodeEntry(end - start, name);
       code_entry.kind = -3;  // External code kind.
@@ -314,6 +322,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
                             processor: processCodeDeleteEvent },
         'code-deopt':     { parsers: [parseTimeStamp, parseInt],
                             processor: processCodeDeoptEvent },
+        'current-time':   { parsers: [parseTimeStamp],
+                            processor: processCurrentTimeEvent },
         'tick':           { parsers: [parseInt, parseTimeStamp,
                                       null, null, parseInt, 'var-args'],
                             processor: processTickEvent }
@@ -389,12 +399,15 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     output("set xtics out nomirror");
     output("unset key");
 
-    function DrawBarBase(color, start, end, top, bottom) {
+    function DrawBarBase(color, start, end, top, bottom, transparency) {
       obj_index++;
       command = "set object " + obj_index + " rect";
       command += " from " + start + ", " + top;
       command += " to " + end + ", " + bottom;
       command += " fc rgb \"" + color + "\"";
+      if (transparency) {
+        command += " fs transparent solid " + transparency;
+      }
       output(command);
     }
 
@@ -411,7 +424,6 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     for (var name in TimerEvents) {
       var event = TimerEvents[name];
       var ranges = RestrictRangesTo(event.ranges, range_start, range_end);
-      ranges = MergeRanges(ranges);
       var sum =
         ranges.map(function(range) { return range.duration(); })
             .reduce(function(a, b) { return a + b; }, 0);
@@ -427,6 +439,13 @@ function PlotScriptComposer(kResX, kResY, error_output) {
       DrawHalfBar(kDeoptRow, "#9944CC", deopt.time,
                   deopt.time + 10 * pause_tolerance,
                   deopt.size / max_deopt_size * kMaxDeoptLength);
+    }
+
+    // Plot current time polls.
+    if (gettime.length > 1) {
+      var start = gettime[0];
+      var end = gettime.pop();
+      DrawBarBase("#0000BB", start, end, kGetTimeHeight, 0, 0.2);
     }
 
     // Name Y-axis.
@@ -502,7 +521,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     execution_pauses.sort(
         function(a, b) { return b.duration() - a.duration(); });
 
-    var max_pause_time = execution_pauses[0].duration();
+    var max_pause_time = execution_pauses.length > 0
+        ? execution_pauses[0].duration() : 0;
     padding = kPauseLabelPadding * (range_end - range_start) / kResX;
     var y_scale = kY1Offset / max_pause_time / 2;
     for (var i = 0; i < execution_pauses.length && i < kNumPauseLabels; i++) {

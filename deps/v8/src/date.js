@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+"use strict";
+
 // This file relies on the fact that the following declarations have been made
 // in v8natives.js:
 // var $isFinite = GlobalIsFinite;
@@ -761,7 +763,7 @@ function SetUpDate() {
   ));
 
   // Set up non-enumerable constructor property of the Date prototype object.
-  %SetProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
+  %AddNamedProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
 
   // Set up non-enumerable functions of the Date prototype object and
   // set their names.

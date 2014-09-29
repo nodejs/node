@@ -5,7 +5,7 @@
 #ifndef V8_PROFILE_GENERATOR_INL_H_
 #define V8_PROFILE_GENERATOR_INL_H_
 
-#include "profile-generator.h"
+#include "src/profile-generator.h"
 
 namespace v8 {
 namespace internal {
