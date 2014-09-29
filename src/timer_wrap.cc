@@ -97,8 +97,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t timeout = args[0]->IntegerValue();
@@ -108,8 +106,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_stop(&wrap->handle_);
@@ -117,8 +113,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Again(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_again(&wrap->handle_);
@@ -126,8 +120,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = args[0]->IntegerValue();
@@ -136,12 +128,13 @@ class TimerWrap : public HandleWrap {
   }
 
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
-    args.GetReturnValue().Set(static_cast<double>(repeat));
+    if (repeat <= 0xfffffff)
+      args.GetReturnValue().Set(static_cast<uint32_t>(repeat));
+    else
+      args.GetReturnValue().Set(static_cast<double>(repeat));
   }
 
   static void OnTimeout(uv_timer_t* handle) {
@@ -153,11 +146,13 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     uv_update_time(env->event_loop());
-    double now = static_cast<double>(uv_now(env->event_loop()));
-    args.GetReturnValue().Set(now);
+    uint64_t now = uv_now(env->event_loop());
+    if (now <= 0xfffffff)
+      args.GetReturnValue().Set(static_cast<uint32_t>(now));
+    else
+      args.GetReturnValue().Set(static_cast<double>(now));
   }
 
   uv_timer_t handle_;
