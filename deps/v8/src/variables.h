@@ -5,8 +5,9 @@
 #ifndef V8_VARIABLES_H_
 #define V8_VARIABLES_H_
 
-#include "zone.h"
-#include "interface.h"
+#include "src/ast-value-factory.h"
+#include "src/interface.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -51,12 +52,9 @@ class Variable: public ZoneObject {
     LOOKUP
   };
 
-  Variable(Scope* scope,
-           Handle<String> name,
-           VariableMode mode,
-           bool is_valid_ref,
-           Kind kind,
-           InitializationFlag initialization_flag,
+  Variable(Scope* scope, const AstRawString* name, VariableMode mode,
+           bool is_valid_ref, Kind kind, InitializationFlag initialization_flag,
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
            Interface* interface = Interface::NewValue());
 
   // Printing support
@@ -70,17 +68,20 @@ class Variable: public ZoneObject {
   // scope is only used to follow the context chain length.
   Scope* scope() const { return scope_; }
 
-  Handle<String> name() const { return name_; }
+  Handle<String> name() const { return name_->string(); }
+  const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return mode_; }
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
-    ASSERT(mode_ != TEMPORARY);
+    DCHECK(mode_ != TEMPORARY);
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
-  void set_is_used(bool flag) { is_used_ = flag; }
+  void set_is_used() { is_used_ = true; }
+  MaybeAssignedFlag maybe_assigned() const { return maybe_assigned_; }
+  void set_maybe_assigned() { maybe_assigned_ = kMaybeAssigned; }
 
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
@@ -112,7 +113,7 @@ class Variable: public ZoneObject {
   }
 
   Variable* local_if_not_shadowed() const {
-    ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
+    DCHECK(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
     return local_if_not_shadowed_;
   }
 
@@ -136,7 +137,7 @@ class Variable: public ZoneObject {
 
  private:
   Scope* scope_;
-  Handle<String> name_;
+  const AstRawString* name_;
   VariableMode mode_;
   Kind kind_;
   Location location_;
@@ -156,6 +157,7 @@ class Variable: public ZoneObject {
   bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
   InitializationFlag initialization_flag_;
+  MaybeAssignedFlag maybe_assigned_;
 
   // Module type info.
   Interface* interface_;

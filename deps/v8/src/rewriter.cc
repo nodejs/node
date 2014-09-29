@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "rewriter.h"
+#include "src/rewriter.h"
 
-#include "ast.h"
-#include "compiler.h"
-#include "scopes.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,9 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(zone) {
+        // Passing a null AstValueFactory is fine, because Processor doesn't
+        // need to create strings or literals.
+        factory_(zone, NULL) {
     InitializeAstVisitor(zone);
   }
 
@@ -227,21 +229,23 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
-  ASSERT(function != NULL);
+  DCHECK(function != NULL);
   Scope* scope = function->scope();
-  ASSERT(scope != NULL);
+  DCHECK(scope != NULL);
   if (!scope->is_global_scope() && !scope->is_eval_scope()) return true;
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
-    Variable* result = scope->NewTemporary(
-        info->isolate()->factory()->dot_result_string());
+    Variable* result =
+        scope->NewTemporary(info->ast_value_factory()->dot_result_string());
+    // The name string must be internalized at this point.
+    DCHECK(!result->name().is_null());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      ASSERT(function->end_position() != RelocInfo::kNoPosition);
+      DCHECK(function->end_position() != RelocInfo::kNoPosition);
       // Set the position of the assignment statement one character past the
       // source code, such that it definitely is not in the source code range
       // of an immediate inner scope. For example in
@@ -250,7 +254,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int pos = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->name(), false, result->interface(), pos);
+          result->raw_name(), false, result->interface(), pos);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy, pos);

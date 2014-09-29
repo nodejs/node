@@ -28,11 +28,12 @@
 #ifndef TEST_LIBPLATFORM_H_
 #define TEST_LIBPLATFORM_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
+using namespace v8::platform;
 
 class TaskCounter {
  public:
@@ -40,22 +41,22 @@ class TaskCounter {
   ~TaskCounter() { CHECK_EQ(0, counter_); }
 
   int GetCount() const {
-    LockGuard<Mutex> guard(&lock_);
+    v8::base::LockGuard<v8::base::Mutex> guard(&lock_);
     return counter_;
   }
 
   void Inc() {
-    LockGuard<Mutex> guard(&lock_);
+    v8::base::LockGuard<v8::base::Mutex> guard(&lock_);
     ++counter_;
   }
 
   void Dec() {
-    LockGuard<Mutex> guard(&lock_);
+    v8::base::LockGuard<v8::base::Mutex> guard(&lock_);
     --counter_;
   }
 
  private:
-  mutable Mutex lock_;
+  mutable v8::base::Mutex lock_;
   int counter_;
 
   DISALLOW_COPY_AND_ASSIGN(TaskCounter);
@@ -93,10 +94,12 @@ class TestTask : public v8::Task {
 };
 
 
-class TestWorkerThread : public Thread {
+class TestWorkerThread : public v8::base::Thread {
  public:
   explicit TestWorkerThread(v8::Task* task)
-      : Thread("libplatform TestWorkerThread"), semaphore_(0), task_(task) {}
+      : Thread(Options("libplatform TestWorkerThread")),
+        semaphore_(0),
+        task_(task) {}
   virtual ~TestWorkerThread() {}
 
   void Signal() { semaphore_.Signal(); }
@@ -111,7 +114,7 @@ class TestWorkerThread : public Thread {
   }
 
  private:
-  Semaphore semaphore_;
+  v8::base::Semaphore semaphore_;
   v8::Task* task_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWorkerThread);

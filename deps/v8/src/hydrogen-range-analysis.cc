@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-range-analysis.h"
+#include "src/hydrogen-range-analysis.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,7 @@ void HRangeAnalysisPhase::TraceRange(const char* msg, ...) {
   if (FLAG_trace_range) {
     va_list arguments;
     va_start(arguments, msg);
-    OS::VPrint(msg, arguments);
+    base::OS::VPrint(msg, arguments);
     va_end(arguments);
   }
 }
@@ -64,9 +64,9 @@ void HRangeAnalysisPhase::Run() {
         // Propagate flags for negative zero checks upwards from conversions
         // int32-to-tagged and int32-to-double.
         Representation from = instr->value()->representation();
-        ASSERT(from.Equals(instr->from()));
+        DCHECK(from.Equals(instr->from()));
         if (from.IsSmiOrInteger32()) {
-          ASSERT(instr->to().IsTagged() ||
+          DCHECK(instr->to().IsTagged() ||
                 instr->to().IsDouble() ||
                 instr->to().IsSmiOrInteger32());
           PropagateMinusZeroChecks(instr->value());
@@ -121,7 +121,7 @@ void HRangeAnalysisPhase::PoisonRanges() {
 
 void HRangeAnalysisPhase::InferControlFlowRange(HCompareNumericAndBranch* test,
                                                 HBasicBlock* dest) {
-  ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
+  DCHECK((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
   if (test->representation().IsSmiOrInteger32()) {
     Token::Value op = test->token();
     if (test->SecondSuccessor() == dest) {
@@ -170,7 +170,7 @@ void HRangeAnalysisPhase::UpdateControlFlowRange(Token::Value op,
 
 
 void HRangeAnalysisPhase::InferRange(HValue* value) {
-  ASSERT(!value->HasRange());
+  DCHECK(!value->HasRange());
   if (!value->representation().IsNone()) {
     value->ComputeInitialRange(graph()->zone());
     Range* range = value->range();
@@ -184,7 +184,7 @@ void HRangeAnalysisPhase::InferRange(HValue* value) {
 
 
 void HRangeAnalysisPhase::RollBackTo(int index) {
-  ASSERT(index <= changed_ranges_.length());
+  DCHECK(index <= changed_ranges_.length());
   for (int i = index; i < changed_ranges_.length(); ++i) {
     changed_ranges_[i]->RemoveLastAddedRange();
   }
@@ -213,8 +213,8 @@ void HRangeAnalysisPhase::AddRange(HValue* value, Range* range) {
 
 
 void HRangeAnalysisPhase::PropagateMinusZeroChecks(HValue* value) {
-  ASSERT(worklist_.is_empty());
-  ASSERT(in_worklist_.IsEmpty());
+  DCHECK(worklist_.is_empty());
+  DCHECK(in_worklist_.IsEmpty());
 
   AddToWorklist(value);
   while (!worklist_.is_empty()) {
@@ -282,8 +282,8 @@ void HRangeAnalysisPhase::PropagateMinusZeroChecks(HValue* value) {
   }
 
   in_worklist_.Clear();
-  ASSERT(in_worklist_.IsEmpty());
-  ASSERT(worklist_.is_empty());
+  DCHECK(in_worklist_.IsEmpty());
+  DCHECK(worklist_.is_empty());
 }
 
 

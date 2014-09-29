@@ -29,9 +29,8 @@
 
 // Test aspects of the generator runtime.
 
-// FIXME(wingo): Replace this reference with a more official link.
 // See:
-// http://wiki.ecmascript.org/lib/exe/fetch.php?cache=cache&media=harmony:es6_generator_object_model_3-29-13.png
+// http://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorfunction-objects
 
 function f() { }
 function* g() { yield 1; }
@@ -55,7 +54,16 @@ function TestGeneratorFunctionInstance() {
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
     assertEquals(f_desc.configurable, g_desc.configurable, prop);
-    assertEquals(f_desc.writable, g_desc.writable, prop);
+    if (prop === 'arguments' || prop === 'caller') {
+      // Unlike sloppy functions, which have read-only data arguments and caller
+      // properties, sloppy generators have a poison pill implemented via
+      // accessors
+      assertFalse('writable' in g_desc, prop);
+      assertTrue(g_desc.get instanceof Function, prop);
+      assertEquals(g_desc.get, g_desc.set, prop);
+    } else {
+      assertEquals(f_desc.writable, g_desc.writable, prop);
+    }
     assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
@@ -92,6 +100,16 @@ function TestGeneratorObjectPrototype() {
   found_property_names.sort();
 
   assertArrayEquals(expected_property_names, found_property_names);
+
+  iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+      Symbol.iterator);
+  assertTrue(iterator_desc !== undefined);
+  assertFalse(iterator_desc.writable);
+  assertFalse(iterator_desc.enumerable);
+  assertFalse(iterator_desc.configurable);
+
+  // The generator object's "iterator" function is just the identity.
+  assertSame(iterator_desc.value.call(42), 42);
 }
 TestGeneratorObjectPrototype();
 

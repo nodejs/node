@@ -7,13 +7,12 @@
 
 #include <ctype.h>
 
-#include "v8globals.h"
-#include "globals.h"
+#include "src/globals.h"
 
-#include "arm64/assembler-arm64.h"
-#include "arm64/assembler-arm64-inl.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/instrument-arm64.h"
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/instrument-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
 
 
 namespace v8 {
@@ -38,7 +37,7 @@ MemOperand UntagSmiMemOperand(Register object, int offset) {
 
 
 Handle<Object> MacroAssembler::CodeObject() {
-  ASSERT(!code_object_.is_null());
+  DCHECK(!code_object_.is_null());
   return code_object_;
 }
 
@@ -46,8 +45,8 @@ Handle<Object> MacroAssembler::CodeObject() {
 void MacroAssembler::And(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, AND);
 }
 
@@ -55,15 +54,15 @@ void MacroAssembler::And(const Register& rd,
 void MacroAssembler::Ands(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ANDS);
 }
 
 
 void MacroAssembler::Tst(const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   LogicalMacro(AppropriateZeroRegFor(rn), rn, operand, ANDS);
 }
 
@@ -71,8 +70,8 @@ void MacroAssembler::Tst(const Register& rn,
 void MacroAssembler::Bic(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, BIC);
 }
 
@@ -80,8 +79,8 @@ void MacroAssembler::Bic(const Register& rd,
 void MacroAssembler::Bics(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, BICS);
 }
 
@@ -89,8 +88,8 @@ void MacroAssembler::Bics(const Register& rd,
 void MacroAssembler::Orr(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ORR);
 }
 
@@ -98,8 +97,8 @@ void MacroAssembler::Orr(const Register& rd,
 void MacroAssembler::Orn(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ORN);
 }
 
@@ -107,8 +106,8 @@ void MacroAssembler::Orn(const Register& rd,
 void MacroAssembler::Eor(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, EOR);
 }
 
@@ -116,8 +115,8 @@ void MacroAssembler::Eor(const Register& rd,
 void MacroAssembler::Eon(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, EON);
 }
 
@@ -126,9 +125,9 @@ void MacroAssembler::Ccmp(const Register& rn,
                           const Operand& operand,
                           StatusFlags nzcv,
                           Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    ConditionalCompareMacro(rn, -operand.immediate(), nzcv, cond, CCMN);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    ConditionalCompareMacro(rn, -operand.ImmediateValue(), nzcv, cond, CCMN);
   } else {
     ConditionalCompareMacro(rn, operand, nzcv, cond, CCMP);
   }
@@ -139,9 +138,9 @@ void MacroAssembler::Ccmn(const Register& rn,
                           const Operand& operand,
                           StatusFlags nzcv,
                           Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    ConditionalCompareMacro(rn, -operand.immediate(), nzcv, cond, CCMP);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    ConditionalCompareMacro(rn, -operand.ImmediateValue(), nzcv, cond, CCMP);
   } else {
     ConditionalCompareMacro(rn, operand, nzcv, cond, CCMN);
   }
@@ -151,9 +150,10 @@ void MacroAssembler::Ccmn(const Register& rn,
 void MacroAssembler::Add(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, SUB);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
   }
@@ -162,9 +162,10 @@ void MacroAssembler::Add(const Register& rd,
 void MacroAssembler::Adds(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), SetFlags, SUB);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, ADD);
   }
@@ -174,9 +175,10 @@ void MacroAssembler::Adds(const Register& rd,
 void MacroAssembler::Sub(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, ADD);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
   }
@@ -186,9 +188,10 @@ void MacroAssembler::Sub(const Register& rd,
 void MacroAssembler::Subs(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), SetFlags, ADD);
+  DCHECK(allow_macro_instructions_);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, SUB);
   }
@@ -196,23 +199,23 @@ void MacroAssembler::Subs(const Register& rd,
 
 
 void MacroAssembler::Cmn(const Register& rn, const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   Adds(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 
 void MacroAssembler::Cmp(const Register& rn, const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   Subs(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 
 void MacroAssembler::Neg(const Register& rd,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   if (operand.IsImmediate()) {
-    Mov(rd, -operand.immediate());
+    Mov(rd, -operand.ImmediateValue());
   } else {
     Sub(rd, AppropriateZeroRegFor(rd), operand);
   }
@@ -221,7 +224,7 @@ void MacroAssembler::Neg(const Register& rd,
 
 void MacroAssembler::Negs(const Register& rd,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   Subs(rd, AppropriateZeroRegFor(rd), operand);
 }
 
@@ -229,8 +232,8 @@ void MacroAssembler::Negs(const Register& rd,
 void MacroAssembler::Adc(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, ADC);
 }
 
@@ -238,8 +241,8 @@ void MacroAssembler::Adc(const Register& rd,
 void MacroAssembler::Adcs(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   AddSubWithCarryMacro(rd, rn, operand, SetFlags, ADC);
 }
 
@@ -247,8 +250,8 @@ void MacroAssembler::Adcs(const Register& rd,
 void MacroAssembler::Sbc(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, SBC);
 }
 
@@ -256,16 +259,16 @@ void MacroAssembler::Sbc(const Register& rd,
 void MacroAssembler::Sbcs(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   AddSubWithCarryMacro(rd, rn, operand, SetFlags, SBC);
 }
 
 
 void MacroAssembler::Ngc(const Register& rd,
                          const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   Register zr = AppropriateZeroRegFor(rd);
   Sbc(rd, zr, operand);
 }
@@ -273,34 +276,44 @@ void MacroAssembler::Ngc(const Register& rd,
 
 void MacroAssembler::Ngcs(const Register& rd,
                           const Operand& operand) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   Register zr = AppropriateZeroRegFor(rd);
   Sbcs(rd, zr, operand);
 }
 
 
 void MacroAssembler::Mvn(const Register& rd, uint64_t imm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   Mov(rd, ~imm);
 }
 
 
 #define DEFINE_FUNCTION(FN, REGTYPE, REG, OP)                         \
 void MacroAssembler::FN(const REGTYPE REG, const MemOperand& addr) {  \
-  ASSERT(allow_macro_instructions_);                                  \
+  DCHECK(allow_macro_instructions_);                                  \
   LoadStoreMacro(REG, addr, OP);                                      \
 }
 LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
 
+#define DEFINE_FUNCTION(FN, REGTYPE, REG, REG2, OP)              \
+  void MacroAssembler::FN(const REGTYPE REG, const REGTYPE REG2, \
+                          const MemOperand& addr) {              \
+    DCHECK(allow_macro_instructions_);                           \
+    LoadStorePairMacro(REG, REG2, addr, OP);                     \
+  }
+LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,
                          unsigned shift) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   asr(rd, rn, shift);
 }
 
@@ -308,8 +321,8 @@ void MacroAssembler::Asr(const Register& rd,
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,
                          const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   asrv(rd, rn, rm);
 }
 
@@ -321,7 +334,7 @@ void MacroAssembler::B(Label* label) {
 
 
 void MacroAssembler::B(Condition cond, Label* label) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   B(label, cond);
 }
 
@@ -330,8 +343,8 @@ void MacroAssembler::Bfi(const Register& rd,
                          const Register& rn,
                          unsigned lsb,
                          unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   bfi(rd, rn, lsb, width);
 }
 
@@ -340,40 +353,40 @@ void MacroAssembler::Bfxil(const Register& rd,
                            const Register& rn,
                            unsigned lsb,
                            unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   bfxil(rd, rn, lsb, width);
 }
 
 
 void MacroAssembler::Bind(Label* label) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   bind(label);
 }
 
 
 void MacroAssembler::Bl(Label* label) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   bl(label);
 }
 
 
 void MacroAssembler::Blr(const Register& xn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!xn.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!xn.IsZero());
   blr(xn);
 }
 
 
 void MacroAssembler::Br(const Register& xn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!xn.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!xn.IsZero());
   br(xn);
 }
 
 
 void MacroAssembler::Brk(int code) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   brk(code);
 }
 
@@ -381,9 +394,9 @@ void MacroAssembler::Brk(int code) {
 void MacroAssembler::Cinc(const Register& rd,
                           const Register& rn,
                           Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   cinc(rd, rn, cond);
 }
 
@@ -391,23 +404,23 @@ void MacroAssembler::Cinc(const Register& rd,
 void MacroAssembler::Cinv(const Register& rd,
                           const Register& rn,
                           Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   cinv(rd, rn, cond);
 }
 
 
 void MacroAssembler::Cls(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   cls(rd, rn);
 }
 
 
 void MacroAssembler::Clz(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   clz(rd, rn);
 }
 
@@ -415,9 +428,9 @@ void MacroAssembler::Clz(const Register& rd, const Register& rn) {
 void MacroAssembler::Cneg(const Register& rd,
                           const Register& rn,
                           Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   cneg(rd, rn, cond);
 }
 
@@ -426,9 +439,9 @@ void MacroAssembler::Cneg(const Register& rd,
 // due to the truncation side-effect when used on W registers.
 void MacroAssembler::CzeroX(const Register& rd,
                             Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsSP() && rd.Is64Bits());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsSP() && rd.Is64Bits());
+  DCHECK((cond != al) && (cond != nv));
   csel(rd, xzr, rd, cond);
 }
 
@@ -438,10 +451,10 @@ void MacroAssembler::CzeroX(const Register& rd,
 void MacroAssembler::CmovX(const Register& rd,
                            const Register& rn,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsSP());
-  ASSERT(rd.Is64Bits() && rn.Is64Bits());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsSP());
+  DCHECK(rd.Is64Bits() && rn.Is64Bits());
+  DCHECK((cond != al) && (cond != nv));
   if (!rd.is(rn)) {
     csel(rd, rn, rd, cond);
   }
@@ -449,17 +462,17 @@ void MacroAssembler::CmovX(const Register& rd,
 
 
 void MacroAssembler::Cset(const Register& rd, Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   cset(rd, cond);
 }
 
 
 void MacroAssembler::Csetm(const Register& rd, Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   csetm(rd, cond);
 }
 
@@ -468,9 +481,9 @@ void MacroAssembler::Csinc(const Register& rd,
                            const Register& rn,
                            const Register& rm,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   csinc(rd, rn, rm, cond);
 }
 
@@ -479,9 +492,9 @@ void MacroAssembler::Csinv(const Register& rd,
                            const Register& rn,
                            const Register& rm,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   csinv(rd, rn, rm, cond);
 }
 
@@ -490,27 +503,27 @@ void MacroAssembler::Csneg(const Register& rd,
                            const Register& rn,
                            const Register& rm,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  DCHECK((cond != al) && (cond != nv));
   csneg(rd, rn, rm, cond);
 }
 
 
 void MacroAssembler::Dmb(BarrierDomain domain, BarrierType type) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   dmb(domain, type);
 }
 
 
 void MacroAssembler::Dsb(BarrierDomain domain, BarrierType type) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   dsb(domain, type);
 }
 
 
 void MacroAssembler::Debug(const char* message, uint32_t code, Instr params) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   debug(message, code, params);
 }
 
@@ -519,14 +532,14 @@ void MacroAssembler::Extr(const Register& rd,
                           const Register& rn,
                           const Register& rm,
                           unsigned lsb) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   extr(rd, rn, rm, lsb);
 }
 
 
 void MacroAssembler::Fabs(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fabs(fd, fn);
 }
 
@@ -534,7 +547,7 @@ void MacroAssembler::Fabs(const FPRegister& fd, const FPRegister& fn) {
 void MacroAssembler::Fadd(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fadd(fd, fn, fm);
 }
 
@@ -543,20 +556,20 @@ void MacroAssembler::Fccmp(const FPRegister& fn,
                            const FPRegister& fm,
                            StatusFlags nzcv,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK((cond != al) && (cond != nv));
   fccmp(fn, fm, nzcv, cond);
 }
 
 
 void MacroAssembler::Fcmp(const FPRegister& fn, const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fcmp(fn, fm);
 }
 
 
 void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   if (value != 0.0) {
     UseScratchRegisterScope temps(this);
     FPRegister tmp = temps.AcquireSameSizeAs(fn);
@@ -572,68 +585,68 @@ void MacroAssembler::Fcsel(const FPRegister& fd,
                            const FPRegister& fn,
                            const FPRegister& fm,
                            Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK(allow_macro_instructions_);
+  DCHECK((cond != al) && (cond != nv));
   fcsel(fd, fn, fm, cond);
 }
 
 
 void MacroAssembler::Fcvt(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fcvt(fd, fn);
 }
 
 
 void MacroAssembler::Fcvtas(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtas(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtau(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtau(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtms(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtms(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtmu(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtmu(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtns(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtns(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtnu(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtnu(rd, fn);
 }
 
 
 void MacroAssembler::Fcvtzs(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtzs(rd, fn);
 }
 void MacroAssembler::Fcvtzu(const Register& rd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fcvtzu(rd, fn);
 }
 
@@ -641,7 +654,7 @@ void MacroAssembler::Fcvtzu(const Register& rd, const FPRegister& fn) {
 void MacroAssembler::Fdiv(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fdiv(fd, fn, fm);
 }
 
@@ -650,7 +663,7 @@ void MacroAssembler::Fmadd(const FPRegister& fd,
                            const FPRegister& fn,
                            const FPRegister& fm,
                            const FPRegister& fa) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmadd(fd, fn, fm, fa);
 }
 
@@ -658,7 +671,7 @@ void MacroAssembler::Fmadd(const FPRegister& fd,
 void MacroAssembler::Fmax(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmax(fd, fn, fm);
 }
 
@@ -666,7 +679,7 @@ void MacroAssembler::Fmax(const FPRegister& fd,
 void MacroAssembler::Fmaxnm(const FPRegister& fd,
                             const FPRegister& fn,
                             const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmaxnm(fd, fn, fm);
 }
 
@@ -674,7 +687,7 @@ void MacroAssembler::Fmaxnm(const FPRegister& fd,
 void MacroAssembler::Fmin(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmin(fd, fn, fm);
 }
 
@@ -682,13 +695,13 @@ void MacroAssembler::Fmin(const FPRegister& fd,
 void MacroAssembler::Fminnm(const FPRegister& fd,
                             const FPRegister& fn,
                             const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fminnm(fd, fn, fm);
 }
 
 
 void MacroAssembler::Fmov(FPRegister fd, FPRegister fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   // Only emit an instruction if fd and fn are different, and they are both D
   // registers. fmov(s0, s0) is not a no-op because it clears the top word of
   // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
@@ -700,41 +713,37 @@ void MacroAssembler::Fmov(FPRegister fd, FPRegister fn) {
 
 
 void MacroAssembler::Fmov(FPRegister fd, Register rn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmov(fd, rn);
 }
 
 
 void MacroAssembler::Fmov(FPRegister fd, double imm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   if (fd.Is32Bits()) {
     Fmov(fd, static_cast<float>(imm));
     return;
   }
 
-  ASSERT(fd.Is64Bits());
+  DCHECK(fd.Is64Bits());
   if (IsImmFP64(imm)) {
     fmov(fd, imm);
   } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
     fmov(fd, xzr);
   } else {
-    UseScratchRegisterScope temps(this);
-    Register tmp = temps.AcquireX();
-    // TODO(all): Use Assembler::ldr(const FPRegister& ft, double imm).
-    Mov(tmp, double_to_rawbits(imm));
-    Fmov(fd, tmp);
+    Ldr(fd, imm);
   }
 }
 
 
 void MacroAssembler::Fmov(FPRegister fd, float imm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   if (fd.Is64Bits()) {
     Fmov(fd, static_cast<double>(imm));
     return;
   }
 
-  ASSERT(fd.Is32Bits());
+  DCHECK(fd.Is32Bits());
   if (IsImmFP32(imm)) {
     fmov(fd, imm);
   } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
@@ -750,8 +759,8 @@ void MacroAssembler::Fmov(FPRegister fd, float imm) {
 
 
 void MacroAssembler::Fmov(Register rd, FPRegister fn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   fmov(rd, fn);
 }
 
@@ -760,7 +769,7 @@ void MacroAssembler::Fmsub(const FPRegister& fd,
                            const FPRegister& fn,
                            const FPRegister& fm,
                            const FPRegister& fa) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmsub(fd, fn, fm, fa);
 }
 
@@ -768,13 +777,13 @@ void MacroAssembler::Fmsub(const FPRegister& fd,
 void MacroAssembler::Fmul(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fmul(fd, fn, fm);
 }
 
 
 void MacroAssembler::Fneg(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fneg(fd, fn);
 }
 
@@ -783,7 +792,7 @@ void MacroAssembler::Fnmadd(const FPRegister& fd,
                             const FPRegister& fn,
                             const FPRegister& fm,
                             const FPRegister& fa) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fnmadd(fd, fn, fm, fa);
 }
 
@@ -792,37 +801,37 @@ void MacroAssembler::Fnmsub(const FPRegister& fd,
                             const FPRegister& fn,
                             const FPRegister& fm,
                             const FPRegister& fa) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fnmsub(fd, fn, fm, fa);
 }
 
 
 void MacroAssembler::Frinta(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   frinta(fd, fn);
 }
 
 
 void MacroAssembler::Frintm(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   frintm(fd, fn);
 }
 
 
 void MacroAssembler::Frintn(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   frintn(fd, fn);
 }
 
 
 void MacroAssembler::Frintz(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   frintz(fd, fn);
 }
 
 
 void MacroAssembler::Fsqrt(const FPRegister& fd, const FPRegister& fn) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fsqrt(fd, fn);
 }
 
@@ -830,25 +839,25 @@ void MacroAssembler::Fsqrt(const FPRegister& fd, const FPRegister& fn) {
 void MacroAssembler::Fsub(const FPRegister& fd,
                           const FPRegister& fn,
                           const FPRegister& fm) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   fsub(fd, fn, fm);
 }
 
 
 void MacroAssembler::Hint(SystemHint code) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   hint(code);
 }
 
 
 void MacroAssembler::Hlt(int code) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   hlt(code);
 }
 
 
 void MacroAssembler::Isb() {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   isb();
 }
 
@@ -856,49 +865,30 @@ void MacroAssembler::Isb() {
 void MacroAssembler::Ldnp(const CPURegister& rt,
                           const CPURegister& rt2,
                           const MemOperand& src) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!AreAliased(rt, rt2));
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!AreAliased(rt, rt2));
   ldnp(rt, rt2, src);
 }
 
 
-void MacroAssembler::Ldp(const CPURegister& rt,
-                         const CPURegister& rt2,
-                         const MemOperand& src) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!AreAliased(rt, rt2));
-  ldp(rt, rt2, src);
-}
-
-
-void MacroAssembler::Ldpsw(const Register& rt,
-                           const Register& rt2,
-                           const MemOperand& src) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rt.IsZero());
-  ASSERT(!rt2.IsZero());
-  ldpsw(rt, rt2, src);
-}
-
-
-void MacroAssembler::Ldr(const FPRegister& ft, double imm) {
-  ASSERT(allow_macro_instructions_);
-  ldr(ft, imm);
-}
-
-
-void MacroAssembler::Ldr(const Register& rt, uint64_t imm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rt.IsZero());
+void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
+  DCHECK(allow_macro_instructions_);
   ldr(rt, imm);
+}
+
+
+void MacroAssembler::Ldr(const CPURegister& rt, double imm) {
+  DCHECK(allow_macro_instructions_);
+  DCHECK(rt.Is64Bits());
+  ldr(rt, Immediate(double_to_rawbits(imm)));
 }
 
 
 void MacroAssembler::Lsl(const Register& rd,
                          const Register& rn,
                          unsigned shift) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   lsl(rd, rn, shift);
 }
 
@@ -906,8 +896,8 @@ void MacroAssembler::Lsl(const Register& rd,
 void MacroAssembler::Lsl(const Register& rd,
                          const Register& rn,
                          const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   lslv(rd, rn, rm);
 }
 
@@ -915,8 +905,8 @@ void MacroAssembler::Lsl(const Register& rd,
 void MacroAssembler::Lsr(const Register& rd,
                          const Register& rn,
                          unsigned shift) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   lsr(rd, rn, shift);
 }
 
@@ -924,8 +914,8 @@ void MacroAssembler::Lsr(const Register& rd,
 void MacroAssembler::Lsr(const Register& rd,
                          const Register& rn,
                          const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   lsrv(rd, rn, rm);
 }
 
@@ -934,8 +924,8 @@ void MacroAssembler::Madd(const Register& rd,
                           const Register& rn,
                           const Register& rm,
                           const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   madd(rd, rn, rm, ra);
 }
 
@@ -943,15 +933,15 @@ void MacroAssembler::Madd(const Register& rd,
 void MacroAssembler::Mneg(const Register& rd,
                           const Register& rn,
                           const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   mneg(rd, rn, rm);
 }
 
 
 void MacroAssembler::Mov(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   // Emit a register move only if the registers are distinct, or if they are
   // not X registers. Note that mov(w0, w0) is not a no-op because it clears
   // the top word of x0.
@@ -962,21 +952,21 @@ void MacroAssembler::Mov(const Register& rd, const Register& rn) {
 
 
 void MacroAssembler::Movk(const Register& rd, uint64_t imm, int shift) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   movk(rd, imm, shift);
 }
 
 
 void MacroAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rt.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rt.IsZero());
   mrs(rt, sysreg);
 }
 
 
 void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   msr(sysreg, rt);
 }
 
@@ -985,8 +975,8 @@ void MacroAssembler::Msub(const Register& rd,
                           const Register& rn,
                           const Register& rm,
                           const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   msub(rd, rn, rm, ra);
 }
 
@@ -994,44 +984,44 @@ void MacroAssembler::Msub(const Register& rd,
 void MacroAssembler::Mul(const Register& rd,
                          const Register& rn,
                          const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   mul(rd, rn, rm);
 }
 
 
 void MacroAssembler::Rbit(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   rbit(rd, rn);
 }
 
 
 void MacroAssembler::Ret(const Register& xn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!xn.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!xn.IsZero());
   ret(xn);
   CheckVeneerPool(false, false);
 }
 
 
 void MacroAssembler::Rev(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   rev(rd, rn);
 }
 
 
 void MacroAssembler::Rev16(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   rev16(rd, rn);
 }
 
 
 void MacroAssembler::Rev32(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   rev32(rd, rn);
 }
 
@@ -1039,8 +1029,8 @@ void MacroAssembler::Rev32(const Register& rd, const Register& rn) {
 void MacroAssembler::Ror(const Register& rd,
                          const Register& rs,
                          unsigned shift) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   ror(rd, rs, shift);
 }
 
@@ -1048,8 +1038,8 @@ void MacroAssembler::Ror(const Register& rd,
 void MacroAssembler::Ror(const Register& rd,
                          const Register& rn,
                          const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   rorv(rd, rn, rm);
 }
 
@@ -1058,8 +1048,8 @@ void MacroAssembler::Sbfiz(const Register& rd,
                            const Register& rn,
                            unsigned lsb,
                            unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sbfiz(rd, rn, lsb, width);
 }
 
@@ -1068,8 +1058,8 @@ void MacroAssembler::Sbfx(const Register& rd,
                           const Register& rn,
                           unsigned lsb,
                           unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sbfx(rd, rn, lsb, width);
 }
 
@@ -1077,7 +1067,7 @@ void MacroAssembler::Sbfx(const Register& rd,
 void MacroAssembler::Scvtf(const FPRegister& fd,
                            const Register& rn,
                            unsigned fbits) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   scvtf(fd, rn, fbits);
 }
 
@@ -1085,8 +1075,8 @@ void MacroAssembler::Scvtf(const FPRegister& fd,
 void MacroAssembler::Sdiv(const Register& rd,
                           const Register& rn,
                           const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sdiv(rd, rn, rm);
 }
 
@@ -1095,8 +1085,8 @@ void MacroAssembler::Smaddl(const Register& rd,
                             const Register& rn,
                             const Register& rm,
                             const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   smaddl(rd, rn, rm, ra);
 }
 
@@ -1105,8 +1095,8 @@ void MacroAssembler::Smsubl(const Register& rd,
                             const Register& rn,
                             const Register& rm,
                             const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   smsubl(rd, rn, rm, ra);
 }
 
@@ -1114,8 +1104,8 @@ void MacroAssembler::Smsubl(const Register& rd,
 void MacroAssembler::Smull(const Register& rd,
                            const Register& rn,
                            const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   smull(rd, rn, rm);
 }
 
@@ -1123,8 +1113,8 @@ void MacroAssembler::Smull(const Register& rd,
 void MacroAssembler::Smulh(const Register& rd,
                            const Register& rn,
                            const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   smulh(rd, rn, rm);
 }
 
@@ -1132,36 +1122,28 @@ void MacroAssembler::Smulh(const Register& rd,
 void MacroAssembler::Stnp(const CPURegister& rt,
                           const CPURegister& rt2,
                           const MemOperand& dst) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   stnp(rt, rt2, dst);
 }
 
 
-void MacroAssembler::Stp(const CPURegister& rt,
-                         const CPURegister& rt2,
-                         const MemOperand& dst) {
-  ASSERT(allow_macro_instructions_);
-  stp(rt, rt2, dst);
-}
-
-
 void MacroAssembler::Sxtb(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sxtb(rd, rn);
 }
 
 
 void MacroAssembler::Sxth(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sxth(rd, rn);
 }
 
 
 void MacroAssembler::Sxtw(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   sxtw(rd, rn);
 }
 
@@ -1170,8 +1152,8 @@ void MacroAssembler::Ubfiz(const Register& rd,
                            const Register& rn,
                            unsigned lsb,
                            unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   ubfiz(rd, rn, lsb, width);
 }
 
@@ -1180,8 +1162,8 @@ void MacroAssembler::Ubfx(const Register& rd,
                           const Register& rn,
                           unsigned lsb,
                           unsigned width) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   ubfx(rd, rn, lsb, width);
 }
 
@@ -1189,7 +1171,7 @@ void MacroAssembler::Ubfx(const Register& rd,
 void MacroAssembler::Ucvtf(const FPRegister& fd,
                            const Register& rn,
                            unsigned fbits) {
-  ASSERT(allow_macro_instructions_);
+  DCHECK(allow_macro_instructions_);
   ucvtf(fd, rn, fbits);
 }
 
@@ -1197,8 +1179,8 @@ void MacroAssembler::Ucvtf(const FPRegister& fd,
 void MacroAssembler::Udiv(const Register& rd,
                           const Register& rn,
                           const Register& rm) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   udiv(rd, rn, rm);
 }
 
@@ -1207,8 +1189,8 @@ void MacroAssembler::Umaddl(const Register& rd,
                             const Register& rn,
                             const Register& rm,
                             const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   umaddl(rd, rn, rm, ra);
 }
 
@@ -1217,58 +1199,87 @@ void MacroAssembler::Umsubl(const Register& rd,
                             const Register& rn,
                             const Register& rm,
                             const Register& ra) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   umsubl(rd, rn, rm, ra);
 }
 
 
 void MacroAssembler::Uxtb(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   uxtb(rd, rn);
 }
 
 
 void MacroAssembler::Uxth(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   uxth(rd, rn);
 }
 
 
 void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
   uxtw(rd, rn);
 }
 
 
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
-  ASSERT(!csp.Is(sp_));
-  // TODO(jbramley): Several callers rely on this not using scratch registers,
-  // so we use the assembler directly here. However, this means that large
-  // immediate values of 'space' cannot be handled cleanly. (Only 24-bits
-  // immediates or values of 'space' that can be encoded in one instruction are
-  // accepted.) Once we implement our flexible scratch register idea, we could
-  // greatly simplify this function.
-  InstructionAccurateScope scope(this);
-  if ((space.IsImmediate()) && !is_uint12(space.immediate())) {
-    // The subtract instruction supports a 12-bit immediate, shifted left by
-    // zero or 12 bits. So, in two instructions, we can subtract any immediate
-    // between zero and (1 << 24) - 1.
-    int64_t imm = space.immediate();
-    ASSERT(is_uint24(imm));
-
-    int64_t imm_top_12_bits = imm >> 12;
-    sub(csp, StackPointer(), imm_top_12_bits << 12);
-    imm -= imm_top_12_bits << 12;
-    if (imm > 0) {
-      sub(csp, csp, imm);
+  DCHECK(!csp.Is(sp_));
+  if (!TmpList()->IsEmpty()) {
+    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
+      UseScratchRegisterScope temps(this);
+      Register temp = temps.AcquireX();
+      Sub(temp, StackPointer(), space);
+      Bic(csp, temp, 0xf);
+    } else {
+      Sub(csp, StackPointer(), space);
     }
   } else {
-    sub(csp, StackPointer(), space);
+    // TODO(jbramley): Several callers rely on this not using scratch
+    // registers, so we use the assembler directly here. However, this means
+    // that large immediate values of 'space' cannot be handled cleanly. (Only
+    // 24-bits immediates or values of 'space' that can be encoded in one
+    // instruction are accepted.) Once we implement our flexible scratch
+    // register idea, we could greatly simplify this function.
+    InstructionAccurateScope scope(this);
+    DCHECK(space.IsImmediate());
+    // Align to 16 bytes.
+    uint64_t imm = RoundUp(space.ImmediateValue(), 0x10);
+    DCHECK(is_uint24(imm));
+
+    Register source = StackPointer();
+    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
+      bic(csp, source, 0xf);
+      source = csp;
+    }
+    if (!is_uint12(imm)) {
+      int64_t imm_top_12_bits = imm >> 12;
+      sub(csp, source, imm_top_12_bits << 12);
+      source = csp;
+      imm -= imm_top_12_bits << 12;
+    }
+    if (imm > 0) {
+      sub(csp, source, imm);
+    }
   }
+  AssertStackConsistency();
+}
+
+
+void MacroAssembler::SyncSystemStackPointer() {
+  DCHECK(emit_debug_code());
+  DCHECK(!csp.Is(sp_));
+  { InstructionAccurateScope scope(this);
+    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
+      bic(csp, StackPointer(), 0xf);
+    } else {
+      mov(csp, StackPointer());
+    }
+  }
+  AssertStackConsistency();
 }
 
 
@@ -1280,7 +1291,9 @@ void MacroAssembler::InitializeRootRegister() {
 
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
-  ASSERT(dst.Is64Bits() && src.Is64Bits());
+  STATIC_ASSERT(kXRegSizeInBits ==
+                static_cast<unsigned>(kSmiShift + kSmiValueSize));
+  DCHECK(dst.Is64Bits() && src.Is64Bits());
   Lsl(dst, src, kSmiShift);
 }
 
@@ -1289,7 +1302,9 @@ void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 
 void MacroAssembler::SmiUntag(Register dst, Register src) {
-  ASSERT(dst.Is64Bits() && src.Is64Bits());
+  STATIC_ASSERT(kXRegSizeInBits ==
+                static_cast<unsigned>(kSmiShift + kSmiValueSize));
+  DCHECK(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
   }
@@ -1303,7 +1318,7 @@ void MacroAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 void MacroAssembler::SmiUntagToDouble(FPRegister dst,
                                       Register src,
                                       UntagMode mode) {
-  ASSERT(dst.Is64Bits() && src.Is64Bits());
+  DCHECK(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {
     AssertSmi(src);
   }
@@ -1314,11 +1329,27 @@ void MacroAssembler::SmiUntagToDouble(FPRegister dst,
 void MacroAssembler::SmiUntagToFloat(FPRegister dst,
                                      Register src,
                                      UntagMode mode) {
-  ASSERT(dst.Is32Bits() && src.Is64Bits());
+  DCHECK(dst.Is32Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {
     AssertSmi(src);
   }
   Scvtf(dst, src, kSmiShift);
+}
+
+
+void MacroAssembler::SmiTagAndPush(Register src) {
+  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
+                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
+                (kSmiTag == 0));
+  Push(src.W(), wzr);
+}
+
+
+void MacroAssembler::SmiTagAndPush(Register src1, Register src2) {
+  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
+                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
+                (kSmiTag == 0));
+  Push(src1.W(), wzr, src2.W(), wzr);
 }
 
 
@@ -1333,7 +1364,7 @@ void MacroAssembler::JumpIfSmi(Register value,
       B(not_smi_label);
     }
   } else {
-    ASSERT(not_smi_label);
+    DCHECK(not_smi_label);
     Tbnz(value, 0, not_smi_label);
   }
 }
@@ -1450,7 +1481,7 @@ void MacroAssembler::IsObjectJSStringType(Register object,
   Ldrb(type.W(), FieldMemOperand(type, Map::kInstanceTypeOffset));
 
   STATIC_ASSERT(kStringTag == 0);
-  ASSERT((string != NULL) || (not_string != NULL));
+  DCHECK((string != NULL) || (not_string != NULL));
   if (string == NULL) {
     TestAndBranchIfAnySet(type.W(), kIsNotStringMask, not_string);
   } else if (not_string == NULL) {
@@ -1478,7 +1509,7 @@ void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
   }
 
   if (csp.Is(StackPointer())) {
-    ASSERT(size % 16 == 0);
+    DCHECK(size % 16 == 0);
   } else {
     BumpSystemStackPointer(size);
   }
@@ -1489,7 +1520,7 @@ void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
 
 void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
-  ASSERT(IsPowerOf2(unit_size));
+  DCHECK(IsPowerOf2(unit_size));
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1507,7 +1538,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
 
 
 void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
-  ASSERT(unit_size == 0 || IsPowerOf2(unit_size));
+  DCHECK(unit_size == 0 || IsPowerOf2(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
@@ -1535,19 +1566,19 @@ void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
   Add(StackPointer(), StackPointer(), size);
 
   if (csp.Is(StackPointer())) {
-    ASSERT(size % 16 == 0);
+    DCHECK(size % 16 == 0);
   } else if (emit_debug_code()) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    Mov(csp, StackPointer());
+    SyncSystemStackPointer();
   }
 }
 
 
 void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
-  ASSERT(IsPowerOf2(unit_size));
+  DCHECK(IsPowerOf2(unit_size));
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1562,13 +1593,13 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    Mov(csp, StackPointer());
+    SyncSystemStackPointer();
   }
 }
 
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
-  ASSERT(unit_size == 0 || IsPowerOf2(unit_size));
+  DCHECK(unit_size == 0 || IsPowerOf2(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
@@ -1584,7 +1615,7 @@ void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    Mov(csp, StackPointer());
+    SyncSystemStackPointer();
   }
 }
 
@@ -1593,7 +1624,7 @@ void MacroAssembler::CompareAndBranch(const Register& lhs,
                                       const Operand& rhs,
                                       Condition cond,
                                       Label* label) {
-  if (rhs.IsImmediate() && (rhs.immediate() == 0) &&
+  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
       ((cond == eq) || (cond == ne))) {
     if (cond == eq) {
       Cbz(lhs, label);
@@ -1611,7 +1642,7 @@ void MacroAssembler::TestAndBranchIfAnySet(const Register& reg,
                                            const uint64_t bit_pattern,
                                            Label* label) {
   int bits = reg.SizeInBits();
-  ASSERT(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK(CountSetBits(bit_pattern, bits) > 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbnz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1625,7 +1656,7 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
                                              const uint64_t bit_pattern,
                                              Label* label) {
   int bits = reg.SizeInBits();
-  ASSERT(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK(CountSetBits(bit_pattern, bits) > 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1636,7 +1667,7 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
 
 
 void MacroAssembler::InlineData(uint64_t data) {
-  ASSERT(is_uint16(data));
+  DCHECK(is_uint16(data));
   InstructionAccurateScope scope(this, 1);
   movz(xzr, data);
 }
@@ -1655,11 +1686,11 @@ void MacroAssembler::DisableInstrumentation() {
 
 
 void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  ASSERT(strlen(marker_name) == 2);
+  DCHECK(strlen(marker_name) == 2);
 
   // We allow only printable characters in the marker names. Unprintable
   // characters are reserved for controlling features of the instrumentation.
-  ASSERT(isprint(marker_name[0]) && isprint(marker_name[1]));
+  DCHECK(isprint(marker_name[0]) && isprint(marker_name[1]));
 
   InstructionAccurateScope scope(this, 1);
   movn(xzr, (marker_name[1] << 8) | marker_name[0]);

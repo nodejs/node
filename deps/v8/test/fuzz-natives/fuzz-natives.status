@@ -31,6 +31,27 @@
   "CreateDateTimeFormat": [SKIP],
   "CreateNumberFormat": [SKIP],
 
+  # TODO(danno): Fix these internal function that are only callable form stubs
+  # and un-blacklist them!
+  "CompileUnoptimized": [SKIP],
+  "NotifyDeoptimized": [SKIP],
+  "NotifyStubFailure": [SKIP],
+  "NewSloppyArguments": [SKIP],
+  "NewStrictArguments": [SKIP],
+  "ArrayConstructor": [SKIP],
+  "InternalArrayConstructor": [SKIP],
+  "FinalizeInstanceSize": [SKIP],
+  "PromoteScheduledException": [SKIP],
+  "NewFunctionContext": [SKIP],
+  "PushWithContext": [SKIP],
+  "PushCatchContext": [SKIP],
+  "PushModuleContext": [SKIP],
+  "LoadLookupSlot": [SKIP],
+  "LoadLookupSlotNoReferenceError": [SKIP],
+  "ResolvePossiblyDirectEval": [SKIP],
+  "ForInInit": [SKIP],
+  "ForInNext": [SKIP],
+
   # TODO(jkummerow): Figure out what to do about inlined functions.
   "_GeneratorNext": [SKIP],
   "_GeneratorThrow": [SKIP],

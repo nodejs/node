@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8;
 namespace i = v8::internal;
@@ -275,8 +275,8 @@ TEST(APITestBasicMutation) {
   // Setting an indexed element via the property setting method
   obj->Set(Number::New(v8_isolate, 1), Number::New(v8_isolate, 5));
   // Setting with a non-String, non-uint32 key
-  obj->Set(Number::New(v8_isolate, 1.1),
-           Number::New(v8_isolate, 6), DontDelete);
+  obj->ForceSet(Number::New(v8_isolate, 1.1), Number::New(v8_isolate, 6),
+                DontDelete);
   obj->Delete(String::NewFromUtf8(v8_isolate, "foo"));
   obj->Delete(1);
   obj->ForceDelete(Number::New(v8_isolate, 1.1));
@@ -616,7 +616,6 @@ TEST(GetNotifierFromSameOrigin) {
 
 
 static int GetGlobalObjectsCount() {
-  CcTest::heap()->EnsureHeapIsIterable();
   int count = 0;
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
@@ -659,7 +658,7 @@ TEST(DontLeakContextOnObserve) {
                "Object.unobserve(obj, observer);");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }
 
@@ -680,7 +679,7 @@ TEST(DontLeakContextOnGetNotifier) {
     CompileRun("Object.getNotifier(obj);");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }
 
@@ -707,6 +706,6 @@ TEST(DontLeakContextOnNotifierPerformChange) {
                    "notifier, 'foo', function(){})");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "log-utils.h"
-#include "string-stream.h"
+#include "src/log-utils.h"
+#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -54,20 +54,20 @@ void Log::Initialize(const char* log_file_name) {
 
 
 void Log::OpenStdout() {
-  ASSERT(!IsEnabled());
+  DCHECK(!IsEnabled());
   output_handle_ = stdout;
 }
 
 
 void Log::OpenTemporaryFile() {
-  ASSERT(!IsEnabled());
-  output_handle_ = i::OS::OpenTemporaryFile();
+  DCHECK(!IsEnabled());
+  output_handle_ = base::OS::OpenTemporaryFile();
 }
 
 
 void Log::OpenFile(const char* name) {
-  ASSERT(!IsEnabled());
-  output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
+  DCHECK(!IsEnabled());
+  output_handle_ = base::OS::FOpen(name, base::OS::LogFileOpenMode);
 }
 
 
@@ -94,7 +94,7 @@ Log::MessageBuilder::MessageBuilder(Log* log)
   : log_(log),
     lock_guard_(&log_->mutex_),
     pos_(0) {
-  ASSERT(log_->message_buffer_ != NULL);
+  DCHECK(log_->message_buffer_ != NULL);
 }
 
 
@@ -105,14 +105,14 @@ void Log::MessageBuilder::Append(const char* format, ...) {
   va_start(args, format);
   AppendVA(format, args);
   va_end(args);
-  ASSERT(pos_ <= Log::kMessageBufferSize);
+  DCHECK(pos_ <= Log::kMessageBufferSize);
 }
 
 
 void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   Vector<char> buf(log_->message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
-  int result = v8::internal::OS::VSNPrintF(buf, format, args);
+  int result = v8::internal::VSNPrintF(buf, format, args);
 
   // Result is -1 if output was truncated.
   if (result >= 0) {
@@ -120,7 +120,7 @@ void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   } else {
     pos_ = Log::kMessageBufferSize;
   }
-  ASSERT(pos_ <= Log::kMessageBufferSize);
+  DCHECK(pos_ <= Log::kMessageBufferSize);
 }
 
 
@@ -128,7 +128,7 @@ void Log::MessageBuilder::Append(const char c) {
   if (pos_ < Log::kMessageBufferSize) {
     log_->message_buffer_[pos_++] = c;
   }
-  ASSERT(pos_ <= Log::kMessageBufferSize);
+  DCHECK(pos_ <= Log::kMessageBufferSize);
 }
 
 
@@ -159,7 +159,7 @@ void Log::MessageBuilder::AppendAddress(Address addr) {
 
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
-  ASSERT(symbol);
+  DCHECK(symbol);
   Append("symbol(");
   if (!symbol->name()->IsUndefined()) {
     Append("\"");
@@ -206,19 +206,23 @@ void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
   if (pos_ + len > Log::kMessageBufferSize) {
     len = Log::kMessageBufferSize - pos_;
-    ASSERT(len >= 0);
+    DCHECK(len >= 0);
     if (len == 0) return;
   }
   Vector<char> buf(log_->message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
-  OS::StrNCpy(buf, str, len);
+  StrNCpy(buf, str, len);
   pos_ += len;
-  ASSERT(pos_ <= Log::kMessageBufferSize);
+  DCHECK(pos_ <= Log::kMessageBufferSize);
 }
 
 
 void Log::MessageBuilder::WriteToLogFile() {
-  ASSERT(pos_ <= Log::kMessageBufferSize);
+  DCHECK(pos_ <= Log::kMessageBufferSize);
+  // Assert that we do not already have a new line at the end.
+  DCHECK(pos_ == 0 || log_->message_buffer_[pos_ - 1] != '\n');
+  if (pos_ == Log::kMessageBufferSize) pos_--;
+  log_->message_buffer_[pos_++] = '\n';
   const int written = log_->WriteToFile(log_->message_buffer_, pos_);
   if (written != pos_) {
     log_->stop();

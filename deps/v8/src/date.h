@@ -5,9 +5,9 @@
 #ifndef V8_DATE_H_
 #define V8_DATE_H_
 
-#include "allocation.h"
-#include "globals.h"
-#include "platform.h"
+#include "src/allocation.h"
+#include "src/base/platform/platform.h"
+#include "src/globals.h"
 
 
 namespace v8 {
@@ -39,12 +39,12 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache() : stamp_(0), tz_cache_(OS::CreateTimezoneCache()) {
+  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
     ResetDateCache();
   }
 
   virtual ~DateCache() {
-    OS::DisposeTimezoneCache(tz_cache_);
+    base::OS::DisposeTimezoneCache(tz_cache_);
     tz_cache_ = NULL;
   }
 
@@ -93,7 +93,7 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
+    return base::OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
   }
 
   // ECMA 262 - 15.9.5.26
@@ -162,12 +162,13 @@ class DateCache {
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
-    return static_cast<int>(OS::DaylightSavingsOffset(time_ms, tz_cache_));
+    return static_cast<int>(
+        base::OS::DaylightSavingsOffset(time_ms, tz_cache_));
   }
 
   virtual int GetLocalOffsetFromOS() {
-    double offset = OS::LocalTimeOffset(tz_cache_);
-    ASSERT(offset < kInvalidLocalOffsetInMs);
+    double offset = base::OS::LocalTimeOffset(tz_cache_);
+    DCHECK(offset < kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
 
@@ -234,7 +235,7 @@ class DateCache {
   int ymd_month_;
   int ymd_day_;
 
-  TimezoneCache* tz_cache_;
+  base::TimezoneCache* tz_cache_;
 };
 
 } }   // namespace v8::internal

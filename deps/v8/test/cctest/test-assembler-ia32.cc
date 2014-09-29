@@ -27,14 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
-#include "serialize.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "src/disassembler.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/ostreams.h"
+#include "src/serialize.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -63,7 +64,8 @@ TEST(AssemblerIa320) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = f(3, 4);
@@ -99,7 +101,8 @@ TEST(AssemblerIa321) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(100);
@@ -139,7 +142,8 @@ TEST(AssemblerIa322) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(10);
@@ -152,7 +156,6 @@ typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
@@ -160,11 +163,8 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  { CpuFeatureScope fscope(&assm, SSE2);
-    __ cvttss2si(eax, Operand(esp, 4));
-    __ ret(0);
-  }
+  __ cvttss2si(eax, Operand(esp, 4));
+  __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
@@ -186,7 +186,6 @@ typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
@@ -194,8 +193,6 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatureScope fscope(&assm, SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
@@ -241,14 +238,12 @@ typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CpuFeatureScope fscope(&assm, SSE2);
   __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
   __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
   __ addsd(xmm0, xmm1);
@@ -285,13 +280,11 @@ typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
-  CpuFeatureScope fscope(&assm, SSE2);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, eax);
   // Copy xmm0 to st(0) using eight bytes of stack.
@@ -305,7 +298,8 @@ TEST(AssemblerIa328) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F6 f = FUNCTION_CAST<F6>(code->entry());
   double res = f(12);
@@ -358,14 +352,15 @@ TEST(AssemblerIa329) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F7 f = FUNCTION_CAST<F7>(code->entry());
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(OS::nan_value(), 1.1));
+  CHECK_EQ(kNaN, f(v8::base::OS::nan_value(), 1.1));
 }
 
 
@@ -462,9 +457,6 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  ASSERT(CpuFeatures::IsSupported(SSE2));
-  CpuFeatureScope fscope(&assm, SSE2);
-
   // Remove return address from the stack for fix stack frame alignment.
   __ pop(ecx);
 
@@ -500,9 +492,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
-
-  CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
+  CHECK_EQ(0, v8::base::OS::ActivationFrameAlignment() % 16);
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -540,15 +530,13 @@ TEST(StackAlignmentForSSE2) {
 
 TEST(AssemblerIa32Extractps) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2) ||
-      !CpuFeatures::IsSupported(SSE4_1)) return;
+  if (!CpuFeatures::IsSupported(SSE4_1)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   MacroAssembler assm(isolate, buffer, sizeof buffer);
-  { CpuFeatureScope fscope2(&assm, SSE2);
-    CpuFeatureScope fscope41(&assm, SSE4_1);
+  { CpuFeatureScope fscope41(&assm, SSE4_1);
     __ movsd(xmm1, Operand(esp, 4));
     __ extractps(eax, xmm1, 0x1);
     __ ret(0);
@@ -559,7 +547,8 @@ TEST(AssemblerIa32Extractps) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F4 f = FUNCTION_CAST<F4>(code->entry());
@@ -573,14 +562,12 @@ TEST(AssemblerIa32Extractps) {
 typedef int (*F8)(float x, float y);
 TEST(AssemblerIa32SSE) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   MacroAssembler assm(isolate, buffer, sizeof buffer);
   {
-    CpuFeatureScope fscope(&assm, SSE2);
     __ movss(xmm0, Operand(esp, kPointerSize));
     __ movss(xmm1, Operand(esp, 2 * kPointerSize));
     __ shufps(xmm0, xmm0, 0x0);
@@ -599,7 +586,8 @@ TEST(AssemblerIa32SSE) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F8 f = FUNCTION_CAST<F8>(code->entry());

@@ -5,9 +5,10 @@
 // A light-weight assembler for the Irregexp byte code.
 
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
+#include "src/v8.h"
+
+#include "src/ast.h"
+#include "src/bytecodes-irregexp.h"
 
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
@@ -20,7 +21,7 @@ namespace internal {
 void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
                                         uint32_t twenty_four_bits) {
   uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
+  DCHECK(pc_ <= buffer_.length());
   if (pc_  + 3 >= buffer_.length()) {
     Expand();
   }
@@ -30,7 +31,7 @@ void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
 
 
 void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
+  DCHECK(pc_ <= buffer_.length());
   if (pc_ + 1 >= buffer_.length()) {
     Expand();
   }
@@ -40,7 +41,7 @@ void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
 
 
 void RegExpMacroAssemblerIrregexp::Emit8(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
+  DCHECK(pc_ <= buffer_.length());
   if (pc_ == buffer_.length()) {
     Expand();
   }
@@ -50,7 +51,7 @@ void RegExpMacroAssemblerIrregexp::Emit8(uint32_t word) {
 
 
 void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
+  DCHECK(pc_ <= buffer_.length());
   if (pc_ + 3 >= buffer_.length()) {
     Expand();
   }

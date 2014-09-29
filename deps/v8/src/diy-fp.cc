@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "diy-fp.h"
+#include "include/v8stdint.h"
+#include "src/base/logging.h"
+#include "src/diy-fp.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

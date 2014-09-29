@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+"use strict";
+
 // This file contains infrastructure used by the API.  See
 // v8natives.js for an explanation of these files are processed and
 // loaded.
@@ -28,10 +30,16 @@ function Instantiate(data, name) {
       var Constructor = %GetTemplateField(data, kApiConstructorOffset);
       // Note: Do not directly use a function template as a condition, our
       // internal ToBoolean doesn't handle that!
-      var result = typeof Constructor === 'undefined' ?
-          {} : new (Instantiate(Constructor))();
-      ConfigureTemplateInstance(result, data);
-      result = %ToFastProperties(result);
+      var result;
+      if (typeof Constructor === 'undefined') {
+        result = {};
+        ConfigureTemplateInstance(result, data);
+      } else {
+        // ConfigureTemplateInstance is implicitly called before calling the API
+        // constructor in HandleApiCall.
+        result = new (Instantiate(Constructor))();
+        result = %ToFastProperties(result);
+      }
       return result;
     default:
       throw 'Unknown API tag <' + tag + '>';
@@ -49,9 +57,8 @@ function InstantiateFunction(data, name) {
   if (!isFunctionCached) {
     try {
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      var has_proto = !(flags & (1 << kRemovePrototypeBit));
       var prototype;
-      if (has_proto) {
+      if (!(flags & (1 << kRemovePrototypeBit))) {
         var template = %GetTemplateField(data, kApiPrototypeTemplateOffset);
         prototype = typeof template === 'undefined'
             ?  {} : Instantiate(template);
@@ -61,16 +68,13 @@ function InstantiateFunction(data, name) {
         // internal ToBoolean doesn't handle that!
         if (typeof parent !== 'undefined') {
           var parent_fun = Instantiate(parent);
-          %SetPrototype(prototype, parent_fun.prototype);
+          %InternalSetPrototype(prototype, parent_fun.prototype);
         }
       }
       var fun = %CreateApiFunction(data, prototype);
       if (name) %FunctionSetName(fun, name);
       var doNotCache = flags & (1 << kDoNotCacheBit);
       if (!doNotCache) cache[serialNumber] = fun;
-      if (has_proto && flags & (1 << kReadOnlyPrototypeBit)) {
-        %FunctionSetReadOnlyPrototype(fun);
-      }
       ConfigureTemplateInstance(fun, data);
       if (doNotCache) return fun;
     } catch (e) {
@@ -95,15 +99,15 @@ function ConfigureTemplateInstance(obj, data) {
         var prop_data = properties[i + 2];
         var attributes = properties[i + 3];
         var value = Instantiate(prop_data, name);
-        %SetProperty(obj, name, value, attributes);
-      } else if (length == 5) {
+        %AddPropertyForTemplate(obj, name, value, attributes);
+      } else if (length == 4 || length == 5) {
+        // TODO(verwaest): The 5th value used to be access_control. Remove once
+        // the bindings are updated.
         var name = properties[i + 1];
         var getter = properties[i + 2];
         var setter = properties[i + 3];
         var attribute = properties[i + 4];
-        var access_control = properties[i + 5];
-        %SetAccessorProperty(
-            obj, name, getter, setter, attribute, access_control);
+        %DefineApiAccessorProperty(obj, name, getter, setter, attribute);
       } else {
         throw "Bad properties array";
       }

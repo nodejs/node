@@ -27,11 +27,11 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "bignum.h"
+#include "src/base/platform/platform.h"
+#include "src/bignum.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

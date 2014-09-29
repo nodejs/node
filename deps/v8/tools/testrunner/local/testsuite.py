@@ -190,18 +190,19 @@ class TestSuite(object):
     else:
       return execution_failed
 
-  def HasUnexpectedOutput(self, testcase):
+  def GetOutcome(self, testcase):
     if testcase.output.HasCrashed():
-      outcome = statusfile.CRASH
+      return statusfile.CRASH
     elif testcase.output.HasTimedOut():
-      outcome = statusfile.TIMEOUT
+      return statusfile.TIMEOUT
     elif self.HasFailed(testcase):
-      outcome = statusfile.FAIL
+      return statusfile.FAIL
     else:
-      outcome = statusfile.PASS
-    if not testcase.outcomes:
-      return outcome != statusfile.PASS
-    return not outcome in testcase.outcomes
+      return statusfile.PASS
+
+  def HasUnexpectedOutput(self, testcase):
+    outcome = self.GetOutcome(testcase)
+    return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):

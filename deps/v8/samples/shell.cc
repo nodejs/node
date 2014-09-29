@@ -25,12 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
+#include <include/v8.h>
+
+#include <include/libplatform/libplatform.h>
+
 #include <assert.h>
 #include <fcntl.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #error Using compressed startup data is not supported for this sample
@@ -65,25 +68,42 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 static bool run_shell;
 
 
+class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  ShellArrayBufferAllocator array_buffer_allocator;
+  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  v8::Isolate* isolate = v8::Isolate::New();
   run_shell = (argc == 1);
   int result;
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Handle<v8::Context> context = CreateShellContext(isolate);
     if (context.IsEmpty()) {
       fprintf(stderr, "Error creating context\n");
       return 1;
     }
-    context->Enter();
+    v8::Context::Scope context_scope(context);
     result = RunMain(isolate, argc, argv);
     if (run_shell) RunShell(context);
-    context->Exit();
   }
   v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return result;
 }
 
@@ -345,7 +365,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
     fprintf(stderr, "%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
-    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
     fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, exception_string);

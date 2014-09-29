@@ -32,8 +32,8 @@ PASS '_'.anchor(0x2A) is "<a name=\"42\">_</a>"
 PASS '_'.anchor('"') is "<a name=\"&quot;\">_</a>"
 PASS '_'.anchor('" href="http://www.evil.com') is "<a name=\"&quot; href=&quot;http://www.evil.com\">_</a>"
 PASS String.prototype.anchor.call(0x2A, 0x2A) is "<a name=\"42\">42</a>"
-FAIL String.prototype.anchor.call(undefined) should throw TypeError: Type error. Was <a name="undefined">undefined</a>.
-FAIL String.prototype.anchor.call(null) should throw TypeError: Type error. Was <a name="undefined">null</a>.
+FAIL String.prototype.anchor.call(undefined) should throw TypeError: Type error. Threw exception TypeError: String.prototype.anchor called on null or undefined.
+FAIL String.prototype.anchor.call(null) should throw TypeError: Type error. Threw exception TypeError: String.prototype.anchor called on null or undefined.
 PASS String.prototype.anchor.length is 1
 PASS successfullyParsed is true
 

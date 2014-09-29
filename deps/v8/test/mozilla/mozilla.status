@@ -51,6 +51,19 @@
   'ecma_3/Number/15.7.4.3-02': [PASS, FAIL],
   'ecma_3/Date/15.9.5.5-02': [PASS, FAIL],
 
+  ################## TURBO-FAN FAILURES ###################
+
+  # TODO(turbofan): These are all covered by mjsunit as well. Enable them once
+  # we pass 'mjsunit' and 'webkit' with TurboFan.
+  'js1_4/Functions/function-001': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-104077': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-396684': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
+
+  # TODO(turbofan): Large switch statements crash.
+  'js1_5/Regress/regress-366601': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-398085-01': [PASS, NO_VARIANTS],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
@@ -113,7 +126,7 @@
   'js1_5/Regress/regress-360969-04': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/extensions/regress-365527': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-203278-1': [PASS, ['mode == debug', FAIL]],
@@ -170,7 +183,7 @@
   'js1_5/String/regress-56940-02': [PASS, FAIL],
   'js1_5/String/regress-157334-01': [PASS, FAIL],
   'js1_5/String/regress-322772': [PASS, FAIL],
-  'js1_5/Array/regress-99120-01': [PASS, FAIL],
+  'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
   'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
@@ -642,10 +655,6 @@
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
 
-  # We do not throw an exception when a const is redeclared.
-  # (We only fail section 1 of the test.)
-  'js1_5/Regress/regress-103602': [FAIL],
-
   ##################### MOZILLA EXTENSION TESTS #####################
 
   'ecma/extensions/15.1.2.1-1': [FAIL_OK],
@@ -718,6 +727,13 @@
   'js1_5/extensions/regress-361964': [FAIL_OK],
   'js1_5/extensions/regress-363988': [FAIL_OK],
   'js1_5/extensions/regress-365869': [FAIL_OK],
+
+  # Uses non ES5 compatible syntax for setter
+  'js1_5/extensions/regress-367501-01': [FAIL_OK],
+  'js1_5/extensions/regress-367501-02': [FAIL_OK],
+  'js1_5/extensions/regress-367501-03': [FAIL_OK],
+  'js1_5/extensions/regress-367501-04': [FAIL_OK],
+
   'js1_5/extensions/regress-367630': [FAIL_OK],
   'js1_5/extensions/regress-367923': [FAIL_OK],
   'js1_5/extensions/regress-368859': [FAIL_OK],
@@ -843,7 +859,6 @@
   'js1_5/Regress/regress-404755': [SKIP],
   'js1_5/Regress/regress-451322': [SKIP],
 
-
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == arm or arch == arm64'
@@ -852,10 +867,13 @@
 ['arch ==  arm64', {
   # BUG(v8:3152): Runs out of stack in debug mode.
   'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
+
+  # BUG(v8:3503): Times out in debug mode.
+  'js1_5/Regress/regress-280769-2': [PASS, FAIL, ['mode == debug', SKIP]],
 }],  # 'arch ==  arm64'
 
 
-['arch == mipsel', {
+['arch == mipsel or arch == mips64el', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -872,7 +890,7 @@
 
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
-}],  # 'arch == mipsel'
+}],  # 'arch == mipsel or arch == mips64el'
 
 ['arch == mips', {
 

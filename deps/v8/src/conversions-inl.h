@@ -5,20 +5,20 @@
 #ifndef V8_CONVERSIONS_INL_H_
 #define V8_CONVERSIONS_INL_H_
 
-#include <limits.h>        // Required for INT_MAX etc.
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
+#include <limits.h>        // Required for INT_MAX etc.
 #include <stdarg.h>
 #include <cmath>
-#include "globals.h"       // Required for V8_INFINITY
+#include "src/globals.h"       // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
-#include "conversions.h"
-#include "double.h"
-#include "platform.h"
-#include "scanner.h"
-#include "strtod.h"
+#include "src/base/platform/platform.h"
+#include "src/conversions.h"
+#include "src/double.h"
+#include "src/scanner.h"
+#include "src/strtod.h"
 
 namespace v8 {
 namespace internal {
@@ -58,7 +58,7 @@ inline unsigned int FastD2UI(double x) {
     Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
 #endif
     // Copy least significant 32 bits of mantissa.
-    OS::MemCopy(&result, mantissa_ptr, sizeof(result));
+    memcpy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
   }
   // Large number (outside uint32 range), Infinity or NaN.
@@ -92,7 +92,7 @@ template <class Iterator, class EndMark>
 bool SubStringEquals(Iterator* current,
                      EndMark end,
                      const char* substring) {
-  ASSERT(**current == *substring);
+  DCHECK(**current == *substring);
   for (substring++; *substring != '\0'; substring++) {
     ++*current;
     if (*current == end || **current != *substring) return false;
@@ -123,7 +123,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
                                  EndMark end,
                                  bool negative,
                                  bool allow_trailing_junk) {
-  ASSERT(current != end);
+  DCHECK(current != end);
 
   // Skip leading 0s.
   while (*current == '0') {
@@ -202,8 +202,8 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
     ++current;
   } while (current != end);
 
-  ASSERT(number < ((int64_t)1 << 53));
-  ASSERT(static_cast<int64_t>(static_cast<double>(number)) == number);
+  DCHECK(number < ((int64_t)1 << 53));
+  DCHECK(static_cast<int64_t>(static_cast<double>(number)) == number);
 
   if (exponent == 0) {
     if (negative) {
@@ -213,7 +213,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
     return static_cast<double>(number);
   }
 
-  ASSERT(number != 0);
+  DCHECK(number != 0);
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
@@ -324,7 +324,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       if (buffer_pos <= kMaxSignificantDigits) {
         // If the number has more than kMaxSignificantDigits it will be parsed
         // as infinity.
-        ASSERT(buffer_pos < kBufferSize);
+        DCHECK(buffer_pos < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
       }
       ++current;
@@ -336,7 +336,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       return JunkStringValue();
     }
 
-    SLOW_ASSERT(buffer_pos < kBufferSize);
+    SLOW_DCHECK(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
     Vector<const char> buffer_vector(buffer, buffer_pos);
     return negative ? -Strtod(buffer_vector, 0) : Strtod(buffer_vector, 0);
@@ -384,7 +384,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       if (m > kMaximumMultiplier) break;
       part = part * radix + d;
       multiplier = m;
-      ASSERT(multiplier > part);
+      DCHECK(multiplier > part);
 
       ++current;
       if (current == end) {
@@ -473,7 +473,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
       return JunkStringValue();
     }
 
-    ASSERT(buffer_pos == 0);
+    DCHECK(buffer_pos == 0);
     return (sign == NEGATIVE) ? -V8_INFINITY : V8_INFINITY;
   }
 
@@ -536,7 +536,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
   // Copy significant digits of the integer part (if any) to the buffer.
   while (*current >= '0' && *current <= '9') {
     if (significant_digits < kMaxSignificantDigits) {
-      ASSERT(buffer_pos < kBufferSize);
+      DCHECK(buffer_pos < kBufferSize);
       buffer[buffer_pos++] = static_cast<char>(*current);
       significant_digits++;
       // Will later check if it's an octal in the buffer.
@@ -581,7 +581,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     // instead.
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < kMaxSignificantDigits) {
-        ASSERT(buffer_pos < kBufferSize);
+        DCHECK(buffer_pos < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
         significant_digits++;
         exponent--;
@@ -635,7 +635,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     }
 
     const int max_exponent = INT_MAX / 2;
-    ASSERT(-max_exponent / 2 <= exponent && exponent <= max_exponent / 2);
+    DCHECK(-max_exponent / 2 <= exponent && exponent <= max_exponent / 2);
     int num = 0;
     do {
       // Check overflow.
@@ -673,7 +673,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     exponent--;
   }
 
-  SLOW_ASSERT(buffer_pos < kBufferSize);
+  SLOW_DCHECK(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);

@@ -5,9 +5,9 @@
 #ifndef V8_HYDROGEN_FLOW_ENGINE_H_
 #define V8_HYDROGEN_FLOW_ENGINE_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "zone.h"
+#include "src/hydrogen.h"
+#include "src/hydrogen-instructions.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -102,7 +102,7 @@ class HFlowEngine {
       State* state = State::Finish(StateAt(block), block, zone_);
 
       if (block->IsReachable()) {
-        ASSERT(state != NULL);
+        DCHECK(state != NULL);
         if (block->IsLoopHeader()) {
           // Apply loop effects before analyzing loop body.
           ComputeLoopEffects(block)->Apply(state);
@@ -139,7 +139,7 @@ class HFlowEngine {
   // Computes and caches the loop effects for the loop which has the given
   // block as its loop header.
   Effects* ComputeLoopEffects(HBasicBlock* block) {
-    ASSERT(block->IsLoopHeader());
+    DCHECK(block->IsLoopHeader());
     Effects* effects = loop_effects_[block->block_id()];
     if (effects != NULL) return effects;  // Already analyzed this loop.
 
@@ -154,7 +154,7 @@ class HFlowEngine {
       HBasicBlock* member = graph_->blocks()->at(i);
       if (i != block->block_id() && member->IsLoopHeader()) {
         // Recursively compute and cache the effects of the nested loop.
-        ASSERT(member->loop_information()->parent_loop() == loop);
+        DCHECK(member->loop_information()->parent_loop() == loop);
         Effects* nested = ComputeLoopEffects(member);
         effects->Union(nested, zone_);
         // Skip the nested loop's blocks.
@@ -162,7 +162,7 @@ class HFlowEngine {
       } else {
         // Process all the effects of the block.
         if (member->IsUnreachable()) continue;
-        ASSERT(member->current_loop() == loop);
+        DCHECK(member->current_loop() == loop);
         for (HInstructionIterator it(member); !it.Done(); it.Advance()) {
           effects->Process(it.Current(), zone_);
         }
@@ -195,7 +195,7 @@ class HFlowEngine {
   }
 
   inline void CheckPredecessorCount(HBasicBlock* block) {
-    ASSERT(block->predecessors()->length() == pred_counts_[block->block_id()]);
+    DCHECK(block->predecessors()->length() == pred_counts_[block->block_id()]);
   }
 
   inline void IncrementPredecessorCount(HBasicBlock* block) {

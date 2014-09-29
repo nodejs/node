@@ -5,7 +5,7 @@
 #ifndef V8_EXTENSIONS_GC_EXTENSION_H_
 #define V8_EXTENSIONS_GC_EXTENSION_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +22,8 @@ class GCExtension : public v8::Extension {
 
  private:
   static const char* BuildSource(char* buf, size_t size, const char* fun_name) {
-    OS::SNPrintF(Vector<char>(buf, static_cast<int>(size)),
-                 "native function %s();", fun_name);
+    SNPrintF(Vector<char>(buf, static_cast<int>(size)),
+             "native function %s();", fun_name);
     return buf;
   }
 

@@ -5,10 +5,11 @@
 #ifndef V8_HYDROGEN_UNIQUE_H_
 #define V8_HYDROGEN_UNIQUE_H_
 
-#include "handles.h"
-#include "objects.h"
-#include "utils.h"
-#include "zone.h"
+#include "src/handles.h"
+#include "src/objects.h"
+#include "src/string-stream.h"
+#include "src/utils.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +30,7 @@ class UniqueSet;
 // Careful! Comparison of two Uniques is only correct if both were created
 // in the same "era" of GC or if at least one is a non-movable object.
 template <typename T>
-class Unique V8_FINAL {
+class Unique {
  public:
   // TODO(titzer): make private and introduce a uniqueness scope.
   explicit Unique(Handle<T> handle) {
@@ -42,9 +43,9 @@ class Unique V8_FINAL {
       // NOTE: we currently consider maps to be non-movable, so no special
       // assurance is required for creating a Unique<Map>.
       // TODO(titzer): other immortable immovable objects are also fine.
-      ASSERT(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
+      DCHECK(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
       raw_address_ = reinterpret_cast<Address>(*handle);
-      ASSERT_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
+      DCHECK_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
     }
     handle_ = handle;
   }
@@ -68,28 +69,28 @@ class Unique V8_FINAL {
 
   template <typename U>
   inline bool operator==(const Unique<U>& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
+    DCHECK(IsInitialized() && other.IsInitialized());
     return raw_address_ == other.raw_address_;
   }
 
   template <typename U>
   inline bool operator!=(const Unique<U>& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
+    DCHECK(IsInitialized() && other.IsInitialized());
     return raw_address_ != other.raw_address_;
   }
 
   inline intptr_t Hashcode() const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
   inline bool IsNull() const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return raw_address_ == NULL;
   }
 
   inline bool IsKnownGlobal(void* global) const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return raw_address_ == reinterpret_cast<Address>(global);
   }
 
@@ -117,14 +118,80 @@ class Unique V8_FINAL {
   friend class UniqueSet<T>;  // Uses internal details for speed.
   template <class U>
   friend class Unique;  // For comparing raw_address values.
+  template <class U>
+  friend class PrintableUnique;  // For automatic up casting.
 
- private:
+ protected:
   Unique<T>() : raw_address_(NULL) { }
 
   Address raw_address_;
   Handle<T> handle_;
 
   friend class SideEffectsTracker;
+};
+
+
+// TODO(danno): At some point if all of the uses of Unique end up using
+// PrintableUnique, then we should merge PrintableUnique into Unique and
+// predicate generating the printable string on a "am I tracing" check.
+template <class T>
+class PrintableUnique : public Unique<T> {
+ public:
+  // TODO(titzer): make private and introduce a uniqueness scope.
+  explicit PrintableUnique(Zone* zone, Handle<T> handle) : Unique<T>(handle) {
+    InitializeString(zone);
+  }
+
+  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
+  PrintableUnique(Zone* zone, Address raw_address, Handle<T> handle)
+      : Unique<T>(raw_address, handle) {
+    InitializeString(zone);
+  }
+
+  // Constructor for handling automatic up casting.
+  // Eg. PrintableUnique<JSFunction> can be passed when PrintableUnique<Object>
+  // is expected.
+  template <class S>
+  PrintableUnique(PrintableUnique<S> uniq)  // NOLINT
+      : Unique<T>(Handle<T>()) {
+#ifdef DEBUG
+    T* a = NULL;
+    S* b = NULL;
+    a = b;  // Fake assignment to enforce type checks.
+    USE(a);
+#endif
+    this->raw_address_ = uniq.raw_address_;
+    this->handle_ = uniq.handle_;
+    string_ = uniq.string();
+  }
+
+  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
+  static PrintableUnique<T> CreateUninitialized(Zone* zone, Handle<T> handle) {
+    return PrintableUnique<T>(zone, reinterpret_cast<Address>(NULL), handle);
+  }
+
+  static PrintableUnique<T> CreateImmovable(Zone* zone, Handle<T> handle) {
+    return PrintableUnique<T>(zone, reinterpret_cast<Address>(*handle), handle);
+  }
+
+  const char* string() const { return string_; }
+
+ private:
+  const char* string_;
+
+  void InitializeString(Zone* zone) {
+    // The stringified version of the parameter must be calculated when the
+    // Operator is constructed to avoid accessing the heap.
+    HeapStringAllocator temp_allocator;
+    StringStream stream(&temp_allocator);
+    this->handle_->ShortPrint(&stream);
+    SmartArrayPointer<const char> desc_string = stream.ToCString();
+    const char* desc_chars = desc_string.get();
+    int length = static_cast<int>(strlen(desc_chars));
+    char* desc_copy = zone->NewArray<char>(length + 1);
+    memcpy(desc_copy, desc_chars, length + 1);
+    string_ = desc_copy;
+  }
 };
 
 
@@ -138,7 +205,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   UniqueSet(int capacity, Zone* zone)
       : size_(0), capacity_(capacity),
         array_(zone->NewArray<Unique<T> >(capacity)) {
-    ASSERT(capacity <= kMaxCapacity);
+    DCHECK(capacity <= kMaxCapacity);
   }
 
   // Singleton constructor.
@@ -149,7 +216,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Add a new element to this unique set. Mutates this set. O(|this|).
   void Add(Unique<T> uniq, Zone* zone) {
-    ASSERT(uniq.IsInitialized());
+    DCHECK(uniq.IsInitialized());
     // Keep the set sorted by the {raw_address} of the unique elements.
     for (int i = 0; i < size_; i++) {
       if (array_[i] == uniq) return;
@@ -275,6 +342,26 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return out;
   }
 
+  // Returns a new set representing all elements from this set which are not in
+  // that set. O(|this| * |that|).
+  UniqueSet<T>* Subtract(const UniqueSet<T>* that, Zone* zone) const {
+    if (that->size_ == 0) return this->Copy(zone);
+
+    UniqueSet<T>* out = new(zone) UniqueSet<T>(this->size_, zone);
+
+    int i = 0, j = 0;
+    while (i < this->size_) {
+      Unique<T> cand = this->array_[i];
+      if (!that->Contains(cand)) {
+        out->array_[j++] = cand;
+      }
+      i++;
+    }
+
+    out->size_ = j;
+    return out;
+  }
+
   // Makes an exact copy of this set. O(|this|).
   UniqueSet<T>* Copy(Zone* zone) const {
     UniqueSet<T>* copy = new(zone) UniqueSet<T>(this->size_, zone);
@@ -292,7 +379,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   inline Unique<T> at(int index) const {
-    ASSERT(index >= 0 && index < size_);
+    DCHECK(index >= 0 && index < size_);
     return array_[index];
   }
 
@@ -320,7 +407,6 @@ class UniqueSet V8_FINAL : public ZoneObject {
     }
   }
 };
-
 
 } }  // namespace v8::internal
 

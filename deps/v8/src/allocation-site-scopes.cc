@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "allocation-site-scopes.h"
+#include "src/allocation-site-scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,7 @@ Handle<AllocationSite> AllocationSiteCreationContext::EnterNewScope() {
              static_cast<void*>(*scope_site));
     }
   } else {
-    ASSERT(!current().is_null());
+    DCHECK(!current().is_null());
     scope_site = isolate()->factory()->NewAllocationSite();
     if (FLAG_trace_creation_allocation_sites) {
       PrintF("Creating nested site (top, current, new) (%p, %p, %p)\n",
@@ -31,7 +31,7 @@ Handle<AllocationSite> AllocationSiteCreationContext::EnterNewScope() {
     current()->set_nested_site(*scope_site);
     update_current_site(*scope_site);
   }
-  ASSERT(!scope_site.is_null());
+  DCHECK(!scope_site.is_null());
   return scope_site;
 }
 

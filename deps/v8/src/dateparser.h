@@ -5,8 +5,8 @@
 #ifndef V8_DATEPARSER_H_
 #define V8_DATEPARSER_H_
 
-#include "allocation.h"
-#include "char-predicates-inl.h"
+#include "src/allocation.h"
+#include "src/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -151,19 +151,19 @@ class DateParser : public AllStatic {
     int length() { return length_; }
 
     int number() {
-      ASSERT(IsNumber());
+      DCHECK(IsNumber());
       return value_;
     }
     KeywordType keyword_type() {
-      ASSERT(IsKeyword());
+      DCHECK(IsKeyword());
       return static_cast<KeywordType>(tag_);
     }
     int keyword_value() {
-      ASSERT(IsKeyword());
+      DCHECK(IsKeyword());
       return value_;
     }
     char symbol() {
-      ASSERT(IsSymbol());
+      DCHECK(IsSymbol());
       return static_cast<char>(value_);
     }
     bool IsSymbol(char symbol) {
@@ -179,7 +179,7 @@ class DateParser : public AllStatic {
       return tag_ == kSymbolTag && (value_ == '-' || value_ == '+');
     }
     int ascii_sign() {
-      ASSERT(IsAsciiSign());
+      DCHECK(IsAsciiSign());
       return 44 - value_;
     }
     bool IsKeywordZ() {

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "globals.h"
-#include "utils.h"
-#include "arm64/decoder-arm64.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 
 namespace v8 {
@@ -39,7 +39,7 @@ void DispatchingDecoderVisitor::InsertVisitorBefore(
   }
   // We reached the end of the list. The last element must be
   // registered_visitor.
-  ASSERT(*it == registered_visitor);
+  DCHECK(*it == registered_visitor);
   visitors_.insert(it, new_visitor);
 }
 
@@ -57,7 +57,7 @@ void DispatchingDecoderVisitor::InsertVisitorAfter(
   }
   // We reached the end of the list. The last element must be
   // registered_visitor.
-  ASSERT(*it == registered_visitor);
+  DCHECK(*it == registered_visitor);
   visitors_.push_back(new_visitor);
 }
 
@@ -70,7 +70,7 @@ void DispatchingDecoderVisitor::RemoveVisitor(DecoderVisitor* visitor) {
 #define DEFINE_VISITOR_CALLERS(A)                                \
   void DispatchingDecoderVisitor::Visit##A(Instruction* instr) { \
     if (!(instr->Mask(A##FMask) == A##Fixed)) {                  \
-      ASSERT(instr->Mask(A##FMask) == A##Fixed);                 \
+      DCHECK(instr->Mask(A##FMask) == A##Fixed);                 \
     }                                                            \
     std::list<DecoderVisitor*>::iterator it;                     \
     for (it = visitors_.begin(); it != visitors_.end(); it++) {  \

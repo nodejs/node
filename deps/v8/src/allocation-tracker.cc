@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation-tracker.h"
-
-#include "heap-snapshot-generator.h"
-#include "frames-inl.h"
+#include "src/allocation-tracker.h"
+#include "src/frames-inl.h"
+#include "src/heap-snapshot-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -55,15 +54,15 @@ void AllocationTraceNode::AddAllocation(unsigned size) {
 
 
 void AllocationTraceNode::Print(int indent, AllocationTracker* tracker) {
-  OS::Print("%10u %10u %*c", total_size_, allocation_count_, indent, ' ');
+  base::OS::Print("%10u %10u %*c", total_size_, allocation_count_, indent, ' ');
   if (tracker != NULL) {
     AllocationTracker::FunctionInfo* info =
         tracker->function_info_list()[function_info_index_];
-    OS::Print("%s #%u", info->name, id_);
+    base::OS::Print("%s #%u", info->name, id_);
   } else {
-    OS::Print("%u #%u", function_info_index_, id_);
+    base::OS::Print("%u #%u", function_info_index_, id_);
   }
-  OS::Print("\n");
+  base::OS::Print("\n");
   indent += 2;
   for (int i = 0; i < children_.length(); i++) {
     children_[i]->Print(indent, tracker);
@@ -94,8 +93,8 @@ AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
 
 
 void AllocationTraceTree::Print(AllocationTracker* tracker) {
-  OS::Print("[AllocationTraceTree:]\n");
-  OS::Print("Total size | Allocation count | Function id | id\n");
+  base::OS::Print("[AllocationTraceTree:]\n");
+  base::OS::Print("Total size | Allocation count | Function id | id\n");
   root()->Print(0, tracker);
 }
 
@@ -229,8 +228,8 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   // Mark the new block as FreeSpace to make sure the heap is iterable
   // while we are capturing stack trace.
   FreeListNode::FromAddress(addr)->set_size(heap, size);
-  ASSERT_EQ(HeapObject::FromAddress(addr)->Size(), size);
-  ASSERT(FreeListNode::IsFreeListNode(HeapObject::FromAddress(addr)));
+  DCHECK_EQ(HeapObject::FromAddress(addr)->Size(), size);
+  DCHECK(FreeListNode::IsFreeListNode(HeapObject::FromAddress(addr)));
 
   Isolate* isolate = heap->isolate();
   int length = 0;

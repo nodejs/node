@@ -25,13 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "disassembler.h"
-#include "factory.h"
-#include "arm/simulator-arm.h"
-#include "arm/assembler-arm-inl.h"
-#include "cctest.h"
+#include "src/arm/assembler-arm-inl.h"
+#include "src/arm/simulator-arm.h"
+#include "src/disassembler.h"
+#include "src/factory.h"
+#include "src/ostreams.h"
 
 using namespace v8::internal;
 
@@ -60,7 +61,8 @@ TEST(0) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 0, 0));
@@ -95,7 +97,8 @@ TEST(1) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 100, 0, 0, 0, 0));
@@ -139,7 +142,8 @@ TEST(2) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
@@ -185,7 +189,8 @@ TEST(3) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.i = 100000;
@@ -308,7 +313,8 @@ TEST(4) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 1.5;
@@ -368,7 +374,8 @@ TEST(5) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
@@ -401,7 +408,8 @@ TEST(6) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
@@ -474,7 +482,8 @@ static void TestRoundingMode(VCVTTypes types,
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
@@ -657,7 +666,8 @@ TEST(8) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
@@ -766,7 +776,8 @@ TEST(9) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
@@ -871,7 +882,8 @@ TEST(10) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F4 fn = FUNCTION_CAST<F4>(code->entry());
   d.a = 1.1;
@@ -965,7 +977,8 @@ TEST(11) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
@@ -1092,7 +1105,8 @@ TEST(13) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 1.5;
@@ -1164,7 +1178,8 @@ TEST(14) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.left = BitCast<double>(kHoleNanInt64);
@@ -1180,7 +1195,7 @@ TEST(14) {
 #ifdef DEBUG
   const uint64_t kArmNanInt64 =
       (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
-  ASSERT(kArmNanInt64 != kHoleNanInt64);
+  DCHECK(kArmNanInt64 != kHoleNanInt64);
 #endif
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.
@@ -1267,7 +1282,8 @@ TEST(15) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.src0 = 0x01020304;
@@ -1369,7 +1385,8 @@ TEST(16) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.src0 = 0x01020304;
@@ -1451,7 +1468,8 @@ TEST(18) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    code->Print();
+    OFStream os(stdout);
+    code->Print(os);
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     Object* dummy;

@@ -4,7 +4,7 @@
 
 // Flags: --harmony-arrays
 
-assertEquals(1, Array.prototype.find.length);
+assertEquals(1, Array.prototype.fill.length);
 
 assertArrayEquals([].fill(8), []);
 assertArrayEquals([0, 0, 0, 0, 0].fill(), [undefined, undefined, undefined, undefined, undefined]);
@@ -22,7 +22,7 @@ assertArrayEquals([0, 0, 0, 0, 0].fill(8, -1, -3), [0, 0, 0, 0, 0]);
 assertArrayEquals([0, 0, 0, 0, 0].fill(8, undefined, 4), [8, 8, 8, 8, 0]);
 assertArrayEquals([ ,  ,  ,  , 0].fill(8, 1, 3), [, 8, 8, , 0]);
 
-// If the range if empty, the array is not actually modified and
+// If the range is empty, the array is not actually modified and
 // should not throw, even when applied to a frozen object.
 assertArrayEquals(Object.freeze([1, 2, 3]).fill(0, 0, 0), [1, 2, 3]);
 

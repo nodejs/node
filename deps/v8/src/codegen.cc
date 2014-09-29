@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "compiler.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "prettyprinter.h"
-#include "rewriter.h"
-#include "runtime.h"
-#include "stub-cache.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/prettyprinter.h"
+#include "src/rewriter.h"
+#include "src/runtime.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -150,7 +150,8 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
                                   false, is_crankshafted,
-                                  info->prologue_offset());
+                                  info->prologue_offset(),
+                                  info->is_debug() && !is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
@@ -174,10 +175,11 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
         code->kind() == Code::FUNCTION;
 
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
     if (print_source) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-        PrintF(tracing_scope.file(), "--- Raw source ---\n");
+        os << "--- Raw source ---\n";
         ConsStringIteratorOp op;
         StringCharacterStream stream(String::cast(script->source()),
                                      &op,
@@ -188,37 +190,33 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
             function->end_position() - function->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
-            PrintF(tracing_scope.file(), "%c", stream.GetNext());
+            os << AsUC16(stream.GetNext());
           }
         }
-        PrintF(tracing_scope.file(), "\n\n");
+        os << "\n\n";
       }
     }
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code) {
-        PrintF(tracing_scope.file(), "--- Unoptimized code ---\n");
+        os << "--- Unoptimized code ---\n";
         info->closure()->shared()->code()->Disassemble(
-            function->debug_name()->ToCString().get(), tracing_scope.file());
+            function->debug_name()->ToCString().get(), os);
       }
-      PrintF(tracing_scope.file(), "--- Optimized code ---\n");
-      PrintF(tracing_scope.file(),
-             "optimization_id = %d\n", info->optimization_id());
+      os << "--- Optimized code ---\n"
+         << "optimization_id = " << info->optimization_id() << "\n";
     } else {
-      PrintF(tracing_scope.file(), "--- Code ---\n");
+      os << "--- Code ---\n";
     }
     if (print_source) {
-      PrintF(tracing_scope.file(),
-             "source_position = %d\n", function->start_position());
+      os << "source_position = " << function->start_position() << "\n";
     }
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
-      code->Disassemble(CodeStub::MajorName(major_key, false),
-                        tracing_scope.file());
+      code->Disassemble(CodeStub::MajorName(major_key, false), os);
     } else {
-      code->Disassemble(function->debug_name()->ToCString().get(),
-                        tracing_scope.file());
+      code->Disassemble(function->debug_name()->ToCString().get(), os);
     }
-    PrintF(tracing_scope.file(), "--- End code ---\n");
+    os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER
 }
@@ -256,9 +254,9 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
-int CEntryStub::MinorKey() {
+int CEntryStub::MinorKey() const {
   int result = (save_doubles_ == kSaveFPRegs) ? 1 : 0;
-  ASSERT(result_size_ == 1 || result_size_ == 2);
+  DCHECK(result_size_ == 1 || result_size_ == 2);
 #ifdef _WIN64
   return result | ((result_size_ == 1) ? 0 : 2);
 #else

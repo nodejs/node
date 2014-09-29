@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -172,9 +172,12 @@ TEST(TrailingJunk) {
 
 TEST(NonStrDecimalLiteral) {
   UnicodeCache uc;
-  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
-  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS, OS::nan_value())));
-  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS, OS::nan_value())));
+  CHECK(std::isnan(
+      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
+  CHECK(
+      std::isnan(StringToDouble(&uc, "", NO_FLAGS, v8::base::OS::nan_value())));
+  CHECK(std::isnan(
+      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
   CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }

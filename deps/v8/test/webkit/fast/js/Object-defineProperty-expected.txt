@@ -142,8 +142,8 @@ PASS 'use strict'; var o = {}; o.readOnly = false; o.readOnly threw exception Ty
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false}), 'foo').writable is false
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false, writable: false}), 'foo').writable is false
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false, writable: true}), 'foo').writable is true
-FAIL var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; should be false. Was true.
-FAIL 'use strict'; var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; should throw an exception. Was true.
+PASS var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; is false
+PASS 'use strict'; var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; threw exception TypeError: Cannot assign to read only property 'length' of [object Array].
 PASS var a = Object.defineProperty([42], '0', {writable: false}); a[0] = false; a[0]; is 42
 PASS 'use strict'; var a = Object.defineProperty([42], '0', {writable: false}); a[0] = false; a[0]; threw exception TypeError: Cannot assign to read only property '0' of [object Array].
 PASS var a = Object.defineProperty([], '0', {set: undefined}); a[0] = 42; a[0]; is undefined.

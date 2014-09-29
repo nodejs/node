@@ -52,15 +52,10 @@ DEPS_RE = re.compile(r'^\s*(?:"v8_revision": "'
                       '|"http\:\/\/v8\.googlecode\.com\/svn\/trunk@)'
                       '([0-9]+)".*$', re.M)
 
-
-def SortingKey(version):
-  """Key for sorting version number strings: '3.11' > '3.2.1.1'"""
-  version_keys = map(int, version.split("."))
-  # Fill up to full version numbers to normalize comparison.
-  while len(version_keys) < 4:
-    version_keys.append(0)
-  # Fill digits.
-  return ".".join(map("{0:03d}".format, version_keys))
+# Expression to pick tag and revision for bleeding edge tags. To be used with
+# output of 'svn log'.
+BLEEDING_EDGE_TAGS_RE = re.compile(
+    r"A \/tags\/([^\s]+) \(from \/branches\/bleeding_edge\:(\d+)\)")
 
 
 def SortBranches(branches):
@@ -150,24 +145,14 @@ class RetrieveV8Releases(Step):
         patches = "-%s" % patches
     return patches
 
-  def GetRelease(self, git_hash, branch):
-    self.ReadAndPersistVersion()
-    base_version = [self["major"], self["minor"], self["build"]]
-    version = ".".join(base_version)
-    body = self.GitLog(n=1, format="%B", git_hash=git_hash)
-
-    patches = ""
-    if self["patch"] != "0":
-      version += ".%s" % self["patch"]
-      patches = self.GetMergedPatches(body)
-
-    title = self.GitLog(n=1, format="%s", git_hash=git_hash)
+  def GetReleaseDict(
+      self, git_hash, bleeding_edge_rev, branch, version, patches, cl_body):
     revision = self.GitSVNFindSVNRev(git_hash)
     return {
       # The SVN revision on the branch.
       "revision": revision,
       # The SVN revision on bleeding edge (only for newer trunk pushes).
-      "bleeding_edge": self.GetBleedingEdgeFromPush(title),
+      "bleeding_edge": bleeding_edge_rev,
       # The branch name.
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.
@@ -182,14 +167,45 @@ class RetrieveV8Releases(Step):
       "chromium_branch": "",
       # Link to the CL on code review. Trunk pushes are not uploaded, so this
       # field will be populated below with the recent roll CL link.
-      "review_link": MatchSafe(REVIEW_LINK_RE.search(body)),
+      "review_link": MatchSafe(REVIEW_LINK_RE.search(cl_body)),
       # Link to the commit message on google code.
       "revision_link": ("https://code.google.com/p/v8/source/detail?r=%s"
                         % revision),
-    }, self["patch"]
+    }
+
+  def GetRelease(self, git_hash, branch):
+    self.ReadAndPersistVersion()
+    base_version = [self["major"], self["minor"], self["build"]]
+    version = ".".join(base_version)
+    body = self.GitLog(n=1, format="%B", git_hash=git_hash)
+
+    patches = ""
+    if self["patch"] != "0":
+      version += ".%s" % self["patch"]
+      patches = self.GetMergedPatches(body)
+
+    title = self.GitLog(n=1, format="%s", git_hash=git_hash)
+    return self.GetReleaseDict(
+        git_hash, self.GetBleedingEdgeFromPush(title), branch, version,
+        patches, body), self["patch"]
+
+  def GetReleasesFromBleedingEdge(self):
+    tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v --limit 20")
+    releases = []
+    for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
+      git_hash = self.GitSVNFindGitHash(revision)
+
+      # Add bleeding edge release. It does not contain patches or a code
+      # review link, as tags are not uploaded.
+      releases.append(self.GetReleaseDict(
+        git_hash, revision, "bleeding_edge", tag, "", ""))
+    return releases
 
   def GetReleasesFromBranch(self, branch):
     self.GitReset("svn/%s" % branch)
+    if branch == 'bleeding_edge':
+      return self.GetReleasesFromBleedingEdge()
+
     releases = []
     try:
       for git_hash in self.GitLog(format="%H").splitlines():
@@ -235,14 +251,16 @@ class RetrieveV8Releases(Step):
       releases += self.GetReleasesFromBranch(stable)
       releases += self.GetReleasesFromBranch(beta)
       releases += self.GetReleasesFromBranch("trunk")
+      releases += self.GetReleasesFromBranch("bleeding_edge")
     elif self._options.branch == 'all':  # pragma: no cover
       # Retrieve the full release history.
       for branch in branches:
         releases += self.GetReleasesFromBranch(branch)
       releases += self.GetReleasesFromBranch("trunk")
+      releases += self.GetReleasesFromBranch("bleeding_edge")
     else:  # pragma: no cover
       # Retrieve history for a specified branch.
-      assert self._options.branch in branches + ["trunk"]
+      assert self._options.branch in branches + ["trunk", "bleeding_edge"]
       releases += self.GetReleasesFromBranch(self._options.branch)
 
     self["releases"] = sorted(releases,

@@ -48,6 +48,116 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
+  # Issue 3389: deopt_every_n_garbage_collections is unsafe
+  'regress/regress-2653': [SKIP],
+
+  ##############################################################################
+  # TurboFan compiler failures.
+
+  # TODO(mstarzinger): An arguments object materialized in the prologue can't
+  # be accessed indirectly. Either we drop that requirement or wait for support
+  # from the deoptimizer to do that.
+  'arguments-indirect': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
+  'debug-references': [PASS, NO_VARIANTS],
+  'regress/regress-263': [PASS, NO_VARIANTS],
+
+  # Some tests are over-restrictive about object layout.
+  'array-constructor-feedback': [PASS, NO_VARIANTS],
+  'array-feedback': [PASS, NO_VARIANTS],
+
+  # Some tests are just too slow to run for now.
+  'big-object-literal': [PASS, NO_VARIANTS],
+  'bit-not': [PASS, NO_VARIANTS],
+  'json2': [PASS, NO_VARIANTS],
+  'packed-elements': [PASS, NO_VARIANTS],
+  'unbox-double-arrays': [PASS, NO_VARIANTS],
+  'whitespaces': [PASS, NO_VARIANTS],
+  'compiler/optimized-for-in': [PASS, NO_VARIANTS],
+  'compiler/osr-assert': [PASS, NO_VARIANTS],
+  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
+  'es7/object-observe': [PASS, NO_VARIANTS],
+  'regress/regress-2185-2': [PASS, NO_VARIANTS],
+  'regress/regress-284': [PASS, NO_VARIANTS],
+  'regress/string-set-char-deopt': [PASS, NO_VARIANTS],
+  'tools/profviz': [PASS, NO_VARIANTS],
+
+  # Support for breakpoints requires special relocation info for DebugBreak.
+  'debug-clearbreakpointgroup': [PASS, NO_VARIANTS],
+  'debug-step-2': [PASS, NO_VARIANTS],
+  'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
+  'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
+
+  # Support for %GetFrameDetails is missing and requires checkpoints.
+  'debug-backtrace-text': [PASS, NO_VARIANTS],
+  'debug-break-inline': [PASS, NO_VARIANTS],
+  'debug-evaluate-arguments': [PASS, NO_VARIANTS],
+  'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-const': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals': [PASS, NO_VARIANTS],
+  'debug-evaluate-with-context': [PASS, NO_VARIANTS],
+  'debug-evaluate-with': [PASS, NO_VARIANTS],
+  'debug-liveedit-double-call': [PASS, NO_VARIANTS],
+  'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
+  'debug-receiver': [PASS, NO_VARIANTS],
+  'debug-return-value': [PASS, NO_VARIANTS],
+  'debug-scopes': [PASS, NO_VARIANTS],
+  'debug-set-variable-value': [PASS, NO_VARIANTS],
+  'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
+  'debug-stepin-accessor': [PASS, NO_VARIANTS],
+  'debug-stepin-builtin': [PASS, NO_VARIANTS],
+  'debug-stepin-constructor': [PASS, NO_VARIANTS],
+  'debug-stepin-function-call': [PASS, NO_VARIANTS],
+  'debug-stepnext-do-while': [PASS, NO_VARIANTS],
+  'debug-stepout-recursive-function': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part7': [PASS, NO_VARIANTS],
+  'debug-stepout-to-builtin': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-in-constructor': [PASS, NO_VARIANTS],
+  'es6/debug-promises/reject-in-constructor': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-with-undefined-reject': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-with-throw-in-reject': [PASS, NO_VARIANTS],
+  'es6/debug-promises/reject-with-throw-in-reject': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-uncaught-all': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
+  'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
+  'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
+  'harmony/generators-debug-scopes': [PASS, NO_VARIANTS],
+  'regress/regress-1081309': [PASS, NO_VARIANTS],
+  'regress/regress-1170187': [PASS, NO_VARIANTS],
+  'regress/regress-119609': [PASS, NO_VARIANTS],
+  'regress/regress-131994': [PASS, NO_VARIANTS],
+  'regress/regress-269': [PASS, NO_VARIANTS],
+  'regress/regress-325676': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
+  'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
+
+  # Support for ES6 generators is missing.
+  'regress-3225': [PASS, NO_VARIANTS],
+  'harmony/generators-debug-liveedit': [PASS, NO_VARIANTS],
+  'harmony/generators-iteration': [PASS, NO_VARIANTS],
+  'harmony/generators-parsing': [PASS, NO_VARIANTS],
+  'harmony/generators-poisoned-properties': [PASS, NO_VARIANTS],
+  'harmony/generators-relocation': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-2681': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-2691': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-3280': [PASS, NO_VARIANTS],
+
+  # Support for ES6 for-of iteration is missing.
+  'es6/array-iterator': [PASS, NO_VARIANTS],
+  'es6/iteration-semantics': [PASS, NO_VARIANTS],
+  'es6/string-iterator': [PASS, NO_VARIANTS],
+  'es6/typed-array-iterator': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
@@ -67,14 +177,11 @@
   # No need to waste time for this test.
   'd8-performance-now': [PASS, NO_VARIANTS],
 
-  ##############################################################################
-  'big-object-literal': [PASS, ['arch == arm or arch == android_arm or arch == android_arm64', SKIP]],
-
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', TIMEOUT]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work
@@ -84,6 +191,8 @@
   ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
+  'migrations': [SKIP],
+  'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -94,7 +203,7 @@
   # get the same random seed and would generate the same directory name. Besides
   # that, it doesn't make sense to run several variants of d8-os anyways.
   'd8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
@@ -117,7 +226,7 @@
 
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
-  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32 or arch == arm and simulator == True', PASS]],
+  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
 
   # Skip endain dependent test for mips due to different typed views of the same
   # array buffer.
@@ -133,17 +242,65 @@
   'array-feedback': [SKIP],
   'array-literal-feedback': [SKIP],
   'd8-performance-now': [SKIP],
+  'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
   'elements-kind': [SKIP],
+  'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
+  'getters-on-elements': [SKIP],
+  'harmony/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
-  'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
+  # Tests taking too long
+  'debug-stepout-scope-part8': [SKIP],
+  'mirror-object': [SKIP],
+  'packed-elements': [SKIP],
+  'regress/regress-1122': [SKIP],
+  'regress/regress-331444': [SKIP],
+  'regress/regress-353551': [SKIP],
+  'regress/regress-crbug-119926': [SKIP],
+  'regress/short-circuit': [SKIP],
+  'stack-traces-overflow': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP],
+
+  # TODO(mstarzinger): Takes too long with TF.
+  'array-sort': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['no_i18n', {
+  # Don't call runtime functions that don't exist without i18n support.
+  'runtime-gen/availablelocalesof': [SKIP],
+  'runtime-gen/breakiteratoradopttext': [SKIP],
+  'runtime-gen/breakiteratorbreaktype': [SKIP],
+  'runtime-gen/breakiteratorbreaktype': [SKIP],
+  'runtime-gen/breakiteratorcurrent': [SKIP],
+  'runtime-gen/breakiteratorfirst': [SKIP],
+  'runtime-gen/breakiteratornext': [SKIP],
+  'runtime-gen/canonicalizelanguagetag': [SKIP],
+  'runtime-gen/createbreakiterator': [SKIP],
+  'runtime-gen/createcollator': [SKIP],
+  'runtime-gen/getdefaulticulocale': [SKIP],
+  'runtime-gen/getimplfrominitializedintlobject': [SKIP],
+  'runtime-gen/getlanguagetagvariants': [SKIP],
+  'runtime-gen/internalcompare': [SKIP],
+  'runtime-gen/internaldateformat': [SKIP],
+  'runtime-gen/internaldateparse': [SKIP],
+  'runtime-gen/internalnumberformat': [SKIP],
+  'runtime-gen/internalnumberparse': [SKIP],
+  'runtime-gen/isinitializedintlobject': [SKIP],
+  'runtime-gen/isinitializedintlobjectoftype': [SKIP],
+  'runtime-gen/markasinitializedintlobjectoftype': [SKIP],
+  'runtime-gen/stringnormalize': [SKIP],
+}],
+
+##############################################################################
 ['arch == arm64 or arch == android_arm64', {
+
+  # arm64 TF timeout.
+  'regress/regress-1257': [PASS, TIMEOUT],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -153,6 +310,7 @@
   # Pass but take too long to run. Skip.
   # Some similar tests (with fewer iterations) may be included in arm64-js
   # tests.
+  'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
   'compiler/regress-max-locals-for-osr': [SKIP],
@@ -174,14 +332,11 @@
   'regress/regress-2185-2': [PASS, TIMEOUT],
   'whitespaces': [PASS, TIMEOUT, SLOW],
 
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-
   # BUG(v8:3147). It works on other architectures by accident.
   'regress/regress-conditional-position': [FAIL],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [PASS, FAIL],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -193,7 +348,7 @@
   'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],
-  'compiler/osr-warm': [PASS, SLOW],
+  'compiler/osr-warm': [PASS, TIMEOUT, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
@@ -259,6 +414,7 @@
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
+  'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-634': [SKIP],
@@ -269,12 +425,6 @@
   # the test requires too much time to run.  However, the problem test covers
   # should be platform-independent.
   'regress/regress-1132': [SKIP],
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
@@ -321,15 +471,76 @@
   # should be platform-independent.
   'regress/regress-1132': [SKIP],
 
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
+  # Currently always deopt on minus zero
+  'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [SKIP],
+}],  # 'arch == mipsel or arch == mips'
+
+##############################################################################
+['arch == mips64el', {
+
+  # Slow tests which times out in debug mode.
+  'try': [PASS, ['mode == debug', SKIP]],
+  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
+  'array-constructor': [PASS, ['mode == debug', SKIP]],
+
+  # Times out often in release mode on MIPS.
+  'compiler/regress-stacktrace-methods': [PASS, PASS, ['mode == release', TIMEOUT]],
+  'array-splice': [PASS, TIMEOUT],
+
+  # Long running test.
+  'mirror-object': [PASS, TIMEOUT],
+  'string-indexof-2': [PASS, TIMEOUT],
+
+  # BUG(3251035): Timeouts in long looping crankshaft optimization
+  # tests. Skipping because having them timeout takes too long on the
+  # buildbot.
+  'compiler/alloc-number': [PASS, SLOW],
+  'compiler/array-length': [PASS, SLOW],
+  'compiler/assignment-deopt': [PASS, SLOW],
+  'compiler/deopt-args': [PASS, SLOW],
+  'compiler/inline-compare': [PASS, SLOW],
+  'compiler/inline-global-access': [PASS, SLOW],
+  'compiler/optimized-function-calls': [PASS, SLOW],
+  'compiler/pic': [PASS, SLOW],
+  'compiler/property-calls': [PASS, SLOW],
+  'compiler/recursive-deopt': [PASS, SLOW],
+  'compiler/regress-4': [PASS, SLOW],
+  'compiler/regress-funcaller': [PASS, SLOW],
+  'compiler/regress-rep-change': [PASS, SLOW],
+  'compiler/regress-arguments': [PASS, SLOW],
+  'compiler/regress-funarguments': [PASS, SLOW],
+  'compiler/regress-3249650': [PASS, SLOW],
+  'compiler/simple-deopt': [PASS, SLOW],
+  'regress/regress-490': [PASS, SLOW],
+  'regress/regress-634': [PASS, SLOW],
+  'regress/regress-create-exception': [PASS, SLOW],
+  'regress/regress-3218915': [PASS, SLOW],
+  'regress/regress-3247124': [PASS, SLOW],
+
+  # Requires bigger stack size in the Genesis and if stack size is increased,
+  # the test requires too much time to run.  However, the problem test covers
+  # should be platform-independent.
+  'regress/regress-1132': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
-}],  # 'arch == mipsel or arch == mips'
+
+  # BUG(v8:3457).
+  'deserialize-reference': [SKIP],
+}],  # 'arch == mips64el'
+
+['arch == mips64el and simulator_run == False', {
+  # Random failures on HW, need investigation.
+  'debug-*': [SKIP],
+}],
+##############################################################################
+['system == windows', {
+  # BUG(v8:3435)
+  'debug-script-breakpoints': [PASS, FAIL],
+}],  # 'system == windows'
 
 ##############################################################################
 # Native Client uses the ARM simulator so will behave similarly to arm
@@ -346,6 +557,7 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
+  'harmony/generators-debug-liveedit': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786

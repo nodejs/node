@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
 
-#include "profile-generator-inl.h"
+#include "src/profile-generator-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -35,11 +35,11 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden);
+    DCHECK(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
-    ASSERT(type_ == kContextVariable
+    DCHECK(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
         || type_ == kShortcut
@@ -83,7 +83,8 @@ class HeapEntry BASE_EMBEDDED {
     kNative = v8::HeapGraphNode::kNative,
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
-    kSlicedString = v8::HeapGraphNode::kSlicedString
+    kSlicedString = v8::HeapGraphNode::kSlicedString,
+    kSymbol = v8::HeapGraphNode::kSymbol
   };
   static const int kNoEntry;
 
@@ -368,6 +369,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
+  void ExtractSymbolReferences(int entry, Symbol* symbol);
+  void ExtractJSCollectionReferences(int entry, JSCollection* collection);
+  void ExtractJSWeakCollectionReferences(int entry,
+                                         JSWeakCollection* collection);
   void ExtractContextReferences(int entry, Context* context);
   void ExtractMapReferences(int entry, Map* map);
   void ExtractSharedFunctionInfoReferences(int entry,

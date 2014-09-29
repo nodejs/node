@@ -27,18 +27,18 @@
 
 #include <limits.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "isolate.h"
-#include "compilation-cache.h"
-#include "execution.h"
-#include "snapshot.h"
-#include "platform.h"
-#include "utils.h"
-#include "cctest.h"
-#include "parser.h"
-#include "unicode-inl.h"
+#include "src/api.h"
+#include "src/base/platform/platform.h"
+#include "src/compilation-cache.h"
+#include "src/execution.h"
+#include "src/isolate.h"
+#include "src/parser.h"
+#include "src/snapshot.h"
+#include "src/unicode-inl.h"
+#include "src/utils.h"
+#include "test/cctest/cctest.h"
 
 using ::v8::Context;
 using ::v8::Extension;

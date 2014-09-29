@@ -25,12 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "platform.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
+
+#include "src/base/platform/platform.h"
 
 
-v8::internal::Semaphore* semaphore = NULL;
+v8::base::Semaphore* semaphore = NULL;
 
 
 void Signal(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -158,11 +159,11 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 }
 
 
-class TerminatorThread : public v8::internal::Thread {
+class TerminatorThread : public v8::base::Thread {
  public:
   explicit TerminatorThread(i::Isolate* isolate)
-      : Thread("TerminatorThread"),
-        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) { }
+      : Thread(Options("TerminatorThread")),
+        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) {}
   void Run() {
     semaphore->Wait();
     CHECK(!v8::V8::IsExecutionTerminating(isolate_));
@@ -177,7 +178,7 @@ class TerminatorThread : public v8::internal::Thread {
 // Test that a single thread of JavaScript execution can be terminated
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
-  semaphore = new v8::internal::Semaphore(0);
+  semaphore = new v8::base::Semaphore(0);
   TerminatorThread thread(CcTest::i_isolate());
   thread.Start();
 
@@ -357,4 +358,104 @@ TEST(TerminateCancelTerminateFromThreadItself) {
       isolate, "try { doloop(); } catch(e) { fail(); } 'completed';");
   // Check that execution completed with correct return value.
   CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
+}
+
+
+void MicrotaskShouldNotRun(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(false);
+}
+
+
+void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::HandleScope scope(isolate);
+  // Enqueue another should-not-run task to ensure we clean out the queue
+  // when we terminate.
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
+  CompileRun("terminate(); while (true) { }");
+  CHECK(v8::V8::IsExecutionTerminating());
+}
+
+
+TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
+  semaphore = new v8::base::Semaphore(0);
+  TerminatorThread thread(CcTest::i_isolate());
+  thread.Start();
+
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->SetAutorunMicrotasks(false);
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(CcTest::isolate(), Signal, DoLoop);
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global);
+  v8::Context::Scope context_scope(context);
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskLoopForever));
+  // The second task should never be run because we bail out if we're
+  // terminating.
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
+  isolate->RunMicrotasks();
+
+  v8::V8::CancelTerminateExecution(isolate);
+  isolate->RunMicrotasks();  // should not run MicrotaskShouldNotRun
+
+  thread.Join();
+  delete semaphore;
+  semaphore = NULL;
+}
+
+
+static int callback_counter = 0;
+
+
+static void CounterCallback(v8::Isolate* isolate, void* data) {
+  callback_counter++;
+}
+
+
+TEST(PostponeTerminateException) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(CcTest::isolate(), TerminateCurrentThread, DoLoop);
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global);
+  v8::Context::Scope context_scope(context);
+
+  v8::TryCatch try_catch;
+  static const char* terminate_and_loop =
+      "terminate(); for (var i = 0; i < 10000; i++);";
+
+  { // Postpone terminate execution interrupts.
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION) ;
+
+    // API interrupts should still be triggered.
+    CcTest::isolate()->RequestInterrupt(&CounterCallback, NULL);
+    CHECK_EQ(0, callback_counter);
+    CompileRun(terminate_and_loop);
+    CHECK(!try_catch.HasTerminated());
+    CHECK_EQ(1, callback_counter);
+
+    { // Postpone API interrupts as well.
+      i::PostponeInterruptsScope p2(CcTest::i_isolate(),
+                                    i::StackGuard::API_INTERRUPT);
+
+      // None of the two interrupts should trigger.
+      CcTest::isolate()->RequestInterrupt(&CounterCallback, NULL);
+      CompileRun(terminate_and_loop);
+      CHECK(!try_catch.HasTerminated());
+      CHECK_EQ(1, callback_counter);
+    }
+
+    // Now the previously requested API interrupt should trigger.
+    CompileRun(terminate_and_loop);
+    CHECK(!try_catch.HasTerminated());
+    CHECK_EQ(2, callback_counter);
+  }
+
+  // Now the previously requested terminate execution interrupt should trigger.
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(2, callback_counter);
 }

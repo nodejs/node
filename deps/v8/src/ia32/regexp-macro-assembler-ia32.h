@@ -5,9 +5,9 @@
 #ifndef V8_IA32_REGEXP_MACRO_ASSEMBLER_IA32_H_
 #define V8_IA32_REGEXP_MACRO_ASSEMBLER_IA32_H_
 
-#include "ia32/assembler-ia32.h"
-#include "ia32/assembler-ia32-inl.h"
-#include "macro-assembler.h"
+#include "src/ia32/assembler-ia32.h"
+#include "src/ia32/assembler-ia32-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

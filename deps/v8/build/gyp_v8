@@ -34,6 +34,7 @@ import glob
 import os
 import platform
 import shlex
+import subprocess
 import sys
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -107,6 +108,14 @@ def additional_include_files(args=[]):
 
 def run_gyp(args):
   rc = gyp.main(args)
+
+  # Check for landmines (reasons to clobber the build). This must be run here,
+  # rather than a separate runhooks step so that any environment modifications
+  # from above are picked up.
+  print 'Running build/landmines.py...'
+  subprocess.check_call(
+      [sys.executable, os.path.join(script_dir, 'landmines.py')])
+
   if rc != 0:
     print 'Error running GYP'
     sys.exit(rc)

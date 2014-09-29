@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 
-#include "cctest.h"
-#include "platform.h"
+#include "src/base/platform/platform.h"
+#include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 
@@ -94,7 +94,7 @@ TEST(StackAlignment) {
       v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
 
   v8::Local<v8::Value> result = foo->Call(global_object, 0, NULL);
-  CHECK_EQ(0, result->Int32Value() % OS::ActivationFrameAlignment());
+  CHECK_EQ(0, result->Int32Value() % v8::base::OS::ActivationFrameAlignment());
 }
 
 #undef GET_STACK_POINTERS

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-redundant-phi.h"
+#include "src/hydrogen-redundant-phi.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ void HRedundantPhiEliminationPhase::Run() {
   // Make sure that we *really* removed all redundant phis.
   for (int i = 0; i < blocks->length(); ++i) {
     for (int j = 0; j < blocks->at(i)->phis()->length(); j++) {
-      ASSERT(blocks->at(i)->phis()->at(j)->GetRedundantReplacement() == NULL);
+      DCHECK(blocks->at(i)->phis()->at(j)->GetRedundantReplacement() == NULL);
     }
   }
 #endif

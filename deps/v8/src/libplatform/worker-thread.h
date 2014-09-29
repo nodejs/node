@@ -7,16 +7,16 @@
 
 #include <queue>
 
-#include "../base/macros.h"
-#include "../platform.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 
-namespace internal {
+namespace platform {
 
 class TaskQueue;
 
-class WorkerThread : public Thread {
+class WorkerThread : public base::Thread {
  public:
   explicit WorkerThread(TaskQueue* queue);
   virtual ~WorkerThread();
@@ -32,7 +32,7 @@ class WorkerThread : public Thread {
   DISALLOW_COPY_AND_ASSIGN(WorkerThread);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_WORKER_THREAD_H_

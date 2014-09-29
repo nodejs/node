@@ -5,8 +5,8 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
-#include "ast.h"
-#include "ic-inl.h"
+#include "src/ast.h"
+#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -96,7 +96,7 @@ class StackArgumentsAccessor BASE_EMBEDDED {
 
   Operand GetArgumentOperand(int index);
   Operand GetReceiverOperand() {
-    ASSERT(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
+    DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
     return GetArgumentOperand(0);
   }
 

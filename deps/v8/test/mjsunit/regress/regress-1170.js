@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --es52_globals
-
 var setter_value = 0;
 
 this.__defineSetter__("a", function(v) { setter_value = v; });
@@ -35,8 +33,9 @@ assertEquals(1, setter_value);
 assertFalse("value" in Object.getOwnPropertyDescriptor(this, "a"));
 
 eval("with({}) { eval('var a = 2') }");
-assertEquals(2, setter_value);
+assertTrue("get" in Object.getOwnPropertyDescriptor(this, "a"));
 assertFalse("value" in Object.getOwnPropertyDescriptor(this, "a"));
+assertEquals(2, setter_value);
 
 // Function declarations are treated specially to match Safari. We do
 // not call setters for them.
@@ -47,10 +46,8 @@ assertTrue("value" in Object.getOwnPropertyDescriptor(this, "a"));
 this.__defineSetter__("b", function(v) { setter_value = v; });
 try {
   eval("const b = 3");
-} catch(e) {
-  assertUnreachable();
-}
-assertEquals(3, setter_value);
+} catch(e) { }
+assertEquals(2, setter_value);
 
 try {
   eval("with({}) { eval('const b = 23') }");

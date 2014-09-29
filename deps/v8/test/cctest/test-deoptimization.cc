@@ -27,23 +27,23 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "compilation-cache.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "isolate.h"
-#include "platform.h"
-#include "stub-cache.h"
+#include "src/api.h"
+#include "src/base/platform/platform.h"
+#include "src/compilation-cache.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/isolate.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
+using ::v8::base::OS;
 using ::v8::internal::Deoptimizer;
 using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Handle;
 using ::v8::internal::Isolate;
 using ::v8::internal::JSFunction;
-using ::v8::internal::OS;
 using ::v8::internal::Object;
 
 // Size of temp buffer for formatting small strings.
@@ -113,6 +113,8 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
 
 
 TEST(DeoptimizeSimple) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -151,6 +153,8 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -190,6 +194,8 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -215,6 +221,7 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
+  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -242,6 +249,7 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
+  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -270,6 +278,7 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
+  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -308,6 +317,7 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
+  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -337,6 +347,7 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 TEST(DeoptimizeBinaryOperationADDString) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
   LocalContext env;
@@ -397,9 +408,9 @@ static void CompileConstructorWithDeoptimizingValueOf() {
 static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                                          const char* binary_op) {
   EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
-  OS::SNPrintF(f_source_buffer,
-               "function f(x, y) { return x %s y; };",
-               binary_op);
+  SNPrintF(f_source_buffer,
+           "function f(x, y) { return x %s y; };",
+           binary_op);
   char* f_source = f_source_buffer.start();
 
   AllowNativesSyntaxNoInlining options;
@@ -428,6 +439,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 TEST(DeoptimizeBinaryOperationADD) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -441,6 +453,7 @@ TEST(DeoptimizeBinaryOperationADD) {
 
 
 TEST(DeoptimizeBinaryOperationSUB) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -454,6 +467,7 @@ TEST(DeoptimizeBinaryOperationSUB) {
 
 
 TEST(DeoptimizeBinaryOperationMUL) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -467,6 +481,7 @@ TEST(DeoptimizeBinaryOperationMUL) {
 
 
 TEST(DeoptimizeBinaryOperationDIV) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -480,6 +495,7 @@ TEST(DeoptimizeBinaryOperationDIV) {
 
 
 TEST(DeoptimizeBinaryOperationMOD) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -493,6 +509,7 @@ TEST(DeoptimizeBinaryOperationMOD) {
 
 
 TEST(DeoptimizeCompare) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -537,6 +554,7 @@ TEST(DeoptimizeCompare) {
 
 
 TEST(DeoptimizeLoadICStoreIC) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -617,6 +635,7 @@ TEST(DeoptimizeLoadICStoreIC) {
 
 
 TEST(DeoptimizeLoadICStoreICNested) {
+  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

@@ -5,7 +5,7 @@
 #ifndef V8_DATEPARSER_INL_H_
 #define V8_DATEPARSER_INL_H_
 
-#include "dateparser.h"
+#include "src/dateparser.h"
 
 namespace v8 {
 namespace internal {
@@ -14,7 +14,7 @@ template <typename Char>
 bool DateParser::Parse(Vector<Char> str,
                        FixedArray* out,
                        UnicodeCache* unicode_cache) {
-  ASSERT(out->length() >= OUTPUT_SIZE);
+  DCHECK(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(unicode_cache, str);
   DateStringTokenizer<Char> scanner(&in);
   TimeZoneComposer tz;
@@ -175,7 +175,7 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
   if (in_->Skip('.')) return DateToken::Symbol('.');
   if (in_->Skip(')')) return DateToken::Symbol(')');
   if (in_->IsAsciiAlphaOrAbove()) {
-    ASSERT(KeywordTable::kPrefixLength == 3);
+    DCHECK(KeywordTable::kPrefixLength == 3);
     uint32_t buffer[3] = {0, 0, 0};
     int length = in_->ReadWord(buffer, 3);
     int index = KeywordTable::Lookup(buffer, length);
@@ -200,9 +200,9 @@ DateParser::DateToken DateParser::ParseES5DateTime(
     DayComposer* day,
     TimeComposer* time,
     TimeZoneComposer* tz) {
-  ASSERT(day->IsEmpty());
-  ASSERT(time->IsEmpty());
-  ASSERT(tz->IsEmpty());
+  DCHECK(day->IsEmpty());
+  DCHECK(time->IsEmpty());
+  DCHECK(tz->IsEmpty());
 
   // Parse mandatory date string: [('-'|'+')yy]yyyy[':'MM[':'DD]]
   if (scanner->Peek().IsAsciiSign()) {

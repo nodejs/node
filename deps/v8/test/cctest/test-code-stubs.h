@@ -28,7 +28,7 @@
 #ifndef V8_TEST_CODE_STUBS_H_
 #define V8_TEST_CODE_STUBS_H_
 
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 #if __GNUC__
 #define STDCALL  __attribute__((stdcall))
 #else

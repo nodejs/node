@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "elements-kind.h"
+#include "src/elements-kind.h"
 
-#include "api.h"
-#include "elements.h"
-#include "objects.h"
+#include "src/api.h"
+#include "src/base/lazy-instance.h"
+#include "src/elements.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -51,23 +52,16 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
+int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  return IsExternalArrayElementsKind(elements_kind)
+      ? 0 : (FixedArray::kHeaderSize - kHeapObjectTag);
+}
+
+
 const char* ElementsKindToString(ElementsKind kind) {
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   return accessor->name();
-}
-
-
-void PrintElementsKind(FILE* out, ElementsKind kind) {
-  PrintF(out, "%s", ElementsKindToString(kind));
-}
-
-
-ElementsKind GetInitialFastElementsKind() {
-  if (FLAG_packed_arrays) {
-    return FAST_SMI_ELEMENTS;
-  } else {
-    return FAST_HOLEY_SMI_ELEMENTS;
-  }
 }
 
 
@@ -96,13 +90,13 @@ struct InitializeFastElementsKindSequence {
 };
 
 
-static LazyInstance<ElementsKind*,
-                    InitializeFastElementsKindSequence>::type
+static base::LazyInstance<ElementsKind*,
+                          InitializeFastElementsKindSequence>::type
     fast_elements_kind_sequence = LAZY_INSTANCE_INITIALIZER;
 
 
 ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number) {
-  ASSERT(sequence_number >= 0 &&
+  DCHECK(sequence_number >= 0 &&
          sequence_number < kFastElementsKindCount);
   return fast_elements_kind_sequence.Get()[sequence_number];
 }
@@ -136,8 +130,8 @@ ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
 
 ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
                                                 bool allow_only_packed) {
-  ASSERT(IsFastElementsKind(elements_kind));
-  ASSERT(elements_kind != TERMINAL_FAST_ELEMENTS_KIND);
+  DCHECK(IsFastElementsKind(elements_kind));
+  DCHECK(elements_kind != TERMINAL_FAST_ELEMENTS_KIND);
   while (true) {
     elements_kind = GetNextTransitionElementsKind(elements_kind);
     if (!IsFastHoleyElementsKind(elements_kind) || !allow_only_packed) {

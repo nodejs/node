@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "codegen.h"
-#include "macro-assembler.h"
-#include "simulator-arm64.h"
+#include "src/arm64/simulator-arm64.h"
+#include "src/codegen.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -35,7 +35,8 @@ UnaryMathFunction CreateExpFunction() {
   // an AAPCS64-compliant exp() function. This will be faster than the C
   // library's exp() function, but probably less accurate.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::exp;
 
   ExternalReference::InitializeMathExpData();
@@ -61,10 +62,10 @@ UnaryMathFunction CreateExpFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  CpuFeatures::FlushICache(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
@@ -85,14 +86,14 @@ UnaryMathFunction CreateSqrtFunction() {
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
+  DCHECK(!masm->has_frame());
   masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
+  DCHECK(masm->has_frame());
   masm->set_has_frame(false);
 }
 
@@ -101,26 +102,28 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 // Code generators
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm, AllocationSiteMode mode,
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
     Label* allocation_memento_found) {
-  // ----------- S t a t e -------------
-  //  -- x2    : receiver
-  //  -- x3    : target map
-  // -----------------------------------
-  Register receiver = x2;
-  Register map = x3;
+  ASM_LOCATION(
+      "ElementsTransitionGenerator::GenerateMapChangeElementsTransition");
+  DCHECK(!AreAliased(receiver, key, value, target_map));
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_memento_found != NULL);
+    DCHECK(allocation_memento_found != NULL);
     __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11,
                                          allocation_memento_found);
   }
 
   // Set transitioned map.
-  __ Str(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      map,
+                      target_map,
                       x10,
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
@@ -130,19 +133,25 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
   ASM_LOCATION("ElementsTransitionGenerator::GenerateSmiToDouble");
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- x0    : value
-  //  -- x1    : key
-  //  -- x2    : receiver
-  //  -- x3    : target map, scratch for subsequent call
-  // -----------------------------------
-  Register receiver = x2;
-  Register target_map = x3;
-
   Label gc_required, only_change_map;
+  Register elements = x4;
+  Register length = x5;
+  Register array_size = x6;
+  Register array = x7;
+
+  Register scratch = x6;
+
+  // Verify input registers don't conflict with locals.
+  DCHECK(!AreAliased(receiver, key, value, target_map,
+                     elements, length, array_size, array));
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
@@ -150,32 +159,28 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  Register elements = x4;
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ JumpIfRoot(elements, Heap::kEmptyFixedArrayRootIndex, &only_change_map);
 
   __ Push(lr);
-  Register length = x5;
   __ Ldrsw(length, UntagSmiFieldMemOperand(elements,
                                            FixedArray::kLengthOffset));
 
   // Allocate new FixedDoubleArray.
-  Register array_size = x6;
-  Register array = x7;
   __ Lsl(array_size, length, kDoubleSizeLog2);
   __ Add(array_size, array_size, FixedDoubleArray::kHeaderSize);
   __ Allocate(array_size, array, x10, x11, &gc_required, DOUBLE_ALIGNMENT);
   // Register array is non-tagged heap object.
 
   // Set the destination FixedDoubleArray's length and map.
-  Register map_root = x6;
+  Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedDoubleArrayMapRootIndex);
   __ SmiTag(x11, length);
   __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
   __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
 
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
                       kLRHasBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
@@ -183,7 +188,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Add(x10, array, kHeapObjectTag);
   __ Str(x10, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver, JSObject::kElementsOffset, x10,
-                      x6, kLRHasBeenSaved, kDontSaveFPRegs,
+                      scratch, kLRHasBeenSaved, kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
@@ -202,7 +207,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ Bind(&only_change_map);
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ B(&done);
@@ -234,20 +239,22 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
   ASM_LOCATION("ElementsTransitionGenerator::GenerateDoubleToObject");
-  // ----------- S t a t e -------------
-  //  -- x0    : value
-  //  -- x1    : key
-  //  -- x2    : receiver
-  //  -- lr    : return address
-  //  -- x3    : target map, scratch for subsequent call
-  //  -- x4    : scratch (elements)
-  // -----------------------------------
-  Register value = x0;
-  Register key = x1;
-  Register receiver = x2;
-  Register target_map = x3;
+  Register elements = x4;
+  Register array_size = x6;
+  Register array = x7;
+  Register length = x5;
+
+  // Verify input registers don't conflict with locals.
+  DCHECK(!AreAliased(receiver, key, value, target_map,
+                     elements, array_size, array, length));
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
@@ -256,7 +263,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
   Label only_change_map;
-  Register elements = x4;
+
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ JumpIfRoot(elements, Heap::kEmptyFixedArrayRootIndex, &only_change_map);
 
@@ -264,20 +271,16 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // TODO(all): These registers may not need to be pushed. Examine
   // RecordWriteStub and check whether it's needed.
   __ Push(target_map, receiver, key, value);
-  Register length = x5;
   __ Ldrsw(length, UntagSmiFieldMemOperand(elements,
                                            FixedArray::kLengthOffset));
-
   // Allocate new FixedArray.
-  Register array_size = x6;
-  Register array = x7;
   Label gc_required;
   __ Mov(array_size, FixedDoubleArray::kHeaderSize);
   __ Add(array_size, array_size, Operand(length, LSL, kPointerSizeLog2));
   __ Allocate(array_size, array, x10, x11, &gc_required, NO_ALLOCATION_FLAGS);
 
   // Set destination FixedDoubleArray's length and map.
-  Register map_root = x6;
+  Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedArrayMapRootIndex);
   __ SmiTag(x11, length);
   __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
@@ -315,8 +318,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     __ B(eq, &convert_hole);
 
     // Non-hole double, copy value into a heap number.
-    Register heap_num = x5;
-    __ AllocateHeapNumber(heap_num, &gc_required, x6, x4,
+    Register heap_num = length;
+    Register scratch = array_size;
+    Register scratch2 = elements;
+    __ AllocateHeapNumber(heap_num, &gc_required, scratch, scratch2,
                           x13, heap_num_map);
     __ Mov(x13, dst_elements);
     __ Str(heap_num, MemOperand(dst_elements, kPointerSize, PostIndex));
@@ -351,7 +356,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
 
 CodeAgingHelper::CodeAgingHelper() {
-  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in
   // FUNCTION and OPTIMIZED_FUNCTION code:
@@ -363,7 +368,7 @@ CodeAgingHelper::CodeAgingHelper() {
 
 #ifdef DEBUG
   const int length = kCodeAgeStubEntryOffset / kInstructionSize;
-  ASSERT(old_sequence_.length() >= kCodeAgeStubEntryOffset);
+  DCHECK(old_sequence_.length() >= kCodeAgeStubEntryOffset);
   PatchingAssembler patcher_old(old_sequence_.start(), length);
   MacroAssembler::EmitCodeAgeSequence(&patcher_old, NULL);
 #endif
@@ -415,7 +420,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
-  ASSERT(string.Is64Bits() && index.Is32Bits() && result.Is64Bits());
+  DCHECK(string.Is64Bits() && index.Is32Bits() && result.Is64Bits());
   // Fetch the instance type of the receiver into result register.
   __ Ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ Ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -473,7 +478,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     __ Assert(eq, kExternalStringExpectedButNotFound);
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   // TestAndBranchIfAnySet can emit Tbnz. Do not use it because call_runtime
   // can be bound far away in deferred code.
   __ Tst(result, kShortExternalStringMask);
@@ -511,10 +516,11 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // instead of fmul and fsub. Doing this changes the result, but since this is
   // an estimation anyway, does it matter?
 
-  ASSERT(!AreAliased(input, result,
+  DCHECK(!AreAliased(input, result,
                      double_temp1, double_temp2,
                      temp1, temp2, temp3));
-  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
 
   Label done;
   DoubleRegister double_temp3 = result;
@@ -534,7 +540,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   Label result_is_finite_non_zero;
   // Assert that we can load offset 0 (the small input threshold) and offset 1
   // (the large input threshold) with a single ldp.
-  ASSERT(kDRegSize == (ExpConstant(constants, 1).offset() -
+  DCHECK(kDRegSize == (ExpConstant(constants, 1).offset() -
                               ExpConstant(constants, 0).offset()));
   __ Ldp(double_temp1, double_temp2, ExpConstant(constants, 0));
 
@@ -564,7 +570,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Bind(&result_is_finite_non_zero);
 
   // Assert that we can load offset 3 and offset 4 with a single ldp.
-  ASSERT(kDRegSize == (ExpConstant(constants, 4).offset() -
+  DCHECK(kDRegSize == (ExpConstant(constants, 4).offset() -
                               ExpConstant(constants, 3).offset()));
   __ Ldp(double_temp1, double_temp3, ExpConstant(constants, 3));
   __ Fmadd(double_temp1, double_temp1, input, double_temp3);
@@ -572,7 +578,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Fsub(double_temp1, double_temp1, double_temp3);
 
   // Assert that we can load offset 5 and offset 6 with a single ldp.
-  ASSERT(kDRegSize == (ExpConstant(constants, 6).offset() -
+  DCHECK(kDRegSize == (ExpConstant(constants, 6).offset() -
                               ExpConstant(constants, 5).offset()));
   __ Ldp(double_temp2, double_temp3, ExpConstant(constants, 5));
   // TODO(jbramley): Consider using Fnmsub here.

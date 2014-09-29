@@ -10,7 +10,7 @@
 #ifndef V8_MESSAGES_H_
 #define V8_MESSAGES_H_
 
-#include "handles-inl.h"
+#include "src/handles-inl.h"
 
 // Forward declaration of MessageLocation.
 namespace v8 {

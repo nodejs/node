@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "macro-assembler.h"
-#include "factory.h"
-#include "platform.h"
-#include "serialize.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
 
 using namespace v8::internal;
 
@@ -54,9 +54,8 @@ TEST(LoadAndStoreWithRepresentation) {
 
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
@@ -123,20 +122,17 @@ TEST(LoadAndStoreWithRepresentation) {
   __ j(not_equal, &exit);
 
   // Test 5.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm, SSE2);
-    __ mov(eax, Immediate(5));  // Test XMM move immediate.
-    __ Move(xmm0, 0.0);
-    __ Move(xmm1, 0.0);
-    __ ucomisd(xmm0, xmm1);
-    __ j(not_equal, &exit);
-    __ Move(xmm2, 991.01);
-    __ ucomisd(xmm0, xmm2);
-    __ j(equal, &exit);
-    __ Move(xmm0, 991.01);
-    __ ucomisd(xmm0, xmm2);
-    __ j(not_equal, &exit);
-  }
+  __ mov(eax, Immediate(5));  // Test XMM move immediate.
+  __ Move(xmm0, 0.0);
+  __ Move(xmm1, 0.0);
+  __ ucomisd(xmm0, xmm1);
+  __ j(not_equal, &exit);
+  __ Move(xmm2, 991.01);
+  __ ucomisd(xmm0, xmm2);
+  __ j(equal, &exit);
+  __ Move(xmm0, 991.01);
+  __ ucomisd(xmm0, xmm2);
+  __ j(not_equal, &exit);
 
   // Test 6.
   __ mov(eax, Immediate(6));

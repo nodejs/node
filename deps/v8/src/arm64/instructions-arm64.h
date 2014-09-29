@@ -5,10 +5,10 @@
 #ifndef V8_ARM64_INSTRUCTIONS_ARM64_H_
 #define V8_ARM64_INSTRUCTIONS_ARM64_H_
 
-#include "globals.h"
-#include "utils.h"
-#include "arm64/constants-arm64.h"
-#include "arm64/utils-arm64.h"
+#include "src/arm64/constants-arm64.h"
+#include "src/arm64/utils-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -137,7 +137,7 @@ class Instruction {
   // ImmPCRel is a compound field (not present in INSTRUCTION_FIELDS_LIST),
   // formed from ImmPCRelLo and ImmPCRelHi.
   int ImmPCRel() const {
-    ASSERT(IsPCRelAddressing());
+    DCHECK(IsPCRelAddressing());
     int const offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
     int const width = ImmPCRelLo_width + ImmPCRelHi_width;
     return signed_bitextract_32(width - 1, 0, offset);
@@ -353,7 +353,7 @@ class Instruction {
   void SetImmLLiteral(Instruction* source);
 
   uint8_t* LiteralAddress() {
-    int offset = ImmLLiteral() << kLiteralEntrySizeLog2;
+    int offset = ImmLLiteral() << kLoadLiteralScaleLog2;
     return reinterpret_cast<uint8_t*>(this) + offset;
   }
 
@@ -364,7 +364,7 @@ class Instruction {
       CheckAlignment check = CHECK_ALIGNMENT) {
     Address addr = reinterpret_cast<Address>(this) + offset;
     // The FUZZ_disasm test relies on no check being done.
-    ASSERT(check == NO_CHECK || IsAddressAligned(addr, kInstructionSize));
+    DCHECK(check == NO_CHECK || IsAddressAligned(addr, kInstructionSize));
     return Cast(addr);
   }
 
@@ -416,24 +416,38 @@ const Instr kImmExceptionIsUnreachable = 0xdebf;
 // A pseudo 'printf' instruction. The arguments will be passed to the platform
 // printf method.
 const Instr kImmExceptionIsPrintf = 0xdeb1;
-// Parameters are stored in ARM64 registers as if the printf pseudo-instruction
-// was a call to the real printf method:
-//
-// x0: The format string, then either of:
+// Most parameters are stored in ARM64 registers as if the printf
+// pseudo-instruction was a call to the real printf method:
+//      x0: The format string.
 //   x1-x7: Optional arguments.
 //   d0-d7: Optional arguments.
 //
-// Floating-point and integer arguments are passed in separate sets of
-// registers in AAPCS64 (even for varargs functions), so it is not possible to
-// determine the type of location of each arguments without some information
-// about the values that were passed in. This information could be retrieved
-// from the printf format string, but the format string is not trivial to
-// parse so we encode the relevant information with the HLT instruction.
-// - Type
-//    Either kRegister or kFPRegister, but stored as a uint32_t because there's
-//    no way to guarantee the size of the CPURegister::RegisterType enum.
-const unsigned kPrintfTypeOffset = 1 * kInstructionSize;
-const unsigned kPrintfLength = 2 * kInstructionSize;
+// Also, the argument layout is described inline in the instructions:
+//  - arg_count: The number of arguments.
+//  - arg_pattern: A set of PrintfArgPattern values, packed into two-bit fields.
+//
+// Floating-point and integer arguments are passed in separate sets of registers
+// in AAPCS64 (even for varargs functions), so it is not possible to determine
+// the type of each argument without some information about the values that were
+// passed in. This information could be retrieved from the printf format string,
+// but the format string is not trivial to parse so we encode the relevant
+// information with the HLT instruction.
+const unsigned kPrintfArgCountOffset = 1 * kInstructionSize;
+const unsigned kPrintfArgPatternListOffset = 2 * kInstructionSize;
+const unsigned kPrintfLength = 3 * kInstructionSize;
+
+const unsigned kPrintfMaxArgCount = 4;
+
+// The argument pattern is a set of two-bit-fields, each with one of the
+// following values:
+enum PrintfArgPattern {
+  kPrintfArgW = 1,
+  kPrintfArgX = 2,
+  // There is no kPrintfArgS because floats are always converted to doubles in C
+  // varargs calls.
+  kPrintfArgD = 3
+};
+static const unsigned kPrintfArgPatternBits = 2;
 
 // A pseudo 'debug' instruction.
 const Instr kImmExceptionIsDebug = 0xdeb0;

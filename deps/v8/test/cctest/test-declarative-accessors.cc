@@ -27,9 +27,9 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -37,7 +37,7 @@ using namespace v8::internal;
 class HandleArray : public Malloced {
  public:
   static const unsigned kArraySize = 200;
-  explicit HandleArray() {}
+  HandleArray() {}
   ~HandleArray() { Reset(); }
   void Reset() {
     for (unsigned i = 0; i < kArraySize; i++) {

@@ -5,8 +5,8 @@
 #ifndef V8_HYDROGEN_STORE_ELIMINATION_H_
 #define V8_HYDROGEN_STORE_ELIMINATION_H_
 
-#include "hydrogen.h"
-#include "hydrogen-alias-analysis.h"
+#include "src/hydrogen.h"
+#include "src/hydrogen-alias-analysis.h"
 
 namespace v8 {
 namespace internal {

@@ -70,6 +70,10 @@ ifeq ($(backtrace), off)
 else
   GYPFLAGS += -Dv8_enable_backtrace=1
 endif
+# verifypredictable=on
+ifeq ($(verifypredictable), on)
+  GYPFLAGS += -Dv8_enable_verify_predictable=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
@@ -156,11 +160,6 @@ ifeq ($(armv7), true)
 endif
 endif
 endif
-# vfp2=off. Deprecated, use armfpu=
-# vfp3=off. Deprecated, use armfpu=
-ifeq ($(vfp3), off)
-  GYPFLAGS += -Darm_fpu=vfp
-endif
 # hardfp=on/off. Deprecated, use armfloatabi
 ifeq ($(hardfp),on)
   GYPFLAGS += -Darm_float_abi=hard
@@ -169,16 +168,10 @@ ifeq ($(hardfp),off)
   GYPFLAGS += -Darm_float_abi=softfp
 endif
 endif
-# armneon=on/off
-ifeq ($(armneon), on)
-  GYPFLAGS += -Darm_neon=1
-endif
 # fpu: armfpu=xxx
 # xxx: vfp, vfpv3-d16, vfpv3, neon.
 ifeq ($(armfpu),)
-ifneq ($(vfp3), off)
   GYPFLAGS += -Darm_fpu=default
-endif
 else
   GYPFLAGS += -Darm_fpu=$(armfpu)
 endif
@@ -198,19 +191,19 @@ ifeq ($(armthumb), on)
   GYPFLAGS += -Darm_thumb=1
 endif
 endif
-# armtest=on
+# arm_test_noprobe=on
 # With this flag set, by default v8 will only use features implied
 # by the compiler (no probe). This is done by modifying the default
-# values of enable_armv7, enable_vfp2, enable_vfp3 and enable_32dregs.
+# values of enable_armv7, enable_vfp3, enable_32dregs and enable_neon.
 # Modifying these flags when launching v8 will enable the probing for
 # the specified values.
-# When using the simulator, this flag is implied.
-ifeq ($(armtest), on)
-  GYPFLAGS += -Darm_test=on
+ifeq ($(arm_test_noprobe), on)
+  GYPFLAGS += -Darm_test_noprobe=on
 endif
 
 # ----------------- available targets: --------------------
-# - "dependencies": pulls in external dependencies (currently: GYP)
+# - "builddeps": pulls in external dependencies for building
+# - "dependencies": pulls in all external dependencies
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
@@ -228,11 +221,11 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm arm64 mips mipsel
+ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64el x87
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel
+ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel android_x87
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
@@ -258,7 +251,7 @@ NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean dependencies $(ENVFILE).new native \
+.PHONY: all check clean builddeps dependencies $(ENVFILE).new native \
         qc quickcheck $(QUICKCHECKS) \
         $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
@@ -406,18 +399,22 @@ clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.cl
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
-	PYTHONPATH="$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	$(eval CXX_TARGET_ARCH:=$(shell $(CXX) -v 2>&1 | grep ^Target: | \
+	        cut -f 2 -d " " | cut -f 1 -d "-" ))
+	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
+	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
-	              -Dv8_target_arch=$(subst .,,$(suffix $(basename $@))) \
+	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
+	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
+	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
 	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
-	PYTHONPATH="$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
@@ -471,11 +468,26 @@ GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
 gtags.clean:
 	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
 
-# Dependencies.
+# Dependencies. "builddeps" are dependencies required solely for building,
+# "dependencies" includes also dependencies required for development.
 # Remember to keep these in sync with the DEPS file.
-dependencies:
+builddeps:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
 	    --revision 1831
-	svn checkout --force \
-	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 258359
+	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
+	  svn switch --force \
+	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+	      third_party/icu --revision 277999 ; \
+	else \
+	  svn checkout --force \
+	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+	      third_party/icu --revision 277999 ; \
+	fi
+	svn checkout --force http://googletest.googlecode.com/svn/trunk \
+	    testing/gtest --revision 692
+	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
+	    testing/gmock --revision 485
+
+dependencies: builddeps
+	# The spec is a copy of the hooks in v8's DEPS file.
+	gclient sync -r fb782d4369d5ae04f17a2fceef7de5a63e50f07b --spec="solutions = [{u'managed': False, u'name': u'buildtools', u'url': u'https://chromium.googlesource.com/chromium/buildtools.git', u'custom_deps': {}, u'custom_hooks': [{u'name': u'clang_format_win',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=win32',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/win/clang-format.exe.sha1']},{u'name': u'clang_format_mac',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=darwin',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/mac/clang-format.sha1']},{u'name': u'clang_format_linux',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=linux*',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/linux64/clang-format.sha1']}],u'deps_file': u'.DEPS.git', u'safesync_url': u''}]"

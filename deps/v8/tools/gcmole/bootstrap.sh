@@ -27,9 +27,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This script will build libgcmole.so.
+# This script will build libgcmole.so. Building a recent clang needs a
+# recent GCC, so if you explicitly want to use GCC 4.8, use:
+#
+#    CC=gcc-4.8 CPP=cpp-4.8 CXX=g++-4.8 CXXFLAGS=-static-libstdc++ CXXCPP=cpp-4.8 ./bootstrap.sh
 
-CLANG_RELEASE=2.9
+CLANG_RELEASE=3.5
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../third_party/llvm"
@@ -110,7 +113,7 @@ if [ "${OS}" = "Darwin" ]; then
   # See http://crbug.com/256342
   STRIP_FLAGS=-x
 fi
-strip ${STRIP_FLAGS} Release/bin/clang
+strip ${STRIP_FLAGS} Release+Asserts/bin/clang
 cd -
 
 # Build libgcmole.so
@@ -122,5 +125,5 @@ set +x
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"third_party/llvm/Release/bin\" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"third_party/llvm/Release+Asserts/bin\" lua tools/gcmole/gcmole.lua
 echo

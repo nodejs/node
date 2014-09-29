@@ -93,18 +93,20 @@ end
 local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
    if plugin_args then
      for i = 1, #plugin_args do
-        plugin_args[i] = "-plugin-arg-" .. plugin .. " " .. plugin_args[i]
+        plugin_args[i] = "-Xclang -plugin-arg-" .. plugin
+           .. " -Xclang " .. plugin_args[i]
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang -cc1 -load " .. CLANG_PLUGINS .. "/libgcmole.so"
-      .. " -plugin "  .. plugin
+   return CLANG_BIN .. "/clang++ -std=c++11 -c "
+      .. " -Xclang -load -Xclang " .. CLANG_PLUGINS .. "/libgcmole.so"
+      .. " -Xclang -plugin -Xclang "  .. plugin
       .. (plugin_args or "")
-      .. " -triple " .. triple
+      .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -DV8_I18N_SUPPORT"
-      .. " -Isrc"
+      .. " -I./"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
 end

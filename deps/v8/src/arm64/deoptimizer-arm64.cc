@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/full-codegen.h"
+#include "src/safepoint-table.h"
 
 
 namespace v8 {
@@ -32,9 +32,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* shared =
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
   Address code_start_address = code->instruction_start();
 #ifdef DEBUG
   Address prev_call_address = NULL;
@@ -48,13 +45,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
 
     PatchingAssembler patcher(call_address, patch_size() / kInstructionSize);
-    patcher.LoadLiteral(ip0, 2 * kInstructionSize);
+    patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
 
-    ASSERT((prev_call_address == NULL) ||
+    DCHECK((prev_call_address == NULL) ||
            (call_address >= prev_call_address + patch_size()));
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -93,7 +90,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler_);
+  ApiFunction function(descriptor->deoptimization_handler());
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
   int params = descriptor->GetHandlerParameterCount();
@@ -110,47 +107,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 }
 
 
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
-}
-
-
-#define __ masm->
-
-static void CopyRegisterDumpToFrame(MacroAssembler* masm,
-                                    Register frame,
-                                    CPURegList reg_list,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    int src_offset,
-                                    int dst_offset) {
-  int offset0, offset1;
-  CPURegList copy_to_input = reg_list;
-  int reg_count = reg_list.Count();
-  int reg_size = reg_list.RegisterSizeInBytes();
-  for (int i = 0; i < (reg_count / 2); i++) {
-    __ PeekPair(scratch1, scratch2, src_offset + (i * reg_size * 2));
-
-    offset0 = (copy_to_input.PopLowestIndex().code() * reg_size) + dst_offset;
-    offset1 = (copy_to_input.PopLowestIndex().code() * reg_size) + dst_offset;
-
-    if ((offset0 + reg_size) == offset1) {
-      // Registers are adjacent: store in pairs.
-      __ Stp(scratch1, scratch2, MemOperand(frame, offset0));
-    } else {
-      // Registers are not adjacent: store individually.
-      __ Str(scratch1, MemOperand(frame, offset0));
-      __ Str(scratch2, MemOperand(frame, offset1));
-    }
-  }
-  if ((reg_count & 1) != 0) {
-    __ Peek(scratch1, src_offset + (reg_count - 1) * reg_size);
-    offset0 = (copy_to_input.PopLowestIndex().code() * reg_size) + dst_offset;
-    __ Str(scratch1, MemOperand(frame, offset0));
-  }
-}
-
-#undef __
 
 #define __ masm()->
 
@@ -214,13 +170,23 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Ldr(x1, MemOperand(deoptimizer, Deoptimizer::input_offset()));
 
   // Copy core registers into the input frame.
-  CopyRegisterDumpToFrame(masm(), x1, saved_registers, x2, x4, 0,
-                          FrameDescription::registers_offset());
+  CPURegList copy_to_input = saved_registers;
+  for (int i = 0; i < saved_registers.Count(); i++) {
+    __ Peek(x2, i * kPointerSize);
+    CPURegister current_reg = copy_to_input.PopLowestIndex();
+    int offset = (current_reg.code() * kPointerSize) +
+        FrameDescription::registers_offset();
+    __ Str(x2, MemOperand(x1, offset));
+  }
 
   // Copy FP registers to the input frame.
-  CopyRegisterDumpToFrame(masm(), x1, saved_fp_registers, x2, x4,
-                          kFPRegistersOffset,
-                          FrameDescription::double_registers_offset());
+  for (int i = 0; i < saved_fp_registers.Count(); i++) {
+    int dst_offset = FrameDescription::double_registers_offset() +
+        (i * kDoubleSize);
+    int src_offset = kFPRegistersOffset + (i * kDoubleSize);
+    __ Peek(x2, src_offset);
+    __ Str(x2, MemOperand(x1, dst_offset));
+  }
 
   // Remove the bailout id and the saved registers from the stack.
   __ Drop(1 + (kSavedRegistersAreaSize / kXRegSize));
@@ -284,7 +250,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ B(lt, &outer_push_loop);
 
   __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
-  ASSERT(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
+  DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
   int src_offset = FrameDescription::double_registers_offset();
@@ -311,7 +277,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Note that lr is not in the list of saved_registers and will be restored
   // later. We can use it to hold the address of last output frame while
   // reloading the other registers.
-  ASSERT(!saved_registers.IncludesAliasOf(lr));
+  DCHECK(!saved_registers.IncludesAliasOf(lr));
   Register last_output_frame = lr;
   __ Mov(last_output_frame, current_frame);
 
@@ -354,14 +320,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     // The number of entry will never exceed kMaxNumberOfEntries.
     // As long as kMaxNumberOfEntries is a valid 16 bits immediate you can use
     // a movz instruction to load the entry id.
-    ASSERT(is_uint16(Deoptimizer::kMaxNumberOfEntries));
+    DCHECK(is_uint16(Deoptimizer::kMaxNumberOfEntries));
 
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
       __ movz(entry_id, i);
       __ b(&done);
-      ASSERT(masm()->pc_offset() - start == table_entry_size_);
+      DCHECK(masm()->pc_offset() - start == table_entry_size_);
     }
   }
   __ Bind(&done);

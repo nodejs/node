@@ -5,12 +5,12 @@
 #ifndef V8_ARM64_DISASM_ARM64_H
 #define V8_ARM64_DISASM_ARM64_H
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "globals.h"
-#include "utils.h"
-#include "instructions-arm64.h"
-#include "decoder-arm64.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/arm64/instructions-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -12,7 +12,7 @@ function deepEquals(a, b) {
   if (objectClass === "RegExp") { return (a.toString() === b.toString()); }
   if (objectClass === "Function") return false;
   if (objectClass === "Array") {
-    var elementCount = 0;
+    var elementsCount = 0;
     if (a.length != b.length) { return false; }
     for (var i = 0; i < a.length; i++) {
       if (!deepEquals(a[i], b[i])) return false;
@@ -23,12 +23,11 @@ function deepEquals(a, b) {
 
 
 function __f_1(){
- var __v_0 = [];
- for(var i=0; i<2; i++){
-   var __v_1=[];
-   __v_0.push([])
-   deepEquals(2, __v_0.length);
- }
+  var __v_0 = [];
+  for(var i=0; i<2; i++){
+    __v_0.push([])
+    deepEquals(2, __v_0.length);
+  }
 }
 __f_1();
 %OptimizeFunctionOnNextCall(__f_1);

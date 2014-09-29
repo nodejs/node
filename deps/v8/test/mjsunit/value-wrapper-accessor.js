@@ -77,20 +77,14 @@ function test(object, prototype) {
     %OptimizeFunctionOnNextCall(nonstrict);
     result = undefined;
     nonstrict(object);
-    // TODO(1475): Support storing to primitive values.
-    // This should return "object" once storing to primitive values is
-    // supported.
-    assertEquals("undefined", typeof result);
+    assertEquals("object", typeof result);
 
     strict(object);
     strict(object);
     %OptimizeFunctionOnNextCall(strict);
     result = undefined;
     strict(object);
-    // TODO(1475): Support storing to primitive values.
-    // This should return "object" once storing to primitive values is
-    // supported.
-    assertEquals("undefined", typeof result);
+    assertEquals(object, result);
   })();
 }
 

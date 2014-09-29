@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "profile-generator-inl.h"
+#include "src/profile-generator-inl.h"
 
-#include "compiler.h"
-#include "debug.h"
-#include "sampler.h"
-#include "global-handles.h"
-#include "scopeinfo.h"
-#include "unicode.h"
-#include "zone-inl.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/global-handles.h"
+#include "src/sampler.h"
+#include "src/scopeinfo.h"
+#include "src/unicode.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == NULL) {
     Vector<char> dst = Vector<char>::New(len + 1);
-    OS::StrNCpy(dst, src, len);
+    StrNCpy(dst, src, len);
     dst[len] = '\0';
     entry->key = dst.start();
     entry->value = entry->key;
@@ -76,7 +76,7 @@ const char* StringsStorage::AddOrDisposeString(char* str, int len) {
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   Vector<char> str = Vector<char>::New(1024);
-  int len = OS::VSNPrintF(str, format, args);
+  int len = VSNPrintF(str, format, args);
   if (len == -1) {
     DeleteArray(str.start());
     return GetCopy(format);
@@ -107,17 +107,12 @@ const char* StringsStorage::GetName(int index) {
 
 
 const char* StringsStorage::GetFunctionName(Name* name) {
-  return BeautifyFunctionName(GetName(name));
+  return GetName(name);
 }
 
 
 const char* StringsStorage::GetFunctionName(const char* name) {
-  return BeautifyFunctionName(GetCopy(name));
-}
-
-
-const char* StringsStorage::BeautifyFunctionName(const char* name) {
-  return (*name == 0) ? ProfileGenerator::kAnonymousFunctionName : name;
+  return GetCopy(name);
 }
 
 
@@ -208,17 +203,12 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %*c %s%s %d #%d %s",
-            self_ticks_,
-            indent, ' ',
-            entry_->name_prefix(),
-            entry_->name(),
-            entry_->script_id(),
-            id(),
-            entry_->bailout_reason());
+  base::OS::Print("%5u %*s %s%s %d #%d %s", self_ticks_, indent, "",
+                  entry_->name_prefix(), entry_->name(), entry_->script_id(),
+                  id(), entry_->bailout_reason());
   if (entry_->resource_name()[0] != '\0')
-    OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
-  OS::Print("\n");
+    base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
+  base::OS::Print("\n");
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
        p = children_.Next(p)) {
@@ -332,11 +322,12 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 CpuProfile::CpuProfile(const char* title, bool record_samples)
     : title_(title),
       record_samples_(record_samples),
-      start_time_(TimeTicks::HighResolutionNow()) {
+      start_time_(base::TimeTicks::HighResolutionNow()) {
 }
 
 
-void CpuProfile::AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path) {
+void CpuProfile::AddPath(base::TimeTicks timestamp,
+                         const Vector<CodeEntry*>& path) {
   ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
   if (record_samples_) {
     timestamps_.Add(timestamp);
@@ -346,12 +337,12 @@ void CpuProfile::AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path) {
 
 
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
-  end_time_ = TimeTicks::HighResolutionNow();
+  end_time_ = base::TimeTicks::HighResolutionNow();
 }
 
 
 void CpuProfile::Print() {
-  OS::Print("[Top down]:\n");
+  base::OS::Print("[Top down]:\n");
   top_down_.Print();
 }
 
@@ -403,7 +394,7 @@ int CodeMap::GetSharedId(Address addr) {
   // For shared function entries, 'size' field is used to store their IDs.
   if (tree_.Find(addr, &locator)) {
     const CodeEntryInfo& entry = locator.value();
-    ASSERT(entry.entry == kSharedFunctionCodeEntry);
+    DCHECK(entry.entry == kSharedFunctionCodeEntry);
     return entry.size;
   } else {
     tree_.Insert(addr, &locator);
@@ -428,9 +419,9 @@ void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
   // For shared function entries, 'size' field is used to store their IDs.
   if (value.entry == kSharedFunctionCodeEntry) {
-    OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
+    base::OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
   } else {
-    OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+    base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
   }
 }
 
@@ -473,9 +464,10 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
   }
   for (int i = 0; i < current_profiles_.length(); ++i) {
     if (strcmp(current_profiles_[i]->title(), title) == 0) {
-      // Ignore attempts to start profile with the same title.
+      // Ignore attempts to start profile with the same title...
       current_profiles_semaphore_.Signal();
-      return false;
+      // ... though return true to force it collect a sample.
+      return true;
     }
   }
   current_profiles_.Add(new CpuProfile(title, record_samples));
@@ -525,7 +517,7 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
 
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    TimeTicks timestamp, const Vector<CodeEntry*>& path) {
+    base::TimeTicks timestamp, const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
@@ -555,8 +547,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(
 }
 
 
-const char* const ProfileGenerator::kAnonymousFunctionName =
-    "(anonymous function)";
 const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
 const char* const ProfileGenerator::kIdleEntryName =

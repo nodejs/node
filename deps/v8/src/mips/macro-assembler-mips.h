@@ -5,9 +5,9 @@
 #ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 #define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 
-#include "assembler.h"
-#include "mips/assembler-mips.h"
-#include "v8globals.h"
+#include "src/assembler.h"
+#include "src/globals.h"
+#include "src/mips/assembler-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -71,6 +71,10 @@ enum LiFlags {
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum PointersToHereCheck {
+  kPointersToHereMaybeInteresting,
+  kPointersToHereAreAlwaysInteresting
+};
 enum RAStatus { kRAHasNotBeenSaved, kRAHasBeenSaved };
 
 Register GetRegisterThatIsNotOneOf(Register reg1,
@@ -80,7 +84,14 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-bool AreAliased(Register r1, Register r2, Register r3, Register r4);
+bool AreAliased(Register reg1,
+                Register reg2,
+                Register reg3 = no_reg,
+                Register reg4 = no_reg,
+                Register reg5 = no_reg,
+                Register reg6 = no_reg,
+                Register reg7 = no_reg,
+                Register reg8 = no_reg);
 
 
 // -----------------------------------------------------------------------------
@@ -105,7 +116,7 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 // Generate a MemOperand for storing arguments 5..N on the stack
 // when calling CallCFunction().
 inline MemOperand CFunctionArgumentOperand(int index) {
-  ASSERT(index > kCArgSlotCount);
+  DCHECK(index > kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
   int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;
   return MemOperand(sp, offset);
@@ -365,7 +376,9 @@ class MacroAssembler: public Assembler {
       RAStatus ra_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // As above, but the offset has the tag presubtracted.  For use with
   // MemOperand(reg, off).
@@ -377,7 +390,9 @@ class MacroAssembler: public Assembler {
       RAStatus ra_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK) {
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
@@ -385,8 +400,16 @@ class MacroAssembler: public Assembler {
                      ra_status,
                      save_fp,
                      remembered_set_action,
-                     smi_check);
+                     smi_check,
+                     pointers_to_here_check_for_value);
   }
+
+  void RecordWriteForMap(
+      Register object,
+      Register map,
+      Register dst,
+      RAStatus ra_status,
+      SaveFPRegsMode save_fp);
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
@@ -398,7 +421,9 @@ class MacroAssembler: public Assembler {
       RAStatus ra_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
 
   // ---------------------------------------------------------------------------
@@ -431,7 +456,7 @@ class MacroAssembler: public Assembler {
   // nop(type)). These instructions are generated to mark special location in
   // the code, like some special IC code.
   static inline bool IsMarkedCode(Instr instr, int type) {
-    ASSERT((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER));
+    DCHECK((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER));
     return IsNop(instr, type);
   }
 
@@ -449,7 +474,7 @@ class MacroAssembler: public Assembler {
                   rs == static_cast<uint32_t>(ToNumber(zero_reg)));
     int type =
         (sllzz && FIRST_IC_MARKER <= sa && sa < LAST_CODE_MARKER) ? sa : -1;
-    ASSERT((type == -1) ||
+    DCHECK((type == -1) ||
            ((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER)));
     return type;
   }
@@ -528,7 +553,8 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Register heap_number_map,
                           Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT);
+                          TaggingMode tagging_mode = TAG_RESULT,
+                          MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result,
                                    FPURegister value,
                                    Register scratch1,
@@ -663,7 +689,7 @@ class MacroAssembler: public Assembler {
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
-    ASSERT(!src1.is(src2));
+    DCHECK(!src1.is(src2));
     lw(src2, MemOperand(sp, 0 * kPointerSize));
     lw(src1, MemOperand(sp, 1 * kPointerSize));
     Addu(sp, sp, 2 * kPointerSize);
@@ -685,17 +711,15 @@ class MacroAssembler: public Assembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-  void PushSafepointRegistersAndDoubles();
-  void PopSafepointRegistersAndDoubles();
   // Store value in register src in the safepoint stack slot for
   // register dst.
   void StoreToSafepointRegisterSlot(Register src, Register dst);
-  void StoreToSafepointRegistersAndDoublesSlot(Register src, Register dst);
   // Load the value of the src register from its safepoint stack slot
   // into register dst.
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
-  // Flush the I-cache from asm code. You should use CPU::FlushICache from C.
+  // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
+  // from C.
   // Does not handle errors.
   void FlushICache(Register address, unsigned instructions);
 
@@ -734,7 +758,7 @@ class MacroAssembler: public Assembler {
                       FPURegister cmp1,
                       FPURegister cmp2) {
     BranchF(target, nan, cc, cmp1, cmp2, bd);
-  };
+  }
 
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
@@ -931,12 +955,6 @@ class MacroAssembler: public Assembler {
   // handler chain.
   void ThrowUncatchable(Register value);
 
-  // Throw a message string as an exception.
-  void Throw(BailoutReason reason);
-
-  // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cc, BailoutReason reason, Register rs, Operand rt);
-
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
@@ -1058,7 +1076,7 @@ class MacroAssembler: public Assembler {
     lw(type, FieldMemOperand(obj, HeapObject::kMapOffset));
     lbu(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
     And(type, type, Operand(kIsNotStringMask));
-    ASSERT_EQ(0, kStringTag);
+    DCHECK_EQ(0, kStringTag);
     return eq;
   }
 
@@ -1270,7 +1288,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   };
 
   Handle<Object> CodeObject() {
-    ASSERT(!code_object_.is_null());
+    DCHECK(!code_object_.is_null());
     return code_object_;
   }
 
@@ -1484,15 +1502,40 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
+  void DecodeField(Register dst, Register src) {
+    Ext(dst, src, Field::kShift, Field::kSize);
+  }
+
+  template<typename Field>
   void DecodeField(Register reg) {
+    DecodeField<Field>(reg, reg);
+  }
+
+  template<typename Field>
+  void DecodeFieldToSmi(Register dst, Register src) {
     static const int shift = Field::kShift;
-    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
-    srl(reg, reg, shift);
-    And(reg, reg, Operand(mask));
+    static const int mask = Field::kMask >> shift << kSmiTagSize;
+    STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
+    STATIC_ASSERT(kSmiTag == 0);
+    if (shift < kSmiTagSize) {
+      sll(dst, src, kSmiTagSize - shift);
+      And(dst, dst, Operand(mask));
+    } else if (shift > kSmiTagSize) {
+      srl(dst, src, shift - kSmiTagSize);
+      And(dst, dst, Operand(mask));
+    } else {
+      And(dst, src, Operand(mask));
+    }
+  }
+
+  template<typename Field>
+  void DecodeFieldToSmi(Register reg) {
+    DecodeField<Field>(reg, reg);
   }
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void StubPrologue();
+  void Prologue(bool code_pre_aging);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

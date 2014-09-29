@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "arguments.h"
-#include "bootstrapper.h"
-#include "builtins.h"
-#include "cpu-profiler.h"
-#include "gdb-jit.h"
-#include "ic-inl.h"
-#include "heap-profiler.h"
-#include "mark-compact.h"
-#include "stub-cache.h"
-#include "vm-state-inl.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/base/once.h"
+#include "src/bootstrapper.h"
+#include "src/builtins.h"
+#include "src/cpu-profiler.h"
+#include "src/gdb-jit.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap-profiler.h"
+#include "src/ic-inl.h"
+#include "src/prototype.h"
+#include "src/stub-cache.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -29,12 +31,12 @@ class BuiltinArguments : public Arguments {
       : Arguments(length, arguments) { }
 
   Object*& operator[] (int index) {
-    ASSERT(index < length());
+    DCHECK(index < length());
     return Arguments::operator[](index);
   }
 
   template <class S> Handle<S> at(int index) {
-    ASSERT(index < length());
+    DCHECK(index < length());
     return Arguments::at<S>(index);
   }
 
@@ -57,7 +59,7 @@ class BuiltinArguments : public Arguments {
 #ifdef DEBUG
   void Verify() {
     // Check we have at least the receiver.
-    ASSERT(Arguments::length() >= 1);
+    DCHECK(Arguments::length() >= 1);
   }
 #endif
 };
@@ -74,7 +76,7 @@ int BuiltinArguments<NEEDS_CALLED_FUNCTION>::length() const {
 template <>
 void BuiltinArguments<NEEDS_CALLED_FUNCTION>::Verify() {
   // Check we have at least the receiver and the called function.
-  ASSERT(Arguments::length() >= 2);
+  DCHECK(Arguments::length() >= 2);
   // Make sure cast to JSFunction succeeds.
   called_function();
 }
@@ -136,7 +138,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   // that the state of the stack is as we assume it to be in the
   // code below.
   StackFrameIterator it(isolate);
-  ASSERT(it.frame()->is_exit());
+  DCHECK(it.frame()->is_exit());
   it.Advance();
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
@@ -153,7 +155,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   const Smi* kConstructMarker = Smi::FromInt(StackFrame::CONSTRUCT);
   Object* marker = Memory::Object_at(caller_fp + kMarkerOffset);
   bool result = (marker == kConstructMarker);
-  ASSERT_EQ(result, reference_result);
+  DCHECK_EQ(result, reference_result);
   return result;
 }
 #endif
@@ -172,83 +174,11 @@ BUILTIN(EmptyFunction) {
 }
 
 
-static void MoveDoubleElements(FixedDoubleArray* dst,
-                               int dst_index,
-                               FixedDoubleArray* src,
-                               int src_index,
-                               int len) {
+static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
+                               FixedDoubleArray* src, int src_index, int len) {
   if (len == 0) return;
-  OS::MemMove(dst->data_start() + dst_index,
-              src->data_start() + src_index,
-              len * kDoubleSize);
-}
-
-
-static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
-                                          FixedArrayBase* elms,
-                                          int to_trim) {
-  ASSERT(heap->CanMoveObjectStart(elms));
-
-  Map* map = elms->map();
-  int entry_size;
-  if (elms->IsFixedArray()) {
-    entry_size = kPointerSize;
-  } else {
-    entry_size = kDoubleSize;
-  }
-  ASSERT(elms->map() != heap->fixed_cow_array_map());
-  // For now this trick is only applied to fixed arrays in new and paged space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  ASSERT(!heap->lo_space()->Contains(elms));
-
-  STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
-  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
-
-  Object** former_start = HeapObject::RawField(elms, 0);
-
-  const int len = elms->length();
-
-  if (to_trim * entry_size > FixedArrayBase::kHeaderSize &&
-      elms->IsFixedArray() &&
-      !heap->new_space()->Contains(elms)) {
-    // If we are doing a big trim in old space then we zap the space that was
-    // formerly part of the array so that the GC (aided by the card-based
-    // remembered set) won't find pointers to new-space there.
-    Object** zap = reinterpret_cast<Object**>(elms->address());
-    zap++;  // Header of filler must be at least one word so skip that.
-    for (int i = 1; i < to_trim; i++) {
-      *zap++ = Smi::FromInt(0);
-    }
-  }
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  // Since left trimming is only performed on pages which are not concurrently
-  // swept creating a filler object does not require synchronization.
-  heap->CreateFillerObjectAt(elms->address(), to_trim * entry_size);
-
-  int new_start_index = to_trim * (entry_size / kPointerSize);
-  former_start[new_start_index] = map;
-  former_start[new_start_index + 1] = Smi::FromInt(len - to_trim);
-
-  // Maintain marking consistency for HeapObjectIterator and
-  // IncrementalMarking.
-  int size_delta = to_trim * entry_size;
-  Address new_start = elms->address() + size_delta;
-  heap->marking()->TransferMark(elms->address(), new_start);
-  heap->AdjustLiveBytes(new_start, -size_delta, Heap::FROM_MUTATOR);
-
-  FixedArrayBase* new_elms =
-      FixedArrayBase::cast(HeapObject::FromAddress(new_start));
-  HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_tracking_object_moves()) {
-    profiler->ObjectMoveEvent(elms->address(),
-                              new_elms->address(),
-                              new_elms->Size());
-  }
-  return new_elms;
+  MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
+          len * kDoubleSize);
 }
 
 
@@ -260,12 +190,15 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
   // fields.
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
   // Object.prototype
-  Object* proto = array_proto->GetPrototype();
-  if (proto == heap->null_value()) return false;
-  array_proto = JSObject::cast(proto);
+  PrototypeIterator iter(heap->isolate(), array_proto);
+  if (iter.IsAtEnd()) {
+    return false;
+  }
+  array_proto = JSObject::cast(iter.GetCurrent());
   if (array_proto != native_context->initial_object_prototype()) return false;
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
-  return array_proto->GetPrototype()->IsNull();
+  iter.Advance();
+  return iter.IsAtEnd();
 }
 
 
@@ -305,7 +238,7 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   if (first_added_arg >= args_length) return handle(array->elements(), isolate);
 
   ElementsKind origin_kind = array->map()->elements_kind();
-  ASSERT(!IsFastObjectElementsKind(origin_kind));
+  DCHECK(!IsFastObjectElementsKind(origin_kind));
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;
@@ -338,7 +271,8 @@ static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
   Context* native_context = heap->isolate()->context()->native_context();
   JSObject* array_proto =
       JSObject::cast(native_context->array_function()->prototype());
-  return receiver->GetPrototype() == array_proto &&
+  PrototypeIterator iter(heap->isolate(), receiver);
+  return iter.GetCurrent() == array_proto &&
          ArrayPrototypeHasNoElements(heap, native_context, array_proto);
 }
 
@@ -382,21 +316,23 @@ BUILTIN(ArrayPush) {
   }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  ASSERT(!array->map()->is_observed());
+  int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
+    return CallJsBuiltin(isolate, "ArrayPush", args);
+  }
+  DCHECK(!array->map()->is_observed());
 
   ElementsKind kind = array->GetElementsKind();
 
   if (IsFastSmiOrObjectElementsKind(kind)) {
     Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-
-    int len = Smi::cast(array->length())->value();
-    int to_add = args.length() - 1;
     if (to_add == 0) {
       return Smi::FromInt(len);
     }
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
-    ASSERT(to_add <= (Smi::kMaxValue - len));
+    DCHECK(to_add <= (Smi::kMaxValue - len));
 
     int new_length = len + to_add;
 
@@ -429,16 +365,13 @@ BUILTIN(ArrayPush) {
     array->set_length(Smi::FromInt(new_length));
     return Smi::FromInt(new_length);
   } else {
-    int len = Smi::cast(array->length())->value();
     int elms_len = elms_obj->length();
-
-    int to_add = args.length() - 1;
     if (to_add == 0) {
       return Smi::FromInt(len);
     }
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
-    ASSERT(to_add <= (Smi::kMaxValue - len));
+    DCHECK(to_add <= (Smi::kMaxValue - len));
 
     int new_length = len + to_add;
 
@@ -493,7 +426,7 @@ BUILTIN(ArrayPop) {
   }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  ASSERT(!array->map()->is_observed());
+  DCHECK(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return isolate->heap()->undefined_value();
@@ -525,7 +458,7 @@ BUILTIN(ArrayShift) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  ASSERT(!array->map()->is_observed());
+  DCHECK(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -539,7 +472,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (heap->CanMoveObjectStart(*elms_obj)) {
-    array->set_elements(LeftTrimFixedArray(heap, *elms_obj, 1));
+    array->set_elements(heap->LeftTrimFixedArray(*elms_obj, 1));
   } else {
     // Shift the elements.
     if (elms_obj->IsFixedArray()) {
@@ -574,18 +507,22 @@ BUILTIN(ArrayUnshift) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  ASSERT(!array->map()->is_observed());
+  DCHECK(!array->map()->is_observed());
   if (!array->HasFastSmiOrObjectElements()) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
   int new_length = len + to_add;
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
-  ASSERT(to_add <= (Smi::kMaxValue - len));
+  DCHECK(to_add <= (Smi::kMaxValue - len));
+
+  if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
+    return CallJsBuiltin(isolate, "ArrayUnshift", args);
+  }
+
+  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
 
   JSObject::EnsureCanContainElements(array, &args, 1, to_add,
                                      DONT_ALLOW_DOUBLE_ELEMENTS);
@@ -647,8 +584,8 @@ BUILTIN(ArraySlice) {
     } else {
       // Array.slice(arguments, ...) is quite a common idiom (notably more
       // than 50% of invocations in Web apps).  Treat it in C++ as well.
-      Map* arguments_map = isolate->context()->native_context()->
-          sloppy_arguments_boilerplate()->map();
+      Map* arguments_map =
+          isolate->context()->native_context()->sloppy_arguments_map();
 
       bool is_arguments_object_with_fast_elements =
           receiver->IsJSObject() &&
@@ -676,7 +613,7 @@ BUILTIN(ArraySlice) {
       }
     }
 
-    ASSERT(len >= 0);
+    DCHECK(len >= 0);
     int n_arguments = args.length() - 1;
 
     // Note carefully choosen defaults---if argument is missing,
@@ -777,7 +714,7 @@ BUILTIN(ArraySplice) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  ASSERT(!array->map()->is_observed());
+  DCHECK(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
 
@@ -811,7 +748,7 @@ BUILTIN(ArraySplice) {
   // compatibility.
   int actual_delete_count;
   if (n_arguments == 1) {
-    ASSERT(len - actual_start >= 0);
+    DCHECK(len - actual_start >= 0);
     actual_delete_count = len - actual_start;
   } else {
     int value = 0;  // ToInteger(undefined) == 0
@@ -880,7 +817,7 @@ BUILTIN(ArraySplice) {
 
       if (heap->CanMoveObjectStart(*elms_obj)) {
         // On the fast path we move the start of the object in memory.
-        elms_obj = handle(LeftTrimFixedArray(heap, *elms_obj, delta), isolate);
+        elms_obj = handle(heap->LeftTrimFixedArray(*elms_obj, delta));
       } else {
         // This is the slow path. We are going to move the elements to the left
         // by copying them. For trimmed values we store the hole.
@@ -918,7 +855,7 @@ BUILTIN(ArraySplice) {
     Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
-    ASSERT((item_count - actual_delete_count) <= (Smi::kMaxValue - len));
+    DCHECK((item_count - actual_delete_count) <= (Smi::kMaxValue - len));
 
     // Check if array need to grow.
     if (new_length > elms->length()) {
@@ -995,7 +932,7 @@ BUILTIN(ArrayConcat) {
         JSObject::cast(native_context->array_function()->prototype());
     if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
       AllowHeapAllocation allow_allocation;
-      return CallJsBuiltin(isolate, "ArrayConcat", args);
+      return CallJsBuiltin(isolate, "ArrayConcatJS", args);
     }
 
     // Iterate through all the arguments performing checks
@@ -1003,11 +940,11 @@ BUILTIN(ArrayConcat) {
     bool is_holey = false;
     for (int i = 0; i < n_arguments; i++) {
       Object* arg = args[i];
-      if (!arg->IsJSArray() ||
-          !JSArray::cast(arg)->HasFastElements() ||
-          JSArray::cast(arg)->GetPrototype() != array_proto) {
+      PrototypeIterator iter(isolate, arg);
+      if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastElements() ||
+          iter.GetCurrent() != array_proto) {
         AllowHeapAllocation allow_allocation;
-        return CallJsBuiltin(isolate, "ArrayConcat", args);
+        return CallJsBuiltin(isolate, "ArrayConcatJS", args);
       }
       int len = Smi::cast(JSArray::cast(arg)->length())->value();
 
@@ -1016,11 +953,11 @@ BUILTIN(ArrayConcat) {
       STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
       USE(kHalfOfMaxInt);
       result_len += len;
-      ASSERT(result_len >= 0);
+      DCHECK(result_len >= 0);
 
       if (result_len > FixedDoubleArray::kMaxLength) {
         AllowHeapAllocation allow_allocation;
-        return CallJsBuiltin(isolate, "ArrayConcat", args);
+        return CallJsBuiltin(isolate, "ArrayConcatJS", args);
       }
 
       ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
@@ -1061,20 +998,27 @@ BUILTIN(ArrayConcat) {
     }
   }
 
-  ASSERT(j == result_len);
+  DCHECK(j == result_len);
 
   return *result_array;
 }
 
 
 // -----------------------------------------------------------------------------
-// Strict mode poison pills
+// Generator and strict mode poison pills
 
 
 BUILTIN(StrictModePoisonPill) {
   HandleScope scope(isolate);
   return isolate->Throw(*isolate->factory()->NewTypeError(
       "strict_poison_pill", HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(GeneratorPoisonPill) {
+  HandleScope scope(isolate);
+  return isolate->Throw(*isolate->factory()->NewTypeError(
+      "generator_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -1088,11 +1032,12 @@ BUILTIN(StrictModePoisonPill) {
 static inline Object* FindHidden(Heap* heap,
                                  Object* object,
                                  FunctionTemplateInfo* type) {
-  if (type->IsTemplateFor(object)) return object;
-  Object* proto = object->GetPrototype(heap->isolate());
-  if (proto->IsJSObject() &&
-      JSObject::cast(proto)->map()->is_hidden_prototype()) {
-    return FindHidden(heap, proto, type);
+  for (PrototypeIterator iter(heap->isolate(), object,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+    if (type->IsTemplateFor(iter.GetCurrent())) {
+      return iter.GetCurrent();
+    }
   }
   return heap->null_value();
 }
@@ -1143,12 +1088,12 @@ static inline Object* TypeCheck(Heap* heap,
 template <bool is_construct>
 MUST_USE_RESULT static Object* HandleApiCallHelper(
     BuiltinArguments<NEEDS_CALLED_FUNCTION> args, Isolate* isolate) {
-  ASSERT(is_construct == CalledAsConstructor(isolate));
+  DCHECK(is_construct == CalledAsConstructor(isolate));
   Heap* heap = isolate->heap();
 
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.called_function();
-  ASSERT(function->shared()->IsApiFunction());
+  DCHECK(function->shared()->IsApiFunction());
 
   Handle<FunctionTemplateInfo> fun_data(
       function->shared()->get_api_func_data(), isolate);
@@ -1162,10 +1107,8 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
   SharedFunctionInfo* shared = function->shared();
   if (shared->strict_mode() == SLOPPY && !shared->native()) {
     Object* recv = args[0];
-    ASSERT(!recv->IsNull());
-    if (recv->IsUndefined()) {
-      args[0] = function->context()->global_object()->global_receiver();
-    }
+    DCHECK(!recv->IsNull());
+    if (recv->IsUndefined()) args[0] = function->global_proxy();
   }
 
   Object* raw_holder = TypeCheck(heap, args.length(), &args[0], *fun_data);
@@ -1188,7 +1131,7 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
     Object* result;
 
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
-    ASSERT(raw_holder->IsJSObject());
+    DCHECK(raw_holder->IsJSObject());
 
     FunctionCallbackArguments custom(isolate,
                                      data_obj,
@@ -1233,7 +1176,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   // Non-functions are never called as constructors. Even if this is an object
   // called as a constructor the delegate call is not a construct call.
-  ASSERT(!CalledAsConstructor(isolate));
+  DCHECK(!CalledAsConstructor(isolate));
   Heap* heap = isolate->heap();
 
   Handle<Object> receiver = args.receiver();
@@ -1243,12 +1186,12 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
 
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
-  ASSERT(obj->map()->has_instance_call_handler());
+  DCHECK(obj->map()->has_instance_call_handler());
   JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
-  ASSERT(constructor->shared()->IsApiFunction());
+  DCHECK(constructor->shared()->IsApiFunction());
   Object* handler =
       constructor->shared()->get_api_func_data()->instance_call_handler();
-  ASSERT(!handler->IsUndefined());
+  DCHECK(!handler->IsUndefined());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();
   v8::FunctionCallback callback =
@@ -1306,7 +1249,7 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
-  LoadStubCompiler::GenerateLoadViaGetterForDeopt(masm);
+  NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
 
@@ -1371,7 +1314,7 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetterForDeopt(masm);
+  NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
 
@@ -1421,68 +1364,68 @@ static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
 
 
 static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallICStubDebugBreak(masm);
+  DebugCodegen::GenerateCallICStubDebugBreak(masm);
 }
 
 
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateLoadICDebugBreak(masm);
+  DebugCodegen::GenerateLoadICDebugBreak(masm);
 }
 
 
 static void Generate_StoreIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateStoreICDebugBreak(masm);
+  DebugCodegen::GenerateStoreICDebugBreak(masm);
 }
 
 
 static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateKeyedLoadICDebugBreak(masm);
+  DebugCodegen::GenerateKeyedLoadICDebugBreak(masm);
 }
 
 
 static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateKeyedStoreICDebugBreak(masm);
+  DebugCodegen::GenerateKeyedStoreICDebugBreak(masm);
 }
 
 
 static void Generate_CompareNilIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCompareNilICDebugBreak(masm);
+  DebugCodegen::GenerateCompareNilICDebugBreak(masm);
 }
 
 
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateReturnDebugBreak(masm);
+  DebugCodegen::GenerateReturnDebugBreak(masm);
 }
 
 
 static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallFunctionStubDebugBreak(masm);
+  DebugCodegen::GenerateCallFunctionStubDebugBreak(masm);
 }
 
 
 static void Generate_CallConstructStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallConstructStubDebugBreak(masm);
+  DebugCodegen::GenerateCallConstructStubDebugBreak(masm);
 }
 
 
 static void Generate_CallConstructStub_Recording_DebugBreak(
     MacroAssembler* masm) {
-  Debug::GenerateCallConstructStubRecordDebugBreak(masm);
+  DebugCodegen::GenerateCallConstructStubRecordDebugBreak(masm);
 }
 
 
 static void Generate_Slot_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateSlotDebugBreak(masm);
+  DebugCodegen::GenerateSlotDebugBreak(masm);
 }
 
 
 static void Generate_PlainReturn_LiveEdit(MacroAssembler* masm) {
-  Debug::GeneratePlainReturnLiveEdit(masm);
+  DebugCodegen::GeneratePlainReturnLiveEdit(masm);
 }
 
 
 static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
-  Debug::GenerateFrameDropperLiveEdit(masm);
+  DebugCodegen::GenerateFrameDropperLiveEdit(masm);
 }
 
 
@@ -1528,11 +1471,11 @@ struct BuiltinDesc {
 class BuiltinFunctionTable {
  public:
   BuiltinDesc* functions() {
-    CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
+    base::CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
     return functions_;
   }
 
-  OnceType once_;
+  base::OnceType once_;
   BuiltinDesc functions_[Builtins::builtin_count + 1];
 
   friend class Builtins;
@@ -1594,7 +1537,7 @@ void Builtins::InitBuiltinFunctionTable() {
 
 
 void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
-  ASSERT(!initialized_);
+  DCHECK(!initialized_);
 
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
@@ -1604,9 +1547,13 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
-  // TODO(jbramley): I had to increase the size of this buffer from 8KB because
-  // we can generate a lot of debug code on ARM64.
-  union { int force_alignment; byte buffer[16*KB]; } u;
+#ifdef DEBUG
+  // We can generate a lot of debug code on Arm64.
+  const size_t buffer_size = 32*KB;
+#else
+  const size_t buffer_size = 8*KB;
+#endif
+  union { int force_alignment; byte buffer[buffer_size]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
@@ -1619,7 +1566,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
-      ASSERT(!masm.has_frame());
+      DCHECK(!masm.has_frame());
       g(&masm, functions[i].name, functions[i].extra_args);
       // Move the code into the object heap.
       CodeDesc desc;
@@ -1630,14 +1577,15 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG, *code, functions[i].s_name));
-      GDBJIT(AddCode(GDBJITInterface::BUILTIN, functions[i].s_name, *code));
       builtins_[i] = *code;
+      if (code->kind() == Code::BUILTIN) code->set_builtin_index(i);
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
         CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-        PrintF(trace_scope.file(), "Builtin: %s\n", functions[i].s_name);
-        code->Disassemble(functions[i].s_name, trace_scope.file());
-        PrintF(trace_scope.file(), "\n");
+        OFStream os(trace_scope.file());
+        os << "Builtin: " << functions[i].s_name << "\n";
+        code->Disassemble(functions[i].s_name, os);
+        os << "\n";
       }
 #endif
     } else {
@@ -1677,12 +1625,12 @@ const char* Builtins::Lookup(byte* pc) {
 
 
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kHiddenInterrupt, 0, 1);
+  masm->TailCallRuntime(Runtime::kInterrupt, 0, 1);
 }
 
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kHiddenStackGuard, 0, 1);
+  masm->TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 

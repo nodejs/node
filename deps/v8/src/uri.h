@@ -5,11 +5,11 @@
 #ifndef V8_URI_H_
 #define V8_URI_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "conversions.h"
-#include "string-search.h"
-#include "utils.h"
+#include "src/conversions.h"
+#include "src/string-search.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +22,7 @@ static INLINE(Vector<const Char> GetCharVector(Handle<String> string));
 template <>
 Vector<const uint8_t> GetCharVector(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
-  ASSERT(flat.IsAscii());
+  DCHECK(flat.IsAscii());
   return flat.ToOneByteVector();
 }
 
@@ -30,7 +30,7 @@ Vector<const uint8_t> GetCharVector(Handle<String> string) {
 template <>
 Vector<const uc16> GetCharVector(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
-  ASSERT(flat.IsTwoByte());
+  DCHECK(flat.IsTwoByte());
   return flat.ToUC16Vector();
 }
 
@@ -100,13 +100,13 @@ MaybeHandle<String> URIUnescape::UnescapeSlow(
     }
   }
 
-  ASSERT(start_index < length);
+  DCHECK(start_index < length);
   Handle<String> first_part =
       isolate->factory()->NewProperSubString(string, 0, start_index);
 
   int dest_position = 0;
   Handle<String> second_part;
-  ASSERT(unescaped_length <= String::kMaxLength);
+  DCHECK(unescaped_length <= String::kMaxLength);
   if (one_byte) {
     Handle<SeqOneByteString> dest = isolate->factory()->NewRawOneByteString(
         unescaped_length).ToHandleChecked();
@@ -226,7 +226,7 @@ const char URIEscape::kNotEscaped[] = {
 
 template<typename Char>
 MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
-  ASSERT(string->IsFlat());
+  DCHECK(string->IsFlat());
   int escaped_length = 0;
   int length = string->length();
 
@@ -243,7 +243,7 @@ MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
       }
 
       // We don't allow strings that are longer than a maximal length.
-      ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
+      DCHECK(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) break;  // Provoke exception.
     }
   }

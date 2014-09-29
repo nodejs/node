@@ -27,7 +27,7 @@
 
 // Tests the object.defineProperty method - ES 15.2.3.6
 
-// Flags: --allow-natives-syntax --es5-readonly
+// Flags: --allow-natives-syntax
 
 // Check that an exception is thrown when null is passed as object.
 var exception = false;
@@ -467,35 +467,35 @@ try {
 }
 
 
-// Test runtime calls to DefineOrRedefineDataProperty and
-// DefineOrRedefineAccessorProperty - make sure we don't
+// Test runtime calls to DefineDataPropertyUnchecked and
+// DefineAccessorPropertyUnchecked - make sure we don't
 // crash.
 try {
-  %DefineOrRedefineAccessorProperty(0, 0, 0, 0, 0);
+  %DefineAccessorPropertyUnchecked(0, 0, 0, 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(0, 0, 0, 0);
+  %DefineDataPropertyUnchecked(0, 0, 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(null, null, null, null);
+  %DefineDataPropertyUnchecked(null, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineAccessorProperty(null, null, null, null, null);
+  %DefineAccessorPropertyUnchecked(null, null, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty({}, null, null, null);
+  %DefineDataPropertyUnchecked({}, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
@@ -503,13 +503,13 @@ try {
 // Defining properties null should fail even when we have
 // other allowed values
 try {
-  %DefineOrRedefineAccessorProperty(null, 'foo', func, null, 0);
+  %DefineAccessorPropertyUnchecked(null, 'foo', func, null, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(null, 'foo', 0, 0);
+  %DefineDataPropertyUnchecked(null, 'foo', 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }

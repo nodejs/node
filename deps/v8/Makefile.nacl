@@ -97,7 +97,7 @@ $(NACL_MAKEFILES):
 	GYP_DEFINES="${GYPENV}" \
 	CC=${NACL_CC} \
 	CXX=${NACL_CXX} \
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS) \

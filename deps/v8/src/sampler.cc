@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "sampler.h"
+#include "src/sampler.h"
 
 #if V8_OS_POSIX && !V8_OS_CYGWIN
 
@@ -14,7 +14,7 @@
 #include <sys/time.h>
 
 #if !V8_OS_QNX
-#include <sys/syscall.h>
+#include <sys/syscall.h>  // NOLINT
 #endif
 
 #if V8_OS_MACOSX
@@ -33,25 +33,25 @@
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
     (defined(__arm__) || defined(__aarch64__)) && \
     !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
-#include <asm/sigcontext.h>
+#include <asm/sigcontext.h>  // NOLINT
 #endif
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
-#include "win32-headers.h"
+#include "src/base/win32-headers.h"
 
 #endif
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cpu-profiler-inl.h"
-#include "flags.h"
-#include "frames-inl.h"
-#include "log.h"
-#include "platform.h"
-#include "simulator.h"
-#include "v8threads.h"
-#include "vm-state-inl.h"
+#include "src/base/platform/platform.h"
+#include "src/cpu-profiler-inl.h"
+#include "src/flags.h"
+#include "src/frames-inl.h"
+#include "src/log.h"
+#include "src/simulator.h"
+#include "src/v8threads.h"
+#include "src/vm-state-inl.h"
 
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -256,6 +256,12 @@ class SimulatorHelper {
         Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
+#elif V8_TARGET_ARCH_MIPS64
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::sp));
+    state->fp = reinterpret_cast<Address>(simulator_->get_register(
+        Simulator::fp));
 #endif
   }
 
@@ -269,16 +275,16 @@ class SimulatorHelper {
 
 class SignalHandler : public AllStatic {
  public:
-  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
   static void TearDown() { delete mutex_; }
 
   static void IncreaseSamplerCount() {
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (--client_count_ == 0) Restore();
   }
 
@@ -309,14 +315,14 @@ class SignalHandler : public AllStatic {
 
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static base::Mutex* mutex_;
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
 
-Mutex* SignalHandler::mutex_ = NULL;
+base::Mutex* SignalHandler::mutex_ = NULL;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
@@ -331,7 +337,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   USE(info);
   if (signal != SIGPROF) return;
-  Isolate* isolate = Isolate::UncheckedCurrent();
+  Isolate* isolate = Isolate::UnsafeCurrent();
   if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
     // We require a fully initialized and entered isolate.
     return;
@@ -390,6 +396,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   // FP is an alias for x29.
   state.fp = reinterpret_cast<Address>(mcontext.regs[29]);
 #elif V8_HOST_ARCH_MIPS
+  state.pc = reinterpret_cast<Address>(mcontext.pc);
+  state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
+  state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+#elif V8_HOST_ARCH_MIPS64
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
@@ -473,20 +483,20 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #endif
 
 
-class SamplerThread : public Thread {
+class SamplerThread : public base::Thread {
  public:
   static const int kSamplerThreadStackSize = 64 * KB;
 
   explicit SamplerThread(int interval)
-      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
+      : Thread(base::Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
   static void TearDown() { delete mutex_; mutex_ = NULL; }
 
   static void AddActiveSampler(Sampler* sampler) {
     bool need_to_start = false;
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
@@ -494,9 +504,9 @@ class SamplerThread : public Thread {
       need_to_start = true;
     }
 
-    ASSERT(sampler->IsActive());
-    ASSERT(!instance_->active_samplers_.Contains(sampler));
-    ASSERT(instance_->interval_ == sampler->interval());
+    DCHECK(sampler->IsActive());
+    DCHECK(!instance_->active_samplers_.Contains(sampler));
+    DCHECK(instance_->interval_ == sampler->interval());
     instance_->active_samplers_.Add(sampler);
 
     if (need_to_start) instance_->StartSynchronously();
@@ -505,11 +515,11 @@ class SamplerThread : public Thread {
   static void RemoveActiveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
-      LockGuard<Mutex> lock_guard(mutex_);
+      base::LockGuard<base::Mutex> lock_guard(mutex_);
 
-      ASSERT(sampler->IsActive());
+      DCHECK(sampler->IsActive());
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
-      ASSERT(removed);
+      DCHECK(removed);
       USE(removed);
 
       // We cannot delete the instance immediately as we need to Join() the
@@ -529,7 +539,7 @@ class SamplerThread : public Thread {
   virtual void Run() {
     while (true) {
       {
-        LockGuard<Mutex> lock_guard(mutex_);
+        base::LockGuard<base::Mutex> lock_guard(mutex_);
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.
@@ -540,13 +550,13 @@ class SamplerThread : public Thread {
           sampler->DoSample();
         }
       }
-      OS::Sleep(interval_);
+      base::OS::Sleep(interval_);
     }
   }
 
  private:
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static base::Mutex* mutex_;
   static SamplerThread* instance_;
 
   const int interval_;
@@ -556,7 +566,7 @@ class SamplerThread : public Thread {
 };
 
 
-Mutex* SamplerThread::mutex_ = NULL;
+base::Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
@@ -565,8 +575,8 @@ SamplerThread* SamplerThread::instance_ = NULL;
 //
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
                                    const RegisterState& regs) {
-  ASSERT(isolate->IsInitialized());
-  timestamp = TimeTicks::HighResolutionNow();
+  DCHECK(isolate->IsInitialized());
+  timestamp = base::TimeTicks::HighResolutionNow();
   pc = regs.pc;
   state = isolate->current_vm_state();
 
@@ -596,7 +606,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 
   SafeStackFrameIterator it(isolate, regs.fp, regs.sp, js_entry_sp);
   top_frame_type = it.top_frame_type();
-  int i = 0;
+  unsigned i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     stack[i++] = it.frame()->pc();
     it.Advance();
@@ -634,27 +644,27 @@ Sampler::Sampler(Isolate* isolate, int interval)
 
 
 Sampler::~Sampler() {
-  ASSERT(!IsActive());
+  DCHECK(!IsActive());
   delete data_;
 }
 
 
 void Sampler::Start() {
-  ASSERT(!IsActive());
+  DCHECK(!IsActive());
   SetActive(true);
   SamplerThread::AddActiveSampler(this);
 }
 
 
 void Sampler::Stop() {
-  ASSERT(IsActive());
+  DCHECK(IsActive());
   SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
 }
 
 
 void Sampler::IncreaseProfilingDepth() {
-  NoBarrier_AtomicIncrement(&profiling_, 1);
+  base::NoBarrier_AtomicIncrement(&profiling_, 1);
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
 #endif
@@ -665,7 +675,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
   SignalHandler::DecreaseSamplerCount();
 #endif
-  NoBarrier_AtomicIncrement(&profiling_, -1);
+  base::NoBarrier_AtomicIncrement(&profiling_, -1);
 }
 
 

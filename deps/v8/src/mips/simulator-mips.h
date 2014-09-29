@@ -13,8 +13,8 @@
 #ifndef V8_MIPS_SIMULATOR_MIPS_H_
 #define V8_MIPS_SIMULATOR_MIPS_H_
 
-#include "allocation.h"
-#include "constants-mips.h"
+#include "src/allocation.h"
+#include "src/mips/constants-mips.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native mips platform.
@@ -37,9 +37,6 @@ typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*,
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   (FUNCTION_CAST<mips_regexp_matcher>(entry)( \
       p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on mips uses the C stack, we
@@ -73,8 +70,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "hashmap.h"
-#include "assembler.h"
+#include "src/assembler.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -266,12 +263,12 @@ class Simulator {
 
   // Helper function for DecodeTypeRegister.
   void ConfigureTypeRegister(Instruction* instr,
-                             int32_t& alu_out,
-                             int64_t& i64hilo,
-                             uint64_t& u64hilo,
-                             int32_t& next_pc,
-                             int32_t& return_addr_reg,
-                             bool& do_interrupt);
+                             int32_t* alu_out,
+                             int64_t* i64hilo,
+                             uint64_t* u64hilo,
+                             int32_t* next_pc,
+                             int32_t* return_addr_reg,
+                             bool* do_interrupt);
 
   void DecodeTypeImmediate(Instruction* instr);
   void DecodeTypeJump(Instruction* instr);
@@ -389,10 +386,6 @@ class Simulator {
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
     Simulator::current(Isolate::Current())->Call( \
         entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

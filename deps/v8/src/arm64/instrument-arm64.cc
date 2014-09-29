@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "arm64/instrument-arm64.h"
+#include "src/arm64/instrument-arm64.h"
 
 namespace v8 {
 namespace internal {
 
 Counter::Counter(const char* name, CounterType type)
     : count_(0), enabled_(false), type_(type) {
-  ASSERT(name != NULL);
+  DCHECK(name != NULL);
   strncpy(name_, name, kCounterNameMaxLength);
 }
 
@@ -107,8 +107,7 @@ Instrument::Instrument(const char* datafile, uint64_t sample_period)
     }
   }
 
-  static const int num_counters =
-    sizeof(kCounterList) / sizeof(CounterDescriptor);
+  static const int num_counters = ARRAY_SIZE(kCounterList);
 
   // Dump an instrumentation description comment at the top of the file.
   fprintf(output_stream_, "# counters=%d\n", num_counters);
@@ -144,7 +143,7 @@ void Instrument::Update() {
   // Increment the instruction counter, and dump all counters if a sample period
   // has elapsed.
   static Counter* counter = GetCounter("Instruction");
-  ASSERT(counter->type() == Cumulative);
+  DCHECK(counter->type() == Cumulative);
   counter->Increment();
 
   if (counter->IsEnabled() && (counter->count() % sample_period_) == 0) {

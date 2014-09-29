@@ -27,11 +27,13 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
-#include "macro-assembler.h"
-#include "arm/macro-assembler-arm.h"
-#include "arm/simulator-arm.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
+
+#include "src/macro-assembler.h"
+
+#include "src/arm/macro-assembler-arm.h"
+#include "src/arm/simulator-arm.h"
 
 
 using namespace v8::internal;
@@ -66,10 +68,12 @@ TEST(CopyBytes) {
   size_t act_size;
 
   // Allocate two blocks to copy data between.
-  byte* src_buffer = static_cast<byte*>(OS::Allocate(data_size, &act_size, 0));
+  byte* src_buffer =
+      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
   CHECK(src_buffer);
   CHECK(act_size >= static_cast<size_t>(data_size));
-  byte* dest_buffer = static_cast<byte*>(OS::Allocate(data_size, &act_size, 0));
+  byte* dest_buffer =
+      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
   CHECK(dest_buffer);
   CHECK(act_size >= static_cast<size_t>(data_size));
 
@@ -137,9 +141,8 @@ TEST(LoadAndStoreWithRepresentation) {
 
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);

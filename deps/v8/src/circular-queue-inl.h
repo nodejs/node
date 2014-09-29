@@ -5,7 +5,7 @@
 #ifndef V8_CIRCULAR_QUEUE_INL_H_
 #define V8_CIRCULAR_QUEUE_INL_H_
 
-#include "circular-queue.h"
+#include "src/circular-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -24,8 +24,8 @@ SamplingCircularQueue<T, L>::~SamplingCircularQueue() {
 
 template<typename T, unsigned L>
 T* SamplingCircularQueue<T, L>::Peek() {
-  MemoryBarrier();
-  if (Acquire_Load(&dequeue_pos_->marker) == kFull) {
+  base::MemoryBarrier();
+  if (base::Acquire_Load(&dequeue_pos_->marker) == kFull) {
     return &dequeue_pos_->record;
   }
   return NULL;
@@ -34,15 +34,15 @@ T* SamplingCircularQueue<T, L>::Peek() {
 
 template<typename T, unsigned L>
 void SamplingCircularQueue<T, L>::Remove() {
-  Release_Store(&dequeue_pos_->marker, kEmpty);
+  base::Release_Store(&dequeue_pos_->marker, kEmpty);
   dequeue_pos_ = Next(dequeue_pos_);
 }
 
 
 template<typename T, unsigned L>
 T* SamplingCircularQueue<T, L>::StartEnqueue() {
-  MemoryBarrier();
-  if (Acquire_Load(&enqueue_pos_->marker) == kEmpty) {
+  base::MemoryBarrier();
+  if (base::Acquire_Load(&enqueue_pos_->marker) == kEmpty) {
     return &enqueue_pos_->record;
   }
   return NULL;
@@ -51,7 +51,7 @@ T* SamplingCircularQueue<T, L>::StartEnqueue() {
 
 template<typename T, unsigned L>
 void SamplingCircularQueue<T, L>::FinishEnqueue() {
-  Release_Store(&enqueue_pos_->marker, kFull);
+  base::Release_Store(&enqueue_pos_->marker, kFull);
   enqueue_pos_ = Next(enqueue_pos_);
 }
 

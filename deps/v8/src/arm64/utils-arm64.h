@@ -6,8 +6,9 @@
 #define V8_ARM64_UTILS_ARM64_H_
 
 #include <cmath>
-#include "v8.h"
-#include "arm64/constants-arm64.h"
+#include "src/v8.h"
+
+#include "src/arm64/constants-arm64.h"
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
@@ -56,6 +57,7 @@ int CountLeadingZeros(uint64_t value, int width);
 int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
 int CountSetBits(uint64_t value, int width);
+uint64_t LargestPowerOf2Divisor(uint64_t value);
 int MaskToBit(uint64_t mask);
 
 
@@ -86,13 +88,13 @@ inline bool IsQuietNaN(T num) {
 
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
-  ASSERT(isnan(num));
+  DCHECK(std::isnan(num));
   return rawbits_to_double(double_to_rawbits(num) | kDQuietNanMask);
 }
 
 
 inline float ToQuietNaN(float num) {
-  ASSERT(isnan(num));
+  DCHECK(std::isnan(num));
   return rawbits_to_float(float_to_rawbits(num) | kSQuietNanMask);
 }
 

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "objects.h"
-#include "transitions-inl.h"
-#include "utils.h"
+#include "src/objects.h"
+#include "src/transitions-inl.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,7 @@ Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
 
 Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
     Handle<Map> containing_map) {
-  ASSERT(!containing_map->transitions()->IsFullTransitionArray());
+  DCHECK(!containing_map->transitions()->IsFullTransitionArray());
   int nof = containing_map->transitions()->number_of_transitions();
 
   // A transition array may shrink during GC.
@@ -72,7 +72,7 @@ Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
   DisallowHeapAllocation no_gc;
   int new_nof = containing_map->transitions()->number_of_transitions();
   if (new_nof != nof) {
-    ASSERT(new_nof == 0);
+    DCHECK(new_nof == 0);
     result->Shrink(ToKeyIndex(0));
   } else if (nof == 1) {
     result->NoIncrementalWriteBarrierCopyFrom(
@@ -104,11 +104,11 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
   // The map's transition array may grown smaller during the allocation above as
   // it was weakly traversed, though it is guaranteed not to disappear. Trim the
   // result copy if needed, and recompute variables.
-  ASSERT(map->HasTransitionArray());
+  DCHECK(map->HasTransitionArray());
   DisallowHeapAllocation no_gc;
   TransitionArray* array = map->transitions();
   if (array->number_of_transitions() != number_of_transitions) {
-    ASSERT(array->number_of_transitions() < number_of_transitions);
+    DCHECK(array->number_of_transitions() < number_of_transitions);
 
     number_of_transitions = array->number_of_transitions();
     new_size = number_of_transitions;

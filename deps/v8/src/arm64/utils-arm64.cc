@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "arm64/utils-arm64.h"
+#include "src/arm64/utils-arm64.h"
 
 
 namespace v8 {
@@ -15,7 +15,7 @@ namespace internal {
 
 int CountLeadingZeros(uint64_t value, int width) {
   // TODO(jbramley): Optimize this for ARM64 hosts.
-  ASSERT((width == 32) || (width == 64));
+  DCHECK((width == 32) || (width == 64));
   int count = 0;
   uint64_t bit_test = 1UL << (width - 1);
   while ((count < width) && ((bit_test & value) == 0)) {
@@ -28,7 +28,7 @@ int CountLeadingZeros(uint64_t value, int width) {
 
 int CountLeadingSignBits(int64_t value, int width) {
   // TODO(jbramley): Optimize this for ARM64 hosts.
-  ASSERT((width == 32) || (width == 64));
+  DCHECK((width == 32) || (width == 64));
   if (value >= 0) {
     return CountLeadingZeros(value, width) - 1;
   } else {
@@ -39,7 +39,7 @@ int CountLeadingSignBits(int64_t value, int width) {
 
 int CountTrailingZeros(uint64_t value, int width) {
   // TODO(jbramley): Optimize this for ARM64 hosts.
-  ASSERT((width == 32) || (width == 64));
+  DCHECK((width == 32) || (width == 64));
   int count = 0;
   while ((count < width) && (((value >> count) & 1) == 0)) {
     count++;
@@ -51,7 +51,7 @@ int CountTrailingZeros(uint64_t value, int width) {
 int CountSetBits(uint64_t value, int width) {
   // TODO(jbramley): Would it be useful to allow other widths? The
   // implementation already supports them.
-  ASSERT((width == 32) || (width == 64));
+  DCHECK((width == 32) || (width == 64));
 
   // Mask out unused bits to ensure that they are not counted.
   value &= (0xffffffffffffffffUL >> (64-width));
@@ -78,8 +78,13 @@ int CountSetBits(uint64_t value, int width) {
 }
 
 
+uint64_t LargestPowerOf2Divisor(uint64_t value) {
+  return value & -value;
+}
+
+
 int MaskToBit(uint64_t mask) {
-  ASSERT(CountSetBits(mask, 64) == 1);
+  DCHECK(CountSetBits(mask, 64) == 1);
   return CountTrailingZeros(mask, 64);
 }
 

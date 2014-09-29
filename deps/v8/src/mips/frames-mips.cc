@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "assembler.h"
-#include "assembler-mips.h"
-#include "assembler-mips-inl.h"
-#include "frames.h"
+#include "src/assembler.h"
+#include "src/frames.h"
+#include "src/mips/assembler-mips-inl.h"
+#include "src/mips/assembler-mips.h"
 
 namespace v8 {
 namespace internal {
