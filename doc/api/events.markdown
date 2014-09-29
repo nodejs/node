@@ -104,7 +104,7 @@ Returns an array of listeners for the specified event.
     console.log(util.inspect(server.listeners('connection'))); // [ [Function] ]
 
 
-### emitter.emit(event[, arg1]\[, arg2]\[, ...])
+### emitter.emit(event[, arg1][, arg2][, ...])
 
 Execute each of the listeners in order with the supplied arguments.
 

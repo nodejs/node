@@ -37,7 +37,7 @@ Tests strict equality, as determined by the strict equality operator ( `===` )
 
 Tests strict non-equality, as determined by the strict not equal operator ( `!==` )
 
-## assert.throws(block[, error]\[, message])
+## assert.throws(block[, error][, message])
 
 Expects `block` to throw an error. `error` can be constructor, `RegExp` or
 validation function.

@@ -64,7 +64,7 @@ Returns a new web server object.
 The `requestListener` is a function which is automatically
 added to the `'request'` event.
 
-## http.createClient([port]\[, host])
+## http.createClient([port][, host])
 
 This function is **deprecated**; please use [http.request()][] instead.
 Constructs a new HTTP client. `port` and `host` refer to the server to be
@@ -160,7 +160,7 @@ If a client connection emits an 'error' event - it will forwarded here.
 `socket` is the `net.Socket` object that the error originated from.
 
 
-### server.listen(port[, hostname]\[, backlog]\[, callback])
+### server.listen(port[, hostname][, backlog][, callback])
 
 Begin accepting connections on the specified port and hostname.  If the
 hostname is omitted, the server will accept connections directed to any
@@ -275,7 +275,7 @@ After this event, no more events will be emitted on the response object.
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the ['checkContinue'][] event on `Server`.
 
-### response.writeHead(statusCode[, statusMessage]\[, headers])
+### response.writeHead(statusCode[, statusMessage][, headers])
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
@@ -433,7 +433,7 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.end();
 
 
-### response.end([data]\[, encoding])
+### response.end([data][, encoding])
 
 This method signals to the server that all of the response headers and body
 have been sent; that server should consider this message complete.
@@ -878,7 +878,7 @@ The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
 
 
-### request.end([data]\[, encoding])
+### request.end([data][, encoding])
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
@@ -901,7 +901,7 @@ Once a socket is assigned to this request and is connected
 Once a socket is assigned to this request and is connected
 [socket.setNoDelay()][] will be called.
 
-### request.setSocketKeepAlive([enable]\[, initialDelay])
+### request.setSocketKeepAlive([enable][, initialDelay])
 
 Once a socket is assigned to this request and is connected
 [socket.setKeepAlive()][] will be called.

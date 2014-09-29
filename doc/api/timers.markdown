@@ -5,7 +5,7 @@
 All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.
 
-## setTimeout(callback, delay[, arg]\[, ...])
+## setTimeout(callback, delay[, arg][, ...])
 
 To schedule execution of a one-time `callback` after `delay` milliseconds. Returns a
 `timeoutObject` for possible use with `clearTimeout()`. Optionally you can
@@ -20,7 +20,7 @@ be called as close as possible to the time specified.
 
 Prevents a timeout from triggering.
 
-## setInterval(callback, delay[, arg]\[, ...])
+## setInterval(callback, delay[, arg][, ...])
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
 Returns a `intervalObject` for possible use with `clearInterval()`. Optionally
@@ -47,7 +47,7 @@ If you had previously `unref()`d a timer you can call `ref()` to explicitly
 request the timer hold the program open. If the timer is already `ref`d calling
 `ref` again will have no effect.
 
-## setImmediate(callback[, arg]\[, ...])
+## setImmediate(callback[, arg][, ...])
 
 To schedule the "immediate" execution of `callback` after I/O events
 callbacks and before `setTimeout` and `setInterval` . Returns an

@@ -214,7 +214,7 @@ writable.  The written plain text data is used to produce the
 encrypted data on the readable side.  The legacy `update` and `final`
 methods are also supported.
 
-### cipher.update(data[, input_encoding]\[, output_encoding])
+### cipher.update(data[, input_encoding][, output_encoding])
 
 Updates the cipher with `data`, the encoding of which is given in
 `input_encoding` and can be `'utf8'`, `'ascii'` or `'binary'`.  If no
@@ -280,7 +280,7 @@ writable.  The written enciphered data is used to produce the
 plain-text data on the the readable side.  The legacy `update` and
 `final` methods are also supported.
 
-### decipher.update(data[, input_encoding]\[, output_encoding])
+### decipher.update(data[, input_encoding][, output_encoding])
 
 Updates the decipher with `data`, which is encoded in `'binary'`,
 `'base64'` or `'hex'`.  If no encoding is provided, then a buffer is
@@ -408,7 +408,7 @@ Creates a Diffie-Hellman key exchange object and generates a prime of
 `prime_length` bits and using an optional specific numeric `generator`.
 If no `generator` is specified, then `2` is used.
 
-## crypto.createDiffieHellman(prime[, prime_encoding]\[, generator]\[, generator_encoding])
+## crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 
 Creates a Diffie-Hellman key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -442,7 +442,7 @@ the public key in the specified encoding. This key should be
 transferred to the other party. Encoding can be `'binary'`, `'hex'`,
 or `'base64'`.  If no encoding is provided, then a buffer is returned.
 
-### diffieHellman.computeSecret(other_public_key[, input_encoding]\[, output_encoding])
+### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. Supplied
@@ -541,7 +541,7 @@ Format specifies point encoding and can be `'compressed'`, `'uncompressed'`, or
 Encoding can be `'binary'`, `'hex'`, or `'base64'`. If no encoding is provided,
 then a buffer is returned.
 
-### ECDH.computeSecret(other_public_key[, input_encoding]\[, output_encoding])
+### ECDH.computeSecret(other_public_key[, input_encoding][, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. Supplied

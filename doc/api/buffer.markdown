@@ -162,7 +162,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
     // 1234
     // 1234
 
-### buf.write(string[, offset]\[, length]\[, encoding])
+### buf.write(string[, offset][, length][, encoding])
 
 * `string` String - data to be written to buffer
 * `offset` Number, Optional, Default: 0
@@ -181,7 +181,7 @@ The method will not write partial characters.
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
 
-### buf.toString([encoding]\[, start]\[, end])
+### buf.toString([encoding][, start][, end])
 
 * `encoding` String, Optional, Default: 'utf8'
 * `start` Number, Optional, Default: 0
@@ -252,7 +252,7 @@ Returns a number indicating whether `this` comes before or after or is
 the same as the `otherBuffer` in sort order.
 
 
-### buf.copy(targetBuffer[, targetStart]\[, sourceStart]\[, sourceEnd])
+### buf.copy(targetBuffer[, targetStart][, sourceStart][, sourceEnd])
 
 * `targetBuffer` Buffer object - Buffer to copy into
 * `targetStart` Number, Optional, Default: 0
@@ -283,7 +283,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     // !!!!!!!!qrst!!!!!!!!!!!!!
 
 
-### buf.slice([start]\[, end])
+### buf.slice([start][, end])
 
 * `start` Number, Optional, Default: 0
 * `end` Number, Optional, Default: `buffer.length`
@@ -703,7 +703,7 @@ Example:
     // <Buffer 43 eb d5 b7 dd f9 5f d7>
     // <Buffer d7 5f f9 dd b7 d5 eb 43>
 
-### buf.fill(value[, offset]\[, end])
+### buf.fill(value[, offset][, end])
 
 * `value`
 * `offset` Number, Optional

@@ -303,7 +303,7 @@ child process has any open IPC channels with the parent (i.e `fork()`).
 These methods follow the common async programming patterns (accepting a
 callback or returning an EventEmitter).
 
-### child_process.spawn(command[, args]\[, options])
+### child_process.spawn(command[, args][, options])
 
 * `command` {String} The command to run
 * `args` {Array} List of string arguments
@@ -531,7 +531,7 @@ amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
 
 
-### child_process.execFile(file[, args]\[, options]\[, callback])
+### child_process.execFile(file[, args][, options][, callback])
 
 * `file` {String} The filename of the program to run
 * `args` {Array} List of string arguments
@@ -555,7 +555,7 @@ subshell but rather the specified file directly. This makes it slightly
 leaner than `child_process.exec`. It has the same options.
 
 
-### child_process.fork(modulePath[, args]\[, options])
+### child_process.fork(modulePath[, args][, options])
 
 * `modulePath` {String} The module to run in the child
 * `args` {Array} List of string arguments
@@ -598,7 +598,7 @@ Blocking calls like these are mostly useful for simplifying general purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
-### child_process.spawnSync(command[, args]\[, options])
+### child_process.spawnSync(command[, args][, options])
 
 * `command` {String} The command to run
 * `args` {Array} List of string arguments
@@ -629,7 +629,7 @@ until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
-### child_process.execFileSync(command[, args]\[, options])
+### child_process.execFileSync(command[, args][, options])
 
 * `command` {String} The command to run
 * `args` {Array} List of string arguments

@@ -55,7 +55,7 @@ Or
     }).listen(8000);
 
 
-### server.listen(port[, host]\[, backlog]\[, callback])
+### server.listen(port[, host][, backlog][, callback])
 ### server.listen(path[, callback])
 ### server.listen(handle[, callback])
 

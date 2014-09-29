@@ -7,7 +7,7 @@
 This module provides utilities for dealing with query strings.
 It provides the following methods:
 
-## querystring.stringify(obj[, sep]\[, eq]\[, options])
+## querystring.stringify(obj[, sep][, eq][, options])
 
 Serialize an object to a query string.
 Optionally override the default separator (`'&'`) and assignment (`'='`)
@@ -33,7 +33,7 @@ Example:
     // returns
     'w=%D6%D0%CE%C4&foo=bar'
 
-## querystring.parse(str[, sep]\[, eq]\[, options])
+## querystring.parse(str[, sep][, eq][, options])
 
 Deserialize a query string to an object.
 Optionally override the default separator (`'&'`) and assignment (`'='`)
