@@ -568,7 +568,7 @@ have effectively stopped watching `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-## fs.watch(filename[, options]\[, listener])
+## fs.watch(filename[, options][, listener])
 
     Stability: 2 - Unstable.
 

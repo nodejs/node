@@ -287,13 +287,13 @@ function processList(section) {
 }
 
 
-// textRaw = "someobject.someMethod(a, [b=100], [c])"
+// textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
   if (!params) return;
   params = params[1];
-  // the ] is irrelevant. [ indicates optionalness.
-  params = params.replace(/\]/g, '');
+  // the [ is irrelevant. ] indicates optionalness.
+  params = params.replace(/\[/g, '');
   params = params.split(/,/)
   params.forEach(function(p, i, _) {
     p = p.trim();
@@ -302,9 +302,10 @@ function parseSignature(text, sig) {
     var optional = false;
     var def;
     // [foo] -> optional
-    if (p.charAt(0) === '[') {
+    if (p.charAt(p.length - 1) === ']') {
       optional = true;
-      p = p.substr(1);
+      p = p.substr(0, p.length - 1);
+      p = p.trim();
     }
     var eq = p.indexOf('=');
     if (eq !== -1) {

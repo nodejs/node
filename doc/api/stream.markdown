@@ -501,7 +501,7 @@ Examples of writable streams include:
 * [child process stdin](child_process.html#child_process_child_stdin)
 * [process.stdout][], [process.stderr][]
 
-#### writable.write(chunk[, encoding]\[, callback])
+#### writable.write(chunk[, encoding][, callback])
 
 * `chunk` {String | Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -564,7 +564,7 @@ Buffered data will be flushed either at `.uncork()` or at `.end()` call.
 
 Flush all data, buffered since `.cork()` call.
 
-#### writable.end([chunk]\[, encoding]\[, callback])
+#### writable.end([chunk][, encoding][, callback])
 
 * `chunk` {String | Buffer} Optional data to write
 * `encoding` {String} The encoding, if `chunk` is a String

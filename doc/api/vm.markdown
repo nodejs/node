@@ -105,7 +105,7 @@ Note that running untrusted code is a tricky business requiring great care.
 separate process.
 
 
-## vm.runInNewContext(code[, sandbox]\[, options])
+## vm.runInNewContext(code[, sandbox][, options])
 
 `vm.runInNewContext` compiles `code`, contextifies `sandbox` if passed or
 creates a new contextified sandbox if it's omitted, and then runs the code with
@@ -238,7 +238,7 @@ Note that running untrusted code is a tricky business requiring great care.
 requires a separate process.
 
 
-### script.runInNewContext([sandbox]\[, options])
+### script.runInNewContext([sandbox][, options])
 
 Similar to `vm.runInNewContext` but a method of a precompiled `Script` object.
 `script.runInNewContext` contextifies `sandbox` if passed or creates a new

@@ -286,7 +286,7 @@ You can test this server by connecting to it with `openssl s_client`:
 
 
 ## tls.connect(options[, callback])
-## tls.connect(port[, host]\[, options]\[, callback])
+## tls.connect(port[, host][, options][, callback])
 
 Creates a new client connection to the given `port` and `host` (old API) or
 `options.port` and `options.host`. (If `host` is omitted, it defaults to
@@ -455,7 +455,7 @@ publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
-## tls.createSecurePair([context]\[, isServer]\[, requestCert]\[, rejectUnauthorized])
+## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized])
 
     Stability: 0 - Deprecated. Use tls.TLSSocket instead.
 
@@ -594,7 +594,7 @@ NOTE: you may want to use some npm module like [asn1.js] to parse the
 certificates.
 
 
-### server.listen(port[, host]\[, callback])
+### server.listen(port[, host][, callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the
 `host` is omitted, the server will accept connections directed to any

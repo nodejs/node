@@ -22,7 +22,7 @@ In daily use, the blocking/non-blocking dichotomy is not something you
 should worry about unless you log huge amounts of data.
 
 
-## console.log([data]\[, ...])
+## console.log([data][, ...])
 
 Prints to stdout with newline. This function can take multiple arguments in a
 `printf()`-like way. Example:
@@ -34,15 +34,15 @@ Prints to stdout with newline. This function can take multiple arguments in a
 If formatting elements are not found in the first string then `util.inspect`
 is used on each argument.  See [util.format()][] for more information.
 
-## console.info([data]\[, ...])
+## console.info([data][, ...])
 
 Same as `console.log`.
 
-## console.error([data]\[, ...])
+## console.error([data][, ...])
 
 Same as `console.log` but prints to stderr.
 
-## console.warn([data]\[, ...])
+## console.warn([data][, ...])
 
 Same as `console.error`.
 
@@ -82,7 +82,7 @@ Finish timer, record output. Example:
 Print to stderr `'Trace :'`, followed by the formatted message and stack trace
 to the current position.
 
-## console.assert(value[, message]\[, ...])
+## console.assert(value[, message][, ...])
 
 Similar to [assert.ok()][], but the error message is formatted as
 `util.format(message...)`.
