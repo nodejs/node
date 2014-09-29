@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "diy-fp.h"
-#include "double.h"
-#include "fast-dtoa.h"
-#include "gay-precision.h"
-#include "gay-shortest.h"
+#include "src/base/platform/platform.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
+#include "src/fast-dtoa.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/gay-precision.h"
+#include "test/cctest/gay-shortest.h"
 
 using namespace v8::internal;
 

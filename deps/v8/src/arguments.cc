@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
-#include "arguments.h"
+#include "src/v8.h"
 
-#include "vm-state-inl.h"
+#include "src/arguments.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

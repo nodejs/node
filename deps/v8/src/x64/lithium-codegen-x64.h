@@ -5,15 +5,15 @@
 #ifndef V8_X64_LITHIUM_CODEGEN_X64_H_
 #define V8_X64_LITHIUM_CODEGEN_X64_H_
 
-#include "x64/lithium-x64.h"
+#include "src/x64/lithium-x64.h"
 
-#include "checks.h"
-#include "deoptimizer.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
-#include "x64/lithium-gap-resolver-x64.h"
+#include "src/base/logging.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
+#include "src/x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -65,6 +65,7 @@ class LCodeGen: public LCodeGenBase {
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsDehoistedKeyConstant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
@@ -83,7 +84,14 @@ class LCodeGen: public LCodeGenBase {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagU(LNumberTagU* instr);
+
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
+  void DoDeferredNumberTagIU(LInstruction* instr,
+                             LOperand* value,
+                             LOperand* temp1,
+                             LOperand* temp2,
+                             IntegerSignedness signedness);
+
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
@@ -224,9 +232,9 @@ class LCodeGen: public LCodeGenBase {
   Operand BuildFastArrayOperand(
       LOperand* elements_pointer,
       LOperand* key,
+      Representation key_representation,
       ElementsKind elements_kind,
-      uint32_t offset,
-      uint32_t additional_index = 0);
+      uint32_t base_offset);
 
   Operand BuildSeqStringOperand(Register string,
                                 LOperand* index,
@@ -337,14 +345,14 @@ class LCodeGen: public LCodeGenBase {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->info()->is_calling());
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      DCHECK(codegen_->info()->is_calling());
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->masm_->PushSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
     }
 
     ~PushSafepointRegistersScope() {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
       codegen_->masm_->PopSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }

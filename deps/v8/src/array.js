@@ -45,7 +45,7 @@ function GetSortedArrayKeys(array, indices) {
 }
 
 
-function SparseJoinWithSeparator(array, len, convert, separator) {
+function SparseJoinWithSeparatorJS(array, len, convert, separator) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
   var totalLength = 0;
   var elements = new InternalArray(keys.length * 2);
@@ -86,11 +86,20 @@ function SparseJoin(array, len, convert) {
 }
 
 
-function UseSparseVariant(object, length, is_array) {
-   return is_array &&
-       length > 1000 &&
-       (!%_IsSmi(length) ||
-        %EstimateNumberOfElements(object) < (length >> 2));
+function UseSparseVariant(array, length, is_array, touched) {
+  // Only use the sparse variant on arrays that are likely to be sparse and the
+  // number of elements touched in the operation is relatively small compared to
+  // the overall size of the array.
+  if (!is_array || length < 1000 || %IsObserved(array)) {
+    return false;
+  }
+  if (!%_IsSmi(length)) {
+    return true;
+  }
+  var elements_threshold = length >> 2;  // No more than 75% holes
+  var estimated_elements = %EstimateNumberOfElements(array);
+  return (estimated_elements < elements_threshold) &&
+    (touched > estimated_elements * 4);
 }
 
 
@@ -107,11 +116,12 @@ function Join(array, length, separator, convert) {
 
   // Attempt to convert the elements.
   try {
-    if (UseSparseVariant(array, length, is_array)) {
+    if (UseSparseVariant(array, length, is_array, length)) {
+      %NormalizeElements(array);
       if (separator.length == 0) {
         return SparseJoin(array, length, convert);
       } else {
-        return SparseJoinWithSeparator(array, length, convert, separator);
+        return SparseJoinWithSeparatorJS(array, length, convert, separator);
       }
     }
 
@@ -271,7 +281,7 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    // The spec could also be interpreted such that %HasLocalProperty
+    // The spec could also be interpreted such that %HasOwnProperty
     // would be the appropriate test.  We follow KJS in consulting the
     // prototype.
     var current = array[index];
@@ -291,7 +301,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
         // The spec could also be interpreted such that
-        // %HasLocalProperty would be the appropriate test.  We follow
+        // %HasOwnProperty would be the appropriate test.  We follow
         // KJS in consulting the prototype.
         var current = array[from_index];
         if (!IS_UNDEFINED(current) || from_index in array) {
@@ -305,7 +315,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
         // The spec could also be interpreted such that
-        // %HasLocalProperty would be the appropriate test.  We follow
+        // %HasOwnProperty would be the appropriate test.  We follow
         // KJS in consulting the prototype.
         var current = array[from_index];
         if (!IS_UNDEFINED(current) || from_index in array) {
@@ -443,9 +453,7 @@ function ArrayPush() {
   var m = %_ArgumentsLength();
 
   for (var i = 0; i < m; i++) {
-    // Use SetProperty rather than a direct keyed store to ensure that the store
-    // site doesn't become poisened with an elements transition KeyedStoreIC.
-    %SetProperty(array, i+n, %_Arguments(i), 0, kStrictMode);
+    array[i+n] = %_Arguments(i);
   }
 
   var new_length = n + m;
@@ -457,7 +465,7 @@ function ArrayPush() {
 // Returns an array containing the array elements of the object followed
 // by the array elements of each argument in order. See ECMA-262,
 // section 15.4.4.7.
-function ArrayConcat(arg1) {  // length == 1
+function ArrayConcatJS(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
 
   var array = ToObject(this);
@@ -520,13 +528,15 @@ function ArrayReverse() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
 
   var array = TO_OBJECT_INLINE(this);
-  var j = TO_UINT32(array.length) - 1;
+  var len = TO_UINT32(array.length);
 
-  if (UseSparseVariant(array, j, IS_ARRAY(array))) {
-    SparseReverse(array, j+1);
+  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
+    %NormalizeElements(array);
+    SparseReverse(array, len);
     return array;
   }
 
+  var j = len - 1;
   for (var i = 0; i < j; i++, j--) {
     var current_i = array[i];
     if (!IS_UNDEFINED(current_i) || i in array) {
@@ -628,7 +638,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
   var is_sealed = ObjectIsSealed(array);
 
-  if (IS_ARRAY(array) && !is_sealed) {
+  if (IS_ARRAY(array) && !is_sealed && len > 0) {
     SmartMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);
@@ -672,10 +682,9 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(array) &&
-      !%IsObserved(array) &&
-      (end_i > 1000) &&
-      (%EstimateNumberOfElements(array) < end_i)) {
+  if (UseSparseVariant(array, len, IS_ARRAY(array), end_i - start_i)) {
+    %NormalizeElements(array);
+    %NormalizeElements(result);
     SmartSlice(array, start_i, end_i - start_i, len, result);
   } else {
     SimpleSlice(array, start_i, end_i - start_i, len, result);
@@ -783,24 +792,20 @@ function ArraySplice(start, delete_count) {
                         ["Array.prototype.splice"]);
   }
 
-  var use_simple_splice = true;
-  if (IS_ARRAY(array) &&
-      num_elements_to_add !== del_count) {
-    // If we are only deleting/moving a few things near the end of the
-    // array then the simple version is going to be faster, because it
-    // doesn't touch most of the array.
-    var estimated_non_hole_elements = %EstimateNumberOfElements(array);
-    if (len > 20 && (estimated_non_hole_elements >> 2) < (len - start_i)) {
-      use_simple_splice = false;
-    }
+  var changed_elements = del_count;
+  if (num_elements_to_add != del_count) {
+    // If the slice needs to do a actually move elements after the insertion
+    // point, then include those in the estimate of changed elements.
+    changed_elements += len - start_i - del_count;
   }
-
-  if (use_simple_splice) {
-    SimpleSlice(array, start_i, del_count, len, deleted_elements);
-    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
-  } else {
+  if (UseSparseVariant(array, len, IS_ARRAY(array), changed_elements)) {
+    %NormalizeElements(array);
+    %NormalizeElements(deleted_elements);
     SmartSlice(array, start_i, del_count, len, deleted_elements);
     SmartMove(array, start_i, del_count, len, num_elements_to_add);
+  } else {
+    SimpleSlice(array, start_i, del_count, len, deleted_elements);
+    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
   }
 
   // Insert the arguments into the resulting array in
@@ -1075,7 +1080,7 @@ function ArraySort(comparefn) {
     // For compatibility with JSC, we also sort elements inherited from
     // the prototype chain on non-Array objects.
     // We do this by copying them to this object and sorting only
-    // local elements. This is not very efficient, but sorting with
+    // own elements. This is not very efficient, but sorting with
     // inherited elements happens very, very rarely, if at all.
     // The specification allows "implementation dependent" behavior
     // if an element on the prototype chain has an element that
@@ -1128,7 +1133,7 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1161,7 +1166,7 @@ function ArrayForEach(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1192,7 +1197,7 @@ function ArraySome(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1222,7 +1227,7 @@ function ArrayEvery(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1253,7 +1258,7 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1285,7 +1290,8 @@ function ArrayIndexOf(element, index) {
   }
   var min = index;
   var max = length;
-  if (UseSparseVariant(this, length, IS_ARRAY(this))) {
+  if (UseSparseVariant(this, length, IS_ARRAY(this), max - min)) {
+    %NormalizeElements(this);
     var indices = %GetArrayKeys(this, length);
     if (IS_NUMBER(indices)) {
       // It's an interval.
@@ -1340,7 +1346,8 @@ function ArrayLastIndexOf(element, index) {
   }
   var min = 0;
   var max = index;
-  if (UseSparseVariant(this, length, IS_ARRAY(this))) {
+  if (UseSparseVariant(this, length, IS_ARRAY(this), index)) {
+    %NormalizeElements(this);
     var indices = %GetArrayKeys(this, index + 1);
     if (IS_NUMBER(indices)) {
       // It's an interval.
@@ -1400,7 +1407,7 @@ function ArrayReduce(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  var stepping = %_DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1437,7 +1444,7 @@ function ArrayReduceRight(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  var stepping = %_DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i >= 0; i--) {
     if (i in array) {
       var element = array[i];
@@ -1462,14 +1469,28 @@ function SetUpArray() {
 
   // Set up non-enumerable constructor property on the Array.prototype
   // object.
-  %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+  %AddNamedProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+
+  // Set up unscopable properties on the Array.prototype object.
+  var unscopables = {
+    __proto__: null,
+    copyWithin: true,
+    entries: true,
+    fill: true,
+    find: true,
+    findIndex: true,
+    keys: true,
+    values: true,
+  };
+  %AddNamedProperty($Array.prototype, symbolUnscopables, unscopables,
+      DONT_ENUM | READ_ONLY);
 
   // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(
     "isArray", ArrayIsArray
   ));
 
-  var specialFunctions = %SpecialArrayFunctions({});
+  var specialFunctions = %SpecialArrayFunctions();
 
   var getFunction = function(name, jsBuiltin, len) {
     var f = jsBuiltin;
@@ -1492,7 +1513,7 @@ function SetUpArray() {
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
     "push", getFunction("push", ArrayPush, 1),
-    "concat", getFunction("concat", ArrayConcat, 1),
+    "concat", getFunction("concat", ArrayConcatJS, 1),
     "reverse", getFunction("reverse", ArrayReverse),
     "shift", getFunction("shift", ArrayShift),
     "unshift", getFunction("unshift", ArrayUnshift, 1),
@@ -1516,7 +1537,7 @@ function SetUpArray() {
   // exposed to user code.
   // Adding only the functions that are actually used.
   SetUpLockedPrototype(InternalArray, $Array(), $Array(
-    "concat", getFunction("concat", ArrayConcat),
+    "concat", getFunction("concat", ArrayConcatJS),
     "indexOf", getFunction("indexOf", ArrayIndexOf),
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),

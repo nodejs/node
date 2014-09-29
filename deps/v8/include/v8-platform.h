@@ -5,9 +5,9 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
-#include "v8.h"
-
 namespace v8 {
+
+class Isolate;
 
 /**
  * A Task represents a unit of work.
@@ -37,6 +37,8 @@ class Platform {
     kLongRunningTask
   };
 
+  virtual ~Platform() {}
+
   /**
    * Schedules a task to be invoked on a background thread. |expected_runtime|
    * indicates that the task will run a long time. The Platform implementation
@@ -53,9 +55,6 @@ class Platform {
    * scheduling. The definition of "foreground" is opaque to V8.
    */
   virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
-
- protected:
-  virtual ~Platform() {}
 };
 
 }  // namespace v8

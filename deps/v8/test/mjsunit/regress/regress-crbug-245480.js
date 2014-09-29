@@ -25,24 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 // Flags: --noalways-opt
-
-// Test element kind of objects.
-// Since --smi-only-arrays affects builtins, its default setting at compile
-// time sticks if built with snapshot.  If --smi-only-arrays is deactivated
-// by default, only a no-snapshot build actually has smi-only arrays enabled
-// in this test case.  Depending on whether smi-only arrays are actually
-// enabled, this test takes the appropriate code path to check smi-only arrays.
-
-// support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
-support_smi_only_arrays = true;
-
-if (support_smi_only_arrays) {
-  print("Tests include smi-only arrays.");
-} else {
-  print("Tests do NOT include smi-only arrays.");
-}
 
 function isHoley(obj) {
   if (%HasFastHoleyElements(obj)) return true;
@@ -57,18 +41,16 @@ function assertNotHoley(obj, name_opt) {
   assertEquals(false, isHoley(obj), name_opt);
 }
 
-if (support_smi_only_arrays) {
-  function create_array(arg) {
-    return new Array(arg);
-  }
-
-  obj = create_array(0);
-  assertNotHoley(obj);
-  create_array(0);
-  %OptimizeFunctionOnNextCall(create_array);
-  obj = create_array(10);
-  assertHoley(obj);
+function create_array(arg) {
+  return new Array(arg);
 }
+
+obj = create_array(0);
+assertNotHoley(obj);
+create_array(0);
+%OptimizeFunctionOnNextCall(create_array);
+obj = create_array(10);
+assertHoley(obj);
 
 // The code below would assert in debug or crash in release
 function f(length) {

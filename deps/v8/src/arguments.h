@@ -5,7 +5,8 @@
 #ifndef V8_ARGUMENTS_H_
 #define V8_ARGUMENTS_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +22,9 @@ namespace internal {
 //   Object* Runtime_function(Arguments args) {
 //     ... use args[i] here ...
 //   }
+//
+// Note that length_ (whose value is in the integer range) is defined
+// as intptr_t to provide endian-neutrality on 64-bit archs.
 
 class Arguments BASE_EMBEDDED {
  public:
@@ -28,7 +32,7 @@ class Arguments BASE_EMBEDDED {
       : length_(length), arguments_(arguments) { }
 
   Object*& operator[] (int index) {
-    ASSERT(0 <= index && index < length_);
+    DCHECK(0 <= index && index < length_);
     return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
                                         index * kPointerSize));
   }
@@ -50,12 +54,12 @@ class Arguments BASE_EMBEDDED {
   }
 
   // Get the total number of arguments including the receiver.
-  int length() const { return length_; }
+  int length() const { return static_cast<int>(length_); }
 
   Object** arguments() { return arguments_; }
 
  private:
-  int length_;
+  intptr_t length_;
   Object** arguments_;
 };
 
@@ -172,8 +176,8 @@ class PropertyCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    ASSERT(values[T::kHolderIndex]->IsHeapObject());
-    ASSERT(values[T::kIsolateIndex]->IsSmi());
+    DCHECK(values[T::kHolderIndex]->IsHeapObject());
+    DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
   /*
@@ -244,9 +248,9 @@ class FunctionCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    ASSERT(values[T::kCalleeIndex]->IsJSFunction());
-    ASSERT(values[T::kHolderIndex]->IsHeapObject());
-    ASSERT(values[T::kIsolateIndex]->IsSmi());
+    DCHECK(values[T::kCalleeIndex]->IsJSFunction());
+    DCHECK(values[T::kHolderIndex]->IsHeapObject());
+    DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
   /*
@@ -279,13 +283,13 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define DECLARE_RUNTIME_FUNCTION(Name)    \
 Object* Name(int args_length, Object** args_object, Isolate* isolate)
 
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                     \
-static Type __RT_impl_##Name(Arguments args, Isolate* isolate);       \
-Type Name(int args_length, Object** args_object, Isolate* isolate) {  \
-  CLOBBER_DOUBLE_REGISTERS();                                         \
-  Arguments args(args_length, args_object);                           \
-  return __RT_impl_##Name(args, isolate);                             \
-}                                                                     \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                        \
+static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));  \
+Type Name(int args_length, Object** args_object, Isolate* isolate) {     \
+  CLOBBER_DOUBLE_REGISTERS();                                            \
+  Arguments args(args_length, args_object);                              \
+  return __RT_impl_##Name(args, isolate);                                \
+}                                                                        \
 static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 
 

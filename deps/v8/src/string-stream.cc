@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "string-stream.h"
+#include "src/string-stream.h"
 
-#include "handles-inl.h"
+#include "src/handles-inl.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -17,16 +18,9 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
 }
 
 
-NoAllocationStringAllocator::NoAllocationStringAllocator(char* memory,
-                                                         unsigned size) {
-  size_ = size;
-  space_ = memory;
-}
-
-
 bool StringStream::Put(char c) {
   if (full()) return false;
-  ASSERT(length_ < capacity_);
+  DCHECK(length_ < capacity_);
   // Since the trailing '\0' is not accounted for in length_ fullness is
   // indicated by a difference of 1 between length_ and capacity_. Thus when
   // reaching a difference of 2 we need to grow the buffer.
@@ -38,7 +32,7 @@ bool StringStream::Put(char c) {
       buffer_ = new_buffer;
     } else {
       // Reached the end of the available buffer.
-      ASSERT(capacity_ >= 5);
+      DCHECK(capacity_ >= 5);
       length_ = capacity_ - 1;  // Indicate fullness of the stream.
       buffer_[length_ - 4] = '.';
       buffer_[length_ - 3] = '.';
@@ -96,26 +90,26 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     FmtElm current = elms[elm++];
     switch (type) {
     case 's': {
-      ASSERT_EQ(FmtElm::C_STR, current.type_);
+      DCHECK_EQ(FmtElm::C_STR, current.type_);
       const char* value = current.data_.u_c_str_;
       Add(value);
       break;
     }
     case 'w': {
-      ASSERT_EQ(FmtElm::LC_STR, current.type_);
+      DCHECK_EQ(FmtElm::LC_STR, current.type_);
       Vector<const uc16> value = *current.data_.u_lc_str_;
       for (int i = 0; i < value.length(); i++)
         Put(static_cast<char>(value[i]));
       break;
     }
     case 'o': {
-      ASSERT_EQ(FmtElm::OBJ, current.type_);
+      DCHECK_EQ(FmtElm::OBJ, current.type_);
       Object* obj = current.data_.u_obj_;
       PrintObject(obj);
       break;
     }
     case 'k': {
-      ASSERT_EQ(FmtElm::INT, current.type_);
+      DCHECK_EQ(FmtElm::INT, current.type_);
       int value = current.data_.u_int_;
       if (0x20 <= value && value <= 0x7F) {
         Put(value);
@@ -129,21 +123,30 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     case 'i': case 'd': case 'u': case 'x': case 'c': case 'X': {
       int value = current.data_.u_int_;
       EmbeddedVector<char, 24> formatted;
-      int length = OS::SNPrintF(formatted, temp.start(), value);
+      int length = SNPrintF(formatted, temp.start(), value);
       Add(Vector<const char>(formatted.start(), length));
       break;
     }
     case 'f': case 'g': case 'G': case 'e': case 'E': {
       double value = current.data_.u_double_;
-      EmbeddedVector<char, 28> formatted;
-      OS::SNPrintF(formatted, temp.start(), value);
-      Add(formatted.start());
+      int inf = std::isinf(value);
+      if (inf == -1) {
+        Add("-inf");
+      } else if (inf == 1) {
+        Add("inf");
+      } else if (std::isnan(value)) {
+        Add("nan");
+      } else {
+        EmbeddedVector<char, 28> formatted;
+        SNPrintF(formatted, temp.start(), value);
+        Add(formatted.start());
+      }
       break;
     }
     case 'p': {
       void* value = current.data_.u_pointer_;
       EmbeddedVector<char, 20> formatted;
-      OS::SNPrintF(formatted, temp.start(), value);
+      SNPrintF(formatted, temp.start(), value);
       Add(formatted.start());
       break;
     }
@@ -154,7 +157,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   }
 
   // Verify that the buffer is 0-terminated
-  ASSERT(buffer_[length_] == '\0');
+  DCHECK(buffer_[length_] == '\0');
 }
 
 
@@ -237,7 +240,7 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 
 SmartArrayPointer<const char> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
-  OS::MemCopy(str, buffer_, length_);
+  MemCopy(str, buffer_, length_);
   str[length_] = '\0';
   return SmartArrayPointer<const char>(str);
 }
@@ -348,7 +351,8 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
           key->ShortPrint();
         }
         Add(": ");
-        Object* value = js_object->RawFastPropertyAt(descs->GetFieldIndex(i));
+        FieldIndex index = FieldIndex::ForDescriptor(map, i);
+        Object* value = js_object->RawFastPropertyAt(index);
         Add("%o\n", value);
       }
     }
@@ -505,11 +509,11 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  for (Object* p = receiver;
-       p != isolate->heap()->null_value();
-       p = p->GetPrototype(isolate)) {
-    if (p->IsJSObject()) {
-      Object* key = JSObject::cast(p)->SlowReverseLookup(fun);
+  for (PrototypeIterator iter(isolate, receiver,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSObject()) {
+      Object* key = JSObject::cast(iter.GetCurrent())->SlowReverseLookup(fun);
       if (key != isolate->heap()->undefined_value()) {
         if (!name->IsString() ||
             !key->IsString() ||
@@ -546,19 +550,11 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
   if (new_space == NULL) {
     return space_;
   }
-  OS::MemCopy(new_space, space_, *bytes);
+  MemCopy(new_space, space_, *bytes);
   *bytes = new_bytes;
   DeleteArray(space_);
   space_ = new_space;
   return new_space;
-}
-
-
-// Only grow once to the maximum allowable size.
-char* NoAllocationStringAllocator::grow(unsigned* bytes) {
-  ASSERT(size_ >= *bytes);
-  *bytes = size_;
-  return space_;
 }
 
 

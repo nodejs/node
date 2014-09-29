@@ -21,3 +21,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+This tests that string replacement with a large replacement string causes an out-of-memory exception. See bug 102956 for more details.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS x.replace(/\d/g, y) threw exception RangeError: Invalid string length.
+PASS successfullyParsed is true
+
+TEST COMPLETE

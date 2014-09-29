@@ -154,7 +154,7 @@ class PersistentValueMap {
    */
   bool SetReturnValue(const K& key,
       ReturnValue<Value> returnValue) {
-    return SetReturnValueFromVal(returnValue, Traits::Get(&impl_, key));
+    return SetReturnValueFromVal(&returnValue, Traits::Get(&impl_, key));
   }
 
   /**
@@ -227,7 +227,7 @@ class PersistentValueMap {
     }
     template<typename T>
     bool SetReturnValue(ReturnValue<T> returnValue) {
-      return SetReturnValueFromVal(returnValue, value_);
+      return SetReturnValueFromVal(&returnValue, value_);
     }
     void Reset() {
       value_ = kPersistentContainerNotFound;
@@ -300,6 +300,7 @@ class PersistentValueMap {
       K key = Traits::KeyFromWeakCallbackData(data);
       Traits::Dispose(data.GetIsolate(),
                       persistentValueMap->Remove(key).Pass(), key);
+      Traits::DisposeCallbackData(data.GetParameter());
     }
   }
 
@@ -308,10 +309,10 @@ class PersistentValueMap {
   }
 
   static bool SetReturnValueFromVal(
-      ReturnValue<Value>& returnValue, PersistentContainerValue value) {
+      ReturnValue<Value>* returnValue, PersistentContainerValue value) {
     bool hasValue = value != kPersistentContainerNotFound;
     if (hasValue) {
-      returnValue.SetInternal(
+      returnValue->SetInternal(
           *reinterpret_cast<internal::Object**>(FromVal(value)));
     }
     return hasValue;
@@ -337,7 +338,7 @@ class PersistentValueMap {
   static UniquePersistent<V> Release(PersistentContainerValue v) {
     UniquePersistent<V> p;
     p.val_ = FromVal(v);
-    if (Traits::kCallbackType != kNotWeak && !p.IsEmpty()) {
+    if (Traits::kCallbackType != kNotWeak && p.IsWeak()) {
       Traits::DisposeCallbackData(
           p.template ClearWeak<typename Traits::WeakCallbackDataType>());
     }
@@ -422,7 +423,7 @@ class PersistentValueVector {
    */
   void Append(UniquePersistent<V> persistent) {
     Traits::Append(&impl_, ClearAndLeak(&persistent));
-  };
+  }
 
   /**
    * Are there any values in the vector?

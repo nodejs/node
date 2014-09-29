@@ -5,11 +5,11 @@
 #ifndef V8_LITHIUM_ALLOCATOR_H_
 #define V8_LITHIUM_ALLOCATOR_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "lithium.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/lithium.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,6 @@ namespace internal {
 // Forward declarations.
 class HBasicBlock;
 class HGraph;
-class HInstruction;
 class HPhi;
 class HTracer;
 class HValue;
@@ -52,7 +51,7 @@ class LifetimePosition {
   // Returns the index of the instruction to which this lifetime position
   // corresponds.
   int InstructionIndex() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return value_ / kStep;
   }
 
@@ -65,28 +64,28 @@ class LifetimePosition {
   // Returns the lifetime position for the start of the instruction which
   // corresponds to this lifetime position.
   LifetimePosition InstructionStart() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(value_ & ~(kStep - 1));
   }
 
   // Returns the lifetime position for the end of the instruction which
   // corresponds to this lifetime position.
   LifetimePosition InstructionEnd() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(InstructionStart().Value() + kStep/2);
   }
 
   // Returns the lifetime position for the beginning of the next instruction.
   LifetimePosition NextInstruction() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(InstructionStart().Value() + kStep);
   }
 
   // Returns the lifetime position for the beginning of the previous
   // instruction.
   LifetimePosition PrevInstruction() const {
-    ASSERT(IsValid());
-    ASSERT(value_ > 1);
+    DCHECK(IsValid());
+    DCHECK(value_ > 1);
     return LifetimePosition(InstructionStart().Value() - kStep);
   }
 
@@ -118,70 +117,12 @@ class LifetimePosition {
 };
 
 
-enum RegisterKind {
-  UNALLOCATED_REGISTERS,
-  GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
-};
-
-
-// A register-allocator view of a Lithium instruction. It contains the id of
-// the output operand and a list of input operand uses.
-
-class LInstruction;
-class LEnvironment;
-
-// Iterator for non-null temp operands.
-class TempIterator BASE_EMBEDDED {
- public:
-  inline explicit TempIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  inline void SkipUninteresting();
-  LInstruction* instr_;
-  int limit_;
-  int current_;
-};
-
-
-// Iterator for non-constant input operands.
-class InputIterator BASE_EMBEDDED {
- public:
-  inline explicit InputIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  inline void SkipUninteresting();
-  LInstruction* instr_;
-  int limit_;
-  int current_;
-};
-
-
-class UseIterator BASE_EMBEDDED {
- public:
-  inline explicit UseIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  InputIterator input_iterator_;
-  DeepIterator env_iterator_;
-};
-
-
 // Representation of the non-empty interval [start,end[.
 class UseInterval: public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(NULL) {
-    ASSERT(start.Value() < end.Value());
+    DCHECK(start.Value() < end.Value());
   }
 
   LifetimePosition start() const { return start_; }
@@ -302,7 +243,7 @@ class LiveRange: public ZoneObject {
   bool IsSpilled() const { return spilled_; }
 
   LOperand* current_hint_operand() const {
-    ASSERT(current_hint_operand_ == FirstHint());
+    DCHECK(current_hint_operand_ == FirstHint());
     return current_hint_operand_;
   }
   LOperand* FirstHint() const {
@@ -313,12 +254,12 @@ class LiveRange: public ZoneObject {
   }
 
   LifetimePosition Start() const {
-    ASSERT(!IsEmpty());
+    DCHECK(!IsEmpty());
     return first_interval()->start();
   }
 
   LifetimePosition End() const {
-    ASSERT(!IsEmpty());
+    DCHECK(!IsEmpty());
     return last_interval_->end();
   }
 
@@ -423,7 +364,7 @@ class LAllocator BASE_EMBEDDED {
 
   void MarkAsOsrEntry() {
     // There can be only one.
-    ASSERT(!has_osr_entry_);
+    DCHECK(!has_osr_entry_);
     // Simply set a flag to find and process instruction later.
     has_osr_entry_ = true;
   }

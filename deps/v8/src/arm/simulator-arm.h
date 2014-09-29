@@ -13,7 +13,7 @@
 #ifndef V8_ARM_SIMULATOR_ARM_H_
 #define V8_ARM_SIMULATOR_ARM_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native arm platform.
@@ -36,9 +36,6 @@ typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   (FUNCTION_CAST<arm_regexp_matcher>(entry)(                              \
       p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on arm uses the C stack, we
@@ -63,9 +60,9 @@ class SimulatorStack : public v8::internal::AllStatic {
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "constants-arm.h"
-#include "hashmap.h"
-#include "assembler.h"
+#include "src/arm/constants-arm.h"
+#include "src/assembler.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -265,7 +262,7 @@ class Simulator {
 
   inline int GetCarry() {
     return c_flag_ ? 1 : 0;
-  };
+  }
 
   // Support for VFP.
   void Compute_FPSCR_Flags(double val1, double val2);
@@ -435,10 +432,6 @@ class Simulator {
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   Simulator::current(Isolate::Current())->Call( \
       entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

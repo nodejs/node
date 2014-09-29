@@ -37,7 +37,7 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
-#include "serialize.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -84,13 +84,13 @@ struct Register {
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "rax",
       "rbx",
@@ -116,7 +116,7 @@ struct Register {
   // rax, rbx, rcx and rdx are byte registers, the rest are not.
   bool is_byte_register() const { return code_ <= 3; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
@@ -201,18 +201,18 @@ struct XMMRegister {
   }
 
   static int ToAllocationIndex(XMMRegister reg) {
-    ASSERT(reg.code() != 0);
+    DCHECK(reg.code() != 0);
     return reg.code() - 1;
   }
 
   static XMMRegister FromAllocationIndex(int index) {
-    ASSERT(0 <= index && index < kMaxNumAllocatableRegisters);
+    DCHECK(0 <= index && index < kMaxNumAllocatableRegisters);
     XMMRegister result = { index + 1 };
     return result;
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "xmm1",
       "xmm2",
@@ -234,15 +234,15 @@ struct XMMRegister {
   }
 
   static XMMRegister from_code(int code) {
-    ASSERT(code >= 0);
-    ASSERT(code < kMaxNumRegisters);
+    DCHECK(code >= 0);
+    DCHECK(code < kMaxNumRegisters);
     XMMRegister r = { code };
     return r;
   }
   bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters; }
   bool is(XMMRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
 
@@ -326,8 +326,8 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-// Corresponds to transposing the operands of a comparison.
-inline Condition ReverseCondition(Condition cc) {
+// Commute a condition such that {a cond b == b cond' a}.
+inline Condition CommuteCondition(Condition cc) {
   switch (cc) {
     case below:
       return above;
@@ -347,7 +347,7 @@ inline Condition ReverseCondition(Condition cc) {
       return greater_equal;
     default:
       return cc;
-  };
+  }
 }
 
 
@@ -358,7 +358,7 @@ class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
   explicit Immediate(Smi* value) {
-    ASSERT(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
+    DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
     value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
   }
 
@@ -437,100 +437,27 @@ class Operand BASE_EMBEDDED {
 };
 
 
-// CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a CpuFeatureScope before use.
-// Example:
-//   if (assembler->IsSupported(SSE3)) {
-//     CpuFeatureScope fscope(assembler, SSE3);
-//     // Generate SSE3 floating point code.
-//   } else {
-//     // Generate standard SSE2 floating point code.
-//   }
-class CpuFeatures : public AllStatic {
- public:
-  // Detect features of the target CPU. Set safe defaults if the serializer
-  // is enabled (snapshots must be portable).
-  static void Probe(bool serializer_enabled);
-
-  // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
-    if (Check(f, cross_compile_)) return true;
-    ASSERT(initialized_);
-    if (f == SSE3 && !FLAG_enable_sse3) return false;
-    if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
-    if (f == CMOV && !FLAG_enable_cmov) return false;
-    if (f == SAHF && !FLAG_enable_sahf) return false;
-    return Check(f, supported_);
-  }
-
-  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
-    return Check(f, cross_compile_) ||
-           (IsSupported(f) &&
-            !(Serializer::enabled(isolate) &&
-              Check(f, found_by_runtime_probing_only_)));
-  }
-
-  static bool VerifyCrossCompiling() {
-    return cross_compile_ == 0;
-  }
-
-  static bool VerifyCrossCompiling(CpuFeature f) {
-    uint64_t mask = flag2set(f);
-    return cross_compile_ == 0 ||
-           (cross_compile_ & mask) == mask;
-  }
-
-  static bool SupportsCrankshaft() { return true; }
-
- private:
-  static bool Check(CpuFeature f, uint64_t set) {
-    return (set & flag2set(f)) != 0;
-  }
-
-  static uint64_t flag2set(CpuFeature f) {
-    return static_cast<uint64_t>(1) << f;
-  }
-
-  // Safe defaults include CMOV for X64. It is always available, if
-  // anyone checks, but they shouldn't need to check.
-  // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
-  //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
-  static const uint64_t kDefaultCpuFeatures = (1 << CMOV);
-
-#ifdef DEBUG
-  static bool initialized_;
-#endif
-  static uint64_t supported_;
-  static uint64_t found_by_runtime_probing_only_;
-
-  static uint64_t cross_compile_;
-
-  friend class ExternalReference;
-  friend class PlatformFeatureScope;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
-};
-
-
-#define ASSEMBLER_INSTRUCTION_LIST(V)   \
-  V(add)                                \
-  V(and)                                \
-  V(cmp)                                \
-  V(dec)                                \
-  V(idiv)                               \
-  V(imul)                               \
-  V(inc)                                \
-  V(lea)                                \
-  V(mov)                                \
-  V(movzxb)                             \
-  V(movzxw)                             \
-  V(neg)                                \
-  V(not)                                \
-  V(or)                                 \
-  V(repmovs)                            \
-  V(sbb)                                \
-  V(sub)                                \
-  V(test)                               \
-  V(xchg)                               \
+#define ASSEMBLER_INSTRUCTION_LIST(V) \
+  V(add)                              \
+  V(and)                              \
+  V(cmp)                              \
+  V(dec)                              \
+  V(idiv)                             \
+  V(div)                              \
+  V(imul)                             \
+  V(inc)                              \
+  V(lea)                              \
+  V(mov)                              \
+  V(movzxb)                           \
+  V(movzxw)                           \
+  V(neg)                              \
+  V(not)                              \
+  V(or)                               \
+  V(repmovs)                          \
+  V(sbb)                              \
+  V(sub)                              \
+  V(test)                             \
+  V(xchg)                             \
   V(xor)
 
 
@@ -592,21 +519,28 @@ class Assembler : public AssemblerBase {
                                           ConstantPoolArray* constant_pool);
   static inline void set_target_address_at(Address pc,
                                            ConstantPoolArray* constant_pool,
-                                           Address target);
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED) ;
   static inline Address target_address_at(Address pc, Code* code) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   static inline void set_target_address_at(Address pc,
                                            Code* code,
-                                           Address target) {
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target);
+    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
   static inline Address target_address_from_return_address(Address pc);
+
+  // Return the code target address of the patch debug break slot
+  inline static Address break_address_from_return_address(Address pc);
 
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
@@ -619,7 +553,7 @@ class Assembler : public AssemblerBase {
     if (kPointerSize == kInt64Size) {
       return RelocInfo::NONE64;
     } else {
-      ASSERT(kPointerSize == kInt32Size);
+      DCHECK(kPointerSize == kInt32Size);
       return RelocInfo::NONE32;
     }
   }
@@ -1139,6 +1073,7 @@ class Assembler : public AssemblerBase {
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
+  void sqrtsd(XMMRegister dst, const Operand& src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
@@ -1326,7 +1261,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64();
     } else {
-      ASSERT(size == kInt32Size);
+      DCHECK(size == kInt32Size);
     }
   }
 
@@ -1335,7 +1270,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1);
     } else {
-      ASSERT(size == kInt32Size);
+      DCHECK(size == kInt32Size);
       emit_optional_rex_32(p1);
     }
   }
@@ -1345,7 +1280,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1, p2);
     } else {
-      ASSERT(size == kInt32Size);
+      DCHECK(size == kInt32Size);
       emit_optional_rex_32(p1, p2);
     }
   }
@@ -1371,7 +1306,7 @@ class Assembler : public AssemblerBase {
   // Emit a ModR/M byte with an operation subcode in the reg field and
   // a register in the rm_reg field.
   void emit_modrm(int code, Register rm_reg) {
-    ASSERT(is_uint3(code));
+    DCHECK(is_uint3(code));
     emit(0xC0 | code << 3 | rm_reg.low_bits());
   }
 
@@ -1504,6 +1439,7 @@ class Assembler : public AssemblerBase {
   // Divide edx:eax by lower 32 bits of src.  Quotient in eax, remainder in edx
   // when size is 32.
   void emit_idiv(Register src, int size);
+  void emit_div(Register src, int size);
 
   // Signed multiply instructions.
   // rdx:rax = rax * src when size is 64 or edx:eax = eax * src when size is 32.
@@ -1524,6 +1460,7 @@ class Assembler : public AssemblerBase {
   void emit_mov(const Operand& dst, Immediate value, int size);
 
   void emit_movzxb(Register dst, const Operand& src, int size);
+  void emit_movzxb(Register dst, Register src, int size);
   void emit_movzxw(Register dst, const Operand& src, int size);
   void emit_movzxw(Register dst, Register src, int size);
 
@@ -1583,9 +1520,12 @@ class Assembler : public AssemblerBase {
   void emit_test(Register reg, Immediate mask, int size);
   void emit_test(const Operand& op, Register reg, int size);
   void emit_test(const Operand& op, Immediate mask, int size);
+  void emit_test(Register reg, const Operand& op, int size) {
+    return emit_test(op, reg, size);
+  }
 
-  // Exchange two registers
   void emit_xchg(Register dst, Register src, int size);
+  void emit_xchg(Register dst, const Operand& src, int size);
 
   void emit_xor(Register dst, Register src, int size) {
     if (size == kInt64Size && dst.code() == src.code()) {
@@ -1643,7 +1583,7 @@ class EnsureSpace BASE_EMBEDDED {
 #ifdef DEBUG
   ~EnsureSpace() {
     int bytes_generated = space_before_ - assembler_->available_space();
-    ASSERT(bytes_generated < assembler_->kGap);
+    DCHECK(bytes_generated < assembler_->kGap);
   }
 #endif
 

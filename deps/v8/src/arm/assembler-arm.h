@@ -43,77 +43,12 @@
 #include <stdio.h>
 #include <vector>
 
-#include "assembler.h"
-#include "constants-arm.h"
-#include "serialize.h"
+#include "src/arm/constants-arm.h"
+#include "src/assembler.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
-
-// CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a CpuFeatureScope before use.
-class CpuFeatures : public AllStatic {
- public:
-  // Detect features of the target CPU. Set safe defaults if the serializer
-  // is enabled (snapshots must be portable).
-  static void Probe(bool serializer_enabled);
-
-  // Display target use when compiling.
-  static void PrintTarget();
-
-  // Display features.
-  static void PrintFeatures();
-
-  // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, supported_);
-  }
-
-  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
-    return Check(f, cross_compile_) ||
-           (IsSupported(f) &&
-            !(Serializer::enabled(isolate) &&
-              Check(f, found_by_runtime_probing_only_)));
-  }
-
-  static unsigned cache_line_size() { return cache_line_size_; }
-
-  static bool VerifyCrossCompiling() {
-    return cross_compile_ == 0;
-  }
-
-  static bool VerifyCrossCompiling(CpuFeature f) {
-    unsigned mask = flag2set(f);
-    return cross_compile_ == 0 ||
-           (cross_compile_ & mask) == mask;
-  }
-
-  static bool SupportsCrankshaft() { return CpuFeatures::IsSupported(VFP3); }
-
- private:
-  static bool Check(CpuFeature f, unsigned set) {
-    return (set & flag2set(f)) != 0;
-  }
-
-  static unsigned flag2set(CpuFeature f) {
-    return 1u << f;
-  }
-
-#ifdef DEBUG
-  static bool initialized_;
-#endif
-  static unsigned supported_;
-  static unsigned found_by_runtime_probing_only_;
-  static unsigned cache_line_size_;
-
-  static unsigned cross_compile_;
-
-  friend class ExternalReference;
-  friend class PlatformFeatureScope;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
-};
-
 
 // CPU Registers.
 //
@@ -165,17 +100,17 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < kMaxNumAllocatableRegisters);
+    DCHECK(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "r0",
       "r1",
@@ -201,17 +136,17 @@ struct Register {
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
   void set_code(int code) {
     code_ = code;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
 
   // Unfortunately we can't make this private in a struct.
@@ -247,15 +182,15 @@ struct SwVfpRegister {
   bool is_valid() const { return 0 <= code_ && code_ < 32; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     *m = code_ & 0x1;
     *vm = code_ >> 1;
   }
@@ -297,15 +232,15 @@ struct DwVfpRegister {
   }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     *m = (code_ & 0x10) >> 4;
     *vm = code_ & 0x0F;
   }
@@ -336,21 +271,21 @@ struct LowDwVfpRegister {
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   bool is(LowDwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   SwVfpRegister low() const {
     SwVfpRegister reg;
     reg.code_ = code_ * 2;
 
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
   SwVfpRegister high() const {
     SwVfpRegister reg;
     reg.code_ = (code_ * 2) + 1;
 
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
 
@@ -372,11 +307,11 @@ struct QwNeonRegister {
   }
   bool is(QwNeonRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     int encoded_code = code_ << 1;
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
@@ -490,11 +425,11 @@ struct CRegister {
   bool is_valid() const { return 0 <= code_ && code_ < 16; }
   bool is(CRegister creg) const { return code_ == creg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
@@ -583,19 +518,22 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  // Return true if this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary. If
+  // Return the number of actual instructions required to implement the given
+  // instruction for this particular operand. This can be a single instruction,
+  // if no load into the ip register is necessary, or anything between 2 and 4
+  // instructions when we need to load from the constant pool (depending upon
+  // whether the constant pool entry is in the small or extended section). If
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
   // instructions instr is ignored.
-  bool is_single_instruction(Isolate* isolate,
-                             const Assembler* assembler,
-                             Instr instr = 0) const;
-  bool must_output_reloc_info(Isolate* isolate,
-                              const Assembler* assembler) const;
+  //
+  // The value returned is only valid as long as no entries are added to the
+  // constant pool between this call and the actual instruction being emitted.
+  int instructions_required(const Assembler* assembler, Instr instr = 0) const;
+  bool must_output_reloc_info(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
-    ASSERT(!rm_.is_valid());
+    DCHECK(!rm_.is_valid());
     return imm32_;
   }
 
@@ -643,12 +581,12 @@ class MemOperand BASE_EMBEDDED {
   }
 
   void set_offset(int32_t offset) {
-      ASSERT(rm_.is(no_reg));
+      DCHECK(rm_.is(no_reg));
       offset_ = offset;
   }
 
   uint32_t offset() const {
-      ASSERT(rm_.is(no_reg));
+      DCHECK(rm_.is(no_reg));
       return offset_;
   }
 
@@ -711,59 +649,48 @@ class NeonListOperand BASE_EMBEDDED {
 // Class used to build a constant pool.
 class ConstantPoolBuilder BASE_EMBEDDED {
  public:
-  explicit ConstantPoolBuilder();
-  void AddEntry(Assembler* assm, const RelocInfo& rinfo);
+  ConstantPoolBuilder();
+  ConstantPoolArray::LayoutSection AddEntry(Assembler* assm,
+                                            const RelocInfo& rinfo);
   void Relocate(int pc_delta);
   bool IsEmpty();
   Handle<ConstantPoolArray> New(Isolate* isolate);
   void Populate(Assembler* assm, ConstantPoolArray* constant_pool);
 
-  inline int count_of_64bit() const { return count_of_64bit_; }
-  inline int count_of_code_ptr() const { return count_of_code_ptr_; }
-  inline int count_of_heap_ptr() const { return count_of_heap_ptr_; }
-  inline int count_of_32bit() const { return count_of_32bit_; }
+  inline ConstantPoolArray::LayoutSection current_section() const {
+    return current_section_;
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* number_of_entries(
+      ConstantPoolArray::LayoutSection section) {
+    return &number_of_entries_[section];
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* small_entries() {
+    return number_of_entries(ConstantPoolArray::SMALL_SECTION);
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* extended_entries() {
+    return number_of_entries(ConstantPoolArray::EXTENDED_SECTION);
+  }
 
  private:
-  bool Is64BitEntry(RelocInfo::Mode rmode);
-  bool Is32BitEntry(RelocInfo::Mode rmode);
-  bool IsCodePtrEntry(RelocInfo::Mode rmode);
-  bool IsHeapPtrEntry(RelocInfo::Mode rmode);
+  struct ConstantPoolEntry {
+    ConstantPoolEntry(RelocInfo rinfo, ConstantPoolArray::LayoutSection section,
+                      int merged_index)
+        : rinfo_(rinfo), section_(section), merged_index_(merged_index) {}
 
-  // TODO(rmcilroy): This should ideally be a ZoneList, however that would mean
-  // RelocInfo would need to subclass ZoneObject which it currently doesn't.
-  std::vector<RelocInfo> entries_;
-  std::vector<int> merged_indexes_;
-  int count_of_64bit_;
-  int count_of_code_ptr_;
-  int count_of_heap_ptr_;
-  int count_of_32bit_;
+    RelocInfo rinfo_;
+    ConstantPoolArray::LayoutSection section_;
+    int merged_index_;
+  };
+
+  ConstantPoolArray::Type GetConstantPoolType(RelocInfo::Mode rmode);
+
+  std::vector<ConstantPoolEntry> entries_;
+  ConstantPoolArray::LayoutSection current_section_;
+  ConstantPoolArray::NumberOfEntries number_of_entries_[2];
 };
-
-
-extern const Instr kMovLrPc;
-extern const Instr kLdrPCMask;
-extern const Instr kLdrPCPattern;
-extern const Instr kLdrPpMask;
-extern const Instr kLdrPpPattern;
-extern const Instr kBlxRegMask;
-extern const Instr kBlxRegPattern;
-extern const Instr kBlxIp;
-
-extern const Instr kMovMvnMask;
-extern const Instr kMovMvnPattern;
-extern const Instr kMovMvnFlip;
-
-extern const Instr kMovLeaveCCMask;
-extern const Instr kMovLeaveCCPattern;
-extern const Instr kMovwMask;
-extern const Instr kMovwPattern;
-extern const Instr kMovwLeaveCCFlip;
-
-extern const Instr kCmpCmnMask;
-extern const Instr kCmpCmnPattern;
-extern const Instr kCmpCmnFlip;
-extern const Instr kAddSubFlip;
-extern const Instr kAndBicFlip;
 
 struct VmovIndex {
   unsigned char index;
@@ -816,13 +743,13 @@ class Assembler : public AssemblerBase {
   // Manages the jump elimination optimization if the second parameter is true.
   int branch_offset(Label* L, bool jump_elimination_allowed);
 
-  // Return the address in the constant pool of the code target address used by
-  // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address target_pointer_address_at(Address pc));
+  // Returns true if the given pc address is the start of a constant pool load
+  // instruction sequence.
+  INLINE(static bool is_constant_pool_load(Address pc));
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address target_constant_pool_address_at(
+  INLINE(static Address constant_pool_entry_address(
     Address pc, ConstantPoolArray* constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
@@ -830,16 +757,20 @@ class Assembler : public AssemblerBase {
                                           ConstantPoolArray* constant_pool));
   INLINE(static void set_target_address_at(Address pc,
                                            ConstantPoolArray* constant_pool,
-                                           Address target));
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED));
   INLINE(static Address target_address_at(Address pc, Code* code)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   INLINE(static void set_target_address_at(Address pc,
                                            Code* code,
-                                           Address target)) {
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target);
+    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
@@ -849,6 +780,9 @@ class Assembler : public AssemblerBase {
   // Given the address of the beginning of a call, return the address
   // in the instruction stream that the call will return from.
   INLINE(static Address return_address_from_call_start(Address pc));
+
+  // Return the code target address of the patch debug break slot
+  INLINE(static Address break_address_from_return_address(Address pc));
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
@@ -981,10 +915,8 @@ class Assembler : public AssemblerBase {
   void mov_label_offset(Register dst, Label* label);
 
   // ARMv7 instructions for loading a 32 bit immediate in two instructions.
-  // This may actually emit a different mov instruction, but on an ARMv7 it
-  // is guaranteed to only emit one instruction.
+  // The constant for movw and movt should be in the range 0-0xffff.
   void movw(Register reg, uint32_t immediate, Condition cond = al);
-  // The constant for movt should be in the range 0-0xffff.
   void movt(Register reg, uint32_t immediate, Condition cond = al);
 
   void bic(Register dst, Register src1, const Operand& src2,
@@ -992,6 +924,35 @@ class Assembler : public AssemblerBase {
 
   void mvn(Register dst, const Operand& src,
            SBit s = LeaveCC, Condition cond = al);
+
+  // Shift instructions
+
+  void asr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
+    }
+  }
+
+  void lsl(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
+    }
+  }
+
+  void lsr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
+    }
+  }
 
   // Multiply instructions
 
@@ -1003,6 +964,8 @@ class Assembler : public AssemblerBase {
 
   void sdiv(Register dst, Register src1, Register src2,
             Condition cond = al);
+
+  void udiv(Register dst, Register src1, Register src2, Condition cond = al);
 
   void mul(Register dst, Register src1, Register src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -1361,7 +1324,7 @@ class Assembler : public AssemblerBase {
   }
 
   // Check whether an immediate fits an addressing mode 1 instruction.
-  bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
+  static bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
   // Check whether an immediate fits an addressing mode 2 instruction.
   bool ImmediateFitsAddrMode2Instruction(int32_t imm32);
@@ -1393,12 +1356,12 @@ class Assembler : public AssemblerBase {
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
   void SetRecordedAstId(TypeFeedbackId ast_id) {
-    ASSERT(recorded_ast_id_.IsNone());
+    DCHECK(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
   TypeFeedbackId RecordedAstId() {
-    ASSERT(!recorded_ast_id_.IsNone());
+    DCHECK(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
@@ -1416,9 +1379,9 @@ class Assembler : public AssemblerBase {
   // function, compiled with and without debugger support (see for example
   // Debug::PrepareForBreakPoints()).
   // Compiling functions with debugger support generates additional code
-  // (Debug::GenerateSlot()). This may affect the emission of the constant
-  // pools and cause the version of the code with debugger support to have
-  // constant pools generated in different places.
+  // (DebugCodegen::GenerateSlot()). This may affect the emission of the
+  // constant pools and cause the version of the code with debugger support to
+  // have constant pools generated in different places.
   // Recording the position and size of emitted constant pools allows to
   // correctly compute the offset mappings between the different versions of a
   // function in all situations.
@@ -1453,6 +1416,10 @@ class Assembler : public AssemblerBase {
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
+  static Instr GetConsantPoolLoadPattern();
+  static Instr GetConsantPoolLoadMask();
+  static bool IsLdrPpRegOffset(Instr instr);
+  static Instr GetLdrPpRegOffsetPattern();
   static bool IsLdrPpImmediateOffset(Instr instr);
   static bool IsVldrDPpImmediateOffset(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
@@ -1474,6 +1441,8 @@ class Assembler : public AssemblerBase {
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
   static bool IsVldrDPcImmediateOffset(Instr instr);
+  static bool IsBlxReg(Instr instr);
+  static bool IsBlxIp(Instr instr);
   static bool IsTstImmediate(Instr instr);
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
@@ -1481,7 +1450,11 @@ class Assembler : public AssemblerBase {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
   static bool IsMovT(Instr instr);
+  static Instr GetMovTPattern();
   static bool IsMovW(Instr instr);
+  static Instr GetMovWPattern();
+  static Instr EncodeMovwImmediate(uint32_t immediate);
+  static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate);
 
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point
@@ -1506,13 +1479,13 @@ class Assembler : public AssemblerBase {
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
-  bool can_use_constant_pool() const {
-    return is_constant_pool_available() && !constant_pool_full_;
+  bool is_constant_pool_available() const { return constant_pool_available_; }
+
+  bool use_extended_constant_pool() const {
+    return constant_pool_builder_.current_section() ==
+           ConstantPoolArray::EXTENDED_SECTION;
   }
 
-  void set_constant_pool_full() {
-    constant_pool_full_ = true;
-  }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1547,10 +1520,10 @@ class Assembler : public AssemblerBase {
       // Max pool start (if we need a jump and an alignment).
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      ASSERT((num_pending_32_bit_reloc_info_ == 0) ||
+      DCHECK((num_pending_32_bit_reloc_info_ == 0) ||
              (start + num_pending_64_bit_reloc_info_ * kDoubleSize <
               (first_const_pool_32_use_ + kMaxDistToIntPool)));
-      ASSERT((num_pending_64_bit_reloc_info_ == 0) ||
+      DCHECK((num_pending_64_bit_reloc_info_ == 0) ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif
       // Two cases:
@@ -1565,10 +1538,6 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
-  }
-
-  bool is_constant_pool_available() const {
-    return constant_pool_available_;
   }
 
   void set_constant_pool_available(bool available) {
@@ -1640,9 +1609,6 @@ class Assembler : public AssemblerBase {
   // Indicates whether the constant pool can be accessed, which is only possible
   // if the pp register points to the current code object's constant pool.
   bool constant_pool_available_;
-  // Indicates whether the constant pool is too full to accept new entries due
-  // to the ldr instruction's limitted immediate offset range.
-  bool constant_pool_full_;
 
   // Code emission
   inline void CheckBuffer();
@@ -1674,7 +1640,7 @@ class Assembler : public AssemblerBase {
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void RecordRelocInfo(const RelocInfo& rinfo);
-  void ConstantPoolAddEntry(const RelocInfo& rinfo);
+  ConstantPoolArray::LayoutSection ConstantPoolAddEntry(const RelocInfo& rinfo);
 
   friend class RelocInfo;
   friend class CodePatcher;

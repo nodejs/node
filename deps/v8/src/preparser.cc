@@ -4,20 +4,20 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
+#include "include/v8stdint.h"
 
-#include "allocation.h"
-#include "checks.h"
-#include "conversions.h"
-#include "conversions-inl.h"
-#include "globals.h"
-#include "hashmap.h"
-#include "list.h"
-#include "preparse-data-format.h"
-#include "preparse-data.h"
-#include "preparser.h"
-#include "unicode.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/base/logging.h"
+#include "src/conversions-inl.h"
+#include "src/conversions.h"
+#include "src/globals.h"
+#include "src/hashmap.h"
+#include "src/list.h"
+#include "src/preparse-data.h"
+#include "src/preparse-data-format.h"
+#include "src/preparser.h"
+#include "src/unicode.h"
+#include "src/utils.h"
 
 #if V8_LIBC_MSVCRT && (_MSC_VER < 1800)
 namespace std {
@@ -35,31 +35,22 @@ namespace internal {
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
-                                      Vector<const char*> args,
+                                      const char* arg,
                                       bool is_reference_error) {
   ReportMessageAt(location.beg_pos,
                   location.end_pos,
                   message,
-                  args.length() > 0 ? args[0] : NULL,
+                  arg,
                   is_reference_error);
-}
-
-
-void PreParserTraits::ReportMessageAt(Scanner::Location location,
-                                      const char* type,
-                                      const char* name_opt,
-                                      bool is_reference_error) {
-  pre_parser_->log_->LogMessage(location.beg_pos, location.end_pos, type,
-                                name_opt, is_reference_error);
 }
 
 
 void PreParserTraits::ReportMessageAt(int start_pos,
                                       int end_pos,
-                                      const char* type,
-                                      const char* name_opt,
+                                      const char* message,
+                                      const char* arg,
                                       bool is_reference_error) {
-  pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt,
+  pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg,
                                 is_reference_error);
 }
 
@@ -70,6 +61,8 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   } else if (scanner->current_token() ==
              Token::FUTURE_STRICT_RESERVED_WORD) {
     return PreParserIdentifier::FutureStrictReserved();
+  } else if (scanner->current_token() == Token::LET) {
+    return PreParserIdentifier::Let();
   } else if (scanner->current_token() == Token::YIELD) {
     return PreParserIdentifier::Yield();
   }
@@ -104,10 +97,11 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     bool is_generator,
     int function_token_position,
     FunctionLiteral::FunctionType type,
+    FunctionLiteral::ArityRestriction arity_restriction,
     bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, name_is_strict_reserved, is_generator,
-      function_token_position, type, ok);
+      function_token_position, type, arity_restriction, ok);
 }
 
 
@@ -116,12 +110,14 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   PreParserScope top_scope(scope_, GLOBAL_SCOPE);
-  FunctionState top_state(&function_state_, &scope_, &top_scope);
+  FunctionState top_state(&function_state_, &scope_, &top_scope, NULL,
+                          this->ast_value_factory());
   scope_->SetStrictMode(strict_mode);
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
-  FunctionState function_state(&function_state_, &scope_, &function_scope);
+  FunctionState function_state(&function_state_, &scope_, &function_scope, NULL,
+                               this->ast_value_factory());
   function_state.set_is_generator(is_generator);
-  ASSERT_EQ(Token::LBRACE, scanner()->current_token());
+  DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
   ParseLazyFunctionLiteralBody(&ok);
@@ -129,7 +125,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
   } else {
-    ASSERT_EQ(Token::RBRACE, scanner()->peek());
+    DCHECK_EQ(Token::RBRACE, scanner()->peek());
     if (scope_->strict_mode() == STRICT) {
       int end_pos = scanner()->location().end_pos;
       CheckOctalLiteral(start_position, end_pos, &ok);
@@ -175,9 +171,14 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
-    case Token::LET:
     case Token::CONST:
       return ParseVariableStatement(kSourceElement, ok);
+    case Token::LET:
+      DCHECK(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kSourceElement, ok);
+      }
+      // Fall through.
     default:
       return ParseStatement(ok);
   }
@@ -245,11 +246,6 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     case Token::LBRACE:
       return ParseBlock(ok);
 
-    case Token::CONST:
-    case Token::LET:
-    case Token::VAR:
-      return ParseVariableStatement(kStatement, ok);
-
     case Token::SEMICOLON:
       Next();
       return Statement::Default();
@@ -294,8 +290,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       if (strict_mode() == STRICT) {
         PreParserTraits::ReportMessageAt(start_location.beg_pos,
                                          end_location.end_pos,
-                                         "strict_function",
-                                         NULL);
+                                         "strict_function");
         *ok = false;
         return Statement::Default();
       } else {
@@ -306,6 +301,16 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
+    case Token::VAR:
+    case Token::CONST:
+      return ParseVariableStatement(kStatement, ok);
+
+    case Token::LET:
+      DCHECK(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kStatement, ok);
+      }
+      // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(ok);
   }
@@ -330,6 +335,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        is_generator,
                        pos,
                        FunctionLiteral::DECLARATION,
+                       FunctionLiteral::NORMAL_ARITY,
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
@@ -423,23 +429,9 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
         return Statement::Default();
       }
     }
-  } else if (peek() == Token::LET) {
-    // ES6 Draft Rev4 section 12.2.1:
-    //
-    // LetDeclaration : let LetBindingList ;
-    //
-    // * It is a Syntax Error if the code that matches this production is not
-    //   contained in extended code.
-    //
-    // TODO(rossberg): make 'let' a legal identifier in sloppy mode.
-    if (!allow_harmony_scoping() || strict_mode() == SLOPPY) {
-      ReportMessageAt(scanner()->peek_location(), "illegal_let");
-      *ok = false;
-      return Statement::Default();
-    }
+  } else if (peek() == Token::LET && strict_mode() == STRICT) {
     Consume(Token::LET);
-    if (var_context != kSourceElement &&
-        var_context != kForStatement) {
+    if (var_context != kSourceElement && var_context != kForStatement) {
       ReportMessageAt(scanner()->peek_location(), "unprotected_let");
       *ok = false;
       return Statement::Default();
@@ -484,8 +476,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   if (starts_with_identifier && expr.IsIdentifier() && peek() == Token::COLON) {
     // Expression is a single identifier, and not, e.g., a parenthesized
     // identifier.
-    ASSERT(!expr.AsIdentifier().IsFutureReserved());
-    ASSERT(strict_mode() == SLOPPY ||
+    DCHECK(!expr.AsIdentifier().IsFutureReserved());
+    DCHECK(strict_mode() == SLOPPY ||
            (!expr.AsIdentifier().IsFutureStrictReserved() &&
             !expr.AsIdentifier().IsYield()));
     Consume(Token::COLON);
@@ -661,8 +653,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 
 bool PreParser::CheckInOrOf(bool accept_OF) {
   if (Check(Token::IN) ||
-      (allow_for_of() && accept_OF &&
-       CheckContextualKeyword(CStrVector("of")))) {
+      (accept_OF && CheckContextualKeyword(CStrVector("of")))) {
     return true;
   }
   return false;
@@ -677,7 +668,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST ||
-        peek() == Token::LET) {
+        (peek() == Token::LET && strict_mode() == STRICT)) {
       bool is_let = peek() == Token::LET;
       int decl_count;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
@@ -809,6 +800,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     bool is_generator,
     int function_token_pos,
     FunctionLiteral::FunctionType function_type,
+    FunctionLiteral::ArityRestriction arity_restriction,
     bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -816,13 +808,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Parse function body.
   ScopeType outer_scope_type = scope_->type();
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
-  FunctionState function_state(&function_state_, &scope_, &function_scope);
+  FunctionState function_state(&function_state_, &scope_, &function_scope, NULL,
+                               this->ast_value_factory());
   function_state.set_is_generator(is_generator);
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = position();
-  bool done = (peek() == Token::RPAREN);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   // We don't yet know if the function will be strict, so we cannot yet produce
   // errors for parameter names or duplicates. However, we remember the
@@ -830,6 +822,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
   Scanner::Location dupe_error_loc = Scanner::Location::invalid();
   Scanner::Location reserved_error_loc = Scanner::Location::invalid();
+
+  bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
+      (peek() == Token::RPAREN &&
+       arity_restriction != FunctionLiteral::SETTER_ARITY);
   while (!done) {
     bool is_strict_reserved = false;
     Identifier param_name =
@@ -847,10 +843,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       dupe_error_loc = scanner()->location();
     }
 
+    if (arity_restriction == FunctionLiteral::SETTER_ARITY) break;
     done = (peek() == Token::RPAREN);
-    if (!done) {
-      Expect(Token::COMMA, CHECK_OK);
-    }
+    if (!done) Expect(Token::COMMA, CHECK_OK);
   }
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -911,7 +906,7 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   if (!*ok) return;
 
   // Position right after terminal '}'.
-  ASSERT_EQ(Token::RBRACE, scanner()->peek());
+  DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   log_->LogFunction(body_start, body_end,
                     function_state_->materialized_literal_count(),

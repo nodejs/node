@@ -27,16 +27,18 @@
 
 [
 [ALWAYS, {
-  # BUG(237872). TODO(bmeurer): Investigate.
-  'string-replacement-outofmemory': [FAIL],
-
-  ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
   'dfg-inline-arguments-become-double': [PASS, FAIL],
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
+  # TODO(turbofan): Sometimes the try-catch blacklist fails.
+  'exception-with-handler-inside-eval-with-dynamic-scope': [PASS, NO_VARIANTS],
+  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
+  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
+  # TODO(bmeurer,svenpanne): Investigate test failure.
+  'fast/js/toString-number': [SKIP],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
@@ -51,4 +53,13 @@
 ['arch == arm64 and simulator_run == True', {
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
+
+
+##############################################################################
+['gc_stress == True', {
+  # Tests taking too long
+  'fast/js/excessive-comma-usage': [SKIP]
+}],  # 'gc_stress == True'
+
+##############################################################################
 ]

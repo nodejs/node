@@ -5,17 +5,17 @@
 #ifndef V8_FULL_CODEGEN_H_
 #define V8_FULL_CODEGEN_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "assert-scope.h"
-#include "ast.h"
-#include "code-stubs.h"
-#include "codegen.h"
-#include "compiler.h"
-#include "data-flow.h"
-#include "globals.h"
-#include "objects.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/ast.h"
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/data-flow.h"
+#include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -74,6 +74,7 @@ class FullCodeGenerator: public AstVisitor {
                          info->zone()),
         back_edges_(2, info->zone()),
         ic_total_count_(0) {
+    DCHECK(!info->IsStub());
     Initialize();
   }
 
@@ -98,7 +99,7 @@ class FullCodeGenerator: public AstVisitor {
   static const int kMaxBackEdgeWeight = 127;
 
   // Platform-specific code size multiplier.
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   static const int kCodeSizeMultiplier = 105;
   static const int kBootCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64
@@ -112,6 +113,9 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 110;
 #elif V8_TARGET_ARCH_MIPS
+  static const int kCodeSizeMultiplier = 149;
+  static const int kBootCodeSizeMultiplier = 120;
+#elif V8_TARGET_ARCH_MIPS64
   static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 120;
 #else
@@ -133,7 +137,7 @@ class FullCodeGenerator: public AstVisitor {
     }
     virtual ~NestedStatement() {
       // Unlink from codegen's nesting stack.
-      ASSERT_EQ(this, codegen_->nesting_stack_);
+      DCHECK_EQ(this, codegen_->nesting_stack_);
       codegen_->nesting_stack_ = previous_;
     }
 
@@ -216,7 +220,7 @@ class FullCodeGenerator: public AstVisitor {
         ++(*context_length);
       }
       return previous_;
-    };
+    }
   };
 
   // The try block of a try/catch statement.
@@ -313,6 +317,13 @@ class FullCodeGenerator: public AstVisitor {
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
 #if V8_TARGET_ARCH_MIPS
+  void Split(Condition cc,
+             Register lhs,
+             const Operand&  rhs,
+             Label* if_true,
+             Label* if_false,
+             Label* fall_through);
+#elif V8_TARGET_ARCH_MIPS64
   void Split(Condition cc,
              Register lhs,
              const Operand&  rhs,
@@ -484,11 +495,11 @@ class FullCodeGenerator: public AstVisitor {
                            JSGeneratorObject::ResumeMode resume_mode);
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(Variable* var,
+  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                      TypeofState typeof_state,
                                      Label* slow);
   MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(Variable* var,
+  void EmitDynamicLookupFastCase(VariableProxy* proxy,
                                  TypeofState typeof_state,
                                  Label* slow,
                                  Label* done);
@@ -539,7 +550,6 @@ class FullCodeGenerator: public AstVisitor {
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
                                           MemOperand location);
-  void EmitCallStoreContextSlot(Handle<String> name, StrictMode strict_mode);
 
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
@@ -561,7 +571,6 @@ class FullCodeGenerator: public AstVisitor {
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
-  void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 
   // Non-local control flow support.
@@ -572,7 +581,7 @@ class FullCodeGenerator: public AstVisitor {
   int loop_depth() { return loop_depth_; }
   void increment_loop_depth() { loop_depth_++; }
   void decrement_loop_depth() {
-    ASSERT(loop_depth_ > 0);
+    DCHECK(loop_depth_ > 0);
     loop_depth_--;
   }
 
@@ -756,7 +765,7 @@ class FullCodeGenerator: public AstVisitor {
           fall_through_(fall_through) { }
 
     static const TestContext* cast(const ExpressionContext* context) {
-      ASSERT(context->IsTest());
+      DCHECK(context->IsTest());
       return reinterpret_cast<const TestContext*>(context);
     }
 
@@ -819,7 +828,6 @@ class FullCodeGenerator: public AstVisitor {
   int module_index_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
-  GrowableBitVector prepared_bailout_ids_;
   ZoneList<BackEdgeEntry> back_edges_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
@@ -858,7 +866,7 @@ class AccessorTable: public TemplateHashMap<Literal,
 class BackEdgeTable {
  public:
   BackEdgeTable(Code* code, DisallowHeapAllocation* required) {
-    ASSERT(code->kind() == Code::FUNCTION);
+    DCHECK(code->kind() == Code::FUNCTION);
     instruction_start_ = code->instruction_start();
     Address table_address = instruction_start_ + code->back_edge_table_offset();
     length_ = Memory::uint32_at(table_address);
@@ -890,10 +898,8 @@ class BackEdgeTable {
     OSR_AFTER_STACK_CHECK
   };
 
-  // Patch all interrupts with allowed loop depth in the unoptimized code to
-  // unconditionally call replacement_code.
-  static void Patch(Isolate* isolate,
-                    Code* unoptimized_code);
+  // Increase allowed loop nesting level by one and patch those matching loops.
+  static void Patch(Isolate* isolate, Code* unoptimized_code);
 
   // Patch the back edge to the target state, provided the correct callee.
   static void PatchAt(Code* unoptimized_code,
@@ -919,14 +925,12 @@ class BackEdgeTable {
 
 #ifdef DEBUG
   // Verify that all back edges of a certain loop depth are patched.
-  static bool Verify(Isolate* isolate,
-                     Code* unoptimized_code,
-                     int loop_nesting_level);
+  static bool Verify(Isolate* isolate, Code* unoptimized_code);
 #endif  // DEBUG
 
  private:
   Address entry_at(uint32_t index) {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     return start_ + index * kEntrySize;
   }
 

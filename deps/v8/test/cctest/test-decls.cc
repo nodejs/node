@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "heap.h"
-#include "cctest.h"
+#include "src/heap/heap.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8;
 
@@ -236,17 +236,14 @@ TEST(Unknown) {
   { DeclarationContext context;
     context.Check("var x; x",
                   1,  // access
-                  1,  // declaration
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { DeclarationContext context;
     context.Check("var x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+                  1,  // initialization
+                  0, EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { DeclarationContext context;
@@ -260,76 +257,17 @@ TEST(Unknown) {
   { DeclarationContext context;
     context.Check("const x; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { DeclarationContext context;
-    // SB 0 - BUG 1213579
     context.Check("const x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-}
-
-
-
-class PresentPropertyContext: public DeclarationContext {
- protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
-    return Integer::New(isolate(), v8::None);
-  }
-};
-
-
-
-TEST(Present) {
-  HandleScope scope(CcTest::isolate());
-
-  { PresentPropertyContext context;
-    context.Check("var x; x",
-                  1,  // access
-                  0,
-                  2,  // declaration + initialization
-                  EXPECT_EXCEPTION);  // x is not defined!
-  }
-
-  { PresentPropertyContext context;
-    context.Check("var x = 0; x",
-                  1,  // access
-                  1,  // initialization
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
-  }
-
-  { PresentPropertyContext context;
-    context.Check("function x() { }; x",
-                  1,  // access
                   0,
                   0,
-                  EXPECT_RESULT);
-  }
-
-  { PresentPropertyContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  1,  // initialization
-                  1,  // (re-)declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { PresentPropertyContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  1,  // initialization
-                  1,  // (re-)declaration
                   EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 }
-
 
 
 class AbsentPropertyContext: public DeclarationContext {
@@ -348,17 +286,14 @@ TEST(Absent) {
   { AbsentPropertyContext context;
     context.Check("var x; x",
                   1,  // access
-                  1,  // declaration
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined(isolate));
+                  0, 0, EXPECT_RESULT, Undefined(isolate));
   }
 
   { AbsentPropertyContext context;
     context.Check("var x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(isolate, 0));
+                  1,  // initialization
+                  0, EXPECT_RESULT, Number::New(isolate, 0));
   }
 
   { AbsentPropertyContext context;
@@ -372,25 +307,19 @@ TEST(Absent) {
   { AbsentPropertyContext context;
     context.Check("const x; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(isolate));
+                  0, 0, EXPECT_RESULT, Undefined(isolate));
   }
 
   { AbsentPropertyContext context;
     context.Check("const x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(isolate));  // SB 0 - BUG 1213579
+                  0, 0, EXPECT_RESULT, Number::New(isolate, 0));
   }
 
   { AbsentPropertyContext context;
     context.Check("if (false) { var x = 0 }; x",
                   1,  // access
-                  1,  // declaration
-                  1,  // declaration + initialization
-                  EXPECT_RESULT, Undefined(isolate));
+                  0, 0, EXPECT_RESULT, Undefined(isolate));
   }
 }
 
@@ -439,17 +368,14 @@ TEST(Appearing) {
   { AppearingPropertyContext context;
     context.Check("var x; x",
                   1,  // access
-                  1,  // declaration
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { AppearingPropertyContext context;
     context.Check("var x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+                  1,  // initialization
+                  0, EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 
   { AppearingPropertyContext context;
@@ -463,78 +389,13 @@ TEST(Appearing) {
   { AppearingPropertyContext context;
     context.Check("const x; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { AppearingPropertyContext context;
     context.Check("const x = 0; x",
                   1,  // access
-                  2,  // declaration + initialization
-                  1,  // declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
-                  // Result is undefined because declaration succeeded but
-                  // initialization to 0 failed (due to context behavior).
-  }
-}
-
-
-
-class ReappearingPropertyContext: public DeclarationContext {
- public:
-  enum State {
-    DECLARE,
-    DONT_DECLARE,
-    INITIALIZE,
-    UNKNOWN
-  };
-
-  ReappearingPropertyContext() : state_(DECLARE) { }
-
- protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
-    switch (state_) {
-      case DECLARE:
-        // Force the first declaration by returning that
-        // the property is absent.
-        state_ = DONT_DECLARE;
-        return Handle<Integer>();
-      case DONT_DECLARE:
-        // Ignore the second declaration by returning
-        // that the property is already there.
-        state_ = INITIALIZE;
-        return Integer::New(isolate(), v8::None);
-      case INITIALIZE:
-        // Force an initialization by returning that
-        // the property is absent. This will make sure
-        // that the setter is called and it will not
-        // lead to redeclaration conflicts (yet).
-        state_ = UNKNOWN;
-        return Handle<Integer>();
-      default:
-        CHECK(state_ == UNKNOWN);
-        break;
-    }
-    // Do the lookup in the object.
-    return Handle<Integer>();
-  }
-
- private:
-  State state_;
-};
-
-
-TEST(Reappearing) {
-  v8::V8::Initialize();
-  HandleScope scope(CcTest::isolate());
-
-  { ReappearingPropertyContext context;
-    context.Check("const x; var x = 0",
-                  0,
-                  3,  // const declaration+initialization, var initialization
-                  3,  // 2 x declaration + var initialization
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+                  0, 0, EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
 }
 
@@ -562,11 +423,8 @@ TEST(ExistsInPrototype) {
   // Sanity check to make sure that the holder of the interceptor
   // really is the prototype object.
   { ExistsInPrototypeContext context;
-    context.Check("this.x = 87; this.x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 87));
+    context.Check("this.x = 87; this.x", 0, 0, 1, EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 87));
   }
 
   { ExistsInPrototypeContext context;
@@ -669,19 +527,13 @@ TEST(ExistsInHiddenPrototype) {
   HandleScope scope(CcTest::isolate());
 
   { ExistsInHiddenPrototypeContext context;
-    context.Check("var x; x",
-                  1,  // access
-                  0,
-                  2,  // declaration + initialization
-                  EXPECT_EXCEPTION);  // x is not defined!
+    context.Check("var x; x", 0, 0, 0, EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
   }
 
   { ExistsInHiddenPrototypeContext context;
-    context.Check("var x = 0; x",
-                  1,  // access
-                  1,  // initialization
-                  2,  // declaration + initialization
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+    context.Check("var x = 0; x", 0, 0, 0, EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 0));
   }
 
   { ExistsInHiddenPrototypeContext context;
@@ -694,20 +546,14 @@ TEST(ExistsInHiddenPrototype) {
 
   // TODO(mstarzinger): The semantics of global const is vague.
   { ExistsInHiddenPrototypeContext context;
-    context.Check("const x; x",
-                  0,
-                  0,
-                  1,  // (re-)declaration
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
+    context.Check("const x; x", 0, 0, 0, EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
   }
 
   // TODO(mstarzinger): The semantics of global const is vague.
   { ExistsInHiddenPrototypeContext context;
-    context.Check("const x = 0; x",
-                  0,
-                  0,
-                  1,  // (re-)declaration
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+    context.Check("const x = 0; x", 0, 0, 0, EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 0));
   }
 }
 
@@ -768,10 +614,8 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",
                   EXPECT_RESULT, Number::New(isolate, 2));
-    context.Check("const x = 3; x",
-                  EXPECT_RESULT, Number::New(isolate, 3));
-    context.Check("const x = 4; x",
-                  EXPECT_RESULT, Number::New(isolate, 4));
+    context.Check("const x = 3; x", EXPECT_EXCEPTION);
+    context.Check("const x = 4; x", EXPECT_EXCEPTION);
     context.Check("x = 5; x",
                   EXPECT_RESULT, Number::New(isolate, 5));
     context.Check("var x = 6; x",
@@ -787,8 +631,7 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",  // assignment ignored
                   EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("const x = 3; x",
-                  EXPECT_RESULT, Number::New(isolate, 1));
+    context.Check("const x = 3; x", EXPECT_EXCEPTION);
     context.Check("x = 4; x",  // assignment ignored
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 5; x",  // assignment ignored

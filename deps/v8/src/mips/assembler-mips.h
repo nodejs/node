@@ -38,9 +38,9 @@
 
 #include <stdio.h>
 
-#include "assembler.h"
-#include "constants-mips.h"
-#include "serialize.h"
+#include "src/assembler.h"
+#include "src/mips/constants-mips.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -90,7 +90,7 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
+    DCHECK((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
            reg.is(from_code(kCpRegister)));
     return reg.is(from_code(kCpRegister)) ?
            kMaxNumAllocatableRegisters - 1 :  // Return last index for 'cp'.
@@ -98,14 +98,14 @@ struct Register {
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return index == kMaxNumAllocatableRegisters - 1 ?
            from_code(kCpRegister) :  // Last index is always the 'cp' register.
            from_code(index + 2);  // zero_reg and 'at' are skipped.
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "v0",
       "v1",
@@ -133,11 +133,11 @@ struct Register {
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
@@ -226,7 +226,7 @@ struct FPURegister {
   static const char* AllocationIndexToString(int index);
 
   static FPURegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index * 2);
   }
 
@@ -239,32 +239,32 @@ struct FPURegister {
   bool is(FPURegister creg) const { return code_ == creg.code_; }
   FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.
-    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
     FPURegister reg;
     reg.code_ = code_;
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
   FPURegister high() const {
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
     FPURegister reg;
     reg.code_ = code_ + 1;
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
 
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void setcode(int f) {
     code_ = f;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
   int code_;
@@ -335,16 +335,16 @@ struct FPUControlRegister {
   bool is_valid() const { return code_ == kFCSRRegister; }
   bool is(FPUControlRegister creg) const { return code_ == creg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void setcode(int f) {
     code_ = f;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
   int code_;
@@ -377,7 +377,7 @@ class Operand BASE_EMBEDDED {
   INLINE(bool is_reg() const);
 
   inline int32_t immediate() const {
-    ASSERT(!is_reg());
+    DCHECK(!is_reg());
     return imm32_;
   }
 
@@ -416,65 +416,6 @@ class MemOperand : public Operand {
   int32_t offset_;
 
   friend class Assembler;
-};
-
-
-// CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a CpuFeatureScope before use.
-class CpuFeatures : public AllStatic {
- public:
-  // Detect features of the target CPU. Set safe defaults if the serializer
-  // is enabled (snapshots must be portable).
-  static void Probe(bool serializer_enabled);
-
-  // A special case for printing target and features, which we want to do
-  // before initializing the isolate
-
-  // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, supported_);
-  }
-
-  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
-    return Check(f, cross_compile_) ||
-           (IsSupported(f) &&
-            !(Serializer::enabled(isolate) &&
-              Check(f, found_by_runtime_probing_only_)));
-  }
-
-  static bool VerifyCrossCompiling() {
-    return cross_compile_ == 0;
-  }
-
-  static bool VerifyCrossCompiling(CpuFeature f) {
-    unsigned mask = flag2set(f);
-    return cross_compile_ == 0 ||
-           (cross_compile_ & mask) == mask;
-  }
-
-  static bool SupportsCrankshaft() { return CpuFeatures::IsSupported(FPU); }
-
- private:
-  static bool Check(CpuFeature f, unsigned set) {
-    return (set & flag2set(f)) != 0;
-  }
-
-  static unsigned flag2set(CpuFeature f) {
-    return 1u << f;
-  }
-
-#ifdef DEBUG
-  static bool initialized_;
-#endif
-  static unsigned supported_;
-  static unsigned found_by_runtime_probing_only_;
-
-  static unsigned cross_compile_;
-
-  friend class ExternalReference;
-  friend class PlatformFeatureScope;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 
@@ -526,7 +467,7 @@ class Assembler : public AssemblerBase {
   int32_t branch_offset(Label* L, bool jump_elimination_allowed);
   int32_t shifted_branch_offset(Label* L, bool jump_elimination_allowed) {
     int32_t o = branch_offset(L, jump_elimination_allowed);
-    ASSERT((o & 3) == 0);   // Assert the offset is aligned.
+    DCHECK((o & 3) == 0);   // Assert the offset is aligned.
     return o >> 2;
   }
   uint32_t jump_address(Label* L);
@@ -537,7 +478,10 @@ class Assembler : public AssemblerBase {
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   static Address target_address_at(Address pc);
-  static void set_target_address_at(Address pc, Address target);
+  static void set_target_address_at(Address pc,
+                                    Address target,
+                                    ICacheFlushMode icache_flush_mode =
+                                        FLUSH_ICACHE_IF_NEEDED);
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc,
                                           ConstantPoolArray* constant_pool)) {
@@ -545,8 +489,10 @@ class Assembler : public AssemblerBase {
   }
   INLINE(static void set_target_address_at(Address pc,
                                            ConstantPoolArray* constant_pool,
-                                           Address target)) {
-    set_target_address_at(pc, target);
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED)) {
+    set_target_address_at(pc, target, icache_flush_mode);
   }
   INLINE(static Address target_address_at(Address pc, Code* code)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
@@ -554,14 +500,19 @@ class Assembler : public AssemblerBase {
   }
   INLINE(static void set_target_address_at(Address pc,
                                            Code* code,
-                                           Address target)) {
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target);
+    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
+
+  // Return the code target address of the patch debug break slot
+  inline static Address break_address_from_return_address(Address pc);
 
   static void JumpLabelToJumpRegister(Address pc);
 
@@ -658,7 +609,7 @@ class Assembler : public AssemblerBase {
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
-    ASSERT(type < 32);
+    DCHECK(type < 32);
     Register nop_rt_reg = (type == 0) ? zero_reg : at;
     sll(zero_reg, nop_rt_reg, type, true);
   }
@@ -698,7 +649,7 @@ class Assembler : public AssemblerBase {
   void jal_or_jalr(int32_t target, Register rs);
 
 
-  //-------Data-processing-instructions---------
+  // -------Data-processing-instructions---------
 
   // Arithmetic.
   void addu(Register rd, Register rs, Register rt);
@@ -736,7 +687,7 @@ class Assembler : public AssemblerBase {
   void rotrv(Register rd, Register rt, Register rs);
 
 
-  //------------Memory-instructions-------------
+  // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
   void lbu(Register rd, const MemOperand& rs);
@@ -752,12 +703,12 @@ class Assembler : public AssemblerBase {
   void swr(Register rd, const MemOperand& rs);
 
 
-  //----------------Prefetch--------------------
+  // ----------------Prefetch--------------------
 
   void pref(int32_t hint, const MemOperand& rs);
 
 
-  //-------------Misc-instructions--------------
+  // -------------Misc-instructions--------------
 
   // Break / Trap instructions.
   void break_(uint32_t code, bool break_as_stop = false);
@@ -790,7 +741,7 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
 
-  //--------Coprocessor-instructions----------------
+  // --------Coprocessor-instructions----------------
 
   // Load, store, and move.
   void lwc1(FPURegister fd, const MemOperand& src);
@@ -896,10 +847,10 @@ class Assembler : public AssemblerBase {
       assem_->EndBlockGrowBuffer();
     }
 
-    private:
-     Assembler* assem_;
+   private:
+    Assembler* assem_;
 
-     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
   };
 
   // Debugging.
@@ -913,12 +864,12 @@ class Assembler : public AssemblerBase {
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
   void SetRecordedAstId(TypeFeedbackId ast_id) {
-    ASSERT(recorded_ast_id_.IsNone());
+    DCHECK(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
   TypeFeedbackId RecordedAstId() {
-    ASSERT(!recorded_ast_id_.IsNone());
+    DCHECK(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
@@ -1073,12 +1024,12 @@ class Assembler : public AssemblerBase {
 
   // Temporarily block automatic assembly buffer growth.
   void StartBlockGrowBuffer() {
-    ASSERT(!block_buffer_growth_);
+    DCHECK(!block_buffer_growth_);
     block_buffer_growth_ = true;
   }
 
   void EndBlockGrowBuffer() {
-    ASSERT(block_buffer_growth_);
+    DCHECK(block_buffer_growth_);
     block_buffer_growth_ = false;
   }
 
@@ -1240,7 +1191,7 @@ class Assembler : public AssemblerBase {
         // We have run out of space on trampolines.
         // Make sure we fail in debug mode, so we become aware of each case
         // when this happens.
-        ASSERT(0);
+        DCHECK(0);
         // Internal exception will be caught.
       } else {
         trampoline_slot = next_slot_;

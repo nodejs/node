@@ -25,16 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "api.h"
-#include "debug.h"
-#include "execution.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "objects.h"
-#include "global-handles.h"
-#include "cctest.h"
+#include "src/api.h"
+#include "src/debug.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/global-handles.h"
+#include "src/macro-assembler.h"
+#include "src/objects.h"
 
 using namespace v8::internal;
 
@@ -51,6 +51,7 @@ static void TestHashMap(Handle<HashMap> table) {
   table = HashMap::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(a), *b);
+  // When the key does not exist in the map, Lookup returns the hole.
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
@@ -64,8 +65,10 @@ static void TestHashMap(Handle<HashMap> table) {
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(a), *b);
 
-  // Keys mapped to the hole should be removed permanently.
-  table = HashMap::Put(table, a, factory->the_hole_value());
+  // Keys that have been removed are mapped to the hole.
+  bool was_present = false;
+  table = HashMap::Remove(table, a, &was_present);
+  CHECK(was_present);
   CHECK_EQ(table->NumberOfElements(), 0);
   CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
@@ -187,7 +190,9 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.
-  table = HashSet::Remove(table, key);
+  bool was_present = false;
+  table = HashSet::Remove(table, key, &was_present);
+  CHECK(!was_present);
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Add() should cause GC.

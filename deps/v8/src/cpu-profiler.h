@@ -5,12 +5,12 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
-#include "allocation.h"
-#include "atomicops.h"
-#include "circular-queue.h"
-#include "platform/time.h"
-#include "sampler.h"
-#include "unbound-queue.h"
+#include "src/allocation.h"
+#include "src/base/atomicops.h"
+#include "src/base/platform/time.h"
+#include "src/circular-queue.h"
+#include "src/sampler.h"
+#include "src/unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -26,6 +26,7 @@ class ProfileGenerator;
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
   V(CODE_MOVE,        CodeMoveEventRecord)                         \
+  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord)                   \
   V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)           \
   V(REPORT_BUILTIN,   ReportBuiltinEventRecord)
 
@@ -60,6 +61,15 @@ class CodeMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
+
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
+};
+
+
+class CodeDisableOptEventRecord : public CodeEventRecord {
+ public:
+  Address start;
+  const char* bailout_reason;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -112,11 +122,11 @@ class CodeEventsContainer {
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
-class ProfilerEventsProcessor : public Thread {
+class ProfilerEventsProcessor : public base::Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
                           Sampler* sampler,
-                          TimeDelta period);
+                          base::TimeDelta period);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -155,7 +165,7 @@ class ProfilerEventsProcessor : public Thread {
   Sampler* sampler_;
   bool running_;
   // Sampling period in microseconds.
-  const TimeDelta period_;
+  const base::TimeDelta period_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
@@ -190,7 +200,7 @@ class CpuProfiler : public CodeEventListener {
 
   virtual ~CpuProfiler();
 
-  void set_sampling_interval(TimeDelta value);
+  void set_sampling_interval(base::TimeDelta value);
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
@@ -211,20 +221,18 @@ class CpuProfiler : public CodeEventListener {
                                Code* code, const char* comment);
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code, Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+                               CompilationInfo* info, Name* script_name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* source, int line, int column);
+                               CompilationInfo* info, Name* script_name,
+                               int line, int column);
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code, int args_count);
   virtual void CodeMovingGCEvent() {}
   virtual void CodeMoveEvent(Address from, Address to);
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
   virtual void CodeDeleteEvent(Address from);
   virtual void GetterCallbackEvent(Name* name, Address entry_point);
   virtual void RegExpCodeCreateEvent(Code* code, String* source);
@@ -248,7 +256,7 @@ class CpuProfiler : public CodeEventListener {
   void LogBuiltins();
 
   Isolate* isolate_;
-  TimeDelta sampling_interval_;
+  base::TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;

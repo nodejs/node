@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "trace-extension.h"
+#include "test/cctest/trace-extension.h"
 
-#include "cctest.h"
-#include "sampler.h"
+#include "src/sampler.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

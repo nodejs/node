@@ -2,32 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "interface.h"
+#include "src/interface.h"
 
 namespace v8 {
 namespace internal {
 
-static bool Match(void* key1, void* key2) {
-  String* name1 = *static_cast<String**>(key1);
-  String* name2 = *static_cast<String**>(key2);
-  ASSERT(name1->IsInternalizedString());
-  ASSERT(name2->IsInternalizedString());
-  return name1 == name2;
-}
-
-
 Interface* Interface::Lookup(Handle<String> name, Zone* zone) {
-  ASSERT(IsModule());
+  DCHECK(IsModule());
   ZoneHashMap* map = Chase()->exports_;
   if (map == NULL) return NULL;
   ZoneAllocationPolicy allocator(zone);
   ZoneHashMap::Entry* p = map->Lookup(name.location(), name->Hash(), false,
                                       allocator);
   if (p == NULL) return NULL;
-  ASSERT(*static_cast<String**>(p->key) == *name);
-  ASSERT(p->value != NULL);
+  DCHECK(*static_cast<String**>(p->key) == *name);
+  DCHECK(p->value != NULL);
   return static_cast<Interface*>(p->value);
 }
 
@@ -47,8 +38,8 @@ int Nesting::current_ = 0;
 #endif
 
 
-void Interface::DoAdd(
-    void* name, uint32_t hash, Interface* interface, Zone* zone, bool* ok) {
+void Interface::DoAdd(const void* name, uint32_t hash, Interface* interface,
+                      Zone* zone, bool* ok) {
   MakeModule(ok);
   if (!*ok) return;
 
@@ -57,8 +48,9 @@ void Interface::DoAdd(
     PrintF("%*s# Adding...\n", Nesting::current(), "");
     PrintF("%*sthis = ", Nesting::current(), "");
     this->Print(Nesting::current());
-    PrintF("%*s%s : ", Nesting::current(), "",
-           (*static_cast<String**>(name))->ToAsciiArray());
+    const AstRawString* symbol = static_cast<const AstRawString*>(name);
+    PrintF("%*s%.*s : ", Nesting::current(), "", symbol->length(),
+           symbol->raw_data());
     interface->Print(Nesting::current());
   }
 #endif
@@ -68,10 +60,12 @@ void Interface::DoAdd(
 
   if (*map == NULL) {
     *map = new(zone->New(sizeof(ZoneHashMap)))
-        ZoneHashMap(Match, ZoneHashMap::kDefaultHashMapCapacity, allocator);
+        ZoneHashMap(ZoneHashMap::PointersMatch,
+                    ZoneHashMap::kDefaultHashMapCapacity, allocator);
   }
 
-  ZoneHashMap::Entry* p = (*map)->Lookup(name, hash, !IsFrozen(), allocator);
+  ZoneHashMap::Entry* p =
+      (*map)->Lookup(const_cast<void*>(name), hash, !IsFrozen(), allocator);
   if (p == NULL) {
     // This didn't have name but was frozen already, that's an error.
     *ok = false;
@@ -97,8 +91,8 @@ void Interface::DoAdd(
 void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
   if (this->forward_) return this->Chase()->Unify(that, zone, ok);
   if (that->forward_) return this->Unify(that->Chase(), zone, ok);
-  ASSERT(this->forward_ == NULL);
-  ASSERT(that->forward_ == NULL);
+  DCHECK(this->forward_ == NULL);
+  DCHECK(that->forward_ == NULL);
 
   *ok = true;
   if (this == that) return;
@@ -144,13 +138,13 @@ void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
 
 
 void Interface::DoUnify(Interface* that, bool* ok, Zone* zone) {
-  ASSERT(this->forward_ == NULL);
-  ASSERT(that->forward_ == NULL);
-  ASSERT(!this->IsValue());
-  ASSERT(!that->IsValue());
-  ASSERT(this->index_ == -1);
-  ASSERT(that->index_ == -1);
-  ASSERT(*ok);
+  DCHECK(this->forward_ == NULL);
+  DCHECK(that->forward_ == NULL);
+  DCHECK(!this->IsValue());
+  DCHECK(!that->IsValue());
+  DCHECK(this->index_ == -1);
+  DCHECK(that->index_ == -1);
+  DCHECK(*ok);
 
 #ifdef DEBUG
     Nesting nested;

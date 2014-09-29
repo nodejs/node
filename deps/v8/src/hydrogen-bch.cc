@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-bch.h"
+#include "src/hydrogen-bch.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +44,7 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
      * induction variable).
      */
     void InitializeLoop(InductionVariableData* data) {
-      ASSERT(data->limit() != NULL);
+      DCHECK(data->limit() != NULL);
       HLoopInformation* loop = data->phi()->block()->current_loop();
       is_start_ = (block() == loop->loop_header());
       is_proper_exit_ = (block() == data->induction_exit_target());
@@ -55,7 +55,7 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     // Utility methods to iterate over dominated blocks.
     void ResetCurrentDominatedBlock() { current_dominated_block_ = kNoBlock; }
     HBasicBlock* CurrentDominatedBlock() {
-      ASSERT(current_dominated_block_ != kNoBlock);
+      DCHECK(current_dominated_block_ != kNoBlock);
       return current_dominated_block_ < block()->dominated_blocks()->length() ?
           block()->dominated_blocks()->at(current_dominated_block_) : NULL;
     }
@@ -181,7 +181,7 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
       Element element;
       element.set_block(graph->blocks()->at(i));
       elements_.Add(element, graph->zone());
-      ASSERT(at(i)->block()->block_id() == i);
+      DCHECK(at(i)->block()->block_id() == i);
     }
   }
 

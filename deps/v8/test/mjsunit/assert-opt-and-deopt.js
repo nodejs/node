@@ -137,7 +137,7 @@ OptTracker.prototype.DisableAsserts_ = function(func) {
     case OptTracker.OptimizationState.NEVER:
       return true;
   }
-  return false;
+  return true;
 }
 // (End of class OptTracker.)
 

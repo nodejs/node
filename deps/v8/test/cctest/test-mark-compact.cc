@@ -28,21 +28,21 @@
 #include <stdlib.h>
 
 #ifdef __linux__
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "snapshot.h"
-#include "cctest.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/snapshot.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -77,7 +77,7 @@ TEST(MarkingDeque) {
 TEST(Promotion) {
   CcTest::InitializeVM();
   TestHeap* heap = CcTest::test_heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
+  heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 
@@ -92,7 +92,8 @@ TEST(Promotion) {
   CHECK(heap->InSpace(*array, NEW_SPACE));
 
   // Call mark compact GC, so array becomes an old object.
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   // Array now sits in the old space
   CHECK(heap->InSpace(*array, OLD_POINTER_SPACE));
@@ -102,7 +103,7 @@ TEST(Promotion) {
 TEST(NoPromotion) {
   CcTest::InitializeVM();
   TestHeap* heap = CcTest::test_heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
+  heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 
@@ -156,12 +157,8 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-        func_name, factory->undefined_value());
-    Handle<Map> initial_map = factory->NewMap(
-        JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    function->set_initial_map(*initial_map);
-    JSReceiver::SetProperty(global, func_name, function, NONE, SLOPPY).Check();
+    Handle<JSFunction> function = factory->NewFunction(func_name);
+    JSReceiver::SetProperty(global, func_name, function, SLOPPY).Check();
 
     factory->NewJSObject(function);
   }
@@ -170,7 +167,9 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    CHECK(JSReceiver::HasLocalProperty(global, func_name));
+    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, func_name);
+    CHECK(maybe.has_value);
+    CHECK(maybe.value);
     Handle<Object> func_value =
         Object::GetProperty(global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
@@ -178,17 +177,19 @@ TEST(MarkCompactCollector) {
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(global, obj_name, obj, SLOPPY).Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   }
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    CHECK(JSReceiver::HasLocalProperty(global, obj_name));
+    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, obj_name);
+    CHECK(maybe.has_value);
+    CHECK(maybe.value);
     Handle<Object> object =
         Object::GetProperty(global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());
@@ -240,7 +241,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  ASSERT_EQ(1234, p->second);
+  DCHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }
@@ -365,7 +366,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool has_been_disposed() { return has_been_disposed_; }
 
   virtual void Dispose() {
-    ASSERT(!has_been_disposed_);
+    DCHECK(!has_been_disposed_);
     has_been_disposed_ = true;
   }
 
@@ -393,7 +394,7 @@ TEST(EmptyObjectGroups) {
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);
-  ASSERT(info.has_been_disposed());
+  DCHECK(info.has_been_disposed());
 
   global_handles->AddImplicitReferences(
         Handle<HeapObject>::cast(object).location(), NULL, 0);

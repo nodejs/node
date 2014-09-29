@@ -33,8 +33,8 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'clang%': 0,
     'asan%': 0,
+    'tsan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -51,13 +51,7 @@
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
               # to gyp.
-              'host_arch%':
-                '<!(uname -m | sed -e "s/i.86/ia32/;\
-                                       s/x86_64/x64/;\
-                                       s/amd64/x64/;\
-                                       s/arm.*/arm/;\
-                                       s/aarch64/arm64/;\
-                                       s/mips.*/mipsel/")',
+              'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
               # OS!="netbsd" and OS!="mac"
@@ -104,6 +98,7 @@
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="arm64" and host_arch!="arm64") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
+        (v8_target_arch=="mips64el" and host_arch!="mips64el") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
         (OS=="android" or OS=="qnx")', {
         'want_separate_host_toolset': 1,
@@ -115,16 +110,20 @@
       }, {
         'os_posix%': 1,
       }],
-      ['(v8_target_arch=="ia32" or v8_target_arch=="x64") and \
+      ['(v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
         (OS=="linux" or OS=="mac")', {
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
       }],
+      ['OS=="mac"', {
+        'clang%': 1,
+      }, {
+        'clang%': 0,
+      }],
     ],
     # Default ARM variable settings.
     'arm_version%': 'default',
-    'arm_neon%': 0,
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',
     'arm_thumb': 'default',
@@ -192,17 +191,36 @@
         ],
       },
     }],
+    ['tsan==1', {
+      'target_defaults': {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-gline-tables-only',
+          '-fsanitize=thread',
+          '-fPIC',
+          '-Wno-c++11-extensions',
+        ],
+        'cflags!': [
+          '-fomit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=thread',
+          '-pie',
+        ],
+        'defines': [
+          'THREAD_SANITIZER',
+        ],
+      },
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
        or OS=="netbsd"', {
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                    '-pthread', '-fno-exceptions', '-pedantic' ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+                    '-Wno-long-long', '-pthread', '-fno-exceptions',
+                    '-pedantic' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'OS=="linux"', {
-            'cflags': [ '-ansi' ],
-          }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
@@ -218,7 +236,7 @@
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                     '-fno-exceptions' ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'conditions': [
           [ 'visibility=="hidden"', {
             'cflags': [ '-fvisibility=hidden' ],
@@ -316,7 +334,7 @@
       'target_defaults': {
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
-          'GCC_C_LANGUAGE_STANDARD': 'ansi',        # -ansi
+          'GCC_C_LANGUAGE_STANDARD': 'c99',         # -std=c99
           'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
           'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
                                                     # (Equivalent to -fPIC)
@@ -352,7 +370,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++11',  # -std=gnu++11
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
             },
           }],
         ],

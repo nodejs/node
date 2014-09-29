@@ -5,7 +5,7 @@
 #ifndef V8_LOG_INL_H_
 #define V8_LOG_INL_H_
 
-#include "log.h"
+#include "src/log.h"
 
 namespace v8 {
 namespace internal {

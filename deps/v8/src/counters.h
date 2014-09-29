@@ -5,11 +5,11 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-#include "../include/v8.h"
-#include "allocation.h"
-#include "objects.h"
-#include "platform/elapsed-timer.h"
-#include "v8globals.h"
+#include "include/v8.h"
+#include "src/allocation.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -139,9 +139,12 @@ class StatsCounter {
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    ASSERT(loc != NULL);
+    DCHECK(loc != NULL);
     return loc;
   }
+
+  // Reset the cached internal pointer.
+  void Reset() { lookup_done_ = false; }
 
  protected:
   // Returns the cached address of this counter location.
@@ -241,11 +244,11 @@ class HistogramTimer : public Histogram {
 
   // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
 #ifdef DEBUG
-  ElapsedTimer* timer() { return &timer_; }
+  base::ElapsedTimer* timer() { return &timer_; }
 #endif
 
  private:
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -265,11 +268,12 @@ class HistogramTimerScope BASE_EMBEDDED {
     } else {
       timer_->Start();
     }
+  }
 #else
       : timer_(timer) {
     timer_->Start();
-#endif
   }
+#endif
   ~HistogramTimerScope() {
 #ifdef DEBUG
     if (!skipped_timer_start_) {
@@ -279,6 +283,7 @@ class HistogramTimerScope BASE_EMBEDDED {
     timer_->Stop();
 #endif
   }
+
  private:
   HistogramTimer* timer_;
 #ifdef DEBUG
@@ -286,19 +291,25 @@ class HistogramTimerScope BASE_EMBEDDED {
 #endif
 };
 
+#define HISTOGRAM_RANGE_LIST(HR) \
+  /* Generic range histograms */ \
+  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)
 
-#define HISTOGRAM_TIMER_LIST(HT)                                      \
-  /* Garbage collection timers. */                                    \
-  HT(gc_compactor, V8.GCCompactor)                                    \
-  HT(gc_scavenger, V8.GCScavenger)                                    \
-  HT(gc_context, V8.GCContext) /* GC context cleanup time */          \
-  /* Parsing timers. */                                               \
-  HT(parse, V8.Parse)                                                 \
-  HT(parse_lazy, V8.ParseLazy)                                        \
-  HT(pre_parse, V8.PreParse)                                          \
-  /* Total compilation times. */                                      \
-  HT(compile, V8.Compile)                                             \
-  HT(compile_eval, V8.CompileEval)                                    \
+#define HISTOGRAM_TIMER_LIST(HT)                             \
+  /* Garbage collection timers. */                           \
+  HT(gc_compactor, V8.GCCompactor)                           \
+  HT(gc_scavenger, V8.GCScavenger)                           \
+  HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
+  HT(gc_idle_notification, V8.GCIdleNotification)            \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification) \
+  /* Parsing timers. */                                      \
+  HT(parse, V8.Parse)                                        \
+  HT(parse_lazy, V8.ParseLazy)                               \
+  HT(pre_parse, V8.PreParse)                                 \
+  /* Total compilation times. */                             \
+  HT(compile, V8.Compile)                                    \
+  HT(compile_eval, V8.CompileEval)                           \
   HT(compile_lazy, V8.CompileLazy)
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
@@ -379,6 +390,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
   SC(call_normal_stubs, V8.CallNormalStubs)                           \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
@@ -543,6 +555,11 @@ class HistogramTimerScope BASE_EMBEDDED {
 // This file contains all the v8 counters that are in use.
 class Counters {
  public:
+#define HR(name, caption, min, max, num_buckets) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) \
   HistogramTimer* name() { return &name##_; }
   HISTOGRAM_TIMER_LIST(HT)
@@ -626,9 +643,14 @@ class Counters {
     stats_counter_count
   };
 
+  void ResetCounters();
   void ResetHistograms();
 
  private:
+#define HR(name, caption, min, max, num_buckets) Histogram name##_;
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) \
   HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)

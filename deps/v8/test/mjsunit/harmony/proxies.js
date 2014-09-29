@@ -1807,7 +1807,7 @@ TestKeysThrow({
   },
 })
 
-TestKeysThrow([], {
+TestKeysThrow({
   get getOwnPropertyNames() {
     return function() { return [1, 2] }
   },

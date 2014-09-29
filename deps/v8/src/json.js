@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+"use strict";
+
 // This file relies on the fact that the following declarations have been made
 // in runtime.js:
 // var $Array = global.Array;

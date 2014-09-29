@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --harmony-promises
+// Flags: --expose-debug-as debug
 // Test the mirror object for promises.
 
 function MirrorRefCache(json_refs) {
@@ -39,7 +39,8 @@ function testPromiseMirror(promise, status, value) {
   assertEquals("Object", mirror.className());
   assertEquals("#<Promise>", mirror.toText());
   assertSame(promise, mirror.value());
-  assertEquals(value, mirror.promiseValue());
+  assertTrue(mirror.promiseValue() instanceof debug.Mirror);
+  assertEquals(value, mirror.promiseValue().value());
 
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
@@ -48,7 +49,7 @@ function testPromiseMirror(promise, status, value) {
   assertEquals('function', refs.lookup(fromJSON.constructorFunction.ref).type);
   assertEquals('Promise', refs.lookup(fromJSON.constructorFunction.ref).name);
   assertEquals(status, fromJSON.status);
-  assertEquals(value, fromJSON.promiseValue);
+  assertEquals(value, refs.lookup(fromJSON.promiseValue.ref).value);
 }
 
 // Test a number of different promises.
@@ -67,3 +68,23 @@ var thrownv = new Promise(function(resolve, reject) { throw 'throw' });
 testPromiseMirror(resolvedv, "resolved", 'resolve');
 testPromiseMirror(rejectedv, "rejected", 'reject');
 testPromiseMirror(thrownv, "rejected", 'throw');
+
+// Test internal properties of different promises.
+var m1 = debug.MakeMirror(new Promise(
+    function(resolve, reject) { resolve(1) }));
+var ip = m1.internalProperties();
+assertEquals(2, ip.length);
+assertEquals("[[PromiseStatus]]", ip[0].name());
+assertEquals("[[PromiseValue]]", ip[1].name());
+assertEquals("resolved", ip[0].value().value());
+assertEquals(1, ip[1].value().value());
+
+var m2 = debug.MakeMirror(new Promise(function(resolve, reject) { reject(2) }));
+ip = m2.internalProperties();
+assertEquals("rejected", ip[0].value().value());
+assertEquals(2, ip[1].value().value());
+
+var m3 = debug.MakeMirror(new Promise(function(resolve, reject) { }));
+ip = m3.internalProperties();
+assertEquals("pending", ip[0].value().value());
+assertEquals("undefined", typeof(ip[1].value().value()));

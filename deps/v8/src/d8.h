@@ -6,12 +6,12 @@
 #define V8_D8_H_
 
 #ifndef V8_SHARED
-#include "allocation.h"
-#include "hashmap.h"
-#include "smart-pointers.h"
-#include "v8.h"
+#include "src/allocation.h"
+#include "src/hashmap.h"
+#include "src/smart-pointers.h"
+#include "src/v8.h"
 #else
-#include "../include/v8.h"
+#include "include/v8.h"
 #endif  // !V8_SHARED
 
 namespace v8 {
@@ -69,7 +69,7 @@ class CounterMap {
         const_cast<char*>(name),
         Hash(name),
         true);
-    ASSERT(answer != NULL);
+    DCHECK(answer != NULL);
     answer->value = value;
   }
   class Iterator {
@@ -141,10 +141,10 @@ class SourceGroup {
   void WaitForThread();
 
  private:
-  class IsolateThread : public i::Thread {
+  class IsolateThread : public base::Thread {
    public:
     explicit IsolateThread(SourceGroup* group)
-        : i::Thread(GetThreadOptions()), group_(group) {}
+        : base::Thread(GetThreadOptions()), group_(group) {}
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -154,12 +154,12 @@ class SourceGroup {
     SourceGroup* group_;
   };
 
-  static i::Thread::Options GetThreadOptions();
+  static base::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::Semaphore next_semaphore_;
-  i::Semaphore done_semaphore_;
-  i::Thread* thread_;
+  base::Semaphore next_semaphore_;
+  base::Semaphore done_semaphore_;
+  base::Thread* thread_;
 #endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
@@ -194,39 +194,37 @@ class BinaryResource : public v8::String::ExternalAsciiStringResource {
 
 class ShellOptions {
  public:
-  ShellOptions() :
-#ifndef V8_SHARED
-     num_parallel_files(0),
-     parallel_files(NULL),
-#endif  // !V8_SHARED
-     script_executed(false),
-     last_run(true),
-     send_idle_notification(false),
-     stress_opt(false),
-     stress_deopt(false),
-     interactive_shell(false),
-     test_shell(false),
-     dump_heap_constants(false),
-     expected_to_throw(false),
-     mock_arraybuffer_allocator(false),
-     num_isolates(1),
-     isolate_sources(NULL),
-     icu_data_file(NULL) { }
+  ShellOptions()
+      : script_executed(false),
+        last_run(true),
+        send_idle_notification(false),
+        invoke_weak_callbacks(false),
+        stress_opt(false),
+        stress_deopt(false),
+        interactive_shell(false),
+        test_shell(false),
+        dump_heap_constants(false),
+        expected_to_throw(false),
+        mock_arraybuffer_allocator(false),
+        num_isolates(1),
+        compile_options(v8::ScriptCompiler::kNoCompileOptions),
+        isolate_sources(NULL),
+        icu_data_file(NULL),
+        natives_blob(NULL),
+        snapshot_blob(NULL) {}
 
   ~ShellOptions() {
-#ifndef V8_SHARED
-    delete[] parallel_files;
-#endif  // !V8_SHARED
     delete[] isolate_sources;
   }
 
-#ifndef V8_SHARED
-  int num_parallel_files;
-  char** parallel_files;
-#endif  // !V8_SHARED
+  bool use_interactive_shell() {
+    return (interactive_shell || !script_executed) && !test_shell;
+  }
+
   bool script_executed;
   bool last_run;
   bool send_idle_notification;
+  bool invoke_weak_callbacks;
   bool stress_opt;
   bool stress_deopt;
   bool interactive_shell;
@@ -235,8 +233,11 @@ class ShellOptions {
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
   int num_isolates;
+  v8::ScriptCompiler::CompileOptions compile_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
+  const char* natives_blob;
+  const char* snapshot_blob;
 };
 
 #ifdef V8_SHARED
@@ -246,6 +247,9 @@ class Shell : public i::AllStatic {
 #endif  // V8_SHARED
 
  public:
+  static Local<UnboundScript> CompileString(
+      Isolate* isolate, Local<String> source, Local<Value> name,
+      v8::ScriptCompiler::CompileOptions compile_options);
   static bool ExecuteString(Isolate* isolate,
                             Handle<String> source,
                             Handle<Value> name,
@@ -270,13 +274,12 @@ class Shell : public i::AllStatic {
                                int max,
                                size_t buckets);
   static void AddHistogramSample(void* histogram, int sample);
-  static void MapCounters(const char* name);
+  static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static Local<Object> DebugMessageDetails(Isolate* isolate,
                                            Handle<String> message);
   static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
                                                 Handle<String> command);
-  static void DispatchDebugMessages();
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !V8_SHARED
@@ -369,9 +372,9 @@ class Shell : public i::AllStatic {
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
-  static i::OS::MemoryMappedFile* counters_file_;
-  static i::Mutex context_mutex_;
-  static const i::TimeTicks kInitialTicks;
+  static base::OS::MemoryMappedFile* counters_file_;
+  static base::Mutex context_mutex_;
+  static const base::TimeTicks kInitialTicks;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);

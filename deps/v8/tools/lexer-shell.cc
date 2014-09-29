@@ -31,17 +31,18 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "messages.h"
-#include "platform.h"
-#include "runtime.h"
-#include "scanner-character-streams.h"
-#include "scopeinfo.h"
-#include "shell-utils.h"
-#include "string-stream.h"
-#include "scanner.h"
+#include "include/libplatform/libplatform.h"
+#include "src/api.h"
+#include "src/base/platform/platform.h"
+#include "src/messages.h"
+#include "src/runtime.h"
+#include "src/scanner-character-streams.h"
+#include "src/scopeinfo.h"
+#include "tools/shell-utils.h"
+#include "src/string-stream.h"
+#include "src/scanner.h"
 
 
 using namespace v8::internal;
@@ -52,7 +53,7 @@ class BaselineScanner {
   BaselineScanner(const char* fname,
                   Isolate* isolate,
                   Encoding encoding,
-                  ElapsedTimer* timer,
+                  v8::base::ElapsedTimer* timer,
                   int repeat)
       : stream_(NULL) {
     int length = 0;
@@ -127,13 +128,11 @@ struct TokenWithLocation {
 };
 
 
-TimeDelta RunBaselineScanner(const char* fname,
-                             Isolate* isolate,
-                             Encoding encoding,
-                             bool dump_tokens,
-                             std::vector<TokenWithLocation>* tokens,
-                             int repeat) {
-  ElapsedTimer timer;
+v8::base::TimeDelta RunBaselineScanner(const char* fname, Isolate* isolate,
+                                       Encoding encoding, bool dump_tokens,
+                                       std::vector<TokenWithLocation>* tokens,
+                                       int repeat) {
+  v8::base::ElapsedTimer timer;
   BaselineScanner scanner(fname, isolate, encoding, &timer, repeat);
   Token::Value token;
   int beg, end;
@@ -158,7 +157,7 @@ void PrintTokens(const char* name,
 }
 
 
-TimeDelta ProcessFile(
+v8::base::TimeDelta ProcessFile(
     const char* fname,
     Encoding encoding,
     Isolate* isolate,
@@ -169,7 +168,7 @@ TimeDelta ProcessFile(
   }
   HandleScope handle_scope(isolate);
   std::vector<TokenWithLocation> baseline_tokens;
-  TimeDelta baseline_time;
+  v8::base::TimeDelta baseline_time;
   baseline_time = RunBaselineScanner(
       fname, isolate, encoding, print_tokens,
       &baseline_tokens, repeat);
@@ -182,6 +181,8 @@ TimeDelta ProcessFile(
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
   bool print_tokens = false;
@@ -206,19 +207,20 @@ int main(int argc, char* argv[]) {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = v8::Isolate::New();
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
-    ASSERT(!context.IsEmpty());
+    DCHECK(!context.IsEmpty());
     {
       v8::Context::Scope scope(context);
-      Isolate* isolate = Isolate::Current();
       double baseline_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
-        TimeDelta time;
-        time = ProcessFile(fnames[i].c_str(), encoding, isolate, print_tokens,
+        v8::base::TimeDelta time;
+        time = ProcessFile(fnames[i].c_str(), encoding,
+                           reinterpret_cast<Isolate*>(isolate), print_tokens,
                            repeat);
         baseline_total += time.InMillisecondsF();
       }
@@ -227,5 +229,7 @@ int main(int argc, char* argv[]) {
     }
   }
   v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return 0;
 }

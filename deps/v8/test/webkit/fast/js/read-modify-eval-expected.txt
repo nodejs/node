@@ -42,7 +42,7 @@ PASS preDecTest(); is true
 PASS postIncTest(); is true
 PASS postDecTest(); is true
 PASS primitiveThisTest.call(1); is true
-FAIL strictThisTest.call(1); should throw an exception. Was true.
+PASS strictThisTest.call(1); threw exception TypeError: Cannot assign to read only property 'value' of 1.
 PASS successfullyParsed is true
 
 TEST COMPLETE

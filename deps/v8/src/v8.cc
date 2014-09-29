@@ -2,28 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assembler.h"
-#include "isolate.h"
-#include "elements.h"
-#include "bootstrapper.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "frames.h"
-#include "heap-profiler.h"
-#include "hydrogen.h"
-#ifdef V8_USE_DEFAULT_PLATFORM
-#include "libplatform/default-platform.h"
-#endif
-#include "lithium-allocator.h"
-#include "objects.h"
-#include "once.h"
-#include "platform.h"
-#include "sampler.h"
-#include "runtime-profiler.h"
-#include "serialize.h"
-#include "store-buffer.h"
+#include "src/assembler.h"
+#include "src/base/once.h"
+#include "src/base/platform/platform.h"
+#include "src/bootstrapper.h"
+#include "src/compiler/pipeline.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/elements.h"
+#include "src/frames.h"
+#include "src/heap/store-buffer.h"
+#include "src/heap-profiler.h"
+#include "src/hydrogen.h"
+#include "src/isolate.h"
+#include "src/lithium-allocator.h"
+#include "src/objects.h"
+#include "src/runtime-profiler.h"
+#include "src/sampler.h"
+#include "src/serialize.h"
+
 
 namespace v8 {
 namespace internal {
@@ -41,43 +40,20 @@ bool V8::Initialize(Deserializer* des) {
   if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
 
-#ifdef V8_USE_DEFAULT_PLATFORM
-  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
-  platform->SetThreadPoolSize(isolate->max_available_threads());
-  // We currently only start the threads early, if we know that we'll use them.
-  if (FLAG_job_based_sweeping) platform->EnsureInitialized();
-#endif
-
   return isolate->Init(des);
 }
 
 
 void V8::TearDown() {
-  Isolate* isolate = Isolate::Current();
-  ASSERT(isolate->IsDefaultIsolate());
-  if (!isolate->IsInitialized()) return;
-
-  // The isolate has to be torn down before clearing the LOperand
-  // caches so that the optimizing compiler thread (if running)
-  // doesn't see an inconsistent view of the lithium instructions.
-  isolate->TearDown();
-  delete isolate;
-
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
+  compiler::Pipeline::TearDown();
   ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
 
   Sampler::TearDown();
-  Serializer::TearDown();
-
-#ifdef V8_USE_DEFAULT_PLATFORM
-  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
-  platform_ = NULL;
-  delete platform;
-#endif
 }
 
 
@@ -89,7 +65,6 @@ void V8::SetReturnAddressLocationResolver(
 
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
-  Serializer::InitializeOncePerProcess();
 
   if (FLAG_predictable && FLAG_random_seed == 0) {
     // Avoid random seeds in predictable mode.
@@ -99,17 +74,14 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_stress_compaction) {
     FLAG_force_marking_deque_overflows = true;
     FLAG_gc_global = true;
-    FLAG_max_new_space_size = 2 * Page::kPageSize;
+    FLAG_max_semi_space_size = 1;
   }
 
-#ifdef V8_USE_DEFAULT_PLATFORM
-  platform_ = new DefaultPlatform;
-#endif
+  base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
+
   Sampler::SetUp();
-  // TODO(svenpanne) Clean this up when Serializer is a real object.
-  bool serializer_enabled = Serializer::enabled(NULL);
-  CpuFeatures::Probe(serializer_enabled);
-  OS::PostSetUp();
+  CpuFeatures::Probe(false);
+  init_memcopy_functions();
   // The custom exp implementation needs 16KB of lookup data; initialize it
   // on demand.
   init_fast_sqrt_function();
@@ -118,6 +90,7 @@ void V8::InitializeOncePerProcessImpl() {
 #endif
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
+  compiler::Pipeline::SetUp();
   SetUpJSCallerSavedCodeData();
   ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
@@ -125,25 +98,25 @@ void V8::InitializeOncePerProcessImpl() {
 
 
 void V8::InitializeOncePerProcess() {
-  CallOnce(&init_once, &InitializeOncePerProcessImpl);
+  base::CallOnce(&init_once, &InitializeOncePerProcessImpl);
 }
 
 
 void V8::InitializePlatform(v8::Platform* platform) {
-  ASSERT(!platform_);
-  ASSERT(platform);
+  CHECK(!platform_);
+  CHECK(platform);
   platform_ = platform;
 }
 
 
 void V8::ShutdownPlatform() {
-  ASSERT(platform_);
+  CHECK(platform_);
   platform_ = NULL;
 }
 
 
 v8::Platform* V8::GetCurrentPlatform() {
-  ASSERT(platform_);
+  DCHECK(platform_);
   return platform_;
 }
 

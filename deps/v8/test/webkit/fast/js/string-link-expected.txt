@@ -33,8 +33,8 @@ PASS '_'.link(0x2A) is "<a href=\"42\">_</a>"
 PASS '_'.link('"') is "<a href=\"&quot;\">_</a>"
 PASS '_'.link('" target="_blank') is "<a href=\"&quot; target=&quot;_blank\">_</a>"
 PASS String.prototype.link.call(0x2A, 0x2A) is "<a href=\"42\">42</a>"
-FAIL String.prototype.link.call(undefined) should throw TypeError: Type error. Was <a href="undefined">undefined</a>.
-FAIL String.prototype.link.call(null) should throw TypeError: Type error. Was <a href="undefined">null</a>.
+FAIL String.prototype.link.call(undefined) should throw TypeError: Type error. Threw exception TypeError: String.prototype.link called on null or undefined.
+FAIL String.prototype.link.call(null) should throw TypeError: Type error. Threw exception TypeError: String.prototype.link called on null or undefined.
 PASS String.prototype.link.length is 1
 PASS successfullyParsed is true
 

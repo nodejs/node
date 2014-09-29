@@ -31,9 +31,9 @@ import os
 import shutil
 import sys
 import tarfile
-import urllib
 
 from testrunner.local import testsuite
+from testrunner.local import utils
 from testrunner.objects import testcase
 
 
@@ -97,7 +97,7 @@ class Test262TestSuite(testsuite.TestSuite):
     directory_old_name = os.path.join(self.root, "data.old")
     if not os.path.exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
-      urllib.urlretrieve(archive_url, archive_name)
+      utils.URLRetrieve(archive_url, archive_name)
       if os.path.exists(directory_name):
         if os.path.exists(directory_old_name):
           shutil.rmtree(directory_old_name)

@@ -105,7 +105,8 @@ class UploadCL(Step):
                  % self["sheriff"])
     self.GitCommit("%s%s\n\nTBR=%s" % (commit_title, sheriff, rev))
     self.GitUpload(author=self._options.author,
-                   force=self._options.force_upload)
+                   force=self._options.force_upload,
+                   cq=self._options.use_commit_queue)
     print "CL uploaded."
 
 
@@ -143,6 +144,9 @@ class ChromiumRoll(ScriptsBase):
                               "directory to automate the V8 roll."))
     parser.add_argument("-l", "--last-push",
                         help="The git commit ID of the last push to trunk.")
+    parser.add_argument("--use-commit-queue",
+                        help="Check the CQ bit on upload.",
+                        default=False, action="store_true")
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.manual and not options.reviewer:

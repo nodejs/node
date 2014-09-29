@@ -37,12 +37,13 @@ function TestCase(fun, frame_number) {
   var exception = false;
   var codeSnippet = undefined;
   var resultPositions = undefined;
+  var step = 0;
 
   function listener(event, exec_state, event_data, data) {
     try {
       if (event == Debug.DebugEvent.Break ||
           event == Debug.DebugEvent.Exception) {
-        Debug.setListener(null);
+        if (step++ > 0) return;
         assertHasLineMark(/pause/, exec_state.frame(0));
         assertHasLineMark(/positions/, exec_state.frame(frame_number));
         var frame = exec_state.frame(frame_number);

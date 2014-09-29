@@ -5,9 +5,9 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
-#include "allocation.h"
-#include "assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/assembler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -239,7 +239,7 @@ class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) { }
   // For compatibility with the CHECK_OK macro
-  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
+  CharacterRange(void* null) { DCHECK_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
                              Zone* zone);
@@ -248,7 +248,7 @@ class CharacterRange {
     return CharacterRange(value, value);
   }
   static inline CharacterRange Range(uc16 from, uc16 to) {
-    ASSERT(from <= to);
+    DCHECK(from <= to);
     return CharacterRange(from, to);
   }
   static inline CharacterRange Everything() {
@@ -296,7 +296,7 @@ class OutSet: public ZoneObject {
  public:
   OutSet() : first_(0), remaining_(NULL), successors_(NULL) { }
   OutSet* Extend(unsigned value, Zone* zone);
-  bool Get(unsigned value);
+  bool Get(unsigned value) const;
   static const unsigned kFirstLimit = 32;
 
  private:
@@ -425,12 +425,12 @@ class TextElement V8_FINAL BASE_EMBEDDED {
   RegExpTree* tree() const { return tree_; }
 
   RegExpAtom* atom() const {
-    ASSERT(text_type() == ATOM);
+    DCHECK(text_type() == ATOM);
     return reinterpret_cast<RegExpAtom*>(tree());
   }
 
   RegExpCharacterClass* char_class() const {
-    ASSERT(text_type() == CHAR_CLASS);
+    DCHECK(text_type() == CHAR_CLASS);
     return reinterpret_cast<RegExpCharacterClass*>(tree());
   }
 
@@ -541,8 +541,8 @@ class QuickCheckDetails {
   int characters() { return characters_; }
   void set_characters(int characters) { characters_ = characters; }
   Position* positions(int index) {
-    ASSERT(index >= 0);
-    ASSERT(index < characters_);
+    DCHECK(index >= 0);
+    DCHECK(index < characters_);
     return positions_ + index;
   }
   uint32_t mask() { return mask_; }
@@ -628,7 +628,7 @@ class RegExpNode: public ZoneObject {
   virtual RegExpNode* FilterASCII(int depth, bool ignore_case) { return this; }
   // Helper for FilterASCII.
   RegExpNode* replacement() {
-    ASSERT(info()->replacement_calculated);
+    DCHECK(info()->replacement_calculated);
     return replacement_;
   }
   RegExpNode* set_replacement(RegExpNode* replacement) {
@@ -1445,7 +1445,7 @@ class Trace {
   // These set methods and AdvanceCurrentPositionInTrace should be used only on
   // new traces - the intention is that traces are immutable after creation.
   void add_action(DeferredAction* new_action) {
-    ASSERT(new_action->next_ == NULL);
+    DCHECK(new_action->next_ == NULL);
     new_action->next_ = actions_;
     actions_ = new_action;
   }
@@ -1465,14 +1465,14 @@ class Trace {
   int FindAffectedRegisters(OutSet* affected_registers, Zone* zone);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
                               int max_register,
-                              OutSet& affected_registers,
+                              const OutSet& affected_registers,
                               OutSet* registers_to_pop,
                               OutSet* registers_to_clear,
                               Zone* zone);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
                                 int max_register,
-                                OutSet& registers_to_pop,
-                                OutSet& registers_to_clear);
+                                const OutSet& registers_to_pop,
+                                const OutSet& registers_to_clear);
   int cp_offset_;
   DeferredAction* actions_;
   Label* backtrack_;
@@ -1560,7 +1560,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
   bool has_failed() { return error_message_ != NULL; }
   const char* error_message() {
-    ASSERT(error_message_ != NULL);
+    DCHECK(error_message_ != NULL);
     return error_message_;
   }
   void fail(const char* error_message) {

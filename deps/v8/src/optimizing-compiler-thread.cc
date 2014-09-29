@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "optimizing-compiler-thread.h"
+#include "src/optimizing-compiler-thread.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "full-codegen.h"
-#include "hydrogen.h"
-#include "isolate.h"
-#include "v8threads.h"
+#include "src/base/atomicops.h"
+#include "src/full-codegen.h"
+#include "src/hydrogen.h"
+#include "src/isolate.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
 
 OptimizingCompilerThread::~OptimizingCompilerThread() {
-  ASSERT_EQ(0, input_queue_length_);
+  DCHECK_EQ(0, input_queue_length_);
   DeleteArray(input_queue_);
   if (FLAG_concurrent_osr) {
 #ifdef DEBUG
@@ -30,7 +31,7 @@ OptimizingCompilerThread::~OptimizingCompilerThread() {
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
-  { LockGuard<Mutex> lock_guard(&thread_id_mutex_);
+  { base::LockGuard<base::Mutex> lock_guard(&thread_id_mutex_);
     thread_id_ = ThreadId::Current().ToInteger();
   }
 #endif
@@ -39,19 +40,18 @@ void OptimizingCompilerThread::Run() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  ElapsedTimer total_timer;
+  base::ElapsedTimer total_timer;
   if (FLAG_trace_concurrent_recompilation) total_timer.Start();
 
   while (true) {
     input_queue_semaphore_.Wait();
-    Logger::TimerEventScope timer(
-        isolate_, Logger::TimerEventScope::v8_recompile_concurrent);
+    TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
     if (FLAG_concurrent_recompilation_delay != 0) {
-      OS::Sleep(FLAG_concurrent_recompilation_delay);
+      base::OS::Sleep(FLAG_concurrent_recompilation_delay);
     }
 
-    switch (static_cast<StopFlag>(Acquire_Load(&stop_thread_))) {
+    switch (static_cast<StopFlag>(base::Acquire_Load(&stop_thread_))) {
       case CONTINUE:
         break;
       case STOP:
@@ -65,13 +65,14 @@ void OptimizingCompilerThread::Run() {
         { AllowHandleDereference allow_handle_dereference;
           FlushInputQueue(true);
         }
-        Release_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
+        base::Release_Store(&stop_thread_,
+                            static_cast<base::AtomicWord>(CONTINUE));
         stop_semaphore_.Signal();
         // Return to start of consumer loop.
         continue;
     }
 
-    ElapsedTimer compiling_timer;
+    base::ElapsedTimer compiling_timer;
     if (FLAG_trace_concurrent_recompilation) compiling_timer.Start();
 
     CompileNext();
@@ -84,10 +85,10 @@ void OptimizingCompilerThread::Run() {
 
 
 OptimizedCompileJob* OptimizingCompilerThread::NextInput() {
-  LockGuard<Mutex> access_input_queue_(&input_queue_mutex_);
+  base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
   if (input_queue_length_ == 0) return NULL;
   OptimizedCompileJob* job = input_queue_[InputQueueIndex(0)];
-  ASSERT_NE(NULL, job);
+  DCHECK_NE(NULL, job);
   input_queue_shift_ = InputQueueIndex(1);
   input_queue_length_--;
   return job;
@@ -96,12 +97,12 @@ OptimizedCompileJob* OptimizingCompilerThread::NextInput() {
 
 void OptimizingCompilerThread::CompileNext() {
   OptimizedCompileJob* job = NextInput();
-  ASSERT_NE(NULL, job);
+  DCHECK_NE(NULL, job);
 
   // The function may have already been optimized by OSR.  Simply continue.
   OptimizedCompileJob::Status status = job->OptimizeGraph();
   USE(status);   // Prevent an unused-variable error in release mode.
-  ASSERT(status != OptimizedCompileJob::FAILED);
+  DCHECK(status != OptimizedCompileJob::FAILED);
 
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
@@ -168,8 +169,8 @@ void OptimizingCompilerThread::FlushOsrBuffer(bool restore_function_code) {
 
 
 void OptimizingCompilerThread::Flush() {
-  ASSERT(!IsOptimizerThread());
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(FLUSH));
+  DCHECK(!IsOptimizerThread());
+  base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();
@@ -182,8 +183,8 @@ void OptimizingCompilerThread::Flush() {
 
 
 void OptimizingCompilerThread::Stop() {
-  ASSERT(!IsOptimizerThread());
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(STOP));
+  DCHECK(!IsOptimizerThread());
+  base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(STOP));
   if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();
@@ -215,7 +216,7 @@ void OptimizingCompilerThread::Stop() {
 
 
 void OptimizingCompilerThread::InstallOptimizedFunctions() {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
 
   OptimizedCompileJob* job;
@@ -248,23 +249,23 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
 
 
 void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
-  ASSERT(IsQueueAvailable());
-  ASSERT(!IsOptimizerThread());
+  DCHECK(IsQueueAvailable());
+  DCHECK(!IsOptimizerThread());
   CompilationInfo* info = job->info();
   if (info->is_osr()) {
     osr_attempts_++;
     AddToOsrBuffer(job);
     // Add job to the front of the input queue.
-    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
-    ASSERT_LT(input_queue_length_, input_queue_capacity_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
+    DCHECK_LT(input_queue_length_, input_queue_capacity_);
     // Move shift_ back by one.
     input_queue_shift_ = InputQueueIndex(input_queue_capacity_ - 1);
     input_queue_[InputQueueIndex(0)] = job;
     input_queue_length_++;
   } else {
     // Add job to the back of the input queue.
-    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
-    ASSERT_LT(input_queue_length_, input_queue_capacity_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
+    DCHECK_LT(input_queue_length_, input_queue_capacity_);
     input_queue_[InputQueueIndex(input_queue_length_)] = job;
     input_queue_length_++;
   }
@@ -277,7 +278,7 @@ void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
 
 
 void OptimizingCompilerThread::Unblock() {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   while (blocked_jobs_ > 0) {
     input_queue_semaphore_.Signal();
     blocked_jobs_--;
@@ -287,7 +288,7 @@ void OptimizingCompilerThread::Unblock() {
 
 OptimizedCompileJob* OptimizingCompilerThread::FindReadyOSRCandidate(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   for (int i = 0; i < osr_buffer_capacity_; i++) {
     OptimizedCompileJob* current = osr_buffer_[i];
     if (current != NULL &&
@@ -304,7 +305,7 @@ OptimizedCompileJob* OptimizingCompilerThread::FindReadyOSRCandidate(
 
 bool OptimizingCompilerThread::IsQueuedForOSR(Handle<JSFunction> function,
                                               BailoutId osr_ast_id) {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   for (int i = 0; i < osr_buffer_capacity_; i++) {
     OptimizedCompileJob* current = osr_buffer_[i];
     if (current != NULL &&
@@ -317,7 +318,7 @@ bool OptimizingCompilerThread::IsQueuedForOSR(Handle<JSFunction> function,
 
 
 bool OptimizingCompilerThread::IsQueuedForOSR(JSFunction* function) {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   for (int i = 0; i < osr_buffer_capacity_; i++) {
     OptimizedCompileJob* current = osr_buffer_[i];
     if (current != NULL && *current->info()->closure() == function) {
@@ -329,7 +330,7 @@ bool OptimizingCompilerThread::IsQueuedForOSR(JSFunction* function) {
 
 
 void OptimizingCompilerThread::AddToOsrBuffer(OptimizedCompileJob* job) {
-  ASSERT(!IsOptimizerThread());
+  DCHECK(!IsOptimizerThread());
   // Find the next slot that is empty or has a stale job.
   OptimizedCompileJob* stale = NULL;
   while (true) {
@@ -340,7 +341,7 @@ void OptimizingCompilerThread::AddToOsrBuffer(OptimizedCompileJob* job) {
 
   // Add to found slot and dispose the evicted job.
   if (stale != NULL) {
-    ASSERT(stale->IsWaitingForInstall());
+    DCHECK(stale->IsWaitingForInstall());
     CompilationInfo* info = stale->info();
     if (FLAG_trace_osr) {
       PrintF("[COSR - Discarded ");
@@ -362,7 +363,7 @@ bool OptimizingCompilerThread::IsOptimizerThread(Isolate* isolate) {
 
 
 bool OptimizingCompilerThread::IsOptimizerThread() {
-  LockGuard<Mutex> lock_guard(&thread_id_mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
 #endif

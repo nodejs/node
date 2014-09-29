@@ -5,8 +5,8 @@
 #ifndef V8_VM_STATE_H_
 #define V8_VM_STATE_H_
 
-#include "allocation.h"
-#include "isolate.h"
+#include "src/allocation.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

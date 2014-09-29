@@ -37,7 +37,7 @@ function init_sparse_array(a) {
     a[i] = i;
   }
   a[5000000] = 256;
-  assertTrue(%HasDictionaryElements(a));
+  return %NormalizeElements(a);
 }
 
 function testPolymorphicLoads() {
@@ -49,7 +49,7 @@ function testPolymorphicLoads() {
     var object_array = new Object;
     var sparse_object_array = new Object;
     var js_array = new Array(10);
-    var sparse_js_array = new Array(5000001);
+    var sparse_js_array = %NormalizeElements([]);
 
     init_array(object_array);
     init_array(js_array);
@@ -67,7 +67,7 @@ function testPolymorphicLoads() {
   var object_array = new Object;
   var sparse_object_array = new Object;
   var js_array = new Array(10);
-  var sparse_js_array = new Array(5000001);
+  var sparse_js_array = %NormalizeElements([]);
 
   init_array(object_array);
   init_array(js_array);
@@ -114,7 +114,8 @@ function testPolymorphicStores() {
     var object_array = new Object;
     var sparse_object_array = new Object;
     var js_array = new Array(10);
-    var sparse_js_array = new Array(5000001);
+    var sparse_js_array = [];
+    sparse_js_array.length = 5000001;
 
     init_array(object_array);
     init_array(js_array);
@@ -132,7 +133,8 @@ function testPolymorphicStores() {
   var object_array = new Object;
   var sparse_object_array = new Object;
   var js_array = new Array(10);
-  var sparse_js_array = new Array(5000001);
+  var sparse_js_array = %NormalizeElements([]);
+  sparse_js_array.length = 5000001;
 
   init_array(object_array);
   init_array(js_array);

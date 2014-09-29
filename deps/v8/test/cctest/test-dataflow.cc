@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "data-flow.h"
-#include "cctest.h"
+#include "src/data-flow.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

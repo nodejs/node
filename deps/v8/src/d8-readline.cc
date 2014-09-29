@@ -10,7 +10,7 @@
 // The readline includes leaves RETURN defined which breaks V8 compilation.
 #undef RETURN
 
-#include "d8.h"
+#include "src/d8.h"
 
 // There are incompatibilities between different versions and different
 // implementations of readline.  This smooths out one known incompatibility.
@@ -82,10 +82,7 @@ bool ReadLineEditor::Close() {
 
 Handle<String> ReadLineEditor::Prompt(const char* prompt) {
   char* result = NULL;
-  {  // Release lock for blocking input.
-    Unlocker unlock(Isolate::GetCurrent());
-    result = readline(prompt);
-  }
+  result = readline(prompt);
   if (result == NULL) return Handle<String>();
   AddHistory(result);
   return String::NewFromUtf8(isolate_, result);
@@ -123,7 +120,6 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
   Isolate* isolate = read_line_editor.isolate_;
-  Locker lock(isolate);
   HandleScope scope(isolate);
   Handle<Array> completions;
   if (state == 0) {

@@ -5,14 +5,14 @@
 #ifndef V8_FLAGS_H_
 #define V8_FLAGS_H_
 
-#include "atomicops.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT
 
 // The global list of all flags.
 class FlagList {
@@ -42,8 +42,7 @@ class FlagList {
   //   --            (equivalent to --js_arguments, captures all remaining args)
   static int SetFlagsFromCommandLine(int* argc,
                                      char** argv,
-                                     bool remove_flags,
-                                     bool serializer_enabled = false);
+                                     bool remove_flags);
 
   // Set the flag values by parsing the string str. Splits string into argc
   // substrings argv[], each of which consisting of non-white-space chars,
@@ -58,10 +57,6 @@ class FlagList {
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
-
- private:
-  // TODO(svenpanne) Remove this when Serializer/startup has been refactored.
-  static bool serializer_enabled_;
 };
 
 } }  // namespace v8::internal

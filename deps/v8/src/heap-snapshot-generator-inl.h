@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 
-#include "heap-snapshot-generator.h"
+#include "src/heap-snapshot-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -35,8 +35,8 @@ int HeapEntry::set_children_index(int index) {
 
 
 HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
+  DCHECK(children_index_ >= 0);
+  SLOW_DCHECK(children_index_ < snapshot_->children().length() ||
       (children_index_ == snapshot_->children().length() &&
        children_count_ == 0));
   return &snapshot_->children().first() + children_index_;

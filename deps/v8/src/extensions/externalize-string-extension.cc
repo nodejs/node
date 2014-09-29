@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "externalize-string-extension.h"
+#include "src/extensions/externalize-string-extension.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +44,7 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
   } else {
-    ASSERT(strcmp(*v8::String::Utf8Value(str), "isAsciiString") == 0);
+    DCHECK(strcmp(*v8::String::Utf8Value(str), "isAsciiString") == 0);
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::IsAscii);
   }

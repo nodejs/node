@@ -3,19 +3,19 @@
 // found in the LICENSE file.
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "disasm.h"
-#include "arm64/decoder-arm64-inl.h"
-#include "arm64/disasm-arm64.h"
-#include "macro-assembler.h"
-#include "platform.h"
+#include "src/arm64/decoder-arm64-inl.h"
+#include "src/arm64/disasm-arm64.h"
+#include "src/base/platform/platform.h"
+#include "src/disasm.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -258,7 +258,7 @@ void Disassembler::VisitLogicalImmediate(Instruction* instr) {
 
 
 bool Disassembler::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
-  ASSERT((reg_size == kXRegSizeInBits) ||
+  DCHECK((reg_size == kXRegSizeInBits) ||
          ((reg_size == kWRegSizeInBits) && (value <= 0xffffffff)));
 
   // Test for movz: 16-bits set at positions 0, 16, 32 or 48.
@@ -1176,7 +1176,7 @@ void Disassembler::VisitSystem(Instruction* instr) {
       }
     }
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
-    ASSERT(instr->Mask(SystemHintMask) == HINT);
+    DCHECK(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
       case NOP: {
         mnemonic = "nop";
@@ -1246,7 +1246,7 @@ void Disassembler::Format(Instruction* instr, const char* mnemonic,
                           const char* format) {
   // TODO(mcapewel) don't think I can use the instr address here - there needs
   //                to be a base address too
-  ASSERT(mnemonic != NULL);
+  DCHECK(mnemonic != NULL);
   ResetOutput();
   Substitute(instr, mnemonic);
   if (format != NULL) {
@@ -1364,7 +1364,7 @@ int Disassembler::SubstituteRegisterField(Instruction* instr,
 
 int Disassembler::SubstituteImmediateField(Instruction* instr,
                                            const char* format) {
-  ASSERT(format[0] == 'I');
+  DCHECK(format[0] == 'I');
 
   switch (format[1]) {
     case 'M': {  // IMoveImm or IMoveLSL.
@@ -1372,7 +1372,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
         uint64_t imm = instr->ImmMoveWide() << (16 * instr->ShiftMoveWide());
         AppendToOutput("#0x%" PRIx64, imm);
       } else {
-        ASSERT(format[5] == 'L');
+        DCHECK(format[5] == 'L');
         AppendToOutput("#0x%" PRIx64, instr->ImmMoveWide());
         if (instr->ShiftMoveWide() > 0) {
           AppendToOutput(", lsl #%d", 16 * instr->ShiftMoveWide());
@@ -1384,7 +1384,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       switch (format[2]) {
         case 'L': {  // ILLiteral - Immediate Load Literal.
           AppendToOutput("pc%+" PRId64,
-                         instr->ImmLLiteral() << kLiteralEntrySizeLog2);
+                         instr->ImmLLiteral() << kLoadLiteralScaleLog2);
           return 9;
         }
         case 'S': {  // ILS - Immediate Load/Store.
@@ -1417,7 +1417,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     case 'A': {  // IAddSub.
-      ASSERT(instr->ShiftAddSub() <= 1);
+      DCHECK(instr->ShiftAddSub() <= 1);
       int64_t imm = instr->ImmAddSub() << (12 * instr->ShiftAddSub());
       AppendToOutput("#0x%" PRIx64 " (%" PRId64 ")", imm, imm);
       return 7;
@@ -1474,7 +1474,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
 
 int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
                                                    const char* format) {
-  ASSERT((format[0] == 'I') && (format[1] == 'B'));
+  DCHECK((format[0] == 'I') && (format[1] == 'B'));
   unsigned r = instr->ImmR();
   unsigned s = instr->ImmS();
 
@@ -1488,13 +1488,13 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
         AppendToOutput("#%d", s + 1);
         return 5;
       } else {
-        ASSERT(format[3] == '-');
+        DCHECK(format[3] == '-');
         AppendToOutput("#%d", s - r + 1);
         return 7;
       }
     }
     case 'Z': {  // IBZ-r.
-      ASSERT((format[3] == '-') && (format[4] == 'r'));
+      DCHECK((format[3] == '-') && (format[4] == 'r'));
       unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
                                                         : kWRegSizeInBits;
       AppendToOutput("#%d", reg_size - r);
@@ -1510,7 +1510,7 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
 
 int Disassembler::SubstituteLiteralField(Instruction* instr,
                                          const char* format) {
-  ASSERT(strncmp(format, "LValue", 6) == 0);
+  DCHECK(strncmp(format, "LValue", 6) == 0);
   USE(format);
 
   switch (instr->Mask(LoadLiteralMask)) {
@@ -1526,12 +1526,12 @@ int Disassembler::SubstituteLiteralField(Instruction* instr,
 
 
 int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
-  ASSERT(format[0] == 'H');
-  ASSERT(instr->ShiftDP() <= 0x3);
+  DCHECK(format[0] == 'H');
+  DCHECK(instr->ShiftDP() <= 0x3);
 
   switch (format[1]) {
     case 'D': {  // HDP.
-      ASSERT(instr->ShiftDP() != ROR);
+      DCHECK(instr->ShiftDP() != ROR);
     }  // Fall through.
     case 'L': {  // HLo.
       if (instr->ImmDPShift() != 0) {
@@ -1550,7 +1550,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
 
 int Disassembler::SubstituteConditionField(Instruction* instr,
                                            const char* format) {
-  ASSERT(format[0] == 'C');
+  DCHECK(format[0] == 'C');
   const char* condition_code[] = { "eq", "ne", "hs", "lo",
                                    "mi", "pl", "vs", "vc",
                                    "hi", "ls", "ge", "lt",
@@ -1559,7 +1559,7 @@ int Disassembler::SubstituteConditionField(Instruction* instr,
   switch (format[1]) {
     case 'B': cond = instr->ConditionBranch(); break;
     case 'I': {
-      cond = InvertCondition(static_cast<Condition>(instr->Condition()));
+      cond = NegateCondition(static_cast<Condition>(instr->Condition()));
       break;
     }
     default: cond = instr->Condition();
@@ -1572,12 +1572,12 @@ int Disassembler::SubstituteConditionField(Instruction* instr,
 int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
                                               const char* format) {
   USE(format);
-  ASSERT(strncmp(format, "AddrPCRel", 9) == 0);
+  DCHECK(strncmp(format, "AddrPCRel", 9) == 0);
 
   int offset = instr->ImmPCRel();
 
   // Only ADR (AddrPCRelByte) is supported.
-  ASSERT(strcmp(format, "AddrPCRelByte") == 0);
+  DCHECK(strcmp(format, "AddrPCRelByte") == 0);
 
   char sign = '+';
   if (offset < 0) {
@@ -1592,7 +1592,7 @@ int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
 
 int Disassembler::SubstituteBranchTargetField(Instruction* instr,
                                               const char* format) {
-  ASSERT(strncmp(format, "BImm", 4) == 0);
+  DCHECK(strncmp(format, "BImm", 4) == 0);
 
   int64_t offset = 0;
   switch (format[5]) {
@@ -1619,8 +1619,8 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
 
 int Disassembler::SubstituteExtendField(Instruction* instr,
                                         const char* format) {
-  ASSERT(strncmp(format, "Ext", 3) == 0);
-  ASSERT(instr->ExtendMode() <= 7);
+  DCHECK(strncmp(format, "Ext", 3) == 0);
+  DCHECK(instr->ExtendMode() <= 7);
   USE(format);
 
   const char* extend_mode[] = { "uxtb", "uxth", "uxtw", "uxtx",
@@ -1646,7 +1646,7 @@ int Disassembler::SubstituteExtendField(Instruction* instr,
 
 int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
                                              const char* format) {
-  ASSERT(strncmp(format, "Offsetreg", 9) == 0);
+  DCHECK(strncmp(format, "Offsetreg", 9) == 0);
   const char* extend_mode[] = { "undefined", "undefined", "uxtw", "lsl",
                                 "undefined", "undefined", "sxtw", "sxtx" };
   USE(format);
@@ -1675,7 +1675,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
 
 int Disassembler::SubstitutePrefetchField(Instruction* instr,
                                           const char* format) {
-  ASSERT(format[0] == 'P');
+  DCHECK(format[0] == 'P');
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
@@ -1690,7 +1690,7 @@ int Disassembler::SubstitutePrefetchField(Instruction* instr,
 
 int Disassembler::SubstituteBarrierField(Instruction* instr,
                                          const char* format) {
-  ASSERT(format[0] == 'M');
+  DCHECK(format[0] == 'M');
   USE(format);
 
   static const char* options[4][4] = {
@@ -1734,7 +1734,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 
@@ -1752,7 +1752,7 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::OS::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.start();
 }
 
@@ -1786,7 +1786,7 @@ class BufferDisassembler : public v8::internal::Disassembler {
   ~BufferDisassembler() { }
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::OS::SNPrintF(out_buffer_, "%s", GetOutput());
+    v8::internal::SNPrintF(out_buffer_, "%s", GetOutput());
   }
 
  private:
@@ -1797,7 +1797,7 @@ Disassembler::Disassembler(const NameConverter& converter)
     : converter_(converter) {}
 
 
-Disassembler::~Disassembler() {}
+Disassembler::~Disassembler() { USE(converter_); }
 
 
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,

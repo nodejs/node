@@ -25,9 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cctest.h"
-#include "types.h"
-#include "property-details.h"
+#include "test/cctest/cctest.h"
+
+#include "src/property-details.h"
+#include "src/types.h"
 
 using namespace v8::internal;
 

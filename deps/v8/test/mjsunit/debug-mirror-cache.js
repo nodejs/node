@@ -62,6 +62,9 @@ function listener(event, exec_state, event_data, data) {
     json = '{"seq":0,"type":"request","command":"backtrace"}'
     dcp.processDebugJSONRequest(json);
 
+    // Make sure looking up loaded scripts does not clear the cache.
+    Debug.scripts();
+
     // Some mirrors where cached.
     assertFalse(debug.next_handle_ == 0, "Mirror cache not used");
     assertFalse(debug.mirror_cache_.length == 0, "Mirror cache not used");

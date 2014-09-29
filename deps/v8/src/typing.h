@@ -5,16 +5,16 @@
 #ifndef V8_TYPING_H_
 #define V8_TYPING_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "type-info.h"
-#include "types.h"
-#include "effects.h"
-#include "zone.h"
-#include "scopes.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/effects.h"
+#include "src/scopes.h"
+#include "src/type-info.h"
+#include "src/types.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

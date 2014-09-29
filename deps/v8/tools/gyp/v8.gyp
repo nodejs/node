@@ -42,20 +42,24 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['v8_use_snapshot=="true"', {
+
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
           # The dependency on v8_base should come from a transitive
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base.<(v8_target_arch)', 'v8_snapshot'],
-        },
-        {
+          'dependencies': ['v8_base', 'v8_snapshot'],
+        }],
+        ['v8_use_snapshot!="true" and v8_use_external_startup_data==0', {
           # The dependency on v8_base should come from a transitive
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': [
-            'v8_base.<(v8_target_arch)',
-            'v8_nosnapshot.<(v8_target_arch)',
-          ],
+          'dependencies': ['v8_base', 'v8_nosnapshot'],
+        }],
+        ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+        }],
+        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot#host'],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -63,6 +67,9 @@
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
+          ],
+          'include_dirs': [
+            '../..',
           ],
           'defines': [
             'V8_SHARED',
@@ -112,16 +119,14 @@
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
           'dependencies': [
-            'mksnapshot.<(v8_target_arch)#host',
+            'mksnapshot#host',
             'js2c#host',
-            'generate_trig_table#host',
           ],
         }, {
           'toolsets': ['target'],
           'dependencies': [
-            'mksnapshot.<(v8_target_arch)',
+            'mksnapshot',
             'js2c',
-            'generate_trig_table',
           ],
         }],
         ['component=="shared_library"', {
@@ -138,22 +143,22 @@
         }],
       ],
       'dependencies': [
-        'v8_base.<(v8_target_arch)',
+        'v8_base',
       ],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
+        '../../src/snapshot-common.cc',
       ],
       'actions': [
         {
           'action_name': 'run_mksnapshot',
           'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot.<(v8_target_arch)<(EXECUTABLE_SUFFIX)',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
           ],
           'outputs': [
             '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -172,33 +177,33 @@
           'action': [
             '<@(_inputs)',
             '<@(mksnapshot_flags)',
-            '<@(_outputs)'
+            '<@(INTERMEDIATE_DIR)/snapshot.cc'
           ],
         },
       ],
     },
     {
-      'target_name': 'v8_nosnapshot.<(v8_target_arch)',
+      'target_name': 'v8_nosnapshot',
       'type': 'static_library',
       'dependencies': [
-        'v8_base.<(v8_target_arch)',
+        'v8_base',
       ],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+        '../../src/snapshot-common.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host', 'generate_trig_table#host'],
+          'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c', 'generate_trig_table'],
+          'dependencies': ['js2c'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -208,43 +213,88 @@
         }],
       ]
     },
-    { 'target_name': 'generate_trig_table',
-      'type': 'none',
+    {
+      'target_name': 'v8_external_snapshot',
+      'type': 'static_library',
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host'],
-        }, {
+          'dependencies': [
+            'mksnapshot#host',
+            'js2c#host',
+            'natives_blob#host',
+        ]}, {
           'toolsets': ['target'],
+          'dependencies': [
+            'mksnapshot',
+            'js2c',
+            'natives_blob',
+          ],
         }],
+        ['component=="shared_library"', {
+          'defines': [
+            'V8_SHARED',
+            'BUILDING_V8_SHARED',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'V8_SHARED',
+              'USING_V8_SHARED',
+            ],
+          },
+        }],
+      ],
+      'dependencies': [
+        'v8_base',
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        '../../src/natives-external.cc',
+        '../../src/snapshot-external.cc',
       ],
       'actions': [
         {
-          'action_name': 'generate',
+          'action_name': 'run_mksnapshot (external)',
           'inputs': [
-            '../../tools/generate-trig-table.py',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
           ],
           'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(PRODUCT_DIR)/snapshot_blob.bin',
           ],
+          'variables': {
+            'mksnapshot_flags': [
+              '--log-snapshot-positions',
+              '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
+            ],
+            'conditions': [
+              ['v8_random_seed!=0', {
+                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+              }],
+            ],
+          },
           'action': [
-            'python',
-            '../../tools/generate-trig-table.py',
-            '<@(_outputs)',
+            '<@(_inputs)',
+            '<@(mksnapshot_flags)',
+            '<@(INTERMEDIATE_DIR)/snapshot.cc',
+            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
           ],
         },
-      ]
+      ],
     },
     {
-      'target_name': 'v8_base.<(v8_target_arch)',
+      'target_name': 'v8_base',
       'type': 'static_library',
       'dependencies': [
-        'v8_libbase.<(v8_target_arch)',
+        'v8_libbase',
       ],
       'variables': {
         'optimize': 'max',
       },
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [  ### gcmole(all) ###
         '../../src/accessors.cc',
@@ -263,10 +313,10 @@
         '../../src/assembler.h',
         '../../src/assert-scope.h',
         '../../src/assert-scope.cc',
+        '../../src/ast-value-factory.cc',
+        '../../src/ast-value-factory.h',
         '../../src/ast.cc',
         '../../src/ast.h',
-        '../../src/atomicops.h',
-        '../../src/atomicops_internals_x86_gcc.cc',
         '../../src/bignum-dtoa.cc',
         '../../src/bignum-dtoa.h',
         '../../src/bignum.cc',
@@ -292,6 +342,98 @@
         '../../src/codegen.h',
         '../../src/compilation-cache.cc',
         '../../src/compilation-cache.h',
+        '../../src/compiler/ast-graph-builder.cc',
+        '../../src/compiler/ast-graph-builder.h',
+        '../../src/compiler/change-lowering.cc',
+        '../../src/compiler/change-lowering.h',
+        '../../src/compiler/code-generator-impl.h',
+        '../../src/compiler/code-generator.cc',
+        '../../src/compiler/code-generator.h',
+        '../../src/compiler/common-node-cache.h',
+        '../../src/compiler/common-operator.h',
+        '../../src/compiler/control-builders.cc',
+        '../../src/compiler/control-builders.h',
+        '../../src/compiler/frame.h',
+        '../../src/compiler/gap-resolver.cc',
+        '../../src/compiler/gap-resolver.h',
+        '../../src/compiler/generic-algorithm-inl.h',
+        '../../src/compiler/generic-algorithm.h',
+        '../../src/compiler/generic-graph.h',
+        '../../src/compiler/generic-node-inl.h',
+        '../../src/compiler/generic-node.h',
+        '../../src/compiler/graph-builder.cc',
+        '../../src/compiler/graph-builder.h',
+        '../../src/compiler/graph-inl.h',
+        '../../src/compiler/graph-reducer.cc',
+        '../../src/compiler/graph-reducer.h',
+        '../../src/compiler/graph-replay.cc',
+        '../../src/compiler/graph-replay.h',
+        '../../src/compiler/graph-visualizer.cc',
+        '../../src/compiler/graph-visualizer.h',
+        '../../src/compiler/graph.cc',
+        '../../src/compiler/graph.h',
+        '../../src/compiler/instruction-codes.h',
+        '../../src/compiler/instruction-selector-impl.h',
+        '../../src/compiler/instruction-selector.cc',
+        '../../src/compiler/instruction-selector.h',
+        '../../src/compiler/instruction.cc',
+        '../../src/compiler/instruction.h',
+        '../../src/compiler/js-context-specialization.cc',
+        '../../src/compiler/js-context-specialization.h',
+        '../../src/compiler/js-generic-lowering.cc',
+        '../../src/compiler/js-generic-lowering.h',
+        '../../src/compiler/js-graph.cc',
+        '../../src/compiler/js-graph.h',
+        '../../src/compiler/js-operator.h',
+        '../../src/compiler/js-typed-lowering.cc',
+        '../../src/compiler/js-typed-lowering.h',
+        '../../src/compiler/linkage-impl.h',
+        '../../src/compiler/linkage.cc',
+        '../../src/compiler/linkage.h',
+        '../../src/compiler/lowering-builder.cc',
+        '../../src/compiler/lowering-builder.h',
+        '../../src/compiler/machine-node-factory.h',
+        '../../src/compiler/machine-operator-reducer.cc',
+        '../../src/compiler/machine-operator-reducer.h',
+        '../../src/compiler/machine-operator.h',
+        '../../src/compiler/machine-type.h',
+        '../../src/compiler/node-aux-data-inl.h',
+        '../../src/compiler/node-aux-data.h',
+        '../../src/compiler/node-cache.cc',
+        '../../src/compiler/node-cache.h',
+        '../../src/compiler/node-matchers.h',
+        '../../src/compiler/node-properties-inl.h',
+        '../../src/compiler/node-properties.h',
+        '../../src/compiler/node.cc',
+        '../../src/compiler/node.h',
+        '../../src/compiler/opcodes.h',
+        '../../src/compiler/operator-properties-inl.h',
+        '../../src/compiler/operator-properties.h',
+        '../../src/compiler/operator.h',
+        '../../src/compiler/phi-reducer.h',
+        '../../src/compiler/pipeline.cc',
+        '../../src/compiler/pipeline.h',
+        '../../src/compiler/raw-machine-assembler.cc',
+        '../../src/compiler/raw-machine-assembler.h',
+        '../../src/compiler/register-allocator.cc',
+        '../../src/compiler/register-allocator.h',
+        '../../src/compiler/representation-change.h',
+        '../../src/compiler/schedule.cc',
+        '../../src/compiler/schedule.h',
+        '../../src/compiler/scheduler.cc',
+        '../../src/compiler/scheduler.h',
+        '../../src/compiler/simplified-lowering.cc',
+        '../../src/compiler/simplified-lowering.h',
+        '../../src/compiler/simplified-node-factory.h',
+        '../../src/compiler/simplified-operator.h',
+        '../../src/compiler/source-position.cc',
+        '../../src/compiler/source-position.h',
+        '../../src/compiler/structured-machine-assembler.cc',
+        '../../src/compiler/structured-machine-assembler.h',
+        '../../src/compiler/typer.cc',
+        '../../src/compiler/typer.h',
+        '../../src/compiler/verifier.cc',
+        '../../src/compiler/verifier.h',
         '../../src/compiler.cc',
         '../../src/compiler.h',
         '../../src/contexts.cc',
@@ -304,8 +446,6 @@
         '../../src/cpu-profiler-inl.h',
         '../../src/cpu-profiler.cc',
         '../../src/cpu-profiler.h',
-        '../../src/cpu.cc',
-        '../../src/cpu.h',
         '../../src/data-flow.cc',
         '../../src/data-flow.h',
         '../../src/date.cc',
@@ -313,8 +453,6 @@
         '../../src/dateparser-inl.h',
         '../../src/dateparser.cc',
         '../../src/dateparser.h',
-        '../../src/debug-agent.cc',
-        '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
         '../../src/deoptimizer.cc',
@@ -349,6 +487,9 @@
         '../../src/fast-dtoa.cc',
         '../../src/fast-dtoa.h',
         '../../src/feedback-slots.h',
+        '../../src/field-index.cc',
+        '../../src/field-index.h',
+        '../../src/field-index-inl.h',
         '../../src/fixed-dtoa.cc',
         '../../src/fixed-dtoa.h',
         '../../src/flag-definitions.h',
@@ -370,14 +511,33 @@
         '../../src/handles.cc',
         '../../src/handles.h',
         '../../src/hashmap.h',
-        '../../src/heap-inl.h',
         '../../src/heap-profiler.cc',
         '../../src/heap-profiler.h',
         '../../src/heap-snapshot-generator-inl.h',
         '../../src/heap-snapshot-generator.cc',
         '../../src/heap-snapshot-generator.h',
-        '../../src/heap.cc',
-        '../../src/heap.h',
+        '../../src/heap/gc-tracer.cc',
+        '../../src/heap/gc-tracer.h',
+        '../../src/heap/heap-inl.h',
+        '../../src/heap/heap.cc',
+        '../../src/heap/heap.h',
+        '../../src/heap/incremental-marking-inl.h',
+        '../../src/heap/incremental-marking.cc',
+        '../../src/heap/incremental-marking.h',
+        '../../src/heap/mark-compact-inl.h',
+        '../../src/heap/mark-compact.cc',
+        '../../src/heap/mark-compact.h',
+        '../../src/heap/objects-visiting-inl.h',
+        '../../src/heap/objects-visiting.cc',
+        '../../src/heap/objects-visiting.h',
+        '../../src/heap/spaces-inl.h',
+        '../../src/heap/spaces.cc',
+        '../../src/heap/spaces.h',
+        '../../src/heap/store-buffer-inl.h',
+        '../../src/heap/store-buffer.cc',
+        '../../src/heap/store-buffer.h',
+        '../../src/heap/sweeper-thread.h',
+        '../../src/heap/sweeper-thread.cc',
         '../../src/hydrogen-alias-analysis.h',
         '../../src/hydrogen-bce.cc',
         '../../src/hydrogen-bce.h',
@@ -426,6 +586,8 @@
         '../../src/hydrogen-sce.h',
         '../../src/hydrogen-store-elimination.cc',
         '../../src/hydrogen-store-elimination.h',
+        '../../src/hydrogen-types.cc',
+        '../../src/hydrogen-types.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/i18n.cc',
@@ -435,8 +597,6 @@
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',
-        '../../src/incremental-marking.cc',
-        '../../src/incremental-marking.h',
         '../../src/interface.cc',
         '../../src/interface.h',
         '../../src/interpreter-irregexp.cc',
@@ -448,14 +608,6 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
-        '../../src/lazy-instance.h',
-        # TODO(jochen): move libplatform/ files to their own target.
-        '../../src/libplatform/default-platform.cc',
-        '../../src/libplatform/default-platform.h',
-        '../../src/libplatform/task-queue.cc',
-        '../../src/libplatform/task-queue.h',
-        '../../src/libplatform/worker-thread.cc',
-        '../../src/libplatform/worker-thread.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -465,6 +617,7 @@
         '../../src/lithium-codegen.h',
         '../../src/lithium.cc',
         '../../src/lithium.h',
+        '../../src/lithium-inl.h',
         '../../src/liveedit.cc',
         '../../src/liveedit.h',
         '../../src/log-inl.h',
@@ -472,9 +625,10 @@
         '../../src/log-utils.h',
         '../../src/log.cc',
         '../../src/log.h',
+        '../../src/lookup-inl.h',
+        '../../src/lookup.cc',
+        '../../src/lookup.h',
         '../../src/macro-assembler.h',
-        '../../src/mark-compact.cc',
-        '../../src/mark-compact.h',
         '../../src/messages.cc',
         '../../src/messages.h',
         '../../src/msan.h',
@@ -482,28 +636,16 @@
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
         '../../src/objects-printer.cc',
-        '../../src/objects-visiting.cc',
-        '../../src/objects-visiting.h',
         '../../src/objects.cc',
         '../../src/objects.h',
-        '../../src/once.cc',
-        '../../src/once.h',
-        '../../src/optimizing-compiler-thread.h',
         '../../src/optimizing-compiler-thread.cc',
+        '../../src/optimizing-compiler-thread.h',
+        '../../src/ostreams.cc',
+        '../../src/ostreams.h',
         '../../src/parser.cc',
         '../../src/parser.h',
-        '../../src/platform/elapsed-timer.h',
-        '../../src/platform/time.cc',
-        '../../src/platform/time.h',
-        '../../src/platform.h',
-        '../../src/platform/condition-variable.cc',
-        '../../src/platform/condition-variable.h',
-        '../../src/platform/mutex.cc',
-        '../../src/platform/mutex.h',
-        '../../src/platform/semaphore.cc',
-        '../../src/platform/semaphore.h',
-        '../../src/platform/socket.cc',
-        '../../src/platform/socket.h',
+        '../../src/perf-jit.cc',
+        '../../src/perf-jit.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',
@@ -517,6 +659,7 @@
         '../../src/property-details.h',
         '../../src/property.cc',
         '../../src/property.h',
+        '../../src/prototype.h',
         '../../src/regexp-macro-assembler-irregexp-inl.h',
         '../../src/regexp-macro-assembler-irregexp.cc',
         '../../src/regexp-macro-assembler-irregexp.h',
@@ -548,14 +691,9 @@
         '../../src/serialize.h',
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
-        '../../src/snapshot-common.cc',
         '../../src/snapshot.h',
-        '../../src/spaces-inl.h',
-        '../../src/spaces.cc',
-        '../../src/spaces.h',
-        '../../src/store-buffer-inl.h',
-        '../../src/store-buffer.cc',
-        '../../src/store-buffer.h',
+        '../../src/snapshot-source-sink.cc',
+        '../../src/snapshot-source-sink.h',
         '../../src/string-search.cc',
         '../../src/string-search.h',
         '../../src/string-stream.cc',
@@ -564,8 +702,6 @@
         '../../src/strtod.h',
         '../../src/stub-cache.cc',
         '../../src/stub-cache.h',
-        '../../src/sweeper-thread.h',
-        '../../src/sweeper-thread.cc',
         '../../src/token.cc',
         '../../src/token.h',
         '../../src/transitions-inl.h',
@@ -588,12 +724,8 @@
         '../../src/utils-inl.h',
         '../../src/utils.cc',
         '../../src/utils.h',
-        '../../src/utils/random-number-generator.cc',
-        '../../src/utils/random-number-generator.h',
         '../../src/v8.cc',
         '../../src/v8.h',
-        '../../src/v8checks.h',
-        '../../src/v8globals.h',
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
         '../../src/v8threads.h',
@@ -607,6 +739,8 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
+        '../../third_party/fdlibm/fdlibm.cc',
+        '../../third_party/fdlibm/fdlibm.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -646,6 +780,10 @@
             '../../src/arm/regexp-macro-assembler-arm.h',
             '../../src/arm/simulator-arm.cc',
             '../../src/arm/stub-cache-arm.cc',
+            '../../src/compiler/arm/code-generator-arm.cc',
+            '../../src/compiler/arm/instruction-codes-arm.h',
+            '../../src/compiler/arm/instruction-selector-arm.cc',
+            '../../src/compiler/arm/linkage-arm.cc',
           ],
         }],
         ['v8_target_arch=="arm64"', {
@@ -660,11 +798,13 @@
             '../../src/arm64/code-stubs-arm64.h',
             '../../src/arm64/constants-arm64.h',
             '../../src/arm64/cpu-arm64.cc',
-            '../../src/arm64/cpu-arm64.h',
             '../../src/arm64/debug-arm64.cc',
             '../../src/arm64/decoder-arm64.cc',
             '../../src/arm64/decoder-arm64.h',
             '../../src/arm64/decoder-arm64-inl.h',
+            '../../src/arm64/delayed-masm-arm64.cc',
+            '../../src/arm64/delayed-masm-arm64.h',
+            '../../src/arm64/delayed-masm-arm64-inl.h',
             '../../src/arm64/deoptimizer-arm64.cc',
             '../../src/arm64/disasm-arm64.cc',
             '../../src/arm64/disasm-arm64.h',
@@ -692,6 +832,10 @@
             '../../src/arm64/stub-cache-arm64.cc',
             '../../src/arm64/utils-arm64.cc',
             '../../src/arm64/utils-arm64.h',
+            '../../src/compiler/arm64/code-generator-arm64.cc',
+            '../../src/compiler/arm64/instruction-codes-arm64.h',
+            '../../src/compiler/arm64/instruction-selector-arm64.cc',
+            '../../src/compiler/arm64/linkage-arm64.cc',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -723,6 +867,41 @@
             '../../src/ia32/regexp-macro-assembler-ia32.cc',
             '../../src/ia32/regexp-macro-assembler-ia32.h',
             '../../src/ia32/stub-cache-ia32.cc',
+            '../../src/compiler/ia32/code-generator-ia32.cc',
+            '../../src/compiler/ia32/instruction-codes-ia32.h',
+            '../../src/compiler/ia32/instruction-selector-ia32.cc',
+            '../../src/compiler/ia32/linkage-ia32.cc',
+          ],
+        }],
+        ['v8_target_arch=="x87"', {
+          'sources': [  ### gcmole(arch:x87) ###
+            '../../src/x87/assembler-x87-inl.h',
+            '../../src/x87/assembler-x87.cc',
+            '../../src/x87/assembler-x87.h',
+            '../../src/x87/builtins-x87.cc',
+            '../../src/x87/code-stubs-x87.cc',
+            '../../src/x87/code-stubs-x87.h',
+            '../../src/x87/codegen-x87.cc',
+            '../../src/x87/codegen-x87.h',
+            '../../src/x87/cpu-x87.cc',
+            '../../src/x87/debug-x87.cc',
+            '../../src/x87/deoptimizer-x87.cc',
+            '../../src/x87/disasm-x87.cc',
+            '../../src/x87/frames-x87.cc',
+            '../../src/x87/frames-x87.h',
+            '../../src/x87/full-codegen-x87.cc',
+            '../../src/x87/ic-x87.cc',
+            '../../src/x87/lithium-codegen-x87.cc',
+            '../../src/x87/lithium-codegen-x87.h',
+            '../../src/x87/lithium-gap-resolver-x87.cc',
+            '../../src/x87/lithium-gap-resolver-x87.h',
+            '../../src/x87/lithium-x87.cc',
+            '../../src/x87/lithium-x87.h',
+            '../../src/x87/macro-assembler-x87.cc',
+            '../../src/x87/macro-assembler-x87.h',
+            '../../src/x87/regexp-macro-assembler-x87.cc',
+            '../../src/x87/regexp-macro-assembler-x87.h',
+            '../../src/x87/stub-cache-x87.cc',
           ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
@@ -759,7 +938,41 @@
             '../../src/mips/stub-cache-mips.cc',
           ],
         }],
-        ['v8_target_arch=="x64"', {
+        ['v8_target_arch=="mips64el"', {
+          'sources': [  ### gcmole(arch:mips64el) ###
+            '../../src/mips64/assembler-mips64.cc',
+            '../../src/mips64/assembler-mips64.h',
+            '../../src/mips64/assembler-mips64-inl.h',
+            '../../src/mips64/builtins-mips64.cc',
+            '../../src/mips64/codegen-mips64.cc',
+            '../../src/mips64/codegen-mips64.h',
+            '../../src/mips64/code-stubs-mips64.cc',
+            '../../src/mips64/code-stubs-mips64.h',
+            '../../src/mips64/constants-mips64.cc',
+            '../../src/mips64/constants-mips64.h',
+            '../../src/mips64/cpu-mips64.cc',
+            '../../src/mips64/debug-mips64.cc',
+            '../../src/mips64/deoptimizer-mips64.cc',
+            '../../src/mips64/disasm-mips64.cc',
+            '../../src/mips64/frames-mips64.cc',
+            '../../src/mips64/frames-mips64.h',
+            '../../src/mips64/full-codegen-mips64.cc',
+            '../../src/mips64/ic-mips64.cc',
+            '../../src/mips64/lithium-codegen-mips64.cc',
+            '../../src/mips64/lithium-codegen-mips64.h',
+            '../../src/mips64/lithium-gap-resolver-mips64.cc',
+            '../../src/mips64/lithium-gap-resolver-mips64.h',
+            '../../src/mips64/lithium-mips64.cc',
+            '../../src/mips64/lithium-mips64.h',
+            '../../src/mips64/macro-assembler-mips64.cc',
+            '../../src/mips64/macro-assembler-mips64.h',
+            '../../src/mips64/regexp-macro-assembler-mips64.cc',
+            '../../src/mips64/regexp-macro-assembler-mips64.h',
+            '../../src/mips64/simulator-mips64.cc',
+            '../../src/mips64/stub-cache-mips64.cc',
+          ],
+        }],
+        ['v8_target_arch=="x64" or v8_target_arch=="x32"', {
           'sources': [  ### gcmole(arch:x64) ###
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
@@ -788,6 +1001,10 @@
             '../../src/x64/regexp-macro-assembler-x64.cc',
             '../../src/x64/regexp-macro-assembler-x64.h',
             '../../src/x64/stub-cache-x64.cc',
+            '../../src/compiler/x64/code-generator-x64.cc',
+            '../../src/compiler/x64/instruction-codes-x64.h',
+            '../../src/compiler/x64/instruction-selector-x64.cc',
+            '../../src/compiler/x64/linkage-x64.cc',
           ],
         }],
         ['OS=="linux"', {
@@ -799,194 +1016,14 @@
                   ]
                 }],
               ],
-              'libraries': [
-                '-lrt'
-              ]
             },
-            'sources': [  ### gcmole(os:linux) ###
-              '../../src/platform-linux.cc',
-              '../../src/platform-posix.cc'
-            ],
           }
-        ],
-        ['OS=="android"', {
-            'defines': [
-              'CAN_USE_VFP_INSTRUCTIONS',
-            ],
-            'sources': [
-              '../../src/platform-posix.cc'
-            ],
-            'conditions': [
-              ['host_os=="mac"', {
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'sources': [
-                      '../../src/platform-macos.cc'
-                    ]
-                  }, {
-                    'sources': [
-                      '../../src/platform-linux.cc'
-                    ]
-                  }],
-                ],
-              }, {
-                # TODO(bmeurer): What we really want here, is this:
-                #
-                # 'link_settings': {
-                #   'target_conditions': [
-                #     ['_toolset=="host"', {
-                #       'libraries': [
-                #         '-lrt'
-                #       ]
-                #     }]
-                #   ]
-                # },
-                #
-                # but we can't do this right now, as the AOSP does not support
-                # linking against the host librt, so we need to work around this
-                # for now, using the following hack (see platform/time.cc):
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'defines': [
-                      'V8_LIBRT_NOT_AVAILABLE=1',
-                    ],
-                  }],
-                ],
-                'sources': [
-                  '../../src/platform-linux.cc'
-                ]
-              }],
-            ],
-          },
-        ],
-        ['OS=="qnx"', {
-            'link_settings': {
-              'target_conditions': [
-                ['_toolset=="host" and host_os=="linux"', {
-                  'libraries': [
-                    '-lrt'
-                  ],
-                }],
-                ['_toolset=="target"', {
-                  'libraries': [
-                    '-lbacktrace', '-lsocket'
-                  ],
-                }],
-              ],
-            },
-            'sources': [
-              '../../src/platform-posix.cc',
-            ],
-            'target_conditions': [
-              ['_toolset=="host" and host_os=="linux"', {
-                'sources': [
-                  '../../src/platform-linux.cc'
-                ],
-              }],
-              ['_toolset=="host" and host_os=="mac"', {
-                'sources': [
-                  '../../src/platform-macos.cc'
-                ],
-              }],
-              ['_toolset=="target"', {
-                'sources': [
-                  '../../src/platform-qnx.cc'
-                ],
-              }],
-            ],
-          },
-        ],
-        ['OS=="freebsd"', {
-            'link_settings': {
-              'libraries': [
-                '-L/usr/local/lib -lexecinfo',
-            ]},
-            'sources': [
-              '../../src/platform-freebsd.cc',
-              '../../src/platform-posix.cc'
-            ],
-          }
-        ],
-        ['OS=="openbsd"', {
-            'link_settings': {
-              'libraries': [
-                '-L/usr/local/lib -lexecinfo',
-            ]},
-            'sources': [
-              '../../src/platform-openbsd.cc',
-              '../../src/platform-posix.cc'
-            ],
-          }
-        ],
-        ['OS=="netbsd"', {
-            'link_settings': {
-              'libraries': [
-                '-L/usr/pkg/lib -Wl,-R/usr/pkg/lib -lexecinfo',
-            ]},
-            'sources': [
-              '../../src/platform-openbsd.cc',
-              '../../src/platform-posix.cc'
-            ],
-          }
-        ],
-        ['OS=="solaris"', {
-            'link_settings': {
-              'libraries': [
-                '-lsocket -lnsl',
-            ]},
-            'sources': [
-              '../../src/platform-solaris.cc',
-              '../../src/platform-posix.cc'
-            ],
-          }
-        ],
-        ['OS=="mac"', {
-          'sources': [
-            '../../src/platform-macos.cc',
-            '../../src/platform-posix.cc'
-          ]},
         ],
         ['OS=="win"', {
-          'defines': [
-            '_CRT_RAND_S'  # for rand_s()
-          ],
           'variables': {
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },
-          'conditions': [
-            ['gyp_generators=="make"', {
-              'variables': {
-                'build_env': '<!(uname -o)',
-              },
-              'conditions': [
-                ['build_env=="Cygwin"', {
-                  'sources': [
-                    '../../src/platform-cygwin.cc',
-                    '../../src/platform-posix.cc'
-                  ],
-                }, {
-                  'sources': [
-                    '../../src/platform-win32.cc',
-                    '../../src/win32-math.cc',
-                    '../../src/win32-math.h'
-                  ],
-                }],
-              ],
-              'link_settings':  {
-                'libraries': [ '-lwinmm', '-lws2_32' ],
-              },
-            }, {
-              'sources': [
-                '../../src/platform-win32.cc',
-                '../../src/win32-math.cc',
-                '../../src/win32-math.h'
-              ],
-              'msvs_disabled_warnings': [4351, 4355, 4800],
-              'link_settings':  {
-                'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
-              },
-            }],
-          ],
+          'msvs_disabled_warnings': [4351, 4355, 4800],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -1029,17 +1066,50 @@
       ],
     },
     {
-      'target_name': 'v8_libbase.<(v8_target_arch)',
-      # TODO(jochen): Should be a static library once it has sources in it.
-      'type': 'none',
+      'target_name': 'v8_libbase',
+      'type': 'static_library',
       'variables': {
         'optimize': 'max',
       },
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
+        '../../src/base/atomicops.h',
+        '../../src/base/atomicops_internals_arm64_gcc.h',
+        '../../src/base/atomicops_internals_arm_gcc.h',
+        '../../src/base/atomicops_internals_atomicword_compat.h',
+        '../../src/base/atomicops_internals_mac.h',
+        '../../src/base/atomicops_internals_mips_gcc.h',
+        '../../src/base/atomicops_internals_tsan.h',
+        '../../src/base/atomicops_internals_x86_gcc.cc',
+        '../../src/base/atomicops_internals_x86_gcc.h',
+        '../../src/base/atomicops_internals_x86_msvc.h',
+        '../../src/base/build_config.h',
+        '../../src/base/cpu.cc',
+        '../../src/base/cpu.h',
+        '../../src/base/lazy-instance.h',
+        '../../src/base/logging.cc',
+        '../../src/base/logging.h',
         '../../src/base/macros.h',
+        '../../src/base/once.cc',
+        '../../src/base/once.h',
+        '../../src/base/platform/elapsed-timer.h',
+        '../../src/base/platform/time.cc',
+        '../../src/base/platform/time.h',
+        '../../src/base/platform/condition-variable.cc',
+        '../../src/base/platform/condition-variable.h',
+        '../../src/base/platform/mutex.cc',
+        '../../src/base/platform/mutex.h',
+        '../../src/base/platform/platform.h',
+        '../../src/base/platform/semaphore.cc',
+        '../../src/base/platform/semaphore.h',
+        '../../src/base/safe_conversions.h',
+        '../../src/base/safe_conversions_impl.h',
+        '../../src/base/safe_math.h',
+        '../../src/base/safe_math_impl.h',
+        '../../src/base/utils/random-number-generator.cc',
+        '../../src/base/utils/random-number-generator.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1047,13 +1117,253 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['component=="shared_library"', {
+        ['OS=="linux"', {
+            'link_settings': {
+              'libraries': [
+                '-lrt'
+              ]
+            },
+            'sources': [
+              '../../src/base/platform/platform-linux.cc',
+              '../../src/base/platform/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="android"', {
+            'sources': [
+              '../../src/base/platform/platform-posix.cc'
+            ],
+            'conditions': [
+              ['host_os=="mac"', {
+                'target_conditions': [
+                  ['_toolset=="host"', {
+                    'sources': [
+                      '../../src/base/platform/platform-macos.cc'
+                    ]
+                  }, {
+                    'sources': [
+                      '../../src/base/platform/platform-linux.cc'
+                    ]
+                  }],
+                ],
+              }, {
+                # TODO(bmeurer): What we really want here, is this:
+                #
+                # 'link_settings': {
+                #   'target_conditions': [
+                #     ['_toolset=="host"', {
+                #       'libraries': [
+                #         '-lrt'
+                #       ]
+                #     }]
+                #   ]
+                # },
+                #
+                # but we can't do this right now, as the AOSP does not support
+                # linking against the host librt, so we need to work around this
+                # for now, using the following hack (see platform/time.cc):
+                'target_conditions': [
+                  ['_toolset=="host"', {
+                    'defines': [
+                      'V8_LIBRT_NOT_AVAILABLE=1',
+                    ],
+                  }],
+                ],
+                'sources': [
+                  '../../src/base/platform/platform-linux.cc'
+                ]
+              }],
+            ],
+          },
+        ],
+        ['OS=="qnx"', {
+            'link_settings': {
+              'target_conditions': [
+                ['_toolset=="host" and host_os=="linux"', {
+                  'libraries': [
+                    '-lrt'
+                  ],
+                }],
+                ['_toolset=="target"', {
+                  'libraries': [
+                    '-lbacktrace'
+                  ],
+                }],
+              ],
+            },
+            'sources': [
+              '../../src/base/platform/platform-posix.cc',
+              '../../src/base/qnx-math.h',
+            ],
+            'target_conditions': [
+              ['_toolset=="host" and host_os=="linux"', {
+                'sources': [
+                  '../../src/base/platform/platform-linux.cc'
+                ],
+              }],
+              ['_toolset=="host" and host_os=="mac"', {
+                'sources': [
+                  '../../src/base/platform/platform-macos.cc'
+                ],
+              }],
+              ['_toolset=="target"', {
+                'sources': [
+                  '../../src/base/platform/platform-qnx.cc'
+                ],
+              }],
+            ],
+          },
+        ],
+        ['OS=="freebsd"', {
+            'link_settings': {
+              'libraries': [
+                '-L/usr/local/lib -lexecinfo',
+            ]},
+            'sources': [
+              '../../src/base/platform/platform-freebsd.cc',
+              '../../src/base/platform/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="openbsd"', {
+            'link_settings': {
+              'libraries': [
+                '-L/usr/local/lib -lexecinfo',
+            ]},
+            'sources': [
+              '../../src/base/platform/platform-openbsd.cc',
+              '../../src/base/platform/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="netbsd"', {
+            'link_settings': {
+              'libraries': [
+                '-L/usr/pkg/lib -Wl,-R/usr/pkg/lib -lexecinfo',
+            ]},
+            'sources': [
+              '../../src/base/platform/platform-openbsd.cc',
+              '../../src/base/platform/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="solaris"', {
+            'link_settings': {
+              'libraries': [
+                '-lnsl',
+            ]},
+            'sources': [
+              '../../src/base/platform/platform-solaris.cc',
+              '../../src/base/platform/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="mac"', {
+          'sources': [
+            '../../src/base/platform/platform-macos.cc',
+            '../../src/base/platform/platform-posix.cc'
+          ]},
+        ],
+        ['OS=="win"', {
           'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
+            '_CRT_RAND_S'  # for rand_s()
+          ],
+          'variables': {
+            'gyp_generators': '<!(echo $GYP_GENERATORS)',
+          },
+          'conditions': [
+            ['gyp_generators=="make"', {
+              'variables': {
+                'build_env': '<!(uname -o)',
+              },
+              'conditions': [
+                ['build_env=="Cygwin"', {
+                  'sources': [
+                    '../../src/base/platform/platform-cygwin.cc',
+                    '../../src/base/platform/platform-posix.cc'
+                  ],
+                }, {
+                  'sources': [
+                    '../../src/base/platform/platform-win32.cc',
+                    '../../src/base/win32-headers.h',
+                    '../../src/base/win32-math.cc',
+                    '../../src/base/win32-math.h'
+                  ],
+                }],
+              ],
+              'link_settings':  {
+                'libraries': [ '-lwinmm', '-lws2_32' ],
+              },
+            }, {
+              'sources': [
+                '../../src/base/platform/platform-win32.cc',
+                '../../src/base/win32-headers.h',
+                '../../src/base/win32-math.cc',
+                '../../src/base/win32-math.h'
+              ],
+              'msvs_disabled_warnings': [4351, 4355, 4800],
+              'link_settings':  {
+                'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
+              },
+            }],
           ],
         }],
       ],
+    },
+    {
+      'target_name': 'v8_libplatform',
+      'type': 'static_library',
+      'variables': {
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'v8_libbase',
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        '../../include/libplatform/libplatform.h',
+        '../../src/libplatform/default-platform.cc',
+        '../../src/libplatform/default-platform.h',
+        '../../src/libplatform/task-queue.cc',
+        '../../src/libplatform/task-queue.h',
+        '../../src/libplatform/worker-thread.cc',
+        '../../src/libplatform/worker-thread.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+    },
+    {
+      'target_name': 'natives_blob',
+      'type': 'none',
+      'conditions': [
+        [ 'v8_use_external_startup_data==1', {
+          'dependencies': ['js2c'],
+          'actions': [{
+            'action_name': 'concatenate_natives_blob',
+            'inputs': [
+              '../../tools/concatenate-files.py',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
+            ],
+            'outputs': [
+              '<(PRODUCT_DIR)/natives_blob.bin',
+            ],
+            'action': ['python', '<@(_inputs)', '<@(_outputs)'],
+          }],
+        }],
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ]
     },
     {
       'target_name': 'js2c',
@@ -1080,9 +1390,11 @@
         'library_files': [
           '../../src/runtime.js',
           '../../src/v8natives.js',
+          '../../src/symbol.js',
           '../../src/array.js',
           '../../src/string.js',
           '../../src/uri.js',
+          '../../third_party/fdlibm/fdlibm.js',
           '../../src/math.js',
           '../../src/messages.js',
           '../../src/apinatives.js',
@@ -1097,19 +1409,21 @@
           '../../src/weak_collection.js',
           '../../src/promise.js',
           '../../src/object-observe.js',
+          '../../src/collection.js',
+          '../../src/collection-iterator.js',
           '../../src/macros.py',
+          '../../src/array-iterator.js',
+          '../../src/string-iterator.js'
         ],
         'experimental_library_files': [
           '../../src/macros.py',
-          '../../src/symbol.js',
           '../../src/proxy.js',
-          '../../src/collection.js',
           '../../src/generator.js',
-          '../../src/array-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
-          '../../src/harmony-math.js'
         ],
+        'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
+        'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
       },
       'actions': [
         {
@@ -1125,11 +1439,19 @@
           'action': [
             'python',
             '../../tools/js2c.py',
-            '<@(_outputs)',
+            '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<(v8_compress_startup_data)',
             '<@(library_files)',
             '<@(i18n_library_files)',
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_bin_file)',
+              ],
+            }],
           ],
         },
         {
@@ -1144,10 +1466,18 @@
           'action': [
             'python',
             '../../tools/js2c.py',
-            '<@(_outputs)',
+            '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
             'EXPERIMENTAL',
             '<(v8_compress_startup_data)',
             '<@(experimental_library_files)'
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_experimental_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_experimental_bin_file)'
+              ],
+            }],
           ],
         },
       ],
@@ -1181,14 +1511,11 @@
         ]
     },
     {
-      'target_name': 'mksnapshot.<(v8_target_arch)',
+      'target_name': 'mksnapshot',
       'type': 'executable',
-      'dependencies': [
-        'v8_base.<(v8_target_arch)',
-        'v8_nosnapshot.<(v8_target_arch)',
-      ],
+      'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '../../src/mksnapshot.cc',

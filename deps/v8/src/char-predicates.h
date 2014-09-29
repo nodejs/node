@@ -5,7 +5,7 @@
 #ifndef V8_CHAR_PREDICATES_H_
 #define V8_CHAR_PREDICATES_H_
 
-#include "unicode.h"
+#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {

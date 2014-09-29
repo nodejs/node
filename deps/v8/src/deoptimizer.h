@@ -5,11 +5,11 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "macro-assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/macro-assembler.h"
+#include "src/zone-inl.h"
 
 
 namespace v8 {
@@ -176,6 +176,8 @@ class Deoptimizer : public Malloced {
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
+
+  static void PatchStackForMarkedCode(Isolate* isolate);
 
   // Visit all the known optimized functions in a given isolate.
   static void VisitAllOptimizedFunctions(
@@ -387,10 +389,6 @@ class Deoptimizer : public Malloced {
   // at the dynamic alignment state slot inside the frame.
   bool HasAlignmentPadding(JSFunction* function);
 
-  // Select the version of NotifyStubFailure builtin that either saves or
-  // doesn't save the double registers depending on CPU features.
-  Code* NotifyStubFailureBuiltin();
-
   Isolate* isolate_;
   JSFunction* function_;
   Code* compiled_code_;
@@ -464,7 +462,7 @@ class FrameDescription {
   }
 
   uint32_t GetFrameSize() const {
-    ASSERT(static_cast<uint32_t>(frame_size_) == frame_size_);
+    DCHECK(static_cast<uint32_t>(frame_size_) == frame_size_);
     return static_cast<uint32_t>(frame_size_);
   }
 
@@ -493,11 +491,11 @@ class FrameDescription {
 
   intptr_t GetRegister(unsigned n) const {
 #if DEBUG
-    // This convoluted ASSERT is needed to work around a gcc problem that
+    // This convoluted DCHECK is needed to work around a gcc problem that
     // improperly detects an array bounds overflow in optimized debug builds
-    // when using a plain ASSERT.
+    // when using a plain DCHECK.
     if (n >= ARRAY_SIZE(registers_)) {
-      ASSERT(false);
+      DCHECK(false);
       return 0;
     }
 #endif
@@ -505,17 +503,17 @@ class FrameDescription {
   }
 
   double GetDoubleRegister(unsigned n) const {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < ARRAY_SIZE(double_registers_));
     return double_registers_[n];
   }
 
   void SetRegister(unsigned n, intptr_t value) {
-    ASSERT(n < ARRAY_SIZE(registers_));
+    DCHECK(n < ARRAY_SIZE(registers_));
     registers_[n] = value;
   }
 
   void SetDoubleRegister(unsigned n, double value) {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < ARRAY_SIZE(double_registers_));
     double_registers_[n] = value;
   }
 
@@ -611,7 +609,7 @@ class FrameDescription {
   intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
-    ASSERT(offset < frame_size_);
+    DCHECK(offset < frame_size_);
     return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
@@ -660,7 +658,7 @@ class TranslationIterator BASE_EMBEDDED {
  public:
   TranslationIterator(ByteArray* buffer, int index)
       : buffer_(buffer), index_(index) {
-    ASSERT(index >= 0 && index < buffer->length());
+    DCHECK(index >= 0 && index < buffer->length());
   }
 
   int32_t Next();
@@ -932,13 +930,13 @@ class DeoptimizedFrameInfo : public Malloced {
 
   // Get an incoming argument.
   Object* GetParameter(int index) {
-    ASSERT(0 <= index && index < parameters_count());
+    DCHECK(0 <= index && index < parameters_count());
     return parameters_[index];
   }
 
   // Get an expression from the expression stack.
   Object* GetExpression(int index) {
-    ASSERT(0 <= index && index < expression_count());
+    DCHECK(0 <= index && index < expression_count());
     return expression_stack_[index];
   }
 
@@ -949,13 +947,13 @@ class DeoptimizedFrameInfo : public Malloced {
  private:
   // Set an incoming argument.
   void SetParameter(int index, Object* obj) {
-    ASSERT(0 <= index && index < parameters_count());
+    DCHECK(0 <= index && index < parameters_count());
     parameters_[index] = obj;
   }
 
   // Set an expression on the expression stack.
   void SetExpression(int index, Object* obj) {
-    ASSERT(0 <= index && index < expression_count());
+    DCHECK(0 <= index && index < expression_count());
     expression_stack_[index] = obj;
   }
 

@@ -29,8 +29,6 @@ const RegList kJSCallerSaved =
 
 const int kNumJSCallerSaved = 4;
 
-typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
-
 // Return the code of the n-th caller-saved register available to JavaScript
 // e.g. JSCallerSavedReg(0) returns r0.code() == 0
 int JSCallerSavedCode(int n);

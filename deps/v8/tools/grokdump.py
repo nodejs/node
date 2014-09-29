@@ -3103,15 +3103,18 @@ def AnalyzeMinidump(options, minidump_name):
       frame_pointer = reader.ExceptionFP()
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+        ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
+                         for c in reader.ReadBytes(slot, reader.PointerSize())]
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         maybe_symbol = reader.FindSymbol(maybe_address)
         if slot == frame_pointer:
           maybe_symbol = "<---- frame pointer"
           frame_pointer = maybe_address
-        print "%s: %s %s" % (reader.FormatIntPtr(slot),
-                             reader.FormatIntPtr(maybe_address),
-                             maybe_symbol or "")
+        print "%s: %s %s %s" % (reader.FormatIntPtr(slot),
+                                reader.FormatIntPtr(maybe_address),
+                                "".join(ascii_content),
+                                maybe_symbol or "")
         if heap_object:
           heap_object.Print(Printer())
           print

@@ -25,14 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
+#include <include/v8.h>
 
-#include <v8-debug.h>
+#include <include/libplatform/libplatform.h>
+#include <include/v8-debug.h>
 
 #include <fcntl.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * This sample program should demonstrate certain aspects of debugging
@@ -69,25 +70,6 @@ while (true) {
   var res = line + " | " + line;
   print(res);
 }
-
- *
- * When run with "-p" argument, the program starts V8 Debugger Agent and
- * allows remote debugger to attach and debug JavaScript code.
- *
- * Interesting aspects:
- * 1. Wait for remote debugger to attach
- * Normally the program compiles custom script and immediately runs it.
- * If programmer needs to debug script from the very beginning, he should
- * run this sample program with "--wait-for-connection" command line parameter.
- * This way V8 will suspend on the first statement and wait for
- * debugger to attach.
- *
- * 2. Unresponsive V8
- * V8 Debugger Agent holds a connection with remote debugger, but it does
- * respond only when V8 is running some script. In particular, when this program
- * is waiting for input, all requests from debugger get deferred until V8
- * is called again. See how "--callback" command-line parameter in this sample
- * fixes this issue.
  */
 
 enum MainCycleType {
@@ -109,40 +91,15 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 v8::Persistent<v8::Context> debug_message_context;
 
-void DispatchDebugMessages() {
-  // We are in some random thread. We should already have v8::Locker acquired
-  // (we requested this when registered this callback). We was called
-  // because new debug messages arrived; they may have already been processed,
-  // but we shouldn't worry about this.
-  //
-  // All we have to do is to set context and call ProcessDebugMessages.
-  //
-  // We should decide which V8 context to use here. This is important for
-  // "evaluate" command, because it must be executed some context.
-  // In our sample we have only one context, so there is nothing really to
-  // think about.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      v8::Local<v8::Context>::New(isolate, debug_message_context);
-  v8::Context::Scope scope(context);
-
-  v8::Debug::ProcessDebugMessages();
-}
-
-
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
 
   v8::Handle<v8::String> script_source;
   v8::Handle<v8::Value> script_name;
   int script_param_counter = 0;
-
-  int port_number = -1;
-  bool wait_for_connection = false;
-  bool support_callback = false;
 
   MainCycleType cycle_type = CycleInCpp;
 
@@ -156,13 +113,6 @@ int RunMain(int argc, char* argv[]) {
       cycle_type = CycleInCpp;
     } else if (strcmp(str, "--main-cycle-in-js") == 0) {
       cycle_type = CycleInJs;
-    } else if (strcmp(str, "--callback") == 0) {
-      support_callback = true;
-    } else if (strcmp(str, "--wait-for-connection") == 0) {
-      wait_for_connection = true;
-    } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-      port_number = atoi(argv[i + 1]);  // NOLINT
-      i++;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
@@ -212,16 +162,6 @@ int RunMain(int argc, char* argv[]) {
 
   debug_message_context.Reset(isolate, context);
 
-  v8::Locker locker(isolate);
-
-  if (support_callback) {
-    v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
-  }
-
-  if (port_number != -1) {
-    v8::Debug::EnableAgent("lineprocessor", port_number, wait_for_connection);
-  }
-
   bool report_exceptions = true;
 
   v8::Handle<v8::Script> script;
@@ -265,7 +205,6 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
                  v8::Local<v8::Context> context,
                  bool report_exceptions) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::Locker lock(isolate);
 
   v8::Handle<v8::String> fun_name =
       v8::String::NewFromUtf8(isolate, "ProcessLine");
@@ -316,8 +255,12 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   int result = RunMain(argc, argv);
   v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return result;
 }
 
@@ -362,7 +305,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
     printf("%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
-    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
@@ -423,7 +366,6 @@ v8::Handle<v8::String> ReadLine() {
 
   char* res;
   {
-    v8::Unlocker unlocker(v8::Isolate::GetCurrent());
     res = fgets(buffer, kBufferSize, stdin);
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();

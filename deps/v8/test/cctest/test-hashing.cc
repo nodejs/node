@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "factory.h"
-#include "macro-assembler.h"
-#include "cctest.h"
-#include "code-stubs.h"
-#include "objects.h"
+#include "src/code-stubs.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 #ifdef USE_SIMULATOR
-#include "simulator.h"
+#include "src/simulator.h"
 #endif
 
 using namespace v8::internal;
@@ -50,8 +50,8 @@ typedef uint32_t (*HASH_FUNCTION)();
 void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   // GenerateHashInit takes the first character as an argument so it can't
   // handle the zero length string.
-  ASSERT(string.length() > 0);
-#if V8_TARGET_ARCH_IA32
+  DCHECK(string.length() > 0);
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __ push(ebx);
   __ push(ecx);
   __ mov(eax, Immediate(0));
@@ -114,11 +114,11 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ Pop(xzr, root);
   __ Ret();
   __ SetStackPointer(old_stack_pointer);
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   __ push(kRootRegister);
   __ InitializeRootRegister();
 
-  __ li(v0, Operand(0));
+  __ mov(v0, zero_reg);
   __ li(t1, Operand(string.at(0)));
   StringHelper::GenerateHashInit(masm, v0, t1);
   for (int i = 1; i < string.length(); i++) {
@@ -136,7 +136,7 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
 
 
 void generate(MacroAssembler* masm, uint32_t key) {
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __ push(ebx);
   __ mov(eax, Immediate(key));
   __ GetNumberHash(eax, ebx);
@@ -170,7 +170,7 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ Pop(xzr, root);
   __ Ret();
   __ SetStackPointer(old_stack_pointer);
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   __ push(kRootRegister);
   __ InitializeRootRegister();
   __ li(v0, Operand(key));

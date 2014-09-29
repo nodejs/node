@@ -12,8 +12,11 @@ import urllib
 from common_includes import *
 import chromium_roll
 
+CLUSTERFUZZ_API_KEY_FILE = "CLUSTERFUZZ_API_KEY_FILE"
+
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-auto-roll-tempfile",
+  CLUSTERFUZZ_API_KEY_FILE: ".cf_api_key",
 }
 
 CR_DEPS_URL = 'http://src.chromium.org/svn/trunk/src/DEPS'
@@ -65,6 +68,24 @@ class DetectLastRoll(Step):
       return True
 
 
+class CheckClusterFuzz(Step):
+  MESSAGE = "Check ClusterFuzz api for new problems."
+
+  def RunStep(self):
+    if not os.path.exists(self.Config(CLUSTERFUZZ_API_KEY_FILE)):
+      print "Skipping ClusterFuzz check. No api key file found."
+      return False
+    api_key = FileToText(self.Config(CLUSTERFUZZ_API_KEY_FILE))
+    # Check for open, reproducible issues that have no associated bug.
+    result = self._side_effect_handler.ReadClusterFuzzAPI(
+        api_key, job_type="linux_asan_d8_dbg", reproducible="True",
+        open="True", bug_information="",
+        revision_greater_or_equal=str(self["last_push"]))
+    if result:
+      print "Stop due to pending ClusterFuzz issues."
+      return True
+
+
 class RollChromium(Step):
   MESSAGE = "Roll V8 into Chromium."
 
@@ -75,6 +96,7 @@ class RollChromium(Step):
         "--reviewer", self._options.reviewer,
         "--chromium", self._options.chromium,
         "--force",
+        "--use-commit-queue",
       ]
       if self._options.sheriff:
         args.extend([
@@ -108,6 +130,7 @@ class AutoRoll(ScriptsBase):
       CheckActiveRoll,
       DetectLastPush,
       DetectLastRoll,
+      CheckClusterFuzz,
       RollChromium,
     ]
 

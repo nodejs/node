@@ -27,12 +27,13 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "v8.h"
-#include "profile-generator-inl.h"
-#include "profiler-extension.h"
-#include "cctest.h"
-#include "cpu-profiler.h"
-#include "../include/v8-profiler.h"
+#include "src/v8.h"
+
+#include "include/v8-profiler.h"
+#include "src/cpu-profiler.h"
+#include "src/profile-generator-inl.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/profiler-extension.h"
 
 using i::CodeEntry;
 using i::CodeMap;
@@ -571,14 +572,14 @@ TEST(RecordStackTraceAtStartProfiling) {
   const_cast<ProfileNode*>(current)->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     a
   //       b
   //         c
   // There can also be:
   //           startProfiling
   // if the sampler managed to get a tick.
-  current = PickChild(current, "(anonymous function)");
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<ProfileNode*>(current));
   current = PickChild(current, "a");
   CHECK_NE(NULL, const_cast<ProfileNode*>(current));
@@ -601,7 +602,7 @@ TEST(Issue51919) {
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
-    i::OS::SNPrintF(title, "%d", i);
+    i::SNPrintF(title, "%d", i);
     CHECK(collection.StartProfiling(title.start(), false));
     titles[i] = title.start();
   }
@@ -650,22 +651,22 @@ TEST(ProfileNodeScriptId) {
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     b
   //       a
   // There can also be:
   //         startProfiling
   // if the sampler managed to get a tick.
-  current = PickChild(current, i::ProfileGenerator::kAnonymousFunctionName);
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "b");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_b->GetId(), current->GetScriptId());
+  CHECK_EQ(script_b->GetUnboundScript()->GetId(), current->GetScriptId());
 
   current = PickChild(current, "a");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_a->GetId(), current->GetScriptId());
+  CHECK_EQ(script_a->GetUnboundScript()->GetId(), current->GetScriptId());
 }
 
 
@@ -759,10 +760,10 @@ TEST(BailoutReason) {
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     kTryFinally
   //       kTryCatch
-  current = PickChild(current, i::ProfileGenerator::kAnonymousFunctionName);
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "TryFinally");

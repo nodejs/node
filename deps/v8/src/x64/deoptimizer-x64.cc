@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X64
 
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/full-codegen.h"
+#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
@@ -60,9 +60,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #endif
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* shared =
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
   deopt_data->SetSharedFunctionInfo(Smi::FromInt(0));
   // For each LLazyBailout instruction insert a call to the corresponding
   // deoptimization entry.
@@ -75,9 +72,9 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
                          Assembler::RelocInfoNone());
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -108,7 +105,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
-      reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
+      reinterpret_cast<intptr_t>(descriptor->deoptimization_handler());
   int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(rax.code(), params);
   output_frame->SetRegister(rbx.code(), handler);
@@ -126,11 +123,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
   // There is no dynamic alignment padding on x64 in the input frame.
   return false;
-}
-
-
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
 }
 
 
@@ -299,7 +291,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
     if (r.is(rsp)) {
-      ASSERT(i > 0);
+      DCHECK(i > 0);
       r = Register::from_code(i - 1);
     }
     __ popq(r);
@@ -322,7 +314,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     USE(start);
     __ pushq_imm32(i);
     __ jmp(&done);
-    ASSERT(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
 }

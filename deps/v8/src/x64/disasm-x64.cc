@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X64
 
-#include "disasm.h"
-#include "lazy-instance.h"
+#include "src/base/lazy-instance.h"
+#include "src/disasm.h"
 
 namespace disasm {
 
@@ -216,7 +216,7 @@ void InstructionTable::CopyTable(const ByteMnemonic bm[],
     OperandType op_order = bm[i].op_order_;
     id->op_order_ =
         static_cast<OperandType>(op_order & ~BYTE_SIZE_OPERAND_FLAG);
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered
     id->type = type;
     id->byte_size_operation = ((op_order & BYTE_SIZE_OPERAND_FLAG) != 0);
   }
@@ -230,7 +230,7 @@ void InstructionTable::SetTableRange(InstructionType type,
                                      const char* mnem) {
   for (byte b = start; b <= end; b++) {
     InstructionDesc* id = &instructions_[b];
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered
     id->mnem = mnem;
     id->type = type;
     id->byte_size_operation = byte_size;
@@ -241,14 +241,14 @@ void InstructionTable::SetTableRange(InstructionType type,
 void InstructionTable::AddJumpConditionalShort() {
   for (byte b = 0x70; b <= 0x7F; b++) {
     InstructionDesc* id = &instructions_[b];
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered
     id->mnem = NULL;  // Computed depending on condition code.
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
   }
 }
 
 
-static v8::internal::LazyInstance<InstructionTable>::type instruction_table =
+static v8::base::LazyInstance<InstructionTable>::type instruction_table =
     LAZY_INSTANCE_INITIALIZER;
 
 
@@ -328,7 +328,7 @@ class DisassemblerX64 {
   const InstructionTable* const instruction_table_;
 
   void setRex(byte rex) {
-    ASSERT_EQ(0x40, rex & 0xF0);
+    DCHECK_EQ(0x40, rex & 0xF0);
     rex_ = rex;
   }
 
@@ -430,7 +430,7 @@ void DisassemblerX64::AppendToBuffer(const char* format, ...) {
   v8::internal::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
-  int result = v8::internal::OS::VSNPrintF(buf, format, args);
+  int result = v8::internal::VSNPrintF(buf, format, args);
   va_end(args);
   tmp_buffer_pos_ += result;
 }
@@ -661,7 +661,7 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::F6F7Instruction(byte* data) {
-  ASSERT(*data == 0xF7 || *data == 0xF6);
+  DCHECK(*data == 0xF7 || *data == 0xF6);
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -679,6 +679,9 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
         break;
       case 5:
         mnem = "imul";
+        break;
+      case 6:
+        mnem = "div";
         break;
       case 7:
         mnem = "idiv";
@@ -747,7 +750,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
       UnimplementedInstruction();
       return num_bytes;
   }
-  ASSERT_NE(NULL, mnem);
+  DCHECK_NE(NULL, mnem);
   if (op == 0xD0) {
     imm8 = 1;
   } else if (op == 0xC0) {
@@ -770,7 +773,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::JumpShort(byte* data) {
-  ASSERT_EQ(0xEB, *data);
+  DCHECK_EQ(0xEB, *data);
   byte b = *(data + 1);
   byte* dest = data + static_cast<int8_t>(b) + 2;
   AppendToBuffer("jmp %s", NameOfAddress(dest));
@@ -780,7 +783,7 @@ int DisassemblerX64::JumpShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::JumpConditional(byte* data) {
-  ASSERT_EQ(0x0F, *data);
+  DCHECK_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   byte* dest = data + *reinterpret_cast<int32_t*>(data + 2) + 6;
   const char* mnem = conditional_code_suffix[cond];
@@ -802,7 +805,7 @@ int DisassemblerX64::JumpConditionalShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::SetCC(byte* data) {
-  ASSERT_EQ(0x0F, *data);
+  DCHECK_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   const char* mnem = conditional_code_suffix[cond];
   AppendToBuffer("set%s%c ", mnem, operand_size_code());
@@ -814,7 +817,7 @@ int DisassemblerX64::SetCC(byte* data) {
 // Returns number of bytes used, including *data.
 int DisassemblerX64::FPUInstruction(byte* data) {
   byte escape_opcode = *data;
-  ASSERT_EQ(0xD8, escape_opcode & 0xF8);
+  DCHECK_EQ(0xD8, escape_opcode & 0xF8);
   byte modrm_byte = *(data+1);
 
   if (modrm_byte >= 0xC0) {
@@ -1068,7 +1071,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
       } else if (opcode == 0x73) {
         current += 1;
-        ASSERT(regop == 6);
+        DCHECK(regop == 6);
         AppendToBuffer("psllq,%s,%d", NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
@@ -1788,19 +1791,19 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
 
   int instr_len = static_cast<int>(data - instr);
-  ASSERT(instr_len > 0);  // Ensure progress.
+  DCHECK(instr_len > 0);  // Ensure progress.
 
   int outp = 0;
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
-    outp += v8::internal::OS::SNPrintF(out_buffer + outp, "%02x", *bp);
+    outp += v8::internal::SNPrintF(out_buffer + outp, "%02x", *bp);
   }
   for (int i = 6 - instr_len; i >= 0; i--) {
-    outp += v8::internal::OS::SNPrintF(out_buffer + outp, "  ");
+    outp += v8::internal::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::internal::OS::SNPrintF(out_buffer + outp, " %s",
-                                     tmp_buffer_.start());
+  outp += v8::internal::SNPrintF(out_buffer + outp, " %s",
+                                 tmp_buffer_.start());
   return instr_len;
 }
 
@@ -1827,7 +1830,7 @@ static const char* xmm_regs[16] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 

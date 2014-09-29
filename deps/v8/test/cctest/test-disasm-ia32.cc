@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "macro-assembler.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "cctest.h"
+#include "src/debug.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -168,6 +168,11 @@ TEST(DisasmIa320) {
 
   __ nop();
   __ idiv(edx);
+  __ idiv(Operand(edx, ecx, times_1, 1));
+  __ idiv(Operand(esp, 12));
+  __ div(edx);
+  __ div(Operand(edx, ecx, times_1, 1));
+  __ div(Operand(esp, 12));
   __ mul(edx);
   __ neg(edx);
   __ not_(edx);
@@ -175,7 +180,9 @@ TEST(DisasmIa320) {
 
   __ imul(edx, Operand(ebx, ecx, times_4, 10000));
   __ imul(edx, ecx, 12);
+  __ imul(edx, Operand(edx, eax, times_2, 42), 8);
   __ imul(edx, ecx, 1000);
+  __ imul(edx, Operand(ebx, ecx, times_4, 1), 9000);
 
   __ inc(edx);
   __ inc(Operand(ebx, ecx, times_4, 10000));
@@ -197,15 +204,24 @@ TEST(DisasmIa320) {
   __ sar(edx, 1);
   __ sar(edx, 6);
   __ sar_cl(edx);
+  __ sar(Operand(ebx, ecx, times_4, 10000), 1);
+  __ sar(Operand(ebx, ecx, times_4, 10000), 6);
+  __ sar_cl(Operand(ebx, ecx, times_4, 10000));
   __ sbb(edx, Operand(ebx, ecx, times_4, 10000));
   __ shld(edx, Operand(ebx, ecx, times_4, 10000));
   __ shl(edx, 1);
   __ shl(edx, 6);
   __ shl_cl(edx);
+  __ shl(Operand(ebx, ecx, times_4, 10000), 1);
+  __ shl(Operand(ebx, ecx, times_4, 10000), 6);
+  __ shl_cl(Operand(ebx, ecx, times_4, 10000));
   __ shrd(edx, Operand(ebx, ecx, times_4, 10000));
   __ shr(edx, 1);
   __ shr(edx, 7);
   __ shr_cl(edx);
+  __ shr(Operand(ebx, ecx, times_4, 10000), 1);
+  __ shr(Operand(ebx, ecx, times_4, 10000), 6);
+  __ shr_cl(Operand(ebx, ecx, times_4, 10000));
 
 
   // Immediates
@@ -275,7 +291,7 @@ TEST(DisasmIa320) {
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
+      ExternalReference::debug_after_break_target_address(isolate);
   __ jmp(Operand::StaticVariable(after_break_target));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
@@ -364,91 +380,89 @@ TEST(DisasmIa320) {
 
   // SSE instruction
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope fscope(&assm, SSE2);
-      // Move operation
-      __ movaps(xmm0, xmm1);
-      __ shufps(xmm0, xmm0, 0x0);
+    // Move operation
+    __ movaps(xmm0, xmm1);
+    __ shufps(xmm0, xmm0, 0x0);
 
-      // logic operation
-      __ andps(xmm0, xmm1);
-      __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ orps(xmm0, xmm1);
-      __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ xorps(xmm0, xmm1);
-      __ xorps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    // logic operation
+    __ andps(xmm0, xmm1);
+    __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ orps(xmm0, xmm1);
+    __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ xorps(xmm0, xmm1);
+    __ xorps(xmm0, Operand(ebx, ecx, times_4, 10000));
 
-      // Arithmetic operation
-      __ addps(xmm1, xmm0);
-      __ addps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ subps(xmm1, xmm0);
-      __ subps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ mulps(xmm1, xmm0);
-      __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ divps(xmm1, xmm0);
-      __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
-    }
+    // Arithmetic operation
+    __ addps(xmm1, xmm0);
+    __ addps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ subps(xmm1, xmm0);
+    __ subps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ mulps(xmm1, xmm0);
+    __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ divps(xmm1, xmm0);
+    __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
   }
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope fscope(&assm, SSE2);
-      __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
-      __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
-      // 128 bit move instructions.
-      __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
-      __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
+    __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
+    // 128 bit move instructions.
+    __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
 
-      __ addsd(xmm1, xmm0);
-      __ mulsd(xmm1, xmm0);
-      __ subsd(xmm1, xmm0);
-      __ divsd(xmm1, xmm0);
-      __ ucomisd(xmm0, xmm1);
-      __ cmpltsd(xmm0, xmm1);
+    __ addsd(xmm1, xmm0);
+    __ mulsd(xmm1, xmm0);
+    __ subsd(xmm1, xmm0);
+    __ divsd(xmm1, xmm0);
+    __ ucomisd(xmm0, xmm1);
+    __ cmpltsd(xmm0, xmm1);
 
-      __ andpd(xmm0, xmm1);
-      __ psllq(xmm0, 17);
-      __ psllq(xmm0, xmm1);
-      __ psrlq(xmm0, 17);
-      __ psrlq(xmm0, xmm1);
-      __ por(xmm0, xmm1);
-    }
+    __ andpd(xmm0, xmm1);
+    __ psllq(xmm0, 17);
+    __ psllq(xmm0, xmm1);
+    __ psrlq(xmm0, 17);
+    __ psrlq(xmm0, xmm1);
+    __ por(xmm0, xmm1);
   }
 
   // cmov.
   {
-    if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatureScope use_cmov(&assm, CMOV);
-      __ cmov(overflow, eax, Operand(eax, 0));
-      __ cmov(no_overflow, eax, Operand(eax, 1));
-      __ cmov(below, eax, Operand(eax, 2));
-      __ cmov(above_equal, eax, Operand(eax, 3));
-      __ cmov(equal, eax, Operand(ebx, 0));
-      __ cmov(not_equal, eax, Operand(ebx, 1));
-      __ cmov(below_equal, eax, Operand(ebx, 2));
-      __ cmov(above, eax, Operand(ebx, 3));
-      __ cmov(sign, eax, Operand(ecx, 0));
-      __ cmov(not_sign, eax, Operand(ecx, 1));
-      __ cmov(parity_even, eax, Operand(ecx, 2));
-      __ cmov(parity_odd, eax, Operand(ecx, 3));
-      __ cmov(less, eax, Operand(edx, 0));
-      __ cmov(greater_equal, eax, Operand(edx, 1));
-      __ cmov(less_equal, eax, Operand(edx, 2));
-      __ cmov(greater, eax, Operand(edx, 3));
-    }
+    __ cmov(overflow, eax, Operand(eax, 0));
+    __ cmov(no_overflow, eax, Operand(eax, 1));
+    __ cmov(below, eax, Operand(eax, 2));
+    __ cmov(above_equal, eax, Operand(eax, 3));
+    __ cmov(equal, eax, Operand(ebx, 0));
+    __ cmov(not_equal, eax, Operand(ebx, 1));
+    __ cmov(below_equal, eax, Operand(ebx, 2));
+    __ cmov(above, eax, Operand(ebx, 3));
+    __ cmov(sign, eax, Operand(ecx, 0));
+    __ cmov(not_sign, eax, Operand(ecx, 1));
+    __ cmov(parity_even, eax, Operand(ecx, 2));
+    __ cmov(parity_odd, eax, Operand(ecx, 3));
+    __ cmov(less, eax, Operand(edx, 0));
+    __ cmov(greater_equal, eax, Operand(edx, 1));
+    __ cmov(less_equal, eax, Operand(edx, 2));
+    __ cmov(greater, eax, Operand(edx, 3));
   }
 
   {
-    if (CpuFeatures::IsSupported(SSE2) &&
-        CpuFeatures::IsSupported(SSE4_1)) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
       __ extractps(eax, xmm1, 0);
     }
+  }
+
+  // xchg.
+  {
+    __ xchg(eax, eax);
+    __ xchg(eax, ebx);
+    __ xchg(ebx, ebx);
+    __ xchg(ebx, Operand(esp, 12));
   }
 
   // Nop instructions
@@ -464,7 +478,8 @@ TEST(DisasmIa320) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
   byte* begin = code->instruction_start();
   byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);

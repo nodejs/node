@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "heap-profiler.h"
+#include "src/heap-profiler.h"
 
-#include "allocation-tracker.h"
-#include "heap-snapshot-generator-inl.h"
+#include "src/allocation-tracker.h"
+#include "src/heap-snapshot-generator-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -45,7 +45,7 @@ void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
 
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
-  ASSERT(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
+  DCHECK(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
   if (wrapper_callbacks_.length() <= class_id) {
     wrapper_callbacks_.AddBlock(
         NULL, class_id - wrapper_callbacks_.length() + 1);
@@ -93,7 +93,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
-  ASSERT(!is_tracking_allocations());
+  DCHECK(!is_tracking_allocations());
   if (track_allocations) {
     allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->DisableInlineAllocation();
@@ -173,9 +173,6 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
-  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                            "HeapProfiler::FindHeapObjectById");
-  DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
   HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
@@ -183,7 +180,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
        obj != NULL;
        obj = iterator.next()) {
     if (ids_->FindEntry(obj->address()) == id) {
-      ASSERT(object == NULL);
+      DCHECK(object == NULL);
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }

@@ -5,11 +5,12 @@
 #ifndef V8_IC_INL_H_
 #define V8_IC_INL_H_
 
-#include "ic.h"
+#include "src/ic.h"
 
-#include "compiler.h"
-#include "debug.h"
-#include "macro-assembler.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/macro-assembler.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -87,7 +88,7 @@ Code* IC::GetTargetAtAddress(Address address,
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
   // is safe for use during GC where the map might be marked.
   Code* result = Code::GetCodeFromTargetAddress(target);
-  ASSERT(result->is_inline_cache_stub());
+  DCHECK(result->is_inline_cache_stub());
   return result;
 }
 
@@ -95,7 +96,7 @@ Code* IC::GetTargetAtAddress(Address address,
 void IC::SetTargetAtAddress(Address address,
                             Code* target,
                             ConstantPoolArray* constant_pool) {
-  ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
+  DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
@@ -103,7 +104,7 @@ void IC::SetTargetAtAddress(Address address,
   // ICs as strict mode. The strict-ness of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    ASSERT(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
+    DCHECK(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
            StoreIC::GetStrictMode(target->extra_ic_state()));
   }
 #endif
@@ -118,59 +119,71 @@ void IC::SetTargetAtAddress(Address address,
 }
 
 
-InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
-  if (object->IsJSObject()) return OWN_MAP;
-
-  // If the object is a value, we use the prototype map for the cache.
-  ASSERT(object->IsString() || object->IsSymbol() ||
-         object->IsNumber() || object->IsBoolean());
-  return PROTOTYPE_MAP;
-}
-
-
-HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
-                                   Object* object,
-                                   InlineCacheHolderFlag holder) {
-  if (object->IsSmi()) holder = PROTOTYPE_MAP;
-  Object* map_owner = holder == OWN_MAP
-      ? object : object->GetPrototype(isolate);
-  return HeapObject::cast(map_owner);
-}
-
-
-InlineCacheHolderFlag IC::GetCodeCacheFlag(HeapType* type) {
-  if (type->Is(HeapType::Boolean()) ||
-      type->Is(HeapType::Number()) ||
-      type->Is(HeapType::String()) ||
-      type->Is(HeapType::Symbol())) {
-    return PROTOTYPE_MAP;
+template <class TypeClass>
+JSFunction* IC::GetRootConstructor(TypeClass* type, Context* native_context) {
+  if (type->Is(TypeClass::Boolean())) {
+    return native_context->boolean_function();
+  } else if (type->Is(TypeClass::Number())) {
+    return native_context->number_function();
+  } else if (type->Is(TypeClass::String())) {
+    return native_context->string_function();
+  } else if (type->Is(TypeClass::Symbol())) {
+    return native_context->symbol_function();
+  } else {
+    return NULL;
   }
-  return OWN_MAP;
 }
 
 
-Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                   HeapType* type,
-                                   Isolate* isolate) {
-  if (flag == PROTOTYPE_MAP) {
-    Context* context = isolate->context()->native_context();
-    JSFunction* constructor;
-    if (type->Is(HeapType::Boolean())) {
-      constructor = context->boolean_function();
-    } else if (type->Is(HeapType::Number())) {
-      constructor = context->number_function();
-    } else if (type->Is(HeapType::String())) {
-      constructor = context->string_function();
-    } else {
-      ASSERT(type->Is(HeapType::Symbol()));
-      constructor = context->symbol_function();
-    }
-    return handle(JSObject::cast(constructor->instance_prototype())->map());
+Handle<Map> IC::GetHandlerCacheHolder(HeapType* type, bool receiver_is_holder,
+                                      Isolate* isolate, CacheHolderFlag* flag) {
+  Handle<Map> receiver_map = TypeToMap(type, isolate);
+  if (receiver_is_holder) {
+    *flag = kCacheOnReceiver;
+    return receiver_map;
   }
+  Context* native_context = *isolate->native_context();
+  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  if (builtin_ctor != NULL) {
+    *flag = kCacheOnPrototypeReceiverIsPrimitive;
+    return handle(HeapObject::cast(builtin_ctor->instance_prototype())->map());
+  }
+  *flag = receiver_map->is_dictionary_map()
+              ? kCacheOnPrototypeReceiverIsDictionary
+              : kCacheOnPrototype;
+  // Callers must ensure that the prototype is non-null.
+  return handle(JSObject::cast(receiver_map->prototype())->map());
+}
+
+
+Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
+                                 CacheHolderFlag* flag) {
+  Context* native_context = *isolate->native_context();
+  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  if (builtin_ctor != NULL) {
+    *flag = kCacheOnPrototype;
+    return handle(builtin_ctor->initial_map());
+  }
+  *flag = kCacheOnReceiver;
   return TypeToMap(type, isolate);
 }
 
 
+IC::State CallIC::FeedbackToState(Handle<FixedArray> vector,
+                                  Handle<Smi> slot) const {
+  IC::State state = UNINITIALIZED;
+  Object* feedback = vector->get(slot->value());
+
+  if (feedback == *TypeFeedbackInfo::MegamorphicSentinel(isolate())) {
+    state = GENERIC;
+  } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
+    state = MONOMORPHIC;
+  } else {
+    CHECK(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+  }
+
+  return state;
+}
 } }  // namespace v8::internal
 
 #endif  // V8_IC_INL_H_

@@ -5,7 +5,7 @@
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
-#include "handles.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -31,21 +31,6 @@ class HeapStringAllocator V8_FINAL : public StringAllocator {
   virtual char* grow(unsigned* bytes) V8_OVERRIDE;
 
  private:
-  char* space_;
-};
-
-
-// Allocator for use when no new c++ heap allocation is allowed.
-// Given a preallocated buffer up front and does no allocation while
-// building message.
-class NoAllocationStringAllocator V8_FINAL : public StringAllocator {
- public:
-  NoAllocationStringAllocator(char* memory, unsigned size);
-  virtual char* allocate(unsigned bytes) V8_OVERRIDE { return space_; }
-  virtual char* grow(unsigned* bytes) V8_OVERRIDE;
-
- private:
-  unsigned size_;
   char* space_;
 };
 
@@ -166,31 +151,6 @@ class StringStream V8_FINAL {
   int space() const { return capacity_ - length_; }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringStream);
-};
-
-
-// Utility class to print a list of items to a stream, divided by a separator.
-class SimpleListPrinter V8_FINAL {
- public:
-  explicit SimpleListPrinter(StringStream* stream, char separator = ',') {
-    separator_ = separator;
-    stream_ = stream;
-    first_ = true;
-  }
-
-  void Add(const char* str) {
-    if (first_) {
-      first_ = false;
-    } else {
-      stream_->Put(separator_);
-    }
-    stream_->Add(str);
-  }
-
- private:
-  bool first_;
-  char separator_;
-  StringStream* stream_;
 };
 
 } }  // namespace v8::internal

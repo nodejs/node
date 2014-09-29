@@ -5,20 +5,24 @@
 #ifndef V8_FRAMES_INL_H_
 #define V8_FRAMES_INL_H_
 
-#include "frames.h"
-#include "isolate.h"
-#include "v8memory.h"
+#include "src/frames.h"
+#include "src/isolate.h"
+#include "src/v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/frames-ia32.h"
+#include "src/ia32/frames-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "x64/frames-x64.h"
+#include "src/x64/frames-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/frames-arm64.h"
+#include "src/arm64/frames-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "arm/frames-arm.h"
+#include "src/arm/frames-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/frames-mips.h"
+#include "src/mips/frames-mips.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/frames-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/frames-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
@@ -204,7 +208,7 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
-  ASSERT(-1 <= index && index < param_count);
+  DCHECK(-1 <= index && index < param_count);
   int parameter_offset = (param_count - index - 1) * kPointerSize;
   return caller_sp() + parameter_offset;
 }
@@ -217,10 +221,10 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 
 inline Address JavaScriptFrame::GetOperandSlot(int index) const {
   Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
-  ASSERT(IsAddressAligned(base, kPointerSize));
-  ASSERT_EQ(type(), JAVA_SCRIPT);
-  ASSERT_LT(index, ComputeOperandsCount());
-  ASSERT_LE(0, index);
+  DCHECK(IsAddressAligned(base, kPointerSize));
+  DCHECK_EQ(type(), JAVA_SCRIPT);
+  DCHECK_LT(index, ComputeOperandsCount());
+  DCHECK_LE(0, index);
   // Operand stack grows down.
   return base - index * kPointerSize;
 }
@@ -236,9 +240,9 @@ inline int JavaScriptFrame::ComputeOperandsCount() const {
   // Base points to low address of first operand and stack grows down, so add
   // kPointerSize to get the actual stack size.
   intptr_t stack_size_in_bytes = (base + kPointerSize) - sp();
-  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
-  ASSERT(type() == JAVA_SCRIPT);
-  ASSERT(stack_size_in_bytes >= 0);
+  DCHECK(IsAligned(stack_size_in_bytes, kPointerSize));
+  DCHECK(type() == JAVA_SCRIPT);
+  DCHECK(stack_size_in_bytes >= 0);
   return static_cast<int>(stack_size_in_bytes >> kPointerSizeLog2);
 }
 
@@ -313,14 +317,14 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   // the JavaScript frame type, because we may encounter arguments
   // adaptor frames.
   StackFrame* frame = iterator_.frame();
-  ASSERT(frame->is_java_script() || frame->is_arguments_adaptor());
+  DCHECK(frame->is_java_script() || frame->is_arguments_adaptor());
   return static_cast<JavaScriptFrame*>(frame);
 }
 
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
-  ASSERT(!done());
-  ASSERT(frame_->is_java_script() || frame_->is_exit());
+  DCHECK(!done());
+  DCHECK(frame_->is_java_script() || frame_->is_exit());
   return frame_;
 }
 

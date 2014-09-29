@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-maths
-
 assertTrue(isNaN(Math.cbrt(NaN)));
 assertTrue(isNaN(Math.cbrt(function() {})));
 assertTrue(isNaN(Math.cbrt({ toString: function() { return NaN; } })));

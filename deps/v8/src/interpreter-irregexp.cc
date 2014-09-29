@@ -5,14 +5,15 @@
 // A simple interpreter for the Irregexp byte code.
 
 
-#include "v8.h"
-#include "unicode.h"
-#include "utils.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-#include "interpreter-irregexp.h"
-#include "jsregexp.h"
-#include "regexp-macro-assembler.h"
+#include "src/v8.h"
+
+#include "src/ast.h"
+#include "src/bytecodes-irregexp.h"
+#include "src/interpreter-irregexp.h"
+#include "src/jsregexp.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/unicode.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -118,13 +119,13 @@ static void TraceInterpreter(const byte* code_base,
 
 
 static int32_t Load32Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<intptr_t>(pc) & 3) == 0);
+  DCHECK((reinterpret_cast<intptr_t>(pc) & 3) == 0);
   return *reinterpret_cast<const int32_t *>(pc);
 }
 
 
 static int32_t Load16Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<intptr_t>(pc) & 1) == 0);
+  DCHECK((reinterpret_cast<intptr_t>(pc) & 1) == 0);
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
@@ -135,9 +136,7 @@ static int32_t Load16Aligned(const byte* pc) {
 // matching terminates.
 class BacktrackStack {
  public:
-  explicit BacktrackStack() {
-    data_ = NewArray<int>(kBacktrackStackSize);
-  }
+  BacktrackStack() { data_ = NewArray<int>(kBacktrackStackSize); }
 
   ~BacktrackStack() {
     DeleteArray(data_);
@@ -307,7 +306,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS) {
-        ASSERT(sizeof(Char) == 1);
+        DCHECK(sizeof(Char) == 1);
         int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos + 4 > subject.length()) {
           pc = code_base + Load32Aligned(pc + 4);
@@ -324,7 +323,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
-        ASSERT(sizeof(Char) == 1);
+        DCHECK(sizeof(Char) == 1);
         int pos = current + (insn >> BYTECODE_SHIFT);
         Char next1 = subject[pos + 1];
         Char next2 = subject[pos + 2];
@@ -579,7 +578,7 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
     Handle<String> subject,
     int* registers,
     int start_position) {
-  ASSERT(subject->IsFlat());
+  DCHECK(subject->IsFlat());
 
   DisallowHeapAllocation no_gc;
   const byte* code_base = code_array->GetDataStartAddress();
@@ -595,7 +594,7 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
                     start_position,
                     previous_char);
   } else {
-    ASSERT(subject_content.IsTwoByte());
+    DCHECK(subject_content.IsTwoByte());
     Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate,

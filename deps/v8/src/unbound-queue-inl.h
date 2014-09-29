@@ -5,9 +5,7 @@
 #ifndef V8_UNBOUND_QUEUE_INL_H_
 #define V8_UNBOUND_QUEUE_INL_H_
 
-#include "unbound-queue.h"
-
-#include "atomicops.h"
+#include "src/unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +24,7 @@ struct UnboundQueue<Record>::Node: public Malloced {
 template<typename Record>
 UnboundQueue<Record>::UnboundQueue() {
   first_ = new Node(Record());
-  divider_ = last_ = reinterpret_cast<AtomicWord>(first_);
+  divider_ = last_ = reinterpret_cast<base::AtomicWord>(first_);
 }
 
 
@@ -46,10 +44,10 @@ void UnboundQueue<Record>::DeleteFirst() {
 
 template<typename Record>
 bool UnboundQueue<Record>::Dequeue(Record* rec) {
-  if (divider_ == Acquire_Load(&last_)) return false;
+  if (divider_ == base::Acquire_Load(&last_)) return false;
   Node* next = reinterpret_cast<Node*>(divider_)->next;
   *rec = next->value;
-  Release_Store(&divider_, reinterpret_cast<AtomicWord>(next));
+  base::Release_Store(&divider_, reinterpret_cast<base::AtomicWord>(next));
   return true;
 }
 
@@ -58,9 +56,9 @@ template<typename Record>
 void UnboundQueue<Record>::Enqueue(const Record& rec) {
   Node*& next = reinterpret_cast<Node*>(last_)->next;
   next = new Node(rec);
-  Release_Store(&last_, reinterpret_cast<AtomicWord>(next));
+  base::Release_Store(&last_, reinterpret_cast<base::AtomicWord>(next));
 
-  while (first_ != reinterpret_cast<Node*>(Acquire_Load(&divider_))) {
+  while (first_ != reinterpret_cast<Node*>(base::Acquire_Load(&divider_))) {
     DeleteFirst();
   }
 }
@@ -68,13 +66,13 @@ void UnboundQueue<Record>::Enqueue(const Record& rec) {
 
 template<typename Record>
 bool UnboundQueue<Record>::IsEmpty() const {
-  return NoBarrier_Load(&divider_) == NoBarrier_Load(&last_);
+  return base::NoBarrier_Load(&divider_) == base::NoBarrier_Load(&last_);
 }
 
 
 template<typename Record>
 Record* UnboundQueue<Record>::Peek() const {
-  if (divider_ == Acquire_Load(&last_)) return NULL;
+  if (divider_ == base::Acquire_Load(&last_)) return NULL;
   Node* next = reinterpret_cast<Node*>(divider_)->next;
   return &next->value;
 }

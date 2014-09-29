@@ -5,7 +5,7 @@
 #ifndef V8_ARM64_CODE_STUBS_ARM64_H_
 #define V8_ARM64_CODE_STUBS_ARM64_H_
 
-#include "ic-inl.h"
+#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -27,8 +27,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
  private:
   SaveFPRegsMode save_doubles_;
 
-  Major MajorKey() { return StoreBufferOverflow; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() const { return StoreBufferOverflow; }
+  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 
 
@@ -56,15 +56,14 @@ class StringHelper : public AllStatic {
 
 class StoreRegistersStateStub: public PlatformCodeStub {
  public:
-  StoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit StoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static Register to_be_pushed_lr() { return ip0; }
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() { return StoreRegistersState; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  Major MajorKey() const { return StoreRegistersState; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -72,14 +71,13 @@ class StoreRegistersStateStub: public PlatformCodeStub {
 
 class RestoreRegistersStateStub: public PlatformCodeStub {
  public:
-  RestoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit RestoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() { return RestoreRegistersState; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  Major MajorKey() const { return RestoreRegistersState; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -122,17 +120,17 @@ class RecordWriteStub: public PlatformCodeStub {
     Instruction* instr2 = instr1->following();
 
     if (instr1->IsUncondBranchImm()) {
-      ASSERT(instr2->IsPCRelAddressing() && (instr2->Rd() == xzr.code()));
+      DCHECK(instr2->IsPCRelAddressing() && (instr2->Rd() == xzr.code()));
       return INCREMENTAL;
     }
 
-    ASSERT(instr1->IsPCRelAddressing() && (instr1->Rd() == xzr.code()));
+    DCHECK(instr1->IsPCRelAddressing() && (instr1->Rd() == xzr.code()));
 
     if (instr2->IsUncondBranchImm()) {
       return INCREMENTAL_COMPACTION;
     }
 
-    ASSERT(instr2->IsPCRelAddressing());
+    DCHECK(instr2->IsPCRelAddressing());
 
     return STORE_BUFFER_ONLY;
   }
@@ -151,31 +149,31 @@ class RecordWriteStub: public PlatformCodeStub {
     Instruction* instr1 = patcher.InstructionAt(0);
     Instruction* instr2 = patcher.InstructionAt(kInstructionSize);
     // Instructions must be either 'adr' or 'b'.
-    ASSERT(instr1->IsPCRelAddressing() || instr1->IsUncondBranchImm());
-    ASSERT(instr2->IsPCRelAddressing() || instr2->IsUncondBranchImm());
+    DCHECK(instr1->IsPCRelAddressing() || instr1->IsUncondBranchImm());
+    DCHECK(instr2->IsPCRelAddressing() || instr2->IsUncondBranchImm());
     // Retrieve the offsets to the labels.
     int32_t offset_to_incremental_noncompacting = instr1->ImmPCOffset();
     int32_t offset_to_incremental_compacting = instr2->ImmPCOffset();
 
     switch (mode) {
       case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
+        DCHECK(GetMode(stub) == INCREMENTAL ||
                GetMode(stub) == INCREMENTAL_COMPACTION);
         patcher.adr(xzr, offset_to_incremental_noncompacting);
         patcher.adr(xzr, offset_to_incremental_compacting);
         break;
       case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         patcher.b(offset_to_incremental_noncompacting >> kInstructionSizeLog2);
         patcher.adr(xzr, offset_to_incremental_compacting);
         break;
       case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         patcher.adr(xzr, offset_to_incremental_noncompacting);
         patcher.b(offset_to_incremental_compacting >> kInstructionSizeLog2);
         break;
     }
-    ASSERT(GetMode(stub) == mode);
+    DCHECK(GetMode(stub) == mode);
   }
 
  private:
@@ -191,7 +189,7 @@ class RecordWriteStub: public PlatformCodeStub {
           scratch0_(scratch),
           saved_regs_(kCallerSaved),
           saved_fp_regs_(kCallerSavedFP) {
-      ASSERT(!AreAliased(scratch, object, address));
+      DCHECK(!AreAliased(scratch, object, address));
 
       // The SaveCallerSaveRegisters method needs to save caller-saved
       // registers, but we don't bother saving MacroAssembler scratch registers.
@@ -303,9 +301,9 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() { return RecordWrite; }
+  Major MajorKey() const { return RecordWrite; }
 
-  int MinorKey() {
+  int MinorKey() const {
     return MinorKeyFor(object_, value_, address_, remembered_set_action_,
                        save_fp_regs_mode_);
   }
@@ -315,9 +313,9 @@ class RecordWriteStub: public PlatformCodeStub {
                          Register address,
                          RememberedSetAction action,
                          SaveFPRegsMode fp_mode) {
-    ASSERT(object.Is64Bits());
-    ASSERT(value.Is64Bits());
-    ASSERT(address.Is64Bits());
+    DCHECK(object.Is64Bits());
+    DCHECK(value.Is64Bits());
+    DCHECK(address.Is64Bits());
     return ObjectBits::encode(object.code()) |
         ValueBits::encode(value.code()) |
         AddressBits::encode(address.code()) |
@@ -354,8 +352,8 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() { return DirectCEntry; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return DirectCEntry; }
+  int MinorKey() const { return 0; }
 
   bool NeedsImmovableCode() { return true; }
 };
@@ -400,11 +398,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return NameDictionaryLookup; }
+  Major MajorKey() const { return NameDictionaryLookup; }
 
-  int MinorKey() {
-    return LookupModeBits::encode(mode_);
-  }
+  int MinorKey() const { return LookupModeBits::encode(mode_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
@@ -417,8 +413,8 @@ class SubStringStub: public PlatformCodeStub {
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Major MajorKey() { return SubString; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return SubString; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -447,8 +443,8 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch3);
 
  private:
-  virtual Major MajorKey() { return StringCompare; }
-  virtual int MinorKey() { return 0; }
+  virtual Major MajorKey() const { return StringCompare; }
+  virtual int MinorKey() const { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
@@ -461,8 +457,9 @@ class StringCompareStub: public PlatformCodeStub {
 };
 
 
-struct PlatformCallInterfaceDescriptor {
-  explicit PlatformCallInterfaceDescriptor(
+class PlatformInterfaceDescriptor {
+ public:
+  explicit PlatformInterfaceDescriptor(
       TargetAddressStorageMode storage_mode)
       : storage_mode_(storage_mode) { }
 

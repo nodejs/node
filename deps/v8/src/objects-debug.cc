@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "disasm.h"
-#include "jsregexp.h"
-#include "macro-assembler.h"
-#include "objects-visiting.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/heap/objects-visiting.h"
+#include "src/jsregexp.h"
+#include "src/macro-assembler.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -54,6 +55,7 @@ void HeapObject::HeapObjectVerify() {
       Map::cast(this)->MapVerify();
       break;
     case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
     case FIXED_ARRAY_TYPE:
@@ -205,7 +207,7 @@ void Symbol::SymbolVerify() {
 
 
 void HeapNumber::HeapNumberVerify() {
-  CHECK(IsHeapNumber());
+  CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
 
 
@@ -261,12 +263,12 @@ void JSObject::JSObjectVerify() {
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       if (descriptors->GetDetails(i).type() == FIELD) {
         Representation r = descriptors->GetDetails(i).representation();
-        int field = descriptors->GetFieldIndex(i);
-        Object* value = RawFastPropertyAt(field);
-        if (r.IsDouble()) ASSERT(value->IsHeapNumber());
+        FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        Object* value = RawFastPropertyAt(index);
+        if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized()) continue;
-        if (r.IsSmi()) ASSERT(value->IsSmi());
-        if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
+        if (r.IsSmi()) DCHECK(value->IsSmi());
+        if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
         HeapType* field_type = descriptors->GetFieldType(i);
         if (r.IsNone()) {
           CHECK(field_type->Is(HeapType::None()));
@@ -298,17 +300,17 @@ void Map::MapVerify() {
           instance_size() < heap->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
-  SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
+  SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   if (HasTransitionArray()) {
-    SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
-    SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
+    SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
+    SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
 }
 
 
-void Map::SharedMapVerify() {
+void Map::DictionaryMapVerify() {
   MapVerify();
-  CHECK(is_shared());
+  CHECK(is_dictionary_map());
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, pre_allocated_property_fields());
   CHECK_EQ(0, unused_property_fields());
@@ -347,6 +349,7 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
+  VerifyObjectField(kStorage3Offset);
 }
 
 
@@ -378,12 +381,14 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 void ConstantPoolArray::ConstantPoolArrayVerify() {
   CHECK(IsConstantPoolArray());
-  for (int i = 0; i < count_of_code_ptr_entries(); i++) {
-    Address code_entry = get_code_ptr_entry(first_code_ptr_index() + i);
+  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
+  while (!code_iter.is_finished()) {
+    Address code_entry = get_code_ptr_entry(code_iter.next_index());
     VerifyPointer(Code::GetCodeFromTargetAddress(code_entry));
   }
-  for (int i = 0; i < count_of_heap_ptr_entries(); i++) {
-    VerifyObjectField(OffsetOfElementAt(first_heap_ptr_index() + i));
+  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
+  while (!heap_iter.is_finished()) {
+    VerifyObjectField(OffsetOfElementAt(heap_iter.next_index()));
   }
 }
 
@@ -542,7 +547,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
-  CHECK(HasFastObjectElements());
+  CHECK(HasFastSmiElements());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -636,6 +641,8 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
+  CHECK(raw_type_feedback_info() == Smi::FromInt(0) ||
+        raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
 }
 
 
@@ -701,14 +708,8 @@ void JSSetIterator::JSSetIteratorVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(count()->IsSmi());
-  CHECK(kind()->IsSmi());
-  VerifyHeapPointer(next_iterator());
-  CHECK(next_iterator()->IsJSSetIterator() || next_iterator()->IsUndefined());
-  VerifyHeapPointer(table());
-  CHECK(previous_iterator()->IsJSSetIterator()
-        || previous_iterator()->IsUndefined());
+  CHECK(index()->IsSmi() || index()->IsUndefined());
+  CHECK(kind()->IsSmi() || kind()->IsUndefined());
 }
 
 
@@ -717,14 +718,8 @@ void JSMapIterator::JSMapIteratorVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(count()->IsSmi());
-  CHECK(kind()->IsSmi());
-  VerifyHeapPointer(next_iterator());
-  CHECK(next_iterator()->IsJSMapIterator() || next_iterator()->IsUndefined());
-  VerifyHeapPointer(table());
-  CHECK(previous_iterator()->IsJSMapIterator()
-        || previous_iterator()->IsUndefined());
+  CHECK(index()->IsSmi() || index()->IsUndefined());
+  CHECK(kind()->IsSmi() || kind()->IsUndefined());
 }
 
 
@@ -888,7 +883,6 @@ void AccessorPair::AccessorPairVerify() {
   CHECK(IsAccessorPair());
   VerifyPointer(getter());
   VerifyPointer(setter());
-  VerifySmiField(kAccessFlagsOffset);
 }
 
 
@@ -1018,7 +1012,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
     for (int i = 0; i < length(); i++) {
       Object* e = FixedArray::get(i);
       if (e->IsMap()) {
-        Map::cast(e)->SharedMapVerify();
+        Map::cast(e)->DictionaryMapVerify();
       } else {
         CHECK(e->IsUndefined());
       }
@@ -1150,13 +1144,15 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      PrintDescriptors();
+      OFStream os(stdout);
+      PrintDescriptors(os);
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      PrintDescriptors();
+      OFStream os(stdout);
+      PrintDescriptors(os);
       return false;
     }
     current = hash;
@@ -1166,19 +1162,21 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  ASSERT(valid_entries == -1);
+  DCHECK(valid_entries == -1);
   Name* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      PrintTransitions();
+      OFStream os(stdout);
+      PrintTransitions(os);
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      PrintTransitions();
+      OFStream os(stdout);
+      PrintTransitions(os);
       return false;
     }
     current = hash;

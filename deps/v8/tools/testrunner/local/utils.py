@@ -32,6 +32,7 @@ from os.path import isdir
 from os.path import join
 import platform
 import re
+import urllib2
 
 
 def GetSuitePaths(test_root):
@@ -113,3 +114,10 @@ def GuessWordsize():
 
 def IsWindows():
   return GuessOS() == 'windows'
+
+
+def URLRetrieve(source, destination):
+  """urllib is broken for SSL connections via a proxy therefore we
+  can't use urllib.urlretrieve()."""
+  with open(destination, 'w') as f:
+    f.write(urllib2.urlopen(source).read())

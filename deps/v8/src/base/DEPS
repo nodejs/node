@@ -1,0 +1,7 @@
+include_rules = [
+  "-include",
+  "+include/v8config.h",
+  "+include/v8stdint.h",
+  "-src",
+  "+src/base",
+]
