@@ -28,6 +28,17 @@ var http = require('http');
 
 var s = http.createServer(function(req, res) {
   res.setHeader('test', '1');
+
+  // toLowerCase() is used on the name argument, so it must be a string.
+  var threw = false;
+  try {
+    res.setHeader(0xf00, 'bar');
+  } catch (e) {
+    assert.ok(e instanceof TypeError);
+    threw = true;
+  }
+  assert.ok(threw, 'Non-string names should throw');
+
   res.writeHead(200, { Test: '2' });
   res.end();
 });
