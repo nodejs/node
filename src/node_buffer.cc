@@ -338,37 +338,31 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 }
 
 
-// buffer.fill(value[, start][, end]);
 void Fill(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  ARGS_THIS(args[0].As<Object>())
 
-  ARGS_THIS(args.This())
-  SLICE_START_END(args[1], args[2], obj_length)
-  args.GetReturnValue().Set(args.This());
+  size_t start = args[2]->Uint32Value();
+  size_t end = args[3]->Uint32Value();
+  size_t length = end - start;
+  CHECK(length + start <= obj_length);
 
-  if (args[0]->IsNumber()) {
-    int value = args[0]->Uint32Value() & 255;
+  if (args[1]->IsNumber()) {
+    int value = args[1]->Uint32Value() & 255;
     memset(obj_data + start, value, length);
     return;
   }
 
-  node::Utf8Value at(args[0]);
-  size_t at_length = at.length();
+  node::Utf8Value str(args[1]);
+  size_t str_length = str.length();
+  size_t in_there = str_length;
+  char* ptr = obj_data + start + str_length;
 
-  // optimize single ascii character case
-  if (at_length == 1) {
-    int value = static_cast<int>((*at)[0]);
-    memset(obj_data + start, value, length);
+  if (str_length == 0)
     return;
-  }
 
-  size_t in_there = at_length;
-  char* ptr = obj_data + start + at_length;
+  memcpy(obj_data + start, *str, MIN(str_length, length));
 
-  memcpy(obj_data + start, *at, MIN(at_length, length));
-
-  if (at_length >= length)
+  if (str_length >= length)
     return;
 
   while (in_there < length - in_there) {
@@ -660,7 +654,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   NODE_SET_METHOD(proto, "writeFloatLE", WriteFloatLE);
 
   NODE_SET_METHOD(proto, "copy", Copy);
-  NODE_SET_METHOD(proto, "fill", Fill);
 
   // for backwards compatibility
   proto->Set(env->offset_string(),
@@ -670,16 +663,11 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   assert(args[1]->IsObject());
 
   Local<Object> internal = args[1].As<Object>();
+  ASSERT(internal->IsObject());
 
-  Local<Function> byte_length = FunctionTemplate::New(
-                    env->isolate(), ByteLength)->GetFunction();
-  byte_length->SetName(env->byte_length_string());
-  internal->Set(env->byte_length_string(), byte_length);
-
-  Local<Function> compare = FunctionTemplate::New(
-                    env->isolate(), Compare)->GetFunction();
-  compare->SetName(env->compare_string());
-  internal->Set(env->compare_string(), compare);
+  NODE_SET_METHOD(internal, "byteLength", ByteLength);
+  NODE_SET_METHOD(internal, "compare", Compare);
+  NODE_SET_METHOD(internal, "fill", Fill);
 }
 
 
