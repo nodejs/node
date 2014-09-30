@@ -72,7 +72,6 @@ namespace node {
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
-  V(byte_length_string, "byteLength")                                         \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(close_string, "close")                                                    \
