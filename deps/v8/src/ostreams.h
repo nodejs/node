@@ -117,13 +117,26 @@ class OFStream: public OStream {
 };
 
 
-// A wrapper to disambiguate uint16_t and uc16.
+// Wrappers to disambiguate uint16_t and uc16.
 struct AsUC16 {
   explicit AsUC16(uint16_t v) : value(v) {}
   uint16_t value;
 };
 
 
+struct AsReversiblyEscapedUC16 {
+  explicit AsReversiblyEscapedUC16(uint16_t v) : value(v) {}
+  uint16_t value;
+};
+
+
+// Writes the given character to the output escaping everything outside of
+// printable/space ASCII range. Additionally escapes '\' making escaping
+// reversible.
+OStream& operator<<(OStream& os, const AsReversiblyEscapedUC16& c);
+
+// Writes the given character to the output escaping everything outside
+// of printable ASCII range.
 OStream& operator<<(OStream& os, const AsUC16& c);
 } }  // namespace v8::internal
 
