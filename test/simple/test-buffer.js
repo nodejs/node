@@ -950,8 +950,6 @@ var buf = new Buffer([0xFF]);
 assert.equal(buf.readUInt8(0), 255);
 assert.equal(buf.readInt8(0), -1);
 
-
-
 [16, 32].forEach(function(bits) {
   var buf = new Buffer(bits / 8 - 1);
 
@@ -987,6 +985,91 @@ assert.equal(buf.readInt8(0), -1);
   assert.equal(buf['readInt' + bits + 'LE'](0),
                 (0xFFFFFFFF >> (32 - bits)));
 });
+
+// test for common read(U)IntLE/BE
+(function() {
+  var buf = new Buffer([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
+
+  assert.equal(buf.readUIntLE(0, 1), 0x01);
+  assert.equal(buf.readUIntBE(0, 1), 0x01);
+  assert.equal(buf.readUIntLE(0, 3), 0x030201);
+  assert.equal(buf.readUIntBE(0, 3), 0x010203);
+  assert.equal(buf.readUIntLE(0, 5), 0x0504030201);
+  assert.equal(buf.readUIntBE(0, 5), 0x0102030405);
+  assert.equal(buf.readUIntLE(0, 6), 0x060504030201);
+  assert.equal(buf.readUIntBE(0, 6), 0x010203040506);
+  assert.equal(buf.readIntLE(0, 1), 0x01);
+  assert.equal(buf.readIntBE(0, 1), 0x01);
+  assert.equal(buf.readIntLE(0, 3), 0x030201);
+  assert.equal(buf.readIntBE(0, 3), 0x010203);
+  assert.equal(buf.readIntLE(0, 5), 0x0504030201);
+  assert.equal(buf.readIntBE(0, 5), 0x0102030405);
+  assert.equal(buf.readIntLE(0, 6), 0x060504030201);
+  assert.equal(buf.readIntBE(0, 6), 0x010203040506);
+})();
+
+// test for common write(U)IntLE/BE
+(function() {
+  var buf = new Buffer(3);
+  buf.writeUIntLE(0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
+  assert.equal(buf.readUIntLE(0, 3), 0x123456);
+
+  buf = new Buffer(3);
+  buf.writeUIntBE(0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
+  assert.equal(buf.readUIntBE(0, 3), 0x123456);
+
+  buf = new Buffer(3);
+  buf.writeIntLE(0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
+  assert.equal(buf.readIntLE(0, 3), 0x123456);
+
+  buf = new Buffer(3);
+  buf.writeIntBE(0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
+  assert.equal(buf.readIntBE(0, 3), 0x123456);
+
+  buf = new Buffer(3);
+  buf.writeIntLE(-0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0xaa, 0xcb, 0xed]);
+  assert.equal(buf.readIntLE(0, 3), -0x123456);
+
+  buf = new Buffer(3);
+  buf.writeIntBE(-0x123456, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xaa]);
+  assert.equal(buf.readIntBE(0, 3), -0x123456);
+
+  buf = new Buffer(5);
+  buf.writeUIntLE(0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
+  assert.equal(buf.readUIntLE(0, 5), 0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeUIntBE(0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
+  assert.equal(buf.readUIntBE(0, 5), 0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeIntLE(0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
+  assert.equal(buf.readIntLE(0, 5), 0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeIntBE(0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
+  assert.equal(buf.readIntBE(0, 5), 0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeIntLE(-0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x70, 0x87, 0xa9, 0xcb, 0xed]);
+  assert.equal(buf.readIntLE(0, 5), -0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeIntBE(-0x1234567890, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xa9, 0x87, 0x70]);
+  assert.equal(buf.readIntBE(0, 5), -0x1234567890);
+})();
 
 // test Buffer slice
 (function() {
