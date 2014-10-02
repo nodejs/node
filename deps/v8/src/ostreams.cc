@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 #include "src/base/platform/platform.h"  // For isinf/isnan with MSVC
@@ -163,11 +164,21 @@ OFStream& OFStream::flush() {
 }
 
 
+OStream& operator<<(OStream& os, const AsReversiblyEscapedUC16& c) {
+  char buf[10];
+  const char* format =
+      (std::isprint(c.value) || std::isspace(c.value)) && c.value != '\\'
+          ? "%c"
+          : (c.value <= 0xff) ? "\\x%02x" : "\\u%04x";
+  snprintf(buf, sizeof(buf), format, c.value);
+  return os << buf;
+}
+
+
 OStream& operator<<(OStream& os, const AsUC16& c) {
   char buf[10];
-  const char* format = (0x20 <= c.value && c.value <= 0x7F)
-                           ? "%c"
-                           : (c.value <= 0xff) ? "\\x%02x" : "\\u%04x";
+  const char* format =
+      std::isprint(c.value) ? "%c" : (c.value <= 0xff) ? "\\x%02x" : "\\u%04x";
   snprintf(buf, sizeof(buf), format, c.value);
   return os << buf;
 }
