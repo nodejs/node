@@ -30,12 +30,12 @@ exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDir = path.join(exports.testDir, 'tmp');
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 
+exports.opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
 if (process.platform === 'win32') {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
-  exports.opensslCli = path.join(process.execPath, '..', 'openssl-cli.exe');
+  exports.opensslCli += '.exe';
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
-  exports.opensslCli = path.join(process.execPath, '..', 'openssl-cli');
 }
 if (!fs.existsSync(exports.opensslCli))
   exports.opensslCli = false;
