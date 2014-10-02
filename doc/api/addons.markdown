@@ -813,70 +813,69 @@ Test it with:
     console.log(result); // 30
 
 
-### AtExit
+### void AtExit(callback, args)
 
-Registers exit hooks that run after the event loop has ended, but before the 
-VM is killed.
+* `callback`: `void (*)(void*)` - A pointer to the function to call at exit.
+* `args`: `void*` - A pointer to pass to the callback at exit.
 
-AtExit works by creating a new AtExitCallback and prepends it to the list of 
-functions to be run at exit, i.e., callbacks are run in reverse order of
-registration. AtExit takes a callback and arguments to the AtExitCallback as 
-arguments.
+Registers exit hooks that run after the event loop has ended, but before the VM is killed.
 
-     void AtExit(void (*cb)(void* arg), void* arg) {
-       AtExitCallback* p = new AtExitCallback;
-       p->cb_ = cb;
-       p->arg_ = arg;
-       p->next_ = at_exit_functions_;
-       at_exit_functions_ = p;
-     }
+Callbacks are run in reverse order of registration, i.e. newest first. AtExit takes callback 
+and its arguments as arguments. See implementation below:
 
-We introduce a `binding.cc` to illustrate AtExit:
+      void AtExit(void (*cb)(void* arg), void* arg) {
+        AtExitCallback* p = new AtExitCallback;
+        p->cb_ = cb;
+        p->arg_ = arg;
+        p->next_ = at_exit_functions_;
+        at_exit_functions_ = p;
+      }
+The file `binding.cc` implements AtExit below:
 
-     #undef NDEBUG
-     #include <assert.h>
-     #include <stdlib.h>
-     #include <node.h>
-     #include <v8.h>
+      #undef NDEBUG
+      #include <assert.h>
+      #include <stdlib.h>
+      #include <node.h>
+      #include <v8.h>
 
-     using node::AtExit;
-     using v8::Handle;
-     using v8::HandleScope;
-     using v8::Local;
-     using v8::Object;
+      using node::AtExit;
+      using v8::Handle;
+      using v8::HandleScope;
+      using v8::Local;
+      using v8::Object;
 
-     static char cookie[] = "yum yum";
-     static int at_exit_cb1_called = 0;
-     static int at_exit_cb2_called = 0;
+      static char cookie[] = "yum yum";
+      static int at_exit_cb1_called = 0;
+      static int at_exit_cb2_called = 0;
 
-     static void at_exit_cb1(void* arg) {
-       HandleScope scope;
-       assert(arg == 0);
-       Local<Object> obj = Object::New();
-       assert(!obj.IsEmpty()); // assert VM is still alive
-       assert(obj->IsObject());
-       at_exit_cb1_called++;
-     }
+      static void at_exit_cb1(void* arg) {
+        HandleScope scope;
+        assert(arg == 0);
+        Local<Object> obj = Object::New();
+        assert(!obj.IsEmpty()); // assert VM is still alive
+        assert(obj->IsObject());
+        at_exit_cb1_called++;
+      }
 
-     static void at_exit_cb2(void* arg) {
-       assert(arg == static_cast<void*>(cookie));
-       at_exit_cb2_called++;
-     }
+      static void at_exit_cb2(void* arg) {
+        assert(arg == static_cast<void*>(cookie));
+        at_exit_cb2_called++;
+      }
 
-     static void sanity_check(void) {
-       assert(at_exit_cb1_called == 1);
-       assert(at_exit_cb2_called == 2);
-     }
+      static void sanity_check(void) {
+        assert(at_exit_cb1_called == 1);
+        assert(at_exit_cb2_called == 2);
+      }
 
-     void init(Handle<Object> target) {
-       AtExit(at_exit_cb1);
-       AtExit(at_exit_cb2, cookie);
-       AtExit(at_exit_cb2, cookie);
-       atexit(sanity_check);
-     }
+      void init(Handle<Object> target) {
+        AtExit(at_exit_cb1);
+        AtExit(at_exit_cb2, cookie);
+        AtExit(at_exit_cb2, cookie);
+        atexit(sanity_check);
+      }
 
-     NODE_MODULE(binding, init);
+      NODE_MODULE(binding, init);
 
-To test it in JavaScript:
+Test in JavaScript by running:
 
-     var binding = require('./build/Release/binding');
+      var binding = require('./build/Release/binding');
