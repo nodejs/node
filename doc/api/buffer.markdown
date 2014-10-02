@@ -180,6 +180,48 @@ The method will not write partial characters.
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
+### buf.writeUIntLE(value, offset, byteLength[, noAssert])
+### buf.writeUIntBE(value, offset, byteLength[, noAssert])
+### buf.writeIntLE(value, offset, byteLength[, noAssert])
+### buf.writeIntBE(value, offset, byteLength[, noAssert])
+
+* `value` {Number} Bytes to be written to buffer
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+Writes `value` to the buffer at the specified `offset` and `byteLength`.
+Supports up to 48 bits of accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUIntBE(0x1234567890ab, 0, 6);
+    // <Buffer 12 34 56 78 90 ab>
+
+Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
+to `false`.
+
+### buf.readUIntLE(offset, byteLength[, noAssert])
+### buf.readUIntBE(offset, byteLength[, noAssert])
+### buf.readIntLE(offset, byteLength[, noAssert])
+### buf.readIntBE(offset, byteLength[, noAssert])
+
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+A generalized version of all numeric read methods. Supports up to 48 bits of
+accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUint16LE(0x90ab, 0);
+    b.writeUInt32LE(0x12345678, 2);
+    b.readUIntLE(0, 6).toString(16);  // Specify 6 bytes (48 bits)
+    // output: '1234567890ab'
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
 
 ### buf.toString([encoding][, start][, end])
 
