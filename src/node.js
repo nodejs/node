@@ -56,7 +56,10 @@
     startup.processKillAndExit();
     startup.processSignalHandlers();
 
-    startup.processChannel();
+    // Do not initialize channel in debugger agent, it deletes env variable
+    // and the main thread won't see it.
+    if (process.argv[1] !== '--debug-agent')
+      startup.processChannel();
 
     startup.processRawDebug();
 
@@ -78,6 +81,11 @@
     } else if (process.argv[1] == 'debug') {
       // Start the debugger agent
       var d = NativeModule.require('_debugger');
+      d.start();
+
+    } else if (process.argv[1] == '--debug-agent') {
+      // Start the debugger agent
+      var d = NativeModule.require('_debugger_agent');
       d.start();
 
     } else if (process._eval != null) {
