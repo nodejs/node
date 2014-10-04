@@ -9,6 +9,7 @@
   'variables': {
     'icu_src_derb': [ '../../deps/icu/source/tools/genrb/derb.c' ],
   },
+  'includes': [ '../../icu_config.gypi' ],
   'targets': [
     {
       # a target to hold uconfig defines.
