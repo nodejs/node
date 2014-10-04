@@ -39,9 +39,6 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
-// defined in node.cc
-extern QUEUE handle_wrap_queue;
-
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
@@ -100,7 +97,7 @@ HandleWrap::HandleWrap(Environment* env,
   handle__->data = this;
   HandleScope scope(env->isolate());
   Wrap<HandleWrap>(object, this);
-  QUEUE_INSERT_TAIL(&handle_wrap_queue, &handle_wrap_queue_);
+  QUEUE_INSERT_TAIL(env->handle_wrap_queue(), &handle_wrap_queue_);
 }
 
 

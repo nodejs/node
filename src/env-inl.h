@@ -74,10 +74,10 @@ inline Environment::IsolateData* Environment::IsolateData::Get(
 }
 
 inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
-    v8::Isolate* isolate) {
+    v8::Isolate* isolate, uv_loop_t* loop) {
   IsolateData* isolate_data = Get(isolate);
   if (isolate_data == NULL) {
-    isolate_data = new IsolateData(isolate);
+    isolate_data = new IsolateData(isolate, loop);
     isolate->SetData(kIsolateSlot, isolate_data);
   }
   isolate_data->ref_count_ += 1;
@@ -91,8 +91,9 @@ inline void Environment::IsolateData::Put() {
   }
 }
 
-inline Environment::IsolateData::IsolateData(v8::Isolate* isolate)
-    : event_loop_(uv_default_loop()),
+inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
+                                             uv_loop_t* loop)
+    : event_loop_(loop),
       isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(isolate, FIXED_ONE_BYTE_STRING(isolate, StringValue)),
@@ -188,8 +189,9 @@ inline void Environment::TickInfo::set_last_threw(bool value) {
   last_threw_ = value;
 }
 
-inline Environment* Environment::New(v8::Local<v8::Context> context) {
-  Environment* env = new Environment(context);
+inline Environment* Environment::New(v8::Local<v8::Context> context,
+                                     uv_loop_t* loop) {
+  Environment* env = new Environment(context, loop);
   env->AssignToContext(context);
   return env;
 }
@@ -207,12 +209,14 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
 }
 
-inline Environment::Environment(v8::Local<v8::Context> context)
+inline Environment::Environment(v8::Local<v8::Context> context,
+                                uv_loop_t* loop)
     : isolate_(context->GetIsolate()),
-      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),
+      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       using_smalloc_alloc_cb_(false),
       using_domains_(false),
       printed_error_(false),
+      debugger_agent_(this),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -221,6 +225,10 @@ inline Environment::Environment(v8::Local<v8::Context> context)
   set_module_load_list_array(v8::Array::New(isolate()));
   RB_INIT(&cares_task_list_);
   QUEUE_INIT(&gc_tracker_queue_);
+  QUEUE_INIT(&req_wrap_queue_);
+  QUEUE_INIT(&handle_wrap_queue_);
+  QUEUE_INIT(&handle_cleanup_queue_);
+  handle_cleanup_waiting_ = 0;
 }
 
 inline Environment::~Environment() {
@@ -231,6 +239,21 @@ inline Environment::~Environment() {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
   isolate_data()->Put();
+}
+
+inline void Environment::CleanupHandles() {
+  while (!QUEUE_EMPTY(&handle_cleanup_queue_)) {
+    QUEUE* q = QUEUE_HEAD(&handle_cleanup_queue_);
+    QUEUE_REMOVE(q);
+
+    HandleCleanup* hc = ContainerOf(&HandleCleanup::handle_cleanup_queue_, q);
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
 }
 
 inline void Environment::Dispose() {
@@ -285,6 +308,17 @@ inline Environment* Environment::from_idle_check_handle(uv_check_t* handle) {
 
 inline uv_check_t* Environment::idle_check_handle() {
   return &idle_check_handle_;
+}
+
+inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
+                                               HandleCleanupCb cb,
+                                               void *arg) {
+  HandleCleanup* hc = new HandleCleanup(handle, cb, arg);
+  QUEUE_INSERT_TAIL(&handle_cleanup_queue_, &hc->handle_cleanup_queue_);
+}
+
+inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
+  handle_cleanup_waiting_--;
 }
 
 inline uv_loop_t* Environment::event_loop() const {
