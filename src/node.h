@@ -63,6 +63,9 @@
 
 #define NODE_DEPRECATED(msg, fn) V8_DEPRECATED(msg, fn)
 
+// Forward-declare libuv loop
+struct uv_loop_s;
+
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
@@ -178,11 +181,25 @@ NODE_EXTERN void Init(int* argc,
 class Environment;
 
 NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
+                                           struct uv_loop_s* loop,
                                            v8::Handle<v8::Context> context,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
                                            const char* const* exec_argv);
+NODE_EXTERN void LoadEnvironment(Environment* env);
+
+// NOTE: Calling this is the same as calling
+// CreateEnvironment() + LoadEnvironment() from above.
+// `uv_default_loop()` will be passed as `loop`.
+NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
+                                           v8::Handle<v8::Context> context,
+                                           int argc,
+                                           const char* const* argv,
+                                           int exec_argc,
+                                           const char* const* exec_argv);
+
+
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
 NODE_EXTERN void RunAtExit(Environment* env);
