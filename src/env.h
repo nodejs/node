@@ -28,6 +28,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "queue.h"
+#include "debugger-agent.h"
 
 #include <stdint.h>
 
@@ -356,11 +357,34 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  typedef void (*HandleCleanupCb)(Environment* env,
+                                  uv_handle_t* handle,
+                                  void* arg);
+
+  class HandleCleanup {
+   private:
+    friend class Environment;
+
+    HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
+        : handle_(handle),
+          cb_(cb),
+          arg_(arg) {
+      QUEUE_INIT(&handle_cleanup_queue_);
+    }
+
+    uv_handle_t* handle_;
+    HandleCleanupCb cb_;
+    void* arg_;
+    QUEUE handle_cleanup_queue_;
+  };
+
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
 
   // See CreateEnvironment() in src/node.cc.
-  static inline Environment* New(v8::Local<v8::Context> context);
+  static inline Environment* New(v8::Local<v8::Context> context,
+                                 uv_loop_t* loop);
+  inline void CleanupHandles();
   inline void Dispose();
 
   // Defined in src/node_profiler.cc.
@@ -384,6 +408,12 @@ class Environment {
 
   static inline Environment* from_idle_check_handle(uv_check_t* handle);
   inline uv_check_t* idle_check_handle();
+
+  // Register clean-up cb to be called on env->Dispose()
+  inline void RegisterHandleCleanup(uv_handle_t* handle,
+                                    HandleCleanupCb cb,
+                                    void *arg);
+  inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncListener* async_listener();
   inline DomainFlag* domain_flag();
@@ -434,12 +464,19 @@ class Environment {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
+  inline debugger::Agent* debugger_agent() {
+    return &debugger_agent_;
+  }
+
+  inline QUEUE* handle_wrap_queue() { return &handle_wrap_queue_; }
+  inline QUEUE* req_wrap_queue() { return &req_wrap_queue_; }
+
  private:
   static const int kIsolateSlot = NODE_ISOLATE_SLOT;
 
   class GCInfo;
   class IsolateData;
-  inline explicit Environment(v8::Local<v8::Context> context);
+  inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
   void AfterGarbageCollectionCallback(const GCInfo* before,
@@ -465,6 +502,12 @@ class Environment {
   bool using_domains_;
   QUEUE gc_tracker_queue_;
   bool printed_error_;
+  debugger::Agent debugger_agent_;
+
+  QUEUE handle_wrap_queue_;
+  QUEUE req_wrap_queue_;
+  QUEUE handle_cleanup_queue_;
+  int handle_cleanup_waiting_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
@@ -494,7 +537,8 @@ class Environment {
   // Per-thread, reference-counted singleton.
   class IsolateData {
    public:
-    static inline IsolateData* GetOrCreate(v8::Isolate* isolate);
+    static inline IsolateData* GetOrCreate(v8::Isolate* isolate,
+                                           uv_loop_t* loop);
     inline void Put();
     inline uv_loop_t* event_loop() const;
 
@@ -509,7 +553,7 @@ class Environment {
 
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
-    inline explicit IsolateData(v8::Isolate* isolate);
+    inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
     inline v8::Isolate* isolate() const;
 
     // Defined in src/node_profiler.cc.

@@ -1,4 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
+// Copyright Fedor Indutny and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -19,52 +19,46 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef SRC_REQ_WRAP_H_
-#define SRC_REQ_WRAP_H_
+#ifndef DEPS_DEBUGGER_AGENT_SRC_AGENT_H_
+#define DEPS_DEBUGGER_AGENT_SRC_AGENT_H_
 
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
-#include "env.h"
-#include "env-inl.h"
+#include "v8.h"
+#include "v8-debug.h"
 #include "queue.h"
-#include "util.h"
+
+#include <assert.h>
+#include <string.h>
 
 namespace node {
+namespace debugger {
 
-template <typename T>
-class ReqWrap : public AsyncWrap {
+class AgentMessage {
  public:
-  ReqWrap(Environment* env,
-          v8::Handle<v8::Object> object,
-          AsyncWrap::ProviderType provider = AsyncWrap::PROVIDER_REQWRAP)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_REQWRAP) {
-    if (env->in_domain())
-      object->Set(env->domain_string(), env->domain_array()->Get(0));
-
-    QUEUE_INSERT_TAIL(env->req_wrap_queue(), &req_wrap_queue_);
+  AgentMessage(uint16_t* val, int length) : length_(length) {
+    if (val == NULL) {
+      data_ = val;
+    } else {
+      data_ = new uint16_t[length];
+      memcpy(data_, val, length * sizeof(*data_));
+    }
   }
 
-
-  ~ReqWrap() {
-    QUEUE_REMOVE(&req_wrap_queue_);
-    // Assert that someone has called Dispatched()
-    assert(req_.data == this);
-    assert(!persistent().IsEmpty());
-    persistent().Reset();
+  ~AgentMessage() {
+    delete[] data_;
+    data_ = NULL;
   }
 
-  // Call this after the req has been dispatched.
-  void Dispatched() {
-    req_.data = this;
-  }
+  inline const uint16_t* data() const { return data_; }
+  inline int length() const { return length_; }
 
-  // TODO(bnoordhuis) Make these private.
-  QUEUE req_wrap_queue_;
-  T req_;  // *must* be last, GetActiveRequests() in node.cc depends on it
+  QUEUE member;
+
+ private:
+  uint16_t* data_;
+  int length_;
 };
 
-
+}  // namespace debugger
 }  // namespace node
 
-
-#endif  // SRC_REQ_WRAP_H_
+#endif  // DEPS_DEBUGGER_AGENT_SRC_AGENT_H_

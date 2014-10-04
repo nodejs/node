@@ -1200,6 +1200,20 @@ static void StrError(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void CaresTimerCloseCb(uv_handle_t* handle) {
+  Environment* env = Environment::from_cares_timer_handle(
+      reinterpret_cast<uv_timer_t*>(handle));
+  env->FinishHandleCleanup(handle);
+}
+
+
+static void CaresTimerClose(Environment* env,
+                            uv_handle_t* handle,
+                            void* arg) {
+  uv_close(handle, CaresTimerCloseCb);
+}
+
+
 static void Initialize(Handle<Object> target,
                        Handle<Value> unused,
                        Handle<Context> context) {
@@ -1223,6 +1237,10 @@ static void Initialize(Handle<Object> target,
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
   uv_timer_init(env->event_loop(), env->cares_timer_handle());
+  env->RegisterHandleCleanup(
+      reinterpret_cast<uv_handle_t*>(env->cares_timer_handle()),
+      CaresTimerClose,
+      NULL);
 
   NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
   NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);

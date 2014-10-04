@@ -67,6 +67,7 @@
       'lib/util.js',
       'lib/vm.js',
       'lib/zlib.js',
+      'deps/debugger-agent/lib/_debugger_agent.js',
     ],
   },
 
@@ -77,6 +78,7 @@
 
       'dependencies': [
         'node_js2c#host',
+        'deps/debugger-agent/debugger-agent.gyp:debugger-agent',
       ],
 
       'include_dirs': [
