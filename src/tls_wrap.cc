@@ -447,6 +447,10 @@ void TLSCallbacks::ClearOut() {
   if (!hello_parser_.IsEnded())
     return;
 
+  // No reads after EOF
+  if (eof_)
+    return;
+
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
@@ -475,6 +479,10 @@ void TLSCallbacks::ClearOut() {
   if (read == -1) {
     int err;
     Local<Value> arg = GetSSLError(read, &err, NULL);
+
+    // Ignore ZERO_RETURN after EOF, it is basically not a error
+    if (err == SSL_ERROR_ZERO_RETURN && eof_)
+      return;
 
     if (!arg.IsEmpty()) {
       // When TLS Alert are stored in wbio,
