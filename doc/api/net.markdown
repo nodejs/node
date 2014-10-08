@@ -603,3 +603,4 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [server.getConnections()]: #net_server_getconnections_callback
 [Readable Stream]: stream.html#stream_readable_stream
 [stream.setEncoding()]: stream.html#stream_stream_setencoding_encoding
+[dns.lookup()]: dns.html#dns_dns_lookup_domain_family_callback

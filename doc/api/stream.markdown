@@ -65,7 +65,7 @@ var server = http.createServer(function (req, res) {
   // Readable streams emit 'data' events once a listener is added
   req.on('data', function (chunk) {
     body += chunk;
-  })
+  });
 
   // the end event tells you that you have entire body
   req.on('end', function () {
@@ -80,8 +80,8 @@ var server = http.createServer(function (req, res) {
     // write back something interesting to the user:
     res.write(typeof data);
     res.end();
-  })
-})
+  });
+});
 
 server.listen(1337);
 
@@ -158,7 +158,7 @@ hadn't already.
 var readable = getReadableStreamSomehow();
 readable.on('readable', function() {
   // there is some data to read now
-})
+});
 ```
 
 Once the internal buffer is drained, a `readable` event will fire
@@ -179,7 +179,7 @@ possible, this is the best way to do so.
 var readable = getReadableStreamSomehow();
 readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
-})
+});
 ```
 
 #### Event: 'end'
@@ -194,7 +194,7 @@ or by calling `read()` repeatedly until you get to the end.
 var readable = getReadableStreamSomehow();
 readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
-})
+});
 readable.on('end', function() {
   console.log('there will be no more data.');
 });
@@ -266,7 +266,7 @@ readable.setEncoding('utf8');
 readable.on('data', function(chunk) {
   assert.equal(typeof chunk, 'string');
   console.log('got %d characters of string data', chunk.length);
-})
+});
 ```
 
 #### readable.resume()
@@ -286,7 +286,7 @@ var readable = getReadableStreamSomehow();
 readable.resume();
 readable.on('end', function(chunk) {
   console.log('got to the end, but did not read anything');
-})
+});
 ```
 
 #### readable.pause()
@@ -307,7 +307,7 @@ readable.on('data', function(chunk) {
     console.log('now data will start flowing again');
     readable.resume();
   }, 1000);
-})
+});
 ```
 
 #### readable.isPaused()
@@ -563,6 +563,14 @@ Buffered data will be flushed either at `.uncork()` or at `.end()` call.
 #### writable.uncork()
 
 Flush all data, buffered since `.cork()` call.
+
+#### writable.setDefaultEncoding(encoding)
+
+* `encoding` {String} The new default encoding
+* Return: `Boolean`
+
+Sets the default encoding for a writable stream. Returns `true` if the encoding
+is valid and is set. Otherwise returns `false`.
 
 #### writable.end([chunk][, encoding][, callback])
 
