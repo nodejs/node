@@ -22,8 +22,8 @@
 var spawn = require('child_process').spawn,
   assert = require('assert'),
   windows = (process.platform === 'win32'),
-  cmd = (windows) ? 'dir' : 'ls',
-  invalidcmd = (windows) ? 'ls' : 'dir',
+  cmd = (windows) ? 'rundll32' : 'ls',
+  invalidcmd = 'hopefully_you_dont_have_this_on_your_machine',
   invalidArgsMsg = /Incorrect value of args option/,
   invalidOptionsMsg = /options argument must be an object/,
   errors = 0;
