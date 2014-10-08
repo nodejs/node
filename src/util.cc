@@ -31,6 +31,8 @@ Utf8Value::Utf8Value(v8::Handle<v8::Value> value)
     return;
 
   v8::Local<v8::String> val_ = value->ToString();
+  if (val_.IsEmpty())
+    return;
 
   // Allocate enough space to include the null terminator
   size_t len = StringBytes::StorageSize(val_, UTF8) + 1;

@@ -1022,8 +1022,11 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
-  NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
 #endif  // OPENSSL_NPN_NEGOTIATED
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+  NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
+#endif
 
   NODE_SET_EXTERNAL(
       t->PrototypeTemplate(),
@@ -2056,15 +2059,6 @@ void Connection::Initialize(Environment* env, Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
   SSLWrap<Connection>::AddMethods(env, t);
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "getNegotiatedProtocol",
-                            Connection::GetNegotiatedProto);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "setNPNProtocols",
-                            Connection::SetNPNProtocols);
-#endif
 
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
