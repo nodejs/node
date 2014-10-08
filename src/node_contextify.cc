@@ -537,18 +537,24 @@ class ContextifyScript : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     HandleScope scope(env->isolate());
 
+    int64_t timeout;
+    bool display_errors;
+
     // Assemble arguments
-    TryCatch try_catch;
     if (!args[0]->IsObject()) {
       return env->ThrowTypeError(
           "contextifiedSandbox argument must be an object.");
     }
+
     Local<Object> sandbox = args[0].As<Object>();
-    int64_t timeout = GetTimeoutArg(args, 1);
-    bool display_errors = GetDisplayErrorsArg(args, 1);
-    if (try_catch.HasCaught()) {
-      try_catch.ReThrow();
-      return;
+    {
+      TryCatch try_catch;
+      timeout = GetTimeoutArg(args, 1);
+      display_errors = GetDisplayErrorsArg(args, 1);
+      if (try_catch.HasCaught()) {
+        try_catch.ReThrow();
+        return;
+      }
     }
 
     // Get the context from the sandbox
@@ -563,14 +569,22 @@ class ContextifyScript : public BaseObject {
     if (contextify_context->context().IsEmpty())
       return;
 
-    // Do the eval within the context
-    Context::Scope context_scope(contextify_context->context());
-    if (EvalMachine(contextify_context->env(),
-                    timeout,
-                    display_errors,
-                    args,
-                    try_catch)) {
-      contextify_context->CopyProperties();
+    {
+      TryCatch try_catch;
+      // Do the eval within the context
+      Context::Scope context_scope(contextify_context->context());
+      if (EvalMachine(contextify_context->env(),
+                      timeout,
+                      display_errors,
+                      args,
+                      try_catch)) {
+        contextify_context->CopyProperties();
+      }
+
+      if (try_catch.HasCaught()) {
+        try_catch.ReThrow();
+        return;
+      }
     }
   }
 

@@ -624,9 +624,9 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   NODE_SET_METHOD(proto, "copy", Copy);
 
   // for backwards compatibility
-  proto->Set(env->offset_string(),
-             Uint32::New(env->isolate(), 0),
-             v8::ReadOnly);
+  proto->ForceSet(env->offset_string(),
+                  Uint32::New(env->isolate(), 0),
+                  v8::ReadOnly);
 
   assert(args[1]->IsObject());
 
