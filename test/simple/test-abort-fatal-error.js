@@ -30,7 +30,7 @@ if (process.platform === 'win32') {
 var exec = require('child_process').exec;
 
 var cmdline = 'ulimit -c 0; ' + process.execPath;
-cmdline += ' --max-old-space-size=4 --max-new-space-size=1';
+cmdline += ' --max-old-space-size=4 --max-semi-space-size=1';
 cmdline += ' -e "a = []; for (i = 0; i < 1e9; i++) { a.push({}) }"';
 
 exec(cmdline, function(err, stdout, stderr) {
