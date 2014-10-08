@@ -72,6 +72,12 @@ will be thrown here.
 
 Allocates a new buffer using an `array` of octets.
 
+### new Buffer(buffer)
+
+* `buffer` {Buffer}
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
 ### new Buffer(str[, encoding])
 
 * `str` String - string to encode.
