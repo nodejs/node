@@ -16,6 +16,16 @@ if (cluster.isMaster) {
     }
   });
 
+  process.on('message', function(msg) {
+    if (msg.type === 'getpids') {
+      var pids = [];
+      pids.push(process.pid);
+      for (var key in cluster.workers)
+        pids.push(cluster.workers[key].process.pid);
+      process.send({ type: 'pids', pids: pids });
+    }
+  });
+
   for (var i = 0; i < NUMBER_OF_WORKERS; i++) {
     cluster.fork();
   }

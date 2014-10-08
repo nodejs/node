@@ -24,10 +24,14 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 
 var args = [ common.fixturesDir + '/clustered-server/app.js' ];
-var child = spawn(process.execPath, args);
+var child = spawn(process.execPath, args, {
+  stdio: [ 'pipe', 'pipe', 'pipe', 'ipc' ]
+});
 var outputLines = [];
 var outputTimerId;
 var waitingForDebuggers = false;
+
+var pids = null;
 
 child.stderr.on('data', function(data) {
   var lines = data.toString().replace(/\r/g, '').trim().split('\n');
@@ -42,8 +46,20 @@ child.stderr.on('data', function(data) {
     outputLines = outputLines.concat(lines);
     outputTimerId = setTimeout(onNoMoreLines, 800);
   } else if (line === 'all workers are running') {
-    waitingForDebuggers = true;
-    process._debugProcess(child.pid);
+    child.on('message', function(msg) {
+      if (msg.type !== 'pids')
+        return;
+
+      pids = msg.pids;
+      console.error('got pids %j', pids);
+
+      waitingForDebuggers = true;
+      process._debugProcess(child.pid);
+    });
+
+    child.send({
+      type: 'getpids'
+    });
   }
 });
 
@@ -57,7 +73,9 @@ setTimeout(function testTimedOut() {
 }, 6000);
 
 process.on('exit', function onExit() {
-    child.kill();
+  pids.forEach(function(pid) {
+    process.kill(pid);
+  });
 });
 
 function assertOutputLines() {
