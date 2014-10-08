@@ -147,23 +147,23 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
 // return size of external array type, or 0 if unrecognized
 size_t ExternalArraySize(enum ExternalArrayType type) {
   switch (type) {
-    case v8::kExternalUnsignedByteArray:
+    case v8::kExternalUint8Array:
       return sizeof(uint8_t);
-    case v8::kExternalByteArray:
+    case v8::kExternalInt8Array:
       return sizeof(int8_t);
-    case v8::kExternalShortArray:
+    case v8::kExternalInt16Array:
       return sizeof(int16_t);
-    case v8::kExternalUnsignedShortArray:
+    case v8::kExternalUint16Array:
       return sizeof(uint16_t);
-    case v8::kExternalIntArray:
+    case v8::kExternalInt32Array:
       return sizeof(int32_t);
-    case v8::kExternalUnsignedIntArray:
+    case v8::kExternalUint32Array:
       return sizeof(uint32_t);
-    case v8::kExternalFloatArray:
+    case v8::kExternalFloat32Array:
       return sizeof(float);   // NOLINT(runtime/sizeof)
-    case v8::kExternalDoubleArray:
+    case v8::kExternalFloat64Array:
       return sizeof(double);  // NOLINT(runtime/sizeof)
-    case v8::kExternalPixelArray:
+    case v8::kExternalUint8ClampedArray:
       return sizeof(uint8_t);
   }
   return 0;
