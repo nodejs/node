@@ -219,7 +219,7 @@ NODE_EXTERN void RunAtExit(Environment* env);
         v8::Number::New(isolate, static_cast<double>(constant));              \
     v8::PropertyAttribute constant_attributes =                               \
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    (target)->Set(constant_name, constant_value, constant_attributes);        \
+    (target)->ForceSet(constant_name, constant_value, constant_attributes);   \
   }                                                                           \
   while (0)
 
