@@ -120,7 +120,7 @@ using v8::TryCatch;
 using v8::Uint32;
 using v8::V8;
 using v8::Value;
-using v8::kExternalUnsignedIntArray;
+using v8::kExternalUint32Array;
 
 // FIXME(bnoordhuis) Make these per-context?
 QUEUE handle_wrap_queue = { &handle_wrap_queue, &handle_wrap_queue };
@@ -928,7 +928,7 @@ void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
   Environment::AsyncListener* async_listener = env->async_listener();
   async_listener_flag_obj->SetIndexedPropertiesToExternalArrayData(
       async_listener->fields(),
-      kExternalUnsignedIntArray,
+      kExternalUint32Array,
       async_listener->fields_count());
 
   // Do a little housekeeping.
@@ -968,7 +968,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment::DomainFlag* domain_flag = env->domain_flag();
   domain_flag_obj->SetIndexedPropertiesToExternalArrayData(
       domain_flag->fields(),
-      kExternalUnsignedIntArray,
+      kExternalUint32Array,
       domain_flag->fields_count());
 
   // Do a little housekeeping.
@@ -993,7 +993,7 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Local<Object> tick_info_obj = args[0].As<Object>();
   tick_info_obj->SetIndexedPropertiesToExternalArrayData(
       env->tick_info()->fields(),
-      kExternalUnsignedIntArray,
+      kExternalUint32Array,
       env->tick_info()->fields_count());
 
   env->set_tick_callback_function(args[1].As<Function>());

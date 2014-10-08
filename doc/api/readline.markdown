@@ -125,6 +125,8 @@ Example usage:
 
 Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
+Note that this doesn't immediately pause the stream of events. Several events may be emitted after calling `pause`, including `line`.
+
 ### rl.resume()
 
 Resumes the readline `input` stream.
