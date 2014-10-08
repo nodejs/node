@@ -719,6 +719,22 @@ assert.equal(secret1, secret2.toString('base64'));
 assert.equal(dh1.verifyError, 0);
 assert.equal(dh2.verifyError, 0);
 
+assert.throws(function() {
+  crypto.createDiffieHellman([0x1, 0x2]);
+});
+
+assert.throws(function() {
+  crypto.createDiffieHellman(function() { });
+});
+
+assert.throws(function() {
+  crypto.createDiffieHellman(/abc/);
+});
+
+assert.throws(function() {
+  crypto.createDiffieHellman({});
+});
+
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
 var dh3 = crypto.createDiffieHellman(p1, 'buffer');
