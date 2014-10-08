@@ -87,7 +87,7 @@ bool HasInstance(Handle<Object> obj) {
   if (!obj->HasIndexedPropertiesInExternalArrayData())
     return false;
   v8::ExternalArrayType type = obj->GetIndexedPropertiesExternalArrayDataType();
-  return type == v8::kExternalUnsignedByteArray;
+  return type == v8::kExternalUint8Array;
 }
 
 

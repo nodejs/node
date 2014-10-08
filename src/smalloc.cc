@@ -51,7 +51,7 @@ using v8::RetainedObjectInfo;
 using v8::Uint32;
 using v8::Value;
 using v8::WeakCallbackData;
-using v8::kExternalUnsignedByteArray;
+using v8::kExternalUint8Array;
 
 
 class CallbackInfo {
@@ -304,7 +304,7 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
 
   // it's faster to not pass the default argument then use Uint32Value
   if (args[2]->IsUndefined()) {
-    array_type = kExternalUnsignedByteArray;
+    array_type = kExternalUint8Array;
   } else {
     array_type = static_cast<ExternalArrayType>(args[2]->Uint32Value());
     size_t type_length = ExternalArraySize(array_type);
@@ -385,7 +385,7 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
 
   if (data != NULL) {
     obj->SetIndexedPropertiesToExternalArrayData(NULL,
-                                                 kExternalUnsignedByteArray,
+                                                 kExternalUint8Array,
                                                  0);
     free(data);
   }
