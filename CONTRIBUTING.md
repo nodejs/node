@@ -192,6 +192,12 @@ Invitations were also given to `TJ Fontaine (@tjfontaine)` and
 still invited to participate without accepting a role or
 officially endorsing this effort.
 
+Additionally the TC may invite persons or representatives from certain projects
+to participate in a non-voting capacity. These invitees currently are:
+
+* A representative from [build](https://github.com/node-forward/build) chosen
+by that project.
+
 The TC has final authority over this project including:
 
 * Project governance and process
