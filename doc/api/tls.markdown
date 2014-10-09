@@ -428,8 +428,6 @@ Construct a new TLSSocket object from existing TCP socket.
 
 ## tls.createSecureContext(details)
 
-Stability: 0 - Deprecated. Use tls.createSecureContext instead.
-
 Creates a credentials object, with the optional details being a
 dictionary with keys:
 
