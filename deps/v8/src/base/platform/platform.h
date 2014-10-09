@@ -35,6 +35,7 @@ namespace std {
 int signbit(double x);
 }
 # endif
+#include <alloca.h>
 #endif
 
 #if V8_OS_QNX
