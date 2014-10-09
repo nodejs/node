@@ -321,11 +321,15 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if defined(ANDROID)
+#if V8_OS_MACOSX
+  return static_cast<int>(pthread_mach_thread_np(pthread_self()));
+#elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
+#elif V8_OS_ANDROID
+  return static_cast<int>(gettid());
 #else
-  return static_cast<int>(syscall(SYS_gettid));
-#endif  // defined(ANDROID)
+  return static_cast<int>(pthread_self());
+#endif
 }
 
 
