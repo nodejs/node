@@ -26,6 +26,7 @@
 #include "node_http_parser.h"
 #include "node_javascript.h"
 #include "node_version.h"
+#include "node_v8_platform.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -3481,11 +3482,6 @@ void Init(int* argc,
 
   V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
 
-  // Fetch a reference to the main isolate, so we have a reference to it
-  // even when we need it to access it from another (debugger) thread.
-  node_isolate = Isolate::New();
-  Isolate::Scope isolate_scope(node_isolate);
-
 #ifdef __POSIX__
   // Raise the open file descriptor limit.
   {  // NOLINT (whitespace/braces)
@@ -3722,8 +3718,14 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
+  V8::InitializePlatform(new Platform(4));
+
   int code;
   V8::Initialize();
+
+  // Fetch a reference to the main isolate, so we have a reference to it
+  // even when we need it to access it from another (debugger) thread.
+  node_isolate = Isolate::New();
   {
     Locker locker(node_isolate);
     Isolate::Scope isolate_scope(node_isolate);
