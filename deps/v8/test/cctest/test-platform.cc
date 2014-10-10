@@ -1,77 +1,35 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include <stdlib.h>
-
+#include "include/v8stdint.h"
+#include "src/base/build_config.h"
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-using namespace ::v8::internal;
+#ifdef V8_CC_GNU
 
-#ifdef __GNUC__
-#define ASM __asm__ __volatile__
+static uintptr_t sp_addr = 0;
 
-#if defined(_M_X64) || defined(__x86_64__)
-#define GET_STACK_POINTER() \
-  static int sp_addr = 0; \
-  do { \
-    ASM("mov %%rsp, %0" : "=g" (sp_addr)); \
-  } while (0)
-#elif defined(_M_IX86) || defined(__i386__)
-#define GET_STACK_POINTER() \
-  static int sp_addr = 0; \
-  do { \
-    ASM("mov %%esp, %0" : "=g" (sp_addr)); \
-  } while (0)
-#elif defined(__ARMEL__)
-#define GET_STACK_POINTER() \
-  static int sp_addr = 0; \
-  do { \
-    ASM("str %%sp, %0" : "=g" (sp_addr)); \
-  } while (0)
-#elif defined(__AARCH64EL__)
-#define GET_STACK_POINTER() \
-  static int sp_addr = 0; \
-  do { \
-    ASM("mov x16, sp; str x16, %0" : "=g" (sp_addr)); \
-  } while (0)
-#elif defined(__MIPSEB__) || defined(__MIPSEL__)
-#define GET_STACK_POINTER() \
-  static int sp_addr = 0; \
-  do { \
-    ASM("sw $sp, %0" : "=g" (sp_addr)); \
-  } while (0)
+void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
+#if V8_HOST_ARCH_X64
+  __asm__ __volatile__("mov %%rsp, %0" : "=g"(sp_addr));
+#elif V8_HOST_ARCH_IA32
+  __asm__ __volatile__("mov %%esp, %0" : "=g"(sp_addr));
+#elif V8_HOST_ARCH_ARM
+  __asm__ __volatile__("str %%sp, %0" : "=g"(sp_addr));
+#elif V8_HOST_ARCH_ARM64
+  __asm__ __volatile__("mov x16, sp; str x16, %0" : "=g"(sp_addr));
+#elif V8_HOST_ARCH_MIPS
+  __asm__ __volatile__("sw $sp, %0" : "=g"(sp_addr));
+#elif V8_HOST_ARCH_MIPS64
+  __asm__ __volatile__("sd $sp, %0" : "=g"(sp_addr));
 #else
 #error Host architecture was not detected as supported by v8
 #endif
 
-void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  GET_STACK_POINTER();
-  args.GetReturnValue().Set(v8_num(sp_addr));
+  args.GetReturnValue().Set(v8::Integer::NewFromUnsigned(
+      args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
 
 
@@ -94,9 +52,7 @@ TEST(StackAlignment) {
       v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
 
   v8::Local<v8::Value> result = foo->Call(global_object, 0, NULL);
-  CHECK_EQ(0, result->Int32Value() % v8::base::OS::ActivationFrameAlignment());
+  CHECK_EQ(0, result->Uint32Value() % v8::base::OS::ActivationFrameAlignment());
 }
 
-#undef GET_STACK_POINTERS
-#undef ASM
-#endif  // __GNUC__
+#endif  // V8_CC_GNU

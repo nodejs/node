@@ -218,6 +218,11 @@ struct DwVfpRegister {
   inline static int NumReservedRegisters();
   inline static int NumAllocatableRegisters();
 
+  // TODO(turbofan): This is a temporary work-around required because our
+  // register allocator does not yet support the aliasing of single/double
+  // registers on ARM.
+  inline static int NumAllocatableAliasedRegisters();
+
   inline static int ToAllocationIndex(DwVfpRegister reg);
   static const char* AllocationIndexToString(int index);
   inline static DwVfpRegister FromAllocationIndex(int index);
@@ -1449,12 +1454,16 @@ class Assembler : public AssemblerBase {
   static Register GetCmpImmediateRegister(Instr instr);
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
+  static bool IsMovImmed(Instr instr);
+  static bool IsOrrImmed(Instr instr);
   static bool IsMovT(Instr instr);
   static Instr GetMovTPattern();
   static bool IsMovW(Instr instr);
   static Instr GetMovWPattern();
   static Instr EncodeMovwImmediate(uint32_t immediate);
   static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate);
+  static int DecodeShiftImm(Instr instr);
+  static Instr PatchShiftImm(Instr instr, int immed);
 
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point

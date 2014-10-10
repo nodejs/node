@@ -79,7 +79,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
 
 
 int RandomNumberGenerator::NextInt(int max) {
-  DCHECK_LE(0, max);
+  DCHECK_LT(0, max);
 
   // Fast path if max is a power of 2.
   if (IS_POWER_OF_TWO(max)) {
@@ -125,6 +125,7 @@ int RandomNumberGenerator::Next(int bits) {
 
 
 void RandomNumberGenerator::SetSeed(int64_t seed) {
+  initial_seed_ = seed;
   seed_ = (seed ^ kMultiplier) & kMask;
 }
 

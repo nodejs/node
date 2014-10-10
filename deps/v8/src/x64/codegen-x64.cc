@@ -286,7 +286,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   Label loop, entry, convert_hole;
-  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __ movq(r15, bit_cast<int64_t, uint64_t>(kHoleNanInt64));
   // r15: the-hole NaN
   __ jmp(&entry);
 
@@ -393,7 +393,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ movp(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
-  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __ movq(rsi, bit_cast<int64_t, uint64_t>(kHoleNanInt64));
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
@@ -522,7 +522,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ j(zero, &seq_string, Label::kNear);
 
   // Handle external strings.
-  Label ascii_external, done;
+  Label one_byte_external, done;
   if (FLAG_debug_code) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
@@ -537,22 +537,22 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ testb(result, Immediate(kStringEncodingMask));
   __ movp(result, FieldOperand(string, ExternalString::kResourceDataOffset));
-  __ j(not_equal, &ascii_external, Label::kNear);
+  __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.
   __ movzxwl(result, Operand(result, index, times_2, 0));
   __ jmp(&done, Label::kNear);
-  __ bind(&ascii_external);
-  // Ascii string.
+  __ bind(&one_byte_external);
+  // One-byte string.
   __ movzxbl(result, Operand(result, index, times_1, 0));
   __ jmp(&done, Label::kNear);
 
-  // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii;
+  // Dispatch on the encoding: one-byte or two-byte.
+  Label one_byte;
   __ bind(&seq_string);
   STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii, Label::kNear);
+  __ j(not_zero, &one_byte, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
@@ -563,9 +563,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                   SeqTwoByteString::kHeaderSize));
   __ jmp(&done, Label::kNear);
 
-  // ASCII string.
+  // One-byte string.
   // Load the byte into the result register.
-  __ bind(&ascii);
+  __ bind(&one_byte);
   __ movzxbl(result, FieldOperand(string,
                                   index,
                                   times_1,

@@ -148,6 +148,26 @@ TEST(ForInStatement) {
 }
 
 
+TEST(ForInContinueStatement) {
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  for (var x in a) {"
+      "    r += 'A-';"
+      "    if (b) continue;"
+      "    r += 'B-';"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-B-"), T.NewObject("({x:1})"), T.false_value());
+  T.CheckCall(T.Val("-A-B-A-B-"), T.NewObject("({x:1,y:2})"), T.false_value());
+  T.CheckCall(T.Val("-A-"), T.NewObject("({x:1})"), T.true_value());
+  T.CheckCall(T.Val("-A-A-"), T.NewObject("({x:1,y:2})"), T.true_value());
+}
+
+
 TEST(SwitchStatement) {
   const char* src =
       "(function(a,b) {"

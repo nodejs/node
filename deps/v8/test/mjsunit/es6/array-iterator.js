@@ -175,10 +175,9 @@ function TestForArrayValues() {
 
   assertEquals(8, buffer.length);
 
-  for (var i = 0; i < buffer.length - 1; i++) {
+  for (var i = 0; i < buffer.length; i++) {
     assertSame(array[i], buffer[i]);
   }
-  assertTrue(isNaN(buffer[buffer.length - 1]));
 }
 TestForArrayValues();
 
@@ -210,10 +209,9 @@ function TestForArrayEntries() {
 
   assertEquals(8, buffer.length);
 
-  for (var i = 0; i < buffer.length - 1; i++) {
+  for (var i = 0; i < buffer.length; i++) {
     assertSame(array[i], buffer[i][1]);
   }
-  assertTrue(isNaN(buffer[buffer.length - 1][1]));
 
   for (var i = 0; i < buffer.length; i++) {
     assertEquals(i, buffer[i][0]);
@@ -232,10 +230,9 @@ function TestForArray() {
 
   assertEquals(8, buffer.length);
 
-  for (var i = 0; i < buffer.length - 1; i++) {
+  for (var i = 0; i < buffer.length; i++) {
     assertSame(array[i], buffer[i]);
   }
-  assertTrue(isNaN(buffer[buffer.length - 1]));
 }
 TestForArrayValues();
 

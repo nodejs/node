@@ -312,7 +312,6 @@ class Simulator : public DecoderVisitor {
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
     CheckBreakNext();
     Decode(pc_);
-    LogProcessorState();
     increment_pc();
     CheckBreakpoints();
   }
@@ -348,16 +347,13 @@ class Simulator : public DecoderVisitor {
     return reg<int64_t>(code, r31mode);
   }
 
-  // Write 'size' bits of 'value' into an integer register. The value is
-  // zero-extended. This behaviour matches AArch64 register writes.
-
-  // Like set_reg(), but infer the access size from the template type.
+  // Write 'value' into an integer register. The value is zero-extended. This
+  // behaviour matches AArch64 register writes.
   template<typename T>
   void set_reg(unsigned code, T value,
                Reg31Mode r31mode = Reg31IsZeroRegister) {
-    DCHECK(code < kNumberOfRegisters);
-    if (!IsZeroRegister(code, r31mode))
-      registers_[code].Set(value);
+    set_reg_no_log(code, value, r31mode);
+    LogRegister(code, r31mode);
   }
 
   // Common specialized accessors for the set_reg() template.
@@ -369,6 +365,26 @@ class Simulator : public DecoderVisitor {
   void set_xreg(unsigned code, int64_t value,
                 Reg31Mode r31mode = Reg31IsZeroRegister) {
     set_reg(code, value, r31mode);
+  }
+
+  // As above, but don't automatically log the register update.
+  template <typename T>
+  void set_reg_no_log(unsigned code, T value,
+                      Reg31Mode r31mode = Reg31IsZeroRegister) {
+    DCHECK(code < kNumberOfRegisters);
+    if (!IsZeroRegister(code, r31mode)) {
+      registers_[code].Set(value);
+    }
+  }
+
+  void set_wreg_no_log(unsigned code, int32_t value,
+                       Reg31Mode r31mode = Reg31IsZeroRegister) {
+    set_reg_no_log(code, value, r31mode);
+  }
+
+  void set_xreg_no_log(unsigned code, int64_t value,
+                       Reg31Mode r31mode = Reg31IsZeroRegister) {
+    set_reg_no_log(code, value, r31mode);
   }
 
   // Commonly-used special cases.
@@ -430,9 +446,13 @@ class Simulator : public DecoderVisitor {
   // This behaviour matches AArch64 register writes.
   template<typename T>
   void set_fpreg(unsigned code, T value) {
-    DCHECK((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
-    DCHECK(code < kNumberOfFPRegisters);
-    fpregisters_[code].Set(value);
+    set_fpreg_no_log(code, value);
+
+    if (sizeof(value) <= kSRegSize) {
+      LogFPRegister(code, kPrintSRegValue);
+    } else {
+      LogFPRegister(code, kPrintDRegValue);
+    }
   }
 
   // Common specialized accessors for the set_fpreg() template.
@@ -450,6 +470,22 @@ class Simulator : public DecoderVisitor {
 
   void set_dreg_bits(unsigned code, uint64_t value) {
     set_fpreg(code, value);
+  }
+
+  // As above, but don't automatically log the register update.
+  template <typename T>
+  void set_fpreg_no_log(unsigned code, T value) {
+    DCHECK((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
+    DCHECK(code < kNumberOfFPRegisters);
+    fpregisters_[code].Set(value);
+  }
+
+  void set_sreg_no_log(unsigned code, float value) {
+    set_fpreg_no_log(code, value);
+  }
+
+  void set_dreg_no_log(unsigned code, double value) {
+    set_fpreg_no_log(code, value);
   }
 
   SimSystemRegister& nzcv() { return nzcv_; }
@@ -478,27 +514,68 @@ class Simulator : public DecoderVisitor {
   // Disassemble instruction at the given address.
   void PrintInstructionsAt(Instruction* pc, uint64_t count);
 
-  void PrintSystemRegisters(bool print_all = false);
-  void PrintRegisters(bool print_all_regs = false);
-  void PrintFPRegisters(bool print_all_regs = false);
-  void PrintProcessorState();
-  void PrintWrite(uint8_t* address, uint64_t value, unsigned num_bytes);
+  // Print all registers of the specified types.
+  void PrintRegisters();
+  void PrintFPRegisters();
+  void PrintSystemRegisters();
+
+  // Like Print* (above), but respect log_parameters().
   void LogSystemRegisters() {
-    if (log_parameters_ & LOG_SYS_REGS) PrintSystemRegisters();
+    if (log_parameters() & LOG_SYS_REGS) PrintSystemRegisters();
   }
   void LogRegisters() {
-    if (log_parameters_ & LOG_REGS) PrintRegisters();
+    if (log_parameters() & LOG_REGS) PrintRegisters();
   }
   void LogFPRegisters() {
-    if (log_parameters_ & LOG_FP_REGS) PrintFPRegisters();
+    if (log_parameters() & LOG_FP_REGS) PrintFPRegisters();
   }
-  void LogProcessorState() {
-    LogSystemRegisters();
-    LogRegisters();
-    LogFPRegisters();
+
+  // Specify relevant register sizes, for PrintFPRegister.
+  //
+  // These values are bit masks; they can be combined in case multiple views of
+  // a machine register are interesting.
+  enum PrintFPRegisterSizes {
+    kPrintDRegValue = 1 << kDRegSize,
+    kPrintSRegValue = 1 << kSRegSize,
+    kPrintAllFPRegValues = kPrintDRegValue | kPrintSRegValue
+  };
+
+  // Print individual register values (after update).
+  void PrintRegister(unsigned code, Reg31Mode r31mode = Reg31IsStackPointer);
+  void PrintFPRegister(unsigned code,
+                       PrintFPRegisterSizes sizes = kPrintAllFPRegValues);
+  void PrintSystemRegister(SystemRegister id);
+
+  // Like Print* (above), but respect log_parameters().
+  void LogRegister(unsigned code, Reg31Mode r31mode = Reg31IsStackPointer) {
+    if (log_parameters() & LOG_REGS) PrintRegister(code, r31mode);
   }
-  void LogWrite(uint8_t* address, uint64_t value, unsigned num_bytes) {
-    if (log_parameters_ & LOG_WRITE) PrintWrite(address, value, num_bytes);
+  void LogFPRegister(unsigned code,
+                     PrintFPRegisterSizes sizes = kPrintAllFPRegValues) {
+    if (log_parameters() & LOG_FP_REGS) PrintFPRegister(code, sizes);
+  }
+  void LogSystemRegister(SystemRegister id) {
+    if (log_parameters() & LOG_SYS_REGS) PrintSystemRegister(id);
+  }
+
+  // Print memory accesses.
+  void PrintRead(uintptr_t address, size_t size, unsigned reg_code);
+  void PrintReadFP(uintptr_t address, size_t size, unsigned reg_code);
+  void PrintWrite(uintptr_t address, size_t size, unsigned reg_code);
+  void PrintWriteFP(uintptr_t address, size_t size, unsigned reg_code);
+
+  // Like Print* (above), but respect log_parameters().
+  void LogRead(uintptr_t address, size_t size, unsigned reg_code) {
+    if (log_parameters() & LOG_REGS) PrintRead(address, size, reg_code);
+  }
+  void LogReadFP(uintptr_t address, size_t size, unsigned reg_code) {
+    if (log_parameters() & LOG_FP_REGS) PrintReadFP(address, size, reg_code);
+  }
+  void LogWrite(uintptr_t address, size_t size, unsigned reg_code) {
+    if (log_parameters() & LOG_WRITE) PrintWrite(address, size, reg_code);
+  }
+  void LogWriteFP(uintptr_t address, size_t size, unsigned reg_code) {
+    if (log_parameters() & LOG_WRITE) PrintWriteFP(address, size, reg_code);
   }
 
   int log_parameters() { return log_parameters_; }
@@ -589,28 +666,30 @@ class Simulator : public DecoderVisitor {
                        int64_t offset,
                        AddrMode addrmode);
   void LoadStorePairHelper(Instruction* instr, AddrMode addrmode);
-  uint8_t* LoadStoreAddress(unsigned addr_reg,
-                            int64_t offset,
-                            AddrMode addrmode);
+  uintptr_t LoadStoreAddress(unsigned addr_reg, int64_t offset,
+                             AddrMode addrmode);
   void LoadStoreWriteBack(unsigned addr_reg,
                           int64_t offset,
                           AddrMode addrmode);
-  void CheckMemoryAccess(uint8_t* address, uint8_t* stack);
+  void CheckMemoryAccess(uintptr_t address, uintptr_t stack);
 
-  uint64_t MemoryRead(uint8_t* address, unsigned num_bytes);
-  uint8_t MemoryRead8(uint8_t* address);
-  uint16_t MemoryRead16(uint8_t* address);
-  uint32_t MemoryRead32(uint8_t* address);
-  float MemoryReadFP32(uint8_t* address);
-  uint64_t MemoryRead64(uint8_t* address);
-  double MemoryReadFP64(uint8_t* address);
+  // Memory read helpers.
+  template <typename T, typename A>
+  T MemoryRead(A address) {
+    T value;
+    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                  (sizeof(value) == 4) || (sizeof(value) == 8));
+    memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
+    return value;
+  }
 
-  void MemoryWrite(uint8_t* address, uint64_t value, unsigned num_bytes);
-  void MemoryWrite32(uint8_t* address, uint32_t value);
-  void MemoryWriteFP32(uint8_t* address, float value);
-  void MemoryWrite64(uint8_t* address, uint64_t value);
-  void MemoryWriteFP64(uint8_t* address, double value);
-
+  // Memory write helpers.
+  template <typename T, typename A>
+  void MemoryWrite(A address, T value) {
+    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                  (sizeof(value) == 4) || (sizeof(value) == 8));
+    memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));
+  }
 
   template <typename T>
   T ShiftOperand(T value,
@@ -763,10 +842,10 @@ class Simulator : public DecoderVisitor {
   static const uint32_t kConditionFlagsMask = 0xf0000000;
 
   // Stack
-  byte* stack_;
-  static const intptr_t stack_protection_size_ = KB;
-  intptr_t stack_size_;
-  byte* stack_limit_;
+  uintptr_t stack_;
+  static const size_t stack_protection_size_ = KB;
+  size_t stack_size_;
+  uintptr_t stack_limit_;
 
   Decoder<DispatchingDecoderVisitor>* decoder_;
   Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;

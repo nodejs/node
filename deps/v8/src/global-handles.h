@@ -215,13 +215,6 @@ class GlobalHandles {
   // handles.
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
-  // Add an implicit references' group.
-  // Should be only used in GC callback function before a collection.
-  // All groups are destroyed after a mark-compact collection.
-  void AddImplicitReferences(HeapObject** parent,
-                             Object*** children,
-                             size_t length);
-
   // Adds an implicit reference from a group to an object. Should be only used
   // in GC callback function before a collection. All implicit references are
   // destroyed after a mark-compact collection.

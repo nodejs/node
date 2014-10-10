@@ -63,7 +63,7 @@ static const double exact_powers_of_ten[] = {
   // 10^22 = 0x21e19e0c9bab2400000 = 0x878678326eac9 * 2^22
   10000000000000000000000.0
 };
-static const int kExactPowersOfTenSize = ARRAY_SIZE(exact_powers_of_ten);
+static const int kExactPowersOfTenSize = arraysize(exact_powers_of_ten);
 
 // Maximum number of significant digits in the decimal representation.
 // In fact the value is 772 (see conversions.cc), but to give us some margin

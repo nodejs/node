@@ -253,7 +253,7 @@ static void ExpectRecords(v8::Isolate* isolate,
 
 #define EXPECT_RECORDS(records, expectations)                \
   ExpectRecords(CcTest::isolate(), records, expectations, \
-                ARRAY_SIZE(expectations))
+                arraysize(expectations))
 
 TEST(APITestBasicMutation) {
   v8::Isolate* v8_isolate = CcTest::isolate();

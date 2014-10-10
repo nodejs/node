@@ -132,7 +132,7 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
   char buffer[4 * KB];
-  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
+  StringBuilder builder(buffer, arraysize(buffer));
   va_list arguments;
   va_start(arguments, format);
   builder.AddFormattedList(format, arguments);
@@ -144,6 +144,15 @@ void LCodeGenBase::Comment(const char* format, ...) {
   Vector<char> copy = Vector<char>::New(static_cast<int>(length) + 1);
   MemCopy(copy.start(), builder.Finalize(), copy.length());
   masm()->RecordComment(copy.start());
+}
+
+
+void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
+  OStringStream os;
+  os << ";;; deoptimize at " << HSourcePosition(reason.raw_position) << " "
+     << reason.mnemonic;
+  if (reason.detail != NULL) os << ": " << reason.detail;
+  Comment("%s", os.c_str());
 }
 
 
@@ -217,19 +226,25 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 
 
 void LCodeGenBase::Abort(BailoutReason reason) {
-  info()->set_bailout_reason(reason);
+  info()->AbortOptimization(reason);
+  status_ = ABORTED;
+}
+
+
+void LCodeGenBase::Retry(BailoutReason reason) {
+  info()->RetryOptimization(reason);
   status_ = ABORTED;
 }
 
 
 void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
-  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
+  if (map->is_deprecated()) return Retry(kMapBecameDeprecated);
   chunk_->AddDeprecationDependency(map);
 }
 
 
 void LCodeGenBase::AddStabilityDependency(Handle<Map> map) {
-  if (!map->is_stable()) return Abort(kMapBecameUnstable);
+  if (!map->is_stable()) return Retry(kMapBecameUnstable);
   chunk_->AddStabilityDependency(map);
 }
 

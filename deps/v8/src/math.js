@@ -173,8 +173,8 @@ function MathSign(x) {
   x = TO_NUMBER_INLINE(x);
   if (x > 0) return 1;
   if (x < 0) return -1;
-  if (x === 0) return x;
-  return NAN;
+  // -0, 0 or NaN.
+  return x;
 }
 
 // ES6 draft 09-27-13, section 20.2.2.34.
@@ -182,23 +182,8 @@ function MathTrunc(x) {
   x = TO_NUMBER_INLINE(x);
   if (x > 0) return MathFloor(x);
   if (x < 0) return MathCeil(x);
-  if (x === 0) return x;
-  return NAN;
-}
-
-// ES6 draft 09-27-13, section 20.2.2.30.
-function MathSinh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN, +/-0 and +/-Infinity.
-  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  return (MathExp(x) - MathExp(-x)) / 2;
-}
-
-// ES6 draft 09-27-13, section 20.2.2.12.
-function MathCosh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  if (!NUMBER_IS_FINITE(x)) return MathAbs(x);
-  return (MathExp(x) + MathExp(-x)) / 2;
+  // -0, 0 or NaN.
+  return x;
 }
 
 // ES6 draft 09-27-13, section 20.2.2.33.
@@ -327,26 +312,6 @@ function CubeRoot(x) {
   return NEWTON_ITERATION_CBRT(x, approx);
 }
 
-// ES6 draft 09-27-13, section 20.2.2.14.
-// Use Taylor series to approximate.
-// exp(x) - 1 at 0 == -1 + exp(0) + exp'(0)*x/1! + exp''(0)*x^2/2! + ...
-//                 == x/1! + x^2/2! + x^3/3! + ...
-// The closer x is to 0, the fewer terms are required.
-function MathExpm1(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  var xabs = MathAbs(x);
-  if (xabs < 2E-7) {
-    return x * (1 + x * (1/2));
-  } else if (xabs < 6E-5) {
-    return x * (1 + x * (1/2 + x * (1/6)));
-  } else if (xabs < 2E-2) {
-    return x * (1 + x * (1/2 + x * (1/6 +
-           x * (1/24 + x * (1/120 + x * (1/720))))));
-  } else {  // Use regular exp if not close enough to 0.
-    return MathExp(x) - 1;
-  }
-}
-
 // -------------------------------------------------------------------
 
 function SetUpMath() {
@@ -396,8 +361,8 @@ function SetUpMath() {
     "imul", MathImul,
     "sign", MathSign,
     "trunc", MathTrunc,
-    "sinh", MathSinh,
-    "cosh", MathCosh,
+    "sinh", MathSinh,     // implemented by third_party/fdlibm
+    "cosh", MathCosh,     // implemented by third_party/fdlibm
     "tanh", MathTanh,
     "asinh", MathAsinh,
     "acosh", MathAcosh,
@@ -408,8 +373,8 @@ function SetUpMath() {
     "fround", MathFroundJS,
     "clz32", MathClz32,
     "cbrt", MathCbrt,
-    "log1p", MathLog1p,    // implemented by third_party/fdlibm
-    "expm1", MathExpm1
+    "log1p", MathLog1p,   // implemented by third_party/fdlibm
+    "expm1", MathExpm1    // implemented by third_party/fdlibm
   ));
 
   %SetInlineBuiltinFlag(MathCeil);

@@ -40,7 +40,7 @@ void GraphReplayPrinter::PostEdge(Node* from, int index, Node* to) {
 }
 
 
-void GraphReplayPrinter::PrintReplayOpCreator(Operator* op) {
+void GraphReplayPrinter::PrintReplayOpCreator(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
   const char* builder =
       IrOpcode::IsCommonOpcode(opcode) ? "common_builder" : "js_builder";

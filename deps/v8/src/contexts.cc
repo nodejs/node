@@ -388,7 +388,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Isolate* isolate = GetIsolate();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
   if (!result->IsUndefined()) return result;
-  return isolate->factory()->NewStringFromStaticAscii(
+  return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
 }
 

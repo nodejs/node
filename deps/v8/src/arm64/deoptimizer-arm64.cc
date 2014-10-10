@@ -89,7 +89,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 
 void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
+    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler());
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());

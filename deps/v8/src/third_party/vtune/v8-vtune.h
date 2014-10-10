@@ -58,9 +58,11 @@
 #ifndef V8_VTUNE_H_
 #define V8_VTUNE_H_
 
+#include "../../../include/v8.h"
+
 namespace vTune {
 
-void InitializeVtuneForV8();
+void InitializeVtuneForV8(v8::Isolate::CreateParams& params);
 
 }  // namespace vTune
 

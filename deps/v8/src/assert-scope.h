@@ -5,14 +5,16 @@
 #ifndef V8_ASSERT_SCOPE_H_
 #define V8_ASSERT_SCOPE_H_
 
-#include "src/allocation.h"
-#include "src/base/platform/platform.h"
-#include "src/utils.h"
+#include "include/v8stdint.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class Isolate;
+class PerThreadAssertData;
+
 
 enum PerThreadAssertType {
   HEAP_ALLOCATION_ASSERT,
@@ -33,120 +35,35 @@ enum PerIsolateAssertType {
 };
 
 
-class PerThreadAssertData {
+template <PerThreadAssertType kType, bool kAllow>
+class PerThreadAssertScope {
  public:
-  PerThreadAssertData() : nesting_level_(0) {
-    for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
-      assert_states_[i] = true;
-    }
-  }
+  PerThreadAssertScope();
+  ~PerThreadAssertScope();
 
-  void set(PerThreadAssertType type, bool allow) {
-    assert_states_[type] = allow;
-  }
-
-  bool get(PerThreadAssertType type) const {
-    return assert_states_[type];
-  }
-
-  void increment_level() { ++nesting_level_; }
-  bool decrement_level() { return --nesting_level_ == 0; }
+  static bool IsAllowed();
 
  private:
-  bool assert_states_[LAST_PER_THREAD_ASSERT_TYPE];
-  int nesting_level_;
-
-  DISALLOW_COPY_AND_ASSIGN(PerThreadAssertData);
-};
-
-
-class PerThreadAssertScopeBase {
- protected:
-  PerThreadAssertScopeBase() {
-    data_ = GetAssertData();
-    if (data_ == NULL) {
-      data_ = new PerThreadAssertData();
-      SetThreadLocalData(data_);
-    }
-    data_->increment_level();
-  }
-
-  ~PerThreadAssertScopeBase() {
-    if (!data_->decrement_level()) return;
-    for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
-      DCHECK(data_->get(static_cast<PerThreadAssertType>(i)));
-    }
-    delete data_;
-    SetThreadLocalData(NULL);
-  }
-
-  static PerThreadAssertData* GetAssertData() {
-    return reinterpret_cast<PerThreadAssertData*>(
-        base::Thread::GetThreadLocal(thread_local_key));
-  }
-
-  static base::Thread::LocalStorageKey thread_local_key;
   PerThreadAssertData* data_;
-  friend class Isolate;
-
- private:
-  static void SetThreadLocalData(PerThreadAssertData* data) {
-    base::Thread::SetThreadLocal(thread_local_key, data);
-  }
-};
-
-
-template <PerThreadAssertType type, bool allow>
-class PerThreadAssertScope : public PerThreadAssertScopeBase {
- public:
-  PerThreadAssertScope() {
-    old_state_ = data_->get(type);
-    data_->set(type, allow);
-  }
-
-  ~PerThreadAssertScope() { data_->set(type, old_state_); }
-
-  static bool IsAllowed() {
-    PerThreadAssertData* data = GetAssertData();
-    return data == NULL || data->get(type);
-  }
-
- private:
   bool old_state_;
 
   DISALLOW_COPY_AND_ASSIGN(PerThreadAssertScope);
 };
 
 
-class PerIsolateAssertBase {
- protected:
-  static uint32_t GetData(Isolate* isolate);
-  static void SetData(Isolate* isolate, uint32_t data);
-};
-
-
 template <PerIsolateAssertType type, bool allow>
-class PerIsolateAssertScope : public PerIsolateAssertBase {
+class PerIsolateAssertScope {
  public:
-  explicit PerIsolateAssertScope(Isolate* isolate) : isolate_(isolate) {
-    STATIC_ASSERT(type < 32);
-    old_data_ = GetData(isolate_);
-    SetData(isolate_, DataBit::update(old_data_, allow));
-  }
+  explicit PerIsolateAssertScope(Isolate* isolate);
+  ~PerIsolateAssertScope();
 
-  ~PerIsolateAssertScope() {
-    SetData(isolate_, old_data_);
-  }
-
-  static bool IsAllowed(Isolate* isolate) {
-    return DataBit::decode(GetData(isolate));
-  }
+  static bool IsAllowed(Isolate* isolate);
 
  private:
-  typedef BitField<bool, type, 1> DataBit;
+  class DataBit;
 
-  uint32_t old_data_;
   Isolate* isolate_;
+  uint32_t old_data_;
 
   DISALLOW_COPY_AND_ASSIGN(PerIsolateAssertScope);
 };

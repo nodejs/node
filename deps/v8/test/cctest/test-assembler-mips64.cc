@@ -353,14 +353,17 @@ TEST(MIPS4) {
     double a;
     double b;
     double c;
+    double d;
+    int64_t high;
+    int64_t low;
   } T;
   T t;
 
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-  __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
-  __ ldc1(f5, MemOperand(a0, OFFSET_OF(T, b)) );
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)));
+  __ ldc1(f5, MemOperand(a0, OFFSET_OF(T, b)));
 
   // Swap f4 and f5, by using 3 integer registers, a4-a6,
   // both two 32-bit chunks, and one 64-bit chunk.
@@ -375,8 +378,16 @@ TEST(MIPS4) {
   __ dmtc1(a6, f4);
 
   // Store the swapped f4 and f5 back to memory.
-  __ sdc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
-  __ sdc1(f5, MemOperand(a0, OFFSET_OF(T, c)) );
+  __ sdc1(f4, MemOperand(a0, OFFSET_OF(T, a)));
+  __ sdc1(f5, MemOperand(a0, OFFSET_OF(T, c)));
+
+  // Test sign extension of move operations from coprocessor.
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, d)));
+  __ mfhc1(a4, f4);
+  __ mfc1(a5, f4);
+
+  __ sd(a4, MemOperand(a0, OFFSET_OF(T, high)));
+  __ sd(a5, MemOperand(a0, OFFSET_OF(T, low)));
 
   __ jr(ra);
   __ nop();
@@ -389,12 +400,15 @@ TEST(MIPS4) {
   t.a = 1.5e22;
   t.b = 2.75e11;
   t.c = 17.17;
+  t.d = -2.75e11;
   Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(2.75e11, t.a);
   CHECK_EQ(2.75e11, t.b);
   CHECK_EQ(1.5e22, t.c);
+  CHECK_EQ(0xffffffffc25001d1L, t.high);
+  CHECK_EQ(0xffffffffbf800000L, t.low);
 }
 
 
@@ -870,80 +884,80 @@ TEST(MIPS11) {
     Assembler assm(isolate, NULL, 0);
 
     // Test all combinations of LWL and vAddr.
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwl(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwl_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwl(a4, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwl_0)));
 
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwl(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
-    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwl_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwl(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1));
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwl_1)));
 
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwl(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
-    __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwl_2)) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwl(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2));
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwl_2)));
 
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwl(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
-    __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwl_3)) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwl(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3));
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwl_3)));
 
     // Test all combinations of LWR and vAddr.
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwr(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwr_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwr(a4, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwr_0)));
 
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwr(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
-    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwr_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwr(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1));
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwr_1)));
 
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwr(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwr(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2));
     __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwr_2)) );
 
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ lwr(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ lwr(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3));
     __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwr_3)) );
 
     // Test all combinations of SWL and vAddr.
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swl(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swl_0)));
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swl(a4, MemOperand(a0, OFFSET_OF(T, swl_0)));
 
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swl_1)) );
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swl(a5, MemOperand(a0, OFFSET_OF(T, swl_1) + 1) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swl_1)));
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swl(a5, MemOperand(a0, OFFSET_OF(T, swl_1) + 1));
 
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swl_2)) );
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swl(a6, MemOperand(a0, OFFSET_OF(T, swl_2) + 2) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swl_2)));
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swl(a6, MemOperand(a0, OFFSET_OF(T, swl_2) + 2));
 
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swl_3)) );
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swl(a7, MemOperand(a0, OFFSET_OF(T, swl_3) + 3) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swl_3)));
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swl(a7, MemOperand(a0, OFFSET_OF(T, swl_3) + 3));
 
     // Test all combinations of SWR and vAddr.
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
-    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swr(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swr_0)));
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swr(a4, MemOperand(a0, OFFSET_OF(T, swr_0)));
 
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swr_1)) );
-    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swr(a5, MemOperand(a0, OFFSET_OF(T, swr_1) + 1) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swr_1)));
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swr(a5, MemOperand(a0, OFFSET_OF(T, swr_1) + 1));
 
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swr_2)) );
-    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swr(a6, MemOperand(a0, OFFSET_OF(T, swr_2) + 2) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swr_2)));
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swr(a6, MemOperand(a0, OFFSET_OF(T, swr_2) + 2));
 
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swr_3)) );
-    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-    __ swr(a7, MemOperand(a0, OFFSET_OF(T, swr_3) + 3) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)));
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swr_3)));
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)));
+    __ swr(a7, MemOperand(a0, OFFSET_OF(T, swr_3) + 3));
 
     __ jr(ra);
     __ nop();
@@ -1001,8 +1015,8 @@ TEST(MIPS12) {
 
   __ mov(t2, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, y)) );
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, y4)) );
+  __ lw(a4, MemOperand(a0, OFFSET_OF(T, y)));
+  __ lw(a7, MemOperand(a0, OFFSET_OF(T, y4)));
 
   __ addu(a5, a4, a7);
   __ subu(t0, a4, a7);
@@ -1020,30 +1034,30 @@ TEST(MIPS12) {
   __ push(a7);
   __ pop(t0);
   __ nop();
-  __ sw(a4, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ lw(a4, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ sw(a4, MemOperand(fp, OFFSET_OF(T, y)));
+  __ lw(a4, MemOperand(fp, OFFSET_OF(T, y)));
   __ nop();
-  __ sw(a4, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ lw(a5, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ sw(a4, MemOperand(fp, OFFSET_OF(T, y)));
+  __ lw(a5, MemOperand(fp, OFFSET_OF(T, y)));
   __ nop();
   __ push(a5);
-  __ lw(a5, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ lw(a5, MemOperand(fp, OFFSET_OF(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)));
   __ pop(a6);
   __ nop();
   __ push(a6);
-  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)) );
+  __ lw(a6, MemOperand(fp, OFFSET_OF(T, y)));
   __ pop(a7);
   __ nop();
 
@@ -1297,48 +1311,48 @@ TEST(MIPS16) {
   Label L, C;
 
   // Basic 32-bit word load/store, with un-signed data.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, ui)) );
-  __ sw(a4, MemOperand(a0, OFFSET_OF(T, r1)) );
+  __ lw(a4, MemOperand(a0, OFFSET_OF(T, ui)));
+  __ sw(a4, MemOperand(a0, OFFSET_OF(T, r1)));
 
   // Check that the data got zero-extended into 64-bit a4.
-  __ sd(a4, MemOperand(a0, OFFSET_OF(T, r2)) );
+  __ sd(a4, MemOperand(a0, OFFSET_OF(T, r2)));
 
   // Basic 32-bit word load/store, with SIGNED data.
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, r3)) );
+  __ lw(a5, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sw(a5, MemOperand(a0, OFFSET_OF(T, r3)));
 
   // Check that the data got sign-extended into 64-bit a4.
-  __ sd(a5, MemOperand(a0, OFFSET_OF(T, r4)) );
+  __ sd(a5, MemOperand(a0, OFFSET_OF(T, r4)));
 
   // 32-bit UNSIGNED word load/store, with SIGNED data.
-  __ lwu(a6, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, r5)) );
+  __ lwu(a6, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sw(a6, MemOperand(a0, OFFSET_OF(T, r5)));
 
   // Check that the data got zero-extended into 64-bit a4.
-  __ sd(a6, MemOperand(a0, OFFSET_OF(T, r6)) );
+  __ sd(a6, MemOperand(a0, OFFSET_OF(T, r6)));
 
   // lh with positive data.
-  __ lh(a5, MemOperand(a0, OFFSET_OF(T, ui)) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, r2)) );
+  __ lh(a5, MemOperand(a0, OFFSET_OF(T, ui)));
+  __ sw(a5, MemOperand(a0, OFFSET_OF(T, r2)));
 
   // lh with negative data.
-  __ lh(a6, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, r3)) );
+  __ lh(a6, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sw(a6, MemOperand(a0, OFFSET_OF(T, r3)));
 
   // lhu with negative data.
-  __ lhu(a7, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, r4)) );
+  __ lhu(a7, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sw(a7, MemOperand(a0, OFFSET_OF(T, r4)));
 
   // lb with negative data.
-  __ lb(t0, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sw(t0, MemOperand(a0, OFFSET_OF(T, r5)) );
+  __ lb(t0, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sw(t0, MemOperand(a0, OFFSET_OF(T, r5)));
 
   // // sh writes only 1/2 of word.
   __ lui(t1, 0x3333);
   __ ori(t1, t1, 0x3333);
-  __ sw(t1, MemOperand(a0, OFFSET_OF(T, r6)) );
-  __ lhu(t1, MemOperand(a0, OFFSET_OF(T, si)) );
-  __ sh(t1, MemOperand(a0, OFFSET_OF(T, r6)) );
+  __ sw(t1, MemOperand(a0, OFFSET_OF(T, r6)));
+  __ lhu(t1, MemOperand(a0, OFFSET_OF(T, si)));
+  __ sh(t1, MemOperand(a0, OFFSET_OF(T, r6)));
 
   __ jr(ra);
   __ nop();

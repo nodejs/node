@@ -254,7 +254,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
 
   ZoneList<int> code_relative_fixup_positions_;
 
-  // Which mode to generate code for (ASCII or UC16).
+  // Which mode to generate code for (LATIN1 or UC16).
   Mode mode_;
 
   // One greater than maximal register index actually used.

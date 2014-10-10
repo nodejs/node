@@ -5,8 +5,6 @@
 #ifndef V8_HEAP_MARK_COMPACT_INL_H_
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
-#include <memory.h>
-
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 
@@ -23,7 +21,6 @@ MarkBit Marking::MarkBitFrom(Address addr) {
 
 
 void MarkCompactCollector::SetFlags(int flags) {
-  sweep_precisely_ = ((flags & Heap::kSweepPreciselyMask) != 0);
   reduce_memory_footprint_ = ((flags & Heap::kReduceMemoryFootprintMask) != 0);
   abort_incremental_marking_ =
       ((flags & Heap::kAbortIncrementalMarkingMask) != 0);

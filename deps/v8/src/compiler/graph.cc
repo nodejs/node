@@ -18,37 +18,20 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone)
-    : GenericGraph<Node>(zone),
-      decorators_(DecoratorVector::allocator_type(zone)) {}
+Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
 
 
-Node* Graph::NewNode(Operator* op, int input_count, Node** inputs) {
-  DCHECK(op->InputCount() <= input_count);
+Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs) {
+  DCHECK_LE(op->InputCount(), input_count);
   Node* result = Node::New(this, input_count, inputs);
   result->Initialize(op);
-  for (DecoratorVector::iterator i = decorators_.begin();
+  for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
        i != decorators_.end(); ++i) {
     (*i)->Decorate(result);
   }
   return result;
 }
 
-
-void Graph::ChangeOperator(Node* node, Operator* op) { node->set_op(op); }
-
-
-void Graph::DeleteNode(Node* node) {
-#if DEBUG
-  // Nodes can't be deleted if they have uses.
-  Node::Uses::iterator use_iterator(node->uses().begin());
-  DCHECK(use_iterator == node->uses().end());
-#endif
-
-#if DEBUG
-  memset(node, 0xDE, sizeof(Node));
-#endif
-}
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

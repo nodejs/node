@@ -759,16 +759,16 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ b(ne, call_runtime);
   __ ldr(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
-  Label ascii, done;
+  Label one_byte, done;
   __ bind(&check_encoding);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ tst(result, Operand(kStringEncodingMask));
-  __ b(ne, &ascii);
+  __ b(ne, &one_byte);
   // Two-byte string.
   __ ldrh(result, MemOperand(string, index, LSL, 1));
   __ jmp(&done);
-  __ bind(&ascii);
-  // Ascii string.
+  __ bind(&one_byte);
+  // One-byte string.
   __ ldrb(result, MemOperand(string, index));
   __ bind(&done);
 }

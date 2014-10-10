@@ -42,38 +42,33 @@ namespace compiler {
   V(X64Shr32)                      \
   V(X64Sar)                        \
   V(X64Sar32)                      \
-  V(X64Push)                       \
-  V(X64PushI)                      \
-  V(X64CallCodeObject)             \
-  V(X64CallAddress)                \
-  V(PopStack)                      \
-  V(X64CallJSFunction)             \
+  V(X64Ror)                        \
+  V(X64Ror32)                      \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
-  V(X64Int32ToInt64)               \
-  V(X64Int64ToInt32)               \
+  V(SSEFloat64Sqrt)                \
+  V(SSECvtss2sd)                   \
+  V(SSECvtsd2ss)                   \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
-  V(SSELoad)                       \
-  V(SSEStore)                      \
-  V(X64LoadWord8)                  \
-  V(X64StoreWord8)                 \
-  V(X64StoreWord8I)                \
-  V(X64LoadWord16)                 \
-  V(X64StoreWord16)                \
-  V(X64StoreWord16I)               \
-  V(X64LoadWord32)                 \
-  V(X64StoreWord32)                \
-  V(X64StoreWord32I)               \
-  V(X64LoadWord64)                 \
-  V(X64StoreWord64)                \
-  V(X64StoreWord64I)               \
+  V(X64Movsxbl)                    \
+  V(X64Movzxbl)                    \
+  V(X64Movb)                       \
+  V(X64Movsxwl)                    \
+  V(X64Movzxwl)                    \
+  V(X64Movw)                       \
+  V(X64Movl)                       \
+  V(X64Movsxlq)                    \
+  V(X64Movq)                       \
+  V(X64Movsd)                      \
+  V(X64Movss)                      \
+  V(X64Push)                       \
   V(X64StoreWriteBarrier)
 
 
@@ -84,22 +79,30 @@ namespace compiler {
 //
 // We use the following local notation for addressing modes:
 //
-// R = register
-// O = register or stack slot
-// D = double register
-// I = immediate (handle, external, int32)
-// MR = [register]
-// MI = [immediate]
-// MRN = [register + register * N in {1, 2, 4, 8}]
-// MRI = [register + immediate]
-// MRNI = [register + register * N in {1, 2, 4, 8} + immediate]
+// M = memory operand
+// R = base register
+// N = index register * N for N in {1, 2, 4, 8}
+// I = immediate displacement (int32_t)
+
 #define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MR)   /* [%r1] */                  \
-  V(MRI)  /* [%r1 + K] */              \
-  V(MR1I) /* [%r1 + %r2 + K] */        \
+  V(MR)   /* [%r1            ] */      \
+  V(MRI)  /* [%r1         + K] */      \
+  V(MR1)  /* [%r1 + %r2*1    ] */      \
+  V(MR2)  /* [%r1 + %r2*2    ] */      \
+  V(MR4)  /* [%r1 + %r2*4    ] */      \
+  V(MR8)  /* [%r1 + %r2*8    ] */      \
+  V(MR1I) /* [%r1 + %r2*1 + K] */      \
   V(MR2I) /* [%r1 + %r2*2 + K] */      \
-  V(MR4I) /* [%r1 + %r2*4 + K] */      \
-  V(MR8I) /* [%r1 + %r2*8 + K] */
+  V(MR4I) /* [%r1 + %r2*3 + K] */      \
+  V(MR8I) /* [%r1 + %r2*4 + K] */      \
+  V(M1)   /* [      %r2*1    ] */      \
+  V(M2)   /* [      %r2*2    ] */      \
+  V(M4)   /* [      %r2*4    ] */      \
+  V(M8)   /* [      %r2*8    ] */      \
+  V(M1I)  /* [      %r2*1 + K] */      \
+  V(M2I)  /* [      %r2*2 + K] */      \
+  V(M4I)  /* [      %r2*4 + K] */      \
+  V(M8I)  /* [      %r2*8 + K] */
 
 }  // namespace compiler
 }  // namespace internal

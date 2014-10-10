@@ -9,96 +9,56 @@
 #include "src/cpu-profiler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
+#include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
 
 
-InterfaceDescriptor::InterfaceDescriptor()
-    : register_param_count_(-1) { }
+CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
+    : call_descriptor_(stub->GetCallInterfaceDescriptor()),
+      stack_parameter_count_(no_reg),
+      hint_stack_parameter_count_(-1),
+      function_mode_(NOT_JS_FUNCTION_STUB_MODE),
+      deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
+      miss_handler_(),
+      has_miss_handler_(false) {
+  stub->InitializeDescriptor(this);
+}
 
 
-CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
+CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
     : stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
-      has_miss_handler_(false) { }
-
-
-void InterfaceDescriptor::Initialize(
-    int register_parameter_count,
-    Register* registers,
-    Representation* register_param_representations,
-    PlatformInterfaceDescriptor* platform_descriptor) {
-  platform_specific_descriptor_ = platform_descriptor;
-  register_param_count_ = register_parameter_count;
-
-  // An interface descriptor must have a context register.
-  DCHECK(register_parameter_count > 0 && registers[0].is(ContextRegister()));
-
-  // InterfaceDescriptor owns a copy of the registers array.
-  register_params_.Reset(NewArray<Register>(register_parameter_count));
-  for (int i = 0; i < register_parameter_count; i++) {
-    register_params_[i] = registers[i];
-  }
-
-  // If a representations array is specified, then the descriptor owns that as
-  // well.
-  if (register_param_representations != NULL) {
-    register_param_representations_.Reset(
-        NewArray<Representation>(register_parameter_count));
-    for (int i = 0; i < register_parameter_count; i++) {
-      // If there is a context register, the representation must be tagged.
-      DCHECK(i != 0 || register_param_representations[i].Equals(
-          Representation::Tagged()));
-      register_param_representations_[i] = register_param_representations[i];
-    }
-  }
+      has_miss_handler_(false) {
+  CodeStub::InitializeDescriptor(isolate, stub_key, this);
 }
 
 
-void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, int register_parameter_count, Register* registers,
-    Address deoptimization_handler,
-    Representation* register_param_representations,
-    int hint_stack_parameter_count, StubFunctionMode function_mode) {
-  InterfaceDescriptor::Initialize(register_parameter_count, registers,
-                                  register_param_representations);
-
+void CodeStubDescriptor::Initialize(Address deoptimization_handler,
+                                    int hint_stack_parameter_count,
+                                    StubFunctionMode function_mode) {
   deoptimization_handler_ = deoptimization_handler;
-
   hint_stack_parameter_count_ = hint_stack_parameter_count;
   function_mode_ = function_mode;
-  major_ = major;
 }
 
 
-void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, int register_parameter_count, Register* registers,
-    Register stack_parameter_count, Address deoptimization_handler,
-    Representation* register_param_representations,
-    int hint_stack_parameter_count, StubFunctionMode function_mode,
-    HandlerArgumentsMode handler_mode) {
-  Initialize(major, register_parameter_count, registers, deoptimization_handler,
-             register_param_representations, hint_stack_parameter_count,
-             function_mode);
+void CodeStubDescriptor::Initialize(Register stack_parameter_count,
+                                    Address deoptimization_handler,
+                                    int hint_stack_parameter_count,
+                                    StubFunctionMode function_mode,
+                                    HandlerArgumentsMode handler_mode) {
+  Initialize(deoptimization_handler, hint_stack_parameter_count, function_mode);
   stack_parameter_count_ = stack_parameter_count;
   handler_arguments_mode_ = handler_mode;
-}
-
-
-void CallInterfaceDescriptor::Initialize(
-    int register_parameter_count,
-    Register* registers,
-    Representation* param_representations,
-    PlatformInterfaceDescriptor* platform_descriptor) {
-  InterfaceDescriptor::Initialize(register_parameter_count, registers,
-                                  param_representations, platform_descriptor);
 }
 
 
@@ -175,9 +135,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
   Code* code;
-  if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code)
-      : FindCodeInCache(&code)) {
+  if (UseSpecialCache() ? FindCodeInSpecialCache(&code)
+                        : FindCodeInCache(&code)) {
     DCHECK(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
@@ -229,15 +188,13 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
-    case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
     case NoCache:
       return "<NoCache>Stub";
-    default:
-      if (!allow_unknown_keys) {
-        UNREACHABLE();
-      }
+    case NUMBER_OF_IDS:
+      UNREACHABLE();
       return NULL;
   }
+  return NULL;
 }
 
 
@@ -249,6 +206,59 @@ void CodeStub::PrintBaseName(OStream& os) const {  // NOLINT
 void CodeStub::PrintName(OStream& os) const {  // NOLINT
   PrintBaseName(os);
   PrintState(os);
+}
+
+
+void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
+                        DispatchedCall call) {
+  switch (MajorKeyFromKey(key)) {
+#define DEF_CASE(NAME)             \
+  case NAME: {                     \
+    NAME##Stub stub(key, isolate); \
+    CodeStub* pstub = &stub;       \
+    call(pstub, value_out);        \
+    break;                         \
+  }
+    CODE_STUB_LIST(DEF_CASE)
+#undef DEF_CASE
+    case NUMBER_OF_IDS:
+      UNREACHABLE();
+    case NoCache:
+      *value_out = NULL;
+      break;
+  }
+}
+
+
+static void InitializeDescriptorDispatchedCall(CodeStub* stub,
+                                               void** value_out) {
+  CodeStubDescriptor* descriptor_out =
+      reinterpret_cast<CodeStubDescriptor*>(value_out);
+  stub->InitializeDescriptor(descriptor_out);
+  descriptor_out->set_call_descriptor(stub->GetCallInterfaceDescriptor());
+}
+
+
+void CodeStub::InitializeDescriptor(Isolate* isolate, uint32_t key,
+                                    CodeStubDescriptor* desc) {
+  void** value_out = reinterpret_cast<void**>(desc);
+  Dispatch(isolate, key, value_out, &InitializeDescriptorDispatchedCall);
+}
+
+
+void CodeStub::GetCodeDispatchCall(CodeStub* stub, void** value_out) {
+  Handle<Code>* code_out = reinterpret_cast<Handle<Code>*>(value_out);
+  // Code stubs with special cache cannot be recreated from stub key.
+  *code_out = stub->UseSpecialCache() ? Handle<Code>() : stub->GetCode();
+}
+
+
+MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
+  HandleScope scope(isolate);
+  Handle<Code> code;
+  void** value_out = reinterpret_cast<void**>(&code);
+  Dispatch(isolate, key, value_out, &GetCodeDispatchCall);
+  return scope.CloseAndEscape(code);
 }
 
 
@@ -265,18 +275,18 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   }
 
   // Generate special versions of the stub.
-  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
+  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
 void BinaryOpICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
-                                         const BinaryOpIC::State& state) {
+                                         const BinaryOpICState& state) {
   BinaryOpICStub stub(isolate, state);
   stub.GetCode();
 }
@@ -285,19 +295,19 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
 // static
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate special versions of the stub.
-  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
+  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
 void BinaryOpICWithAllocationSiteStub::PrintState(
     OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
 // static
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
-    Isolate* isolate, const BinaryOpIC::State& state) {
+    Isolate* isolate, const BinaryOpICState& state) {
   if (state.CouldCreateAllocationMementos()) {
     BinaryOpICWithAllocationSiteStub stub(isolate, state);
     stub.GetCode();
@@ -320,20 +330,20 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 }
 
 
-InlineCacheState ICCompareStub::GetICState() const {
-  CompareIC::State state = Max(left_, right_);
+InlineCacheState CompareICStub::GetICState() const {
+  CompareICState::State state = Max(left(), right());
   switch (state) {
-    case CompareIC::UNINITIALIZED:
+    case CompareICState::UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
-    case CompareIC::SMI:
-    case CompareIC::NUMBER:
-    case CompareIC::INTERNALIZED_STRING:
-    case CompareIC::STRING:
-    case CompareIC::UNIQUE_NAME:
-    case CompareIC::OBJECT:
-    case CompareIC::KNOWN_OBJECT:
+    case CompareICState::SMI:
+    case CompareICState::NUMBER:
+    case CompareICState::INTERNALIZED_STRING:
+    case CompareICState::STRING:
+    case CompareICState::UNIQUE_NAME:
+    case CompareICState::OBJECT:
+    case CompareICState::KNOWN_OBJECT:
       return MONOMORPHIC;
-    case CompareIC::GENERIC:
+    case CompareICState::GENERIC:
       return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
@@ -341,7 +351,12 @@ InlineCacheState ICCompareStub::GetICState() const {
 }
 
 
-void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
+Condition CompareICStub::GetCondition() const {
+  return CompareIC::ComputeCondition(op());
+}
+
+
+void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
   DCHECK(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
   Factory* factory = isolate->factory();
@@ -353,12 +368,12 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  DCHECK(op_ == Token::EQ || op_ == Token::EQ_STRICT);
+  DCHECK(op() == Token::EQ || op() == Token::EQ_STRICT);
   Handle<Object> probe(
       known_map_->FindInCodeCache(
         strict() ?
@@ -369,10 +384,11 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    Token::Value cached_op;
-    ICCompareStub::DecodeKey((*code_out)->stub_key(), NULL, NULL, NULL,
-                             &cached_op);
-    DCHECK(op_ == cached_op);
+    CompareICStub decode((*code_out)->stub_key(), isolate());
+    DCHECK(op() == decode.op());
+    DCHECK(left() == decode.left());
+    DCHECK(right() == decode.right());
+    DCHECK(state() == decode.state());
 #endif
     return true;
   }
@@ -380,65 +396,34 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 }
 
 
-int ICCompareStub::MinorKey() const {
-  return OpField::encode(op_ - Token::EQ) |
-         LeftStateField::encode(left_) |
-         RightStateField::encode(right_) |
-         HandlerStateField::encode(state_);
-}
-
-
-void ICCompareStub::DecodeKey(uint32_t stub_key, CompareIC::State* left_state,
-                              CompareIC::State* right_state,
-                              CompareIC::State* handler_state,
-                              Token::Value* op) {
-  int minor_key = MinorKeyFromKey(stub_key);
-  if (left_state) {
-    *left_state =
-        static_cast<CompareIC::State>(LeftStateField::decode(minor_key));
-  }
-  if (right_state) {
-    *right_state =
-        static_cast<CompareIC::State>(RightStateField::decode(minor_key));
-  }
-  if (handler_state) {
-    *handler_state =
-        static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
-  }
-  if (op) {
-    *op = static_cast<Token::Value>(OpField::decode(minor_key) + Token::EQ);
-  }
-}
-
-
-void ICCompareStub::Generate(MacroAssembler* masm) {
-  switch (state_) {
-    case CompareIC::UNINITIALIZED:
+void CompareICStub::Generate(MacroAssembler* masm) {
+  switch (state()) {
+    case CompareICState::UNINITIALIZED:
       GenerateMiss(masm);
       break;
-    case CompareIC::SMI:
+    case CompareICState::SMI:
       GenerateSmis(masm);
       break;
-    case CompareIC::NUMBER:
+    case CompareICState::NUMBER:
       GenerateNumbers(masm);
       break;
-    case CompareIC::STRING:
+    case CompareICState::STRING:
       GenerateStrings(masm);
       break;
-    case CompareIC::INTERNALIZED_STRING:
+    case CompareICState::INTERNALIZED_STRING:
       GenerateInternalizedStrings(masm);
       break;
-    case CompareIC::UNIQUE_NAME:
+    case CompareICState::UNIQUE_NAME:
       GenerateUniqueNames(masm);
       break;
-    case CompareIC::OBJECT:
+    case CompareICState::OBJECT:
       GenerateObjects(masm);
       break;
-    case CompareIC::KNOWN_OBJECT:
+    case CompareICState::KNOWN_OBJECT:
       DCHECK(*known_map_ != NULL);
       GenerateKnownObjects(masm);
       break;
-    case CompareIC::GENERIC:
+    case CompareICState::GENERIC:
       GenerateGeneric(masm);
       break;
   }
@@ -446,24 +431,26 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 
 
 void CompareNilICStub::UpdateStatus(Handle<Object> object) {
-  DCHECK(!state_.Contains(GENERIC));
-  State old_state(state_);
+  State state = this->state();
+  DCHECK(!state.Contains(GENERIC));
+  State old_state = state;
   if (object->IsNull()) {
-    state_.Add(NULL_TYPE);
+    state.Add(NULL_TYPE);
   } else if (object->IsUndefined()) {
-    state_.Add(UNDEFINED);
+    state.Add(UNDEFINED);
   } else if (object->IsUndetectableObject() ||
              object->IsOddball() ||
              !object->IsHeapObject()) {
-    state_.RemoveAll();
-    state_.Add(GENERIC);
+    state.RemoveAll();
+    state.Add(GENERIC);
   } else if (IsMonomorphic()) {
-    state_.RemoveAll();
-    state_.Add(GENERIC);
+    state.RemoveAll();
+    state.Add(GENERIC);
   } else {
-    state_.Add(MONOMORPHIC_MAP);
+    state.Add(MONOMORPHIC_MAP);
   }
-  TraceTransition(old_state, state_);
+  TraceTransition(old_state, state);
+  set_sub_minor_key(TypesBits::update(sub_minor_key(), state.ToIntegral()));
 }
 
 
@@ -482,12 +469,12 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
 
 void CompareNilICStub::PrintBaseName(OStream& os) const {  // NOLINT
   CodeStub::PrintBaseName(os);
-  os << ((nil_value_ == kNullValue) ? "(NullValue)" : "(UndefinedValue)");
+  os << ((nil_value() == kNullValue) ? "(NullValue)" : "(UndefinedValue)");
 }
 
 
 void CompareNilICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
@@ -524,18 +511,17 @@ OStream& operator<<(OStream& os, const CompareNilICStub::State& s) {
 
 
 Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
-  if (state_.Contains(CompareNilICStub::GENERIC)) {
-    return Type::Any(zone);
-  }
+  State state = this->state();
+  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any(zone);
 
   Type* result = Type::None(zone);
-  if (state_.Contains(CompareNilICStub::UNDEFINED)) {
+  if (state.Contains(CompareNilICStub::UNDEFINED)) {
     result = Type::Union(result, Type::Undefined(zone), zone);
   }
-  if (state_.Contains(CompareNilICStub::NULL_TYPE)) {
+  if (state.Contains(CompareNilICStub::NULL_TYPE)) {
     result = Type::Union(result, Type::Null(zone), zone);
   }
-  if (state_.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+  if (state.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
     Type* type =
         map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
     result = Type::Union(result, type, zone);
@@ -548,18 +534,18 @@ Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
 Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
   Type* output_type = GetType(zone, map);
   Type* nil_type =
-      nil_value_ == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+      nil_value() == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
   return Type::Union(output_type, nil_type, zone);
 }
 
 
 void CallIC_ArrayStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_ << " (Array)";
+  os << state() << " (Array)";
 }
 
 
 void CallICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
@@ -579,91 +565,160 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void LoadFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+void LoadFastElementStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
-void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+void LoadDictionaryElementStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
-void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
+void KeyedLoadGenericStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
 
-void HandlerStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  if (kind() == Code::LOAD_IC) {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadIC::ReceiverRegister(), LoadIC::NameRegister()};
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
-  } else {
-    DCHECK_EQ(Code::STORE_IC, kind());
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreIC::ReceiverRegister(),
-                            StoreIC::NameRegister(), StoreIC::ValueRegister()};
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
-                           FUNCTION_ADDR(StoreIC_MissFromStubFailure));
+void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  if (kind() == Code::STORE_IC) {
+    descriptor->Initialize(FUNCTION_ADDR(StoreIC_MissFromStubFailure));
+  } else if (kind() == Code::KEYED_LOAD_IC) {
+    descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
   }
 }
 
 
-void StoreFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           KeyedStoreIC::ReceiverRegister(),
-                           KeyedStoreIC::NameRegister(),
-                           KeyedStoreIC::ValueRegister() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
+CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
+  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
+    return LoadDescriptor(isolate());
+  } else {
+    DCHECK_EQ(Code::STORE_IC, kind());
+    return StoreDescriptor(isolate());
+  }
 }
 
 
-void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           ValueRegister(),
-                           MapRegister(),
-                           KeyRegister(),
-                           ObjectRegister() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
+void StoreFastElementStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
 
-void InstanceofStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           InstanceofStub::left(),
-                           InstanceofStub::right() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+void ElementsTransitionAndStoreStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
 
-void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
-  ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
+static void InitializeVectorLoadStub(Isolate* isolate,
+                                     CodeStubDescriptor* descriptor,
+                                     Address deoptimization_handler) {
+  DCHECK(FLAG_vector_ics);
+  descriptor->Initialize(deoptimization_handler);
+}
+
+
+void VectorLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  InitializeVectorLoadStub(isolate(), descriptor,
+                           FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
+}
+
+
+void VectorKeyedLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  InitializeVectorLoadStub(
+      isolate(), descriptor,
+      FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
+}
+
+
+void MegamorphicLoadStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
+void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
+}
+
+
+void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
+void ToNumberStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
+void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  NumberToStringDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
+}
+
+
+void FastCloneShallowArrayStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  FastCloneShallowArrayDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
+}
+
+
+void FastCloneShallowObjectStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  FastCloneShallowObjectDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
+}
+
+
+void CreateAllocationSiteStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
+void RegExpConstructResultStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
+}
+
+
+void TransitionElementsKindStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
+}
+
+
+void CompareNilICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(CompareNilIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
+}
+
+
+void ToBooleanStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(ToBooleanIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
+}
+
+
+void BinaryOpICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(BinaryOpIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
+}
+
+
+void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 
@@ -674,7 +729,7 @@ void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
-  switch (elements_kind_) {
+  switch (elements_kind()) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -690,7 +745,7 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
-      ElementHandlerCompiler::GenerateStoreDictionaryElement(masm);
+      ElementHandlerCompiler::GenerateStoreSlow(masm);
       break;
     case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -699,9 +754,27 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  switch (type()) {
+    case READ_ELEMENT:
+      GenerateReadElement(masm);
+      break;
+    case NEW_SLOPPY_FAST:
+      GenerateNewSloppyFast(masm);
+      break;
+    case NEW_SLOPPY_SLOW:
+      GenerateNewSloppySlow(masm);
+      break;
+    case NEW_STRICT:
+      GenerateNewStrict(masm);
+      break;
+  }
+}
+
+
 void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
-  switch (type_) {
+  switch (type()) {
     case READ_ELEMENT:
       os << "ReadElement";
       break;
@@ -720,7 +793,7 @@ void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
 
 
 void CallFunctionStub::PrintName(OStream& os) const {  // NOLINT
-  os << "CallFunctionStub_Args" << argc_;
+  os << "CallFunctionStub_Args" << argc();
 }
 
 
@@ -732,7 +805,7 @@ void CallConstructStub::PrintName(OStream& os) const {  // NOLINT
 
 void ArrayConstructorStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
-  switch (argument_count_) {
+  switch (argument_count()) {
     case ANY:
       os << "_Any";
       break;
@@ -761,15 +834,17 @@ OStream& ArrayConstructorStubBase::BasePrintName(OStream& os,  // NOLINT
 
 
 bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
-  Types old_types(types_);
-  bool to_boolean_value = types_.UpdateStatus(object);
-  TraceTransition(old_types, types_);
+  Types new_types = types();
+  Types old_types = new_types;
+  bool to_boolean_value = new_types.UpdateStatus(object);
+  TraceTransition(old_types, new_types);
+  set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToByte()));
   return to_boolean_value;
 }
 
 
 void ToBooleanStub::PrintState(OStream& os) const {  // NOLINT
-  os << types_;
+  os << types();
 }
 
 
@@ -856,97 +931,9 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
 }
 
 
-static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
-  int major_key = stub->MajorKey();
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate->code_stub_interface_descriptor(major_key);
-  if (!descriptor->IsInitialized()) {
-    stub->InitializeInterfaceDescriptor(descriptor);
-  }
-}
-
-
-void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  ArrayNoArgumentConstructorStub stub1(isolate, GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub1);
-  ArraySingleArgumentConstructorStub stub2(isolate,
-                                           GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub2);
-  ArrayNArgumentsConstructorStub stub3(isolate, GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub3);
-}
-
-
-void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
-  NumberToStringStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(isolate, STRICT, false);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
-  FastNewContextStub stub(isolate, FastNewContextStub::kMaximumSlots);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
-  FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpICStub stub(isolate, Token::ADD, NO_OVERWRITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpWithAllocationSiteStub stub(isolate, Token::ADD, NO_OVERWRITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void StringAddStub::InstallDescriptors(Isolate* isolate) {
-  StringAddStub stub(isolate, STRING_ADD_CHECK_NONE, NOT_TENURED);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
-  RegExpConstructResultStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void KeyedLoadGenericStub::InstallDescriptors(Isolate* isolate) {
-  KeyedLoadGenericStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
-  StoreFieldStub stub(isolate, FieldIndex::ForInObjectOffset(0),
-                      Representation::None());
-  InstallDescriptor(isolate, &stub);
-}
-
-
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate), argument_count_(ANY) {
+    : PlatformCodeStub(isolate) {
+  minor_key_ = ArgumentCountBits::encode(ANY);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
@@ -955,26 +942,17 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
                                            int argument_count)
     : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
-    argument_count_ = NONE;
+    minor_key_ = ArgumentCountBits::encode(NONE);
   } else if (argument_count == 1) {
-    argument_count_ = ONE;
+    minor_key_ = ArgumentCountBits::encode(ONE);
   } else if (argument_count >= 2) {
-    argument_count_ = MORE_THAN_ONE;
+    minor_key_ = ArgumentCountBits::encode(MORE_THAN_ONE);
   } else {
     UNREACHABLE();
   }
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
-
-void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  InternalArrayNoArgumentConstructorStub stub1(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub1);
-  InternalArraySingleArgumentConstructorStub stub2(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub2);
-  InternalArrayNArgumentsConstructorStub stub3(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub3);
-}
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(
     Isolate* isolate) : PlatformCodeStub(isolate) {

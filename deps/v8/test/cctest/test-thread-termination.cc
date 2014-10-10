@@ -459,3 +459,15 @@ TEST(PostponeTerminateException) {
   CHECK(try_catch.HasTerminated());
   CHECK_EQ(2, callback_counter);
 }
+
+
+TEST(ErrorObjectAfterTermination) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  v8::V8::TerminateExecution(isolate);
+  v8::Local<v8::Value> error = v8::Exception::Error(v8_str("error"));
+  // TODO(yangguo): crbug/403509. Check for empty handle instead.
+  CHECK(error->IsUndefined());
+}

@@ -12,6 +12,7 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -25,9 +26,16 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
+
+// Same as strcmp, but can handle NULL arguments.
+inline bool CStringEquals(const char* s1, const char* s2) {
+  return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
+}
+
+
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
-  DCHECK(IsPowerOf2(x));
+  DCHECK(base::bits::IsPowerOfTwo32(x));
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;
@@ -108,6 +116,12 @@ template<typename T> class Handle;  // Forward declaration.
 template <typename T>
 int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
+}
+
+
+template <typename T, typename U>
+inline bool IsAligned(T value, U alignment) {
+  return (value & (alignment - 1)) == 0;
 }
 
 
@@ -667,26 +681,17 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 };
 
 
-// Compare ASCII/16bit chars to ASCII/16bit chars.
+// Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs,
                                 const rchar* rhs,
                                 int chars) {
   const lchar* limit = lhs + chars;
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  if (sizeof(*lhs) == sizeof(*rhs)) {
-    // Number of characters in a uintptr_t.
-    static const int kStepSize = sizeof(uintptr_t) / sizeof(*lhs);  // NOLINT
-    while (lhs <= limit - kStepSize) {
-      if (*reinterpret_cast<const uintptr_t*>(lhs) !=
-          *reinterpret_cast<const uintptr_t*>(rhs)) {
-        break;
-      }
-      lhs += kStepSize;
-      rhs += kStepSize;
-    }
+  if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
+    // memcmp compares byte-by-byte, yielding wrong results for two-byte
+    // strings on little-endian systems.
+    return memcmp(lhs, rhs, chars);
   }
-#endif
   while (lhs < limit) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
@@ -731,62 +736,6 @@ inline int TenToThe(int exponent) {
   int answer = 10;
   for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
-}
-
-
-// The type-based aliasing rule allows the compiler to assume that pointers of
-// different types (for some definition of different) never alias each other.
-// Thus the following code does not work:
-//
-// float f = foo();
-// int fbits = *(int*)(&f);
-//
-// The compiler 'knows' that the int pointer can't refer to f since the types
-// don't match, so the compiler may cache f in a register, leaving random data
-// in fbits.  Using C++ style casts makes no difference, however a pointer to
-// char data is assumed to alias any other pointer.  This is the 'memcpy
-// exception'.
-//
-// Bit_cast uses the memcpy exception to move the bits from a variable of one
-// type of a variable of another type.  Of course the end result is likely to
-// be implementation dependent.  Most compilers (gcc-4.2 and MSVC 2005)
-// will completely optimize BitCast away.
-//
-// There is an additional use for BitCast.
-// Recent gccs will warn when they see casts that may result in breakage due to
-// the type-based aliasing rule.  If you have checked that there is no breakage
-// you can use BitCast to cast one pointer type to another.  This confuses gcc
-// enough that it can no longer see that you have cast one pointer type to
-// another thus avoiding the warning.
-
-// We need different implementations of BitCast for pointer and non-pointer
-// values. We use partial specialization of auxiliary struct to work around
-// issues with template functions overloading.
-template <class Dest, class Source>
-struct BitCastHelper {
-  STATIC_ASSERT(sizeof(Dest) == sizeof(Source));
-
-  INLINE(static Dest cast(const Source& source)) {
-    Dest dest;
-    memcpy(&dest, &source, sizeof(dest));
-    return dest;
-  }
-};
-
-template <class Dest, class Source>
-struct BitCastHelper<Dest, Source*> {
-  INLINE(static Dest cast(Source* source)) {
-    return BitCastHelper<Dest, uintptr_t>::
-        cast(reinterpret_cast<uintptr_t>(source));
-  }
-};
-
-template <class Dest, class Source>
-INLINE(Dest BitCast(const Source& source));
-
-template <class Dest, class Source>
-inline Dest BitCast(const Source& source) {
-  return BitCastHelper<Dest, Source>::cast(source);
 }
 
 
@@ -1277,21 +1226,6 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 }
 
 
-// Simple wrapper that allows an ExternalString to refer to a
-// Vector<const char>. Doesn't assume ownership of the data.
-class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
- public:
-  explicit AsciiStringAdapter(Vector<const char> data) : data_(data) {}
-
-  virtual const char* data() const { return data_.start(); }
-
-  virtual size_t length() const { return data_.length(); }
-
- private:
-  Vector<const char> data_;
-};
-
-
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
 // On return, *exits tells whether the file existed.
@@ -1316,7 +1250,7 @@ INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
 #endif
 
-// Copy from ASCII/16bit chars to ASCII/16bit chars.
+// Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
 INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
 
@@ -1350,25 +1284,11 @@ void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  if (sizeof(*dest) == sizeof(*src)) {
-    if (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest))) {
-      MemCopy(dest, src, chars * sizeof(*dest));
-      return;
-    }
-    // Number of characters in a uintptr_t.
-    static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
-    DCHECK(dest + kStepSize > dest);  // Check for overflow.
-    while (dest + kStepSize <= limit) {
-      *reinterpret_cast<uintptr_t*>(dest) =
-          *reinterpret_cast<const uintptr_t*>(src);
-      dest += kStepSize;
-      src += kStepSize;
-    }
-  }
-#endif
-  while (dest < limit) {
-    *dest++ = static_cast<sinkchar>(*src++);
+  if ((sizeof(*dest) == sizeof(*src)) &&
+      (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
+    MemCopy(dest, src, chars * sizeof(*dest));
+  } else {
+    while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);
   }
 }
 
@@ -1535,6 +1455,16 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index) {
 }
 
 
-} }  // namespace v8::internal
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
+inline uintptr_t GetCurrentStackPosition() {
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UTILS_H_

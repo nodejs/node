@@ -68,6 +68,18 @@ namespace internal {
 // Determine whether the architecture uses an out-of-line constant pool.
 #define V8_OOL_CONSTANT_POOL 0
 
+#ifdef V8_TARGET_ARCH_ARM
+// Set stack limit lower for ARM than for other architectures because
+// stack allocating MacroAssembler takes 120K bytes.
+// See issue crbug.com/405338
+#define V8_DEFAULT_STACK_SIZE_KB 864
+#else
+// Slightly less than 1MB, since Windows' default stack size for
+// the main execution thread is 1MB for both 32 and 64-bit.
+#define V8_DEFAULT_STACK_SIZE_KB 984
+#endif
+
+
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
 // For instance, 'bool b = "false";' results in b == true! This is a hidden
@@ -610,8 +622,12 @@ enum CpuFeature {
     MOVW_MOVT_IMMEDIATE_LOADS,
     VFP32DREGS,
     NEON,
-    // MIPS
+    // MIPS, MIPS64
     FPU,
+    FP64FPU,
+    MIPSr1,
+    MIPSr2,
+    MIPSr6,
     // ARM64
     ALWAYS_ALIGN_CSP,
     NUMBER_OF_CPU_FEATURES
@@ -752,6 +768,44 @@ enum MinusZeroMode {
   FAIL_ON_MINUS_ZERO
 };
 
+
+enum Signedness { kSigned, kUnsigned };
+
+
+enum FunctionKind {
+  kNormalFunction = 0,
+  kArrowFunction = 1,
+  kGeneratorFunction = 2,
+  kConciseMethod = 4,
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod
+};
+
+
+inline bool IsValidFunctionKind(FunctionKind kind) {
+  return kind == FunctionKind::kNormalFunction ||
+         kind == FunctionKind::kArrowFunction ||
+         kind == FunctionKind::kGeneratorFunction ||
+         kind == FunctionKind::kConciseMethod ||
+         kind == FunctionKind::kConciseGeneratorMethod;
+}
+
+
+inline bool IsArrowFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kArrowFunction;
+}
+
+
+inline bool IsGeneratorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kGeneratorFunction;
+}
+
+
+inline bool IsConciseMethod(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kConciseMethod;
+}
 } }  // namespace v8::internal
 
 namespace i = v8::internal;

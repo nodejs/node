@@ -110,41 +110,127 @@ TEST(Type0) {
   COMPARE(subu(v0, v1, s0),
           "00701023       subu    v0, v1, s0");
 
-  COMPARE(mult(a0, a1),
-          "00850018       mult    a0, a1");
-  COMPARE(mult(t2, t3),
-          "014b0018       mult    t2, t3");
-  COMPARE(mult(v0, v1),
-          "00430018       mult    v0, v1");
+  if (!IsMipsArchVariant(kMips32r6)) {
+    COMPARE(mult(a0, a1),
+            "00850018       mult    a0, a1");
+    COMPARE(mult(t2, t3),
+            "014b0018       mult    t2, t3");
+    COMPARE(mult(v0, v1),
+            "00430018       mult    v0, v1");
 
-  COMPARE(multu(a0, a1),
-          "00850019       multu   a0, a1");
-  COMPARE(multu(t2, t3),
-          "014b0019       multu   t2, t3");
-  COMPARE(multu(v0, v1),
-          "00430019       multu   v0, v1");
+    COMPARE(multu(a0, a1),
+            "00850019       multu   a0, a1");
+    COMPARE(multu(t2, t3),
+            "014b0019       multu   t2, t3");
+    COMPARE(multu(v0, v1),
+            "00430019       multu   v0, v1");
 
-  COMPARE(div(a0, a1),
-          "0085001a       div     a0, a1");
-  COMPARE(div(t2, t3),
-          "014b001a       div     t2, t3");
-  COMPARE(div(v0, v1),
-          "0043001a       div     v0, v1");
+    COMPARE(div(a0, a1),
+            "0085001a       div     a0, a1");
+    COMPARE(div(t2, t3),
+            "014b001a       div     t2, t3");
+    COMPARE(div(v0, v1),
+            "0043001a       div     v0, v1");
 
-  COMPARE(divu(a0, a1),
-          "0085001b       divu    a0, a1");
-  COMPARE(divu(t2, t3),
-          "014b001b       divu    t2, t3");
-  COMPARE(divu(v0, v1),
-          "0043001b       divu    v0, v1");
+    COMPARE(divu(a0, a1),
+            "0085001b       divu    a0, a1");
+    COMPARE(divu(t2, t3),
+            "014b001b       divu    t2, t3");
+    COMPARE(divu(v0, v1),
+            "0043001b       divu    v0, v1");
 
-  if (kArchVariant != kLoongson) {
+    if (!IsMipsArchVariant(kLoongson)) {
+      COMPARE(mul(a0, a1, a2),
+              "70a62002       mul     a0, a1, a2");
+      COMPARE(mul(t2, t3, t4),
+              "716c5002       mul     t2, t3, t4");
+      COMPARE(mul(v0, v1, s0),
+              "70701002       mul     v0, v1, s0");
+    }
+  } else {  // MIPS32r6.
     COMPARE(mul(a0, a1, a2),
-            "70a62002       mul     a0, a1, a2");
-    COMPARE(mul(t2, t3, t4),
-            "716c5002       mul     t2, t3, t4");
-    COMPARE(mul(v0, v1, s0),
-            "70701002       mul     v0, v1, s0");
+            "00a62098       mul    a0, a1, a2");
+    COMPARE(muh(a0, a1, a2),
+            "00a620d8       muh    a0, a1, a2");
+    COMPARE(mul(t1, t2, t3),
+            "014b4898       mul    t1, t2, t3");
+    COMPARE(muh(t1, t2, t3),
+            "014b48d8       muh    t1, t2, t3");
+    COMPARE(mul(v0, v1, a0),
+            "00641098       mul    v0, v1, a0");
+    COMPARE(muh(v0, v1, a0),
+            "006410d8       muh    v0, v1, a0");
+
+    COMPARE(mulu(a0, a1, a2),
+            "00a62099       mulu   a0, a1, a2");
+    COMPARE(muhu(a0, a1, a2),
+            "00a620d9       muhu   a0, a1, a2");
+    COMPARE(mulu(t1, t2, t3),
+            "014b4899       mulu   t1, t2, t3");
+    COMPARE(muhu(t1, t2, t3),
+            "014b48d9       muhu   t1, t2, t3");
+    COMPARE(mulu(v0, v1, a0),
+            "00641099       mulu   v0, v1, a0");
+    COMPARE(muhu(v0, v1, a0),
+            "006410d9       muhu   v0, v1, a0");
+
+    COMPARE(div(a0, a1, a2),
+            "00a6209a       div    a0, a1, a2");
+    COMPARE(mod(a0, a1, a2),
+            "00a620da       mod    a0, a1, a2");
+    COMPARE(div(t1, t2, t3),
+            "014b489a       div    t1, t2, t3");
+    COMPARE(mod(t1, t2, t3),
+            "014b48da       mod    t1, t2, t3");
+    COMPARE(div(v0, v1, a0),
+            "0064109a       div    v0, v1, a0");
+    COMPARE(mod(v0, v1, a0),
+            "006410da       mod    v0, v1, a0");
+
+    COMPARE(divu(a0, a1, a2),
+            "00a6209b       divu   a0, a1, a2");
+    COMPARE(modu(a0, a1, a2),
+            "00a620db       modu   a0, a1, a2");
+    COMPARE(divu(t1, t2, t3),
+            "014b489b       divu   t1, t2, t3");
+    COMPARE(modu(t1, t2, t3),
+            "014b48db       modu   t1, t2, t3");
+    COMPARE(divu(v0, v1, a0),
+            "0064109b       divu   v0, v1, a0");
+    COMPARE(modu(v0, v1, a0),
+            "006410db       modu   v0, v1, a0");
+
+    COMPARE(bovc(a0, a0, static_cast<int16_t>(0)),
+            "20840000       bovc  a0, a0, 0");
+    COMPARE(bovc(a1, a0, static_cast<int16_t>(0)),
+            "20a40000       bovc  a1, a0, 0");
+    COMPARE(bovc(a1, a0, 32767),
+            "20a47fff       bovc  a1, a0, 32767");
+    COMPARE(bovc(a1, a0, -32768),
+            "20a48000       bovc  a1, a0, -32768");
+
+    COMPARE(bnvc(a0, a0, static_cast<int16_t>(0)),
+            "60840000       bnvc  a0, a0, 0");
+    COMPARE(bnvc(a1, a0, static_cast<int16_t>(0)),
+            "60a40000       bnvc  a1, a0, 0");
+    COMPARE(bnvc(a1, a0, 32767),
+            "60a47fff       bnvc  a1, a0, 32767");
+    COMPARE(bnvc(a1, a0, -32768),
+            "60a48000       bnvc  a1, a0, -32768");
+
+    COMPARE(beqzc(a0, 0),
+            "d8800000       beqzc   a0, 0x0");
+    COMPARE(beqzc(a0, 0xfffff),                   // 0x0fffff ==  1048575.
+            "d88fffff       beqzc   a0, 0xfffff");
+    COMPARE(beqzc(a0, 0x100000),                  // 0x100000 == -1048576.
+            "d8900000       beqzc   a0, 0x100000");
+
+    COMPARE(bnezc(a0, 0),
+            "f8800000       bnezc   a0, 0x0");
+    COMPARE(bnezc(a0, 0xfffff),                   // 0x0fffff ==  1048575.
+            "f88fffff       bnezc   a0, 0xfffff");
+    COMPARE(bnezc(a0, 0x100000),                  // 0x100000 == -1048576.
+            "f8900000       bnezc   a0, 0x100000");
   }
 
   COMPARE(addiu(a0, a1, 0x0),
@@ -266,7 +352,7 @@ TEST(Type0) {
   COMPARE(srav(v0, v1, fp),
           "03c31007       srav    v0, v1, fp");
 
-  if (kArchVariant == kMips32r2) {
+  if (IsMipsArchVariant(kMips32r2)) {
     COMPARE(rotr(a0, a1, 0),
             "00252002       rotr    a0, a1, 0");
     COMPARE(rotr(s0, s1, 8),
@@ -369,7 +455,7 @@ TEST(Type0) {
   COMPARE(sltiu(v0, v1, -1),
           "2c62ffff       sltiu   v0, v1, -1");
 
-  if (kArchVariant != kLoongson) {
+  if (!IsMipsArchVariant(kLoongson)) {
     COMPARE(movz(a0, a1, a2),
             "00a6200a       movz    a0, a1, a2");
     COMPARE(movz(s0, s1, s2),
@@ -404,15 +490,24 @@ TEST(Type0) {
     COMPARE(movf(v0, v1, 6),
             "00781001       movf    v0, v1, 6");
 
-    COMPARE(clz(a0, a1),
-            "70a42020       clz     a0, a1");
-    COMPARE(clz(s6, s7),
-            "72f6b020       clz     s6, s7");
-    COMPARE(clz(v0, v1),
-            "70621020       clz     v0, v1");
+    if (IsMipsArchVariant(kMips32r6)) {
+      COMPARE(clz(a0, a1),
+              "00a02050       clz     a0, a1");
+      COMPARE(clz(s6, s7),
+              "02e0b050       clz     s6, s7");
+      COMPARE(clz(v0, v1),
+              "00601050       clz     v0, v1");
+    } else {
+      COMPARE(clz(a0, a1),
+              "70a42020       clz     a0, a1");
+      COMPARE(clz(s6, s7),
+              "72f6b020       clz     s6, s7");
+      COMPARE(clz(v0, v1),
+              "70621020       clz     v0, v1");
+    }
   }
 
-  if (kArchVariant == kMips32r2) {
+  if (IsMipsArchVariant(kMips32r2)) {
     COMPARE(ins_(a0, a1, 31, 1),
             "7ca4ffc4       ins     a0, a1, 31, 1");
     COMPARE(ins_(s6, s7, 30, 2),

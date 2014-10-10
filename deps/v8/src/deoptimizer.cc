@@ -353,7 +353,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool turbofanned = code->is_turbofanned();
+      bool turbofanned = code->is_turbofanned() && !FLAG_turbo_deoptimization;
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
       CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned);
@@ -378,7 +378,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     Object* next = code->next_code_link();
 
-    if (code->marked_for_deoptimization()) {
+    if (code->marked_for_deoptimization() &&
+        (!code->is_turbofanned() || FLAG_turbo_deoptimization)) {
       // Put the code into the list for later patching.
       codes.Add(code, &zone);
 
@@ -398,10 +399,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       prev = code;
     }
     element = next;
-  }
-
-  if (FLAG_turbo_deoptimization) {
-    PatchStackForMarkedCode(isolate);
   }
 
   // TODO(titzer): we need a handle scope only because of the macro assembler,
@@ -425,67 +422,13 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     shared->EvictFromOptimizedCodeMap(codes[i], "deoptimized code");
 
     // Do platform-specific patching to force any activations to lazy deopt.
-    //
-    // We skip patching Turbofan code - we patch return addresses on stack.
-    // TODO(jarin) We should still zap the code object (but we have to
-    // be careful not to zap the deoptimization block).
-    if (!codes[i]->is_turbofanned()) {
+    if (!codes[i]->is_turbofanned() || FLAG_turbo_deoptimization) {
       PatchCodeForDeoptimization(isolate, codes[i]);
 
       // We might be in the middle of incremental marking with compaction.
       // Tell collector to treat this code object in a special way and
       // ignore all slots that might have been recorded on it.
       isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
-    }
-  }
-}
-
-
-static int FindPatchAddressForReturnAddress(Code* code, int pc) {
-  DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  int patch_count = input_data->ReturnAddressPatchCount();
-  for (int i = 0; i < patch_count; i++) {
-    int return_pc = input_data->ReturnAddressPc(i)->value();
-    int patch_pc = input_data->PatchedAddressPc(i)->value();
-    // If the supplied pc matches the return pc or if the address
-    // has been already patched, return the patch pc.
-    if (pc == return_pc || pc == patch_pc) {
-      return patch_pc;
-    }
-  }
-  return -1;
-}
-
-
-// For all marked Turbofanned code on stack, change the return address to go
-// to the deoptimization block.
-void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
-  // TODO(jarin) We should tolerate missing patch entry for the topmost frame.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
-       it.Advance()) {
-    StackFrame::Type type = it.frame()->type();
-    if (type == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
-      if (code->is_turbofanned() && code->marked_for_deoptimization()) {
-        JSFunction* function =
-            static_cast<OptimizedFrame*>(it.frame())->function();
-        Address* pc_address = it.frame()->pc_address();
-        int pc_offset =
-            static_cast<int>(*pc_address - code->instruction_start());
-        int new_pc_offset = FindPatchAddressForReturnAddress(code, pc_offset);
-
-        if (FLAG_trace_deopt) {
-          CodeTracer::Scope scope(isolate->GetCodeTracer());
-          PrintF(scope.file(), "[patching stack address for function: ");
-          function->PrintName(scope.file());
-          PrintF(scope.file(), " (Pc offset %i -> %i)]\n", pc_offset,
-                 new_pc_offset);
-        }
-
-        CHECK_LE(0, new_pc_offset);
-        *pc_address += new_pc_offset - pc_offset;
-      }
     }
   }
 }
@@ -941,7 +884,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     CHECK_EQ(Translation::kSelfLiteralId, closure_id);
     function = function_;
   }
-  unsigned height = iterator->Next();
+  unsigned height = iterator->Next() - 1;  // Do not count the context.
   unsigned height_in_bytes = height * kPointerSize;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating ");
@@ -1076,12 +1019,24 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   Register context_reg = JavaScriptFrame::context_register();
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
-  } else {
-    value = reinterpret_cast<intptr_t>(function->context());
+  // Read the context from the translations.
+  DoTranslateCommand(iterator, frame_index, output_offset);
+  value = output_frame->GetFrameSlot(output_offset);
+  // The context should not be a placeholder for a materialized object.
+  CHECK(value !=
+        reinterpret_cast<intptr_t>(isolate_->heap()->arguments_marker()));
+  if (value ==
+      reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value())) {
+    // If the context was optimized away, just use the context from
+    // the activation. This should only apply to Crankshaft code.
+    CHECK(!compiled_code_->is_turbofanned());
+    if (is_bottommost) {
+      value = input_->GetFrameSlot(input_offset);
+    } else {
+      value = reinterpret_cast<intptr_t>(function->context());
+    }
+    output_frame->SetFrameSlot(output_offset, value);
   }
-  output_frame->SetFrameSlot(output_offset, value);
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
   if (trace_scope_ != NULL) {
@@ -1625,17 +1580,13 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   CHECK(compiled_code_->is_hydrogen_stub());
   int major_key = CodeStub::GetMajorKey(compiled_code_);
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate_->code_stub_interface_descriptor(major_key);
-  // Check that there is a matching descriptor to the major key.
-  // This will fail if there has not been one installed to the isolate.
-  DCHECK_EQ(descriptor->MajorKey(), major_key);
+  CodeStubDescriptor descriptor(isolate_, compiled_code_->stub_key());
 
   // The output frame must have room for all pushed register parameters
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
-  int param_count = descriptor->GetEnvironmentParameterCount();
+  int param_count = descriptor.GetEnvironmentParameterCount();
   CHECK_GE(param_count, 0);
 
   int height_in_bytes = kPointerSize * param_count + sizeof(Arguments) +
@@ -1733,7 +1684,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  bool arg_count_known = !descriptor->stack_parameter_count().is_valid();
+  bool arg_count_known = !descriptor.stack_parameter_count().is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
@@ -1785,8 +1736,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     output_frame_offset -= kPointerSize;
     DoTranslateCommand(iterator, 0, output_frame_offset);
 
-    if (!arg_count_known &&
-        descriptor->IsEnvironmentParameterCountRegister(i)) {
+    if (!arg_count_known && descriptor.IsEnvironmentParameterCountRegister(i)) {
       arguments_length_offset = output_frame_offset;
     }
   }
@@ -1825,11 +1775,11 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   CopyDoubleRegisters(output_frame);
 
   // Fill registers containing handler and number of parameters.
-  SetPlatformCompiledStubRegisters(output_frame, descriptor);
+  SetPlatformCompiledStubRegisters(output_frame, &descriptor);
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  StubFunctionMode function_mode = descriptor->function_mode();
+  StubFunctionMode function_mode = descriptor.function_mode();
   StubFailureTrampolineStub(isolate_,
                             function_mode).FindCodeInCache(&trampoline);
   DCHECK(trampoline != NULL);
@@ -3645,6 +3595,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
                                            bool has_construct_stub) {
   FrameDescription* output_frame = deoptimizer->output_[frame_index];
   function_ = output_frame->GetFunction();
+  context_ = reinterpret_cast<Object*>(output_frame->GetContext());
   has_construct_stub_ = has_construct_stub;
   expression_count_ = output_frame->GetExpressionCount();
   expression_stack_ = new Object*[expression_count_];
@@ -3677,7 +3628,8 @@ DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
 
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(BitCast<Object**>(&function_));
+  v->VisitPointer(bit_cast<Object**>(&function_));
+  v->VisitPointer(&context_);
   v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }

@@ -54,10 +54,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
 
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
-      CallsEvalField::encode(scope->calls_eval()) |
-      StrictModeField::encode(scope->strict_mode()) |
-      FunctionVariableField::encode(function_name_info) |
-      FunctionVariableMode::encode(function_variable_mode);
+              CallsEvalField::encode(scope->calls_eval()) |
+              StrictModeField::encode(scope->strict_mode()) |
+              FunctionVariableField::encode(function_name_info) |
+              FunctionVariableMode::encode(function_variable_mode) |
+              AsmModuleField::encode(scope->asm_module()) |
+              AsmFunctionField::encode(scope->asm_function());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);

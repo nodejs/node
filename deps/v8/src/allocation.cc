@@ -5,6 +5,7 @@
 #include "src/allocation.h"
 
 #include <stdlib.h>  // For free, malloc.
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/utils.h"
@@ -83,7 +84,8 @@ char* StrNDup(const char* str, int n) {
 
 
 void* AlignedAlloc(size_t size, size_t alignment) {
-  DCHECK(IsPowerOf2(alignment) && alignment >= V8_ALIGNOF(void*));  // NOLINT
+  DCHECK_LE(V8_ALIGNOF(void*), alignment);
+  DCHECK(base::bits::IsPowerOfTwo32(alignment));
   void* ptr;
 #if V8_OS_WIN
   ptr = _aligned_malloc(size, alignment);

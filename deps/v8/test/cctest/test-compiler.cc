@@ -227,18 +227,18 @@ TEST(C2JSFrames) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun0, global, 0, NULL).Check();
 
-  Handle<String> foo_string = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("foo"));
+  Handle<String> foo_string =
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("foo"));
   Handle<Object> fun1 = Object::GetProperty(
       isolate->global_object(), foo_string).ToHandleChecked();
   CHECK(fun1->IsJSFunction());
 
-  Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("hello")) };
+  Handle<Object> argv[] = {isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("hello"))};
   Execution::Call(isolate,
                   Handle<JSFunction>::cast(fun1),
                   global,
-                  ARRAY_SIZE(argv),
+                  arraysize(argv),
                   argv).Check();
 }
 

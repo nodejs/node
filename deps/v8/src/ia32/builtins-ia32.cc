@@ -6,10 +6,10 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -550,8 +550,8 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
 }
 
@@ -995,8 +995,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    Register receiver = LoadIC::ReceiverRegister();
-    Register key = LoadIC::NameRegister();
+    Register receiver = LoadDescriptor::ReceiverRegister();
+    Register key = LoadDescriptor::NameRegister();
     __ mov(key, Operand(ebp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
@@ -1004,9 +1004,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use inline caching to speed up access to arguments.
     if (FLAG_vector_ics) {
-      __ mov(LoadIC::SlotRegister(), Immediate(Smi::FromInt(0)));
+      __ mov(VectorLoadICDescriptor::SlotRegister(),
+             Immediate(Smi::FromInt(0)));
     }
-    Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
+    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
     __ call(ic, RelocInfo::CODE_TARGET);
     // It is important that we do not have a test instruction after the
     // call.  A test instruction after the call is used to indicate that

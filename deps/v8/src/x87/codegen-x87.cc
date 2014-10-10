@@ -217,12 +217,8 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
   // Set transitioned map.
   __ mov(FieldOperand(receiver, HeapObject::kMapOffset), target_map);
-  __ RecordWriteField(receiver,
-                      HeapObject::kMapOffset,
-                      target_map,
-                      scratch,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
+                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 }
 
 
@@ -275,12 +271,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
   __ mov(ebx, eax);
-  __ RecordWriteField(edx,
-                      JSObject::kElementsOffset,
-                      ebx,
-                      edi,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, JSObject::kElementsOffset, ebx, edi, kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   __ mov(edi, FieldOperand(esi, FixedArray::kLengthOffset));
 
@@ -339,12 +331,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // ebx: target map
   // Set transitioned map.
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 }
 
 
@@ -399,12 +387,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Set transitioned map.
   __ bind(&only_change_map);
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ jmp(&success);
 
   // Call into runtime if GC is required.
@@ -433,10 +417,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ mov(FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize), esi);
   __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize), edx);
   __ mov(esi, ebx);
-  __ RecordWriteArray(eax,
-                      edx,
-                      esi,
-                      EMIT_REMEMBERED_SET,
+  __ RecordWriteArray(eax, edx, esi, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ jmp(&entry, Label::kNear);
 
@@ -455,20 +436,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // edx: receiver
   // Set transitioned map.
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created and filled FixedArray.
   __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
-  __ RecordWriteField(edx,
-                      JSObject::kElementsOffset,
-                      eax,
-                      edi,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, JSObject::kElementsOffset, eax, edi, kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Restore registers.
   __ pop(eax);
@@ -531,7 +504,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ j(zero, &seq_string, Label::kNear);
 
   // Handle external strings.
-  Label ascii_external, done;
+  Label one_byte_external, done;
   if (FLAG_debug_code) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
@@ -546,22 +519,22 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ test_b(result, kStringEncodingMask);
   __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
-  __ j(not_equal, &ascii_external, Label::kNear);
+  __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.
   __ movzx_w(result, Operand(result, index, times_2, 0));
   __ jmp(&done, Label::kNear);
-  __ bind(&ascii_external);
-  // Ascii string.
+  __ bind(&one_byte_external);
+  // One-byte string.
   __ movzx_b(result, Operand(result, index, times_1, 0));
   __ jmp(&done, Label::kNear);
 
-  // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii;
+  // Dispatch on the encoding: one-byte or two-byte.
+  Label one_byte;
   __ bind(&seq_string);
   STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii, Label::kNear);
+  __ j(not_zero, &one_byte, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
@@ -571,9 +544,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                   SeqTwoByteString::kHeaderSize));
   __ jmp(&done, Label::kNear);
 
-  // Ascii string.
+  // One-byte string.
   // Load the byte into the result register.
-  __ bind(&ascii);
+  __ bind(&one_byte);
   __ movzx_b(result, FieldOperand(string,
                                   index,
                                   times_1,

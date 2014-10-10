@@ -158,7 +158,6 @@ void CompareStrings(const char* s1, const char* s2,
 // --- T h e   A c t u a l   T e s t s
 
 TEST(LiveEditDiffer) {
-  v8::internal::V8::Initialize(NULL);
   CompareStrings("zz1zzz12zz123zzz", "zzzzzzzzzz", 6);
   CompareStrings("zz1zzz12zz123zzz", "zz0zzz0zz0zzz", 9);
   CompareStrings("123456789", "987654321", 16);

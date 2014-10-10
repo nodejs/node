@@ -167,6 +167,9 @@ class V8_EXPORT Debug {
   // happened yet.
   static void CancelDebugBreak(Isolate* isolate);
 
+  // Check if a debugger break is scheduled in the given isolate.
+  static bool CheckDebugBreak(Isolate* isolate);
+
   // Break execution of JavaScript in the given isolate (this method
   // can be invoked from a non-VM thread) for further client command
   // execution on a VM thread. Client data is then passed in

@@ -37,7 +37,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/messages.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"
 #include "src/scopeinfo.h"
 #include "tools/shell-utils.h"
@@ -180,10 +180,11 @@ v8::base::TimeDelta ProcessFile(
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
-  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+  v8::V8::Initialize();
   Encoding encoding = LATIN1;
   bool print_tokens = false;
   std::vector<std::string> fnames;

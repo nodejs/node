@@ -188,7 +188,7 @@ void LGapResolver::EmitMove(int index) {
       }
     } else if (destination->IsDoubleRegister()) {
       double v = cgen_->ToDouble(constant_source);
-      uint64_t int_val = BitCast<uint64_t, double>(v);
+      uint64_t int_val = bit_cast<uint64_t, double>(v);
       XMMRegister dst = cgen_->ToDoubleRegister(destination);
       if (int_val == 0) {
         __ xorps(dst, dst);

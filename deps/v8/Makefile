@@ -230,8 +230,8 @@ NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = build/all.gyp build/features.gypi build/standalone.gypi \
-           build/toolchain.gypi samples/samples.gyp src/d8.gyp \
-           test/cctest/cctest.gyp tools/gyp/v8.gyp
+           build/toolchain.gypi samples/samples.gyp src/compiler/compiler.gyp \
+           src/d8.gyp test/cctest/cctest.gyp tools/gyp/v8.gyp
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)

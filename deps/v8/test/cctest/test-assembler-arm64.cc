@@ -10270,58 +10270,6 @@ TEST(copyfields) {
 }
 
 
-static void DoSmiAbsTest(int32_t value, bool must_fail = false) {
-  SETUP();
-
-  START();
-  Label end, slow;
-  __ Mov(x2, 0xc001c0de);
-  __ Mov(x1, value);
-  __ SmiTag(x1);
-  __ SmiAbs(x1, &slow);
-  __ SmiUntag(x1);
-  __ B(&end);
-
-  __ Bind(&slow);
-  __ Mov(x2, 0xbad);
-
-  __ Bind(&end);
-  END();
-
-  RUN();
-
-  if (must_fail) {
-    // We tested an invalid conversion. The code must have jump on slow.
-    CHECK_EQUAL_64(0xbad, x2);
-  } else {
-    // The conversion is valid, check the result.
-    int32_t result = (value >= 0) ? value : -value;
-    CHECK_EQUAL_64(result, x1);
-
-    // Check that we didn't jump on slow.
-    CHECK_EQUAL_64(0xc001c0de, x2);
-  }
-
-  TEARDOWN();
-}
-
-
-TEST(smi_abs) {
-  INIT_V8();
-  // Simple and edge cases.
-  DoSmiAbsTest(0);
-  DoSmiAbsTest(0x12345);
-  DoSmiAbsTest(0x40000000);
-  DoSmiAbsTest(0x7fffffff);
-  DoSmiAbsTest(-1);
-  DoSmiAbsTest(-12345);
-  DoSmiAbsTest(0x80000001);
-
-  // Check that the most negative SMI is detected.
-  DoSmiAbsTest(0x80000000, true);
-}
-
-
 TEST(blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
   INIT_V8();

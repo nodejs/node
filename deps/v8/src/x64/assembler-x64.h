@@ -200,6 +200,11 @@ struct XMMRegister {
     return kMaxNumAllocatableRegisters;
   }
 
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
   static int ToAllocationIndex(XMMRegister reg) {
     DCHECK(reg.code() != 0);
     return reg.code() - 1;
@@ -1048,6 +1053,7 @@ class Assembler : public AssemblerBase {
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, XMMRegister src);
+  void cvttsd2siq(Register dst, const Operand& src);
 
   void cvtlsi2sd(XMMRegister dst, const Operand& src);
   void cvtlsi2sd(XMMRegister dst, Register src);
@@ -1316,6 +1322,7 @@ class Assembler : public AssemblerBase {
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
+  void emit_sse_operand(Register reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
 
@@ -1447,6 +1454,7 @@ class Assembler : public AssemblerBase {
   void emit_imul(Register dst, Register src, int size);
   void emit_imul(Register dst, const Operand& src, int size);
   void emit_imul(Register dst, Register src, Immediate imm, int size);
+  void emit_imul(Register dst, const Operand& src, Immediate imm, int size);
 
   void emit_inc(Register dst, int size);
   void emit_inc(const Operand& dst, int size);

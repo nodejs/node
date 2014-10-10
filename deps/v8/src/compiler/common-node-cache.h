@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 // Bundles various caches for common nodes.
-class CommonNodeCache V8_FINAL : public ZoneObject {
+class CommonNodeCache FINAL : public ZoneObject {
  public:
   explicit CommonNodeCache(Zone* zone) : zone_(zone) {}
 
@@ -23,7 +23,7 @@ class CommonNodeCache V8_FINAL : public ZoneObject {
 
   Node** FindFloat64Constant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return float64_constants_.Find(zone_, BitCast<int64_t>(value));
+    return float64_constants_.Find(zone_, bit_cast<int64_t>(value));
   }
 
   Node** FindExternalConstant(ExternalReference reference) {
@@ -32,7 +32,7 @@ class CommonNodeCache V8_FINAL : public ZoneObject {
 
   Node** FindNumberConstant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return number_constants_.Find(zone_, BitCast<int64_t>(value));
+    return number_constants_.Find(zone_, bit_cast<int64_t>(value));
   }
 
   Zone* zone() const { return zone_; }

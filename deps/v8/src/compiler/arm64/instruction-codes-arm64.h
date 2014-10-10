@@ -16,18 +16,32 @@ namespace compiler {
   V(Arm64Add32)                    \
   V(Arm64And)                      \
   V(Arm64And32)                    \
+  V(Arm64Bic)                      \
+  V(Arm64Bic32)                    \
   V(Arm64Cmp)                      \
   V(Arm64Cmp32)                    \
+  V(Arm64Cmn)                      \
+  V(Arm64Cmn32)                    \
   V(Arm64Tst)                      \
   V(Arm64Tst32)                    \
   V(Arm64Or)                       \
   V(Arm64Or32)                     \
-  V(Arm64Xor)                      \
-  V(Arm64Xor32)                    \
+  V(Arm64Orn)                      \
+  V(Arm64Orn32)                    \
+  V(Arm64Eor)                      \
+  V(Arm64Eor32)                    \
+  V(Arm64Eon)                      \
+  V(Arm64Eon32)                    \
   V(Arm64Sub)                      \
   V(Arm64Sub32)                    \
   V(Arm64Mul)                      \
   V(Arm64Mul32)                    \
+  V(Arm64Madd)                     \
+  V(Arm64Madd32)                   \
+  V(Arm64Msub)                     \
+  V(Arm64Msub32)                   \
+  V(Arm64Mneg)                     \
+  V(Arm64Mneg32)                   \
   V(Arm64Idiv)                     \
   V(Arm64Idiv32)                   \
   V(Arm64Udiv)                     \
@@ -46,36 +60,41 @@ namespace compiler {
   V(Arm64Shr32)                    \
   V(Arm64Sar)                      \
   V(Arm64Sar32)                    \
-  V(Arm64CallCodeObject)           \
-  V(Arm64CallJSFunction)           \
-  V(Arm64CallAddress)              \
+  V(Arm64Ror)                      \
+  V(Arm64Ror32)                    \
+  V(Arm64Mov32)                    \
+  V(Arm64Sxtw)                     \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \
   V(Arm64PokePair)                 \
-  V(Arm64Drop)                     \
   V(Arm64Float64Cmp)               \
   V(Arm64Float64Add)               \
   V(Arm64Float64Sub)               \
   V(Arm64Float64Mul)               \
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
-  V(Arm64Int32ToInt64)             \
-  V(Arm64Int64ToInt32)             \
+  V(Arm64Float64Sqrt)              \
+  V(Arm64Float32ToFloat64)         \
+  V(Arm64Float64ToFloat32)         \
   V(Arm64Float64ToInt32)           \
   V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \
   V(Arm64Uint32ToFloat64)          \
-  V(Arm64Float64Load)              \
-  V(Arm64Float64Store)             \
-  V(Arm64LoadWord8)                \
-  V(Arm64StoreWord8)               \
-  V(Arm64LoadWord16)               \
-  V(Arm64StoreWord16)              \
-  V(Arm64LoadWord32)               \
-  V(Arm64StoreWord32)              \
-  V(Arm64LoadWord64)               \
-  V(Arm64StoreWord64)              \
+  V(Arm64LdrS)                     \
+  V(Arm64StrS)                     \
+  V(Arm64LdrD)                     \
+  V(Arm64StrD)                     \
+  V(Arm64Ldrb)                     \
+  V(Arm64Ldrsb)                    \
+  V(Arm64Strb)                     \
+  V(Arm64Ldrh)                     \
+  V(Arm64Ldrsh)                    \
+  V(Arm64Strh)                     \
+  V(Arm64LdrW)                     \
+  V(Arm64StrW)                     \
+  V(Arm64Ldr)                      \
+  V(Arm64Str)                      \
   V(Arm64StoreWriteBarrier)
 
 

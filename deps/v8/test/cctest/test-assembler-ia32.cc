@@ -170,11 +170,10 @@ TEST(AssemblerIa323) {
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  // don't print the code - our disassembler can't handle cvttss2si
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   int res = f(static_cast<float>(-3.1415));
   ::printf("f() = %d\n", res);
@@ -200,11 +199,10 @@ TEST(AssemblerIa324) {
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  // don't print the code - our disassembler can't handle cvttsd2si
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
   F4 f = FUNCTION_CAST<F4>(code->entry());
   int res = f(2.718281828);
   ::printf("f() = %d\n", res);
@@ -261,13 +259,9 @@ TEST(AssemblerIa326) {
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef DEBUG
-  ::printf("\n---\n");
-  // don't print the code - our disassembler can't handle SSE instructions
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F5 f = FUNCTION_CAST<F5>(code->entry());
   double res = f(2.2, 1.1);

@@ -77,14 +77,14 @@ class InterpreterState {
 class MoveInterpreter : public GapResolver::Assembler {
  public:
   virtual void AssembleMove(InstructionOperand* source,
-                            InstructionOperand* destination) V8_OVERRIDE {
+                            InstructionOperand* destination) OVERRIDE {
     InterpreterState::Moves moves;
     moves.push_back(MoveOperands(source, destination));
     state_.ExecuteInParallel(moves);
   }
 
   virtual void AssembleSwap(InstructionOperand* source,
-                            InstructionOperand* destination) V8_OVERRIDE {
+                            InstructionOperand* destination) OVERRIDE {
     InterpreterState::Moves moves;
     moves.push_back(MoveOperands(source, destination));
     moves.push_back(MoveOperands(destination, source));

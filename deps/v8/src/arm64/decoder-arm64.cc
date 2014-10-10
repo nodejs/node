@@ -17,13 +17,13 @@ namespace internal {
 
 void DispatchingDecoderVisitor::AppendVisitor(DecoderVisitor* new_visitor) {
   visitors_.remove(new_visitor);
-  visitors_.push_front(new_visitor);
+  visitors_.push_back(new_visitor);
 }
 
 
 void DispatchingDecoderVisitor::PrependVisitor(DecoderVisitor* new_visitor) {
   visitors_.remove(new_visitor);
-  visitors_.push_back(new_visitor);
+  visitors_.push_front(new_visitor);
 }
 
 

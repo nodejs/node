@@ -50,7 +50,7 @@ function ArrayIteratorIterator() {
 function ArrayIteratorNext() {
   var iterator = ToObject(this);
 
-  if (!HAS_PRIVATE(iterator, arrayIteratorObjectSymbol)) {
+  if (!HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Array Iterator.prototype.next']);
   }

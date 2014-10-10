@@ -6,25 +6,44 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
+#include "src/compiler/typer.h"
 #include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 template <typename T>
-Operator* NewConstantOperator(CommonOperatorBuilder* common, volatile T value);
+const Operator* NewConstantOperator(CommonOperatorBuilder* common,
+                                    volatile T value);
 
 template <>
-Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
-                                       volatile int32_t value) {
+const Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
+                                             volatile int32_t value) {
   return common->Int32Constant(value);
 }
 
 template <>
-Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
-                                      volatile double value) {
+const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
+                                            volatile double value) {
   return common->Float64Constant(value);
+}
+
+
+template <typename T>
+T ValueOfOperator(const Operator* op);
+
+template <>
+int32_t ValueOfOperator<int32_t>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kInt32Constant, op->opcode());
+  return OpParameter<int32_t>(op);
+}
+
+template <>
+double ValueOfOperator<double>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
+  return OpParameter<double>(op);
 }
 
 
@@ -34,25 +53,35 @@ class ReducerTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
-        machine(main_zone()),
         common(main_zone()),
         graph(main_zone()),
+        javascript(main_zone()),
+        typer(main_zone()),
+        jsgraph(&graph, &common, &javascript, &typer, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
   }
 
   Isolate* isolate;
-  Operator* binop;
-  Operator* unop;
+  const Operator* binop;
+  const Operator* unop;
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
   Graph graph;
+  JSOperatorBuilder javascript;
+  Typer typer;
+  JSGraph jsgraph;
   Node* maxuint32;
 
   template <typename T>
   Node* Constant(volatile T value) {
     return graph.NewNode(NewConstantOperator<T>(&common, value));
+  }
+
+  template <typename T>
+  const T ValueOf(const Operator* op) {
+    return ValueOfOperator<T>(op);
   }
 
   // Check that the reduction of this binop applied to constants {a} and {b}
@@ -68,7 +97,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, a, b);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
@@ -80,7 +109,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckBinop(Node* expect, Node* a, Node* b) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, a, b);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(expect, reduction.replacement());
@@ -92,7 +121,7 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(binop, reduction.replacement()->op());
@@ -103,11 +132,11 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to {left} and {right} yields
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
-  void CheckFoldBinop(volatile T left_expect, Operator* op_expect,
+  void CheckFoldBinop(volatile T left_expect, const Operator* op_expect,
                       Node* right_expect, Node* left, Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -118,11 +147,11 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to {left} and {right} yields
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
-  void CheckFoldBinop(Node* left_expect, Operator* op_expect,
+  void CheckFoldBinop(Node* left_expect, const Operator* op_expect,
                       volatile T right_expect, Node* left, Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -139,7 +168,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* k = Constant<T>(constant);
     {
       Node* n = graph.NewNode(binop, k, p);
-      MachineOperatorReducer reducer(&graph);
+      MachineOperatorReducer reducer(&jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed() || reduction.replacement() == n);
       CHECK_EQ(p, n->InputAt(0));
@@ -147,7 +176,7 @@ class ReducerTester : public HandleAndZoneScope {
     }
     {
       Node* n = graph.NewNode(binop, p, k);
-      MachineOperatorReducer reducer(&graph);
+      MachineOperatorReducer reducer(&jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed());
       CHECK_EQ(p, n->InputAt(0));
@@ -163,7 +192,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
     Node* n = graph.NewNode(binop, k, p);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(!reduction.Changed());
     CHECK_EQ(k, n->InputAt(0));
@@ -630,18 +659,19 @@ TEST(ReduceLoadStore) {
 
   Node* base = R.Constant<int32_t>(11);
   Node* index = R.Constant<int32_t>(4);
-  Node* load = R.graph.NewNode(R.machine.Load(kMachineWord32), base, index);
+  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index);
 
   {
-    MachineOperatorReducer reducer(&R.graph);
+    MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(load);
     CHECK(!reduction.Changed());  // loads should not be reduced.
   }
 
   {
     Node* store = R.graph.NewNode(
-        R.machine.Store(kMachineWord32, kNoWriteBarrier), base, index, load);
-    MachineOperatorReducer reducer(&R.graph);
+        R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
+        index, load);
+    MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
   }
@@ -657,9 +687,9 @@ static void CheckNans(ReducerTester* R) {
          pr != nans.end(); ++pr) {
       Node* nan1 = R->Constant<double>(*pl);
       Node* nan2 = R->Constant<double>(*pr);
-      R->CheckBinop(nan1, x, nan1);     // x % NaN => NaN
-      R->CheckBinop(nan1, nan1, x);     // NaN % x => NaN
-      R->CheckBinop(nan1, nan2, nan1);  // NaN % NaN => NaN
+      R->CheckBinop(nan1, x, nan1);     // x op NaN => NaN
+      R->CheckBinop(nan1, nan1, x);     // NaN op x => NaN
+      R->CheckBinop(nan1, nan2, nan1);  // NaN op NaN => NaN
     }
   }
 }
@@ -676,8 +706,15 @@ TEST(ReduceFloat64Add) {
     }
   }
 
-  FOR_FLOAT64_INPUTS(i) { R.CheckPutConstantOnRight(*i); }
-  // TODO(titzer): CheckNans(&R);
+  FOR_FLOAT64_INPUTS(i) {
+    Double tmp(*i);
+    if (!tmp.IsSpecial() || tmp.IsInfinite()) {
+      // Don't check NaNs as they are reduced more.
+      R.CheckPutConstantOnRight(*i);
+    }
+  }
+
+  CheckNans(&R);
 }
 
 
@@ -691,7 +728,13 @@ TEST(ReduceFloat64Sub) {
       R.CheckFoldBinop<double>(x - y, x, y);
     }
   }
-  // TODO(titzer): CheckNans(&R);
+
+  Node* zero = R.Constant<double>(0.0);
+  Node* x = R.Parameter();
+
+  R.CheckBinop(x, x, zero);  // x - 0.0 => x
+
+  CheckNans(&R);
 }
 
 
@@ -752,6 +795,11 @@ TEST(ReduceFloat64Mod) {
       R.CheckFoldBinop<double>(modulo(x, y), x, y);
     }
   }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<double>(0.0);
+
+  R.CheckFoldBinop<double>(v8::base::OS::nan_value(), x, zero);
 
   CheckNans(&R);
 }

@@ -35,7 +35,7 @@ function f1(x) {
 }
 
 assertEquals(0, f1(1));
-assertEquals(0, f1(10000000));
+assertEquals(0, f1(200000));
 
 function f2(x) {
   var sum = 1;
@@ -47,4 +47,4 @@ function f2(x) {
 }
 
 assertEquals(2, f2(1));
-assertEquals(10000001, f2(10000000));
+assertEquals(200001, f2(200000));

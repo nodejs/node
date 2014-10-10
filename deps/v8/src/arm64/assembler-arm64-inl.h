@@ -457,7 +457,7 @@ MemOperand::MemOperand()
 }
 
 
-MemOperand::MemOperand(Register base, ptrdiff_t offset, AddrMode addrmode)
+MemOperand::MemOperand(Register base, int64_t offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), offset_(offset), addrmode_(addrmode),
     shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {
   DCHECK(base.Is64Bits() && !base.IsZero());

@@ -111,7 +111,7 @@ static const CachedPower kCachedPowers[] = {
 };
 
 #ifdef DEBUG
-static const int kCachedPowersLength = ARRAY_SIZE(kCachedPowers);
+static const int kCachedPowersLength = arraysize(kCachedPowers);
 #endif
 
 static const int kCachedPowersOffset = 348;  // -1 * the first decimal_exponent.

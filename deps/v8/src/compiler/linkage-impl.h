@@ -9,198 +9,218 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(titzer): replace uses of int with size_t in LinkageHelper.
+template <typename LinkageTraits>
 class LinkageHelper {
  public:
-  static LinkageLocation TaggedStackSlot(int index) {
-    DCHECK(index < 0);
-    return LinkageLocation(kMachineTagged, index);
-  }
-
-  static LinkageLocation TaggedRegisterLocation(Register reg) {
-    return LinkageLocation(kMachineTagged, Register::ToAllocationIndex(reg));
-  }
-
-  static inline LinkageLocation WordRegisterLocation(Register reg) {
-    return LinkageLocation(MachineOperatorBuilder::pointer_rep(),
-                           Register::ToAllocationIndex(reg));
-  }
-
-  static LinkageLocation UnconstrainedRegister(MachineType rep) {
-    return LinkageLocation(rep, LinkageLocation::ANY_REGISTER);
-  }
-
   static const RegList kNoCalleeSaved = 0;
 
-  // TODO(turbofan): cache call descriptors for JSFunction calls.
-  template <typename LinkageTraits>
-  static CallDescriptor* GetJSCallDescriptor(Zone* zone, int parameter_count) {
-    const int jsfunction_count = 1;
-    const int context_count = 1;
-    int input_count = jsfunction_count + parameter_count + context_count;
-
-    const int return_count = 1;
-    LinkageLocation* locations =
-        zone->NewArray<LinkageLocation>(return_count + input_count);
-
-    int index = 0;
-    locations[index++] =
-        TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    locations[index++] =
-        TaggedRegisterLocation(LinkageTraits::JSCallFunctionReg());
-
-    for (int i = 0; i < parameter_count; i++) {
-      // All parameters to JS calls go on the stack.
-      int spill_slot_index = i - parameter_count;
-      locations[index++] = TaggedStackSlot(spill_slot_index);
+  static void AddReturnLocations(LocationSignature::Builder* locations) {
+    DCHECK(locations->return_count_ <= 2);
+    if (locations->return_count_ > 0) {
+      locations->AddReturn(regloc(LinkageTraits::ReturnValueReg()));
     }
-    locations[index++] = TaggedRegisterLocation(LinkageTraits::ContextReg());
+    if (locations->return_count_ > 1) {
+      locations->AddReturn(regloc(LinkageTraits::ReturnValue2Reg()));
+    }
+  }
 
-    // TODO(titzer): refactor TurboFan graph to consider context a value input.
-    return new (zone)
-        CallDescriptor(CallDescriptor::kCallJSFunction,  // kind
-                       return_count,                     // return_count
-                       parameter_count,                  // parameter_count
-                       input_count - context_count,      // input_count
-                       locations,                        // locations
-                       Operator::kNoProperties,          // properties
-                       kNoCalleeSaved,  // callee-saved registers
-                       CallDescriptor::kCanDeoptimize);  // deoptimization
+  // TODO(turbofan): cache call descriptors for JSFunction calls.
+  static CallDescriptor* GetJSCallDescriptor(Zone* zone,
+                                             int js_parameter_count) {
+    const size_t return_count = 1;
+    const size_t context_count = 1;
+    const size_t parameter_count = js_parameter_count + context_count;
+
+    LocationSignature::Builder locations(zone, return_count, parameter_count);
+    MachineSignature::Builder types(zone, return_count, parameter_count);
+
+    // Add returns.
+    AddReturnLocations(&locations);
+    for (size_t i = 0; i < return_count; i++) {
+      types.AddReturn(kMachAnyTagged);
+    }
+
+    // All parameters to JS calls go on the stack.
+    for (int i = 0; i < js_parameter_count; i++) {
+      int spill_slot_index = i - js_parameter_count;
+      locations.AddParam(stackloc(spill_slot_index));
+      types.AddParam(kMachAnyTagged);
+    }
+    // Add context.
+    locations.AddParam(regloc(LinkageTraits::ContextReg()));
+    types.AddParam(kMachAnyTagged);
+
+    // The target for JS function calls is the JSFunction object.
+    MachineType target_type = kMachAnyTagged;
+    LinkageLocation target_loc = regloc(LinkageTraits::JSCallFunctionReg());
+    return new (zone) CallDescriptor(CallDescriptor::kCallJSFunction,  // kind
+                                     target_type,         // target MachineType
+                                     target_loc,          // target location
+                                     types.Build(),       // machine_sig
+                                     locations.Build(),   // location_sig
+                                     js_parameter_count,  // js_parameter_count
+                                     Operator::kNoProperties,  // properties
+                                     kNoCalleeSaved,           // callee-saved
+                                     CallDescriptor::kNeedsFrameState,  // flags
+                                     "js-call");
   }
 
 
   // TODO(turbofan): cache call descriptors for runtime calls.
-  template <typename LinkageTraits>
   static CallDescriptor* GetRuntimeCallDescriptor(
-      Zone* zone, Runtime::FunctionId function_id, int parameter_count,
-      Operator::Property properties,
-      CallDescriptor::DeoptimizationSupport can_deoptimize) {
-    const int code_count = 1;
-    const int function_count = 1;
-    const int num_args_count = 1;
-    const int context_count = 1;
-    const int input_count = code_count + parameter_count + function_count +
-                            num_args_count + context_count;
+      Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
+      Operator::Properties properties) {
+    const size_t function_count = 1;
+    const size_t num_args_count = 1;
+    const size_t context_count = 1;
+    const size_t parameter_count = function_count +
+                                   static_cast<size_t>(js_parameter_count) +
+                                   num_args_count + context_count;
 
     const Runtime::Function* function = Runtime::FunctionForId(function_id);
-    const int return_count = function->result_size;
-    LinkageLocation* locations =
-        zone->NewArray<LinkageLocation>(return_count + input_count);
+    const size_t return_count = static_cast<size_t>(function->result_size);
 
-    int index = 0;
-    if (return_count > 0) {
-      locations[index++] =
-          TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    }
-    if (return_count > 1) {
-      locations[index++] =
-          TaggedRegisterLocation(LinkageTraits::ReturnValue2Reg());
+    LocationSignature::Builder locations(zone, return_count, parameter_count);
+    MachineSignature::Builder types(zone, return_count, parameter_count);
+
+    // Add returns.
+    AddReturnLocations(&locations);
+    for (size_t i = 0; i < return_count; i++) {
+      types.AddReturn(kMachAnyTagged);
     }
 
-    DCHECK_LE(return_count, 2);
-
-    locations[index++] = UnconstrainedRegister(kMachineTagged);  // CEntryStub
-
-    for (int i = 0; i < parameter_count; i++) {
-      // All parameters to runtime calls go on the stack.
-      int spill_slot_index = i - parameter_count;
-      locations[index++] = TaggedStackSlot(spill_slot_index);
+    // All parameters to the runtime call go on the stack.
+    for (int i = 0; i < js_parameter_count; i++) {
+      locations.AddParam(stackloc(i - js_parameter_count));
+      types.AddParam(kMachAnyTagged);
     }
-    locations[index++] =
-        TaggedRegisterLocation(LinkageTraits::RuntimeCallFunctionReg());
-    locations[index++] =
-        WordRegisterLocation(LinkageTraits::RuntimeCallArgCountReg());
-    locations[index++] = TaggedRegisterLocation(LinkageTraits::ContextReg());
+    // Add runtime function itself.
+    locations.AddParam(regloc(LinkageTraits::RuntimeCallFunctionReg()));
+    types.AddParam(kMachAnyTagged);
 
-    // TODO(titzer): refactor TurboFan graph to consider context a value input.
+    // Add runtime call argument count.
+    locations.AddParam(regloc(LinkageTraits::RuntimeCallArgCountReg()));
+    types.AddParam(kMachPtr);
+
+    // Add context.
+    locations.AddParam(regloc(LinkageTraits::ContextReg()));
+    types.AddParam(kMachAnyTagged);
+
+    CallDescriptor::Flags flags = Linkage::NeedsFrameState(function_id)
+                                      ? CallDescriptor::kNeedsFrameState
+                                      : CallDescriptor::kNoFlags;
+
+    // The target for runtime calls is a code object.
+    MachineType target_type = kMachAnyTagged;
+    LinkageLocation target_loc = LinkageLocation::AnyRegister();
     return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                                     return_count,     // return_count
-                                     parameter_count,  // parameter_count
-                                     input_count,      // input_count
-                                     locations,        // locations
-                                     properties,       // properties
-                                     kNoCalleeSaved,   // callee-saved registers
-                                     can_deoptimize,   // deoptimization
-                                     function->name);
+                                     target_type,         // target MachineType
+                                     target_loc,          // target location
+                                     types.Build(),       // machine_sig
+                                     locations.Build(),   // location_sig
+                                     js_parameter_count,  // js_parameter_count
+                                     properties,          // properties
+                                     kNoCalleeSaved,      // callee-saved
+                                     flags,               // flags
+                                     function->name);     // debug name
   }
 
 
   // TODO(turbofan): cache call descriptors for code stub calls.
-  template <typename LinkageTraits>
   static CallDescriptor* GetStubCallDescriptor(
-      Zone* zone, CodeStubInterfaceDescriptor* descriptor,
-      int stack_parameter_count,
-      CallDescriptor::DeoptimizationSupport can_deoptimize) {
-    int register_parameter_count = descriptor->GetEnvironmentParameterCount();
-    int parameter_count = register_parameter_count + stack_parameter_count;
-    const int code_count = 1;
+      Zone* zone, CallInterfaceDescriptor descriptor, int stack_parameter_count,
+      CallDescriptor::Flags flags) {
+    const int register_parameter_count =
+        descriptor.GetEnvironmentParameterCount();
+    const int js_parameter_count =
+        register_parameter_count + stack_parameter_count;
     const int context_count = 1;
-    int input_count = code_count + parameter_count + context_count;
+    const size_t return_count = 1;
+    const size_t parameter_count =
+        static_cast<size_t>(js_parameter_count + context_count);
 
-    const int return_count = 1;
-    LinkageLocation* locations =
-        zone->NewArray<LinkageLocation>(return_count + input_count);
+    LocationSignature::Builder locations(zone, return_count, parameter_count);
+    MachineSignature::Builder types(zone, return_count, parameter_count);
 
-    int index = 0;
-    locations[index++] =
-        TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    locations[index++] = UnconstrainedRegister(kMachineTagged);  // code
-    for (int i = 0; i < parameter_count; i++) {
+    // Add return location.
+    AddReturnLocations(&locations);
+    types.AddReturn(kMachAnyTagged);
+
+    // Add parameters in registers and on the stack.
+    for (int i = 0; i < js_parameter_count; i++) {
       if (i < register_parameter_count) {
-        // The first parameters to code stub calls go in registers.
-        Register reg = descriptor->GetEnvironmentParameterRegister(i);
-        locations[index++] = TaggedRegisterLocation(reg);
+        // The first parameters go in registers.
+        Register reg = descriptor.GetEnvironmentParameterRegister(i);
+        locations.AddParam(regloc(reg));
       } else {
         // The rest of the parameters go on the stack.
         int stack_slot = i - register_parameter_count - stack_parameter_count;
-        locations[index++] = TaggedStackSlot(stack_slot);
+        locations.AddParam(stackloc(stack_slot));
+      }
+      types.AddParam(kMachAnyTagged);
+    }
+    // Add context.
+    locations.AddParam(regloc(LinkageTraits::ContextReg()));
+    types.AddParam(kMachAnyTagged);
+
+    // The target for stub calls is a code object.
+    MachineType target_type = kMachAnyTagged;
+    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
+                                     target_type,         // target MachineType
+                                     target_loc,          // target location
+                                     types.Build(),       // machine_sig
+                                     locations.Build(),   // location_sig
+                                     js_parameter_count,  // js_parameter_count
+                                     Operator::kNoProperties,  // properties
+                                     kNoCalleeSaved,  // callee-saved registers
+                                     flags,           // flags
+                                     descriptor.DebugName(zone->isolate()));
+  }
+
+  static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,
+                                                  MachineSignature* msig) {
+    LocationSignature::Builder locations(zone, msig->return_count(),
+                                         msig->parameter_count());
+    // Add return location(s).
+    AddReturnLocations(&locations);
+
+    // Add register and/or stack parameter(s).
+    const int parameter_count = static_cast<int>(msig->parameter_count());
+    for (int i = 0; i < parameter_count; i++) {
+      if (i < LinkageTraits::CRegisterParametersLength()) {
+        locations.AddParam(regloc(LinkageTraits::CRegisterParameter(i)));
+      } else {
+        locations.AddParam(stackloc(-1 - i));
       }
     }
-    locations[index++] = TaggedRegisterLocation(LinkageTraits::ContextReg());
 
-    // TODO(titzer): refactor TurboFan graph to consider context a value input.
-    return new (zone)
-        CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                       return_count,                     // return_count
-                       parameter_count,                  // parameter_count
-                       input_count,                      // input_count
-                       locations,                        // locations
-                       Operator::kNoProperties,          // properties
-                       kNoCalleeSaved,  // callee-saved registers
-                       can_deoptimize,  // deoptimization
-                       CodeStub::MajorName(descriptor->MajorKey(), false));
+    // The target for C calls is always an address (i.e. machine pointer).
+    MachineType target_type = kMachPtr;
+    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    return new (zone) CallDescriptor(CallDescriptor::kCallAddress,  // kind
+                                     target_type,        // target MachineType
+                                     target_loc,         // target location
+                                     msig,               // machine_sig
+                                     locations.Build(),  // location_sig
+                                     0,                  // js_parameter_count
+                                     Operator::kNoProperties,  // properties
+                                     LinkageTraits::CCalleeSaveRegisters(),
+                                     CallDescriptor::kNoFlags, "c-call");
   }
 
+  static LinkageLocation regloc(Register reg) {
+    return LinkageLocation(Register::ToAllocationIndex(reg));
+  }
 
-  template <typename LinkageTraits>
-  static CallDescriptor* GetSimplifiedCDescriptor(
-      Zone* zone, int num_params, MachineType return_type,
-      const MachineType* param_types) {
-    LinkageLocation* locations =
-        zone->NewArray<LinkageLocation>(num_params + 2);
-    int index = 0;
-    locations[index++] =
-        TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    locations[index++] = LinkageHelper::UnconstrainedRegister(
-        MachineOperatorBuilder::pointer_rep());
-    // TODO(dcarney): test with lots of parameters.
-    int i = 0;
-    for (; i < LinkageTraits::CRegisterParametersLength() && i < num_params;
-         i++) {
-      locations[index++] = LinkageLocation(
-          param_types[i],
-          Register::ToAllocationIndex(LinkageTraits::CRegisterParameter(i)));
-    }
-    for (; i < num_params; i++) {
-      locations[index++] = LinkageLocation(param_types[i], -1 - i);
-    }
-    return new (zone) CallDescriptor(
-        CallDescriptor::kCallAddress, 1, num_params, num_params + 1, locations,
-        Operator::kNoProperties, LinkageTraits::CCalleeSaveRegisters(),
-        CallDescriptor::kCannotDeoptimize);  // TODO(jarin) should deoptimize!
+  static LinkageLocation stackloc(int i) {
+    DCHECK_LT(i, 0);
+    return LinkageLocation(i);
   }
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_LINKAGE_IMPL_H_

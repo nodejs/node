@@ -564,7 +564,9 @@ class Instruction {
   inline int ShiftAmountValue() const { return Bits(11, 7); }
     // with immediate
   inline int RotateValue() const { return Bits(11, 8); }
+  DECLARE_STATIC_ACCESSOR(RotateValue);
   inline int Immed8Value() const { return Bits(7, 0); }
+  DECLARE_STATIC_ACCESSOR(Immed8Value);
   inline int Immed4Value() const { return Bits(19, 16); }
   inline int ImmedMovwMovtValue() const {
       return Immed4Value() << 12 | Offset12Value(); }

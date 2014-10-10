@@ -6,6 +6,7 @@
 #define V8_HASHMAP_H_
 
 #include "src/allocation.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/utils.h"
 
@@ -239,7 +240,7 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
     TemplateHashMapImpl<AllocationPolicy>::Probe(void* key, uint32_t hash) {
   DCHECK(key != NULL);
 
-  DCHECK(IsPowerOf2(capacity_));
+  DCHECK(base::bits::IsPowerOfTwo32(capacity_));
   Entry* p = map_ + (hash & (capacity_ - 1));
   const Entry* end = map_end();
   DCHECK(map_ <= p && p < end);
@@ -259,7 +260,7 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 template<class AllocationPolicy>
 void TemplateHashMapImpl<AllocationPolicy>::Initialize(
     uint32_t capacity, AllocationPolicy allocator) {
-  DCHECK(IsPowerOf2(capacity));
+  DCHECK(base::bits::IsPowerOfTwo32(capacity));
   map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
   if (map_ == NULL) {
     v8::internal::FatalProcessOutOfMemory("HashMap::Initialize");

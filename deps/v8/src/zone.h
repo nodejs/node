@@ -63,9 +63,9 @@ class Zone {
 
   inline void adjust_segment_bytes_allocated(int delta);
 
-  inline unsigned allocation_size() { return allocation_size_; }
+  inline unsigned allocation_size() const { return allocation_size_; }
 
-  inline Isolate* isolate() { return isolate_; }
+  inline Isolate* isolate() const { return isolate_; }
 
  private:
   friend class Isolate;

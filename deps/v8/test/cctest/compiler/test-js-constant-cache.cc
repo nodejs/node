@@ -17,10 +17,16 @@ using namespace v8::internal::compiler;
 class JSCacheTesterHelper {
  protected:
   explicit JSCacheTesterHelper(Zone* zone)
-      : main_graph_(zone), main_common_(zone), main_typer_(zone) {}
+      : main_graph_(zone),
+        main_common_(zone),
+        main_javascript_(zone),
+        main_typer_(zone),
+        main_machine_() {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
+  JSOperatorBuilder main_javascript_;
   Typer main_typer_;
+  MachineOperatorBuilder main_machine_;
 };
 
 
@@ -30,13 +36,14 @@ class JSConstantCacheTester : public HandleAndZoneScope,
  public:
   JSConstantCacheTester()
       : JSCacheTesterHelper(main_zone()),
-        JSGraph(&main_graph_, &main_common_, &main_typer_) {}
+        JSGraph(&main_graph_, &main_common_, &main_javascript_, &main_typer_,
+                &main_machine_) {}
 
   Type* upper(Node* node) { return NodeProperties::GetBounds(node).upper; }
 
   Handle<Object> handle(Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    return ValueOf<Handle<Object> >(node->op());
+    return OpParameter<Unique<Object> >(node).handle();
   }
 
   Factory* factory() { return main_isolate()->factory(); }
@@ -87,8 +94,8 @@ TEST(MinusZeroConstant) {
   CHECK(!t->Is(Type::SignedSmall()));
   CHECK(!t->Is(Type::UnsignedSmall()));
 
-  double zero_value = ValueOf<double>(zero->op());
-  double minus_zero_value = ValueOf<double>(minus_zero->op());
+  double zero_value = OpParameter<double>(zero);
+  double minus_zero_value = OpParameter<double>(minus_zero);
 
   CHECK_EQ(0.0, zero_value);
   CHECK_NE(-0.0, zero_value);
@@ -194,8 +201,8 @@ TEST(NoAliasing) {
                    T.OneConstant(),       T.NaNConstant(),     T.Constant(21),
                    T.Constant(22.2)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(nodes); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(nodes); j++) {
+  for (size_t i = 0; i < arraysize(nodes); i++) {
+    for (size_t j = 0; j < arraysize(nodes); j++) {
       if (i != j) CHECK_NE(nodes[i], nodes[j]);
     }
   }

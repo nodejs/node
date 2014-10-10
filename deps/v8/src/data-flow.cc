@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/data-flow.h"
+
+#include "src/base/bits.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -40,4 +40,15 @@ void BitVector::Iterator::Advance() {
   current_value_ = val >> 1;
 }
 
-} }  // namespace v8::internal
+
+int BitVector::Count() const {
+  int count = 0;
+  for (int i = 0; i < data_length_; i++) {
+    int data = data_[i];
+    if (data != 0) count += base::bits::CountPopulation32(data);
+  }
+  return count;
+}
+
+}  // namespace internal
+}  // namespace v8

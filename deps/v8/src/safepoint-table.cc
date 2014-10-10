@@ -44,7 +44,7 @@ SafepointTable::SafepointTable(Code* code) {
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ +
-            (length_ * kPcAndDeoptimizationIndexSize);
+             (length_ * kPcAndDeoptimizationIndexSize);
   DCHECK(entry_size_ > 0);
   STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);

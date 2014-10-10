@@ -83,7 +83,8 @@ TestConstructor()
 
 function TestToString() {
   for (var i in symbols) {
-    assertThrows(function() { String(symbols[i]) }, TypeError)
+    assertThrows(function() {new String(symbols[i]) }, TypeError)
+    assertEquals(symbols[i].toString(), String(symbols[i]))
     assertThrows(function() { symbols[i] + "" }, TypeError)
     assertTrue(isValidSymbolString(symbols[i].toString()))
     assertTrue(isValidSymbolString(Object(symbols[i]).toString()))

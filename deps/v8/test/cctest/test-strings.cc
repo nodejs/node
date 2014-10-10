@@ -112,11 +112,11 @@ class Resource: public v8::String::ExternalStringResource {
 };
 
 
-class AsciiResource: public v8::String::ExternalAsciiStringResource {
+class OneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
-  AsciiResource(const char* data, size_t length)
+  OneByteResource(const char* data, size_t length)
       : data_(data), length_(length) {}
-  ~AsciiResource() { i::DeleteArray(data_); }
+  ~OneByteResource() { i::DeleteArray(data_); }
   virtual const char* data() const { return data_; }
   virtual size_t length() const { return length_; }
 
@@ -202,7 +202,7 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        AsciiResource* resource = new AsciiResource(buf, len);
+        OneByteResource* resource = new OneByteResource(buf, len);
         building_blocks[i] =
             v8::Utils::OpenHandle(
                 *v8::String::NewExternal(CcTest::isolate(), resource));
@@ -454,7 +454,7 @@ static Handle<String> ConstructLeft(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromStaticAscii("");
+  Handle<String> answer = factory->NewStringFromStaticChars("");
   data->stats_.leaves_++;
   for (int i = 0; i < depth; i++) {
     Handle<String> block = data->block(i);
@@ -473,7 +473,7 @@ static Handle<String> ConstructRight(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromStaticAscii("");
+  Handle<String> answer = factory->NewStringFromStaticChars("");
   data->stats_.leaves_++;
   for (int i = depth - 1; i >= 0; i--) {
     Handle<String> block = data->block(i);
@@ -848,23 +848,23 @@ TEST(StringCharacterStreamRandom) {
 }
 
 
-static const int DEEP_ASCII_DEPTH = 100000;
+static const int kDeepOneByteDepth = 100000;
 
 
-TEST(DeepAscii) {
-  printf("TestDeepAscii\n");
+TEST(DeepOneByte) {
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  char* foo = NewArray<char>(DEEP_ASCII_DEPTH);
-  for (int i = 0; i < DEEP_ASCII_DEPTH; i++) {
+  char* foo = NewArray<char>(kDeepOneByteDepth);
+  for (int i = 0; i < kDeepOneByteDepth; i++) {
     foo[i] = "foo "[i % 4];
   }
-  Handle<String> string = factory->NewStringFromOneByte(
-      OneByteVector(foo, DEEP_ASCII_DEPTH)).ToHandleChecked();
-  Handle<String> foo_string = factory->NewStringFromStaticAscii("foo");
-  for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
+  Handle<String> string =
+      factory->NewStringFromOneByte(OneByteVector(foo, kDeepOneByteDepth))
+          .ToHandleChecked();
+  Handle<String> foo_string = factory->NewStringFromStaticChars("foo");
+  for (int i = 0; i < kDeepOneByteDepth; i += 10) {
     string = factory->NewConsString(string, foo_string).ToHandleChecked();
   }
   Handle<String> flat_string =
@@ -872,7 +872,7 @@ TEST(DeepAscii) {
   String::Flatten(flat_string);
 
   for (int i = 0; i < 500; i++) {
-    TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);
+    TraverseFirst(flat_string, string, kDeepOneByteDepth);
   }
   DeleteArray<char>(foo);
 }
@@ -882,13 +882,13 @@ TEST(Utf8Conversion) {
   // Smoke test for converting strings to utf-8.
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
-  // A simple ascii string
-  const char* ascii_string = "abcdef12345";
-  int len = v8::String::NewFromUtf8(CcTest::isolate(), ascii_string,
+  // A simple one-byte string
+  const char* one_byte_string = "abcdef12345";
+  int len = v8::String::NewFromUtf8(CcTest::isolate(), one_byte_string,
                                     v8::String::kNormalString,
-                                    StrLength(ascii_string))->Utf8Length();
-  CHECK_EQ(StrLength(ascii_string), len);
-  // A mixed ascii and non-ascii string
+                                    StrLength(one_byte_string))->Utf8Length();
+  CHECK_EQ(StrLength(one_byte_string), len);
+  // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
   // U+0064 -> 64
   // U+12E4 -> E1 8B A4
@@ -934,79 +934,89 @@ TEST(ExternalShortStringAdd) {
   CHECK_GT(kMaxLength, i::ConsString::kMinLength);
 
   // Allocate two JavaScript arrays for holding short strings.
-  v8::Handle<v8::Array> ascii_external_strings =
+  v8::Handle<v8::Array> one_byte_external_strings =
       v8::Array::New(CcTest::isolate(), kMaxLength + 1);
-  v8::Handle<v8::Array> non_ascii_external_strings =
+  v8::Handle<v8::Array> non_one_byte_external_strings =
       v8::Array::New(CcTest::isolate(), kMaxLength + 1);
 
-  // Generate short ascii and non-ascii external strings.
+  // Generate short one-byte and two-byte external strings.
   for (int i = 0; i <= kMaxLength; i++) {
-    char* ascii = NewArray<char>(i + 1);
+    char* one_byte = NewArray<char>(i + 1);
     for (int j = 0; j < i; j++) {
-      ascii[j] = 'a';
+      one_byte[j] = 'a';
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    AsciiResource* ascii_resource = new AsciiResource(ascii, i);
-    v8::Local<v8::String> ascii_external_string =
-        v8::String::NewExternal(CcTest::isolate(), ascii_resource);
+    OneByteResource* one_byte_resource = new OneByteResource(one_byte, i);
+    v8::Local<v8::String> one_byte_external_string =
+        v8::String::NewExternal(CcTest::isolate(), one_byte_resource);
 
-    ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
-                                ascii_external_string);
-    uc16* non_ascii = NewArray<uc16>(i + 1);
+    one_byte_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
+                                   one_byte_external_string);
+    uc16* non_one_byte = NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
-      non_ascii[j] = 0x1234;
+      non_one_byte[j] = 0x1234;
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    Resource* resource = new Resource(non_ascii, i);
-    v8::Local<v8::String> non_ascii_external_string =
-      v8::String::NewExternal(CcTest::isolate(), resource);
-    non_ascii_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
-                                    non_ascii_external_string);
+    Resource* resource = new Resource(non_one_byte, i);
+    v8::Local<v8::String> non_one_byte_external_string =
+        v8::String::NewExternal(CcTest::isolate(), resource);
+    non_one_byte_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
+                                       non_one_byte_external_string);
   }
 
   // Add the arrays with the short external strings in the global object.
   v8::Handle<v8::Object> global = context->Global();
-  global->Set(v8_str("external_ascii"), ascii_external_strings);
-  global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
+  global->Set(v8_str("external_one_byte"), one_byte_external_strings);
+  global->Set(v8_str("external_non_one_byte"), non_one_byte_external_strings);
   global->Set(v8_str("max_length"),
               v8::Integer::New(CcTest::isolate(), kMaxLength));
 
-  // Add short external ascii and non-ascii strings checking the result.
+  // Add short external one-byte and two-byte strings checking the result.
   static const char* source =
-    "function test() {"
-    "  var ascii_chars = 'aaaaaaaaaaaaaaaaaaaa';"
-    "  var non_ascii_chars = '\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234';"  //NOLINT
-    "  if (ascii_chars.length != max_length) return 1;"
-    "  if (non_ascii_chars.length != max_length) return 2;"
-    "  var ascii = Array(max_length + 1);"
-    "  var non_ascii = Array(max_length + 1);"
-    "  for (var i = 0; i <= max_length; i++) {"
-    "    ascii[i] = ascii_chars.substring(0, i);"
-    "    non_ascii[i] = non_ascii_chars.substring(0, i);"
-    "  };"
-    "  for (var i = 0; i <= max_length; i++) {"
-    "    if (ascii[i] != external_ascii[i]) return 3;"
-    "    if (non_ascii[i] != external_non_ascii[i]) return 4;"
-    "    for (var j = 0; j < i; j++) {"
-    "      if (external_ascii[i] !="
-    "          (external_ascii[j] + external_ascii[i - j])) return 5;"
-    "      if (external_non_ascii[i] !="
-    "          (external_non_ascii[j] + external_non_ascii[i - j])) return 6;"
-    "      if (non_ascii[i] != (non_ascii[j] + non_ascii[i - j])) return 7;"
-    "      if (ascii[i] != (ascii[j] + ascii[i - j])) return 8;"
-    "      if (ascii[i] != (external_ascii[j] + ascii[i - j])) return 9;"
-    "      if (ascii[i] != (ascii[j] + external_ascii[i - j])) return 10;"
-    "      if (non_ascii[i] !="
-    "          (external_non_ascii[j] + non_ascii[i - j])) return 11;"
-    "      if (non_ascii[i] !="
-    "          (non_ascii[j] + external_non_ascii[i - j])) return 12;"
-    "    }"
-    "  }"
-    "  return 0;"
-    "};"
-    "test()";
+      "function test() {"
+      "  var one_byte_chars = 'aaaaaaaaaaaaaaaaaaaa';"
+      "  var non_one_byte_chars = "
+      "'\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1"
+      "234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\"
+      "u1234';"  // NOLINT
+      "  if (one_byte_chars.length != max_length) return 1;"
+      "  if (non_one_byte_chars.length != max_length) return 2;"
+      "  var one_byte = Array(max_length + 1);"
+      "  var non_one_byte = Array(max_length + 1);"
+      "  for (var i = 0; i <= max_length; i++) {"
+      "    one_byte[i] = one_byte_chars.substring(0, i);"
+      "    non_one_byte[i] = non_one_byte_chars.substring(0, i);"
+      "  };"
+      "  for (var i = 0; i <= max_length; i++) {"
+      "    if (one_byte[i] != external_one_byte[i]) return 3;"
+      "    if (non_one_byte[i] != external_non_one_byte[i]) return 4;"
+      "    for (var j = 0; j < i; j++) {"
+      "      if (external_one_byte[i] !="
+      "          (external_one_byte[j] + external_one_byte[i - j])) return "
+      "5;"
+      "      if (external_non_one_byte[i] !="
+      "          (external_non_one_byte[j] + external_non_one_byte[i - "
+      "j])) return 6;"
+      "      if (non_one_byte[i] != (non_one_byte[j] + non_one_byte[i - "
+      "j])) return 7;"
+      "      if (one_byte[i] != (one_byte[j] + one_byte[i - j])) return 8;"
+      "      if (one_byte[i] != (external_one_byte[j] + one_byte[i - j])) "
+      "return 9;"
+      "      if (one_byte[i] != (one_byte[j] + external_one_byte[i - j])) "
+      "return 10;"
+      "      if (non_one_byte[i] !="
+      "          (external_non_one_byte[j] + non_one_byte[i - j])) return "
+      "11;"
+      "      if (non_one_byte[i] !="
+      "          (non_one_byte[j] + external_non_one_byte[i - j])) return "
+      "12;"
+      "    }"
+      "  }"
+      "  return 0;"
+      "};"
+      "test()";
   CHECK_EQ(0, CompileRun(source)->Int32Value());
 }
 
@@ -1091,7 +1101,7 @@ TEST(SliceFromCons) {
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   Handle<String> string =
-      factory->NewStringFromStaticAscii("parentparentparent");
+      factory->NewStringFromStaticChars("parentparentparent");
   Handle<String> parent =
       factory->NewConsString(string, string).ToHandleChecked();
   CHECK(parent->IsConsString());
@@ -1109,11 +1119,11 @@ TEST(SliceFromCons) {
 }
 
 
-class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit AsciiVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~AsciiVectorResource() {}
+  virtual ~OneByteVectorResource() {}
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
  private:
@@ -1126,10 +1136,10 @@ TEST(SliceFromExternal) {
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
-  AsciiVectorResource resource(
+  OneByteVectorResource resource(
       i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
   Handle<String> string =
-      factory->NewExternalStringFromAscii(&resource).ToHandleChecked();
+      factory->NewExternalStringFromOneByte(&resource).ToHandleChecked();
   CHECK(string->IsExternalString());
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());
@@ -1199,28 +1209,34 @@ TEST(SliceFromSlice) {
 }
 
 
-TEST(AsciiArrayJoin) {
+UNINITIALIZED_TEST(OneByteArrayJoin) {
+  v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  v8::ResourceConstraints constraints;
-  constraints.set_max_semi_space_size(1);
-  constraints.set_max_old_space_size(4);
-  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
+  create_params.constraints.set_max_semi_space_size(1);
+  create_params.constraints.set_max_old_space_size(4);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
 
-  // String s is made of 2^17 = 131072 'c' characters and a is an array
-  // starting with 'bad', followed by 2^14 times the string s. That means the
-  // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
-  // summing the lengths of the strings (as Smis) overflows and wraps.
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::TryCatch try_catch;
-  CHECK(CompileRun(
-      "var two_14 = Math.pow(2, 14);"
-      "var two_17 = Math.pow(2, 17);"
-      "var s = Array(two_17 + 1).join('c');"
-      "var a = ['bad'];"
-      "for (var i = 1; i <= two_14; i++) a.push(s);"
-      "a.join("");").IsEmpty());
-  CHECK(try_catch.HasCaught());
+  {
+    // String s is made of 2^17 = 131072 'c' characters and a is an array
+    // starting with 'bad', followed by 2^14 times the string s. That means the
+    // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
+    // summing the lengths of the strings (as Smis) overflows and wraps.
+    LocalContext context(isolate);
+    v8::HandleScope scope(isolate);
+    v8::TryCatch try_catch;
+    CHECK(CompileRun(
+              "var two_14 = Math.pow(2, 14);"
+              "var two_17 = Math.pow(2, 17);"
+              "var s = Array(two_17 + 1).join('c');"
+              "var a = ['bad'];"
+              "for (var i = 1; i <= two_14; i++) a.push(s);"
+              "a.join("
+              ");").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 
@@ -1281,14 +1297,14 @@ TEST(StringReplaceAtomTwoByteResult) {
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   v8::Local<v8::Value> result = CompileRun(
-      "var subject = 'ascii~only~string~'; "
+      "var subject = 'one_byte~only~string~'; "
       "var replace = '\x80';            "
       "subject.replace(/~/g, replace);  ");
   CHECK(result->IsString());
   Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSeqTwoByteString());
 
-  v8::Local<v8::String> expected = v8_str("ascii\x80only\x80string\x80");
+  v8::Local<v8::String> expected = v8_str("one_byte\x80only\x80string\x80");
   CHECK(expected->Equals(result));
 }
 
@@ -1375,7 +1391,7 @@ TEST(InvalidExternalString) {
   Isolate* isolate = CcTest::i_isolate();
   { HandleScope scope(isolate);
     DummyOneByteResource r;
-    CHECK(isolate->factory()->NewExternalStringFromAscii(&r).is_null());
+    CHECK(isolate->factory()->NewExternalStringFromOneByte(&r).is_null());
     CHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
   }

@@ -160,6 +160,8 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_inside_with_ = false;
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
+  asm_module_ = false;
+  asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the strict mode from the parent scope.
   strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
@@ -222,6 +224,8 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
                                       Handle<ScopeInfo>(scope_info),
                                       global_scope->ast_value_factory_,
                                       zone);
+      if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
+      if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
     } else if (context->IsBlockContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
       current_scope = new(zone) Scope(current_scope,
@@ -267,9 +271,8 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    // Passing NULL as AstValueFactory is ok, because AllocateVariables doesn't
-    // need to create new strings or values.
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->zone(), NULL);
+    AstNodeFactory<AstNullVisitor> ast_node_factory(
+        info->zone(), info->ast_value_factory(), info->ast_node_id_gen());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 
@@ -1081,9 +1084,10 @@ bool Scope::ResolveVariable(CompilationInfo* info,
     Isolate* isolate = info->isolate();
     Factory* factory = isolate->factory();
     Handle<JSArray> array = factory->NewJSArray(0);
-    Handle<Object> result =
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error =
         factory->NewSyntaxError("harmony_const_assign", array);
-    isolate->Throw(*result, &location);
+    if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
     return false;
   }
 
@@ -1115,9 +1119,10 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
       JSObject::SetElement(array, 0, var->name(), NONE, STRICT).Assert();
-      Handle<Object> result =
+      Handle<Object> error;
+      MaybeHandle<Object> maybe_error =
           factory->NewSyntaxError("module_type_error", array);
-      isolate->Throw(*result, &location);
+      if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
       return false;
     }
   }
@@ -1163,6 +1168,9 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;
+    }
+    if (asm_module_ && inner->scope_type() == FUNCTION_SCOPE) {
+      inner->asm_function_ = true;
     }
   }
 }

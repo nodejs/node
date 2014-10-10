@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
+// Flags: --turbo-deoptimization
 
 // If a function parameter is forced to be context allocated,
 // debug evaluate need to resolve it to a context slot instead of

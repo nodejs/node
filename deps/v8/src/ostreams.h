@@ -83,8 +83,8 @@ class OStringStream: public OStream {
   // Internally, our character data is always 0-terminated.
   const char* c_str() const { return data(); }
 
-  virtual OStringStream& write(const char* s, size_t n) V8_OVERRIDE;
-  virtual OStringStream& flush() V8_OVERRIDE;
+  virtual OStringStream& write(const char* s, size_t n) OVERRIDE;
+  virtual OStringStream& flush() OVERRIDE;
 
  private:
   // Primitive allocator interface, can be extracted if needed.
@@ -107,8 +107,8 @@ class OFStream: public OStream {
   explicit OFStream(FILE* f) : f_(f) { }
   virtual ~OFStream() { }
 
-  virtual OFStream& write(const char* s, size_t n) V8_OVERRIDE;
-  virtual OFStream& flush() V8_OVERRIDE;
+  virtual OFStream& write(const char* s, size_t n) OVERRIDE;
+  virtual OFStream& flush() OVERRIDE;
 
  private:
   FILE* const f_;

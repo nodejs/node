@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/scheduler.h"
@@ -10,23 +11,27 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-RawMachineAssembler::RawMachineAssembler(
-    Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-    MachineType word)
+RawMachineAssembler::RawMachineAssembler(Graph* graph,
+                                         MachineSignature* machine_sig,
+                                         MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word),
+      machine_(word),
       common_(zone()),
-      call_descriptor_builder_(call_descriptor_builder),
+      machine_sig_(machine_sig),
+      call_descriptor_(
+          Linkage::GetSimplifiedCDescriptor(graph->zone(), machine_sig)),
       parameters_(NULL),
-      exit_label_(schedule()->exit()),
-      current_block_(schedule()->entry()) {
-  Node* s = graph->NewNode(common_.Start(parameter_count()));
+      exit_label_(schedule()->end()),
+      current_block_(schedule()->start()) {
+  int param_count = static_cast<int>(parameter_count());
+  Node* s = graph->NewNode(common_.Start(param_count));
   graph->SetStart(s);
   if (parameter_count() == 0) return;
-  parameters_ = zone()->NewArray<Node*>(parameter_count());
-  for (int i = 0; i < parameter_count(); ++i) {
-    parameters_[i] = NewNode(common()->Parameter(i), graph->start());
+  parameters_ = zone()->NewArray<Node*>(param_count);
+  for (size_t i = 0; i < parameter_count(); ++i) {
+    parameters_[i] =
+        NewNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
 }
 
@@ -42,8 +47,8 @@ Schedule* RawMachineAssembler::Export() {
 }
 
 
-Node* RawMachineAssembler::Parameter(int index) {
-  DCHECK(0 <= index && index < parameter_count());
+Node* RawMachineAssembler::Parameter(size_t index) {
+  DCHECK(index < parameter_count());
   return parameters_[index];
 }
 
@@ -55,7 +60,7 @@ RawMachineAssembler::Label* RawMachineAssembler::Exit() {
 
 
 void RawMachineAssembler::Goto(Label* label) {
-  DCHECK(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
   current_block_ = NULL;
 }
@@ -63,7 +68,7 @@ void RawMachineAssembler::Goto(Label* label) {
 
 void RawMachineAssembler::Branch(Node* condition, Label* true_val,
                                  Label* false_val) {
-  DCHECK(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->end());
   Node* branch = NewNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = NULL;
@@ -76,42 +81,44 @@ void RawMachineAssembler::Return(Node* value) {
 }
 
 
-void RawMachineAssembler::Deoptimize(Node* state) {
-  Node* deopt = graph()->NewNode(common()->Deoptimize(), state);
-  schedule()->AddDeoptimize(CurrentBlock(), deopt);
-  current_block_ = NULL;
+Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
+                                             Node* context, Node* frame_state,
+                                             CallFunctionFlags flags) {
+  Callable callable = CodeFactory::CallFunction(isolate(), 0, flags);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      callable.descriptor(), 1, CallDescriptor::kNeedsFrameState, zone());
+  Node* stub_code = HeapConstant(callable.code());
+  Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
+                                receiver, context, frame_state);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
 }
 
 
 Node* RawMachineAssembler::CallJS0(Node* function, Node* receiver,
-                                   Label* continuation, Label* deoptimization) {
+                                   Node* context, Node* frame_state) {
   CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(1, zone());
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, receiver);
-  schedule()->AddCall(CurrentBlock(), call, Use(continuation),
-                      Use(deoptimization));
-  current_block_ = NULL;
+  Node* call = graph()->NewNode(common()->Call(descriptor), function, receiver,
+                                context, frame_state);
+  schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
 
 
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
-                                        Node* arg0, Label* continuation,
-                                        Label* deoptimization) {
-  CallDescriptor* descriptor =
-      Linkage::GetRuntimeCallDescriptor(function, 1, Operator::kNoProperties,
-                                        CallDescriptor::kCanDeoptimize, zone());
+                                        Node* arg0, Node* context,
+                                        Node* frame_state) {
+  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+      function, 1, Operator::kNoProperties, zone());
 
   Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
   Node* ref = NewNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(1);
-  Node* context = Parameter(1);
 
   Node* call = graph()->NewNode(common()->Call(descriptor), centry, arg0, ref,
-                                arity, context);
-  schedule()->AddCall(CurrentBlock(), call, Use(continuation),
-                      Use(deoptimization));
-  current_block_ = NULL;
+                                arity, context, frame_state);
+  schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
 
@@ -142,7 +149,7 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 }
 
 
-Node* RawMachineAssembler::MakeNode(Operator* op, int input_count,
+Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
                                     Node** inputs) {
   DCHECK(ScheduleValid());
   DCHECK(current_block_ != NULL);

@@ -1517,7 +1517,9 @@ int Disassembler::SubstituteLiteralField(Instruction* instr,
     case LDR_w_lit:
     case LDR_x_lit:
     case LDR_s_lit:
-    case LDR_d_lit: AppendToOutput("(addr %p)", instr->LiteralAddress()); break;
+    case LDR_d_lit:
+      AppendToOutput("(addr 0x%016" PRIxPTR ")", instr->LiteralAddress());
+      break;
     default: UNREACHABLE();
   }
 

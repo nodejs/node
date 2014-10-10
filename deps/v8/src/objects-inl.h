@@ -13,6 +13,7 @@
 #define V8_OBJECTS_INL_H_
 
 #include "src/base/atomicops.h"
+#include "src/base/bits.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/elements.h"
@@ -30,6 +31,7 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
+#include "src/type-feedback-vector-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -251,7 +253,7 @@ bool Object::IsExternalString() const {
 }
 
 
-bool Object::IsExternalAsciiString() const {
+bool Object::IsExternalOneByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
          String::cast(this)->IsOneByteRepresentation();
@@ -431,7 +433,7 @@ STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
              Internals::kStringEncodingMask);
 
 
-bool StringShape::IsSequentialAscii() {
+bool StringShape::IsSequentialOneByte() {
   return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
 }
 
@@ -441,15 +443,15 @@ bool StringShape::IsSequentialTwoByte() {
 }
 
 
-bool StringShape::IsExternalAscii() {
+bool StringShape::IsExternalOneByte() {
   return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
 }
 
 
 STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
-             Internals::kExternalAsciiRepresentationTag);
+              Internals::kExternalOneByteRepresentationTag);
 
-STATIC_ASSERT(v8::String::ASCII_ENCODING == kOneByteStringTag);
+STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
 
 
 bool StringShape::IsExternalTwoByte() {
@@ -464,7 +466,7 @@ STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 uc32 FlatStringReader::Get(int index) {
   DCHECK(0 <= index && index <= length_);
-  if (is_ascii_) {
+  if (is_one_byte_) {
     return static_cast<const byte*>(start_)[index];
   } else {
     return static_cast<const uc16*>(start_)[index];
@@ -499,7 +501,7 @@ class SequentialStringKey : public HashTableKey {
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
                                                            string_.length(),
                                                            seed_);
@@ -510,7 +512,7 @@ class SequentialStringKey : public HashTableKey {
   }
 
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
@@ -525,29 +527,25 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
-template<class Char>
-class SubStringKey : public HashTableKey {
+class SeqOneByteSubStringKey : public HashTableKey {
  public:
-  SubStringKey(Handle<String> string, int from, int length)
+  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
       : string_(string), from_(from), length_(length) {
-    if (string_->IsSlicedString()) {
-      string_ = Handle<String>(Unslice(*string_, &from_));
-    }
-    DCHECK(string_->IsSeqString() || string->IsExternalString());
+    DCHECK(string_->IsSeqOneByteString());
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
-    const Char* chars = GetChars() + from_;
+    const uint8_t* chars = string_->GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -555,25 +553,15 @@ class SubStringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE;
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual bool IsMatch(Object* string) OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 
  private:
-  const Char* GetChars();
-  String* Unslice(String* string, int* offset) {
-    while (string->IsSlicedString()) {
-      SlicedString* sliced = SlicedString::cast(string);
-      *offset += sliced->offset();
-      string = sliced->parent();
-    }
-    return string;
-  }
-
-  Handle<String> string_;
+  Handle<SeqOneByteString> string_;
   int from_;
   int length_;
   uint32_t hash_field_;
@@ -585,11 +573,11 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
@@ -599,11 +587,11 @@ class Utf8StringKey : public HashTableKey {
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -611,11 +599,11 @@ class Utf8StringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     if (hash_field_ == 0) Hash();
     return isolate->factory()->NewInternalizedStringFromUtf8(
         string_, chars_, hash_field_);
@@ -721,6 +709,9 @@ bool Object::IsTransitionArray() const {
 }
 
 
+bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
+
+
 bool Object::IsDeoptimizationInputData() const {
   // Must be a fixed array.
   if (!IsFixedArray()) return false;
@@ -731,19 +722,9 @@ bool Object::IsDeoptimizationInputData() const {
   // the entry size.
   int length = FixedArray::cast(this)->length();
   if (length == 0) return true;
-  if (length < DeoptimizationInputData::kFirstDeoptEntryIndex) return false;
 
-  FixedArray* self = FixedArray::cast(const_cast<Object*>(this));
-  int deopt_count =
-      Smi::cast(self->get(DeoptimizationInputData::kDeoptEntryCountIndex))
-          ->value();
-  int patch_count =
-      Smi::cast(
-          self->get(
-              DeoptimizationInputData::kReturnAddressPatchEntryCountIndex))
-          ->value();
-
-  return length == DeoptimizationInputData::LengthFor(deopt_count, patch_count);
+  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
+  return length >= 0 && length % DeoptimizationInputData::kDeoptEntrySize == 0;
 }
 
 
@@ -1496,21 +1477,22 @@ int HeapObject::Size() {
 }
 
 
-bool HeapObject::MayContainNewSpacePointers() {
+bool HeapObject::MayContainRawValues() {
   InstanceType type = map()->instance_type();
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) {
-      return true;
+      return false;
     }
     DCHECK(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
-    // Only the latter two contain non-map-word pointers to heap objects.
-    return ((type & kIsIndirectStringMask) == kIsIndirectStringTag);
+    // Only the former two contain raw values and no heap pointers (besides the
+    // map-word).
+    return ((type & kIsIndirectStringMask) != kIsIndirectStringTag);
   }
-  // The ConstantPoolArray contains heap pointers, but not new space pointers.
-  if (type == CONSTANT_POOL_ARRAY_TYPE) return false;
-  return (type > LAST_DATA_TYPE);
+  // The ConstantPoolArray contains heap pointers, but also raw values.
+  if (type == CONSTANT_POOL_ARRAY_TYPE) return true;
+  return (type <= LAST_DATA_TYPE);
 }
 
 
@@ -2216,18 +2198,18 @@ void FixedArray::set(int index, Object* value) {
 
 
 inline bool FixedDoubleArray::is_the_hole_nan(double value) {
-  return BitCast<uint64_t, double>(value) == kHoleNanInt64;
+  return bit_cast<uint64_t, double>(value) == kHoleNanInt64;
 }
 
 
 inline double FixedDoubleArray::hole_nan_as_double() {
-  return BitCast<double, uint64_t>(kHoleNanInt64);
+  return bit_cast<double, uint64_t>(kHoleNanInt64);
 }
 
 
 inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
-  DCHECK(BitCast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
-  DCHECK((BitCast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
+  DCHECK(bit_cast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
+  DCHECK((bit_cast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
   return base::OS::nan_value();
 }
 
@@ -2920,9 +2902,6 @@ FixedArrayBase* Map::GetInitialElements() {
       GetHeap()->EmptyFixedTypedArrayForMap(this);
     DCHECK(!GetHeap()->InNewSpace(empty_array));
     return empty_array;
-  } else if (has_dictionary_elements()) {
-    DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_slow_element_dictionary()));
-    return GetHeap()->empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
@@ -3076,27 +3055,6 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness) {
-  DisallowHeapAllocation no_gc;
-  int descriptor_number = number_of_descriptors();
-  SetNumberOfDescriptors(descriptor_number + 1);
-  Set(descriptor_number, desc, witness);
-
-  uint32_t hash = desc->GetKey()->Hash();
-
-  int insertion;
-
-  for (insertion = descriptor_number; insertion > 0; --insertion) {
-    Name* key = GetSortedKey(insertion - 1);
-    if (key->Hash() <= hash) break;
-    SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
-  }
-
-  SetSortedKey(insertion, descriptor_number);
-}
-
-
 void DescriptorArray::Append(Descriptor* desc) {
   DisallowHeapAllocation no_gc;
   int descriptor_number = number_of_descriptors();
@@ -3140,7 +3098,7 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 template<typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 32;
-  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   if (capacity < kMinCapacity) {
     capacity = kMinCapacity;  // Guarantee min capacity.
   }
@@ -3211,7 +3169,7 @@ CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(ExternalArray)
-CAST_ACCESSOR(ExternalAsciiString)
+CAST_ACCESSOR(ExternalOneByteString)
 CAST_ACCESSOR(ExternalFloat32Array)
 CAST_ACCESSOR(ExternalFloat64Array)
 CAST_ACCESSOR(ExternalInt16Array)
@@ -3412,7 +3370,7 @@ uint16_t String::Get(int index) {
     case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
     case kExternalStringTag | kOneByteStringTag:
-      return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
+      return ExternalOneByteString::cast(this)->ExternalOneByteStringGet(index);
     case kExternalStringTag | kTwoByteStringTag:
       return ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
     case kSlicedStringTag | kOneByteStringTag:
@@ -3478,7 +3436,7 @@ ConsString* String::VisitFlat(Visitor* visitor,
 
       case kExternalStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            ExternalAsciiString::cast(string)->GetChars() + slice_offset,
+            ExternalOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
         return NULL;
 
@@ -3616,12 +3574,12 @@ bool ExternalString::is_short() {
 }
 
 
-const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
+const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
 
 
-void ExternalAsciiString::update_data_cache() {
+void ExternalOneByteString::update_data_cache() {
   if (is_short()) return;
   const char** data_field =
       reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
@@ -3629,8 +3587,8 @@ void ExternalAsciiString::update_data_cache() {
 }
 
 
-void ExternalAsciiString::set_resource(
-    const ExternalAsciiString::Resource* resource) {
+void ExternalOneByteString::set_resource(
+    const ExternalOneByteString::Resource* resource) {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
@@ -3638,12 +3596,12 @@ void ExternalAsciiString::set_resource(
 }
 
 
-const uint8_t* ExternalAsciiString::GetChars() {
+const uint8_t* ExternalOneByteString::GetChars() {
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
 
-uint16_t ExternalAsciiString::ExternalAsciiStringGet(int index) {
+uint16_t ExternalOneByteString::ExternalOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
@@ -4306,8 +4264,8 @@ int HeapObject::SizeFromMap(Map* map) {
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
-  if (instance_type == ASCII_STRING_TYPE ||
-      instance_type == ASCII_INTERNALIZED_STRING_TYPE) {
+  if (instance_type == ONE_BYTE_STRING_TYPE ||
+      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
     return SeqOneByteString::SizeFor(
         reinterpret_cast<SeqOneByteString*>(this)->length());
   }
@@ -4821,9 +4779,10 @@ int Code::profiler_ticks() {
 
 
 void Code::set_profiler_ticks(int ticks) {
-  DCHECK_EQ(FUNCTION, kind());
   DCHECK(ticks < 256);
-  WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+  if (kind() == FUNCTION) {
+    WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+  }
 }
 
 
@@ -5445,7 +5404,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
+ACCESSORS(SharedFunctionInfo, feedback_vector, TypeFeedbackVector,
           kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -5488,6 +5447,7 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                has_duplicate_parameters,
                kHasDuplicateParameters)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
 
 
 #if V8_HOST_ARCH_32_BIT
@@ -5604,6 +5564,19 @@ void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
 }
 
 
+FunctionKind SharedFunctionInfo::kind() {
+  return FunctionKindBits::decode(compiler_hints());
+}
+
+
+void SharedFunctionInfo::set_kind(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  int hints = compiler_hints();
+  hints = FunctionKindBits::update(hints, kind);
+  set_compiler_hints(hints);
+}
+
+
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5615,8 +5588,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
+               kIsConciseMethod)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -5629,7 +5604,7 @@ bool Script::HasValidSource() {
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalAsciiString::cast(src)->resource() != NULL;
+    return ExternalOneByteString::cast(src)->resource() != NULL;
   } else if (src_str->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(src)->resource() != NULL;
   }
@@ -5697,8 +5672,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 
 bool SharedFunctionInfo::is_compiled() {
-  return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
 }
 
 
@@ -5972,8 +5946,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
 }
 
 
@@ -6069,8 +6042,8 @@ ACCESSORS(JSCollection, table, Object, kTableOffset)
   }
 
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Smi, kIndexOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Smi, kKindOffset)
+ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Object, kIndexOffset)
+ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Object, kKindOffset)
 
 #undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
 
@@ -7026,27 +6999,6 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 
-Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
-  return isolate->factory()->uninitialized_symbol();
-}
-
-
-Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->megamorphic_symbol();
-}
-
-
-Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
-    ElementsKind elements_kind) {
-  return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);
-}
-
-
-Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
-  return heap->uninitialized_symbol();
-}
-
-
 int TypeFeedbackInfo::ic_total_count() {
   int current = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
   return ICTotalCountField::decode(current);
@@ -7176,17 +7128,17 @@ void Foreign::ForeignIterateBody() {
 }
 
 
-void ExternalAsciiString::ExternalAsciiStringIterateBody(ObjectVisitor* v) {
-  typedef v8::String::ExternalAsciiStringResource Resource;
-  v->VisitExternalAsciiString(
+void ExternalOneByteString::ExternalOneByteStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalOneByteStringResource Resource;
+  v->VisitExternalOneByteString(
       reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 
 
-template<typename StaticVisitor>
-void ExternalAsciiString::ExternalAsciiStringIterateBody() {
-  typedef v8::String::ExternalAsciiStringResource Resource;
-  StaticVisitor::VisitExternalAsciiString(
+template <typename StaticVisitor>
+void ExternalOneByteString::ExternalOneByteStringIterateBody() {
+  typedef v8::String::ExternalOneByteStringResource Resource;
+  StaticVisitor::VisitExternalOneByteString(
       reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 

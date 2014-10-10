@@ -36,7 +36,6 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
-#include "src/stub-cache.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
@@ -74,16 +73,23 @@ using ::v8::internal::StrLength;
 class DebugLocalContext {
  public:
   inline DebugLocalContext(
+      v8::Isolate* isolate, v8::ExtensionConfiguration* extensions = 0,
+      v8::Handle<v8::ObjectTemplate> global_template =
+          v8::Handle<v8::ObjectTemplate>(),
+      v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
+      : scope_(isolate),
+        context_(v8::Context::New(isolate, extensions, global_template,
+                                  global_object)) {
+    context_->Enter();
+  }
+  inline DebugLocalContext(
       v8::ExtensionConfiguration* extensions = 0,
       v8::Handle<v8::ObjectTemplate> global_template =
           v8::Handle<v8::ObjectTemplate>(),
       v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
       : scope_(CcTest::isolate()),
-        context_(
-          v8::Context::New(CcTest::isolate(),
-                           extensions,
-                           global_template,
-                           global_object)) {
+        context_(v8::Context::New(CcTest::isolate(), extensions,
+                                  global_template, global_object)) {
     context_->Enter();
   }
   inline ~DebugLocalContext() {
@@ -108,7 +114,7 @@ class DebugLocalContext {
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
-        factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
+        factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
     v8::internal::Runtime::DefineObjectProperty(global, debug_string,
         handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }
@@ -138,8 +144,7 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
                                                const char* source,
                                                const char* function_name) {
   v8::Script::Compile(v8::String::NewFromUtf8(isolate, source))->Run();
-  v8::Local<v8::Object> global =
-      CcTest::isolate()->GetCurrentContext()->Global();
+  v8::Local<v8::Object> global = isolate->GetCurrentContext()->Global();
   return v8::Local<v8::Function>::Cast(
       global->Get(v8::String::NewFromUtf8(isolate, function_name)));
 }
@@ -670,6 +675,8 @@ static void DebugEventBreakPointHitCount(
 int exception_hit_count = 0;
 int uncaught_exception_hit_count = 0;
 int last_js_stack_height = -1;
+v8::Handle<v8::Function> debug_event_listener_callback;
+int debug_event_listener_callback_result;
 
 static void DebugEventCounterClear() {
   break_point_hit_count = 0;
@@ -710,8 +717,16 @@ static void DebugEventCounter(
     static const int kArgc = 1;
     v8::Handle<v8::Value> argv[kArgc] = { exec_state };
     // Using exec_state as receiver is just to have a receiver.
-    v8::Handle<v8::Value> result =  frame_count->Call(exec_state, kArgc, argv);
+    v8::Handle<v8::Value> result = frame_count->Call(exec_state, kArgc, argv);
     last_js_stack_height = result->Int32Value();
+  }
+
+  // Run callback from DebugEventListener and check the result.
+  if (!debug_event_listener_callback.IsEmpty()) {
+    v8::Handle<v8::Value> result =
+        debug_event_listener_callback->Call(event_data, 0, NULL);
+    CHECK(!result.IsEmpty());
+    CHECK_EQ(debug_event_listener_callback_result, result->Int32Value());
   }
 }
 
@@ -750,6 +765,7 @@ static void DebugEventEvaluate(
   CHECK_NE(debug->break_id(), 0);
 
   if (event == v8::Break) {
+    break_point_hit_count++;
     for (int i = 0; checks[i].expr != NULL; i++) {
       const int argc = 3;
       v8::Handle<v8::Value> argv[argc] = {
@@ -2391,7 +2407,7 @@ TEST(DebugEvaluate) {
   };
 
   // Simple test function. The "y=0" is in the function foo to provide a break
-  // location. For "y=0" the "y" is at position 15 in the barbar function
+  // location. For "y=0" the "y" is at position 15 in the foo function
   // therefore setting breakpoint at position 15 will break at "y=0" and
   // setting it higher will break after.
   v8::Local<v8::Function> foo = CompileFunction(&env,
@@ -2423,6 +2439,34 @@ TEST(DebugEvaluate) {
   SetBreakPoint(foo, foo_break_position_2);
   checks = checks_hh;
   foo->Call(env->Global(), 1, argv_foo);
+
+  // Test that overriding Object.prototype will not interfere into evaluation
+  // on call frame.
+  v8::Local<v8::Function> zoo =
+      CompileFunction(&env,
+                      "x = undefined;"
+                      "function zoo(t) {"
+                      "  var a=x;"
+                      "  Object.prototype.x = 42;"
+                      "  x=t;"
+                      "  y=0;"  // To ensure break location.
+                      "  delete Object.prototype.x;"
+                      "  x=a;"
+                      "}",
+                      "zoo");
+  const int zoo_break_position = 50;
+
+  // Arguments with one parameter "Hello, world!"
+  v8::Handle<v8::Value> argv_zoo[1] = {
+      v8::String::NewFromUtf8(env->GetIsolate(), "Hello, world!")};
+
+  // Call zoo with breakpoint set at y=0.
+  DebugEventCounterClear();
+  bp = SetBreakPoint(zoo, zoo_break_position);
+  checks = checks_hu;
+  zoo->Call(env->Global(), 1, argv_zoo);
+  CHECK_EQ(1, break_point_hit_count);
+  ClearBreakPoint(bp);
 
   // Test function with an inner function. The "y=0" is in function barbar
   // to provide a break location. For "y=0" the "y" is at position 8 in the
@@ -3968,6 +4012,43 @@ TEST(BreakOnException) {
 }
 
 
+TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  env.ExposeDebug();
+
+  // Create functions for testing break on exception.
+  v8::Local<v8::Function> noThrowJS = CompileFunction(
+      &env, "function noThrowJS(){var a=[1]; a.push(2); return a.length;}",
+      "noThrowJS");
+
+  debug_event_listener_callback = noThrowJS;
+  debug_event_listener_callback_result = 2;
+
+  v8::V8::AddMessageListener(MessageCallbackCount);
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+  // Break on uncaught exception
+  ChangeBreakOnException(false, true);
+  DebugEventCounterClear();
+  MessageCallbackCountClear();
+
+  // ReThrow native error
+  {
+    v8::TryCatch tryCatch;
+    env->GetIsolate()->ThrowException(v8::Exception::TypeError(
+        v8::String::NewFromUtf8(env->GetIsolate(), "Type error")));
+    CHECK(tryCatch.HasCaught());
+    tryCatch.ReThrow();
+  }
+  CHECK_EQ(1, exception_hit_count);
+  CHECK_EQ(1, uncaught_exception_hit_count);
+  CHECK_EQ(0, message_callback_count);  // FIXME: Should it be 1 ?
+  CHECK(!debug_event_listener_callback.IsEmpty());
+
+  debug_event_listener_callback.Clear();
+}
+
+
 // Test break on exception from compiler errors. When compiling using
 // v8::Script::Compile there is no JavaScript stack whereas when compiling using
 // eval there are JavaScript frames.
@@ -4151,10 +4232,11 @@ TEST(DebugBreak) {
 
   // Set the debug break flag.
   v8::Debug::DebugBreak(env->GetIsolate());
+  CHECK(v8::Debug::CheckDebugBreak(env->GetIsolate()));
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
-  for (unsigned int i = 0; i < ARRAY_SIZE(argv); i++) {
+  for (unsigned int i = 0; i < arraysize(argv); i++) {
     f0->Call(env->Global(), i, argv);
     f1->Call(env->Global(), i, argv);
     f2->Call(env->Global(), i, argv);
@@ -4162,7 +4244,7 @@ TEST(DebugBreak) {
   }
 
   // One break for each function called.
-  CHECK_EQ(4 * ARRAY_SIZE(argv), break_point_hit_count);
+  CHECK_EQ(4 * arraysize(argv), break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -4182,6 +4264,12 @@ TEST(DisableBreak) {
   // Create a function for testing stepping.
   const char* src = "function f() {g()};function g(){i=0; while(i<10){i++}}";
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
+
+  // Set, test and cancel debug break.
+  v8::Debug::DebugBreak(env->GetIsolate());
+  CHECK(v8::Debug::CheckDebugBreak(env->GetIsolate()));
+  v8::Debug::CancelDebugBreak(env->GetIsolate());
+  CHECK(!v8::Debug::CheckDebugBreak(env->GetIsolate()));
 
   // Set the debug break flag.
   v8::Debug::DebugBreak(env->GetIsolate());
@@ -4376,10 +4464,6 @@ TEST(InterceptorPropertyMirror) {
     SNPrintF(buffer,
              "named_values[%d] instanceof debug.PropertyMirror", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
-
-    SNPrintF(buffer, "named_values[%d].propertyType()", i);
-    CHECK_EQ(v8::internal::INTERCEPTOR,
-             CompileRun(buffer.start())->Int32Value());
 
     SNPrintF(buffer, "named_values[%d].isNative()", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
@@ -4696,7 +4780,7 @@ TEST(NoHiddenProperties) {
 // The Wait() call blocks a thread until it is called for the Nth time, then all
 // calls return.  Each ThreadBarrier object can only be used once.
 template <int N>
-class ThreadBarrier V8_FINAL {
+class ThreadBarrier FINAL {
  public:
   ThreadBarrier() : num_blocked_(0) {}
 
@@ -5106,12 +5190,20 @@ class V8Thread : public v8::base::Thread {
  public:
   V8Thread() : Thread(Options("V8Thread")) {}
   void Run();
+  v8::Isolate* isolate() { return isolate_; }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 class DebuggerThread : public v8::base::Thread {
  public:
-  DebuggerThread() : Thread(Options("DebuggerThread")) {}
+  explicit DebuggerThread(v8::Isolate* isolate)
+      : Thread(Options("DebuggerThread")), isolate_(isolate) {}
   void Run();
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 
@@ -5154,22 +5246,25 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
-  v8::Handle<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(env->GetIsolate());
-  global_template->Set(
-      v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
-      v8::FunctionTemplate::New(isolate, ThreadedAtBarrier1));
-  v8::Handle<v8::Context> context = v8::Context::New(isolate,
-                                                     NULL,
-                                                     global_template);
-  v8::Context::Scope context_scope(context);
+  isolate_ = v8::Isolate::New();
+  threaded_debugging_barriers.barrier_3.Wait();
+  {
+    v8::Isolate::Scope isolate_scope(isolate_);
+    DebugLocalContext env(isolate_);
+    v8::HandleScope scope(isolate_);
+    v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
+    v8::Handle<v8::ObjectTemplate> global_template =
+        v8::ObjectTemplate::New(env->GetIsolate());
+    global_template->Set(
+        v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
+        v8::FunctionTemplate::New(isolate_, ThreadedAtBarrier1));
+    v8::Handle<v8::Context> context =
+        v8::Context::New(isolate_, NULL, global_template);
+    v8::Context::Scope context_scope(context);
 
-  CompileRun(source);
+    CompileRun(source);
+  }
+  isolate_->Dispose();
 }
 
 
@@ -5185,21 +5280,21 @@ void DebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
-  v8::Isolate* isolate = CcTest::isolate();
   threaded_debugging_barriers.barrier_1.Wait();
-  v8::Debug::DebugBreak(isolate);
+  v8::Debug::DebugBreak(isolate_);
   threaded_debugging_barriers.barrier_2.Wait();
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_1, buffer));
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_2, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_1, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_2, buffer));
 }
 
 
 TEST(ThreadedDebugging) {
-  DebuggerThread debugger_thread;
   V8Thread v8_thread;
 
   // Create a V8 environment
   v8_thread.Start();
+  threaded_debugging_barriers.barrier_3.Wait();
+  DebuggerThread debugger_thread(v8_thread.isolate());
   debugger_thread.Start();
 
   v8_thread.Join();
@@ -5218,17 +5313,24 @@ class BreakpointsV8Thread : public v8::base::Thread {
  public:
   BreakpointsV8Thread() : Thread(Options("BreakpointsV8Thread")) {}
   void Run();
+
+  v8::Isolate* isolate() { return isolate_; }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 class BreakpointsDebuggerThread : public v8::base::Thread {
  public:
-  explicit BreakpointsDebuggerThread(bool global_evaluate)
+  BreakpointsDebuggerThread(bool global_evaluate, v8::Isolate* isolate)
       : Thread(Options("BreakpointsDebuggerThread")),
-        global_evaluate_(global_evaluate) {}
+        global_evaluate_(global_evaluate),
+        isolate_(isolate) {}
   void Run();
 
  private:
   bool global_evaluate_;
+  v8::Isolate* isolate_;
 };
 
 
@@ -5273,16 +5375,20 @@ void BreakpointsV8Thread::Run() {
   const char* source_2 = "cat(17);\n"
     "cat(19);\n";
 
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  DebugLocalContext env;
-  v8::HandleScope scope(isolate);
-  v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
+  isolate_ = v8::Isolate::New();
+  breakpoints_barriers->barrier_3.Wait();
+  {
+    v8::Isolate::Scope isolate_scope(isolate_);
+    DebugLocalContext env(isolate_);
+    v8::HandleScope scope(isolate_);
+    v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
 
-  CompileRun(source_1);
-  breakpoints_barriers->barrier_1.Wait();
-  breakpoints_barriers->barrier_2.Wait();
-  CompileRun(source_2);
+    CompileRun(source_1);
+    breakpoints_barriers->barrier_1.Wait();
+    breakpoints_barriers->barrier_2.Wait();
+    CompileRun(source_2);
+  }
+  isolate_->Dispose();
 }
 
 
@@ -5348,14 +5454,12 @@ void BreakpointsDebuggerThread::Run() {
       "\"command\":\"continue\"}";
 
 
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat() (will get id 1).
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_1, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_1, buffer));
   // 2:Set breakpoint in dog() (will get id 2).
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_2, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_2, buffer));
   breakpoints_barriers->barrier_2.Wait();
   // V8 thread starts compiling source_2.
   // Automatic break happens, to run queued commands
@@ -5367,43 +5471,42 @@ void BreakpointsDebuggerThread::Run() {
   // Must have hit breakpoint #1.
   CHECK_EQ(1, break_event_breakpoint_id);
   // 4:Evaluate dog() (which has a breakpoint).
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_3, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_3, buffer));
   // V8 thread hits breakpoint in dog().
   breakpoints_barriers->semaphore_1.Wait();  // wait for break event
   // Must have hit breakpoint #2.
   CHECK_EQ(2, break_event_breakpoint_id);
   // 5:Evaluate (x + 1).
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_4, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_4, buffer));
   // Evaluate (x + 1) finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 108.
   CHECK_EQ(108, evaluate_int_result);
   // 6:Continue evaluation of dog().
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_5, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_5, buffer));
   // Evaluate dog() finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 107.
   CHECK_EQ(107, evaluate_int_result);
   // 7:Continue evaluation of source_2, finish cat(17), hit breakpoint
   // in cat(19).
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_6, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_6, buffer));
   // Message callback gets break event.
   breakpoints_barriers->semaphore_1.Wait();  // wait for break event
   // Must have hit breakpoint #1.
   CHECK_EQ(1, break_event_breakpoint_id);
   // 8: Evaluate dog() with breaks disabled.
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_7, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_7, buffer));
   // Evaluate dog() finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 116.
   CHECK_EQ(116, evaluate_int_result);
   // 9: Continue evaluation of source2, reach end.
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_8, buffer));
+  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_8, buffer));
 }
 
 
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
-  BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
   BreakpointsV8Thread breakpoints_v8_thread;
 
   // Create a V8 environment
@@ -5411,6 +5514,9 @@ void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   breakpoints_barriers = &stack_allocated_breakpoints_barriers;
 
   breakpoints_v8_thread.Start();
+  breakpoints_barriers->barrier_3.Wait();
+  BreakpointsDebuggerThread breakpoints_debugger_thread(
+      global_evaluate, breakpoints_v8_thread.isolate());
   breakpoints_debugger_thread.Start();
 
   breakpoints_v8_thread.Join();
@@ -6522,6 +6628,10 @@ TEST(ProcessDebugMessages) {
 }
 
 
+class SendCommandThread;
+static SendCommandThread* send_command_thread_ = NULL;
+
+
 class SendCommandThread : public v8::base::Thread {
  public:
   explicit SendCommandThread(v8::Isolate* isolate)
@@ -6529,9 +6639,12 @@ class SendCommandThread : public v8::base::Thread {
         semaphore_(0),
         isolate_(isolate) {}
 
-  static void ProcessDebugMessages(v8::Isolate* isolate, void* data) {
-    v8::Debug::ProcessDebugMessages();
-    reinterpret_cast<v8::base::Semaphore*>(data)->Signal();
+  static void CountingAndSignallingMessageHandler(
+      const v8::Debug::Message& message) {
+    if (message.IsResponse()) {
+      counting_message_handler_counter++;
+      send_command_thread_->semaphore_.Signal();
+    }
   }
 
   virtual void Run() {
@@ -6545,29 +6658,28 @@ class SendCommandThread : public v8::base::Thread {
     int length = AsciiToUtf16(scripts_command, buffer);
     // Send scripts command.
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 20; i++) {
+      v8::base::ElapsedTimer timer;
+      timer.Start();
       CHECK_EQ(i, counting_message_handler_counter);
       // Queue debug message.
       v8::Debug::SendCommand(isolate_, buffer, length);
-      // Synchronize with the main thread to force message processing.
-      isolate_->RequestInterrupt(ProcessDebugMessages, &semaphore_);
+      // Wait for the message handler to pick up the response.
       semaphore_.Wait();
+      i::PrintF("iteration %d took %f ms\n", i,
+                timer.Elapsed().InMillisecondsF());
     }
 
     v8::V8::TerminateExecution(isolate_);
   }
 
-  void StartSending() {
-    semaphore_.Signal();
-  }
+  void StartSending() { semaphore_.Signal(); }
 
  private:
   v8::base::Semaphore semaphore_;
   v8::Isolate* isolate_;
 };
 
-
-static SendCommandThread* send_command_thread_ = NULL;
 
 static void StartSendingCommands(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -6582,7 +6694,8 @@ TEST(ProcessDebugMessagesThreaded) {
 
   counting_message_handler_counter = 0;
 
-  v8::Debug::SetMessageHandler(CountingMessageHandler);
+  v8::Debug::SetMessageHandler(
+      SendCommandThread::CountingAndSignallingMessageHandler);
   send_command_thread_ = new SendCommandThread(isolate);
   send_command_thread_->Start();
 
@@ -6592,7 +6705,7 @@ TEST(ProcessDebugMessagesThreaded) {
 
   CompileRun("start(); while (true) { }");
 
-  CHECK_EQ(100, counting_message_handler_counter);
+  CHECK_EQ(20, counting_message_handler_counter);
 
   v8::Debug::SetMessageHandler(NULL);
   CheckDebuggerUnloaded();

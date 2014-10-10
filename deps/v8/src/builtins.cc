@@ -13,9 +13,9 @@
 #include "src/gdb-jit.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"
-#include "src/ic-inl.h"
+#include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/prototype.h"
-#include "src/stub-cache.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -987,12 +987,12 @@ BUILTIN(ArrayConcat) {
   Handle<FixedArrayBase> storage(result_array->elements(), isolate);
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   for (int i = 0; i < n_arguments; i++) {
-    // TODO(ishell): It is crucial to keep |array| as a raw pointer to avoid
-    // performance degradation. Revisit this later.
+    // It is crucial to keep |array| in a raw pointer form to avoid performance
+    // degradation.
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
-    ElementsKind from_kind = array->GetElementsKind();
     if (len > 0) {
+      ElementsKind from_kind = array->GetElementsKind();
       accessor->CopyElements(array, 0, from_kind, storage, j, len);
       j += len;
     }
@@ -1010,15 +1010,17 @@ BUILTIN(ArrayConcat) {
 
 BUILTIN(StrictModePoisonPill) {
   HandleScope scope(isolate);
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_poison_pill", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("strict_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 
 BUILTIN(GeneratorPoisonPill) {
   HandleScope scope(isolate);
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "generator_poison_pill", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("generator_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -1115,10 +1117,9 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
-    Handle<Object> obj =
-        isolate->factory()->NewTypeError(
-            "illegal_invocation", HandleVector(&function, 1));
-    return isolate->Throw(*obj);
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError("illegal_invocation", HandleVector(&function, 1)));
   }
 
   Object* raw_call_data = fun_data->call_code();
@@ -1288,21 +1289,6 @@ static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateIndexedInterceptor(masm);
-}
-
-
-static void Generate_KeyedLoadIC_SloppyArguments(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateSloppyArguments(masm);
-}
-
-
-static void Generate_StoreIC_Slow(MacroAssembler* masm) {
-  StoreIC::GenerateSlow(masm);
-}
-
-
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1310,6 +1296,16 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 
 static void Generate_StoreIC_Normal(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
+}
+
+
+static void Generate_StoreIC_Slow(MacroAssembler* masm) {
+  NamedStoreHandlerCompiler::GenerateSlow(masm);
+}
+
+
+static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+  ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
 
@@ -1330,11 +1326,6 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
 }
 
 
@@ -1571,7 +1562,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // Move the code into the object heap.
       CodeDesc desc;
       masm.GetCode(&desc);
-      Code::Flags flags =  functions[i].flags;
+      Code::Flags flags = functions[i].flags;
       Handle<Code> code =
           isolate->factory()->NewCode(desc, flags, masm.CodeObject());
       // Log the event and add the code to the builtins array.

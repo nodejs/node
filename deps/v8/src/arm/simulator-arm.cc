@@ -311,7 +311,7 @@ void ArmDebugger::Debug() {
             }
             for (int i = 0; i < DwVfpRegister::NumRegisters(); i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
-              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
                      VFPRegisters::Name(i, true),
                      dvalue,
@@ -322,10 +322,10 @@ void ArmDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               PrintF("%s: 0x%08x %d \n", arg1, value, value);
             } else if (GetVFPSingleValue(arg1, &svalue)) {
-              uint32_t as_word = BitCast<uint32_t>(svalue);
+              uint32_t as_word = bit_cast<uint32_t>(svalue);
               PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
             } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%s: %f 0x%08x %08x\n",
                      arg1,
                      dvalue,

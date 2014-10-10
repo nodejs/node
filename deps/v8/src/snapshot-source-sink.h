@@ -17,7 +17,7 @@ namespace internal {
  *
  * Note: Memory ownership remains with callee.
  */
-class SnapshotByteSource V8_FINAL {
+class SnapshotByteSource FINAL {
  public:
   SnapshotByteSource(const byte* array, int length);
   ~SnapshotByteSource();
@@ -39,7 +39,7 @@ class SnapshotByteSource V8_FINAL {
     // This way of variable-length encoding integers does not suffer from branch
     // mispredictions.
     uint32_t answer = GetUnalignedInt();
-    int bytes = answer & 3;
+    int bytes = (answer & 3) + 1;
     Advance(bytes);
     uint32_t mask = 0xffffffffu;
     mask >>= 32 - (bytes << 3);
@@ -99,8 +99,8 @@ class DummySnapshotSink : public SnapshotByteSink {
 class DebugSnapshotSink : public SnapshotByteSink {
  public:
   explicit DebugSnapshotSink(SnapshotByteSink* chained) : sink_(chained) {}
-  virtual void Put(byte b, const char* description) V8_OVERRIDE;
-  virtual int Position() V8_OVERRIDE { return sink_->Position(); }
+  virtual void Put(byte b, const char* description) OVERRIDE;
+  virtual int Position() OVERRIDE { return sink_->Position(); }
 
  private:
   SnapshotByteSink* sink_;
@@ -110,10 +110,10 @@ class DebugSnapshotSink : public SnapshotByteSink {
 class ListSnapshotSink : public i::SnapshotByteSink {
  public:
   explicit ListSnapshotSink(i::List<byte>* data) : data_(data) {}
-  virtual void Put(byte b, const char* description) V8_OVERRIDE {
+  virtual void Put(byte b, const char* description) OVERRIDE {
     data_->Add(b);
   }
-  virtual int Position() V8_OVERRIDE { return data_->length(); }
+  virtual int Position() OVERRIDE { return data_->length(); }
 
  private:
   i::List<byte>* data_;

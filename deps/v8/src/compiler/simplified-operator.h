@@ -5,15 +5,30 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/opcodes.h"
-#include "src/zone.h"
+#include "src/compiler/machine-type.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+template <class>
+class TypeImpl;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
+class Zone;
+
+
 namespace compiler {
 
+// Forward declarations.
+class Operator;
+struct SimplifiedOperatorBuilderImpl;
+
+
 enum BaseTaggedness { kUntaggedBase, kTaggedBase };
+
+OStream& operator<<(OStream&, BaseTaggedness);
 
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
@@ -23,7 +38,7 @@ struct FieldAccess {
   int offset;                     // offset of the field, without tag.
   Handle<Name> name;              // debugging only.
   Type* type;                     // type of the field.
-  MachineType representation;     // machine representation of field.
+  MachineType machine_type;       // machine type of the field.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -37,61 +52,23 @@ struct ElementAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
-  MachineType representation;     // machine representation of element.
+  MachineType machine_type;       // machine type of the element.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
+
+bool operator==(ElementAccess const& lhs, ElementAccess const& rhs);
+bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs);
+
+OStream& operator<<(OStream&, ElementAccess const&);
 
 
 // If the accessed object is not a heap object, add this to the header_size.
 static const int kNonHeapObjectHeaderSize = kHeapObjectTag;
 
 
-// Specialization for static parameters of type {FieldAccess}.
-template <>
-struct StaticParameterTraits<const FieldAccess> {
-  static OStream& PrintTo(OStream& os, const FieldAccess& val) {  // NOLINT
-    return os << val.offset;
-  }
-  static int HashCode(const FieldAccess& val) {
-    return (val.offset < 16) | (val.representation & 0xffff);
-  }
-  static bool Equals(const FieldAccess& a, const FieldAccess& b) {
-    return a.base_is_tagged == b.base_is_tagged && a.offset == b.offset &&
-           a.representation == b.representation && a.type->Is(b.type);
-  }
-};
-
-
-// Specialization for static parameters of type {ElementAccess}.
-template <>
-struct StaticParameterTraits<const ElementAccess> {
-  static OStream& PrintTo(OStream& os, const ElementAccess& val) {  // NOLINT
-    return os << val.header_size;
-  }
-  static int HashCode(const ElementAccess& val) {
-    return (val.header_size < 16) | (val.representation & 0xffff);
-  }
-  static bool Equals(const ElementAccess& a, const ElementAccess& b) {
-    return a.base_is_tagged == b.base_is_tagged &&
-           a.header_size == b.header_size &&
-           a.representation == b.representation && a.type->Is(b.type);
-  }
-};
-
-
-inline const FieldAccess FieldAccessOf(Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kLoadField ||
-         op->opcode() == IrOpcode::kStoreField);
-  return static_cast<Operator1<FieldAccess>*>(op)->parameter();
-}
-
-
-inline const ElementAccess ElementAccessOf(Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kLoadElement ||
-         op->opcode() == IrOpcode::kStoreElement);
-  return static_cast<Operator1<ElementAccess>*>(op)->parameter();
-}
+const FieldAccess& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+const ElementAccess& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
 
 // Interface for building simplified operators, which represent the
@@ -116,74 +93,60 @@ inline const ElementAccess ElementAccessOf(Operator* op) {
 //   - Bool: a tagged pointer to either the canonical JS #false or
 //           the canonical JS #true object
 //   - Bit: an untagged integer 0 or 1, but word-sized
-class SimplifiedOperatorBuilder {
+class SimplifiedOperatorBuilder FINAL {
  public:
-  explicit inline SimplifiedOperatorBuilder(Zone* zone) : zone_(zone) {}
+  explicit SimplifiedOperatorBuilder(Zone* zone);
 
-#define SIMPLE(name, properties, inputs, outputs) \
-  return new (zone_)                              \
-      SimpleOperator(IrOpcode::k##name, properties, inputs, outputs, #name);
+  const Operator* BooleanNot();
+  const Operator* BooleanToNumber();
 
-#define OP1(name, ptype, pname, properties, inputs, outputs)               \
-  return new (zone_)                                                       \
-      Operator1<ptype>(IrOpcode::k##name, properties | Operator::kNoThrow, \
-                       inputs, outputs, #name, pname)
+  const Operator* NumberEqual();
+  const Operator* NumberLessThan();
+  const Operator* NumberLessThanOrEqual();
+  const Operator* NumberAdd();
+  const Operator* NumberSubtract();
+  const Operator* NumberMultiply();
+  const Operator* NumberDivide();
+  const Operator* NumberModulus();
+  const Operator* NumberToInt32();
+  const Operator* NumberToUint32();
 
-#define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
-#define BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
+  const Operator* ReferenceEqual(Type* type);
 
-  Operator* BooleanNot() const { UNOP(BooleanNot); }
+  const Operator* StringEqual();
+  const Operator* StringLessThan();
+  const Operator* StringLessThanOrEqual();
+  const Operator* StringAdd();
 
-  Operator* NumberEqual() const { BINOP(NumberEqual); }
-  Operator* NumberLessThan() const { BINOP(NumberLessThan); }
-  Operator* NumberLessThanOrEqual() const { BINOP(NumberLessThanOrEqual); }
-  Operator* NumberAdd() const { BINOP(NumberAdd); }
-  Operator* NumberSubtract() const { BINOP(NumberSubtract); }
-  Operator* NumberMultiply() const { BINOP(NumberMultiply); }
-  Operator* NumberDivide() const { BINOP(NumberDivide); }
-  Operator* NumberModulus() const { BINOP(NumberModulus); }
-  Operator* NumberToInt32() const { UNOP(NumberToInt32); }
-  Operator* NumberToUint32() const { UNOP(NumberToUint32); }
+  const Operator* ChangeTaggedToInt32();
+  const Operator* ChangeTaggedToUint32();
+  const Operator* ChangeTaggedToFloat64();
+  const Operator* ChangeInt32ToTagged();
+  const Operator* ChangeUint32ToTagged();
+  const Operator* ChangeFloat64ToTagged();
+  const Operator* ChangeBoolToBit();
+  const Operator* ChangeBitToBool();
 
-  Operator* ReferenceEqual(Type* type) const { BINOP(ReferenceEqual); }
+  const Operator* LoadField(const FieldAccess&);
+  const Operator* StoreField(const FieldAccess&);
 
-  Operator* StringEqual() const { BINOP(StringEqual); }
-  Operator* StringLessThan() const { BINOP(StringLessThan); }
-  Operator* StringLessThanOrEqual() const { BINOP(StringLessThanOrEqual); }
-  Operator* StringAdd() const { BINOP(StringAdd); }
+  // load-element [base + index], length
+  const Operator* LoadElement(ElementAccess const&);
 
-  Operator* ChangeTaggedToInt32() const { UNOP(ChangeTaggedToInt32); }
-  Operator* ChangeTaggedToUint32() const { UNOP(ChangeTaggedToUint32); }
-  Operator* ChangeTaggedToFloat64() const { UNOP(ChangeTaggedToFloat64); }
-  Operator* ChangeInt32ToTagged() const { UNOP(ChangeInt32ToTagged); }
-  Operator* ChangeUint32ToTagged() const { UNOP(ChangeUint32ToTagged); }
-  Operator* ChangeFloat64ToTagged() const { UNOP(ChangeFloat64ToTagged); }
-  Operator* ChangeBoolToBit() const { UNOP(ChangeBoolToBit); }
-  Operator* ChangeBitToBool() const { UNOP(ChangeBitToBool); }
-
-  Operator* LoadField(const FieldAccess& access) const {
-    OP1(LoadField, FieldAccess, access, Operator::kNoWrite, 1, 1);
-  }
-  Operator* StoreField(const FieldAccess& access) const {
-    OP1(StoreField, FieldAccess, access, Operator::kNoRead, 2, 0);
-  }
-  Operator* LoadElement(const ElementAccess& access) const {
-    OP1(LoadElement, ElementAccess, access, Operator::kNoWrite, 2, 1);
-  }
-  Operator* StoreElement(const ElementAccess& access) const {
-    OP1(StoreElement, ElementAccess, access, Operator::kNoRead, 3, 0);
-  }
-
-#undef BINOP
-#undef UNOP
-#undef OP1
-#undef SIMPLE
+  // store-element [base + index], length, value
+  const Operator* StoreElement(ElementAccess const&);
 
  private:
-  Zone* zone_;
+  Zone* zone() const { return zone_; }
+
+  const SimplifiedOperatorBuilderImpl& impl_;
+  Zone* const zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorBuilder);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_SIMPLIFIED_OPERATOR_H_

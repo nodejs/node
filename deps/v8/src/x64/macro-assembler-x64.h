@@ -6,6 +6,7 @@
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
 #include "src/assembler.h"
+#include "src/bailout-reason.h"
 #include "src/frames.h"
 #include "src/globals.h"
 
@@ -773,29 +774,22 @@ class MacroAssembler: public Assembler {
                        Label::Distance near_jump = Label::kFar);
 
 
-  void JumpIfNotBothSequentialAsciiStrings(
-      Register first_object,
-      Register second_object,
-      Register scratch1,
-      Register scratch2,
-      Label* on_not_both_flat_ascii,
+  void JumpIfNotBothSequentialOneByteStrings(
+      Register first_object, Register second_object, Register scratch1,
+      Register scratch2, Label* on_not_both_flat_one_byte,
       Label::Distance near_jump = Label::kFar);
 
-  // Check whether the instance type represents a flat ASCII string. Jump to the
-  // label if not. If the instance type can be scratched specify same register
-  // for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialAscii(
-      Register instance_type,
-      Register scratch,
-      Label*on_not_flat_ascii_string,
+  // Check whether the instance type represents a flat one-byte string. Jump
+  // to the label if not. If the instance type can be scratched specify same
+  // register for both instance type and scratch.
+  void JumpIfInstanceTypeIsNotSequentialOneByte(
+      Register instance_type, Register scratch,
+      Label* on_not_flat_one_byte_string,
       Label::Distance near_jump = Label::kFar);
 
-  void JumpIfBothInstanceTypesAreNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* on_fail,
+  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* on_fail,
       Label::Distance near_jump = Label::kFar);
 
   void EmitSeqStringSetCharCheck(Register string,
@@ -804,10 +798,10 @@ class MacroAssembler: public Assembler {
                                  uint32_t encoding_mask);
 
   // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
-  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
   // Macro instructions.
@@ -1037,12 +1031,9 @@ class MacroAssembler: public Assembler {
   void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-      XMMRegister scratch, MinusZeroMode minus_zero_mode,
-      Label* conversion_failed, Label::Distance dst = Label::kFar);
-
-  void TaggedToI(Register result_reg, Register input_reg, XMMRegister temp,
-      MinusZeroMode minus_zero_mode, Label* lost_precision,
-      Label::Distance dst = Label::kFar);
+                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
+                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 Label::Distance dst = Label::kFar);
 
   void LoadUint32(XMMRegister dst, Register src);
 
@@ -1206,12 +1197,9 @@ class MacroAssembler: public Assembler {
                              Register scratch2,
                              Register scratch3,
                              Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           Register length,
-                           Register scratch1,
-                           Register scratch2,
-                           Register scratch3,
-                           Label* gc_required);
+  void AllocateOneByteString(Register result, Register length,
+                             Register scratch1, Register scratch2,
+                             Register scratch3, Label* gc_required);
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
@@ -1219,10 +1207,8 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Label* gc_required);
-  void AllocateAsciiConsString(Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* gc_required);
+  void AllocateOneByteConsString(Register result, Register scratch1,
+                                 Register scratch2, Label* gc_required);
 
   // Allocate a raw sliced string object. Only the map field of the result is
   // initialized.
@@ -1230,10 +1216,8 @@ class MacroAssembler: public Assembler {
                             Register scratch1,
                             Register scratch2,
                             Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
+  void AllocateOneByteSlicedString(Register result, Register scratch1,
+                                   Register scratch2, Label* gc_required);
 
   // ---------------------------------------------------------------------------
   // Support functions.

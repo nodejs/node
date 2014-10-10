@@ -12,9 +12,9 @@ namespace internal {
 namespace compiler {
 
 // Replaces redundant phis if all the inputs are the same or the phi itself.
-class PhiReducer V8_FINAL : public Reducer {
+class PhiReducer FINAL : public Reducer {
  public:
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE {
+  virtual Reduction Reduce(Node* node) OVERRIDE {
     if (node->opcode() != IrOpcode::kPhi &&
         node->opcode() != IrOpcode::kEffectPhi)
       return NoChange();

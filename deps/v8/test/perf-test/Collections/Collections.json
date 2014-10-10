@@ -1,0 +1,15 @@
+{
+  "path": ["."],
+  "main": "run.js",
+  "flags": ["--harmony-collections"],
+  "run_count": 5,
+  "units": "score",
+  "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+  "total": true,
+  "tests": [
+    {"name": "Map"},
+    {"name": "Set"},
+    {"name": "WeakMap"},
+    {"name": "WeakSet"}
+  ]
+}

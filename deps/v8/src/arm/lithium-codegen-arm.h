@@ -26,7 +26,7 @@ class LCodeGen: public LCodeGenBase {
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
-        deopt_jump_table_(4, info->zone()),
+        jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
@@ -169,10 +169,10 @@ class LCodeGen: public LCodeGenBase {
 
   // Code generation passes.  Returns true if code generation should
   // continue.
-  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateDeoptJumpTable();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.
@@ -234,10 +234,10 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition condition,
-                    LEnvironment* environment,
-                    Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition condition, LEnvironment* environment);
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    const char* detail, Deoptimizer::BailoutType bailout_type);
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    const char* detail);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -271,7 +271,7 @@ class LCodeGen: public LCodeGenBase {
                                     int arguments,
                                     Safepoint::DeoptMode mode);
 
-  void RecordAndWritePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) OVERRIDE;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -281,12 +281,8 @@ class LCodeGen: public LCodeGenBase {
   void EmitBranch(InstrType instr, Condition condition);
   template<class InstrType>
   void EmitFalseBranch(InstrType instr, Condition condition);
-  void EmitNumberUntagD(Register input,
-                        DwVfpRegister result,
-                        bool allow_undefined_as_nan,
-                        bool deoptimize_on_minus_zero,
-                        LEnvironment* env,
-                        NumberUntagDMode mode);
+  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
+                        DwVfpRegister result, NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -324,7 +320,7 @@ class LCodeGen: public LCodeGenBase {
                     int* offset,
                     AllocationSiteMode mode);
 
-  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
+  void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedArray(LLoadKeyed* instr);
@@ -332,8 +328,11 @@ class LCodeGen: public LCodeGenBase {
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
@@ -351,7 +350,7 @@ class LCodeGen: public LCodeGenBase {
 
   Safepoint::Kind expected_safepoint_kind_;
 
-  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
+  class PushSafepointRegistersScope FINAL BASE_EMBEDDED {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {

@@ -110,6 +110,11 @@ inline FieldIndex FieldIndex::ForKeyedLookupCacheIndex(Map* map, int index) {
 }
 
 
+inline FieldIndex FieldIndex::FromFieldAccessStubKey(int key) {
+  return FieldIndex(key);
+}
+
+
 inline int FieldIndex::GetKeyedLookupCacheIndex() const {
   if (FLAG_compiled_keyed_generic_loads) {
     return GetLoadByFieldIndex();

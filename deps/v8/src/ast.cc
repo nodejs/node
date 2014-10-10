@@ -59,8 +59,9 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
-    : Expression(zone, position),
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
+                             IdGen* id_gen)
+    : Expression(zone, position, id_gen),
       name_(var->raw_name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
@@ -71,19 +72,15 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
 }
 
 
-VariableProxy::VariableProxy(Zone* zone,
-                             const AstRawString* name,
-                             bool is_this,
-                             Interface* interface,
-                             int position)
-    : Expression(zone, position),
+VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
+                             Interface* interface, int position, IdGen* id_gen)
+    : Expression(zone, position, id_gen),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_assigned_(false),
       interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {
-}
+      variable_feedback_slot_(kInvalidFeedbackSlot) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
@@ -101,19 +98,16 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-Assignment::Assignment(Zone* zone,
-                       Token::Value op,
-                       Expression* target,
-                       Expression* value,
-                       int pos)
-    : Expression(zone, pos),
+Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
+                       Expression* value, int pos, IdGen* id_gen)
+    : Expression(zone, pos, id_gen),
       op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL),
-      assignment_id_(GetNextId(zone)),
+      assignment_id_(id_gen->GetNextId()),
       is_uninitialized_(false),
-      store_mode_(STANDARD_STORE) { }
+      store_mode_(STANDARD_STORE) {}
 
 
 Token::Value Assignment::binary_op() const {
@@ -179,10 +173,12 @@ void FunctionLiteral::InitializeSharedInfo(
 
 ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
                                              AstValueFactory* ast_value_factory,
-                                             Literal* key, Expression* value) {
+                                             Literal* key, Expression* value,
+                                             bool is_static) {
   emit_store_ = true;
   key_ = key;
   value_ = value;
+  is_static_ = is_static;
   if (key->raw_value()->EqualsString(ast_value_factory->proto_string())) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
@@ -195,11 +191,13 @@ ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(
-    Zone* zone, bool is_getter, FunctionLiteral* value) {
+ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone, bool is_getter,
+                                             FunctionLiteral* value,
+                                             bool is_static) {
   emit_store_ = true;
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
+  is_static_ = is_static;
 }
 
 
@@ -590,18 +588,16 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 
 
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               LookupResult* lookup) {
+                               LookupIterator* it) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<Cell>::null();
-  DCHECK(lookup->IsFound() &&
-         lookup->type() == NORMAL &&
-         lookup->holder() == *global);
-  cell_ = Handle<Cell>(global->GetPropertyCell(lookup));
+  DCHECK(it->IsFound() && it->GetHolder<JSObject>().is_identical_to(global));
+  cell_ = it->GetPropertyCell();
   if (cell_->value()->IsJSFunction()) {
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
-    if (!lookup->isolate()->heap()->InNewSpace(*candidate)) {
+    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
       target_ = candidate;
       return true;
     }
@@ -619,9 +615,6 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());
-    if (!allocation_site_.is_null()) {
-      elements_kind_ = allocation_site_->GetElementsKind();
-    }
   }
 }
 
@@ -799,12 +792,12 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // in as many cases as possible, to make it more difficult for incorrect
 // parses to look as correct ones which is likely if the input and
 // output formats are alike.
-class RegExpUnparser V8_FINAL : public RegExpVisitor {
+class RegExpUnparser FINAL : public RegExpVisitor {
  public:
   RegExpUnparser(OStream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
-                                                  void* data) V8_OVERRIDE;
+                                                  void* data) OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
@@ -995,58 +988,62 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-CaseClause::CaseClause(Zone* zone,
-                       Expression* label,
-                       ZoneList<Statement*>* statements,
-                       int pos)
-    : Expression(zone, pos),
+CaseClause::CaseClause(Zone* zone, Expression* label,
+                       ZoneList<Statement*>* statements, int pos, IdGen* id_gen)
+    : Expression(zone, pos, id_gen),
       label_(label),
       statements_(statements),
       compare_type_(Type::None(zone)),
-      compare_id_(AstNode::GetNextId(zone)),
-      entry_id_(AstNode::GetNextId(zone)) {
-}
+      compare_id_(id_gen->GetNextId()),
+      entry_id_(id_gen->GetNextId()) {}
 
 
-#define REGULAR_NODE(NodeType) \
+#define REGULAR_NODE(NodeType)                                   \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
+    increase_node_count();                                       \
   }
-#define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
+#define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType)               \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_slot_node(node); \
+    increase_node_count();                                       \
+    add_slot_node(node);                                         \
   }
-#define DONT_OPTIMIZE_NODE(NodeType) \
+#define DONT_OPTIMIZE_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    set_dont_optimize_reason(k##NodeType); \
-    add_flag(kDontSelfOptimize); \
+    increase_node_count();                                       \
+    set_dont_crankshaft_reason(k##NodeType);                     \
+    add_flag(kDontSelfOptimize);                                 \
   }
-#define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
+#define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_slot_node(node); \
-    set_dont_optimize_reason(k##NodeType); \
-    add_flag(kDontSelfOptimize); \
+    increase_node_count();                                       \
+    add_slot_node(node);                                         \
+    set_dont_crankshaft_reason(k##NodeType);                     \
+    add_flag(kDontSelfOptimize);                                 \
+  }
+#define DONT_TURBOFAN_NODE(NodeType)                             \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count();                                       \
+    set_dont_crankshaft_reason(k##NodeType);                     \
+    set_dont_turbofan_reason(k##NodeType);                       \
+    add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontSelfOptimize); \
+    increase_node_count();                                       \
+    add_flag(kDontSelfOptimize);                                 \
   }
-#define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
+#define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)     \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_slot_node(node); \
-    add_flag(kDontSelfOptimize); \
+    increase_node_count();                                       \
+    add_slot_node(node);                                         \
+    add_flag(kDontSelfOptimize);                                 \
   }
-#define DONT_CACHE_NODE(NodeType) \
+#define DONT_CACHE_NODE(NodeType)                                \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    set_dont_optimize_reason(k##NodeType); \
-    add_flag(kDontSelfOptimize); \
-    add_flag(kDontCache); \
+    increase_node_count();                                       \
+    set_dont_crankshaft_reason(k##NodeType);                     \
+    add_flag(kDontSelfOptimize);                                 \
+    add_flag(kDontCache);                                        \
   }
 
 REGULAR_NODE(VariableDeclaration)
@@ -1093,17 +1090,21 @@ DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
-DONT_OPTIMIZE_NODE(TryCatchStatement)
-DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
+DONT_OPTIMIZE_NODE(ClassLiteral)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
+DONT_OPTIMIZE_NODE(SuperReference)
 
 DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
+
+// TODO(turbofan): Remove the dont_turbofan_reason once this list is empty.
+DONT_TURBOFAN_NODE(ForOfStatement)
+DONT_TURBOFAN_NODE(TryCatchStatement)
+DONT_TURBOFAN_NODE(TryFinallyStatement)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
-DONT_SELFOPTIMIZE_NODE(ForOfStatement)
 
 DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(ForInStatement)
 
@@ -1115,7 +1116,7 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   add_slot_node(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
-    set_dont_optimize_reason(kCallToAJavaScriptRuntimeFunction);
+    set_dont_crankshaft_reason(kCallToAJavaScriptRuntimeFunction);
   }
 }
 
@@ -1129,7 +1130,7 @@ Handle<String> Literal::ToString() {
   if (value_->IsString()) return value_->AsString()->string();
   DCHECK(value_->IsNumber());
   char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  Vector<char> buffer(arr, arraysize(arr));
   const char* str;
   if (value()->IsSmi()) {
     // Optimization only, the heap number case would subsume this.

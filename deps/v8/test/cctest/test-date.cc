@@ -132,7 +132,7 @@ TEST(DaylightSavingsTime) {
   int local_offset_ms = -36000000;  // -10 hours.
 
   DateCacheMock* date_cache =
-    new DateCacheMock(local_offset_ms, rules, ARRAY_SIZE(rules));
+    new DateCacheMock(local_offset_ms, rules, arraysize(rules));
 
   reinterpret_cast<Isolate*>(isolate)->set_date_cache(date_cache);
 

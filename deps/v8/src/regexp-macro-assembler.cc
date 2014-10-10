@@ -24,15 +24,6 @@ RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 
-bool RegExpMacroAssembler::CanReadUnaligned() {
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  return true;
-#else
-  return false;
-#endif
-}
-
-
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Zone* zone)
@@ -58,7 +49,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   if (subject->IsOneByteRepresentation()) {
     const byte* address;
     if (StringShape(subject).IsExternal()) {
-      const uint8_t* data = ExternalAsciiString::cast(subject)->GetChars();
+      const uint8_t* data = ExternalOneByteString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     } else {
       DCHECK(subject->IsSeqOneByteString());
@@ -110,11 +101,11 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
   }
-  // Ensure that an underlying string has the same ASCII-ness.
-  bool is_ascii = subject_ptr->IsOneByteRepresentation();
+  // Ensure that an underlying string has the same representation.
+  bool is_one_byte = subject_ptr->IsOneByteRepresentation();
   DCHECK(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External
-  int char_size_shift = is_ascii ? 0 : 1;
+  int char_size_shift = is_one_byte ? 0 : 1;
 
   const byte* input_start =
       StringCharacterPosition(subject_ptr, start_offset + slice_offset);

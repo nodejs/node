@@ -10,9 +10,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
-#include "src/compiler/machine-node-factory.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/simplified-node-factory.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/simplified-graph-builder.h"
@@ -28,8 +26,8 @@ class DirectGraphBuilder : public GraphBuilder {
   virtual ~DirectGraphBuilder() {}
 
  protected:
-  virtual Node* MakeNode(Operator* op, int value_input_count,
-                         Node** value_inputs) {
+  virtual Node* MakeNode(const Operator* op, int value_input_count,
+                         Node** value_inputs) FINAL {
     return graph()->NewNode(op, value_input_count, value_inputs);
   }
 };
@@ -37,24 +35,20 @@ class DirectGraphBuilder : public GraphBuilder {
 
 class MachineCallHelper : public CallHelper {
  public:
-  MachineCallHelper(Zone* zone, MachineCallDescriptorBuilder* builder);
+  MachineCallHelper(Zone* zone, MachineSignature* machine_sig);
 
-  Node* Parameter(int offset);
+  Node* Parameter(size_t index);
 
   void GenerateCode() { Generate(); }
 
  protected:
   virtual byte* Generate();
-  virtual void VerifyParameters(int parameter_count, MachineType* parameters);
   void InitParameters(GraphBuilder* builder, CommonOperatorBuilder* common);
 
  protected:
-  int parameter_count() const {
-    return call_descriptor_builder_->parameter_count();
-  }
+  size_t parameter_count() const { return machine_sig_->parameter_count(); }
 
  private:
-  MachineCallDescriptorBuilder* call_descriptor_builder_;
   Node** parameters_;
   // TODO(dcarney): shouldn't need graph stored.
   Graph* graph_;
@@ -67,7 +61,6 @@ class GraphAndBuilders {
   explicit GraphAndBuilders(Zone* zone)
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
-        main_machine_(zone),
         main_simplified_(zone) {}
 
  protected:
@@ -87,20 +80,20 @@ class GraphBuilderTester
       public SimplifiedGraphBuilder,
       public CallHelper2<ReturnType, GraphBuilderTester<ReturnType> > {
  public:
-  explicit GraphBuilderTester(MachineType p0 = kMachineLast,
-                              MachineType p1 = kMachineLast,
-                              MachineType p2 = kMachineLast,
-                              MachineType p3 = kMachineLast,
-                              MachineType p4 = kMachineLast)
+  explicit GraphBuilderTester(MachineType p0 = kMachNone,
+                              MachineType p1 = kMachNone,
+                              MachineType p2 = kMachNone,
+                              MachineType p3 = kMachNone,
+                              MachineType p4 = kMachNone)
       : GraphAndBuilders(main_zone()),
         MachineCallHelper(
             main_zone(),
-            ToCallDescriptorBuilder(
+            MakeMachineSignature(
                 main_zone(), ReturnValueTraits<ReturnType>::Representation(),
                 p0, p1, p2, p3, p4)),
         SimplifiedGraphBuilder(main_graph_, &main_common_, &main_machine_,
                                &main_simplified_) {
-    Begin(parameter_count());
+    Begin(static_cast<int>(parameter_count()));
     InitParameters(this, &main_common_);
   }
   virtual ~GraphBuilderTester() {}

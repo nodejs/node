@@ -32,9 +32,9 @@
 #include "src/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
-#include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -167,6 +167,7 @@ TEST(DisasmX64) {
   __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ imulq(rdx, rcx, Immediate(12));
   __ imulq(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));
@@ -378,6 +379,7 @@ TEST(DisasmX64) {
     __ cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000));
     __ cvttsd2si(rdx, xmm1);
     __ cvttsd2siq(rdx, xmm1);
+    __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.

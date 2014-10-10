@@ -32,6 +32,12 @@ int isfinite(double value);
 namespace v8 {
 namespace internal {
 
+class PreParserTraits::Checkpoint
+    : public ParserBase<PreParserTraits>::CheckpointBase {
+ public:
+  explicit Checkpoint(ParserBase<PreParserTraits>* parser)
+      : ParserBase<PreParserTraits>::CheckpointBase(parser) {}
+};
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
@@ -72,6 +78,17 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   if (scanner->UnescapedLiteralMatches("arguments", 9)) {
     return PreParserIdentifier::Arguments();
   }
+  if (scanner->UnescapedLiteralMatches("prototype", 9)) {
+    return PreParserIdentifier::Prototype();
+  }
+  if (scanner->UnescapedLiteralMatches("constructor", 11)) {
+    return PreParserIdentifier::Constructor();
+  }
+  return PreParserIdentifier::Default();
+}
+
+
+PreParserIdentifier PreParserTraits::GetNumberAsSymbol(Scanner* scanner) {
   return PreParserIdentifier::Default();
 }
 
@@ -91,16 +108,12 @@ PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
 
 
 PreParserExpression PreParserTraits::ParseFunctionLiteral(
-    PreParserIdentifier name,
-    Scanner::Location function_name_location,
-    bool name_is_strict_reserved,
-    bool is_generator,
-    int function_token_position,
-    FunctionLiteral::FunctionType type,
-    FunctionLiteral::ArityRestriction arity_restriction,
-    bool* ok) {
+    PreParserIdentifier name, Scanner::Location function_name_location,
+    bool name_is_strict_reserved, FunctionKind kind,
+    int function_token_position, FunctionLiteral::FunctionType type,
+    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
-      name, function_name_location, name_is_strict_reserved, is_generator,
+      name, function_name_location, name_is_strict_reserved, kind,
       function_token_position, type, arity_restriction, ok);
 }
 
@@ -171,6 +184,8 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
+    case Token::CLASS:
+      return ParseClassDeclaration(ok);
     case Token::CONST:
       return ParseVariableStatement(kSourceElement, ok);
     case Token::LET:
@@ -298,6 +313,9 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       }
     }
 
+    case Token::CLASS:
+      return ParseClassDeclaration(CHECK_OK);
+
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
@@ -325,19 +343,28 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = allow_generators() && Check(Token::MUL);
+  bool is_generator = Check(Token::MUL);
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
-  ParseFunctionLiteral(name,
-                       scanner()->location(),
-                       is_strict_reserved,
-                       is_generator,
-                       pos,
-                       FunctionLiteral::DECLARATION,
-                       FunctionLiteral::NORMAL_ARITY,
-                       CHECK_OK);
+  ParseFunctionLiteral(name, scanner()->location(), is_strict_reserved,
+                       is_generator ? FunctionKind::kGeneratorFunction
+                                    : FunctionKind::kNormalFunction,
+                       pos, FunctionLiteral::DECLARATION,
+                       FunctionLiteral::NORMAL_ARITY, CHECK_OK);
   return Statement::FunctionDeclaration();
+}
+
+
+PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
+  Expect(Token::CLASS, CHECK_OK);
+  int pos = position();
+  bool is_strict_reserved = false;
+  Identifier name =
+      ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+  ParseClassLiteral(name, scanner()->location(), is_strict_reserved, pos,
+                    CHECK_OK);
+  return Statement::Default();
 }
 
 
@@ -794,14 +821,10 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
 
 
 PreParser::Expression PreParser::ParseFunctionLiteral(
-    Identifier function_name,
-    Scanner::Location function_name_location,
-    bool name_is_strict_reserved,
-    bool is_generator,
-    int function_token_pos,
+    Identifier function_name, Scanner::Location function_name_location,
+    bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
     FunctionLiteral::FunctionType function_type,
-    FunctionLiteral::ArityRestriction arity_restriction,
-    bool* ok) {
+    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -810,7 +833,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
   FunctionState function_state(&function_state_, &scope_, &function_scope, NULL,
                                this->ast_value_factory());
-  function_state.set_is_generator(is_generator);
+  function_state.set_is_generator(IsGeneratorFunction(kind));
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(Token::LPAREN, CHECK_OK);
@@ -865,7 +888,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Validate strict mode. We can do this only after parsing the function,
   // since the function can declare itself strict.
-  if (strict_mode() == STRICT) {
+  // Concise methods use StrictFormalParameters.
+  if (strict_mode() == STRICT || IsConciseMethod(kind)) {
     if (function_name.IsEvalOrArguments()) {
       ReportMessageAt(function_name_location, "strict_eval_arguments");
       *ok = false;

@@ -31,6 +31,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual ~RegExpMacroAssemblerIrregexp();
   // The byte-code interpreter checks on each push anyway.
   virtual int stack_limit_slack() { return 1; }
+  virtual bool CanReadUnaligned() { return false; }
   virtual void Bind(Label* label);
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
   virtual void PopCurrentPosition();

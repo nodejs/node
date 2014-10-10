@@ -46,16 +46,11 @@ class TypeInfo;
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
   // Only in slow mode.
-  NORMAL                    = 0,
+  NORMAL = 0,
   // Only in fast mode.
-  FIELD                     = 1,
-  CONSTANT                  = 2,
-  CALLBACKS                 = 3,
-  // Only in lookup results, not in descriptors.
-  HANDLER                   = 4,
-  INTERCEPTOR               = 5,
-  // Only used as a marker in LookupResult.
-  NONEXISTENT               = 6
+  FIELD = 1,
+  CONSTANT = 2,
+  CALLBACKS = 3
 };
 
 
@@ -123,8 +118,6 @@ class Representation {
   bool fits_into(const Representation& other) const {
     return other.is_more_general_than(*this) || other.Equals(*this);
   }
-
-  bool CanContainDouble(double value);
 
   Representation generalize(Representation other) {
     if (other.fits_into(*this)) return *this;
@@ -262,28 +255,28 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
-  bool IsDontDelete() const { return (attributes() & DONT_DELETE) != 0; }
+  bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
   bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField:                public BitField<PropertyType,       0,  3> {};
-  class AttributesField:          public BitField<PropertyAttributes, 3,  3> {};
+  class TypeField : public BitField<PropertyType, 0, 2> {};
+  class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
-  class DeletedField:             public BitField<uint32_t,           6,  1> {};
-  class DictionaryStorageField:   public BitField<uint32_t,           7, 24> {};
+  class DeletedField : public BitField<uint32_t, 5, 1> {};
+  class DictionaryStorageField : public BitField<uint32_t, 6, 24> {};
 
   // Bit fields for fast objects.
-  class RepresentationField:      public BitField<uint32_t,           6,  4> {};
-  class DescriptorPointer:        public BitField<uint32_t, 10,
-      kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField:          public BitField<uint32_t,
-      10 + kDescriptorIndexBitCount,
-      kDescriptorIndexBitCount> {};  // NOLINT
+  class RepresentationField : public BitField<uint32_t, 5, 4> {};
+  class DescriptorPointer
+      : public BitField<uint32_t, 9, kDescriptorIndexBitCount> {};  // NOLINT
+  class FieldIndexField
+      : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
+                        kDescriptorIndexBitCount> {};  // NOLINT
   // All bits for fast objects must fix in a smi.
-  STATIC_ASSERT(10 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
+  STATIC_ASSERT(9 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
 
   static const int kInitialIndex = 1;
 

@@ -103,14 +103,22 @@ class DateCache {
   }
 
   // ECMA 262 - 15.9.1.9
+  // LocalTime(t) = t + LocalTZA + DaylightSavingTA(t)
+  // ECMA 262 assumes that DaylightSavingTA is computed using UTC time,
+  // but we fetch DST from OS using local time, therefore we need:
+  // LocalTime(t) = t + LocalTZA + DaylightSavingTA(t + LocalTZA).
   int64_t ToLocal(int64_t time_ms) {
-    return time_ms + LocalOffsetInMs() + DaylightSavingsOffsetInMs(time_ms);
+    time_ms += LocalOffsetInMs();
+    return time_ms + DaylightSavingsOffsetInMs(time_ms);
   }
 
   // ECMA 262 - 15.9.1.9
+  // UTC(t) = t - LocalTZA - DaylightSavingTA(t - LocalTZA)
+  // ECMA 262 assumes that DaylightSavingTA is computed using UTC time,
+  // but we fetch DST from OS using local time, therefore we need:
+  // UTC(t) = t - LocalTZA - DaylightSavingTA(t).
   int64_t ToUTC(int64_t time_ms) {
-    time_ms -= LocalOffsetInMs();
-    return time_ms - DaylightSavingsOffsetInMs(time_ms);
+    return time_ms - LocalOffsetInMs() - DaylightSavingsOffsetInMs(time_ms);
   }
 
 

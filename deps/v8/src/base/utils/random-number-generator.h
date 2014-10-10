@@ -25,7 +25,7 @@ namespace base {
 // https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
-class RandomNumberGenerator V8_FINAL {
+class RandomNumberGenerator FINAL {
  public:
   // EntropySource is used as a callback function when V8 needs a source of
   // entropy.
@@ -40,7 +40,7 @@ class RandomNumberGenerator V8_FINAL {
   // that one int value is pseudorandomly generated and returned.
   // All 2^32 possible integer values are produced with (approximately) equal
   // probability.
-  V8_INLINE int NextInt() V8_WARN_UNUSED_RESULT {
+  V8_INLINE int NextInt() WARN_UNUSED_RESULT {
     return Next(32);
   }
 
@@ -50,14 +50,14 @@ class RandomNumberGenerator V8_FINAL {
   // one int value in the specified range is pseudorandomly generated and
   // returned. All max possible int values are produced with (approximately)
   // equal probability.
-  int NextInt(int max) V8_WARN_UNUSED_RESULT;
+  int NextInt(int max) WARN_UNUSED_RESULT;
 
   // Returns the next pseudorandom, uniformly distributed boolean value from
   // this random number generator's sequence. The general contract of
   // |NextBoolean()| is that one boolean value is pseudorandomly generated and
   // returned. The values true and false are produced with (approximately) equal
   // probability.
-  V8_INLINE bool NextBool() V8_WARN_UNUSED_RESULT {
+  V8_INLINE bool NextBool() WARN_UNUSED_RESULT {
     return Next(1) != 0;
   }
 
@@ -66,7 +66,7 @@ class RandomNumberGenerator V8_FINAL {
   // The general contract of |NextDouble()| is that one double value, chosen
   // (approximately) uniformly from the range 0.0 (inclusive) to 1.0
   // (exclusive), is pseudorandomly generated and returned.
-  double NextDouble() V8_WARN_UNUSED_RESULT;
+  double NextDouble() WARN_UNUSED_RESULT;
 
   // Fills the elements of a specified array of bytes with random numbers.
   void NextBytes(void* buffer, size_t buflen);
@@ -74,13 +74,16 @@ class RandomNumberGenerator V8_FINAL {
   // Override the current ssed.
   void SetSeed(int64_t seed);
 
+  int64_t initial_seed() const { return initial_seed_; }
+
  private:
   static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
   static const int64_t kAddend = 0xb;
   static const int64_t kMask = V8_2PART_UINT64_C(0xffff, ffffffff);
 
-  int Next(int bits) V8_WARN_UNUSED_RESULT;
+  int Next(int bits) WARN_UNUSED_RESULT;
 
+  int64_t initial_seed_;
   int64_t seed_;
 };
 

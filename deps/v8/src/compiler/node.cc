@@ -10,23 +10,31 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-void Node::CollectProjections(int projection_count, Node** projections) {
-  for (int i = 0; i < projection_count; ++i) projections[i] = NULL;
+void Node::Kill() {
+  DCHECK_NOT_NULL(op());
+  RemoveAllInputs();
+  DCHECK(uses().empty());
+}
+
+
+void Node::CollectProjections(NodeVector* projections) {
+  for (size_t i = 0; i < projections->size(); i++) {
+    (*projections)[i] = NULL;
+  }
   for (UseIter i = uses().begin(); i != uses().end(); ++i) {
     if ((*i)->opcode() != IrOpcode::kProjection) continue;
-    int32_t index = OpParameter<int32_t>(*i);
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, projection_count);
-    DCHECK_EQ(NULL, projections[index]);
-    projections[index] = *i;
+    size_t index = OpParameter<size_t>(*i);
+    DCHECK_LT(index, projections->size());
+    DCHECK_EQ(NULL, (*projections)[index]);
+    (*projections)[index] = *i;
   }
 }
 
 
-Node* Node::FindProjection(int32_t projection_index) {
+Node* Node::FindProjection(size_t projection_index) {
   for (UseIter i = uses().begin(); i != uses().end(); ++i) {
     if ((*i)->opcode() == IrOpcode::kProjection &&
-        OpParameter<int32_t>(*i) == projection_index) {
+        OpParameter<size_t>(*i) == projection_index) {
       return *i;
     }
   }

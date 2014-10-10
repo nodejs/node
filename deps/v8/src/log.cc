@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
@@ -1221,8 +1222,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, name));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == isolate_->builtins()->builtin(Builtins::kCompileUnoptimized))
-    return;
+  if (code == isolate_->builtins()->builtin(Builtins::kCompileLazy)) return;
 
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
@@ -1755,8 +1755,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (code_objects[i].is_identical_to(
-            isolate_->builtins()->CompileUnoptimized()))
+    if (code_objects[i].is_identical_to(isolate_->builtins()->CompileLazy()))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
   }

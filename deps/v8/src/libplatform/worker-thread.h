@@ -22,7 +22,7 @@ class WorkerThread : public base::Thread {
   virtual ~WorkerThread();
 
   // Thread implementation.
-  virtual void Run() V8_OVERRIDE;
+  virtual void Run() OVERRIDE;
 
  private:
   friend class QuitTask;

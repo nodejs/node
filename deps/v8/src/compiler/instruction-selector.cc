@@ -21,9 +21,9 @@ InstructionSelector::InstructionSelector(InstructionSequence* sequence,
       source_positions_(source_positions),
       features_(features),
       current_block_(NULL),
-      instructions_(InstructionDeque::allocator_type(zone())),
-      defined_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())),
-      used_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())) {}
+      instructions_(zone()),
+      defined_(graph()->NodeCount(), false, zone()),
+      used_(graph()->NodeCount(), false, zone()) {}
 
 
 void InstructionSelector::SelectInstructions() {
@@ -91,7 +91,7 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }
@@ -105,7 +105,7 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b, c};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }
@@ -117,7 +117,7 @@ Instruction* InstructionSelector::Emit(
     size_t temp_count, InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b, c, d};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }
@@ -198,14 +198,6 @@ void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsReference(node));
   sequence()->MarkAsDouble(node->id());
-
-  // Propagate "doubleness" throughout phis.
-  for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-    Node* user = *i;
-    if (user->opcode() != IrOpcode::kPhi) continue;
-    if (IsDouble(user)) continue;
-    MarkAsDouble(user);
-  }
 }
 
 
@@ -219,40 +211,39 @@ void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsDouble(node));
   sequence()->MarkAsReference(node->id());
-
-  // Propagate "referenceness" throughout phis.
-  for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-    Node* user = *i;
-    if (user->opcode() != IrOpcode::kPhi) continue;
-    if (IsReference(user)) continue;
-    MarkAsReference(user);
-  }
 }
 
 
 void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
   DCHECK_NOT_NULL(node);
-  if (rep == kMachineFloat64) MarkAsDouble(node);
-  if (rep == kMachineTagged) MarkAsReference(node);
+  switch (RepresentationOf(rep)) {
+    case kRepFloat32:
+    case kRepFloat64:
+      MarkAsDouble(node);
+      break;
+    case kRepTagged:
+      MarkAsReference(node);
+      break;
+    default:
+      break;
+  }
 }
 
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d)
-    : output_count(0),
-      descriptor(d),
-      output_nodes(zone->NewArray<Node*>(d->ReturnCount())),
-      outputs(zone->NewArray<InstructionOperand*>(d->ReturnCount())),
-      fixed_and_control_args(
-          zone->NewArray<InstructionOperand*>(input_count() + control_count())),
-      fixed_count(0),
-      pushed_nodes(zone->NewArray<Node*>(input_count())),
-      pushed_count(0) {
-  if (d->ReturnCount() > 1) {
-    memset(output_nodes, 0, sizeof(Node*) * d->ReturnCount());  // NOLINT
-  }
-  memset(pushed_nodes, 0, sizeof(Node*) * input_count());  // NOLINT
+CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
+                       FrameStateDescriptor* frame_desc)
+    : descriptor(d),
+      frame_state_descriptor(frame_desc),
+      output_nodes(zone),
+      outputs(zone),
+      instruction_args(zone),
+      pushed_nodes(zone) {
+  output_nodes.reserve(d->ReturnCount());
+  outputs.reserve(d->ReturnCount());
+  pushed_nodes.reserve(input_count());
+  instruction_args.reserve(input_count() + frame_state_value_count());
 }
 
 
@@ -260,96 +251,109 @@ CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d)
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                bool call_code_immediate,
-                                               bool call_address_immediate,
-                                               BasicBlock* cont_node,
-                                               BasicBlock* deopt_node) {
+                                               bool call_address_immediate) {
   OperandGenerator g(this);
   DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
   DCHECK_EQ(OperatorProperties::GetValueInputCount(call->op()),
-            buffer->input_count());
+            buffer->input_count() + buffer->frame_state_count());
 
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.
     if (buffer->descriptor->ReturnCount() == 1) {
-      buffer->output_nodes[0] = call;
+      buffer->output_nodes.push_back(call);
     } else {
-      call->CollectProjections(buffer->descriptor->ReturnCount(),
-                               buffer->output_nodes);
+      buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), NULL);
+      call->CollectProjections(&buffer->output_nodes);
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
-    for (int i = 0; i < buffer->descriptor->ReturnCount(); i++) {
+    for (size_t i = 0; i < buffer->output_nodes.size(); i++) {
       if (buffer->output_nodes[i] != NULL) {
         Node* output = buffer->output_nodes[i];
-        LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
-        MarkAsRepresentation(location.representation(), output);
-        buffer->outputs[buffer->output_count++] =
-            g.DefineAsLocation(output, location);
+        MachineType type =
+            buffer->descriptor->GetReturnType(static_cast<int>(i));
+        LinkageLocation location =
+            buffer->descriptor->GetReturnLocation(static_cast<int>(i));
+        MarkAsRepresentation(type, output);
+        buffer->outputs.push_back(g.DefineAsLocation(output, location, type));
       }
     }
   }
 
-  buffer->fixed_count = 1;  // First argument is always the callee.
+  // The first argument is always the callee code.
   Node* callee = call->InputAt(0);
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
-      buffer->fixed_and_control_args[0] =
+      buffer->instruction_args.push_back(
           (call_code_immediate && callee->opcode() == IrOpcode::kHeapConstant)
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee);
+              : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
-      buffer->fixed_and_control_args[0] =
+      buffer->instruction_args.push_back(
           (call_address_immediate &&
            (callee->opcode() == IrOpcode::kInt32Constant ||
             callee->opcode() == IrOpcode::kInt64Constant))
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee);
+              : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallJSFunction:
-      buffer->fixed_and_control_args[0] =
-          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0));
+      buffer->instruction_args.push_back(
+          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
+                        buffer->descriptor->GetInputType(0)));
       break;
   }
+  DCHECK_EQ(1, buffer->instruction_args.size());
 
-  int input_count = buffer->input_count();
+  // If the call needs a frame state, we insert the state information as
+  // follows (n is the number of value inputs to the frame state):
+  // arg 1               : deoptimization id.
+  // arg 2 - arg (n + 1) : value inputs to the frame state.
+  if (buffer->frame_state_descriptor != NULL) {
+    InstructionSequence::StateId state_id =
+        sequence()->AddFrameStateDescriptor(buffer->frame_state_descriptor);
+    buffer->instruction_args.push_back(g.TempImmediate(state_id.ToInt()));
 
-  // Split the arguments into pushed_nodes and fixed_args. Pushed arguments
-  // require an explicit push instruction before the call and do not appear
-  // as arguments to the call. Everything else ends up as an InstructionOperand
-  // argument to the call.
+    Node* frame_state =
+        call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
+    AddFrameStateInputs(frame_state, &buffer->instruction_args,
+                        buffer->frame_state_descriptor);
+  }
+  DCHECK(1 + buffer->frame_state_value_count() ==
+         buffer->instruction_args.size());
+
+  size_t input_count = static_cast<size_t>(buffer->input_count());
+
+  // Split the arguments into pushed_nodes and instruction_args. Pushed
+  // arguments require an explicit push instruction before the call and do
+  // not appear as arguments to the call. Everything else ends up
+  // as an InstructionOperand argument to the call.
   InputIter iter(call->inputs().begin());
-  for (int index = 0; index < input_count; ++iter, ++index) {
+  int pushed_count = 0;
+  for (size_t index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
-    DCHECK(index == iter.index());
+    DCHECK(index == static_cast<size_t>(iter.index()));
+    DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
     if (index == 0) continue;  // The first argument (callee) is already done.
     InstructionOperand* op =
-        g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index));
+        g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index),
+                      buffer->descriptor->GetInputType(index));
     if (UnallocatedOperand::cast(op)->HasFixedSlotPolicy()) {
       int stack_index = -UnallocatedOperand::cast(op)->fixed_slot_index() - 1;
-      DCHECK(buffer->pushed_nodes[stack_index] == NULL);
+      if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
+        buffer->pushed_nodes.resize(stack_index + 1, NULL);
+      }
+      DCHECK_EQ(NULL, buffer->pushed_nodes[stack_index]);
       buffer->pushed_nodes[stack_index] = *iter;
-      buffer->pushed_count++;
+      pushed_count++;
     } else {
-      buffer->fixed_and_control_args[buffer->fixed_count] = op;
-      buffer->fixed_count++;
+      buffer->instruction_args.push_back(op);
     }
   }
-
-  // If the call can deoptimize, we add the continuation and deoptimization
-  // block labels.
-  if (buffer->descriptor->CanLazilyDeoptimize()) {
-    DCHECK(cont_node != NULL);
-    DCHECK(deopt_node != NULL);
-    buffer->fixed_and_control_args[buffer->fixed_count] = g.Label(cont_node);
-    buffer->fixed_and_control_args[buffer->fixed_count + 1] =
-        g.Label(deopt_node);
-  } else {
-    DCHECK(cont_node == NULL);
-    DCHECK(deopt_node == NULL);
-  }
-
-  DCHECK(input_count == (buffer->fixed_count + buffer->pushed_count));
+  CHECK_EQ(pushed_count, static_cast<int>(buffer->pushed_nodes.size()));
+  DCHECK(static_cast<size_t>(input_count) ==
+         (buffer->instruction_args.size() + buffer->pushed_nodes.size() -
+          buffer->frame_state_value_count()));
 }
 
 
@@ -422,14 +426,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlockData::kThrow:
       return VisitThrow(input);
-    case BasicBlockData::kDeoptimize:
-      return VisitDeoptimize(input);
-    case BasicBlockData::kCall: {
-      BasicBlock* deoptimization = block->SuccessorAt(0);
-      BasicBlock* continuation = block->SuccessorAt(1);
-      VisitCall(input, continuation, deoptimization);
-      break;
-    }
     case BasicBlockData::kNone: {
       // TODO(titzer): exit block doesn't have control.
       DCHECK(input == NULL);
@@ -460,27 +456,28 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
-    case IrOpcode::kLazyDeoptimization:
-    case IrOpcode::kContinuation:
       // No code needed for these graph artifacts.
       return;
+    case IrOpcode::kFinish:
+      return MarkAsReference(node), VisitFinish(node);
     case IrOpcode::kParameter: {
-      int index = OpParameter<int>(node);
-      MachineType rep = linkage()
-                            ->GetIncomingDescriptor()
-                            ->GetInputLocation(index)
-                            .representation();
-      MarkAsRepresentation(rep, node);
+      MachineType type = linkage()->GetParameterType(OpParameter<int>(node));
+      MarkAsRepresentation(type, node);
       return VisitParameter(node);
     }
-    case IrOpcode::kPhi:
+    case IrOpcode::kPhi: {
+      MachineType type = OpParameter<MachineType>(node);
+      MarkAsRepresentation(type, node);
       return VisitPhi(node);
+    }
     case IrOpcode::kProjection:
       return VisitProjection(node);
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
     case IrOpcode::kExternalConstant:
       return VisitConstant(node);
+    case IrOpcode::kFloat32Constant:
+      return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kFloat64Constant:
       return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
@@ -493,8 +490,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
       return;
     case IrOpcode::kLoad: {
-      MachineType load_rep = OpParameter<MachineType>(node);
-      MarkAsRepresentation(load_rep, node);
+      LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
+      MarkAsRepresentation(rep, node);
       return VisitLoad(node);
     }
     case IrOpcode::kStore:
@@ -511,6 +508,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32Shr(node);
     case IrOpcode::kWord32Sar:
       return VisitWord32Sar(node);
+    case IrOpcode::kWord32Ror:
+      return VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
       return VisitWord32Equal(node);
     case IrOpcode::kWord64And:
@@ -525,6 +524,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord64Shr(node);
     case IrOpcode::kWord64Sar:
       return VisitWord64Sar(node);
+    case IrOpcode::kWord64Ror:
+      return VisitWord64Ror(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
@@ -571,10 +572,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
-    case IrOpcode::kConvertInt32ToInt64:
-      return VisitConvertInt32ToInt64(node);
-    case IrOpcode::kConvertInt64ToInt32:
-      return VisitConvertInt64ToInt32(node);
+    case IrOpcode::kChangeFloat32ToFloat64:
+      return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
       return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
@@ -583,6 +582,16 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return VisitChangeFloat64ToUint32(node);
+    case IrOpcode::kChangeInt32ToInt64:
+      return VisitChangeInt32ToInt64(node);
+    case IrOpcode::kChangeUint32ToUint64:
+      return VisitChangeUint32ToUint64(node);
+    case IrOpcode::kTruncateFloat64ToFloat32:
+      return MarkAsDouble(node), VisitTruncateFloat64ToFloat32(node);
+    case IrOpcode::kTruncateFloat64ToInt32:
+      return VisitTruncateFloat64ToInt32(node);
+    case IrOpcode::kTruncateInt64ToInt32:
+      return VisitTruncateInt64ToInt32(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
@@ -593,6 +602,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64Div(node);
     case IrOpcode::kFloat64Mod:
       return MarkAsDouble(node), VisitFloat64Mod(node);
+    case IrOpcode::kFloat64Sqrt:
+      return MarkAsDouble(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
       return VisitFloat64Equal(node);
     case IrOpcode::kFloat64LessThan:
@@ -684,6 +695,13 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat64Equal(Node* node) {
   FlagsContinuation cont(kUnorderedEqual, node);
   VisitFloat64Compare(node, &cont);
@@ -724,6 +742,9 @@ void InstructionSelector::VisitWord64Shr(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64Sar(Node* node) { UNIMPLEMENTED(); }
 
 
+void InstructionSelector::VisitWord64Ror(Node* node) { UNIMPLEMENTED(); }
+
+
 void InstructionSelector::VisitInt64Add(Node* node) { UNIMPLEMENTED(); }
 
 
@@ -745,12 +766,17 @@ void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt64UMod(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
 
-void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -774,10 +800,19 @@ void InstructionSelector::VisitWord64Compare(Node* node,
 #endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_BACKEND
 
 
+void InstructionSelector::VisitFinish(Node* node) {
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+}
+
+
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
-  Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetParameterLocation(
-                                              OpParameter<int>(node))));
+  int index = OpParameter<int>(node);
+  Emit(kArchNop,
+       g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
+                          linkage()->GetParameterType(index)));
 }
 
 
@@ -795,10 +830,10 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
-      if (OpParameter<int32_t>(node) == 0) {
+      if (OpParameter<size_t>(node) == 0) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
-        DCHECK_EQ(1, OpParameter<int32_t>(node));
+        DCHECK(OpParameter<size_t>(node) == 1u);
         MarkAsUsed(value);
       }
       break;
@@ -906,7 +941,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
-        if (OpParameter<int32_t>(value) == 1) {
+        if (OpParameter<size_t>(value) == 1u) {
           // We cannot combine the <Operation>WithOverflow with this branch
           // unless the 0th projection (the use of the actual value of the
           // <Operation> is either NULL, which means there's no use of the
@@ -941,7 +976,8 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 void InstructionSelector::VisitReturn(Node* value) {
   OperandGenerator g(this);
   if (value != NULL) {
-    Emit(kArchRet, NULL, g.UseLocation(value, linkage()->GetReturnLocation()));
+    Emit(kArchRet, NULL, g.UseLocation(value, linkage()->GetReturnLocation(),
+                                       linkage()->GetReturnType()));
   } else {
     Emit(kArchRet, NULL);
   }
@@ -953,6 +989,26 @@ void InstructionSelector::VisitThrow(Node* value) {
 }
 
 
+FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
+    Node* state) {
+  DCHECK(state->opcode() == IrOpcode::kFrameState);
+  DCHECK_EQ(5, state->InputCount());
+  FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
+  int parameters = OpParameter<int>(state->InputAt(0));
+  int locals = OpParameter<int>(state->InputAt(1));
+  int stack = OpParameter<int>(state->InputAt(2));
+
+  FrameStateDescriptor* outer_state = NULL;
+  Node* outer_node = state->InputAt(4);
+  if (outer_node->opcode() == IrOpcode::kFrameState) {
+    outer_state = GetFrameStateDescriptor(outer_node);
+  }
+
+  return new (instruction_zone())
+      FrameStateDescriptor(state_info, parameters, locals, stack, outer_state);
+}
+
+
 static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
@@ -961,48 +1017,46 @@ static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
     default:
-      return g->Use(input);
+      return g->UseUnique(input);
   }
 }
 
 
-void InstructionSelector::VisitDeoptimize(Node* deopt) {
-  DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
-  Node* state = deopt->InputAt(0);
-  DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
-  BailoutId ast_id = OpParameter<BailoutId>(state);
+void InstructionSelector::AddFrameStateInputs(
+    Node* state, InstructionOperandVector* inputs,
+    FrameStateDescriptor* descriptor) {
+  DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
 
-  // Add the inputs.
+  if (descriptor->outer_state() != NULL) {
+    AddFrameStateInputs(state->InputAt(4), inputs, descriptor->outer_state());
+  }
+
   Node* parameters = state->InputAt(0);
-  int parameters_count = OpParameter<int>(parameters);
-
   Node* locals = state->InputAt(1);
-  int locals_count = OpParameter<int>(locals);
-
   Node* stack = state->InputAt(2);
-  int stack_count = OpParameter<int>(stack);
+  Node* context = state->InputAt(3);
+
+  DCHECK_EQ(IrOpcode::kStateValues, parameters->op()->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, locals->op()->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, stack->op()->opcode());
+
+  DCHECK_EQ(descriptor->parameters_count(), parameters->InputCount());
+  DCHECK_EQ(descriptor->locals_count(), locals->InputCount());
+  DCHECK_EQ(descriptor->stack_count(), stack->InputCount());
 
   OperandGenerator g(this);
-  std::vector<InstructionOperand*> inputs;
-  inputs.reserve(parameters_count + locals_count + stack_count);
-  for (int i = 0; i < parameters_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, parameters->InputAt(i)));
+  for (int i = 0; i < static_cast<int>(descriptor->parameters_count()); i++) {
+    inputs->push_back(UseOrImmediate(&g, parameters->InputAt(i)));
   }
-  for (int i = 0; i < locals_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, locals->InputAt(i)));
+  if (descriptor->HasContext()) {
+    inputs->push_back(UseOrImmediate(&g, context));
   }
-  for (int i = 0; i < stack_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, stack->InputAt(i)));
+  for (int i = 0; i < static_cast<int>(descriptor->locals_count()); i++) {
+    inputs->push_back(UseOrImmediate(&g, locals->InputAt(i)));
   }
-
-  FrameStateDescriptor* descriptor = new (instruction_zone())
-      FrameStateDescriptor(ast_id, parameters_count, locals_count, stack_count);
-
-  DCHECK_EQ(descriptor->size(), inputs.size());
-
-  int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
-  Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), 0, NULL,
-       inputs.size(), &inputs.front(), 0, NULL);
+  for (int i = 0; i < static_cast<int>(descriptor->stack_count()); i++) {
+    inputs->push_back(UseOrImmediate(&g, stack->InputAt(i)));
+  }
 }
 
 

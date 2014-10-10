@@ -30,7 +30,7 @@
 
 #include "src/api.h"
 #include "src/debug.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "test/cctest/cctest.h"
 
 

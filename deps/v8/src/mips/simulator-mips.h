@@ -162,11 +162,15 @@ class Simulator {
   int32_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
   // Same for FPURegisters.
-  void set_fpu_register(int fpureg, int32_t value);
+  void set_fpu_register(int fpureg, int64_t value);
+  void set_fpu_register_word(int fpureg, int32_t value);
+  void set_fpu_register_hi_word(int fpureg, int32_t value);
   void set_fpu_register_float(int fpureg, float value);
   void set_fpu_register_double(int fpureg, double value);
-  int32_t get_fpu_register(int fpureg) const;
-  int64_t get_fpu_register_long(int fpureg) const;
+  int64_t get_fpu_register(int fpureg) const;
+  int32_t get_fpu_register_word(int fpureg) const;
+  int32_t get_fpu_register_signed_word(int fpureg) const;
+  int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
   double get_fpu_register_double(int fpureg) const;
   void set_fcsr_bit(uint32_t cc, bool value);
@@ -338,7 +342,9 @@ class Simulator {
   // Registers.
   int32_t registers_[kNumSimuRegisters];
   // Coprocessor Registers.
-  int32_t FPUregisters_[kNumFPURegisters];
+  // Note: FP32 mode uses only the lower 32-bit part of each element,
+  // the upper 32-bit is unpredictable.
+  int64_t FPUregisters_[kNumFPURegisters];
   // FPU control register.
   uint32_t FCSR_;
 

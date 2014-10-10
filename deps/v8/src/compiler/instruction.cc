@@ -75,6 +75,7 @@ void SubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
 template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
 void SubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
   delete[] cache;
+  cache = NULL;
 }
 
 
@@ -299,6 +300,8 @@ OStream& operator<<(OStream& os, const Constant& constant) {
       return os << constant.ToInt32();
     case Constant::kInt64:
       return os << constant.ToInt64() << "l";
+    case Constant::kFloat32:
+      return os << constant.ToFloat32() << "f";
     case Constant::kFloat64:
       return os << constant.ToFloat64();
     case Constant::kExternalReference:
@@ -393,20 +396,20 @@ void InstructionSequence::AddGapMove(int index, InstructionOperand* from,
 }
 
 
-int InstructionSequence::AddDeoptimizationEntry(
+InstructionSequence::StateId InstructionSequence::AddFrameStateDescriptor(
     FrameStateDescriptor* descriptor) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(descriptor);
-  return deoptimization_id;
+  return StateId::FromInt(deoptimization_id);
 }
 
-FrameStateDescriptor* InstructionSequence::GetDeoptimizationEntry(
-    int deoptimization_id) {
-  return deoptimization_entries_[deoptimization_id];
+FrameStateDescriptor* InstructionSequence::GetFrameStateDescriptor(
+    InstructionSequence::StateId state_id) {
+  return deoptimization_entries_[state_id.ToInt()];
 }
 
 
-int InstructionSequence::GetDeoptimizationEntryCount() {
+int InstructionSequence::GetFrameStateDescriptorCount() {
   return static_cast<int>(deoptimization_entries_.size());
 }
 

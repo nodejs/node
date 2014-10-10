@@ -28,7 +28,7 @@ class TimeDelta;
 // the mutex and suspend the execution of the calling thread. When the condition
 // variable is notified, the thread is awakened, and the mutex is reacquired.
 
-class ConditionVariable V8_FINAL {
+class ConditionVariable FINAL {
  public:
   ConditionVariable();
   ~ConditionVariable();
@@ -56,19 +56,19 @@ class ConditionVariable V8_FINAL {
   // spuriously. When unblocked, regardless of the reason, the lock on the mutex
   // is reacquired and |WaitFor()| exits. Returns true if the condition variable
   // was notified prior to the timeout.
-  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
+  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
   typedef pthread_cond_t NativeHandle;
 #elif V8_OS_WIN
   struct Event;
-  class NativeHandle V8_FINAL {
+  class NativeHandle FINAL {
    public:
     NativeHandle() : waitlist_(NULL), freelist_(NULL) {}
     ~NativeHandle();
 
-    Event* Pre() V8_WARN_UNUSED_RESULT;
+    Event* Pre() WARN_UNUSED_RESULT;
     void Post(Event* event, bool result);
 
     Mutex* mutex() { return &mutex_; }

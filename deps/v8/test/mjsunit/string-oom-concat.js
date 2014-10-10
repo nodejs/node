@@ -7,6 +7,7 @@ function concat() {
   for (var i = 0; i < 100; i++) {
     a += a;
   }
+  return a;
 }
 
 assertThrows(concat, RangeError);

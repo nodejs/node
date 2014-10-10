@@ -236,10 +236,7 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples',
-            join('test', 'base-unittests'),
-            join('test', 'cctest'),
-            join('test', 'compiler-unittests')]
+    return ['src', 'include', 'samples', join('test', 'cctest')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -420,10 +417,9 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
-def CheckGeneratedRuntimeTests(workspace):
+def CheckRuntimeVsNativesNameClashes(workspace):
   code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "generate-runtime-tests.py"),
-       "check"])
+      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
   return code == 0
 
 
@@ -451,7 +447,7 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
-  success = CheckGeneratedRuntimeTests(workspace) and success
+  success = CheckRuntimeVsNativesNameClashes(workspace) and success
   success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0

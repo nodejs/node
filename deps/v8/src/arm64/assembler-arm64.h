@@ -276,6 +276,11 @@ struct FPRegister : public CPURegister {
       (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
   static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
 
+  // TODO(turbofan): Proper float32 support.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
   // Return true if the register is one that crankshaft can allocate.
   bool IsAllocatable() const {
     return (Bit() & kAllocatableFPRegisters) != 0;
@@ -699,7 +704,7 @@ class MemOperand {
  public:
   inline MemOperand();
   inline explicit MemOperand(Register base,
-                             ptrdiff_t offset = 0,
+                             int64_t offset = 0,
                              AddrMode addrmode = Offset);
   inline explicit MemOperand(Register base,
                              Register regoffset,
@@ -715,7 +720,7 @@ class MemOperand {
 
   const Register& base() const { return base_; }
   const Register& regoffset() const { return regoffset_; }
-  ptrdiff_t offset() const { return offset_; }
+  int64_t offset() const { return offset_; }
   AddrMode addrmode() const { return addrmode_; }
   Shift shift() const { return shift_; }
   Extend extend() const { return extend_; }
@@ -742,7 +747,7 @@ class MemOperand {
  private:
   Register base_;
   Register regoffset_;
-  ptrdiff_t offset_;
+  int64_t offset_;
   AddrMode addrmode_;
   Shift shift_;
   Extend extend_;
@@ -1733,16 +1738,7 @@ class Assembler : public AssemblerBase {
   // Copy a string into the instruction stream, including the terminating NULL
   // character. The instruction pointer (pc_) is then aligned correctly for
   // subsequent instructions.
-  void EmitStringData(const char * string) {
-    size_t len = strlen(string) + 1;
-    DCHECK(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
-    EmitData(string, len);
-    // Pad with NULL characters until pc_ is aligned.
-    const char pad[] = {'\0', '\0', '\0', '\0'};
-    STATIC_ASSERT(sizeof(pad) == kInstructionSize);
-    byte* next_pc = AlignUp(pc_, kInstructionSize);
-    EmitData(&pad, next_pc - pc_);
-  }
+  void EmitStringData(const char* string);
 
   // Pseudo-instructions ------------------------------------------------------
 
@@ -1859,6 +1855,9 @@ class Assembler : public AssemblerBase {
   inline static Instr ImmBarrierType(int imm2);
   inline static LSDataSize CalcLSDataSize(LoadStoreOp op);
 
+  static bool IsImmLSUnscaled(int64_t offset);
+  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
+
   // Move immediates encoding.
   inline static Instr ImmMoveWide(uint64_t imm);
   inline static Instr ShiftMoveWide(int64_t shift);
@@ -1942,12 +1941,10 @@ class Assembler : public AssemblerBase {
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
                  LoadStoreOp op);
-  static bool IsImmLSUnscaled(ptrdiff_t offset);
-  static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
 
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);
-  static bool IsImmLSPair(ptrdiff_t offset, LSDataSize size);
+  static bool IsImmLSPair(int64_t offset, LSDataSize size);
 
   void Logical(const Register& rd,
                const Register& rn,
@@ -2292,7 +2289,7 @@ class PatchingAssembler : public Assembler {
   // See definition of PatchAdrFar() for details.
   static const int kAdrFarPatchableNNops = 2;
   static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
-  void PatchAdrFar(ptrdiff_t target_offset);
+  void PatchAdrFar(int64_t target_offset);
 };
 
 

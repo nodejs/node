@@ -1182,7 +1182,7 @@ TEST(14) {
   code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  t.left = BitCast<double>(kHoleNanInt64);
+  t.left = bit_cast<double>(kHoleNanInt64);
   t.right = 1;
   t.add_result = 0;
   t.sub_result = 0;
@@ -1199,14 +1199,18 @@ TEST(14) {
 #endif
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.
-  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.add_result) >> 32) & 0x7fffffff);
-  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.add_result) & 0xffffffffu);
-  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.sub_result) >> 32) & 0x7fffffff);
-  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.sub_result) & 0xffffffffu);
-  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.mul_result) >> 32) & 0x7fffffff);
-  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.mul_result) & 0xffffffffu);
-  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.div_result) >> 32) & 0x7fffffff);
-  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.div_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32,
+           (bit_cast<int64_t>(t.add_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.add_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32,
+           (bit_cast<int64_t>(t.sub_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.sub_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32,
+           (bit_cast<int64_t>(t.mul_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.mul_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32,
+           (bit_cast<int64_t>(t.div_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.div_result) & 0xffffffffu);
 }
 
 

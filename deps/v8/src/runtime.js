@@ -563,6 +563,14 @@ function ToInteger(x) {
 }
 
 
+// ES6, draft 08-24-14, section 7.1.15
+function ToLength(arg) {
+  arg = ToInteger(arg);
+  if (arg < 0) return 0;
+  return arg < $Number.MAX_SAFE_INTEGER ? arg : $Number.MAX_SAFE_INTEGER;
+}
+
+
 // ECMA-262, section 9.6, page 34.
 function ToUint32(x) {
   if (%_IsSmi(x) && x >= 0) return x;

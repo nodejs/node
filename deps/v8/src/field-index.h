@@ -17,16 +17,16 @@ class Map;
 // from a property index. When available, the wrapper class captures additional
 // information to allow the field index to be translated back into the property
 // index it was originally generated from.
-class FieldIndex V8_FINAL {
+class FieldIndex FINAL {
  public:
   static FieldIndex ForPropertyIndex(Map* map,
                                      int index,
                                      bool is_double = false);
   static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
-  static FieldIndex ForLookupResult(const LookupResult* result);
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
   static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
+  static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
 
@@ -82,6 +82,8 @@ class FieldIndex V8_FINAL {
       IndexBits::encode(local_index) |
       InObjectPropertyBits::encode(inobject_properties);
   }
+
+  explicit FieldIndex(int bit_field) : bit_field_(bit_field) {}
 
   int first_inobject_property_offset() const {
     DCHECK(!IsHiddenField::decode(bit_field_));

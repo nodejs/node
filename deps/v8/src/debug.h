@@ -333,22 +333,6 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 };
 
 
-class PromiseOnStack {
- public:
-  PromiseOnStack(Isolate* isolate, PromiseOnStack* prev,
-                 Handle<JSObject> getter);
-  ~PromiseOnStack();
-  StackHandler* handler() { return handler_; }
-  Handle<JSObject> promise() { return promise_; }
-  PromiseOnStack* prev() { return prev_; }
- private:
-  Isolate* isolate_;
-  StackHandler* handler_;
-  Handle<JSObject> promise_;
-  PromiseOnStack* prev_;
-};
-
-
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -452,11 +436,6 @@ class Debug {
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
-  // Promise handling.
-  // Push and pop a promise and the current try-catch handler.
-  void PushPromise(Handle<JSObject> promise);
-  void PopPromise();
-
   // Support for LiveEdit
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
                              LiveEdit::FrameDropMode mode,
@@ -551,7 +530,6 @@ class Debug {
   void ClearMirrorCache();
 
   // Returns a promise if the pushed try-catch handler matches the current one.
-  Handle<Object> GetPromiseOnStackOnThrow();
   bool PromiseHasRejectHandler(Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
@@ -658,13 +636,6 @@ class Debug {
     // of the pointer to function being restarted. Otherwise (most of the time)
     // stores NULL. This pointer is used with 'step in' implementation.
     Object** restarter_frame_function_pointer_;
-
-    // When a promise is being resolved, we may want to trigger a debug event
-    // if we catch a throw.  For this purpose we remember the try-catch
-    // handler address that would catch the exception.  We also hold onto a
-    // closure that returns a promise if the exception is considered uncaught.
-    // Due to the possibility of reentry we use a linked list.
-    PromiseOnStack* promise_on_stack_;
   };
 
   // Storage location for registers when handling debug break calls

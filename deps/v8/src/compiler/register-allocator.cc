@@ -626,7 +626,7 @@ LiveRange* RegisterAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* RegisterAllocator::FixedDoubleLiveRangeFor(int index) {
-  DCHECK(index < DoubleRegister::NumAllocatableRegisters());
+  DCHECK(index < DoubleRegister::NumAllocatableAliasedRegisters());
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new (zone()) LiveRange(FixedDoubleLiveRangeID(index), code_zone());
@@ -1016,7 +1016,8 @@ void RegisterAllocator::ProcessInstructions(BasicBlock* block,
       }
 
       if (instr->ClobbersDoubleRegisters()) {
-        for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
+        for (int i = 0; i < DoubleRegister::NumAllocatableAliasedRegisters();
+             ++i) {
           if (!IsOutputDoubleRegisterOf(instr, i)) {
             LiveRange* range = FixedDoubleLiveRangeFor(i);
             range->AddUseInterval(curr_position, curr_position.InstructionEnd(),
@@ -1110,7 +1111,7 @@ bool RegisterAllocator::Allocate() {
   assigned_registers_ = new (code_zone())
       BitVector(Register::NumAllocatableRegisters(), code_zone());
   assigned_double_registers_ = new (code_zone())
-      BitVector(DoubleRegister::NumAllocatableRegisters(), code_zone());
+      BitVector(DoubleRegister::NumAllocatableAliasedRegisters(), code_zone());
   MeetRegisterConstraints();
   if (!AllocationOk()) return false;
   ResolvePhis();
@@ -1514,7 +1515,7 @@ void RegisterAllocator::AllocateGeneralRegisters() {
 
 void RegisterAllocator::AllocateDoubleRegisters() {
   RegisterAllocatorPhase phase("L_Allocate double registers", this);
-  num_registers_ = DoubleRegister::NumAllocatableRegisters();
+  num_registers_ = DoubleRegister::NumAllocatableAliasedRegisters();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
 }
@@ -1538,7 +1539,7 @@ void RegisterAllocator::AllocateRegisters() {
   DCHECK(inactive_live_ranges_.is_empty());
 
   if (mode_ == DOUBLE_REGISTERS) {
-    for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
+    for (int i = 0; i < DoubleRegister::NumAllocatableAliasedRegisters(); ++i) {
       LiveRange* current = fixed_double_live_ranges_.at(i);
       if (current != NULL) {
         AddToInactive(current);

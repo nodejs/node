@@ -9,11 +9,12 @@
 // -------------------------------------------------------------------
 
 function StringConstructor(x) {
-  var value = %_ArgumentsLength() == 0 ? '' : TO_STRING_INLINE(x);
+  if (%_ArgumentsLength() == 0) x = '';
   if (%_IsConstructCall()) {
-    %_SetValueOf(this, value);
+    %_SetValueOf(this, TO_STRING_INLINE(x));
   } else {
-    return value;
+    return IS_SYMBOL(x) ?
+        %_CallFunction(x, SymbolToString) : TO_STRING_INLINE(x);
   }
 }
 
@@ -812,7 +813,7 @@ function StringFromCharCode(code) {
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
     if (code > 0xff) break;
-    %_OneByteSeqStringSetChar(one_byte, i, code);
+    %_OneByteSeqStringSetChar(i, code, one_byte);
   }
   if (i == n) return one_byte;
   one_byte = %TruncateString(one_byte, i);
@@ -821,7 +822,7 @@ function StringFromCharCode(code) {
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
-    %_TwoByteSeqStringSetChar(two_byte, j, code);
+    %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;
 }

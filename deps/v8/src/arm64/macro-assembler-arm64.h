@@ -7,9 +7,11 @@
 
 #include <vector>
 
+#include "src/bailout-reason.h"
 #include "src/globals.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/base/bits.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -808,7 +810,7 @@ class MacroAssembler : public Assembler {
     int sp_alignment = ActivationFrameAlignment();
     // AAPCS64 mandates at least 16-byte alignment.
     DCHECK(sp_alignment >= 16);
-    DCHECK(IsPowerOf2(sp_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
     Bic(csp, StackPointer(), sp_alignment - 1);
     SetStackPointer(csp);
   }
@@ -909,11 +911,6 @@ class MacroAssembler : public Assembler {
   inline void SmiTagAndPush(Register src);
   inline void SmiTagAndPush(Register src1, Register src2);
 
-  // Compute the absolute value of 'smi' and leave the result in 'smi'
-  // register. If 'smi' is the most negative SMI, the absolute value cannot
-  // be represented as a SMI and a jump to 'slow' is done.
-  void SmiAbs(const Register& smi, Label* slow);
-
   inline void JumpIfSmi(Register value,
                         Label* smi_label,
                         Label* not_smi_label = NULL);
@@ -950,16 +947,10 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
 
-  void JumpForHeapNumber(Register object,
-                         Register heap_number_map,
-                         Label* on_heap_number,
-                         Label* on_not_heap_number = NULL);
-  void JumpIfHeapNumber(Register object,
-                        Label* on_heap_number,
-                        Register heap_number_map = NoReg);
-  void JumpIfNotHeapNumber(Register object,
-                           Label* on_not_heap_number,
-                           Register heap_number_map = NoReg);
+  void JumpIfHeapNumber(Register object, Label* on_heap_number,
+                        SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
+  void JumpIfNotHeapNumber(Register object, Label* on_not_heap_number,
+                           SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
 
   // Sets the vs flag if the input is -0.0.
   void TestForMinusZero(DoubleRegister input);
@@ -1055,41 +1046,30 @@ class MacroAssembler : public Assembler {
   // ---- String Utilities ----
 
 
-  // Jump to label if either object is not a sequential ASCII string.
+  // Jump to label if either object is not a sequential one-byte string.
   // Optionally perform a smi check on the objects first.
-  void JumpIfEitherIsNotSequentialAsciiStrings(
-      Register first,
-      Register second,
-      Register scratch1,
-      Register scratch2,
-      Label* failure,
-      SmiCheckType smi_check = DO_SMI_CHECK);
+  void JumpIfEitherIsNotSequentialOneByteStrings(
+      Register first, Register second, Register scratch1, Register scratch2,
+      Label* failure, SmiCheckType smi_check = DO_SMI_CHECK);
 
-  // Check if instance type is sequential ASCII string and jump to label if
+  // Check if instance type is sequential one-byte string and jump to label if
   // it is not.
-  void JumpIfInstanceTypeIsNotSequentialAscii(Register type,
-                                              Register scratch,
-                                              Label* failure);
+  void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
+                                                Label* failure);
 
-  // Checks if both instance types are sequential ASCII strings and jumps to
+  // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
-  void JumpIfEitherInstanceTypeIsNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* failure);
+  void JumpIfEitherInstanceTypeIsNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* failure);
 
-  // Checks if both instance types are sequential ASCII strings and jumps to
+  // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
-  void JumpIfBothInstanceTypesAreNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* failure);
+  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* failure);
 
-  void JumpIfNotUniqueName(Register type, Label* not_unique_name);
+  void JumpIfNotUniqueNameInstanceType(Register type, Label* not_unique_name);
 
   // ---- Calling / Jumping helpers ----
 
@@ -1369,32 +1349,25 @@ class MacroAssembler : public Assembler {
                              Register scratch2,
                              Register scratch3,
                              Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           Register length,
-                           Register scratch1,
-                           Register scratch2,
-                           Register scratch3,
-                           Label* gc_required);
+  void AllocateOneByteString(Register result, Register length,
+                             Register scratch1, Register scratch2,
+                             Register scratch3, Label* gc_required);
   void AllocateTwoByteConsString(Register result,
                                  Register length,
                                  Register scratch1,
                                  Register scratch2,
                                  Label* gc_required);
-  void AllocateAsciiConsString(Register result,
-                               Register length,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* gc_required);
+  void AllocateOneByteConsString(Register result, Register length,
+                                 Register scratch1, Register scratch2,
+                                 Label* gc_required);
   void AllocateTwoByteSlicedString(Register result,
                                    Register length,
                                    Register scratch1,
                                    Register scratch2,
                                    Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register length,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
+  void AllocateOneByteSlicedString(Register result, Register length,
+                                   Register scratch1, Register scratch2,
+                                   Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed.
@@ -1470,9 +1443,11 @@ class MacroAssembler : public Assembler {
 
   // Compare an object's map with the specified map. Condition flags are set
   // with result of map compare.
-  void CompareMap(Register obj,
-                  Register scratch,
-                  Handle<Map> map);
+  void CompareObjectMap(Register obj, Heap::RootListIndex index);
+
+  // Compare an object's map with the specified map. Condition flags are set
+  // with result of map compare.
+  void CompareObjectMap(Register obj, Register scratch, Handle<Map> map);
 
   // As above, but the map of the object is already loaded into the register
   // which is preserved by the code generated.

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --turbo-deoptimization
 
 (function OneByteSeqStringSetCharDeoptOsr() {
   function deopt() {
@@ -34,7 +34,7 @@
 
   function f(string, osr) {
     var world = " world";
-    %_OneByteSeqStringSetChar(string, 0, (deopt(), 0x48));
+    %_OneByteSeqStringSetChar(0, (deopt(), 0x48), string);
 
     if (osr) while (%GetOptimizationStatus(f) == 2) {}
 
@@ -56,7 +56,7 @@
   }
 
   function f(string) {
-    g(%_OneByteSeqStringSetChar(string, 0, (deopt(), 0x48)));
+    g(%_OneByteSeqStringSetChar(0, (deopt(), 0x48), string));
     return string;
   }
 
@@ -75,7 +75,7 @@
   }
 
   function f(string) {
-    g(%_TwoByteSeqStringSetChar(string, 0, (deopt(), 0x48)));
+    g(%_TwoByteSeqStringSetChar(0, (deopt(), 0x48), string));
     return string;
   }
 

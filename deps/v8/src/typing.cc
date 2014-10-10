@@ -352,6 +352,9 @@ void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
+void AstTyper::VisitClassLiteral(ClassLiteral* expr) {}
+
+
 void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
@@ -721,6 +724,9 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
 
 void AstTyper::VisitThisFunction(ThisFunction* expr) {
 }
+
+
+void AstTyper::VisitSuperReference(SuperReference* expr) {}
 
 
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {

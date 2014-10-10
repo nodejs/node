@@ -137,8 +137,6 @@ typedef int (*F5)(void*, void*, void*, void*, void*);
 
 
 TEST(LoadAndStoreWithRepresentation) {
-  v8::internal::V8::Initialize(NULL);
-
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(

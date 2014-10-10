@@ -9,21 +9,13 @@ import sys
 
 from common_includes import *
 
-DEPS_FILE = "DEPS_FILE"
-CHROMIUM = "CHROMIUM"
-
-CONFIG = {
-  PERSISTFILE_BASENAME: "/tmp/v8-chromium-roll-tempfile",
-  DOT_GIT_LOCATION: ".git",
-  DEPS_FILE: "DEPS",
-}
-
 
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.CommonPrepare()
+    # Update v8 remote tracking branches.
+    self.GitFetchOrigin()
 
 
 class DetectLastPush(Step):
@@ -31,88 +23,79 @@ class DetectLastPush(Step):
 
   def RunStep(self):
     self["last_push"] = self._options.last_push or self.FindLastTrunkPush(
-        include_patches=True)
-    self["trunk_revision"] = self.GitSVNFindSVNRev(self["last_push"])
+        branch="origin/candidates", include_patches=True)
+    self["trunk_revision"] = self.GetCommitPositionNumber(self["last_push"])
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
 
 
-class CheckChromium(Step):
-  MESSAGE = "Ask for chromium checkout."
-
-  def Run(self):
-    self["chrome_path"] = self._options.chromium
-    while not self["chrome_path"]:
-      self.DieNoManualMode("Please specify the path to a Chromium checkout in "
-                           "forced mode.")
-      print ("Please specify the path to the chromium \"src\" directory: "),
-      self["chrome_path"] = self.ReadLine()
-
-
 class SwitchChromium(Step):
   MESSAGE = "Switch to Chromium checkout."
-  REQUIRES = "chrome_path"
 
   def RunStep(self):
     self["v8_path"] = os.getcwd()
-    os.chdir(self["chrome_path"])
-    self.InitialEnvironmentChecks()
+    cwd = self._options.chromium
+    os.chdir(cwd)
+    self.InitialEnvironmentChecks(cwd)
     # Check for a clean workdir.
-    if not self.GitIsWorkdirClean():  # pragma: no cover
+    if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")
     # Assert that the DEPS file is there.
-    if not os.path.exists(self.Config(DEPS_FILE)):  # pragma: no cover
+    if not os.path.exists(os.path.join(cwd, "DEPS")):  # pragma: no cover
       self.Die("DEPS file not present.")
 
 
 class UpdateChromiumCheckout(Step):
   MESSAGE = "Update the checkout and create a new branch."
-  REQUIRES = "chrome_path"
 
   def RunStep(self):
-    os.chdir(self["chrome_path"])
-    self.GitCheckout("master")
-    self.GitPull()
-    self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"])
+    self.GitCheckout("master", cwd=self._options.chromium)
+    self.Command("gclient", "sync --nohooks", cwd=self._options.chromium)
+    self.GitPull(cwd=self._options.chromium)
+
+    # Update v8 remotes.
+    self.GitFetchOrigin()
+
+    self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"],
+                         cwd=self._options.chromium)
 
 
 class UploadCL(Step):
   MESSAGE = "Create and upload CL."
-  REQUIRES = "chrome_path"
 
   def RunStep(self):
-    os.chdir(self["chrome_path"])
-
     # Patch DEPS file.
-    deps = FileToText(self.Config(DEPS_FILE))
-    deps = re.sub("(?<=\"v8_revision\": \")([0-9]+)(?=\")",
-                  self["trunk_revision"],
-                  deps)
-    TextToFile(deps, self.Config(DEPS_FILE))
-
-    if self._options.reviewer and not self._options.manual:
-      print "Using account %s for review." % self._options.reviewer
-      rev = self._options.reviewer
-    else:
-      print "Please enter the email address of a reviewer for the roll CL: ",
-      self.DieNoManualMode("A reviewer must be specified in forced mode.")
-      rev = self.ReadLine()
+    if self.Command(
+        "roll-dep", "v8 %s" % self["trunk_revision"],
+        cwd=self._options.chromium) is None:
+      self.Die("Failed to create deps for %s" % self["trunk_revision"])
 
     commit_title = "Update V8 to %s." % self["push_title"].lower()
     sheriff = ""
     if self["sheriff"]:
       sheriff = ("\n\nPlease reply to the V8 sheriff %s in case of problems."
                  % self["sheriff"])
-    self.GitCommit("%s%s\n\nTBR=%s" % (commit_title, sheriff, rev))
-    self.GitUpload(author=self._options.author,
-                   force=self._options.force_upload,
-                   cq=self._options.use_commit_queue)
-    print "CL uploaded."
+    self.GitCommit("%s%s\n\nTBR=%s" %
+                       (commit_title, sheriff, self._options.reviewer),
+                   author=self._options.author,
+                   cwd=self._options.chromium)
+    if not self._options.dry_run:
+      self.GitUpload(author=self._options.author,
+                     force=True,
+                     cq=self._options.use_commit_queue,
+                     cwd=self._options.chromium)
+      print "CL uploaded."
+    else:
+      self.GitCheckout("master", cwd=self._options.chromium)
+      self.GitDeleteBranch("v8-roll-%s" % self["trunk_revision"],
+                           cwd=self._options.chromium)
+      print "Dry run - don't upload."
 
 
+# TODO(machenbach): Make this obsolete. We are only in the chromium chechout
+# for the initial .git check.
 class SwitchV8(Step):
   MESSAGE = "Returning to V8 checkout."
-  REQUIRES = "chrome_path"
 
   def RunStep(self):
     os.chdir(self["v8_path"])
@@ -127,19 +110,12 @@ class CleanUp(Step):
           % self["trunk_revision"])
 
     # Clean up all temporary files.
-    Command("rm", "-f %s*" % self._config[PERSISTFILE_BASENAME])
+    Command("rm", "-f %s*" % self._config["PERSISTFILE_BASENAME"])
 
 
 class ChromiumRoll(ScriptsBase):
   def _PrepareOptions(self, parser):
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-f", "--force",
-                      help="Don't prompt the user.",
-                      default=False, action="store_true")
-    group.add_argument("-m", "--manual",
-                      help="Prompt the user at every important step.",
-                      default=False, action="store_true")
-    parser.add_argument("-c", "--chromium",
+    parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
     parser.add_argument("-l", "--last-push",
@@ -149,24 +125,24 @@ class ChromiumRoll(ScriptsBase):
                         default=False, action="store_true")
 
   def _ProcessOptions(self, options):  # pragma: no cover
-    if not options.manual and not options.reviewer:
-      print "A reviewer (-r) is required in (semi-)automatic mode."
-      return False
-    if not options.manual and not options.chromium:
-      print "A chromium checkout (-c) is required in (semi-)automatic mode."
-      return False
-    if not options.manual and not options.author:
-      print "Specify your chromium.org email with -a in (semi-)automatic mode."
+    if not options.author or not options.reviewer:
+      print "A reviewer (-r) and an author (-a) are required."
       return False
 
-    options.tbr_commit = not options.manual
+    options.requires_editor = False
+    options.force = True
+    options.manual = False
     return True
+
+  def _Config(self):
+    return {
+      "PERSISTFILE_BASENAME": "/tmp/v8-chromium-roll-tempfile",
+    }
 
   def _Steps(self):
     return [
       Preparation,
       DetectLastPush,
-      CheckChromium,
       DetermineV8Sheriff,
       SwitchChromium,
       UpdateChromiumCheckout,
@@ -177,4 +153,4 @@ class ChromiumRoll(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(ChromiumRoll(CONFIG).Run())
+  sys.exit(ChromiumRoll().Run())

@@ -176,17 +176,17 @@ void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
   Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0);
 }
 
 
 void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC store (from ic-arm.cc).
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  Register value = StoreIC::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
   Generate_DebugBreakCallHelper(
       masm, receiver.bit() | name.bit() | value.bit(), 0);
 }
@@ -200,9 +200,9 @@ void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC keyed store call (from ic-arm.cc).
-  Register receiver = KeyedStoreIC::ReceiverRegister();
-  Register name = KeyedStoreIC::NameRegister();
-  Register value = KeyedStoreIC::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
   Generate_DebugBreakCallHelper(
       masm, receiver.bit() | name.bit() | value.bit(), 0);
 }

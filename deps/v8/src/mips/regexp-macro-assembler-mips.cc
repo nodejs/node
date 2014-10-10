@@ -241,7 +241,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
   // Check that there are enough characters left in the input.
   BranchOrBacktrack(on_no_match, gt, t5, Operand(zero_reg));
 
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     Label success;
     Label fail;
     Label loop_check;
@@ -365,7 +365,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReference(
 
   Label loop;
   __ bind(&loop);
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     __ lbu(a3, MemOperand(a0, 0));
     __ addiu(a0, a0, char_size());
     __ lbu(t0, MemOperand(a2, 0));
@@ -446,7 +446,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
   __ li(a0, Operand(table));
-  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));
     __ Addu(a0, a0, a1);
   } else {
@@ -465,7 +465,7 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
   switch (type) {
   case 's':
     // Match space-characters.
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ Branch(&success, eq, current_character(), Operand(' '));
@@ -482,12 +482,12 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     // The emitted code for generic character classes is good enough.
     return false;
   case 'd':
-    // Match ASCII digits ('0'..'9').
+    // Match Latin1 digits ('0'..'9').
     __ Subu(a0, current_character(), Operand('0'));
     BranchOrBacktrack(on_no_match, hi, a0, Operand('9' - '0'));
     return true;
   case 'D':
-    // Match non ASCII-digits.
+    // Match non Latin1-digits.
     __ Subu(a0, current_character(), Operand('0'));
     BranchOrBacktrack(on_no_match, ls, a0, Operand('9' - '0'));
     return true;
@@ -511,7 +511,7 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     __ Xor(a0, current_character(), Operand(0x01));
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c.
     __ Subu(a0, a0, Operand(0x0b));
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0c - 0x0b));
     } else {
       Label done;
@@ -526,8 +526,8 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       BranchOrBacktrack(on_no_match, hi, current_character(), Operand('z'));
     }
     ExternalReference map = ExternalReference::re_word_character_map();
@@ -539,8 +539,8 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
   }
   case 'W': {
     Label done;
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       __ Branch(&done, hi, current_character(), Operand('z'));
     }
     ExternalReference map = ExternalReference::re_word_character_map();
@@ -548,7 +548,7 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     __ Addu(a0, a0, current_character());
     __ lbu(a0, MemOperand(a0, 0));
     BranchOrBacktrack(on_no_match, ne, a0, Operand(zero_reg));
-    if (mode_ != ASCII) {
+    if (mode_ != LATIN1) {
       __ bind(&done);
     }
     return true;
@@ -1046,7 +1046,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   // Align the stack pointer and save the original sp value on the stack.
   __ mov(scratch, sp);
   __ Subu(sp, sp, Operand(kPointerSize));
-  DCHECK(IsPowerOf2(stack_alignment));
+  DCHECK(base::bits::IsPowerOfTwo32(stack_alignment));
   __ And(sp, sp, Operand(-stack_alignment));
   __ sw(scratch, MemOperand(sp));
 
@@ -1126,7 +1126,7 @@ int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
 
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
   // Current string.
-  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
 
   DCHECK(re_code->instruction_start() <= *return_address);
   DCHECK(*return_address <=
@@ -1157,8 +1157,8 @@ int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
-    // If we changed between an ASCII and an UC16 string, the specialized
+  if (subject_tmp->IsOneByteRepresentation() != is_one_byte) {
+    // If we changed between an Latin1 and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
     return RETRY;
@@ -1308,7 +1308,7 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
   // must only be used to load a single character at a time.
   DCHECK(characters == 1);
   __ Addu(t5, end_of_input_address(), Operand(offset));
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     __ lbu(current_character(), MemOperand(t5, 0));
   } else {
     DCHECK(mode_ == UC16);

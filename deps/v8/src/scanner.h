@@ -152,7 +152,7 @@ class DuplicateFinder {
   int AddTwoByteSymbol(Vector<const uint16_t> key, int value);
   // Add a a number literal by converting it (if necessary)
   // to the string that ToString(ToNumber(literal)) would generate.
-  // and then adding that string with AddAsciiSymbol.
+  // and then adding that string with AddOneByteSymbol.
   // This string is the actual value used as key in an object literal,
   // and the one that must be different from the other keys.
   int AddNumber(Vector<const uint8_t> key, int value);
@@ -166,7 +166,7 @@ class DuplicateFinder {
   uint8_t* BackupKey(Vector<const uint8_t> key, bool is_one_byte);
 
   // Compare two encoded keys (both pointing into the backing store)
-  // for having the same base-127 encoded lengths and ASCII-ness,
+  // for having the same base-127 encoded lengths and representation.
   // and then having the same 'length' bytes following.
   static bool Match(void* first, void* second);
   // Creates a hash from a sequence of bytes.
@@ -438,6 +438,12 @@ class Scanner {
   void SetHarmonyNumericLiterals(bool numeric_literals) {
     harmony_numeric_literals_ = numeric_literals;
   }
+  bool HarmonyClasses() const {
+    return harmony_classes_;
+  }
+  void SetHarmonyClasses(bool classes) {
+    harmony_classes_ = classes;
+  }
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
@@ -647,6 +653,8 @@ class Scanner {
   bool harmony_modules_;
   // Whether we scan 0o777 and 0b111 as numbers.
   bool harmony_numeric_literals_;
+  // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
+  bool harmony_classes_;
 };
 
 } }  // namespace v8::internal

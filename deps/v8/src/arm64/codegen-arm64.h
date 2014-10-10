@@ -6,7 +6,7 @@
 #define V8_ARM64_CODEGEN_ARM64_H_
 
 #include "src/ast.h"
-#include "src/ic-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

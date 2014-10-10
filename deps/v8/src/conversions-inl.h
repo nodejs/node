@@ -14,6 +14,7 @@
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
+#include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/double.h"
@@ -24,7 +25,7 @@ namespace v8 {
 namespace internal {
 
 inline double JunkStringValue() {
-  return BitCast<double, uint64_t>(kQuietNaNMask);
+  return bit_cast<double, uint64_t>(kQuietNaNMask);
 }
 
 
@@ -63,6 +64,14 @@ inline unsigned int FastD2UI(double x) {
   }
   // Large number (outside uint32 range), Infinity or NaN.
   return 0x80000000u;  // Return integer indefinite.
+}
+
+
+inline float DoubleToFloat32(double x) {
+  // TODO(yanggou): This static_cast is implementation-defined behaviour in C++,
+  // so we may need to do the conversion manually instead to match the spec.
+  volatile float f = static_cast<float>(x);
+  return f;
 }
 
 
@@ -288,7 +297,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (IsPowerOf2(radix)) {
+  if (base::bits::IsPowerOfTwo32(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(

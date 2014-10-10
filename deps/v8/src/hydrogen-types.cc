@@ -42,7 +42,10 @@ HType HType::FromType<HeapType>(Handle<HeapType> type);
 HType HType::FromValue(Handle<Object> value) {
   if (value->IsSmi()) return HType::Smi();
   if (value->IsNull()) return HType::Null();
-  if (value->IsHeapNumber()) return HType::HeapNumber();
+  if (value->IsHeapNumber()) {
+    double n = Handle<v8::internal::HeapNumber>::cast(value)->value();
+    return IsSmiDouble(n) ? HType::Smi() : HType::HeapNumber();
+  }
   if (value->IsString()) return HType::String();
   if (value->IsBoolean()) return HType::Boolean();
   if (value->IsUndefined()) return HType::Undefined();

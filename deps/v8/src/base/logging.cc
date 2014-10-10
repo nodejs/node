@@ -22,7 +22,7 @@ namespace base {
 void DumpBacktrace() {
 #if V8_LIBC_GLIBC || V8_OS_BSD
   void* trace[100];
-  int size = backtrace(trace, ARRAY_SIZE(trace));
+  int size = backtrace(trace, arraysize(trace));
   char** symbols = backtrace_symbols(trace, size);
   OS::PrintError("\n==== C stack trace ===============================\n\n");
   if (size == 0) {
@@ -54,7 +54,7 @@ void DumpBacktrace() {
   bt_sprn_memmap(&memmap, out, sizeof(out));
   OS::PrintError(out);
   bt_addr_t trace[100];
-  int size = bt_get_backtrace(&acc, trace, ARRAY_SIZE(trace));
+  int size = bt_get_backtrace(&acc, trace, arraysize(trace));
   OS::PrintError("\n==== C stack trace ===============================\n\n");
   if (size == 0) {
     OS::PrintError("(empty)\n");

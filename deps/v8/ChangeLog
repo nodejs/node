@@ -1,4 +1,258 @@
-2014-08-13: Version 3.28.73
+2014-09-30: Version 3.29.93
+
+        Add a getter for the address and size of the code range to the pulic API
+        (issue 3598).
+
+        Convert `obj` ToObject in Object.keys() (issue 3587).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-29: Version 3.29.92
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-26: Version 3.29.91
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-25: Version 3.29.88
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-24: Version 3.29.87
+
+        Preserve message when rethrowing exception (issue 3583).
+
+        Fix escaped index JSON parsing (Chromium issue 416449).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.84
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.83
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.82
+
+        Fix escaped index JSON parsing (Chromium issue 416449).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-17: Version 3.29.70
+
+        Enable ES6 generators (issue 2355).
+
+        Fixed int vs. uintptr_t confusion (plus some cleanup on the way) (issue
+        3556).
+
+        Move configuration of ResourceConstraints to Isolate construction.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-16: Version 3.29.66
+
+        Currently, a new isolate is created in an uninitialized state, and
+        several API methods will automatically initialize it. During this
+        uninitialized state, code event handlers and function entry handlers can
+        be attached to the isolate.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-15: Version 3.29.64
+
+        ES6: String(symbol) should work like symbol.toString (issue 3554).
+
+        Arrow functions: Cleanup handling of the prototype property (issue
+        2700).
+
+        Remove V8_HOST_CAN_READ_UNALIGNED and its uses (Chromium issue 412967).
+
+        Fix Smi vs. HeapObject confusion in HConstants (Chromium issue 412215).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-12: Version 3.29.59
+
+        Do not use wide reads in CopyCharsUnsigned (Chromium issue 412967).
+
+        Fix inaccurate type condition in Hydrogen (Chromium issue 412210).
+
+        Fix crash in ScriptDebugServer::wrapCallFrames (Chromium issue 411196).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-11: Version 3.29.57
+
+        ES6: Add support for method shorthand in object literals (issue 3516).
+
+        Unbreak FreeBSD build (hopefully) (issue 3548).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-09: Version 3.29.53
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-08: Version 3.29.50
+
+        Allocate a new empty number dictionary when resetting elements (Chromium
+        issue 410332).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-05: Version 3.29.43
+
+        Enforce correct number comparisons when inlining Array.indexOf (Chromium
+        issue 407946).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-04: Version 3.29.41
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-03: Version 3.29.40
+
+        Use correct receiver for DOM accessors on the prototype chain (issue
+        3538).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-02: Version 3.29.38
+
+        Do not clear weak monomorphic IC after context disposal (Chromium issue
+        404020).
+
+        Turn on job-based sweeping (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-01: Version 3.29.35
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-29: Version 3.29.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.24
+
+        Tweaks to generate XP-compatible .exes (Chromium issue 407517).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-27: Version 3.29.20
+
+        Handle empty allocation list in CodeRange properly (issue 3540, Chromium
+        issue 407566).
+
+        Fixed inlining of constant values (issue 3529).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-25: Version 3.29.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-24: Version 3.29.16
+
+        Fix issue with numeric property names (issue 3507).
+
+        Add back the duplicate property checker (issue 3498).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-22: Version 3.29.14
+
+        Don't inline Array.shift() if receiver map is not extensible (Chromium
+        issue 405517).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-21: Version 3.29.11
+
+        Refactor ParseObjectLiteral.
+
+        Support symbol-named properties in API (issue 3394).
+
+        Suppress test262 test that tests duplicate properties.
+
+        ES6: Duplicate properties are no longer an error (issue 3498).
+
+        Expose function CheckDebugBreak in the debugger api.
+
+        Remove RegExp.$input (issue 3486).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-21: Version 3.29.10
+
+        ES6: Make sure we do not store -0 as the key in Map/Set (issue 3515).
+
+        Remove removed flags from tests.
+
+        Expose well-known Symbols to C++ API (Chromium issue 341423).
+
+        Implement ES6 Array.of() (issue 3427).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-20: Version 3.29.9
+
+        Correctly handle holes when concat()ing double arrays (Chromium issue
+        403409).
+
+        [turbofan] Refactor the InstructionSelector tests (issue 3489).
+
+        ES6: Make Map/Set constructors support iterable values (issue 3508).
+
+        WeakMap/WeakSet: Add test for non object keys (issue 3399).
 
         Performance and stability improvements on all platforms.
 

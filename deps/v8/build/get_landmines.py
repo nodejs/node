@@ -19,6 +19,7 @@ def main():
   print 'Landmines test.'
   print 'Activating MSVS 2013.'
   print 'Revert activation of MSVS 2013.'
+  print 'Activating MSVS 2013 again.'
   return 0
 
 

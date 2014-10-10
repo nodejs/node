@@ -12,6 +12,7 @@
 #include "src/v8.h"
 #else
 #include "include/v8.h"
+#include "src/base/compiler-specific.h"
 #endif  // !V8_SHARED
 
 namespace v8 {
@@ -171,7 +172,7 @@ class SourceGroup {
 };
 
 
-class BinaryResource : public v8::String::ExternalAsciiStringResource {
+class BinaryResource : public v8::String::ExternalOneByteStringResource {
  public:
   BinaryResource(const char* string, int length)
       : data_(string),

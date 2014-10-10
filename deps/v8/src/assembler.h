@@ -41,7 +41,7 @@
 #include "src/builtins.h"
 #include "src/gdb-jit.h"
 #include "src/isolate.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/token.h"
 
 namespace v8 {
@@ -459,9 +459,7 @@ class RelocInfo {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   double data64() const { return data64_; }
-  uint64_t raw_data64() {
-    return BitCast<uint64_t>(data64_);
-  }
+  uint64_t raw_data64() { return bit_cast<uint64_t>(data64_); }
   Code* host() const { return host_; }
   void set_host(Code* host) { host_ = host; }
 
@@ -774,12 +772,12 @@ class ExternalReference BASE_EMBEDDED {
     PROFILING_API_CALL,
 
     // Direct call to accessor getter callback.
-    // void f(Local<String> property, PropertyCallbackInfo& info)
+    // void f(Local<Name> property, PropertyCallbackInfo& info)
     DIRECT_GETTER_CALL,
 
     // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<String> property, PropertyCallbackInfo& info,
-    //     AccessorGetterCallback callback)
+    // void f(Local<Name> property, PropertyCallbackInfo& info,
+    //     AccessorNameGetterCallback callback)
     PROFILING_GETTER_CALL
   };
 
@@ -1107,20 +1105,6 @@ class NullCallWrapper : public CallWrapper {
   virtual ~NullCallWrapper() { }
   virtual void BeforeCall(int call_size) const { }
   virtual void AfterCall() const { }
-};
-
-
-// The multiplier and shift for signed division via multiplication, see Warren's
-// "Hacker's Delight", chapter 10.
-class MultiplierAndShift {
- public:
-  explicit MultiplierAndShift(int32_t d);
-  int32_t multiplier() const { return multiplier_; }
-  int32_t shift() const { return shift_; }
-
- private:
-  int32_t multiplier_;
-  int32_t shift_;
 };
 
 

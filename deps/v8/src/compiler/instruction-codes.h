@@ -29,10 +29,12 @@ namespace compiler {
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define ARCH_OPCODE_LIST(V) \
-  V(ArchDeoptimize)         \
+  V(ArchCallCodeObject)     \
+  V(ArchCallJSFunction)     \
   V(ArchJmp)                \
   V(ArchNop)                \
   V(ArchRet)                \
+  V(ArchTruncateDoubleToI)  \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {
@@ -105,10 +107,10 @@ typedef int32_t InstructionCode;
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
 typedef BitField<ArchOpcode, 0, 7> ArchOpcodeField;
-typedef BitField<AddressingMode, 7, 4> AddressingModeField;
-typedef BitField<FlagsMode, 11, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 13, 5> FlagsConditionField;
-typedef BitField<int, 13, 19> MiscField;
+typedef BitField<AddressingMode, 7, 5> AddressingModeField;
+typedef BitField<FlagsMode, 12, 2> FlagsModeField;
+typedef BitField<FlagsCondition, 14, 5> FlagsConditionField;
+typedef BitField<int, 14, 18> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

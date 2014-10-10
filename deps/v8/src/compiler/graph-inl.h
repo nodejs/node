@@ -14,8 +14,9 @@ namespace compiler {
 
 template <class Visitor>
 void Graph::VisitNodeUsesFrom(Node* node, Visitor* visitor) {
-  GenericGraphVisit::Visit<Visitor, NodeUseIterationTraits<Node> >(this, node,
-                                                                   visitor);
+  Zone tmp_zone(zone()->isolate());
+  GenericGraphVisit::Visit<Visitor, NodeUseIterationTraits<Node> >(
+      this, &tmp_zone, node, visitor);
 }
 
 
@@ -27,8 +28,9 @@ void Graph::VisitNodeUsesFromStart(Visitor* visitor) {
 
 template <class Visitor>
 void Graph::VisitNodeInputsFromEnd(Visitor* visitor) {
+  Zone tmp_zone(zone()->isolate());
   GenericGraphVisit::Visit<Visitor, NodeInputIterationTraits<Node> >(
-      this, end(), visitor);
+      this, &tmp_zone, end(), visitor);
 }
 }
 }

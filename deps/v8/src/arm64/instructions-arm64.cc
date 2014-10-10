@@ -182,8 +182,8 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 }
 
 
-ptrdiff_t Instruction::ImmPCOffset() {
-  ptrdiff_t offset;
+int64_t Instruction::ImmPCOffset() {
+  int64_t offset;
   if (IsPCRelAddressing()) {
     // PC-relative addressing. Only ADR is supported.
     offset = ImmPCRel();

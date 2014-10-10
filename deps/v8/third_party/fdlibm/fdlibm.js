@@ -1,7 +1,7 @@
 // The following is adapted from fdlibm (http://www.netlib.org/fdlibm),
 //
 // ====================================================
-// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+// Copyright (C) 1993-2004 by Sun Microsystems, Inc. All rights reserved.
 //
 // Developed at SunSoft, a Sun Microsystems, Inc. business.
 // Permission to use, copy, modify, and distribute this
@@ -16,8 +16,11 @@
 // The following is a straightforward translation of fdlibm routines
 // by Raymond Toy (rtoy@google.com).
 
-
-var kMath;  // Initialized to a Float64Array during genesis and is not writable.
+// Double constants that do not have empty lower 32 bits are found in fdlibm.cc
+// and exposed through kMath as typed array. We assume the compiler to convert
+// from decimal to binary accurately enough to produce the intended values.
+// kMath is initialized to a Float64Array during genesis and not writable.
+var kMath;
 
 const INVPIO2 = kMath[0];
 const PIO2_1  = kMath[1];
@@ -407,10 +410,8 @@ function MathTan(x) {
 //      1 ulp (unit in the last place).
 //
 // Constants:
-// The hexadecimal values are the intended ones for the following 
-// constants. The decimal values may be used, provided that the 
-// compiler will convert from decimal to binary accurately enough 
-// to produce the hexadecimal values shown.
+//      Constants are found in fdlibm.cc. We assume the C++ compiler to convert
+//      from decimal to binary accurately enough to produce the intended values.
 //
 // Note: Assuming log() return accurate answer, the following
 //       algorithm can be used to compute log1p(x) to within a few ULP:
@@ -425,7 +426,7 @@ const LN2_HI    = kMath[34];
 const LN2_LO    = kMath[35];
 const TWO54     = kMath[36];
 const TWO_THIRD = kMath[37];
-macro KLOGP1(x)
+macro KLOG1P(x)
 (kMath[38+x])
 endmacro
 
@@ -507,12 +508,307 @@ function MathLog1p(x) {
 
   var s = f / (2 + f); 
   var z = s * s;
-  var R = z * (KLOGP1(0) + z * (KLOGP1(1) + z *
-              (KLOGP1(2) + z * (KLOGP1(3) + z *
-              (KLOGP1(4) + z * (KLOGP1(5) + z * KLOGP1(6)))))));
+  var R = z * (KLOG1P(0) + z * (KLOG1P(1) + z *
+              (KLOG1P(2) + z * (KLOG1P(3) + z *
+              (KLOG1P(4) + z * (KLOG1P(5) + z * KLOG1P(6)))))));
   if (k === 0) {
     return f - (hfsq - s * (hfsq + R));
   } else {
     return k * LN2_HI - ((hfsq - (s * (hfsq + R) + (k * LN2_LO + c))) - f);
   }
+}
+
+// ES6 draft 09-27-13, section 20.2.2.14.
+// Math.expm1
+// Returns exp(x)-1, the exponential of x minus 1.
+//
+// Method
+//   1. Argument reduction:
+//      Given x, find r and integer k such that
+//
+//               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658  
+//
+//      Here a correction term c will be computed to compensate 
+//      the error in r when rounded to a floating-point number.
+//
+//   2. Approximating expm1(r) by a special rational function on
+//      the interval [0,0.34658]:
+//      Since
+//          r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 - r^4/360 + ...
+//      we define R1(r*r) by
+//          r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 * R1(r*r)
+//      That is,
+//          R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
+//                   = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
+//                   = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
+//      We use a special Remes algorithm on [0,0.347] to generate 
+//      a polynomial of degree 5 in r*r to approximate R1. The 
+//      maximum error of this polynomial approximation is bounded 
+//      by 2**-61. In other words,
+//          R1(z) ~ 1.0 + Q1*z + Q2*z**2 + Q3*z**3 + Q4*z**4 + Q5*z**5
+//      where   Q1  =  -1.6666666666666567384E-2,
+//              Q2  =   3.9682539681370365873E-4,
+//              Q3  =  -9.9206344733435987357E-6,
+//              Q4  =   2.5051361420808517002E-7,
+//              Q5  =  -6.2843505682382617102E-9;
+//      (where z=r*r, and the values of Q1 to Q5 are listed below)
+//      with error bounded by
+//          |                  5           |     -61
+//          | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2 
+//          |                              |
+//
+//      expm1(r) = exp(r)-1 is then computed by the following 
+//      specific way which minimize the accumulation rounding error: 
+//                             2     3
+//                            r     r    [ 3 - (R1 + R1*r/2)  ]
+//            expm1(r) = r + --- + --- * [--------------------]
+//                            2     2    [ 6 - r*(3 - R1*r/2) ]
+//
+//      To compensate the error in the argument reduction, we use
+//              expm1(r+c) = expm1(r) + c + expm1(r)*c 
+//                         ~ expm1(r) + c + r*c 
+//      Thus c+r*c will be added in as the correction terms for
+//      expm1(r+c). Now rearrange the term to avoid optimization 
+//      screw up:
+//                      (      2                                    2 )
+//                      ({  ( r    [ R1 -  (3 - R1*r/2) ]  )  }    r  )
+//       expm1(r+c)~r - ({r*(--- * [--------------------]-c)-c} - --- )
+//                      ({  ( 2    [ 6 - r*(3 - R1*r/2) ]  )  }    2  )
+//                      (                                             )
+//
+//                 = r - E
+//   3. Scale back to obtain expm1(x):
+//      From step 1, we have
+//         expm1(x) = either 2^k*[expm1(r)+1] - 1
+//                  = or     2^k*[expm1(r) + (1-2^-k)]
+//   4. Implementation notes:
+//      (A). To save one multiplication, we scale the coefficient Qi
+//           to Qi*2^i, and replace z by (x^2)/2.
+//      (B). To achieve maximum accuracy, we compute expm1(x) by
+//        (i)   if x < -56*ln2, return -1.0, (raise inexact if x!=inf)
+//        (ii)  if k=0, return r-E
+//        (iii) if k=-1, return 0.5*(r-E)-0.5
+//        (iv)  if k=1 if r < -0.25, return 2*((r+0.5)- E)
+//                     else          return  1.0+2.0*(r-E);
+//        (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
+//        (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
+//        (vii) return 2^k(1-((E+2^-k)-r)) 
+//
+// Special cases:
+//      expm1(INF) is INF, expm1(NaN) is NaN;
+//      expm1(-INF) is -1, and
+//      for finite argument, only expm1(0)=0 is exact.
+//
+// Accuracy:
+//      according to an error analysis, the error is always less than
+//      1 ulp (unit in the last place).
+//
+// Misc. info.
+//      For IEEE double 
+//          if x > 7.09782712893383973096e+02 then expm1(x) overflow
+//
+const KEXPM1_OVERFLOW = kMath[45];
+const INVLN2          = kMath[46];
+macro KEXPM1(x)
+(kMath[47+x])
+endmacro
+
+function MathExpm1(x) {
+  x = x * 1;  // Convert to number.
+  var y;
+  var hi;
+  var lo;
+  var k;
+  var t;
+  var c;
+    
+  var hx = %_DoubleHi(x);
+  var xsb = hx & 0x80000000;     // Sign bit of x
+  var y = (xsb === 0) ? x : -x;  // y = |x|
+  hx &= 0x7fffffff;              // High word of |x|
+
+  // Filter out huge and non-finite argument
+  if (hx >= 0x4043687a) {     // if |x| ~=> 56 * ln2
+    if (hx >= 0x40862e42) {   // if |x| >= 709.78
+      if (hx >= 0x7ff00000) {
+        // expm1(inf) = inf; expm1(-inf) = -1; expm1(nan) = nan;
+        return (x === -INFINITY) ? -1 : x;
+      }
+      if (x > KEXPM1_OVERFLOW) return INFINITY;  // Overflow
+    }
+    if (xsb != 0) return -1;  // x < -56 * ln2, return -1.
+  }
+
+  // Argument reduction
+  if (hx > 0x3fd62e42) {    // if |x| > 0.5 * ln2
+    if (hx < 0x3ff0a2b2) {  // and |x| < 1.5 * ln2
+      if (xsb === 0) {
+        hi = x - LN2_HI;
+        lo = LN2_LO;
+        k = 1;
+      } else {
+        hi = x + LN2_HI;
+        lo = -LN2_LO;
+        k = -1;
+      }
+    } else {
+      k = (INVLN2 * x + ((xsb === 0) ? 0.5 : -0.5)) | 0;
+      t = k;
+      // t * ln2_hi is exact here.
+      hi = x - t * LN2_HI;
+      lo = t * LN2_LO;
+    }
+    x = hi - lo;
+    c = (hi - x) - lo;
+  } else if (hx < 0x3c900000)	{
+    // When |x| < 2^-54, we can return x.
+    return x;
+  } else {
+    // Fall through.
+    k = 0;
+  }
+
+  // x is now in primary range
+  var hfx = 0.5 * x;
+  var hxs = x * hfx;
+  var r1 = 1 + hxs * (KEXPM1(0) + hxs * (KEXPM1(1) + hxs *
+                     (KEXPM1(2) + hxs * (KEXPM1(3) + hxs * KEXPM1(4)))));
+  t = 3 - r1 * hfx;
+  var e = hxs * ((r1 - t) / (6 - x * t));
+  if (k === 0) {  // c is 0
+    return x - (x*e - hxs);
+  } else {
+    e = (x * (e - c) - c);
+    e -= hxs;
+    if (k === -1) return 0.5 * (x - e) - 0.5;
+    if (k === 1) {
+      if (x < -0.25) return -2 * (e - (x + 0.5));
+      return 1 + 2 * (x - e);
+    }
+
+    if (k <= -2 || k > 56) {
+      // suffice to return exp(x) + 1
+      y = 1 - (e - x);
+      // Add k to y's exponent
+      y = %_ConstructDouble(%_DoubleHi(y) + (k << 20), %_DoubleLo(y));
+      return y - 1;
+    }
+    if (k < 20) {
+      // t = 1 - 2^k
+      t = %_ConstructDouble(0x3ff00000 - (0x200000 >> k), 0);
+      y = t - (e - x);
+      // Add k to y's exponent
+      y = %_ConstructDouble(%_DoubleHi(y) + (k << 20), %_DoubleLo(y));
+    } else {
+      // t = 2^-k
+      t = %_ConstructDouble((0x3ff - k) << 20, 0);
+      y = x - (e + t);
+      y += 1;
+      // Add k to y's exponent
+      y = %_ConstructDouble(%_DoubleHi(y) + (k << 20), %_DoubleLo(y));
+    }
+  }
+  return y;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.30.
+// Math.sinh
+// Method :
+// mathematically sinh(x) if defined to be (exp(x)-exp(-x))/2
+//      1. Replace x by |x| (sinh(-x) = -sinh(x)).
+//      2.
+//                                                  E + E/(E+1)
+//          0        <= x <= 22     :  sinh(x) := --------------, E=expm1(x)
+//                                                      2
+//
+//          22       <= x <= lnovft :  sinh(x) := exp(x)/2 
+//          lnovft   <= x <= ln2ovft:  sinh(x) := exp(x/2)/2 * exp(x/2)
+//          ln2ovft  <  x           :  sinh(x) := x*shuge (overflow)
+//
+// Special cases:
+//      sinh(x) is |x| if x is +Infinity, -Infinity, or NaN.
+//      only sinh(0)=0 is exact for finite x.
+//
+const KSINH_OVERFLOW = kMath[52];
+const TWO_M28 = 3.725290298461914e-9;  // 2^-28, empty lower half
+const LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
+
+function MathSinh(x) {
+  x = x * 1;  // Convert to number.
+  var h = (x < 0) ? -0.5 : 0.5;
+  // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
+  var ax = MathAbs(x);
+  if (ax < 22) {
+    // For |x| < 2^-28, sinh(x) = x
+    if (ax < TWO_M28) return x;
+    var t = MathExpm1(ax);
+    if (ax < 1) return h * (2 * t - t * t / (t + 1));
+    return h * (t + t / (t + 1));
+  }
+  // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
+  if (ax < LOG_MAXD) return h * MathExp(ax);
+  // |x| in [log(maxdouble), overflowthreshold]
+  // overflowthreshold = 710.4758600739426
+  if (ax <= KSINH_OVERFLOW) {
+    var w = MathExp(0.5 * ax);
+    var t = h * w;
+    return t * w;
+  }
+  // |x| > overflowthreshold or is NaN.
+  // Return Infinity of the appropriate sign or NaN.
+  return x * INFINITY;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.12.
+// Math.cosh
+// Method : 
+// mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2
+//      1. Replace x by |x| (cosh(x) = cosh(-x)). 
+//      2.
+//                                                      [ exp(x) - 1 ]^2 
+//          0        <= x <= ln2/2  :  cosh(x) := 1 + -------------------
+//                                                         2*exp(x)
+//
+//                                                 exp(x) + 1/exp(x)
+//          ln2/2    <= x <= 22     :  cosh(x) := -------------------
+//                                                        2
+//          22       <= x <= lnovft :  cosh(x) := exp(x)/2 
+//          lnovft   <= x <= ln2ovft:  cosh(x) := exp(x/2)/2 * exp(x/2)
+//          ln2ovft  <  x           :  cosh(x) := huge*huge (overflow)
+//
+// Special cases:
+//      cosh(x) is |x| if x is +INF, -INF, or NaN.
+//      only cosh(0)=1 is exact for finite x.
+//
+const KCOSH_OVERFLOW = kMath[52];
+
+function MathCosh(x) {
+  x = x * 1;  // Convert to number.
+  var ix = %_DoubleHi(x) & 0x7fffffff;
+  // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
+  if (ix < 0x3fd62e43) {
+    var t = MathExpm1(MathAbs(x));
+    var w = 1 + t;
+    // For |x| < 2^-55, cosh(x) = 1
+    if (ix < 0x3c800000) return w;
+    return 1 + (t * t) / (w + w);
+  }
+  // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
+  if (ix < 0x40360000) {
+    var t = MathExp(MathAbs(x));
+    return 0.5 * t + 0.5 / t;
+  }
+  // |x| in [22, log(maxdouble)], return half*exp(|x|)
+  if (ix < 0x40862e42) return 0.5 * MathExp(MathAbs(x));
+  // |x| in [log(maxdouble), overflowthreshold]
+  if (MathAbs(x) <= KCOSH_OVERFLOW) {
+    var w = MathExp(0.5 * MathAbs(x));
+    var t = 0.5 * w;
+    return t * w;
+  }
+  if (NUMBER_IS_NAN(x)) return x;
+  // |x| > overflowthreshold.
+  return INFINITY;
 }

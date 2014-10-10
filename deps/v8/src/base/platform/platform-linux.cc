@@ -9,9 +9,7 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <sys/prctl.h>
 #include <sys/resource.h>
-#include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
 
@@ -46,6 +44,15 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
+#if V8_OS_NACL
+#if !defined(MAP_NORESERVE)
+// PNaCL doesn't have this, so we always grab all of the memory, which is bad.
+#define MAP_NORESERVE 0
+#endif
+#else
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#endif
 
 namespace v8 {
 namespace base {
@@ -95,20 +102,30 @@ bool OS::ArmUsingHardFloat() {
 
 
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
+#if V8_OS_NACL
+  // Missing support for tm_zone field.
+  return "";
+#else
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
   return t->tm_zone;
+#endif
 }
 
 
 double OS::LocalTimeOffset(TimezoneCache* cache) {
+#if V8_OS_NACL
+  // Missing support for tm_zone field.
+  return 0;
+#else
   time_t tv = time(NULL);
   struct tm* t = localtime(&tv);
   // tm_gmtoff includes any daylight savings offset, so subtract it.
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+#endif
 }
 
 
@@ -260,18 +277,15 @@ void OS::SignalCodeMovingGC() {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
     OS::Abort();
   }
-  void* addr = mmap(OS::GetRandomMmapAddr(),
-                    size,
-#if defined(__native_client__)
+  void* addr = mmap(OS::GetRandomMmapAddr(), size,
+#if V8_OS_NACL
                     // The Native Client port of V8 uses an interpreter,
                     // so code pages don't need PROT_EXEC.
                     PROT_READ,
 #else
                     PROT_READ | PROT_EXEC,
 #endif
-                    MAP_PRIVATE,
-                    fileno(f),
-                    0);
+                    MAP_PRIVATE, fileno(f), 0);
   DCHECK(addr != MAP_FAILED);
   OS::Free(addr, size);
   fclose(f);
@@ -292,7 +306,7 @@ VirtualMemory::VirtualMemory(size_t size)
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
-  DCHECK(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* reservation = mmap(OS::GetRandomMmapAddr(),
@@ -387,7 +401,7 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
 
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-#if defined(__native_client__)
+#if V8_OS_NACL
   // The Native Client port of V8 uses an interpreter,
   // so code pages don't need PROT_EXEC.
   int prot = PROT_READ | PROT_WRITE;

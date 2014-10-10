@@ -25,25 +25,26 @@ import sys
 
 from common_includes import *
 
-CONFIG = {
-  PERSISTFILE_BASENAME: "/tmp/v8-bump-up-version-tempfile",
-  VERSION_FILE: "src/version.cc",
-}
-
 VERSION_BRANCH = "auto-bump-up-version"
 
 
+# TODO(machenbach): Add vc interface that works on git mirror.
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
+    # TODO(machenbach): Remove after the git switch.
+    if(self.Config("PERSISTFILE_BASENAME") ==
+       "/tmp/v8-bump-up-version-tempfile"):
+      print "This script is disabled until after the v8 git migration."
+      return True
+
     # Check for a clean workdir.
     if not self.GitIsWorkdirClean():  # pragma: no cover
       # This is in case a developer runs this script on a dirty tree.
       self.GitStash()
 
-    # TODO(machenbach): This should be called master after the git switch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
 
     self.GitPull()
 
@@ -55,8 +56,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    # TODO(machenbach): This should be called master after the git switch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
 
     # Store latest version and revision.
     self.ReadAndPersistVersion()
@@ -72,7 +72,7 @@ class LastChangeBailout(Step):
   MESSAGE = "Stop script if the last change modified the version."
 
   def RunStep(self):
-    if self._config[VERSION_FILE] in self.GitChangedFiles(self["latest"]):
+    if VERSION_FILE in self.GitChangedFiles(self["latest"]):
       print "Stop due to recent version change."
       return True
 
@@ -93,7 +93,7 @@ class GetLKGRVersion(Step):
   MESSAGE = "Get bleeding edge lkgr version."
 
   def RunStep(self):
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
     # If the commit was made from svn, there is a mapping entry in the commit
     # message.
     self["lkgr"] = self.GitLog(
@@ -111,7 +111,7 @@ class GetLKGRVersion(Step):
     print "LKGR version: %s" % self["lkgr_version"]
 
     # Ensure a clean version branch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
     self.DeleteBranch(VERSION_BRANCH)
 
 
@@ -121,7 +121,7 @@ class LKGRVersionUpToDateBailout(Step):
   def RunStep(self):
     # If a version-change commit becomes the lkgr, don't bump up the version
     # again.
-    if self._config[VERSION_FILE] in self.GitChangedFiles(self["lkgr"]):
+    if VERSION_FILE in self.GitChangedFiles(self["lkgr"]):
       print "Stop because the lkgr is a version change itself."
       return True
 
@@ -136,8 +136,7 @@ class GetTrunkVersion(Step):
   MESSAGE = "Get latest trunk version."
 
   def RunStep(self):
-    # TODO(machenbach): This should be called trunk after the git switch.
-    self.GitCheckout("master")
+    self.GitCheckout("candidates")
     self.GitPull()
     self.ReadAndPersistVersion("trunk_")
     self["trunk_version"] = self.ArrayToVersion("trunk_")
@@ -191,21 +190,25 @@ class ChangeVersion(Step):
   MESSAGE = "Bump up the version."
 
   def RunStep(self):
-    self.GitCreateBranch(VERSION_BRANCH, "bleeding_edge")
+    self.GitCreateBranch(VERSION_BRANCH, "master")
 
-    self.SetVersion(self.Config(VERSION_FILE), "new_")
+    self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
     try:
-      self.GitCommit("[Auto-roll] Bump up version to %s\n\nTBR=%s" %
-                     (self["new_version"], self._options.author))
-      self.GitUpload(author=self._options.author,
-                     force=self._options.force_upload,
-                     bypass_hooks=True)
-      self.GitDCommit()
+      msg = "[Auto-roll] Bump up version to %s" % self["new_version"]
+      self.GitCommit("%s\n\nTBR=%s" % (msg, self._options.author),
+                     author=self._options.author)
+      if self._options.svn:
+        self.SVNCommit("branches/bleeding_edge", msg)
+      else:
+        self.GitUpload(author=self._options.author,
+                       force=self._options.force_upload,
+                       bypass_hooks=True)
+        self.GitDCommit()
       print "Successfully changed the version."
     finally:
       # Clean up.
-      self.GitCheckout("bleeding_edge")
+      self.GitCheckout("master")
       self.DeleteBranch(VERSION_BRANCH)
 
 
@@ -223,6 +226,12 @@ class BumpUpVersion(ScriptsBase):
     options.force_upload = True
     return True
 
+  def _Config(self):
+    return {
+      "PERSISTFILE_BASENAME": "/tmp/v8-bump-up-version-tempfile",
+      "PATCH_FILE": "/tmp/v8-bump-up-version-tempfile-patch-file",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -238,4 +247,4 @@ class BumpUpVersion(ScriptsBase):
     ]
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(BumpUpVersion(CONFIG).Run())
+  sys.exit(BumpUpVersion().Run())

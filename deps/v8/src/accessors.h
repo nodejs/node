@@ -13,27 +13,28 @@ namespace internal {
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
-#define ACCESSOR_INFO_LIST(V)       \
-  V(ArrayLength)                    \
-  V(FunctionArguments)              \
-  V(FunctionCaller)                 \
-  V(FunctionName)                   \
-  V(FunctionLength)                 \
-  V(FunctionPrototype)              \
-  V(ScriptColumnOffset)             \
-  V(ScriptCompilationType)          \
-  V(ScriptContextData)              \
-  V(ScriptEvalFromScript)           \
-  V(ScriptEvalFromScriptPosition)   \
-  V(ScriptEvalFromFunctionName)     \
-  V(ScriptId)                       \
-  V(ScriptLineEnds)                 \
-  V(ScriptLineOffset)               \
-  V(ScriptName)                     \
-  V(ScriptSource)                   \
-  V(ScriptType)                     \
-  V(ScriptSourceUrl)                \
-  V(ScriptSourceMappingUrl)         \
+#define ACCESSOR_INFO_LIST(V)     \
+  V(ArgumentsIterator)            \
+  V(ArrayLength)                  \
+  V(FunctionArguments)            \
+  V(FunctionCaller)               \
+  V(FunctionName)                 \
+  V(FunctionLength)               \
+  V(FunctionPrototype)            \
+  V(ScriptColumnOffset)           \
+  V(ScriptCompilationType)        \
+  V(ScriptContextData)            \
+  V(ScriptEvalFromScript)         \
+  V(ScriptEvalFromScriptPosition) \
+  V(ScriptEvalFromFunctionName)   \
+  V(ScriptId)                     \
+  V(ScriptLineEnds)               \
+  V(ScriptLineOffset)             \
+  V(ScriptName)                   \
+  V(ScriptSource)                 \
+  V(ScriptType)                   \
+  V(ScriptSourceUrl)              \
+  V(ScriptSourceMappingUrl)       \
   V(StringLength)
 
 // Accessors contains all predefined proxy accessors.
@@ -43,10 +44,10 @@ class Accessors : public AllStatic {
   // Accessor descriptors.
 #define ACCESSOR_INFO_DECLARATION(name)                   \
   static void name##Getter(                               \
-      v8::Local<v8::String> name,                         \
+      v8::Local<v8::Name> name,                           \
       const v8::PropertyCallbackInfo<v8::Value>& info);   \
   static void name##Setter(                               \
-      v8::Local<v8::String> name,                         \
+      v8::Local<v8::Name> name,                           \
       v8::Local<v8::Value> value,                         \
       const v8::PropertyCallbackInfo<void>& info);   \
   static Handle<AccessorInfo> name##Info(                 \
@@ -83,9 +84,9 @@ class Accessors : public AllStatic {
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate,
-      Handle<String> name,
-      AccessorGetterCallback getter,
-      AccessorSetterCallback setter,
+      Handle<Name> name,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter,
       PropertyAttributes attributes);
 
   static Handle<ExecutableAccessorInfo> CloneAccessor(

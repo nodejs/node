@@ -6,12 +6,14 @@
 
 #if V8_TARGET_ARCH_X87
 
+#include "src/base/bits.h"
+#include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/isolate-inl.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/serialize.h"
 
 namespace v8 {
@@ -146,8 +148,7 @@ void MacroAssembler::InNewSpace(
 
 void MacroAssembler::RememberedSetHelper(
     Register object,  // Only used for debug checks.
-    Register addr,
-    Register scratch,
+    Register addr, Register scratch, SaveFPRegsMode save_fp,
     MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
   if (emit_debug_code()) {
@@ -178,8 +179,7 @@ void MacroAssembler::RememberedSetHelper(
     DCHECK(and_then == kFallThroughAtEnd);
     j(equal, &done, Label::kNear);
   }
-  StoreBufferOverflowStub store_buffer_overflow =
-      StoreBufferOverflowStub(isolate());
+  StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
   if (and_then == kReturnAtEnd) {
     ret(0);
@@ -187,6 +187,31 @@ void MacroAssembler::RememberedSetHelper(
     DCHECK(and_then == kFallThroughAtEnd);
     bind(&done);
   }
+}
+
+
+void MacroAssembler::ClampTOSToUint8(Register result_reg) {
+  Label done, conv_failure;
+  sub(esp, Immediate(kPointerSize));
+  fnclex();
+  fist_s(Operand(esp, 0));
+  pop(result_reg);
+  X87CheckIA();
+  j(equal, &conv_failure, Label::kNear);
+  test(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(sign, result_reg);
+  sub(result_reg, Immediate(1));
+  and_(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  fnclex();
+  fldz();
+  fld(1);
+  FCmp();
+  setcc(below, result_reg);  // 1 if negative, 0 if positive.
+  dec_b(result_reg);         // 0 if negative, 255 if positive.
+  bind(&done);
 }
 
 
@@ -218,8 +243,8 @@ void MacroAssembler::TruncateX87TOSToI(Register result_reg) {
 
 void MacroAssembler::X87TOSToI(Register result_reg,
                                MinusZeroMode minus_zero_mode,
-                               Label* conversion_failed,
-                               Label::Distance dst) {
+                               Label* lost_precision, Label* is_nan,
+                               Label* minus_zero, Label::Distance dst) {
   Label done;
   sub(esp, Immediate(kPointerSize));
   fld(0);
@@ -227,8 +252,8 @@ void MacroAssembler::X87TOSToI(Register result_reg,
   fild_s(MemOperand(esp, 0));
   pop(result_reg);
   FCmp();
-  j(not_equal, conversion_failed, dst);
-  j(parity_even, conversion_failed, dst);
+  j(not_equal, lost_precision, dst);
+  j(parity_even, is_nan, dst);
   if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
     test(result_reg, Operand(result_reg));
     j(not_zero, &done, Label::kNear);
@@ -238,7 +263,7 @@ void MacroAssembler::X87TOSToI(Register result_reg,
     fst_s(MemOperand(esp, 0));
     pop(result_reg);
     test(result_reg, Operand(result_reg));
-    j(not_zero, conversion_failed, dst);
+    j(not_zero, minus_zero, dst);
   }
   bind(&done);
 }
@@ -249,53 +274,6 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
   Label done, slow_case;
 
   SlowTruncateToI(result_reg, input_reg);
-  bind(&done);
-}
-
-
-void MacroAssembler::TaggedToI(Register result_reg,
-                               Register input_reg,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision) {
-  Label done;
-
-  cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  j(not_equal, lost_precision, Label::kNear);
-
-  // TODO(olivf) Converting a number on the fpu is actually quite slow. We
-  // should first try a fast conversion and then bailout to this slow case.
-  Label lost_precision_pop, zero_check;
-  Label* lost_precision_int = (minus_zero_mode == FAIL_ON_MINUS_ZERO)
-      ? &lost_precision_pop : lost_precision;
-  sub(esp, Immediate(kPointerSize));
-  fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) fld(0);
-  fist_s(MemOperand(esp, 0));
-  fild_s(MemOperand(esp, 0));
-  FCmp();
-  pop(result_reg);
-  j(not_equal, lost_precision_int, Label::kNear);
-  j(parity_even, lost_precision_int, Label::kNear);  // NaN.
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    test(result_reg, Operand(result_reg));
-    j(zero, &zero_check, Label::kNear);
-    fstp(0);
-    jmp(&done, Label::kNear);
-    bind(&zero_check);
-    // To check for minus zero, we load the value again as float, and check
-    // if that is still 0.
-    sub(esp, Immediate(kPointerSize));
-    fstp_s(Operand(esp, 0));
-    pop(result_reg);
-    test(result_reg, Operand(result_reg));
-    j(zero, &done, Label::kNear);
-    jmp(lost_precision, Label::kNear);
-
-    bind(&lost_precision_pop);
-    fstp(0);
-    jmp(lost_precision, Label::kNear);
-  }
   bind(&done);
 }
 
@@ -316,11 +294,8 @@ void MacroAssembler::LoadUint32NoSSE2(Register src) {
 
 
 void MacroAssembler::RecordWriteArray(
-    Register object,
-    Register value,
-    Register index,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
+    Register object, Register value, Register index, SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -340,28 +315,24 @@ void MacroAssembler::RecordWriteArray(
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(object, dst, value, remembered_set_action, OMIT_SMI_CHECK,
-              pointers_to_here_check_for_value);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(index, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(index, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
 
 void MacroAssembler::RecordWriteField(
-    Register object,
-    int offset,
-    Register value,
-    Register dst,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
-    PointersToHereCheck pointers_to_here_check_for_value) {
+    Register object, int offset, Register value, Register dst,
+    SaveFPRegsMode save_fp, RememberedSetAction remembered_set_action,
+    SmiCheck smi_check, PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -384,25 +355,23 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, remembered_set_action, OMIT_SMI_CHECK,
-              pointers_to_here_check_for_value);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(dst, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(dst, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
 
-void MacroAssembler::RecordWriteForMap(
-    Register object,
-    Handle<Map> map,
-    Register scratch1,
-    Register scratch2) {
+void MacroAssembler::RecordWriteForMap(Register object, Handle<Map> map,
+                                       Register scratch1, Register scratch2,
+                                       SaveFPRegsMode save_fp) {
   Label done;
 
   Register address = scratch1;
@@ -439,7 +408,8 @@ void MacroAssembler::RecordWriteForMap(
                       &done,
                       Label::kNear);
 
-  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET);
+  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET,
+                       save_fp);
   CallStub(&stub);
 
   bind(&done);
@@ -451,19 +421,16 @@ void MacroAssembler::RecordWriteForMap(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch2, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(scratch1, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(scratch2, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
 
 void MacroAssembler::RecordWrite(
-    Register object,
-    Register address,
-    Register value,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
+    Register object, Register address, Register value, SaveFPRegsMode fp_mode,
+    RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
   DCHECK(!object.is(value));
   DCHECK(!object.is(address));
@@ -507,8 +474,8 @@ void MacroAssembler::RecordWrite(
                 &done,
                 Label::kNear);
 
-  RecordWriteStub stub(isolate(), object, value, address,
-                       remembered_set_action);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
 
   bind(&done);
@@ -520,8 +487,8 @@ void MacroAssembler::RecordWrite(
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(address, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(address, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -753,6 +720,53 @@ void MacroAssembler::FCmp() {
 }
 
 
+void MacroAssembler::FXamMinusZero() {
+  fxam();
+  push(eax);
+  fnstsw_ax();
+  and_(eax, Immediate(0x4700));
+  // For minus zero, C3 == 1 && C1 == 1.
+  cmp(eax, Immediate(0x4200));
+  pop(eax);
+  fstp(0);
+}
+
+
+void MacroAssembler::FXamSign() {
+  fxam();
+  push(eax);
+  fnstsw_ax();
+  // For negative value (including -0.0), C1 == 1.
+  and_(eax, Immediate(0x0200));
+  pop(eax);
+  fstp(0);
+}
+
+
+void MacroAssembler::X87CheckIA() {
+  push(eax);
+  fnstsw_ax();
+  // For #IA, IE == 1 && SF == 0.
+  and_(eax, Immediate(0x0041));
+  cmp(eax, Immediate(0x0001));
+  pop(eax);
+}
+
+
+// rc=00B, round to nearest.
+// rc=01B, round down.
+// rc=10B, round up.
+// rc=11B, round toward zero.
+void MacroAssembler::X87SetRC(int rc) {
+  sub(esp, Immediate(kPointerSize));
+  fnstcw(MemOperand(esp, 0));
+  and_(MemOperand(esp, 0), Immediate(0xF3FF));
+  or_(MemOperand(esp, 0), Immediate(rc));
+  fldcw(MemOperand(esp, 0));
+  add(esp, Immediate(kPointerSize));
+}
+
+
 void MacroAssembler::AssertNumber(Register object) {
   if (emit_debug_code()) {
     Label ok;
@@ -890,13 +904,22 @@ void MacroAssembler::EnterExitFramePrologue() {
 }
 
 
-void MacroAssembler::EnterExitFrameEpilogue(int argc) {
-  sub(esp, Immediate(argc * kPointerSize));
+void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
+  // Optionally save FPU state.
+  if (save_doubles) {
+    // Store FPU state to m108byte.
+    int space = 108 + argc * kPointerSize;
+    sub(esp, Immediate(space));
+    const int offset = -2 * kPointerSize;  // entry fp + code object.
+    fnsave(MemOperand(ebp, offset - 108));
+  } else {
+    sub(esp, Immediate(argc * kPointerSize));
+  }
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
-    DCHECK(IsPowerOf2(kFrameAlignment));
+    DCHECK(base::bits::IsPowerOfTwo32(kFrameAlignment));
     and_(esp, -kFrameAlignment);
   }
 
@@ -905,7 +928,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc) {
 }
 
 
-void MacroAssembler::EnterExitFrame() {
+void MacroAssembler::EnterExitFrame(bool save_doubles) {
   EnterExitFramePrologue();
 
   // Set up argc and argv in callee-saved registers.
@@ -914,17 +937,23 @@ void MacroAssembler::EnterExitFrame() {
   lea(esi, Operand(ebp, eax, times_4, offset));
 
   // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(3);
+  EnterExitFrameEpilogue(3, save_doubles);
 }
 
 
 void MacroAssembler::EnterApiExitFrame(int argc) {
   EnterExitFramePrologue();
-  EnterExitFrameEpilogue(argc);
+  EnterExitFrameEpilogue(argc, false);
 }
 
 
-void MacroAssembler::LeaveExitFrame() {
+void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+  // Optionally restore FPU state.
+  if (save_doubles) {
+    const int offset = -2 * kPointerSize;
+    frstor(MemOperand(ebp, offset - 108));
+  }
+
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));
@@ -1627,12 +1656,10 @@ void MacroAssembler::AllocateTwoByteString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiString(Register result,
-                                         Register length,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Label* gc_required) {
+void MacroAssembler::AllocateOneByteString(Register result, Register length,
+                                           Register scratch1, Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
   DCHECK((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
@@ -1641,7 +1668,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   add(scratch1, Immediate(kObjectAlignmentMask));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
-  // Allocate ASCII string in new space.
+  // Allocate one-byte string in new space.
   Allocate(SeqOneByteString::kHeaderSize,
            times_1,
            scratch1,
@@ -1654,7 +1681,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(isolate()->factory()->ascii_string_map()));
+      Immediate(isolate()->factory()->one_byte_string_map()));
   mov(scratch1, length);
   SmiTag(scratch1);
   mov(FieldOperand(result, String::kLengthOffset), scratch1);
@@ -1663,20 +1690,18 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiString(Register result,
-                                         int length,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Label* gc_required) {
+void MacroAssembler::AllocateOneByteString(Register result, int length,
+                                           Register scratch1, Register scratch2,
+                                           Label* gc_required) {
   DCHECK(length > 0);
 
-  // Allocate ASCII string in new space.
+  // Allocate one-byte string in new space.
   Allocate(SeqOneByteString::SizeFor(length), result, scratch1, scratch2,
            gc_required, TAG_OBJECT);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(isolate()->factory()->ascii_string_map()));
+      Immediate(isolate()->factory()->one_byte_string_map()));
   mov(FieldOperand(result, String::kLengthOffset),
       Immediate(Smi::FromInt(length)));
   mov(FieldOperand(result, String::kHashFieldOffset),
@@ -1698,10 +1723,10 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiConsString(Register result,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* gc_required) {
+void MacroAssembler::AllocateOneByteConsString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
   Allocate(ConsString::kSize,
            result,
            scratch1,
@@ -1711,7 +1736,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(isolate()->factory()->cons_ascii_string_map()));
+      Immediate(isolate()->factory()->cons_one_byte_string_map()));
 }
 
 
@@ -1729,17 +1754,17 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiSlicedString(Register result,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
+void MacroAssembler::AllocateOneByteSlicedString(Register result,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
   // Allocate heap number in new space.
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
            TAG_OBJECT);
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(isolate()->factory()->sliced_ascii_string_map()));
+      Immediate(isolate()->factory()->sliced_one_byte_string_map()));
 }
 
 
@@ -1828,7 +1853,7 @@ void MacroAssembler::BooleanBitTest(Register object,
                                     int field_offset,
                                     int bit_index) {
   bit_index += kSmiTagSize + kSmiShiftSize;
-  DCHECK(IsPowerOf2(kBitsPerByte));
+  DCHECK(base::bits::IsPowerOfTwo32(kBitsPerByte));
   int byte_index = bit_index / kBitsPerByte;
   int byte_bit_index = bit_index & (kBitsPerByte - 1);
   test_b(FieldOperand(object, field_offset + byte_index),
@@ -1958,8 +1983,8 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -1971,7 +1996,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(isolate(), 1);
+  CEntryStub ces(isolate(), 1, save_doubles);
   CallStub(&ces);
 }
 
@@ -2015,7 +2040,7 @@ Operand ApiParameterOperand(int index) {
 void MacroAssembler::PrepareCallApiFunction(int argc) {
   EnterApiExitFrame(argc);
   if (emit_debug_code()) {
-    mov(esi, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -2521,6 +2546,9 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 
 
 void MacroAssembler::VerifyX87StackDepth(uint32_t depth) {
+  // Turn off the stack depth check when serializer is enabled to reduce the
+  // code size.
+  if (serializer_enabled()) return;
   // Make sure the floating point stack is either empty or has depth items.
   DCHECK(depth <= 7);
   // This is very expensive.
@@ -2669,7 +2697,7 @@ void MacroAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     Label alignment_as_expected;
     test(esp, Immediate(frame_alignment_mask));
     j(zero, &alignment_as_expected);
@@ -2797,10 +2825,8 @@ void MacroAssembler::LookupNumberStringCache(Register object,
 }
 
 
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
-    Register instance_type,
-    Register scratch,
-    Label* failure) {
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(
+    Register instance_type, Register scratch, Label* failure) {
   if (!scratch.is(instance_type)) {
     mov(scratch, instance_type);
   }
@@ -2811,11 +2837,11 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
 }
 
 
-void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
-                                                         Register object2,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Label* failure) {
+void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
+                                                           Register object2,
+                                                           Register scratch1,
+                                                           Register scratch2,
+                                                           Label* failure) {
   // Check that both objects are not smis.
   STATIC_ASSERT(kSmiTag == 0);
   mov(scratch1, object1);
@@ -2828,24 +2854,24 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
   movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
-  // Check that both are flat ASCII strings.
-  const int kFlatAsciiStringMask =
+  // Check that both are flat one-byte strings.
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag =
+  const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
   // Interleave bits from both instance types and compare them in one check.
-  DCHECK_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
-  and_(scratch1, kFlatAsciiStringMask);
-  and_(scratch2, kFlatAsciiStringMask);
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
+  and_(scratch1, kFlatOneByteStringMask);
+  and_(scratch2, kFlatOneByteStringMask);
   lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
+  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << 3));
   j(not_equal, failure);
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Operand operand,
-                                         Label* not_unique_name,
-                                         Label::Distance distance) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
+                                                     Label* not_unique_name,
+                                                     Label::Distance distance) {
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   Label succeed;
   test(operand, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
@@ -2899,7 +2925,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
     // and the original value of esp.
     mov(scratch, esp);
     sub(esp, Immediate((num_arguments + 1) * kPointerSize));
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     and_(esp, -frame_alignment);
     mov(Operand(esp, num_arguments * kPointerSize), scratch);
   } else {
@@ -3177,12 +3203,12 @@ void MacroAssembler::EnsureNotWhite(
   jmp(&is_data_object, Label::kNear);
 
   bind(&not_external);
-  // Sequential string, either ASCII or UC16.
+  // Sequential string, either Latin1 or UC16.
   DCHECK(kOneByteStringTag == 0x04);
   and_(length, Immediate(kStringEncodingMask));
   xor_(length, Immediate(kStringEncodingMask));
   add(length, Immediate(0x04));
-  // Value now either 4 (if ASCII) or 8 (if UC16), i.e., char-size shifted
+  // Value now either 4 (if Latin1) or 8 (if UC16), i.e., char-size shifted
   // by 2. If we multiply the string length as smi by this, it still
   // won't overflow a 32-bit value.
   DCHECK_EQ(SeqOneByteString::kMaxSize, SeqTwoByteString::kMaxSize);
@@ -3310,12 +3336,14 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
   DCHECK(!dividend.is(eax));
   DCHECK(!dividend.is(edx));
-  MultiplierAndShift ms(divisor);
-  mov(eax, Immediate(ms.multiplier()));
+  base::MagicNumbersForDivision<uint32_t> mag =
+      base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
+  mov(eax, Immediate(mag.multiplier));
   imul(dividend);
-  if (divisor > 0 && ms.multiplier() < 0) add(edx, dividend);
-  if (divisor < 0 && ms.multiplier() > 0) sub(edx, dividend);
-  if (ms.shift() > 0) sar(edx, ms.shift());
+  bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
+  if (divisor > 0 && neg) add(edx, dividend);
+  if (divisor < 0 && !neg && mag.multiplier > 0) sub(edx, dividend);
+  if (mag.shift > 0) sar(edx, mag.shift);
   mov(eax, dividend);
   shr(eax, 31);
   add(edx, eax);

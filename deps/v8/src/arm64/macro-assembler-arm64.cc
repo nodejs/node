@@ -6,12 +6,14 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/base/bits.h"
+#include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/isolate-inl.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -1656,12 +1658,6 @@ void MacroAssembler::ThrowUncatchable(Register value,
 }
 
 
-void MacroAssembler::SmiAbs(const Register& smi, Label* slow) {
-  DCHECK(smi.Is64Bits());
-  Abs(smi, smi, slow);
-}
-
-
 void MacroAssembler::AssertSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -2059,7 +2055,7 @@ void MacroAssembler::CallCFunction(Register function,
     int sp_alignment = ActivationFrameAlignment();
     // The ABI mandates at least 16-byte alignment.
     DCHECK(sp_alignment >= 16);
-    DCHECK(IsPowerOf2(sp_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
 
     // The current stack pointer is a callee saved register, and is preserved
     // across the call.
@@ -2251,58 +2247,38 @@ int MacroAssembler::CallSize(Handle<Code> code,
 }
 
 
+void MacroAssembler::JumpIfHeapNumber(Register object, Label* on_heap_number,
+                                      SmiCheckType smi_check_type) {
+  Label on_not_heap_number;
 
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(object, &on_not_heap_number);
+  }
 
-
-void MacroAssembler::JumpForHeapNumber(Register object,
-                                       Register heap_number_map,
-                                       Label* on_heap_number,
-                                       Label* on_not_heap_number) {
-  DCHECK(on_heap_number || on_not_heap_number);
   AssertNotSmi(object);
 
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-
-  // Load the HeapNumber map if it is not passed.
-  if (heap_number_map.Is(NoReg)) {
-    heap_number_map = temps.AcquireX();
-    LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  } else {
-    AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  }
-
-  DCHECK(!AreAliased(temp, heap_number_map));
-
   Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-  Cmp(temp, heap_number_map);
+  JumpIfRoot(temp, Heap::kHeapNumberMapRootIndex, on_heap_number);
 
-  if (on_heap_number) {
-    B(eq, on_heap_number);
-  }
-  if (on_not_heap_number) {
-    B(ne, on_not_heap_number);
-  }
-}
-
-
-void MacroAssembler::JumpIfHeapNumber(Register object,
-                                      Label* on_heap_number,
-                                      Register heap_number_map) {
-  JumpForHeapNumber(object,
-                    heap_number_map,
-                    on_heap_number,
-                    NULL);
+  Bind(&on_not_heap_number);
 }
 
 
 void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Label* on_not_heap_number,
-                                         Register heap_number_map) {
-  JumpForHeapNumber(object,
-                    heap_number_map,
-                    NULL,
-                    on_not_heap_number);
+                                         SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(object, on_not_heap_number);
+  }
+
+  AssertNotSmi(object);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+  JumpIfNotRoot(temp, Heap::kHeapNumberMapRootIndex, on_not_heap_number);
 }
 
 
@@ -2336,8 +2312,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   Label load_result_from_cache;
 
   JumpIfSmi(object, &is_smi);
-  CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
-           DONT_DO_SMI_CHECK);
+  JumpIfNotHeapNumber(object, not_found);
 
   STATIC_ASSERT(kDoubleSize == (kWRegSize * 2));
   Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
@@ -2699,14 +2674,9 @@ void MacroAssembler::FillFields(Register dst,
 }
 
 
-void MacroAssembler::JumpIfEitherIsNotSequentialAsciiStrings(
-    Register first,
-    Register second,
-    Register scratch1,
-    Register scratch2,
-    Label* failure,
-    SmiCheckType smi_check) {
-
+void MacroAssembler::JumpIfEitherIsNotSequentialOneByteStrings(
+    Register first, Register second, Register scratch1, Register scratch2,
+    Label* failure, SmiCheckType smi_check) {
   if (smi_check == DO_SMI_CHECK) {
     JumpIfEitherSmi(first, second, failure);
   } else if (emit_debug_code()) {
@@ -2721,73 +2691,64 @@ void MacroAssembler::JumpIfEitherIsNotSequentialAsciiStrings(
     Bind(&not_smi);
   }
 
-  // Test that both first and second are sequential ASCII strings.
+  // Test that both first and second are sequential one-byte strings.
   Ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
   Ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
   Ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   Ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
 
-  JumpIfEitherInstanceTypeIsNotSequentialAscii(scratch1,
-                                               scratch2,
-                                               scratch1,
-                                               scratch2,
-                                               failure);
+  JumpIfEitherInstanceTypeIsNotSequentialOneByte(scratch1, scratch2, scratch1,
+                                                 scratch2, failure);
 }
 
 
-void MacroAssembler::JumpIfEitherInstanceTypeIsNotSequentialAscii(
-    Register first,
-    Register second,
-    Register scratch1,
-    Register scratch2,
+void MacroAssembler::JumpIfEitherInstanceTypeIsNotSequentialOneByte(
+    Register first, Register second, Register scratch1, Register scratch2,
     Label* failure) {
   DCHECK(!AreAliased(scratch1, second));
   DCHECK(!AreAliased(scratch1, scratch2));
-  static const int kFlatAsciiStringMask =
+  static const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  static const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-  And(scratch1, first, kFlatAsciiStringMask);
-  And(scratch2, second, kFlatAsciiStringMask);
-  Cmp(scratch1, kFlatAsciiStringTag);
-  Ccmp(scratch2, kFlatAsciiStringTag, NoFlag, eq);
+  static const int kFlatOneByteStringTag = ONE_BYTE_STRING_TYPE;
+  And(scratch1, first, kFlatOneByteStringMask);
+  And(scratch2, second, kFlatOneByteStringMask);
+  Cmp(scratch1, kFlatOneByteStringTag);
+  Ccmp(scratch2, kFlatOneByteStringTag, NoFlag, eq);
   B(ne, failure);
 }
 
 
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
-                                                            Register scratch,
-                                                            Label* failure) {
-  const int kFlatAsciiStringMask =
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(Register type,
+                                                              Register scratch,
+                                                              Label* failure) {
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  const int kFlatAsciiStringTag =
+  const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
-  And(scratch, type, kFlatAsciiStringMask);
-  Cmp(scratch, kFlatAsciiStringTag);
+  And(scratch, type, kFlatOneByteStringMask);
+  Cmp(scratch, kFlatOneByteStringTag);
   B(ne, failure);
 }
 
 
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
-    Register first,
-    Register second,
-    Register scratch1,
-    Register scratch2,
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
+    Register first, Register second, Register scratch1, Register scratch2,
     Label* failure) {
   DCHECK(!AreAliased(first, second, scratch1, scratch2));
-  const int kFlatAsciiStringMask =
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  const int kFlatAsciiStringTag =
+  const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
-  And(scratch1, first, kFlatAsciiStringMask);
-  And(scratch2, second, kFlatAsciiStringMask);
-  Cmp(scratch1, kFlatAsciiStringTag);
-  Ccmp(scratch2, kFlatAsciiStringTag, NoFlag, eq);
+  And(scratch1, first, kFlatOneByteStringMask);
+  And(scratch2, second, kFlatOneByteStringMask);
+  Cmp(scratch1, kFlatOneByteStringTag);
+  Ccmp(scratch2, kFlatOneByteStringTag, NoFlag, eq);
   B(ne, failure);
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Register type,
-                                         Label* not_unique_name) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register type,
+                                                     Label* not_unique_name) {
   STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
   // if ((type is string && type is internalized) || type == SYMBOL_TYPE) {
   //   continue
@@ -3013,11 +2974,21 @@ void MacroAssembler::TryConvertDoubleToInt64(Register result,
 void MacroAssembler::TruncateDoubleToI(Register result,
                                        DoubleRegister double_input) {
   Label done;
-  DCHECK(jssp.Is(StackPointer()));
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits
   // contain our truncated int32 result.
   TryConvertDoubleToInt64(result, double_input, &done);
+
+  const Register old_stack_pointer = StackPointer();
+  if (csp.Is(old_stack_pointer)) {
+    // This currently only happens during compiler-unittest. If it arises
+    // during regular code generation the DoubleToI stub should be updated to
+    // cope with csp and have an extra parameter indicating which stack pointer
+    // it should use.
+    Push(jssp, xzr);  // Push xzr to maintain csp required 16-bytes alignment.
+    Mov(jssp, csp);
+    SetStackPointer(jssp);
+  }
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr, double_input);
@@ -3030,8 +3001,15 @@ void MacroAssembler::TruncateDoubleToI(Register result,
                      true);  // skip_fastpath
   CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
 
-  Drop(1, kDoubleSize);  // Drop the double input on the stack.
-  Pop(lr);
+  DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());
+  Pop(xzr, lr);  // xzr to drop the double input on the stack.
+
+  if (csp.Is(old_stack_pointer)) {
+    Mov(csp, jssp);
+    SetStackPointer(csp);
+    AssertStackConsistency();
+    Pop(xzr, jssp);
+  }
 
   Bind(&done);
 }
@@ -3556,12 +3534,10 @@ void MacroAssembler::AllocateTwoByteString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiString(Register result,
-                                         Register length,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Label* gc_required) {
+void MacroAssembler::AllocateOneByteString(Register result, Register length,
+                                           Register scratch1, Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2, scratch3));
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
@@ -3570,7 +3546,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   Add(scratch1, length, kObjectAlignmentMask + SeqOneByteString::kHeaderSize);
   Bic(scratch1, scratch1, kObjectAlignmentMask);
 
-  // Allocate ASCII string in new space.
+  // Allocate one-byte string in new space.
   Allocate(scratch1,
            result,
            scratch2,
@@ -3579,11 +3555,8 @@ void MacroAssembler::AllocateAsciiString(Register result,
            TAG_OBJECT);
 
   // Set the map, length and hash field.
-  InitializeNewString(result,
-                      length,
-                      Heap::kAsciiStringMapRootIndex,
-                      scratch1,
-                      scratch2);
+  InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
+                      scratch1, scratch2);
 }
 
 
@@ -3603,11 +3576,10 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiConsString(Register result,
-                                             Register length,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* gc_required) {
+void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
   Allocate(ConsString::kSize,
            result,
            scratch1,
@@ -3615,11 +3587,8 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
            gc_required,
            TAG_OBJECT);
 
-  InitializeNewString(result,
-                      length,
-                      Heap::kConsAsciiStringMapRootIndex,
-                      scratch1,
-                      scratch2);
+  InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
+                      scratch1, scratch2);
 }
 
 
@@ -3640,20 +3609,17 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiSlicedString(Register result,
-                                               Register length,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
+void MacroAssembler::AllocateOneByteSlicedString(Register result,
+                                                 Register length,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2));
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
            TAG_OBJECT);
 
-  InitializeNewString(result,
-                      length,
-                      Heap::kSlicedAsciiStringMapRootIndex,
-                      scratch1,
-                      scratch2);
+  InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
+                      scratch1, scratch2);
 }
 
 
@@ -3754,9 +3720,16 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
-void MacroAssembler::CompareMap(Register obj,
-                                Register scratch,
-                                Handle<Map> map) {
+void MacroAssembler::CompareObjectMap(Register obj, Heap::RootListIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register obj_map = temps.AcquireX();
+  Ldr(obj_map, FieldMemOperand(obj, HeapObject::kMapOffset));
+  CompareRoot(obj_map, index);
+}
+
+
+void MacroAssembler::CompareObjectMap(Register obj, Register scratch,
+                                      Handle<Map> map) {
   Ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   CompareMap(scratch, map);
 }
@@ -3777,7 +3750,7 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  CompareMap(obj, scratch, map);
+  CompareObjectMap(obj, scratch, map);
   B(ne, fail);
 }
 
@@ -4017,8 +3990,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   JumpIfSmi(value_reg, &store_num);
 
   // Ensure that the object is a heap number.
-  CheckMap(value_reg, scratch1, isolate()->factory()->heap_number_map(),
-           fail, DONT_DO_SMI_CHECK);
+  JumpIfNotHeapNumber(value_reg, fail);
 
   Ldr(fpscratch1, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
@@ -4284,8 +4256,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
   Bind(&store_buffer_overflow);
   Push(lr);
-  StoreBufferOverflowStub store_buffer_overflow_stub =
-      StoreBufferOverflowStub(isolate(), fp_mode);
+  StoreBufferOverflowStub store_buffer_overflow_stub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow_stub);
   Pop(lr);
 
@@ -4424,8 +4395,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Mov(value, Operand(BitCast<int64_t>(kZapValue + 4)));
-    Mov(scratch, Operand(BitCast<int64_t>(kZapValue + 8)));
+    Mov(value, Operand(bit_cast<int64_t>(kZapValue + 4)));
+    Mov(scratch, Operand(bit_cast<int64_t>(kZapValue + 8)));
   }
 }
 
@@ -4444,7 +4415,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
-    CompareMap(map, temp, isolate()->factory()->meta_map());
+    CompareObjectMap(map, temp, isolate()->factory()->meta_map());
     Check(eq, kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -4496,8 +4467,8 @@ void MacroAssembler::RecordWriteForMap(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Mov(dst, Operand(BitCast<int64_t>(kZapValue + 12)));
-    Mov(map, Operand(BitCast<int64_t>(kZapValue + 16)));
+    Mov(dst, Operand(bit_cast<int64_t>(kZapValue + 12)));
+    Mov(map, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
 }
 
@@ -4569,8 +4540,8 @@ void MacroAssembler::RecordWrite(
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Mov(address, Operand(BitCast<int64_t>(kZapValue + 12)));
-    Mov(value, Operand(BitCast<int64_t>(kZapValue + 16)));
+    Mov(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
+    Mov(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
 }
 
@@ -4775,8 +4746,8 @@ void MacroAssembler::EnsureNotWhite(
   Mov(length_scratch, ExternalString::kSize);
   TestAndBranchIfAnySet(instance_type, kExternalStringTag, &is_data_object);
 
-  // Sequential string, either ASCII or UC16.
-  // For ASCII (char-size of 1) we shift the smi tag away to get the length.
+  // Sequential string, either Latin1 or UC16.
+  // For Latin1 (char-size of 1) we shift the smi tag away to get the length.
   // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
   // getting the length multiplied by 2.
   DCHECK(kOneByteStringTag == 4 && kStringEncodingMask == 4);
@@ -5315,13 +5286,15 @@ void MacroAssembler::TruncatingDiv(Register result,
                                    int32_t divisor) {
   DCHECK(!AreAliased(result, dividend));
   DCHECK(result.Is32Bits() && dividend.Is32Bits());
-  MultiplierAndShift ms(divisor);
-  Mov(result, ms.multiplier());
+  base::MagicNumbersForDivision<uint32_t> mag =
+      base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
+  Mov(result, mag.multiplier);
   Smull(result.X(), dividend, result);
   Asr(result.X(), result.X(), 32);
-  if (divisor > 0 && ms.multiplier() < 0) Add(result, result, dividend);
-  if (divisor < 0 && ms.multiplier() > 0) Sub(result, result, dividend);
-  if (ms.shift() > 0) Asr(result, result, ms.shift());
+  bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
+  if (divisor > 0 && neg) Add(result, result, dividend);
+  if (divisor < 0 && !neg && mag.multiplier > 0) Sub(result, result, dividend);
+  if (mag.shift > 0) Asr(result, result, mag.shift);
   Add(result, result, Operand(dividend, LSR, 31));
 }
 

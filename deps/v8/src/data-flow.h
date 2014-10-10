@@ -137,6 +137,17 @@ class BitVector: public ZoneObject {
     }
   }
 
+  bool IntersectIsChanged(const BitVector& other) {
+    DCHECK(other.length() == length());
+    bool changed = false;
+    for (int i = 0; i < data_length_; i++) {
+      uint32_t old_data = data_[i];
+      data_[i] &= other.data_[i];
+      if (data_[i] != old_data) changed = true;
+    }
+    return changed;
+  }
+
   void Subtract(const BitVector& other) {
     DCHECK(other.length() == length());
     for (int i = 0; i < data_length_; i++) {
@@ -164,14 +175,7 @@ class BitVector: public ZoneObject {
     return true;
   }
 
-  int Count() const {
-    int count = 0;
-    for (int i = 0; i < data_length_; i++) {
-      int data = data_[i];
-      if (data != 0) count += CompilerIntrinsics::CountSetBits(data);
-    }
-    return count;
-  }
+  int Count() const;
 
   int length() const { return length_; }
 
@@ -184,6 +188,7 @@ class BitVector: public ZoneObject {
   int data_length_;
   uint32_t* data_;
 };
+
 
 class GrowableBitVector BASE_EMBEDDED {
  public:
@@ -241,8 +246,7 @@ class GrowableBitVector BASE_EMBEDDED {
   BitVector* bits_;
 };
 
-
-} }  // namespace v8::internal
-
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DATAFLOW_H_

@@ -43,25 +43,6 @@ HeapGraphEdge** HeapEntry::children_arr() {
 }
 
 
-SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
-  return kGcRootsFirstSubrootId + delta * kObjectIdStep;
-}
-
-
-HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
-  return reinterpret_cast<HeapObject*>(
-      reinterpret_cast<char*>(kFirstGcSubrootObject) +
-      delta * HeapObjectsMap::kObjectIdStep);
-}
-
-
-int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return static_cast<int>(
-      (reinterpret_cast<char*>(subroot) -
-       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep);
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_SNAPSHOT_GENERATOR_INL_H_

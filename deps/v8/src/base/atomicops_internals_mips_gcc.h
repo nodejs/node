@@ -27,16 +27,16 @@ inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
   __asm__ __volatile__(".set push\n"
                        ".set noreorder\n"
                        "1:\n"
-                       "ll %0, %5\n"  // prev = *ptr
-                       "bne %0, %3, 2f\n"  // if (prev != old_value) goto 2
-                       "move %2, %4\n"  // tmp = new_value
-                       "sc %2, %1\n"  // *ptr = tmp (with atomic check)
-                       "beqz %2, 1b\n"  // start again on atomic error
+                       "ll %0, 0(%4)\n"  // prev = *ptr
+                       "bne %0, %2, 2f\n"  // if (prev != old_value) goto 2
+                       "move %1, %3\n"  // tmp = new_value
+                       "sc %1, 0(%4)\n"  // *ptr = tmp (with atomic check)
+                       "beqz %1, 1b\n"  // start again on atomic error
                        "nop\n"  // delay slot nop
                        "2:\n"
                        ".set pop\n"
-                       : "=&r" (prev), "=m" (*ptr), "=&r" (tmp)
-                       : "Ir" (old_value), "r" (new_value), "m" (*ptr)
+                       : "=&r" (prev), "=&r" (tmp)
+                       : "Ir" (old_value), "r" (new_value), "r" (ptr)
                        : "memory");
   return prev;
 }
@@ -48,15 +48,16 @@ inline Atomic32 NoBarrier_AtomicExchange(volatile Atomic32* ptr,
   Atomic32 temp, old;
   __asm__ __volatile__(".set push\n"
                        ".set noreorder\n"
+                       ".set at\n"
                        "1:\n"
-                       "ll %1, %2\n"  // old = *ptr
-                       "move %0, %3\n"  // temp = new_value
-                       "sc %0, %2\n"  // *ptr = temp (with atomic check)
+                       "ll %1, 0(%3)\n"  // old = *ptr
+                       "move %0, %2\n"  // temp = new_value
+                       "sc %0, 0(%3)\n"  // *ptr = temp (with atomic check)
                        "beqz %0, 1b\n"  // start again on atomic error
                        "nop\n"  // delay slot nop
                        ".set pop\n"
-                       : "=&r" (temp), "=&r" (old), "=m" (*ptr)
-                       : "r" (new_value), "m" (*ptr)
+                       : "=&r" (temp), "=&r" (old)
+                       : "r" (new_value), "r" (ptr)
                        : "memory");
 
   return old;
@@ -71,14 +72,14 @@ inline Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr,
   __asm__ __volatile__(".set push\n"
                        ".set noreorder\n"
                        "1:\n"
-                       "ll %0, %2\n"  // temp = *ptr
-                       "addu %1, %0, %3\n"  // temp2 = temp + increment
-                       "sc %1, %2\n"  // *ptr = temp2 (with atomic check)
+                       "ll %0, 0(%3)\n"  // temp = *ptr
+                       "addu %1, %0, %2\n"  // temp2 = temp + increment
+                       "sc %1, 0(%3)\n"  // *ptr = temp2 (with atomic check)
                        "beqz %1, 1b\n"  // start again on atomic error
-                       "addu %1, %0, %3\n"  // temp2 = temp + increment
+                       "addu %1, %0, %2\n"  // temp2 = temp + increment
                        ".set pop\n"
-                       : "=&r" (temp), "=&r" (temp2), "=m" (*ptr)
-                       : "Ir" (increment), "m" (*ptr)
+                       : "=&r" (temp), "=&r" (temp2)
+                       : "Ir" (increment), "r" (ptr)
                        : "memory");
   // temp2 now holds the final value.
   return temp2;

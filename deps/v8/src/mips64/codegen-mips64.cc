@@ -948,18 +948,18 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(call_runtime, ne, at, Operand(zero_reg));
   __ ld(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
-  Label ascii, done;
+  Label one_byte, done;
   __ bind(&check_encoding);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ And(at, result, Operand(kStringEncodingMask));
-  __ Branch(&ascii, ne, at, Operand(zero_reg));
+  __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
   __ dsll(at, index, 1);
   __ Daddu(at, string, at);
   __ lhu(result, MemOperand(at));
   __ jmp(&done);
-  __ bind(&ascii);
-  // Ascii string.
+  __ bind(&one_byte);
+  // One_byte string.
   __ Daddu(at, string, index);
   __ lbu(result, MemOperand(at));
   __ bind(&done);
