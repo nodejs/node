@@ -21,6 +21,7 @@
 
 #include "src/base/win32-headers.h"
 
+#include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -112,11 +113,6 @@ namespace {
 bool g_hard_abort = false;
 
 }  // namespace
-
-intptr_t OS::MaxVirtualMemory() {
-  return 0;
-}
-
 
 class TimezoneCache {
  public:
@@ -705,7 +701,7 @@ static size_t GetPageSize() {
   if (page_size == 0) {
     SYSTEM_INFO info;
     GetSystemInfo(&info);
-    page_size = RoundUpToPowerOf2(info.dwPageSize);
+    page_size = base::bits::RoundUpToPowerOfTwo32(info.dwPageSize);
   }
   return page_size;
 }
@@ -790,7 +786,7 @@ void* OS::Allocate(const size_t requested,
 
   if (mbase == NULL) return NULL;
 
-  DCHECK(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
+  DCHECK((reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment()) == 0);
 
   *allocated = msize;
   return mbase;
@@ -1168,18 +1164,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-uint64_t OS::TotalPhysicalMemory() {
-  MEMORYSTATUSEX memory_info;
-  memory_info.dwLength = sizeof(memory_info);
-  if (!GlobalMemoryStatusEx(&memory_info)) {
-    UNREACHABLE();
-    return 0;
-  }
-
-  return static_cast<uint64_t>(memory_info.ullTotalPhys);
-}
-
-
 #else  // __MINGW32__
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return std::vector<OS::SharedLibraryAddress>();
@@ -1188,13 +1172,6 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
 void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
-
-
-int OS::NumberOfProcessorsOnline() {
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  return info.dwNumberOfProcessors;
-}
 
 
 double OS::nan_value() {
@@ -1228,7 +1205,7 @@ VirtualMemory::VirtualMemory(size_t size)
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
-  DCHECK(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);

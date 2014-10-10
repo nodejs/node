@@ -338,7 +338,7 @@ class Instruction {
   // Find the PC offset encoded in this instruction. 'this' may be a branch or
   // a PC-relative addressing instruction.
   // The offset returned is unscaled.
-  ptrdiff_t ImmPCOffset();
+  int64_t ImmPCOffset();
 
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.
@@ -352,9 +352,9 @@ class Instruction {
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
 
-  uint8_t* LiteralAddress() {
+  uintptr_t LiteralAddress() {
     int offset = ImmLLiteral() << kLoadLiteralScaleLog2;
-    return reinterpret_cast<uint8_t*>(this) + offset;
+    return reinterpret_cast<uintptr_t>(this) + offset;
   }
 
   enum CheckAlignment { NO_CHECK, CHECK_ALIGNMENT };

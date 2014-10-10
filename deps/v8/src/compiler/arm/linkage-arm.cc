@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct LinkageHelperTraits {
+struct ArmLinkageHelperTraits {
   static Register ReturnValueReg() { return r0; }
   static Register ReturnValue2Reg() { return r1; }
   static Register JSCallFunctionReg() { return r1; }
@@ -33,35 +33,34 @@ struct LinkageHelperTraits {
 };
 
 
+typedef LinkageHelper<ArmLinkageHelperTraits> LH;
+
 CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
-  return LinkageHelper::GetJSCallDescriptor<LinkageHelperTraits>(
-      zone, parameter_count);
+  return LH::GetJSCallDescriptor(zone, parameter_count);
 }
 
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
-  return LinkageHelper::GetRuntimeCallDescriptor<LinkageHelperTraits>(
-      zone, function, parameter_count, properties, can_deoptimize);
+    Operator::Properties properties, Zone* zone) {
+  return LH::GetRuntimeCallDescriptor(zone, function, parameter_count,
+                                      properties);
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
-  return LinkageHelper::GetStubCallDescriptor<LinkageHelperTraits>(
-      zone, descriptor, stack_parameter_count, can_deoptimize);
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
+    CallDescriptor::Flags flags, Zone* zone) {
+  return LH::GetStubCallDescriptor(zone, descriptor, stack_parameter_count,
+                                   flags);
 }
 
 
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineType return_type,
-    const MachineType* param_types) {
-  return LinkageHelper::GetSimplifiedCDescriptor<LinkageHelperTraits>(
-      zone, num_params, return_type, param_types);
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
+                                                  MachineSignature* sig) {
+  return LH::GetSimplifiedCDescriptor(zone, sig);
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

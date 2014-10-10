@@ -29,7 +29,7 @@
 [ALWAYS, {
   # Too slow in Debug mode.
   'octane/mandreel': [PASS, ['mode == debug', SKIP]],
-  # TODO(mstarzinger,ishell): Timeout with TF in predictable mode.
-  'octane/richards': [PASS, NO_VARIANTS],
+  # TODO(turbofan): Too slow in debug mode for now.
+  'octane/pdfjs': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 ]

@@ -5,6 +5,7 @@
 #ifdef ENABLE_GDB_JIT_INTERFACE
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
@@ -222,16 +223,11 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     S_ATTR_PURE_INSTRUCTIONS = 0x80000000u
   };
 
-  MachOSection(const char* name,
-               const char* segment,
-               uintptr_t align,
+  MachOSection(const char* name, const char* segment, uint32_t align,
                uint32_t flags)
-    : name_(name),
-      segment_(segment),
-      align_(align),
-      flags_(flags) {
+      : name_(name), segment_(segment), align_(align), flags_(flags) {
     if (align_ != 0) {
-      DCHECK(IsPowerOf2(align));
+      DCHECK(base::bits::IsPowerOfTwo32(align));
       align_ = WhichPowerOf2(align_);
     }
   }
@@ -259,7 +255,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
  private:
   const char* name_;
   const char* segment_;
-  uintptr_t align_;
+  uint32_t align_;
   uint32_t flags_;
 };
 

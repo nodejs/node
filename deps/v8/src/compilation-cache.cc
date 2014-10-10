@@ -344,7 +344,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
 
 
 MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
-                                                  JSRegExp::Flags flags) {
+                                                       JSRegExp::Flags flags) {
   if (!IsEnabled()) return MaybeHandle<FixedArray>();
 
   return reg_exp_.Lookup(source, flags);

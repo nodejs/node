@@ -8,7 +8,9 @@
 
 #include "src/ast.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -19,6 +21,7 @@
 #include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
+#include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/log.h"
@@ -30,7 +33,6 @@
 #include "src/scopeinfo.h"
 #include "src/serialize.h"
 #include "src/simulator.h"
-#include "src/stub-cache.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 
@@ -47,7 +49,6 @@ int ThreadId::AllocateThreadId() {
 
 
 int ThreadId::GetCurrentThreadId() {
-  Isolate::EnsureInitialized();
   int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
@@ -79,6 +80,7 @@ void ThreadLocalTop::InitializeInternal() {
   save_context_ = NULL;
   catcher_ = NULL;
   top_lookup_result_ = NULL;
+  promise_on_stack_ = NULL;
 
   // These members are re-initialized later after deserialization
   // is complete.
@@ -100,23 +102,25 @@ void ThreadLocalTop::Initialize() {
 }
 
 
+void ThreadLocalTop::Free() {
+  // Match unmatched PopPromise calls.
+  while (promise_on_stack_) isolate_->PopPromise();
+}
+
+
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-#ifdef DEBUG
-base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
-#endif  // DEBUG
-base::LazyMutex Isolate::process_wide_mutex_ = LAZY_MUTEX_INITIALIZER;
+base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
-  EnsureInitialized();
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = new PerIsolateThreadData(this, thread_id);
@@ -136,28 +140,22 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
-  EnsureInitialized();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
 }
 
 
-void Isolate::EnsureInitialized() {
-  base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
-  if (thread_data_table_ == NULL) {
-    isolate_key_ = base::Thread::CreateThreadLocalKey();
-    thread_id_key_ = base::Thread::CreateThreadLocalKey();
-    per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-#ifdef DEBUG
-    PerThreadAssertScopeBase::thread_local_key =
-        base::Thread::CreateThreadLocalKey();
-#endif  // DEBUG
-    thread_data_table_ = new Isolate::ThreadDataTable();
-  }
+void Isolate::InitializeOncePerProcess() {
+  base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
+  CHECK(thread_data_table_ == NULL);
+  isolate_key_ = base::Thread::CreateThreadLocalKey();
+  thread_id_key_ = base::Thread::CreateThreadLocalKey();
+  per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
+  thread_data_table_ = new Isolate::ThreadDataTable();
 }
 
 
@@ -183,16 +181,16 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitPointer(&thread->pending_exception_);
   v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(BitCast<Object**>(&(thread->pending_message_script_)));
-  v->VisitPointer(BitCast<Object**>(&(thread->context_)));
+  v->VisitPointer(bit_cast<Object**>(&(thread->pending_message_script_)));
+  v->VisitPointer(bit_cast<Object**>(&(thread->context_)));
   v->VisitPointer(&thread->scheduled_exception_);
 
   for (v8::TryCatch* block = thread->try_catch_handler();
        block != NULL;
        block = block->next_) {
-    v->VisitPointer(BitCast<Object**>(&(block->exception_)));
-    v->VisitPointer(BitCast<Object**>(&(block->message_obj_)));
-    v->VisitPointer(BitCast<Object**>(&(block->message_script_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->exception_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->message_obj_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->message_script_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -445,22 +443,22 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
 
   Handle<String> column_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("column"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("column"));
   Handle<String> line_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("lineNumber"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("lineNumber"));
   Handle<String> script_id_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptId"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptId"));
   Handle<String> script_name_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptName"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
       factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("scriptNameOrSourceURL"));
+          STATIC_CHAR_VECTOR("scriptNameOrSourceURL"));
   Handle<String> function_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("functionName"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("functionName"));
   Handle<String> eval_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isEval"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isEval"));
   Handle<String> constructor_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isConstructor"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isConstructor"));
 
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
@@ -637,7 +635,10 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver,
                                       v8::AccessType type) {
   if (!thread_local_top()->failed_access_check_callback_) {
     Handle<String> message = factory()->InternalizeUtf8String("no access");
-    ScheduleThrow(*factory()->NewTypeError(message));
+    Handle<Object> error;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        this, error, factory()->NewTypeError(message), /* void */);
+    ScheduleThrow(*error);
     return;
   }
 
@@ -854,12 +855,6 @@ Object* Isolate::ThrowIllegalOperation() {
 }
 
 
-Object* Isolate::ThrowInvalidStringLength() {
-  return Throw(*factory()->NewRangeError(
-      "invalid_string_length", HandleVector<Object>(NULL, 0)));
-}
-
-
 void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
@@ -987,7 +982,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
   Handle<String> error_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("$Error"));
   Handle<Object> error_constructor = Object::GetProperty(
       js_builtins_object(), error_key).ToHandleChecked();
 
@@ -1018,9 +1013,9 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
   bool report_exception = catchable_by_javascript && should_report_exception;
   bool try_catch_needs_message =
-      can_be_caught_externally && try_catch_handler()->capture_message_ &&
-      !thread_local_top()->rethrowing_message_;
+      can_be_caught_externally && try_catch_handler()->capture_message_;
   bool bootstrapping = bootstrapper()->IsActive();
+  bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;
 
@@ -1030,7 +1025,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   }
 
   // Generate the message if required.
-  if (report_exception || try_catch_needs_message) {
+  if (!rethrowing_message && (report_exception || try_catch_needs_message)) {
     MessageLocation potential_computed_location;
     if (location == NULL) {
       // If no location was specified we use a computed one instead.
@@ -1049,8 +1044,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           // Look up as own property.  If the lookup fails, the exception is
           // probably not a valid Error object.  In that case, we fall through
           // and capture the stack trace at this throw site.
-          LookupIterator lookup(
-              exception_handle, key, LookupIterator::CHECK_OWN_REAL);
+          LookupIterator lookup(exception_handle, key,
+                                LookupIterator::OWN_SKIP_INTERCEPTOR);
           Handle<Object> stack_trace_property;
           if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
               stack_trace_property->IsJSArray()) {
@@ -1074,7 +1069,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
             Execution::ToDetailString(this, exception_arg);
         if (!maybe_exception.ToHandle(&exception_arg)) {
           exception_arg = factory()->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("exception"));
+              STATIC_CHAR_VECTOR("exception"));
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(
@@ -1289,6 +1284,48 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
 }
 
 
+void Isolate::PushPromise(Handle<JSObject> promise) {
+  ThreadLocalTop* tltop = thread_local_top();
+  PromiseOnStack* prev = tltop->promise_on_stack_;
+  StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
+  Handle<JSObject> global_handle =
+      Handle<JSObject>::cast(global_handles()->Create(*promise));
+  tltop->promise_on_stack_ = new PromiseOnStack(handler, global_handle, prev);
+}
+
+
+void Isolate::PopPromise() {
+  ThreadLocalTop* tltop = thread_local_top();
+  if (tltop->promise_on_stack_ == NULL) return;
+  PromiseOnStack* prev = tltop->promise_on_stack_->prev();
+  Handle<Object> global_handle = tltop->promise_on_stack_->promise();
+  delete tltop->promise_on_stack_;
+  tltop->promise_on_stack_ = prev;
+  global_handles()->Destroy(global_handle.location());
+}
+
+
+Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
+  Handle<Object> undefined = factory()->undefined_value();
+  ThreadLocalTop* tltop = thread_local_top();
+  if (tltop->promise_on_stack_ == NULL) return undefined;
+  StackHandler* promise_try = tltop->promise_on_stack_->handler();
+  // Find the top-most try-catch handler.
+  StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
+  do {
+    if (handler == promise_try) {
+      // Mark the pushed try-catch handler to prevent a later duplicate event
+      // triggered with the following reject.
+      return tltop->promise_on_stack_->promise();
+    }
+    handler = handler->next();
+    // Throwing inside a Promise can be intercepted by an inner try-catch, so
+    // we stop at the first try-catch handler.
+  } while (handler != NULL && !handler->is_catch());
+  return undefined;
+}
+
+
 void Isolate::SetCaptureStackTraceForUncaughtExceptions(
       bool capture,
       int frame_limit,
@@ -1457,8 +1494,7 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
-      code_stub_interface_descriptors_(NULL),
-      call_descriptors_(NULL),
+      call_descriptor_data_(NULL),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
@@ -1474,7 +1510,12 @@ Isolate::Isolate()
       num_sweeper_threads_(0),
       stress_deopt_count_(0),
       next_optimization_id_(0),
-      use_counter_callback_(NULL) {
+      use_counter_callback_(NULL),
+      basic_block_profiler_(NULL) {
+  {
+    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
+    CHECK(thread_data_table_);
+  }
   id_ = base::NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1525,7 +1566,7 @@ void Isolate::TearDown() {
   Deinit();
 
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -1543,6 +1584,7 @@ void Isolate::TearDown() {
 
 void Isolate::GlobalTearDown() {
   delete thread_data_table_;
+  thread_data_table_ = NULL;
 }
 
 
@@ -1551,6 +1593,8 @@ void Isolate::Deinit() {
     TRACE_ISOLATE(deinit);
 
     debug()->Unload();
+
+    FreeThreadResources();
 
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
@@ -1591,6 +1635,10 @@ void Isolate::Deinit() {
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
+
+    delete basic_block_profiler_;
+    basic_block_profiler_ = NULL;
+
     heap_.TearDown();
     logger_->TearDown();
 
@@ -1627,7 +1675,6 @@ void Isolate::PushToPartialSnapshotCache(Object* obj) {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  EnsureInitialized();
   base::Thread::SetThreadLocal(isolate_key_, isolate);
   base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
 }
@@ -1651,11 +1698,8 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = NULL;
 
-  delete[] code_stub_interface_descriptors_;
-  code_stub_interface_descriptors_ = NULL;
-
-  delete[] call_descriptors_;
-  call_descriptors_ = NULL;
+  delete[] call_descriptor_data_;
+  call_descriptor_data_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -1830,10 +1874,8 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
-  code_stub_interface_descriptors_ =
-      new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
-  call_descriptors_ =
-      new CallInterfaceDescriptor[NUMBER_OF_CALL_DESCRIPTORS];
+  call_descriptor_data_ =
+      new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
 
@@ -1895,7 +1937,7 @@ bool Isolate::Init(Deserializer* des) {
   if (max_available_threads_ < 1) {
     // Choose the default between 1 and 4.
     max_available_threads_ =
-        Max(Min(base::OS::NumberOfProcessorsOnline(), 4), 1);
+        Max(Min(base::SysInfo::NumberOfProcessors(), 4), 1);
   }
 
   if (!FLAG_job_based_sweeping) {
@@ -1984,26 +2026,7 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    // Ensure interface descriptors are initialized even when stubs have been
-    // deserialized out of the snapshot without using the graph builder.
-    FastCloneShallowArrayStub::InstallDescriptors(this);
-    BinaryOpICStub::InstallDescriptors(this);
-    BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
-    CompareNilICStub::InstallDescriptors(this);
-    ToBooleanStub::InstallDescriptors(this);
-    ToNumberStub::InstallDescriptors(this);
-    ArrayConstructorStubBase::InstallDescriptors(this);
-    InternalArrayConstructorStubBase::InstallDescriptors(this);
-    FastNewClosureStub::InstallDescriptors(this);
-    FastNewContextStub::InstallDescriptors(this);
-    NumberToStringStub::InstallDescriptors(this);
-    StringAddStub::InstallDescriptors(this);
-    RegExpConstructResultStub::InstallDescriptors(this);
-    KeyedLoadGenericStub::InstallDescriptors(this);
-    StoreFieldStub::InstallDescriptors(this);
   }
-
-  CallDescriptors::InitializeForIsolate(this);
 
   initialized_from_snapshot_ = (des != NULL);
 
@@ -2182,16 +2205,9 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 }
 
 
-CodeStubInterfaceDescriptor*
-    Isolate::code_stub_interface_descriptor(int index) {
-  return code_stub_interface_descriptors_ + index;
-}
-
-
-CallInterfaceDescriptor*
-    Isolate::call_descriptor(CallDescriptorKey index) {
-  DCHECK(0 <= index && index < NUMBER_OF_CALL_DESCRIPTORS);
-  return &call_descriptors_[index];
+CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
+  DCHECK(0 <= index && index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
+  return &call_descriptor_data_[index];
 }
 
 
@@ -2218,7 +2234,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     static const char* nested[] = {
       "for", "for_api", "for_intern", "keyFor", "private_api", "private_intern"
     };
-    for (unsigned i = 0; i < ARRAY_SIZE(nested); ++i) {
+    for (unsigned i = 0; i < arraysize(nested); ++i) {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
       JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
@@ -2308,14 +2324,13 @@ void Isolate::RunMicrotasks() {
             Handle<JSFunction>::cast(microtask);
         SaveContext save(this);
         set_context(microtask_function->context()->native_context());
-        Handle<Object> exception;
-        MaybeHandle<Object> result = Execution::TryCall(
-            microtask_function, factory()->undefined_value(),
-            0, NULL, &exception);
+        MaybeHandle<Object> maybe_exception;
+        MaybeHandle<Object> result =
+            Execution::TryCall(microtask_function, factory()->undefined_value(),
+                               0, NULL, &maybe_exception);
         // If execution is terminating, just bail out.
-        if (result.is_null() &&
-            !exception.is_null() &&
-            *exception == heap()->termination_exception()) {
+        Handle<Object> exception;
+        if (result.is_null() && maybe_exception.is_null()) {
           // Clear out any remaining callbacks in the queue.
           heap()->set_microtask_queue(heap()->empty_fixed_array());
           set_pending_microtask_count(0);
@@ -2344,6 +2359,14 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   if (use_counter_callback_) {
     use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
   }
+}
+
+
+BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
+  if (basic_block_profiler_ == NULL) {
+    basic_block_profiler_ = new BasicBlockProfiler();
+  }
+  return basic_block_profiler_;
 }
 
 

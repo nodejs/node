@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
+#include "src/base/platform/platform.h"
+
 namespace v8 {
 namespace internal {
 
@@ -81,9 +83,9 @@ class RingBuffer {
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 // TODO(ernstm): Unit tests.
-class GCTracer BASE_EMBEDDED {
+class GCTracer {
  public:
-  class Scope BASE_EMBEDDED {
+  class Scope {
    public:
     enum ScopeId {
       EXTERNAL,
@@ -126,6 +128,22 @@ class GCTracer BASE_EMBEDDED {
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
+
+  class AllocationEvent {
+   public:
+    // Default constructor leaves the event uninitialized.
+    AllocationEvent() {}
+
+    AllocationEvent(double duration, intptr_t allocation_in_bytes);
+
+    // Time spent in the mutator during the end of the last garbage collection
+    // to the beginning of the next garbage collection.
+    double duration_;
+
+    // Memory allocated in the new space during the end of the last garbage
+    // collection to the beginning of the next garbage collection.
+    intptr_t allocation_in_bytes_;
+  };
 
   class Event {
    public:
@@ -170,6 +188,9 @@ class GCTracer BASE_EMBEDDED {
     // Total amount of space either wasted or contained in one of free lists
     // after the current GC.
     intptr_t end_holes_size;
+
+    // Size of new space objects in constructor.
+    intptr_t new_space_object_size;
 
     // Number of incremental marking steps since creation of tracer.
     // (value at start of event)
@@ -218,6 +239,8 @@ class GCTracer BASE_EMBEDDED {
 
   typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
 
+  typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
@@ -226,6 +249,9 @@ class GCTracer BASE_EMBEDDED {
 
   // Stop collecting data and print results.
   void Stop();
+
+  // Log an allocation throughput event.
+  void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -280,9 +306,21 @@ class GCTracer BASE_EMBEDDED {
   // Returns 0 if no incremental marking round has been completed.
   double MaxIncrementalMarkingDuration() const;
 
-  // Compute the average incremental marking speed in bytes/second. Returns 0 if
-  // no events have been recorded.
+  // Compute the average incremental marking speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
   intptr_t IncrementalMarkingSpeedInBytesPerMillisecond() const;
+
+  // Compute the average scavenge speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t ScavengeSpeedInBytesPerMillisecond() const;
+
+  // Compute the max mark-sweep speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
+
+  // Allocation throughput in the new space in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
  private:
   // Print one detailed trace line in name=value format.
@@ -318,6 +356,9 @@ class GCTracer BASE_EMBEDDED {
   // RingBuffers for MARK_COMPACTOR events.
   EventBuffer mark_compactor_events_;
 
+  // RingBuffer for allocation events.
+  AllocationEventBuffer allocation_events_;
+
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
 
@@ -347,6 +388,10 @@ class GCTracer BASE_EMBEDDED {
   // of the initial atomic sweeping pause. Make sure that it accumulates
   // all sweeping operations performed on the main thread.
   double cumulative_sweeping_duration_;
+
+  // Holds the new space top pointer recorded at the end of the last garbage
+  // collection.
+  intptr_t new_space_top_after_gc_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

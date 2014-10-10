@@ -23,8 +23,8 @@ TEST(TestScheduleAllocation) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  CHECK_NE(NULL, schedule.entry());
-  CHECK_EQ(schedule.entry(), *(schedule.all_blocks().begin()));
+  CHECK_NE(NULL, schedule.start());
+  CHECK_EQ(schedule.start(), *(schedule.all_blocks().begin()));
 }
 
 
@@ -36,7 +36,7 @@ TEST(TestScheduleAddNode) {
 
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* entry = schedule.entry();
+  BasicBlock* entry = schedule.start();
   schedule.AddNode(entry, n0);
   schedule.AddNode(entry, n1);
 
@@ -53,7 +53,7 @@ TEST(TestScheduleAddGoto) {
   HandleAndZoneScope scope;
 
   Schedule schedule(scope.main_zone());
-  BasicBlock* entry = schedule.entry();
+  BasicBlock* entry = schedule.start();
   BasicBlock* next = schedule.NewBasicBlock();
 
   schedule.AddGoto(entry, next);
@@ -72,7 +72,7 @@ TEST(TestScheduleAddBranch) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* entry = schedule.entry();
+  BasicBlock* entry = schedule.start();
   BasicBlock* tblock = schedule.NewBasicBlock();
   BasicBlock* fblock = schedule.NewBasicBlock();
 
@@ -103,12 +103,12 @@ TEST(TestScheduleAddReturn) {
   Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   Node* n0 = graph.NewNode(&dummy_operator);
-  BasicBlock* entry = schedule.entry();
+  BasicBlock* entry = schedule.start();
   schedule.AddReturn(entry, n0);
 
   CHECK_EQ(0, entry->PredecessorCount());
   CHECK_EQ(1, entry->SuccessorCount());
-  CHECK_EQ(schedule.exit(), entry->SuccessorAt(0));
+  CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
 }
 
 
@@ -117,26 +117,12 @@ TEST(TestScheduleAddThrow) {
   Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   Node* n0 = graph.NewNode(&dummy_operator);
-  BasicBlock* entry = schedule.entry();
+  BasicBlock* entry = schedule.start();
   schedule.AddThrow(entry, n0);
 
   CHECK_EQ(0, entry->PredecessorCount());
   CHECK_EQ(1, entry->SuccessorCount());
-  CHECK_EQ(schedule.exit(), entry->SuccessorAt(0));
-}
-
-
-TEST(TestScheduleAddDeopt) {
-  HandleAndZoneScope scope;
-  Schedule schedule(scope.main_zone());
-  Graph graph(scope.main_zone());
-  Node* n0 = graph.NewNode(&dummy_operator);
-  BasicBlock* entry = schedule.entry();
-  schedule.AddDeoptimize(entry, n0);
-
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(1, entry->SuccessorCount());
-  CHECK_EQ(schedule.exit(), entry->SuccessorAt(0));
+  CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
 }
 
 
@@ -145,7 +131,7 @@ TEST(BuildMulNodeGraph) {
   Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine(scope.main_zone(), kMachineWord32);
+  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);

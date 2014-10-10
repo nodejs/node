@@ -23,8 +23,6 @@ TEST(PipelineAdd) {
   CompilationInfoWithZone info(function);
 
   CHECK(Parser::Parse(&info));
-  StrictMode strict_mode = info.function()->strict_mode();
-  info.SetStrictMode(strict_mode);
   CHECK(Rewriter::Rewrite(&info));
   CHECK(Scope::Analyze(&info));
   CHECK_NE(NULL, info.scope());

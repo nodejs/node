@@ -123,10 +123,28 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
   return array;
 }
 
+// ES6, draft 05-22-14, section 22.1.2.3
+function ArrayOf() {
+  var length = %_ArgumentsLength();
+  var constructor = this;
+  // TODO: Implement IsConstructor (ES6 section 7.2.5)
+  var array = IS_SPEC_FUNCTION(constructor) ? new constructor(length) : [];
+  for (var i = 0; i < length; i++) {
+    %AddElement(array, i, %_Arguments(i), NONE);
+  }
+  array.length = length;
+  return array;
+}
+
 // -------------------------------------------------------------------
 
 function HarmonyArrayExtendArrayPrototype() {
   %CheckIsBootstrapping();
+
+  // Set up non-enumerable functions on the Array object.
+  InstallFunctions($Array, DONT_ENUM, $Array(
+    "of", ArrayOf
+  ));
 
   // Set up the non-enumerable functions on the Array prototype object.
   InstallFunctions($Array.prototype, DONT_ENUM, $Array(

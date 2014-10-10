@@ -59,6 +59,9 @@ class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
   Utf8ToUtf16CharacterStream(const byte* data, unsigned length);
   virtual ~Utf8ToUtf16CharacterStream();
 
+  static unsigned CopyChars(uint16_t* dest, unsigned length, const byte* src,
+                            unsigned* src_pos, unsigned src_length);
+
  protected:
   virtual unsigned BufferSeekForward(unsigned delta);
   virtual unsigned FillBuffer(unsigned char_position);
@@ -70,6 +73,46 @@ class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
   // The character position of the character at raw_data[raw_data_pos_].
   // Not necessarily the same as pos_.
   unsigned raw_character_position_;
+};
+
+
+// ExternalStreamingStream is a wrapper around an ExternalSourceStream (see
+// include/v8.h) subclass implemented by the embedder.
+class ExternalStreamingStream : public BufferedUtf16CharacterStream {
+ public:
+  ExternalStreamingStream(ScriptCompiler::ExternalSourceStream* source_stream,
+                          v8::ScriptCompiler::StreamedSource::Encoding encoding)
+      : source_stream_(source_stream),
+        encoding_(encoding),
+        current_data_(NULL),
+        current_data_offset_(0),
+        current_data_length_(0),
+        utf8_split_char_buffer_length_(0) {}
+
+  virtual ~ExternalStreamingStream() { delete[] current_data_; }
+
+  virtual unsigned BufferSeekForward(unsigned delta) OVERRIDE {
+    // We never need to seek forward when streaming scripts. We only seek
+    // forward when we want to parse a function whose location we already know,
+    // and when streaming, we don't know the locations of anything we haven't
+    // seen yet.
+    UNREACHABLE();
+    return 0;
+  }
+
+  virtual unsigned FillBuffer(unsigned position);
+
+ private:
+  void HandleUtf8SplitCharacters(unsigned* data_in_buffer);
+
+  ScriptCompiler::ExternalSourceStream* source_stream_;
+  v8::ScriptCompiler::StreamedSource::Encoding encoding_;
+  const uint8_t* current_data_;
+  unsigned current_data_offset_;
+  unsigned current_data_length_;
+  // For converting UTF-8 characters which are split across two data chunks.
+  uint8_t utf8_split_char_buffer_[4];
+  unsigned utf8_split_char_buffer_length_;
 };
 
 

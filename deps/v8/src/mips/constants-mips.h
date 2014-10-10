@@ -4,7 +4,7 @@
 
 #ifndef  V8_MIPS_CONSTANTS_H_
 #define  V8_MIPS_CONSTANTS_H_
-
+#include "src/globals.h"
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \
@@ -17,17 +17,25 @@
 #define UNSUPPORTED_MIPS() v8::internal::PrintF("Unsupported instruction.\n")
 
 enum ArchVariants {
-  kMips32r2,
-  kMips32r1,
+  kMips32r1 = v8::internal::MIPSr1,
+  kMips32r2 = v8::internal::MIPSr2,
+  kMips32r6 = v8::internal::MIPSr6,
   kLoongson
 };
 
 #ifdef _MIPS_ARCH_MIPS32R2
   static const ArchVariants kArchVariant = kMips32r2;
+#elif _MIPS_ARCH_MIPS32R6
+  static const ArchVariants kArchVariant = kMips32r6;
 #elif _MIPS_ARCH_LOONGSON
 // The loongson flag refers to the LOONGSON architectures based on MIPS-III,
 // which predates (and is a subset of) the mips32r2 and r1 architectures.
   static const ArchVariants kArchVariant = kLoongson;
+#elif _MIPS_ARCH_MIPS32RX
+// This flags referred to compatibility mode that creates universal code that
+// can run on any MIPS32 architecture revision. The dynamically generated code
+// by v8 is specialized for the MIPS host detected in runtime probing.
+  static const ArchVariants kArchVariant = kMips32r1;
 #else
   static const ArchVariants kArchVariant = kMips32r1;
 #endif
@@ -43,6 +51,22 @@ enum Endianness {
   static const Endianness kArchEndian = kBig;
 #else
 #error Unknown endianness
+#endif
+
+enum FpuMode {
+  kFP32,
+  kFP64,
+  kFPXX
+};
+
+#if defined(FPU_MODE_FP32)
+  static const FpuMode kFpuMode = kFP32;
+#elif defined(FPU_MODE_FP64)
+  static const FpuMode kFpuMode = kFP64;
+#elif defined(FPU_MODE_FPXX)
+  static const FpuMode kFpuMode = kFPXX;
+#else
+  static const FpuMode kFpuMode = kFP32;
 #endif
 
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -67,6 +91,26 @@ const uint32_t kHoleNanLower32Offset = 4;
 #else
 #error Unknown endianness
 #endif
+
+#ifndef FPU_MODE_FPXX
+#define IsFp64Mode() \
+  (kFpuMode == kFP64)
+#else
+#define IsFp64Mode() \
+  (CpuFeatures::IsSupported(FP64FPU))
+#endif
+
+#ifndef _MIPS_ARCH_MIPS32RX
+#define IsMipsArchVariant(check) \
+  (kArchVariant == check)
+#else
+#define IsMipsArchVariant(check) \
+  (CpuFeatures::IsSupported(check))
+#endif
+
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.
@@ -99,6 +143,8 @@ const int kInvalidFPURegister = -1;
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
 const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
+const uint64_t kFPU64InvalidResult =
+    static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
 
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
@@ -216,10 +262,14 @@ const int kLuiShift      = 16;
 
 const int kImm16Shift = 0;
 const int kImm16Bits  = 16;
+const int kImm21Shift = 0;
+const int kImm21Bits  = 21;
 const int kImm26Shift = 0;
 const int kImm26Bits  = 26;
 const int kImm28Shift = 0;
 const int kImm28Bits  = 28;
+const int kImm32Shift = 0;
+const int kImm32Bits  = 32;
 
 // In branches and jumps immediate fields point to words, not bytes,
 // and are therefore shifted by 2.
@@ -278,14 +328,16 @@ enum Opcode {
   ANDI      =   ((1 << 3) + 4) << kOpcodeShift,
   ORI       =   ((1 << 3) + 5) << kOpcodeShift,
   XORI      =   ((1 << 3) + 6) << kOpcodeShift,
-  LUI       =   ((1 << 3) + 7) << kOpcodeShift,
+  LUI       =   ((1 << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
 
+  BEQC      =   ((2 << 3) + 0) << kOpcodeShift,
   COP1      =   ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
   BEQL      =   ((2 << 3) + 4) << kOpcodeShift,
   BNEL      =   ((2 << 3) + 5) << kOpcodeShift,
   BLEZL     =   ((2 << 3) + 6) << kOpcodeShift,
   BGTZL     =   ((2 << 3) + 7) << kOpcodeShift,
 
+  DADDI     =   ((3 << 3) + 0) << kOpcodeShift,  // This is also BNEC.
   SPECIAL2  =   ((3 << 3) + 4) << kOpcodeShift,
   SPECIAL3  =   ((3 << 3) + 7) << kOpcodeShift,
 
@@ -304,11 +356,13 @@ enum Opcode {
 
   LWC1      =   ((6 << 3) + 1) << kOpcodeShift,
   LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
+  BEQZC     =   ((6 << 3) + 6) << kOpcodeShift,
 
   PREF      =   ((6 << 3) + 3) << kOpcodeShift,
 
   SWC1      =   ((7 << 3) + 1) << kOpcodeShift,
   SDC1      =   ((7 << 3) + 5) << kOpcodeShift,
+  BNEZC     =   ((7 << 3) + 6) << kOpcodeShift,
 
   COP1X     =   ((1 << 4) + 3) << kOpcodeShift
 };
@@ -330,6 +384,8 @@ enum SecondaryField {
   BREAK     =   ((1 << 3) + 5),
 
   MFHI      =   ((2 << 3) + 0),
+  CLZ_R6    =   ((2 << 3) + 0),
+  CLO_R6    =   ((2 << 3) + 1),
   MFLO      =   ((2 << 3) + 2),
 
   MULT      =   ((3 << 3) + 0),
@@ -354,7 +410,21 @@ enum SecondaryField {
   TLT       =   ((6 << 3) + 2),
   TLTU      =   ((6 << 3) + 3),
   TEQ       =   ((6 << 3) + 4),
+  SELEQZ_S  =   ((6 << 3) + 5),
   TNE       =   ((6 << 3) + 6),
+  SELNEZ_S  =   ((6 << 3) + 7),
+
+  // Multiply integers in r6.
+  MUL_MUH   =   ((3 << 3) + 0),  // MUL, MUH.
+  MUL_MUH_U =   ((3 << 3) + 1),  // MUL_U, MUH_U.
+
+  MUL_OP    =   ((0 << 3) + 2),
+  MUH_OP    =   ((0 << 3) + 3),
+  DIV_OP    =   ((0 << 3) + 2),
+  MOD_OP    =   ((0 << 3) + 3),
+
+  DIV_MOD   =   ((3 << 3) + 2),
+  DIV_MOD_U =   ((3 << 3) + 3),
 
   // SPECIAL2 Encoding of Function Field.
   MUL       =   ((0 << 3) + 2),
@@ -370,6 +440,7 @@ enum SecondaryField {
   BGEZ      =   ((0 << 3) + 1) << 16,
   BLTZAL    =   ((2 << 3) + 0) << 16,
   BGEZAL    =   ((2 << 3) + 1) << 16,
+  BGEZALL   =   ((2 << 3) + 3) << 16,
 
   // COP1 Encoding of rs Field.
   MFC1      =   ((0 << 3) + 0) << 21,
@@ -414,6 +485,10 @@ enum SecondaryField {
   TRUNC_W_D =   ((1 << 3) + 5),
   CEIL_W_D  =   ((1 << 3) + 6),
   FLOOR_W_D =   ((1 << 3) + 7),
+  MIN       =   ((3 << 3) + 4),
+  MINA      =   ((3 << 3) + 5),
+  MAX       =   ((3 << 3) + 6),
+  MAXA      =   ((3 << 3) + 7),
   CVT_S_D   =   ((4 << 3) + 0),
   CVT_W_D   =   ((4 << 3) + 4),
   CVT_L_D   =   ((4 << 3) + 5),
@@ -430,6 +505,46 @@ enum SecondaryField {
   CVT_D_W   =   ((4 << 3) + 1),
   CVT_S_L   =   ((4 << 3) + 0),
   CVT_D_L   =   ((4 << 3) + 1),
+  BC1EQZ    =   ((2 << 2) + 1) << 21,
+  BC1NEZ    =   ((3 << 2) + 1) << 21,
+  // COP1 CMP positive predicates Bit 5..4 = 00.
+  CMP_AF    =   ((0 << 3) + 0),
+  CMP_UN    =   ((0 << 3) + 1),
+  CMP_EQ    =   ((0 << 3) + 2),
+  CMP_UEQ   =   ((0 << 3) + 3),
+  CMP_LT    =   ((0 << 3) + 4),
+  CMP_ULT   =   ((0 << 3) + 5),
+  CMP_LE    =   ((0 << 3) + 6),
+  CMP_ULE   =   ((0 << 3) + 7),
+  CMP_SAF   =   ((1 << 3) + 0),
+  CMP_SUN   =   ((1 << 3) + 1),
+  CMP_SEQ   =   ((1 << 3) + 2),
+  CMP_SUEQ  =   ((1 << 3) + 3),
+  CMP_SSLT  =   ((1 << 3) + 4),
+  CMP_SSULT =   ((1 << 3) + 5),
+  CMP_SLE   =   ((1 << 3) + 6),
+  CMP_SULE  =   ((1 << 3) + 7),
+  // COP1 CMP negative predicates Bit 5..4 = 01.
+  CMP_AT    =   ((2 << 3) + 0),  // Reserved, not implemented.
+  CMP_OR    =   ((2 << 3) + 1),
+  CMP_UNE   =   ((2 << 3) + 2),
+  CMP_NE    =   ((2 << 3) + 3),
+  CMP_UGE   =   ((2 << 3) + 4),  // Reserved, not implemented.
+  CMP_OGE   =   ((2 << 3) + 5),  // Reserved, not implemented.
+  CMP_UGT   =   ((2 << 3) + 6),  // Reserved, not implemented.
+  CMP_OGT   =   ((2 << 3) + 7),  // Reserved, not implemented.
+  CMP_SAT   =   ((3 << 3) + 0),  // Reserved, not implemented.
+  CMP_SOR   =   ((3 << 3) + 1),
+  CMP_SUNE  =   ((3 << 3) + 2),
+  CMP_SNE   =   ((3 << 3) + 3),
+  CMP_SUGE  =   ((3 << 3) + 4),  // Reserved, not implemented.
+  CMP_SOGE  =   ((3 << 3) + 5),  // Reserved, not implemented.
+  CMP_SUGT  =   ((3 << 3) + 6),  // Reserved, not implemented.
+  CMP_SOGT  =   ((3 << 3) + 7),  // Reserved, not implemented.
+
+  SEL       =   ((2 << 3) + 0),
+  SELEQZ_C  =   ((2 << 3) + 4),  // COP1 on FPR registers.
+  SELNEZ_C  =   ((2 << 3) + 7),  // COP1 on FPR registers.
   // COP1 Encoding of Function Field When rs=PS.
   // COP1X Encoding of Function Field.
   MADD_D    =   ((4 << 3) + 1),
@@ -773,6 +888,11 @@ class Instruction {
   inline int32_t Imm16Value() const {
     DCHECK(InstructionType() == kImmediateType);
     return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
+  }
+
+  inline int32_t Imm21Value() const {
+    DCHECK(InstructionType() == kImmediateType);
+    return Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
   }
 
   inline int32_t Imm26Value() const {

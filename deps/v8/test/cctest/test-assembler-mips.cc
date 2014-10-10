@@ -170,7 +170,7 @@ TEST(MIPS2) {
   __ Branch(&error, ne, v0, Operand(0x1));
   __ nop();
   __ sltu(v0, t7, t3);
-  __ Branch(&error, ne, v0, Operand(0x0));
+  __ Branch(&error, ne, v0, Operand(zero_reg));
   __ nop();
   // End of SPECIAL class.
 
@@ -185,7 +185,7 @@ TEST(MIPS2) {
 
   __ slti(v0, t1, 0x00002000);  // 0x1
   __ slti(v0, v0, 0xffff8000);  // 0x0
-  __ Branch(&error, ne, v0, Operand(0x0));
+  __ Branch(&error, ne, v0, Operand(zero_reg));
   __ nop();
   __ sltiu(v0, t1, 0x00002000);  // 0x1
   __ sltiu(v0, v0, 0x00008000);  // 0x1
@@ -293,7 +293,7 @@ TEST(MIPS3) {
   __ sdc1(f14, MemOperand(a0, OFFSET_OF(T, g)) );
   // g = sqrt(f) = 10.97451593465515908537
 
-  if (kArchVariant == kMips32r2) {
+  if (IsMipsArchVariant(kMips32r2)) {
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, h)) );
     __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, i)) );
     __ madd_d(f14, f6, f4, f6);
@@ -325,7 +325,7 @@ TEST(MIPS3) {
   CHECK_EQ(1.8066e16, t.e);
   CHECK_EQ(120.44, t.f);
   CHECK_EQ(10.97451593465515908537, t.g);
-  if (kArchVariant == kMips32r2) {
+  if (IsMipsArchVariant(kMips32r2)) {
     CHECK_EQ(6.875, t.h);
   }
 }
@@ -351,16 +351,28 @@ TEST(MIPS4) {
   __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
 
   // Swap f4 and f6, by using four integer registers, t0-t3.
-  __ mfc1(t0, f4);
-  __ mfc1(t1, f5);
-  __ mfc1(t2, f6);
-  __ mfc1(t3, f7);
+  if (!IsFp64Mode()) {
+    __ mfc1(t0, f4);
+    __ mfc1(t1, f5);
+    __ mfc1(t2, f6);
+    __ mfc1(t3, f7);
 
-  __ mtc1(t0, f6);
-  __ mtc1(t1, f7);
-  __ mtc1(t2, f4);
-  __ mtc1(t3, f5);
+    __ mtc1(t0, f6);
+    __ mtc1(t1, f7);
+    __ mtc1(t2, f4);
+    __ mtc1(t3, f5);
+  } else {
+    DCHECK(!IsMipsArchVariant(kMips32r1) && !IsMipsArchVariant(kLoongson));
+    __ mfc1(t0, f4);
+    __ mfhc1(t1, f4);
+    __ mfc1(t2, f6);
+    __ mfhc1(t3, f6);
 
+    __ mtc1(t0, f6);
+    __ mthc1(t1, f6);
+    __ mtc1(t2, f4);
+    __ mthc1(t3, f4);
+  }
   // Store the swapped f4 and f5 back to memory.
   __ sdc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
   __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, c)) );
@@ -554,21 +566,30 @@ TEST(MIPS7) {
 
   __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
   __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
+  if (!IsMipsArchVariant(kMips32r6)) {
   __ c(UN, D, f4, f6);
   __ bc1f(&neither_is_nan);
+  } else {
+    __ cmp(UN, L, f2, f4, f6);
+    __ bc1eqz(&neither_is_nan, f2);
+  }
   __ nop();
   __ sw(zero_reg, MemOperand(a0, OFFSET_OF(T, result)) );
   __ Branch(&outa_here);
 
   __ bind(&neither_is_nan);
 
-  if (kArchVariant == kLoongson) {
+  if (IsMipsArchVariant(kLoongson)) {
     __ c(OLT, D, f6, f4);
     __ bc1t(&less_than);
+  } else if (IsMipsArchVariant(kMips32r6)) {
+    __ cmp(OLT, L, f2, f6, f4);
+    __ bc1nez(&less_than, f2);
   } else {
     __ c(OLT, D, f6, f4, 2);
     __ bc1t(&less_than, 2);
   }
+
   __ nop();
   __ sw(zero_reg, MemOperand(a0, OFFSET_OF(T, result)) );
   __ Branch(&outa_here);
@@ -716,7 +737,7 @@ TEST(MIPS9) {
   MacroAssembler assm(isolate, NULL, 0);
   Label exit, exit2, exit3;
 
-  __ Branch(&exit, ge, a0, Operand(0x00000000));
+  __ Branch(&exit, ge, a0, Operand(zero_reg));
   __ Branch(&exit2, ge, a0, Operand(0x00001FFF));
   __ Branch(&exit3, ge, a0, Operand(0x0001FFFF));
 
@@ -753,50 +774,52 @@ TEST(MIPS10) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-  if (kArchVariant == kMips32r2) {
-    // Load all structure elements to registers.
-    __ ldc1(f0, MemOperand(a0, OFFSET_OF(T, a)));
+  if (!IsMipsArchVariant(kMips32r2)) return;
 
-    // Save the raw bits of the double.
-    __ mfc1(t0, f0);
-    __ mfc1(t1, f1);
-    __ sw(t0, MemOperand(a0, OFFSET_OF(T, dbl_mant)));
-    __ sw(t1, MemOperand(a0, OFFSET_OF(T, dbl_exp)));
+  // Load all structure elements to registers.
+  __ ldc1(f0, MemOperand(a0, OFFSET_OF(T, a)));
 
-    // Convert double in f0 to long, save hi/lo parts.
-    __ cvt_w_d(f0, f0);
-    __ mfc1(t0, f0);  // f0 has a 32-bits word.
-    __ sw(t0, MemOperand(a0, OFFSET_OF(T, word)));
+  // Save the raw bits of the double.
+  __ mfc1(t0, f0);
+  __ mfc1(t1, f1);
+  __ sw(t0, MemOperand(a0, OFFSET_OF(T, dbl_mant)));
+  __ sw(t1, MemOperand(a0, OFFSET_OF(T, dbl_exp)));
 
-    // Convert the b long integers to double b.
-    __ lw(t0, MemOperand(a0, OFFSET_OF(T, b_word)));
-    __ mtc1(t0, f8);  // f8 has a 32-bits word.
-    __ cvt_d_w(f10, f8);
-    __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, b)));
+  // Convert double in f0 to long, save hi/lo parts.
+  __ cvt_w_d(f0, f0);
+  __ mfc1(t0, f0);  // f0 has a 32-bits word.
+  __ sw(t0, MemOperand(a0, OFFSET_OF(T, word)));
 
-    __ jr(ra);
-    __ nop();
+  // Convert the b long integers to double b.
+  __ lw(t0, MemOperand(a0, OFFSET_OF(T, b_word)));
+  __ mtc1(t0, f8);  // f8 has a 32-bits word.
+  __ cvt_d_w(f10, f8);
+  __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, b)));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-    F3 f = FUNCTION_CAST<F3>(code->entry());
-    t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
-    t.b_word = 0x0ff00ff0;       // 0x0FF00FF0 -> 0x as double.
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
-    USE(dummy);
+  __ jr(ra);
+  __ nop();
 
-    CHECK_EQ(0x41DFFFFF, t.dbl_exp);
-    CHECK_EQ(0xFF800000, t.dbl_mant);
-    CHECK_EQ(0X7FFFFFFE, t.word);
-    // 0x0FF00FF0 -> 2.6739096+e08
-    CHECK_EQ(2.6739096e08, t.b);
-  }
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
+  t.b_word = 0x0ff00ff0;       // 0x0FF00FF0 -> 0x as double.
+  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x41DFFFFF, t.dbl_exp);
+  CHECK_EQ(0xFF800000, t.dbl_mant);
+  CHECK_EQ(0X7FFFFFFE, t.word);
+  // 0x0FF00FF0 -> 2.6739096+e08
+  CHECK_EQ(2.6739096e08, t.b);
 }
 
 
 TEST(MIPS11) {
+  // Do not run test on MIPS32r6, as these instructions are removed.
+  if (IsMipsArchVariant(kMips32r6)) return;
   // Test LWL, LWR, SWL and SWR instructions.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

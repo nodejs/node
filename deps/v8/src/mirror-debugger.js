@@ -87,6 +87,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new SetMirror(value);
   } else if (ObjectIsPromise(value)) {
     mirror = new PromiseMirror(value);
+  } else if (IS_GENERATOR(value)) {
+    mirror = new GeneratorMirror(value);
   } else {
     mirror = new ObjectMirror(value, OBJECT_TYPE, opt_transient);
   }
@@ -161,6 +163,7 @@ var SCOPE_TYPE = 'scope';
 var PROMISE_TYPE = 'promise';
 var MAP_TYPE = 'map';
 var SET_TYPE = 'set';
+var GENERATOR_TYPE = 'generator';
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
@@ -177,9 +180,6 @@ PropertyType.Normal                  = 0;
 PropertyType.Field                   = 1;
 PropertyType.Constant                = 2;
 PropertyType.Callbacks               = 3;
-PropertyType.Handler                 = 4;
-PropertyType.Interceptor             = 5;
-PropertyType.Nonexistent             = 6;
 
 
 // Different attributes for a property.
@@ -217,6 +217,7 @@ var ScopeType = { Global: 0,
 //         - PromiseMirror
 //         - MapMirror
 //         - SetMirror
+//         - GeneratorMirror
 //     - PropertyMirror
 //     - InternalPropertyMirror
 //     - FrameMirror
@@ -370,6 +371,15 @@ Mirror.prototype.isError = function() {
  */
 Mirror.prototype.isPromise = function() {
   return this instanceof PromiseMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a generator object.
+ * @returns {boolean} True if the mirror reflects a generator object
+ */
+Mirror.prototype.isGenerator = function() {
+  return this instanceof GeneratorMirror;
 };
 
 
@@ -989,8 +999,8 @@ FunctionMirror.prototype.script = function() {
  * @return {Number or undefined} in-script position for the function
  */
 FunctionMirror.prototype.sourcePosition_ = function() {
-  // Return script if function is resolved. Otherwise just fall through
-  // to return undefined.
+  // Return position if function is resolved. Otherwise just fall
+  // through to return undefined.
   if (this.resolved()) {
     return %FunctionGetScriptSourcePosition(this.value_);
   }
@@ -1355,6 +1365,66 @@ SetMirror.prototype.values = function() {
 
 
 /**
+ * Mirror object for a Generator object.
+ * @param {Object} data The Generator object
+ * @constructor
+ * @extends Mirror
+ */
+function GeneratorMirror(value) {
+  %_CallFunction(this, value, GENERATOR_TYPE, ObjectMirror);
+}
+inherits(GeneratorMirror, ObjectMirror);
+
+
+GeneratorMirror.prototype.status = function() {
+  var continuation = %GeneratorGetContinuation(this.value_);
+  if (continuation < 0) return "running";
+  if (continuation == 0) return "closed";
+  return "suspended";
+};
+
+
+GeneratorMirror.prototype.sourcePosition_ = function() {
+  return %GeneratorGetSourcePosition(this.value_);
+};
+
+
+GeneratorMirror.prototype.sourceLocation = function() {
+  var pos = this.sourcePosition_();
+  if (!IS_UNDEFINED(pos)) {
+    var script = this.func().script();
+    if (script) {
+      return script.locationFromPosition(pos, true);
+    }
+  }
+};
+
+
+GeneratorMirror.prototype.func = function() {
+  if (!this.func_) {
+    this.func_ = MakeMirror(%GeneratorGetFunction(this.value_));
+  }
+  return this.func_;
+};
+
+
+GeneratorMirror.prototype.context = function() {
+  if (!this.context_) {
+    this.context_ = new ContextMirror(%GeneratorGetContext(this.value_));
+  }
+  return this.context_;
+};
+
+
+GeneratorMirror.prototype.receiver = function() {
+  if (!this.receiver_) {
+    this.receiver_ = MakeMirror(%GeneratorGetReceiver(this.value_));
+  }
+  return this.receiver_;
+};
+
+
+/**
  * Base mirror object for properties.
  * @param {ObjectMirror} mirror The mirror object having this property
  * @param {string} name The name of the property
@@ -1368,10 +1438,11 @@ function PropertyMirror(mirror, name, details) {
   this.name_ = name;
   this.value_ = details[0];
   this.details_ = details[1];
-  if (details.length > 2) {
-    this.exception_ = details[2];
-    this.getter_ = details[3];
-    this.setter_ = details[4];
+  this.is_interceptor_ = details[2];
+  if (details.length > 3) {
+    this.exception_ = details[3];
+    this.getter_ = details[4];
+    this.setter_ = details[5];
   }
 }
 inherits(PropertyMirror, Mirror);
@@ -1489,7 +1560,7 @@ PropertyMirror.prototype.setter = function() {
  *     UndefinedMirror if there is no setter for this property
  */
 PropertyMirror.prototype.isNative = function() {
-  return (this.propertyType() == PropertyType.Interceptor) ||
+  return this.is_interceptor_ ||
          ((this.propertyType() == PropertyType.Callbacks) &&
           !this.hasGetter() && !this.hasSetter());
 };
@@ -2541,6 +2612,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
     case ERROR_TYPE:
     case REGEXP_TYPE:
     case PROMISE_TYPE:
+    case GENERATOR_TYPE:
       // Add object representation.
       this.serializeObject_(mirror, content, details);
       break;
@@ -2668,6 +2740,21 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
         index: i
       });
     }
+  }
+
+  if (mirror.isGenerator()) {
+    // Add generator specific properties.
+
+    // Either 'running', 'closed', or 'suspended'.
+    content.status = mirror.status();
+
+    content.func = this.serializeReference(mirror.func())
+    content.receiver = this.serializeReference(mirror.receiver())
+
+    // If the generator is suspended, the content add line/column properties.
+    serializeLocationFields(mirror.sourceLocation(), content);
+
+    // TODO(wingo): Also serialize a reference to the context (scope chain).
   }
 
   if (mirror.isDate()) {

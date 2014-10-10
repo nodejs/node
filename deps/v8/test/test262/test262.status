@@ -31,9 +31,6 @@
 
   '15.5.4.9_CE': [['no_i18n', SKIP]],
 
-  # TODO(turbofan): Timeouts on TurboFan need investigation.
-  '10.1.1_13': [PASS, NO_VARIANTS],
-
   # BUG(v8:3455)
   '11.2.3_b': [FAIL],
   '12.2.3_b': [FAIL],

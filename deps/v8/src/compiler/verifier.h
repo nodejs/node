@@ -7,12 +7,15 @@
 
 #include "src/v8.h"
 
-#include "src/compiler/graph.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Graph;
+class Schedule;
+
+// Verifies properties of a graph, such as the well-formedness of inputs to
+// each node, etc.
 class Verifier {
  public:
   static void Run(Graph* graph);
@@ -20,6 +23,12 @@ class Verifier {
  private:
   class Visitor;
   DISALLOW_COPY_AND_ASSIGN(Verifier);
+};
+
+// Verifies properties of a schedule, such as dominance, phi placement, etc.
+class ScheduleVerifier {
+ public:
+  static void Run(Schedule* schedule);
 };
 }
 }

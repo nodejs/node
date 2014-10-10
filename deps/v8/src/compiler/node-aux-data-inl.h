@@ -15,7 +15,7 @@ namespace compiler {
 
 template <class T>
 NodeAuxData<T>::NodeAuxData(Zone* zone)
-    : aux_data_(ZoneAllocator(zone)) {}
+    : aux_data_(zone) {}
 
 
 template <class T>

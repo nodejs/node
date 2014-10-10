@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/heap/objects-visiting.h"
-#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -30,7 +30,7 @@
         'gmock/src/gmock-matchers.cc',
         'gmock/src/gmock-spec-builders.cc',
         'gmock/src/gmock.cc',
-        'gmock_mutant.h',  # gMock helpers
+        'gmock-support.h',  # gMock helpers
       ],
       'sources!': [
         'gmock/src/gmock-all.cc',  # Not needed by our build.
@@ -46,6 +46,13 @@
       },
       'export_dependent_settings': [
         'gtest.gyp:gtest',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
       ],
     },
     {

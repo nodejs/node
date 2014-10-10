@@ -27,32 +27,30 @@ namespace compiler {
   V(IA32Shl)                       \
   V(IA32Shr)                       \
   V(IA32Sar)                       \
-  V(IA32Push)                      \
-  V(IA32CallCodeObject)            \
-  V(IA32CallAddress)               \
-  V(PopStack)                      \
-  V(IA32CallJSFunction)            \
+  V(IA32Ror)                       \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Sqrt)                \
+  V(SSECvtss2sd)                   \
+  V(SSECvtsd2ss)                   \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
-  V(SSELoad)                       \
-  V(SSEStore)                      \
-  V(IA32LoadWord8)                 \
-  V(IA32StoreWord8)                \
-  V(IA32StoreWord8I)               \
-  V(IA32LoadWord16)                \
-  V(IA32StoreWord16)               \
-  V(IA32StoreWord16I)              \
-  V(IA32LoadWord32)                \
-  V(IA32StoreWord32)               \
-  V(IA32StoreWord32I)              \
+  V(IA32Movsxbl)                   \
+  V(IA32Movzxbl)                   \
+  V(IA32Movb)                      \
+  V(IA32Movsxwl)                   \
+  V(IA32Movzxwl)                   \
+  V(IA32Movw)                      \
+  V(IA32Movl)                      \
+  V(IA32Movss)                     \
+  V(IA32Movsd)                     \
+  V(IA32Push)                      \
   V(IA32StoreWriteBarrier)
 
 
@@ -63,23 +61,31 @@ namespace compiler {
 //
 // We use the following local notation for addressing modes:
 //
-// R = register
-// O = register or stack slot
-// D = double register
-// I = immediate (handle, external, int32)
-// MR = [register]
-// MI = [immediate]
-// MRN = [register + register * N in {1, 2, 4, 8}]
-// MRI = [register + immediate]
-// MRNI = [register + register * N in {1, 2, 4, 8} + immediate]
+// M = memory operand
+// R = base register
+// N = index register * N for N in {1, 2, 4, 8}
+// I = immediate displacement (int32_t)
+
 #define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MI)   /* [K] */                    \
-  V(MR)   /* [%r0] */                  \
-  V(MRI)  /* [%r0 + K] */              \
-  V(MR1I) /* [%r0 + %r1 * 1 + K] */    \
-  V(MR2I) /* [%r0 + %r1 * 2 + K] */    \
-  V(MR4I) /* [%r0 + %r1 * 4 + K] */    \
-  V(MR8I) /* [%r0 + %r1 * 8 + K] */
+  V(MR)   /* [%r1            ] */      \
+  V(MRI)  /* [%r1         + K] */      \
+  V(MR1)  /* [%r1 + %r2*1    ] */      \
+  V(MR2)  /* [%r1 + %r2*2    ] */      \
+  V(MR4)  /* [%r1 + %r2*4    ] */      \
+  V(MR8)  /* [%r1 + %r2*8    ] */      \
+  V(MR1I) /* [%r1 + %r2*1 + K] */      \
+  V(MR2I) /* [%r1 + %r2*2 + K] */      \
+  V(MR4I) /* [%r1 + %r2*3 + K] */      \
+  V(MR8I) /* [%r1 + %r2*4 + K] */      \
+  V(M1)   /* [      %r2*1    ] */      \
+  V(M2)   /* [      %r2*2    ] */      \
+  V(M4)   /* [      %r2*4    ] */      \
+  V(M8)   /* [      %r2*8    ] */      \
+  V(M1I)  /* [      %r2*1 + K] */      \
+  V(M2I)  /* [      %r2*2 + K] */      \
+  V(M4I)  /* [      %r2*4 + K] */      \
+  V(M8I)  /* [      %r2*8 + K] */      \
+  V(MI)   /* [              K] */
 
 }  // namespace compiler
 }  // namespace internal

@@ -73,7 +73,8 @@ UnaryMathFunction CreateExpFunction() {
 
 #if defined(V8_HOST_ARCH_MIPS)
 MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
-#if defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR) || defined(_MIPS_ARCH_MIPS32R6) || \
+    defined(_MIPS_ARCH_MIPS32RX)
   return stub;
 #else
   size_t actual_size;
@@ -1058,18 +1059,18 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(call_runtime, ne, at, Operand(zero_reg));
   __ lw(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
-  Label ascii, done;
+  Label one_byte, done;
   __ bind(&check_encoding);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ And(at, result, Operand(kStringEncodingMask));
-  __ Branch(&ascii, ne, at, Operand(zero_reg));
+  __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
   __ sll(at, index, 1);
   __ Addu(at, string, at);
   __ lhu(result, MemOperand(at));
   __ jmp(&done);
-  __ bind(&ascii);
-  // Ascii string.
+  __ bind(&one_byte);
+  // One_byte string.
   __ Addu(at, string, index);
   __ lbu(result, MemOperand(at));
   __ bind(&done);

@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/compiler/generic-node-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -293,7 +294,7 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
   for (int i = -2; i < num_int_inputs; i++) {    // for all left shapes
     for (int j = -2; j < num_int_inputs; j++) {  // for all right shapes
       if (i >= 0 && j >= 0) break;               // No constant/constant combos
-      RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+      RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
       Node* p0 = m.Parameter(0);
       Node* p1 = m.Parameter(1);
       Node* n0;
@@ -303,7 +304,7 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
       if (i == -2) {
         n0 = p0;
       } else if (i == -1) {
-        n0 = m.LoadFromPointer(&input_a, kMachineWord32);
+        n0 = m.LoadFromPointer(&input_a, kMachInt32);
       } else {
         n0 = m.Int32Constant(inputs[i]);
       }
@@ -312,7 +313,7 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
       if (j == -2) {
         n1 = p1;
       } else if (j == -1) {
-        n1 = m.LoadFromPointer(&input_b, kMachineWord32);
+        n1 = m.LoadFromPointer(&input_b, kMachInt32);
       } else {
         n1 = m.Int32Constant(inputs[j]);
       }
@@ -369,8 +370,10 @@ void Int32BinopInputShapeTester::RunRight(
 }
 
 
+#if V8_TURBOFAN_TARGET
+
 TEST(ParametersEqual) {
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   Node* p1 = m.Parameter(1);
   CHECK_NE(NULL, p1);
   Node* p0 = m.Parameter(0);
@@ -379,8 +382,6 @@ TEST(ParametersEqual) {
   CHECK_EQ(p1, m.Parameter(1));
 }
 
-
-#if V8_TURBOFAN_TARGET
 
 void RunSmiConstant(int32_t v) {
 // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
@@ -486,7 +487,7 @@ TEST(RunHeapNumberConstant) {
 
 
 TEST(RunParam1) {
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
   m.Return(m.Parameter(0));
 
   FOR_INT32_INPUTS(i) {
@@ -497,7 +498,7 @@ TEST(RunParam1) {
 
 
 TEST(RunParam2_1) {
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   Node* p0 = m.Parameter(0);
   Node* p1 = m.Parameter(1);
   m.Return(p0);
@@ -511,7 +512,7 @@ TEST(RunParam2_1) {
 
 
 TEST(RunParam2_2) {
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   Node* p0 = m.Parameter(0);
   Node* p1 = m.Parameter(1);
   m.Return(p1);
@@ -526,8 +527,7 @@ TEST(RunParam2_2) {
 
 TEST(RunParam3) {
   for (int i = 0; i < 3; i++) {
-    RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32,
-                                         kMachineWord32);
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
     Node* nodes[] = {m.Parameter(0), m.Parameter(1), m.Parameter(2)};
     m.Return(nodes[i]);
 

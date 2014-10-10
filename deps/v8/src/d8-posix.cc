@@ -7,7 +7,6 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -16,6 +15,9 @@
 
 #include "src/d8.h"
 
+#if !V8_OS_NACL
+#include <sys/select.h>
+#endif
 
 namespace v8 {
 
@@ -102,11 +104,16 @@ static bool WaitOnFD(int fd,
   }
   timeout.tv_usec = (read_timeout % 1000) * 1000;
   timeout.tv_sec = read_timeout / 1000;
+#if V8_OS_NACL
+  // PNaCL has no support for select.
+  int number_of_fds_ready = -1;
+#else
   int number_of_fds_ready = select(fd + 1,
                                    &readfds,
                                    &writefds,
                                    &exceptfds,
                                    read_timeout != -1 ? &timeout : NULL);
+#endif
   return number_of_fds_ready == 1;
 }
 
@@ -547,8 +554,12 @@ void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   if (args[0]->IsNumber()) {
-    mode_t mask = args[0]->Int32Value();
-    int previous = umask(mask);
+#if V8_OS_NACL
+    // PNaCL has no support for umask.
+    int previous = 0;
+#else
+    int previous = umask(args[0]->Int32Value());
+#endif
     args.GetReturnValue().Set(previous);
     return;
   } else {

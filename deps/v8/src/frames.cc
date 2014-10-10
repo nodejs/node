@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
+#include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen.h"
@@ -931,9 +932,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   DCHECK(frames->length() == 0);
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1058,9 +1059,9 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 int OptimizedFrame::GetInlineCount() {
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::GetInlineCount();
   }
 
@@ -1082,9 +1083,9 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   DCHECK(functions->length() == 0);
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
@@ -1500,7 +1501,7 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
 InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
-  DCHECK(IsPowerOf2(kInnerPointerToCodeCacheSize));
+  DCHECK(base::bits::IsPowerOfTwo32(kInnerPointerToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(inner_pointer)),
       v8::internal::kZeroHashSeed);
@@ -1578,9 +1579,7 @@ int StackHandler::Rewind(Isolate* isolate,
 
 // -------------------------------------------------------------------------
 
-int NumRegs(RegList reglist) {
-  return CompilerIntrinsics::CountSetBits(reglist);
-}
+int NumRegs(RegList reglist) { return base::bits::CountPopulation32(reglist); }
 
 
 struct JSCallerSavedCodeData {

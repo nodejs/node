@@ -99,6 +99,11 @@ int DoubleRegister::NumAllocatableRegisters() {
 }
 
 
+int DoubleRegister::NumAllocatableAliasedRegisters() {
+  return NumAllocatableRegisters();
+}
+
+
 int FPURegister::ToAllocationIndex(FPURegister reg) {
   DCHECK(reg.code() % 2 == 0);
   DCHECK(reg.code() / 2 < kMaxNumAllocatableRegisters);

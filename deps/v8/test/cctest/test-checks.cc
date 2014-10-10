@@ -20,7 +20,7 @@ TEST(CheckEqualsReflexivity) {
   double nan = v8::base::OS::nan_value();
   double constants[] = {-nan, -inf, -3.1415, -1.0,   -0.1, -0.0,
                         0.0,  0.1,  1.0,     3.1415, inf,  nan};
-  for (size_t i = 0; i < ARRAY_SIZE(constants); ++i) {
+  for (size_t i = 0; i < arraysize(constants); ++i) {
     CHECK_EQ(constants[i], constants[i]);
   }
 }

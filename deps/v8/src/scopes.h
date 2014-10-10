@@ -214,6 +214,9 @@ class Scope: public ZoneObject {
   // Set the strict mode flag (unless disabled by a global flag).
   void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
 
+  // Set the ASM module flag.
+  void SetAsmModule() { asm_module_ = true; }
+
   // Position in the source where this scope begins and ends.
   //
   // * For the scope of a with statement
@@ -281,6 +284,8 @@ class Scope: public ZoneObject {
   bool outer_scope_calls_sloppy_eval() const {
     return outer_scope_calls_sloppy_eval_;
   }
+  bool asm_module() const { return asm_module_; }
+  bool asm_function() const { return asm_function_; }
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
@@ -463,6 +468,10 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
+  // This scope contains an "use asm" annotation.
+  bool asm_module_;
+  // This scope's outer context is an asm module.
+  bool asm_function_;
   // The strict mode of this scope.
   StrictMode strict_mode_;
   // Source positions.

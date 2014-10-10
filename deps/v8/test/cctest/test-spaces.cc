@@ -203,6 +203,33 @@ static void VerifyMemoryChunk(Isolate* isolate,
 }
 
 
+TEST(Regress3540) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(
+      memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
+  CodeRange* code_range = new CodeRange(isolate);
+  const size_t code_range_size = 4 * MB;
+  if (!code_range->SetUp(code_range_size)) return;
+  Address address;
+  size_t size;
+  address = code_range->AllocateRawMemory(code_range_size - MB,
+                                          code_range_size - MB, &size);
+  CHECK(address != NULL);
+  Address null_address;
+  size_t null_size;
+  null_address = code_range->AllocateRawMemory(
+      code_range_size - MB, code_range_size - MB, &null_size);
+  CHECK(null_address == NULL);
+  code_range->FreeRawMemory(address, size);
+  delete code_range;
+  memory_allocator->TearDown();
+  delete memory_allocator;
+}
+
+
 static unsigned int Pseudorandom() {
   static uint32_t lo = 2345;
   lo = 18273 * (lo & 0xFFFFF) + (lo >> 16);
@@ -212,9 +239,7 @@ static unsigned int Pseudorandom() {
 
 TEST(MemoryChunk) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
 
   size_t reserve_area_size = 1 * MB;
   size_t initial_commit_area_size, second_commit_area_size;
@@ -268,9 +293,7 @@ TEST(MemoryChunk) {
 
 TEST(MemoryAllocator) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(isolate->heap()->ConfigureHeapDefault());
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
@@ -317,9 +340,7 @@ TEST(MemoryAllocator) {
 
 TEST(NewSpace) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
@@ -345,9 +366,7 @@ TEST(NewSpace) {
 
 TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));

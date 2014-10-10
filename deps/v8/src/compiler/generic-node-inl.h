@@ -64,12 +64,13 @@ void GenericNode<B, S>::ReplaceUses(GenericNode* replace_to) {
   if (replace_to->last_use_ == NULL) {
     DCHECK_EQ(NULL, replace_to->first_use_);
     replace_to->first_use_ = first_use_;
-  } else {
+    replace_to->last_use_ = last_use_;
+  } else if (first_use_ != NULL) {
     DCHECK_NE(NULL, replace_to->first_use_);
     replace_to->last_use_->next = first_use_;
     first_use_->prev = replace_to->last_use_;
+    replace_to->last_use_ = last_use_;
   }
-  replace_to->last_use_ = last_use_;
   replace_to->use_count_ += use_count_;
   use_count_ = 0;
   first_use_ = NULL;
@@ -141,7 +142,7 @@ template <class B, class S>
 void GenericNode<B, S>::EnsureAppendableInputs(Zone* zone) {
   if (!has_appendable_inputs_) {
     void* deque_buffer = zone->New(sizeof(InputDeque));
-    InputDeque* deque = new (deque_buffer) InputDeque(ZoneInputAllocator(zone));
+    InputDeque* deque = new (deque_buffer) InputDeque(zone);
     for (int i = 0; i < input_count_; ++i) {
       deque->push_back(inputs_.static_[i]);
     }
@@ -174,6 +175,16 @@ void GenericNode<B, S>::InsertInput(Zone* zone, int index,
     ReplaceInput(i, InputAt(i - 1));
   }
   ReplaceInput(index, to_insert);
+}
+
+template <class B, class S>
+void GenericNode<B, S>::RemoveInput(int index) {
+  DCHECK(index >= 0 && index < InputCount());
+  // TODO(turbofan): Optimize this implementation!
+  for (; index < InputCount() - 1; ++index) {
+    ReplaceInput(index, InputAt(index + 1));
+  }
+  TrimInputCount(InputCount() - 1);
 }
 
 template <class B, class S>

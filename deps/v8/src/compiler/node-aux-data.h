@@ -5,9 +5,7 @@
 #ifndef V8_COMPILER_NODE_AUX_DATA_H_
 #define V8_COMPILER_NODE_AUX_DATA_H_
 
-#include <vector>
-
-#include "src/zone-allocator.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -26,10 +24,7 @@ class NodeAuxData {
   inline T Get(Node* node);
 
  private:
-  typedef zone_allocator<T> ZoneAllocator;
-  typedef std::vector<T, ZoneAllocator> TZoneVector;
-
-  TZoneVector aux_data_;
+  ZoneVector<T> aux_data_;
 };
 }
 }

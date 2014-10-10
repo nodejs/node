@@ -35,10 +35,6 @@
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
-  # TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
-  'test-api/InitializeAndDisposeOnce': [SKIP],
-  'test-api/InitializeAndDisposeMultiple': [SKIP],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
@@ -75,39 +71,27 @@
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
   'test-cpu-profiler/*': [PASS, FLAKY],
+  'test-cpu-profiler/*': [SKIP],
+
+  # BUG(3525). Test crashes flakily.
+  'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
+  'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(mstarzinger): These need investigation and are not categorized yet.
-  'test-cpu-profiler/*': [SKIP],
-  'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger/verwaest): This access check API is borked.
-  'test-api/TurnOnAccessCheck': [PASS, NO_VARIANTS],
-  'test-api/TurnOnAccessCheckAndRecompile': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
-  'test-debug/DebugEvaluateWithoutStack': [PASS, NO_VARIANTS],
-  'test-debug/MessageQueues': [PASS, NO_VARIANTS],
-  'test-debug/NestedBreakEventContextData': [PASS, NO_VARIANTS],
-  'test-debug/SendClientDataToHandler': [PASS, NO_VARIANTS],
-
-  # TODO(dcarney): C calls are broken all over the place.
-  'test-run-machops/RunCall*': [SKIP],
-  'test-run-machops/RunLoadImmIndex': [SKIP],
-  'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
+  # TODO(sigurds): The schedule is borked with multiple inlinees,
+  # and cannot handle free-floating loops yet
+  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
+  'test-run-inlining/InlineLoop': [SKIP],
 
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
-  'test-api/RequestInterruptTestWithMathAbs': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
-
-  # Support for lazy deoptimization is missing.
-  'test-deoptimization/DeoptimizeCompare': [PASS, NO_VARIANTS],
 
   # Support for breakpoints requires using LoadICs and StoreICs.
   'test-debug/BreakPointICStore': [PASS, NO_VARIANTS],
@@ -190,7 +174,7 @@
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
   # BUG(v8:3155).
-  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+  'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
 
   # BUG(v8:3247).
   'test-mark-compact/NoPromotion': [SKIP],
@@ -199,7 +183,7 @@
   'test-mark-compact/Promotion': [PASS, FAIL],
 
   # BUG(v8:3434).
-  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP]
+  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
@@ -306,6 +290,11 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -322,23 +311,20 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
 ['arch == x87', {
 
-  # TODO (weiliang): Enable below tests after fixing the double register
-  # allocation limit in X87 port.
-  'test-serialize/Serialize': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/Deserialize': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/SerializeTwice': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/ContextSerialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/ContextDeserialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/PartialDeserialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/PartialSerialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeAndRunScript2': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeFromSecondSerialization': [PASS, ['mode == debug', SKIP]],
+  # Test requires turbofan:
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -435,10 +421,10 @@
   'test-constantpool/ConstantPool' : [SKIP],
   'test-compiler/GetScriptLineNumber' : [SKIP],
   'test-api/ScriptMakingExternalString' : [SKIP],
-  'test-api/ScriptMakingExternalAsciiString' : [SKIP],
+  'test-api/ScriptMakingExternalOneByteString' : [SKIP],
   'test-api/MakingExternalStringConditions' : [SKIP],
-  'test-api/MakingExternalAsciiStringConditions' : [SKIP],
-  'test-api/MakingExternalUnalignedAsciiString' : [SKIP],
+  'test-api/MakingExternalOneByteStringConditions' : [SKIP],
+  'test-api/MakingExternalUnalignedOneByteString' : [SKIP],
   'test-api/IndexedInterceptorUnboxedDoubleWithIndexedAccessor' : [SKIP],
   'test-api/IndependentWeakHandle' : [SKIP],
   'test-api/GCFromWeakCallbacks' : [SKIP],

@@ -31,7 +31,6 @@ import shutil
 import subprocess
 import tarfile
 
-from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
@@ -184,8 +183,6 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     os.chdir(old_cwd)
 
   def VariantFlags(self, testcase, default_flags):
-    if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
-      return [[]]
     # Both --nocrankshaft and --stressopt are very slow. Add TF but without
     # always opt to match the way the benchmarks are run for performance
     # testing.

@@ -64,20 +64,20 @@ else
       DEFINES += android_target_arch=mips mips_arch_variant=mips32r2
       TOOLCHAIN_ARCH = mipsel-linux-android
       TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
-      TOOLCHAIN_VER = 4.6
+      TOOLCHAIN_VER = 4.8
 
     else
       ifeq ($(ARCH), android_ia32)
         DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86 android_target_platform=14
         TOOLCHAIN_ARCH = x86
         TOOLCHAIN_PREFIX = i686-linux-android
-        TOOLCHAIN_VER = 4.6
+        TOOLCHAIN_VER = 4.8
       else
         ifeq ($(ARCH), android_x87)
           DEFINES = target_arch=x87 v8_target_arch=x87 android_target_arch=x86 android_target_platform=14
           TOOLCHAIN_ARCH = x86
           TOOLCHAIN_PREFIX = i686-linux-android
-          TOOLCHAIN_VER = 4.6
+          TOOLCHAIN_VER = 4.8
 	else
           $(error Target architecture "${ARCH}" is not supported)
         endif

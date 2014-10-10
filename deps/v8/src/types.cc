@@ -11,33 +11,120 @@ namespace v8 {
 namespace internal {
 
 
-// -----------------------------------------------------------------------------
-// Range-related custom order on doubles.
-// We want -0 to be less than +0.
+// NOTE: If code is marked as being a "shortcut", this means that removing
+// the code won't affect the semantics of the surrounding function definition.
 
-static bool dle(double x, double y) {
-  return x <= y && (x != 0 || IsMinusZero(x) || !IsMinusZero(y));
+
+// -----------------------------------------------------------------------------
+// Range-related helper functions.
+
+// The result may be invalid (max < min).
+template<class Config>
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
+    Limits lhs, Limits rhs) {
+  DisallowHeapAllocation no_allocation;
+  Limits result(lhs);
+  if (lhs.min->Number() < rhs.min->Number()) result.min = rhs.min;
+  if (lhs.max->Number() > rhs.max->Number()) result.max = rhs.max;
+  return result;
 }
 
 
-static bool deq(double x, double y) {
-  return dle(x, y) && dle(y, x);
+template<class Config>
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Union(
+    Limits lhs, Limits rhs) {
+  DisallowHeapAllocation no_allocation;
+  Limits result(lhs);
+  if (lhs.min->Number() > rhs.min->Number()) result.min = rhs.min;
+  if (lhs.max->Number() < rhs.max->Number()) result.max = rhs.max;
+  return result;
+}
+
+
+template<class Config>
+bool TypeImpl<Config>::Overlap(
+    typename TypeImpl<Config>::RangeType* lhs,
+    typename TypeImpl<Config>::RangeType* rhs) {
+  DisallowHeapAllocation no_allocation;
+  typename TypeImpl<Config>::Limits lim = Intersect(Limits(lhs), Limits(rhs));
+  return lim.min->Number() <= lim.max->Number();
+}
+
+
+template<class Config>
+bool TypeImpl<Config>::Contains(
+    typename TypeImpl<Config>::RangeType* lhs,
+    typename TypeImpl<Config>::RangeType* rhs) {
+  DisallowHeapAllocation no_allocation;
+  return lhs->Min()->Number() <= rhs->Min()->Number()
+      && rhs->Max()->Number() <= lhs->Max()->Number();
+}
+
+
+template<class Config>
+bool TypeImpl<Config>::Contains(
+    typename TypeImpl<Config>::RangeType* range, i::Object* val) {
+  DisallowHeapAllocation no_allocation;
+  return IsInteger(val)
+      && range->Min()->Number() <= val->Number()
+      && val->Number() <= range->Max()->Number();
+}
+
+
+// -----------------------------------------------------------------------------
+// Min and Max computation.
+
+template<class Config>
+double TypeImpl<Config>::Min() {
+  DCHECK(this->Is(Number()));
+  if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
+  if (this->IsUnion()) {
+    double min = +V8_INFINITY;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      min = std::min(min, this->AsUnion()->Get(i)->Min());
+    }
+    return min;
+  }
+  if (this->IsRange()) return this->AsRange()->Min()->Number();
+  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  UNREACHABLE();
+  return 0;
+}
+
+
+template<class Config>
+double TypeImpl<Config>::Max() {
+  DCHECK(this->Is(Number()));
+  if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
+  if (this->IsUnion()) {
+    double max = -V8_INFINITY;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      max = std::max(max, this->AsUnion()->Get(i)->Max());
+    }
+    return max;
+  }
+  if (this->IsRange()) return this->AsRange()->Max()->Number();
+  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  UNREACHABLE();
+  return 0;
 }
 
 
 // -----------------------------------------------------------------------------
 // Glb and lub computation.
 
+
 // The largest bitset subsumed by this type.
 template<class Config>
-int TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
   DisallowHeapAllocation no_allocation;
   if (type->IsBitset()) {
     return type->AsBitset();
   } else if (type->IsUnion()) {
-    UnionHandle unioned = handle(type->AsUnion());
-    DCHECK(unioned->Wellformed());
-    return unioned->Get(0)->BitsetGlb();  // Other BitsetGlb's are kNone anyway.
+    SLOW_DCHECK(type->AsUnion()->Wellformed());
+    return type->AsUnion()->Get(0)->BitsetGlb();  // Shortcut.
+    // (The remaining BitsetGlb's are None anyway).
   } else {
     return kNone;
   }
@@ -46,150 +133,59 @@ int TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
 
 // The smallest bitset subsuming this type.
 template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   DisallowHeapAllocation no_allocation;
-  if (type->IsBitset()) {
-    return type->AsBitset();
-  } else if (type->IsUnion()) {
-    UnionHandle unioned = handle(type->AsUnion());
+  if (type->IsBitset()) return type->AsBitset();
+  if (type->IsUnion()) {
     int bitset = kNone;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      bitset |= unioned->Get(i)->BitsetLub();
+    for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
+      bitset |= type->AsUnion()->Get(i)->BitsetLub();
     }
     return bitset;
-  } else if (type->IsClass()) {
+  }
+  if (type->IsClass()) {
     // Little hack to avoid the need for a region for handlification here...
     return Config::is_class(type) ? Lub(*Config::as_class(type)) :
         type->AsClass()->Bound(NULL)->AsBitset();
-  } else if (type->IsConstant()) {
-    return type->AsConstant()->Bound()->AsBitset();
-  } else if (type->IsRange()) {
-    return type->AsRange()->Bound()->AsBitset();
-  } else if (type->IsContext()) {
-    return type->AsContext()->Bound()->AsBitset();
-  } else if (type->IsArray()) {
-    return type->AsArray()->Bound()->AsBitset();
-  } else if (type->IsFunction()) {
-    return type->AsFunction()->Bound()->AsBitset();
-  } else {
-    UNREACHABLE();
-    return kNone;
   }
-}
-
-
-// The smallest bitset subsuming this type, ignoring explicit bounds.
-template<class Config>
-int TypeImpl<Config>::BitsetType::InherentLub(TypeImpl* type) {
-  DisallowHeapAllocation no_allocation;
-  if (type->IsBitset()) {
-    return type->AsBitset();
-  } else if (type->IsUnion()) {
-    UnionHandle unioned = handle(type->AsUnion());
-    int bitset = kNone;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      bitset |= unioned->Get(i)->InherentBitsetLub();
-    }
-    return bitset;
-  } else if (type->IsClass()) {
-    return Lub(*type->AsClass()->Map());
-  } else if (type->IsConstant()) {
-    return Lub(*type->AsConstant()->Value());
-  } else if (type->IsRange()) {
-    return Lub(type->AsRange()->Min(), type->AsRange()->Max());
-  } else if (type->IsContext()) {
-    return kInternal & kTaggedPtr;
-  } else if (type->IsArray()) {
-    return kArray;
-  } else if (type->IsFunction()) {
-    return kFunction;
-  } else {
-    UNREACHABLE();
-    return kNone;
-  }
+  if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
+  if (type->IsRange()) return type->AsRange()->BitsetLub();
+  if (type->IsContext()) return kInternal & kTaggedPtr;
+  if (type->IsArray()) return kArray;
+  if (type->IsFunction()) return kFunction;
+  UNREACHABLE();
+  return kNone;
 }
 
 
 template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(i::Object* value) {
-  DisallowHeapAllocation no_allocation;
-  if (value->IsNumber()) {
-    return Lub(value->Number()) & (value->IsSmi() ? kTaggedInt : kTaggedPtr);
-  }
-  return Lub(i::HeapObject::cast(value)->map());
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(double value) {
-  DisallowHeapAllocation no_allocation;
-  if (i::IsMinusZero(value)) return kMinusZero;
-  if (std::isnan(value)) return kNaN;
-  if (IsUint32Double(value)) return Lub(FastD2UI(value));
-  if (IsInt32Double(value)) return Lub(FastD2I(value));
-  return kOtherNumber;
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(double min, double max) {
-  DisallowHeapAllocation no_allocation;
-  DCHECK(dle(min, max));
-  if (deq(min, max)) return BitsetType::Lub(min);  // Singleton range.
-  int bitset = BitsetType::kNumber ^ SEMANTIC(BitsetType::kNaN);
-  if (dle(0, min) || max < 0) bitset ^= SEMANTIC(BitsetType::kMinusZero);
-  return bitset;
-  // TODO(neis): Could refine this further by doing more checks on min/max.
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(int32_t value) {
-  if (value >= 0x40000000) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  if (value >= 0) return kUnsignedSmall;
-  if (value >= -0x40000000) return kOtherSignedSmall;
-  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
-  DisallowHeapAllocation no_allocation;
-  if (value >= 0x80000000u) return kOtherUnsigned32;
-  if (value >= 0x40000000u) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  return kUnsignedSmall;
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
   DisallowHeapAllocation no_allocation;
   switch (map->instance_type()) {
     case STRING_TYPE:
-    case ASCII_STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
     case CONS_STRING_TYPE:
-    case CONS_ASCII_STRING_TYPE:
+    case CONS_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
-    case SLICED_ASCII_STRING_TYPE:
+    case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
-    case EXTERNAL_ASCII_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SHORT_EXTERNAL_STRING_TYPE:
-    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return kOtherString;
     case INTERNALIZED_STRING_TYPE:
-    case ASCII_INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return kString;
+      return kInternalizedString;
     case SYMBOL_TYPE:
       return kSymbol;
     case ODDBALL_TYPE: {
@@ -261,81 +257,214 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
 }
 
 
+template<class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(i::Object* value) {
+  DisallowHeapAllocation no_allocation;
+  if (value->IsNumber()) {
+    return Lub(value->Number()) & (value->IsSmi() ? kTaggedInt : kTaggedPtr);
+  }
+  return Lub(i::HeapObject::cast(value)->map());
+}
+
+
+template<class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(double value) {
+  DisallowHeapAllocation no_allocation;
+  if (i::IsMinusZero(value)) return kMinusZero;
+  if (std::isnan(value)) return kNaN;
+  if (IsUint32Double(value)) return Lub(FastD2UI(value));
+  if (IsInt32Double(value)) return Lub(FastD2I(value));
+  return kOtherNumber;
+}
+
+
+template<class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(int32_t value) {
+  DisallowHeapAllocation no_allocation;
+  if (value >= 0x40000000) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  if (value >= 0) return kUnsignedSmall;
+  if (value >= -0x40000000) return kOtherSignedSmall;
+  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
+}
+
+
+template<class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
+  DisallowHeapAllocation no_allocation;
+  if (value >= 0x80000000u) return kOtherUnsigned32;
+  if (value >= 0x40000000u) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  return kUnsignedSmall;
+}
+
+
+// Minimum values of regular numeric bitsets when SmiValuesAre31Bits.
+template<class Config>
+const typename TypeImpl<Config>::BitsetType::BitsetMin
+TypeImpl<Config>::BitsetType::BitsetMins31[] = {
+    {kOtherNumber, -V8_INFINITY},
+    {kOtherSigned32, kMinInt},
+    {kOtherSignedSmall, -0x40000000},
+    {kUnsignedSmall, 0},
+    {kOtherUnsigned31, 0x40000000},
+    {kOtherUnsigned32, 0x80000000},
+    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
+};
+
+
+// Minimum values of regular numeric bitsets when SmiValuesAre32Bits.
+// OtherSigned32 and OtherUnsigned31 are empty (see the diagrams in types.h).
+template<class Config>
+const typename TypeImpl<Config>::BitsetType::BitsetMin
+TypeImpl<Config>::BitsetType::BitsetMins32[] = {
+    {kOtherNumber, -V8_INFINITY},
+    {kOtherSignedSmall, kMinInt},
+    {kUnsignedSmall, 0},
+    {kOtherUnsigned32, 0x80000000},
+    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
+};
+
+
+template<class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::Lub(Limits lim) {
+  DisallowHeapAllocation no_allocation;
+  double min = lim.min->Number();
+  double max = lim.max->Number();
+  int lub = kNone;
+  const BitsetMin* mins = BitsetMins();
+
+  for (size_t i = 1; i < BitsetMinsSize(); ++i) {
+    if (min < mins[i].min) {
+      lub |= mins[i-1].bits;
+      if (max < mins[i].min) return lub;
+    }
+  }
+  return lub |= mins[BitsetMinsSize()-1].bits;
+}
+
+
+template<class Config>
+double TypeImpl<Config>::BitsetType::Min(bitset bits) {
+  DisallowHeapAllocation no_allocation;
+  DCHECK(Is(bits, kNumber));
+  const BitsetMin* mins = BitsetMins();
+  bool mz = SEMANTIC(bits & kMinusZero);
+  for (size_t i = 0; i < BitsetMinsSize(); ++i) {
+    if (Is(SEMANTIC(mins[i].bits), bits)) {
+      return mz ? std::min(0.0, mins[i].min) : mins[i].min;
+    }
+  }
+  if (mz) return 0;
+  return base::OS::nan_value();
+}
+
+
+template<class Config>
+double TypeImpl<Config>::BitsetType::Max(bitset bits) {
+  DisallowHeapAllocation no_allocation;
+  DCHECK(Is(bits, kNumber));
+  const BitsetMin* mins = BitsetMins();
+  bool mz = bits & kMinusZero;
+  if (BitsetType::Is(mins[BitsetMinsSize()-1].bits, bits)) {
+    return +V8_INFINITY;
+  }
+  for (size_t i = BitsetMinsSize()-1; i-- > 0; ) {
+    if (Is(SEMANTIC(mins[i].bits), bits)) {
+      return mz ?
+          std::max(0.0, mins[i+1].min - 1) : mins[i+1].min - 1;
+    }
+  }
+  if (mz) return 0;
+  return base::OS::nan_value();
+}
+
+
 // -----------------------------------------------------------------------------
 // Predicates.
 
-// Check this <= that.
+
 template<class Config>
-bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
+bool TypeImpl<Config>::SimplyEquals(TypeImpl* that) {
   DisallowHeapAllocation no_allocation;
-
-  // Fast path for bitsets.
-  if (this->IsNone()) return true;
-  if (that->IsBitset()) {
-    return BitsetType::Is(BitsetType::Lub(this), that->AsBitset());
+  if (this->IsClass()) {
+    return that->IsClass()
+        && *this->AsClass()->Map() == *that->AsClass()->Map();
   }
-
-  if (that->IsClass()) {
-    return this->IsClass()
-        && *this->AsClass()->Map() == *that->AsClass()->Map()
-        && ((Config::is_class(that) && Config::is_class(this)) ||
-            BitsetType::New(this->BitsetLub())->Is(
-                BitsetType::New(that->BitsetLub())));
+  if (this->IsConstant()) {
+    return that->IsConstant()
+        && *this->AsConstant()->Value() == *that->AsConstant()->Value();
   }
-  if (that->IsConstant()) {
-    return this->IsConstant()
-        && *this->AsConstant()->Value() == *that->AsConstant()->Value()
-        && this->AsConstant()->Bound()->Is(that->AsConstant()->Bound());
-  }
-  if (that->IsRange()) {
-    return this->IsRange()
-        && this->AsRange()->Bound()->Is(that->AsRange()->Bound())
-        && dle(that->AsRange()->Min(), this->AsRange()->Min())
-        && dle(this->AsRange()->Max(), that->AsRange()->Max());
-  }
-  if (that->IsContext()) {
-    return this->IsContext()
+  if (this->IsContext()) {
+    return that->IsContext()
         && this->AsContext()->Outer()->Equals(that->AsContext()->Outer());
   }
-  if (that->IsArray()) {
-    return this->IsArray()
+  if (this->IsArray()) {
+    return that->IsArray()
         && this->AsArray()->Element()->Equals(that->AsArray()->Element());
   }
-  if (that->IsFunction()) {
-    // We currently do not allow for any variance here, in order to keep
-    // Union and Intersect operations simple.
-    if (!this->IsFunction()) return false;
+  if (this->IsFunction()) {
+    if (!that->IsFunction()) return false;
     FunctionType* this_fun = this->AsFunction();
     FunctionType* that_fun = that->AsFunction();
     if (this_fun->Arity() != that_fun->Arity() ||
         !this_fun->Result()->Equals(that_fun->Result()) ||
-        !that_fun->Receiver()->Equals(this_fun->Receiver())) {
+        !this_fun->Receiver()->Equals(that_fun->Receiver())) {
       return false;
     }
-    for (int i = 0; i < this_fun->Arity(); ++i) {
-      if (!that_fun->Parameter(i)->Equals(this_fun->Parameter(i))) return false;
+    for (int i = 0, n = this_fun->Arity(); i < n; ++i) {
+      if (!this_fun->Parameter(i)->Equals(that_fun->Parameter(i))) return false;
     }
     return true;
   }
-
-  // (T1 \/ ... \/ Tn) <= T  <=>  (T1 <= T) /\ ... /\ (Tn <= T)
-  if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (!unioned->Get(i)->Is(that)) return false;
-    }
-    return true;
-  }
-
-  // T <= (T1 \/ ... \/ Tn)  <=>  (T <= T1) \/ ... \/ (T <= Tn)
-  // (iff T is not a union)
-  DCHECK(!this->IsUnion() && that->IsUnion());
-  UnionHandle unioned = handle(that->AsUnion());
-  for (int i = 0; i < unioned->Length(); ++i) {
-    if (this->Is(unioned->Get(i))) return true;
-    if (this->IsBitset()) break;  // Fast fail, only first field is a bitset.
-  }
+  UNREACHABLE();
   return false;
+}
+
+
+// Check if [this] <= [that].
+template<class Config>
+bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
+  DisallowHeapAllocation no_allocation;
+
+  if (that->IsBitset()) {
+    return BitsetType::Is(this->BitsetLub(), that->AsBitset());
+  }
+  if (this->IsBitset()) {
+    return BitsetType::Is(this->AsBitset(), that->BitsetGlb());
+  }
+
+  // (T1 \/ ... \/ Tn) <= T  if  (T1 <= T) /\ ... /\ (Tn <= T)
+  if (this->IsUnion()) {
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (!this->AsUnion()->Get(i)->Is(that)) return false;
+    }
+    return true;
+  }
+
+  // T <= (T1 \/ ... \/ Tn)  if  (T <= T1) \/ ... \/ (T <= Tn)
+  if (that->IsUnion()) {
+    for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
+      if (this->Is(that->AsUnion()->Get(i))) return true;
+      if (i > 1 && this->IsRange()) return false;  // Shortcut.
+    }
+    return false;
+  }
+
+  if (that->IsRange()) {
+    return (this->IsRange() && Contains(that->AsRange(), this->AsRange()))
+        || (this->IsConstant() &&
+            Contains(that->AsRange(), *this->AsConstant()->Value()));
+  }
+  if (this->IsRange()) return false;
+  return this->SimplyEquals(that);
 }
 
 
@@ -359,7 +488,7 @@ bool TypeImpl<Config>::NowIs(TypeImpl* that) {
 }
 
 
-// Check if this contains only (currently) stable classes.
+// Check if [this] contains only (currently) stable classes.
 template<class Config>
 bool TypeImpl<Config>::NowStable() {
   DisallowHeapAllocation no_allocation;
@@ -370,69 +499,71 @@ bool TypeImpl<Config>::NowStable() {
 }
 
 
-// Check this overlaps that.
+// Check if [this] and [that] overlap.
 template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   DisallowHeapAllocation no_allocation;
 
-  // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)
+  // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->Maybe(that)) return true;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->Maybe(that)) return true;
     }
     return false;
   }
 
-  // T overlaps (T1 \/ ... \/ Tn) <=> (T overlaps T1) \/ ... \/ (T overlaps Tn)
+  // T overlaps (T1 \/ ... \/ Tn)  if  (T overlaps T1) \/ ... \/ (T overlaps Tn)
   if (that->IsUnion()) {
-    UnionHandle unioned = handle(that->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (this->Maybe(unioned->Get(i))) return true;
+    for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
+      if (this->Maybe(that->AsUnion()->Get(i))) return true;
     }
     return false;
   }
 
-  DCHECK(!this->IsUnion() && !that->IsUnion());
-  if (this->IsBitset() || that->IsBitset()) {
-    return BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub());
+  if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
+    return false;
+  if (this->IsBitset() || that->IsBitset()) return true;
+
+  if (this->IsClass() != that->IsClass()) return true;
+
+  if (this->IsRange()) {
+    if (that->IsConstant()) {
+      return Contains(this->AsRange(), *that->AsConstant()->Value());
+    }
+    return that->IsRange() && Overlap(this->AsRange(), that->AsRange());
   }
-  if (this->IsClass()) {
-    return that->IsClass()
-        && *this->AsClass()->Map() == *that->AsClass()->Map();
-  }
-  if (this->IsConstant()) {
-    return that->IsConstant()
-        && *this->AsConstant()->Value() == *that->AsConstant()->Value();
-  }
-  if (this->IsContext()) {
-    return this->Equals(that);
-  }
-  if (this->IsArray()) {
-    // There is no variance!
-    return this->Equals(that);
-  }
-  if (this->IsFunction()) {
-    // There is no variance!
-    return this->Equals(that);
+  if (that->IsRange()) {
+    if (this->IsConstant()) {
+      return Contains(that->AsRange(), *this->AsConstant()->Value());
+    }
+    return this->IsRange() && Overlap(this->AsRange(), that->AsRange());
   }
 
-  return false;
+  return this->SimplyEquals(that);
 }
 
 
-// Check if value is contained in (inhabits) type.
+// Return the range in [this], or [NULL].
+template<class Config>
+typename TypeImpl<Config>::RangeType* TypeImpl<Config>::GetRange() {
+  DisallowHeapAllocation no_allocation;
+  if (this->IsRange()) return this->AsRange();
+  if (this->IsUnion() && this->AsUnion()->Get(1)->IsRange()) {
+    return this->AsUnion()->Get(1)->AsRange();
+  }
+  return NULL;
+}
+
+
 template<class Config>
 bool TypeImpl<Config>::Contains(i::Object* value) {
   DisallowHeapAllocation no_allocation;
-  if (this->IsRange()) {
-    return value->IsNumber() &&
-           dle(this->AsRange()->Min(), value->Number()) &&
-           dle(value->Number(), this->AsRange()->Max()) &&
-           BitsetType::Is(BitsetType::Lub(value), this->BitsetLub());
-  }
   for (Iterator<i::Object> it = this->Constants(); !it.Done(); it.Advance()) {
     if (*it.Current() == value) return true;
+  }
+  if (IsInteger(value)) {
+    RangeType* range = this->GetRange();
+    if (range != NULL && Contains(range, value)) return true;
   }
   return BitsetType::New(BitsetType::Lub(value))->Is(this);
 }
@@ -440,12 +571,21 @@ bool TypeImpl<Config>::Contains(i::Object* value) {
 
 template<class Config>
 bool TypeImpl<Config>::UnionType::Wellformed() {
-  DCHECK(this->Length() >= 2);
+  DisallowHeapAllocation no_allocation;
+  // This checks the invariants of the union representation:
+  // 1. There are at least two elements.
+  // 2. At most one element is a bitset, and it must be the first one.
+  // 3. At most one element is a range, and it must be the second one
+  //    (even when the first element is not a bitset).
+  // 4. No element is itself a union.
+  // 5. No element is a subtype of any other.
+  DCHECK(this->Length() >= 2);  // (1)
   for (int i = 0; i < this->Length(); ++i) {
-    DCHECK(!this->Get(i)->IsUnion());
-    if (i > 0) DCHECK(!this->Get(i)->IsBitset());
+    if (i != 0) DCHECK(!this->Get(i)->IsBitset());  // (2)
+    if (i != 1) DCHECK(!this->Get(i)->IsRange());  // (3)
+    DCHECK(!this->Get(i)->IsUnion());  // (4)
     for (int j = 0; j < this->Length(); ++j) {
-      if (i != j) DCHECK(!this->Get(i)->Is(this->Get(j)));
+      if (i != j) DCHECK(!this->Get(i)->Is(this->Get(j)));  // (5)
     }
   }
   return true;
@@ -455,135 +595,148 @@ bool TypeImpl<Config>::UnionType::Wellformed() {
 // -----------------------------------------------------------------------------
 // Union and intersection
 
-template<class Config>
-typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Rebound(
-    int bitset, Region* region) {
-  TypeHandle bound = BitsetType::New(bitset, region);
-  if (this->IsClass()) {
-    return ClassType::New(this->AsClass()->Map(), bound, region);
-  } else if (this->IsConstant()) {
-    return ConstantType::New(this->AsConstant()->Value(), bound, region);
-  } else if (this->IsRange()) {
-    return RangeType::New(
-        this->AsRange()->Min(), this->AsRange()->Max(), bound, region);
-  } else if (this->IsContext()) {
-    return ContextType::New(this->AsContext()->Outer(), bound, region);
-  } else if (this->IsArray()) {
-    return ArrayType::New(this->AsArray()->Element(), bound, region);
-  } else if (this->IsFunction()) {
-    FunctionHandle function = Config::handle(this->AsFunction());
-    int arity = function->Arity();
-    FunctionHandle type = FunctionType::New(
-        function->Result(), function->Receiver(), bound, arity, region);
-    for (int i = 0; i < arity; ++i) {
-      type->InitParameter(i, function->Parameter(i));
-    }
-    return type;
-  }
-  UNREACHABLE();
-  return TypeHandle();
+
+static bool AddIsSafe(int x, int y) {
+  return x >= 0 ?
+      y <= std::numeric_limits<int>::max() - x :
+      y >= std::numeric_limits<int>::min() - x;
 }
 
 
 template<class Config>
-int TypeImpl<Config>::BoundBy(TypeImpl* that) {
-  DCHECK(!this->IsUnion());
-  if (that->IsUnion()) {
-    UnionType* unioned = that->AsUnion();
-    int length = unioned->Length();
-    int bitset = BitsetType::kNone;
-    for (int i = 0; i < length; ++i) {
-      bitset |= BoundBy(unioned->Get(i)->unhandle());
-    }
-    return bitset;
-  } else if (that->IsClass() && this->IsClass() &&
-      *this->AsClass()->Map() == *that->AsClass()->Map()) {
-    return that->BitsetLub();
-  } else if (that->IsConstant() && this->IsConstant() &&
-      *this->AsConstant()->Value() == *that->AsConstant()->Value()) {
-    return that->AsConstant()->Bound()->AsBitset();
-  } else if (that->IsContext() && this->IsContext() && this->Is(that)) {
-    return that->AsContext()->Bound()->AsBitset();
-  } else if (that->IsArray() && this->IsArray() && this->Is(that)) {
-    return that->AsArray()->Bound()->AsBitset();
-  } else if (that->IsFunction() && this->IsFunction() && this->Is(that)) {
-    return that->AsFunction()->Bound()->AsBitset();
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
+    TypeHandle type1, TypeHandle type2, Region* region) {
+  bitset bits = type1->BitsetGlb() & type2->BitsetGlb();
+  if (!BitsetType::IsInhabited(bits)) bits = BitsetType::kNone;
+
+  // Fast case: bit sets.
+  if (type1->IsBitset() && type2->IsBitset()) {
+    return BitsetType::New(bits, region);
   }
-  return that->BitsetGlb();
+
+  // Fast case: top or bottom types.
+  if (type1->IsNone() || type2->IsAny()) return type1;  // Shortcut.
+  if (type2->IsNone() || type1->IsAny()) return type2;  // Shortcut.
+
+  // Semi-fast case.
+  if (type1->Is(type2)) return type1;
+  if (type2->Is(type1)) return type2;
+
+  // Slow case: create union.
+  int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
+  int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
+  if (!AddIsSafe(size1, size2)) return Any(region);
+  int size = size1 + size2;
+  if (!AddIsSafe(size, 2)) return Any(region);
+  size += 2;
+  UnionHandle result = UnionType::New(size, region);
+  size = 0;
+
+  // Deal with bitsets.
+  result->Set(size++, BitsetType::New(bits, region));
+
+  // Deal with ranges.
+  TypeHandle range = None(region);
+  RangeType* range1 = type1->GetRange();
+  RangeType* range2 = type2->GetRange();
+  if (range1 != NULL && range2 != NULL) {
+    Limits lim = Intersect(Limits(range1), Limits(range2));
+    if (lim.min->Number() <= lim.max->Number()) {
+      range = RangeType::New(lim, region);
+    }
+  }
+  result->Set(size++, range);
+
+  size = IntersectAux(type1, type2, result, size, region);
+  return NormalizeUnion(result, size);
 }
 
 
 template<class Config>
-int TypeImpl<Config>::IndexInUnion(
-    int bound, UnionHandle unioned, int current_size) {
-  DCHECK(!this->IsUnion());
-  for (int i = 0; i < current_size; ++i) {
-    TypeHandle that = unioned->Get(i);
-    if (that->IsBitset()) {
-      if (BitsetType::Is(bound, that->AsBitset())) return i;
-    } else if (that->IsClass() && this->IsClass()) {
-      if (*this->AsClass()->Map() == *that->AsClass()->Map()) return i;
-    } else if (that->IsConstant() && this->IsConstant()) {
-      if (*this->AsConstant()->Value() == *that->AsConstant()->Value())
-        return i;
-    } else if (that->IsContext() && this->IsContext()) {
-      if (this->Is(that)) return i;
-    } else if (that->IsArray() && this->IsArray()) {
-      if (this->Is(that)) return i;
-    } else if (that->IsFunction() && this->IsFunction()) {
-      if (this->Is(that)) return i;
-    }
+int TypeImpl<Config>::UpdateRange(
+    RangeHandle range, UnionHandle result, int size, Region* region) {
+  TypeHandle old_range = result->Get(1);
+  DCHECK(old_range->IsRange() || old_range->IsNone());
+  if (range->Is(old_range)) return size;
+  if (!old_range->Is(range->unhandle())) {
+    range = RangeType::New(
+        Union(Limits(range->AsRange()), Limits(old_range->AsRange())), region);
   }
-  return -1;
-}
+  result->Set(1, range);
 
-
-// Get non-bitsets from type, bounded by upper.
-// Store at result starting at index. Returns updated index.
-template<class Config>
-int TypeImpl<Config>::ExtendUnion(
-    UnionHandle result, int size, TypeHandle type,
-    TypeHandle other, bool is_intersect, Region* region) {
-  if (type->IsUnion()) {
-    UnionHandle unioned = handle(type->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      TypeHandle type_i = unioned->Get(i);
-      DCHECK(i == 0 || !(type_i->IsBitset() || type_i->Is(unioned->Get(0))));
-      if (!type_i->IsBitset()) {
-        size = ExtendUnion(result, size, type_i, other, is_intersect, region);
-      }
-    }
-  } else if (!type->IsBitset()) {
-    DCHECK(type->IsClass() || type->IsConstant() || type->IsRange() ||
-           type->IsContext() || type->IsArray() || type->IsFunction());
-    int inherent_bound = type->InherentBitsetLub();
-    int old_bound = type->BitsetLub();
-    int other_bound = type->BoundBy(other->unhandle()) & inherent_bound;
-    int new_bound =
-        is_intersect ? (old_bound & other_bound) : (old_bound | other_bound);
-    if (new_bound != BitsetType::kNone) {
-      int i = type->IndexInUnion(new_bound, result, size);
-      if (i == -1) {
-        i = size++;
-      } else if (result->Get(i)->IsBitset()) {
-        return size;  // Already fully subsumed.
-      } else {
-        int type_i_bound = result->Get(i)->BitsetLub();
-        new_bound |= type_i_bound;
-        if (new_bound == type_i_bound) return size;
-      }
-      if (new_bound != old_bound) type = type->Rebound(new_bound, region);
-      result->Set(i, type);
+  // Remove any components that just got subsumed.
+  for (int i = 2; i < size; ) {
+    if (result->Get(i)->Is(range->unhandle())) {
+      result->Set(i, result->Get(--size));
+    } else {
+      ++i;
     }
   }
   return size;
 }
 
 
-// Union is O(1) on simple bitsets, but O(n*m) on structured unions.
+template<class Config>
+int TypeImpl<Config>::IntersectAux(
+    TypeHandle lhs, TypeHandle rhs,
+    UnionHandle result, int size, Region* region) {
+  if (lhs->IsUnion()) {
+    for (int i = 0, n = lhs->AsUnion()->Length(); i < n; ++i) {
+      size = IntersectAux(lhs->AsUnion()->Get(i), rhs, result, size, region);
+    }
+    return size;
+  }
+  if (rhs->IsUnion()) {
+    for (int i = 0, n = rhs->AsUnion()->Length(); i < n; ++i) {
+      size = IntersectAux(lhs, rhs->AsUnion()->Get(i), result, size, region);
+    }
+    return size;
+  }
+
+  if (!BitsetType::IsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
+    return size;
+  }
+
+  if (lhs->IsRange()) {
+    if (rhs->IsBitset() || rhs->IsClass()) {
+      return UpdateRange(
+          Config::template cast<RangeType>(lhs), result, size, region);
+    }
+    if (rhs->IsConstant() &&
+        Contains(lhs->AsRange(), *rhs->AsConstant()->Value())) {
+      return AddToUnion(rhs, result, size, region);
+    }
+    return size;
+  }
+  if (rhs->IsRange()) {
+    if (lhs->IsBitset() || lhs->IsClass()) {
+      return UpdateRange(
+          Config::template cast<RangeType>(rhs), result, size, region);
+    }
+    if (lhs->IsConstant() &&
+        Contains(rhs->AsRange(), *lhs->AsConstant()->Value())) {
+      return AddToUnion(lhs, result, size, region);
+    }
+    return size;
+  }
+
+  if (lhs->IsBitset() || rhs->IsBitset()) {
+    return AddToUnion(lhs->IsBitset() ? rhs : lhs, result, size, region);
+  }
+  if (lhs->IsClass() != rhs->IsClass()) {
+    return AddToUnion(lhs->IsClass() ? rhs : lhs, result, size, region);
+  }
+  if (lhs->SimplyEquals(rhs->unhandle())) {
+    return AddToUnion(lhs, result, size, region);
+  }
+  return size;
+}
+
+
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
     TypeHandle type1, TypeHandle type2, Region* region) {
+
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
     return BitsetType::New(type1->AsBitset() | type2->AsBitset(), region);
@@ -593,90 +746,80 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   if (type1->IsAny() || type2->IsNone()) return type1;
   if (type2->IsAny() || type1->IsNone()) return type2;
 
-  // Semi-fast case: Unioned objects are neither involved nor produced.
-  if (!(type1->IsUnion() || type2->IsUnion())) {
-    if (type1->Is(type2)) return type2;
-    if (type2->Is(type1)) return type1;
-  }
+  // Semi-fast case.
+  if (type1->Is(type2)) return type2;
+  if (type2->Is(type1)) return type1;
 
-  // Slow case: may need to produce a Unioned object.
-  int size = 0;
-  if (!type1->IsBitset()) {
-    size += (type1->IsUnion() ? type1->AsUnion()->Length() : 1);
-  }
-  if (!type2->IsBitset()) {
-    size += (type2->IsUnion() ? type2->AsUnion()->Length() : 1);
-  }
-  int bitset = type1->BitsetGlb() | type2->BitsetGlb();
-  if (bitset != BitsetType::kNone) ++size;
-  DCHECK(size >= 1);
-
-  UnionHandle unioned = UnionType::New(size, region);
+  // Slow case: create union.
+  int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
+  int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
+  if (!AddIsSafe(size1, size2)) return Any(region);
+  int size = size1 + size2;
+  if (!AddIsSafe(size, 2)) return Any(region);
+  size += 2;
+  UnionHandle result = UnionType::New(size, region);
   size = 0;
-  if (bitset != BitsetType::kNone) {
-    unioned->Set(size++, BitsetType::New(bitset, region));
-  }
-  size = ExtendUnion(unioned, size, type1, type2, false, region);
-  size = ExtendUnion(unioned, size, type2, type1, false, region);
 
-  if (size == 1) {
-    return unioned->Get(0);
-  } else {
-    unioned->Shrink(size);
-    DCHECK(unioned->Wellformed());
-    return unioned;
+  // Deal with bitsets.
+  TypeHandle bits = BitsetType::New(
+      type1->BitsetGlb() | type2->BitsetGlb(), region);
+  result->Set(size++, bits);
+
+  // Deal with ranges.
+  TypeHandle range = None(region);
+  RangeType* range1 = type1->GetRange();
+  RangeType* range2 = type2->GetRange();
+  if (range1 != NULL && range2 != NULL) {
+    range = RangeType::New(Union(Limits(range1), Limits(range2)), region);
+  } else if (range1 != NULL) {
+    range = handle(range1);
+  } else if (range2 != NULL) {
+    range = handle(range2);
   }
+  result->Set(size++, range);
+
+  size = AddToUnion(type1, result, size, region);
+  size = AddToUnion(type2, result, size, region);
+  return NormalizeUnion(result, size);
 }
 
 
-// Intersection is O(1) on simple bitsets, but O(n*m) on structured unions.
+// Add [type] to [result] unless [type] is bitset, range, or already subsumed.
+// Return new size of [result].
 template<class Config>
-typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
-    TypeHandle type1, TypeHandle type2, Region* region) {
-  // Fast case: bit sets.
-  if (type1->IsBitset() && type2->IsBitset()) {
-    return BitsetType::New(type1->AsBitset() & type2->AsBitset(), region);
+int TypeImpl<Config>::AddToUnion(
+    TypeHandle type, UnionHandle result, int size, Region* region) {
+  if (type->IsBitset() || type->IsRange()) return size;
+  if (type->IsUnion()) {
+    for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
+      size = AddToUnion(type->AsUnion()->Get(i), result, size, region);
+    }
+    return size;
   }
+  for (int i = 0; i < size; ++i) {
+    if (type->Is(result->Get(i))) return size;
+  }
+  result->Set(size++, type);
+  return size;
+}
 
-  // Fast case: top or bottom types.
-  if (type1->IsNone() || type2->IsAny()) return type1;
-  if (type2->IsNone() || type1->IsAny()) return type2;
 
-  // Semi-fast case: Unioned objects are neither involved nor produced.
-  if (!(type1->IsUnion() || type2->IsUnion())) {
-    if (type1->Is(type2)) return type1;
-    if (type2->Is(type1)) return type2;
+template<class Config>
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeUnion(
+    UnionHandle unioned, int size) {
+  DCHECK(size >= 2);
+  // If range is subsumed by bitset, use its place for a different type.
+  if (unioned->Get(1)->Is(unioned->Get(0))) {
+    unioned->Set(1, unioned->Get(--size));
   }
-
-  // Slow case: may need to produce a Unioned object.
-  int size = 0;
-  if (!type1->IsBitset()) {
-    size += (type1->IsUnion() ? type1->AsUnion()->Length() : 1);
+  // If bitset is None, use its place for a different type.
+  if (size >= 2 && unioned->Get(0)->IsNone()) {
+    unioned->Set(0, unioned->Get(--size));
   }
-  if (!type2->IsBitset()) {
-    size += (type2->IsUnion() ? type2->AsUnion()->Length() : 1);
-  }
-  int bitset = type1->BitsetGlb() & type2->BitsetGlb();
-  if (bitset != BitsetType::kNone) ++size;
-  DCHECK(size >= 1);
-
-  UnionHandle unioned = UnionType::New(size, region);
-  size = 0;
-  if (bitset != BitsetType::kNone) {
-    unioned->Set(size++, BitsetType::New(bitset, region));
-  }
-  size = ExtendUnion(unioned, size, type1, type2, true, region);
-  size = ExtendUnion(unioned, size, type2, type1, true, region);
-
-  if (size == 0) {
-    return None(region);
-  } else if (size == 1) {
-    return unioned->Get(0);
-  } else {
-    unioned->Shrink(size);
-    DCHECK(unioned->Wellformed());
-    return unioned;
-  }
+  if (size == 1) return unioned->Get(0);
+  unioned->Shrink(size);
+  SLOW_DCHECK(unioned->Wellformed());
+  return unioned;
 }
 
 
@@ -689,10 +832,9 @@ int TypeImpl<Config>::NumClasses() {
   if (this->IsClass()) {
     return 1;
   } else if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
     int result = 0;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->IsClass()) ++result;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->IsClass()) ++result;
     }
     return result;
   } else {
@@ -707,10 +849,9 @@ int TypeImpl<Config>::NumConstants() {
   if (this->IsConstant()) {
     return 1;
   } else if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
     int result = 0;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->IsConstant()) ++result;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->IsConstant()) ++result;
     }
     return result;
   } else {
@@ -772,9 +913,8 @@ void TypeImpl<Config>::Iterator<T>::Advance() {
   DisallowHeapAllocation no_allocation;
   ++index_;
   if (type_->IsUnion()) {
-    UnionHandle unioned = handle(type_->AsUnion());
-    for (; index_ < unioned->Length(); ++index_) {
-      if (matches(unioned->Get(index_))) return;
+    for (int n = type_->AsUnion()->Length(); index_ < n; ++index_) {
+      if (matches(type_->AsUnion()->Get(index_))) return;
     }
   } else if (index_ == 0 && matches(type_)) {
     return;
@@ -793,19 +933,15 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
   if (type->IsBitset()) {
     return BitsetType::New(type->AsBitset(), region);
   } else if (type->IsClass()) {
-    TypeHandle bound = BitsetType::New(type->BitsetLub(), region);
-    return ClassType::New(type->AsClass()->Map(), bound, region);
+    return ClassType::New(type->AsClass()->Map(), region);
   } else if (type->IsConstant()) {
-    TypeHandle bound = Convert<OtherType>(type->AsConstant()->Bound(), region);
-    return ConstantType::New(type->AsConstant()->Value(), bound, region);
+    return ConstantType::New(type->AsConstant()->Value(), region);
   } else if (type->IsRange()) {
-    TypeHandle bound = Convert<OtherType>(type->AsRange()->Bound(), region);
     return RangeType::New(
-        type->AsRange()->Min(), type->AsRange()->Max(), bound, region);
+        type->AsRange()->Min(), type->AsRange()->Max(), region);
   } else if (type->IsContext()) {
-    TypeHandle bound = Convert<OtherType>(type->AsContext()->Bound(), region);
     TypeHandle outer = Convert<OtherType>(type->AsContext()->Outer(), region);
-    return ContextType::New(outer, bound, region);
+    return ContextType::New(outer, region);
   } else if (type->IsUnion()) {
     int length = type->AsUnion()->Length();
     UnionHandle unioned = UnionType::New(length, region);
@@ -816,14 +952,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
     return unioned;
   } else if (type->IsArray()) {
     TypeHandle element = Convert<OtherType>(type->AsArray()->Element(), region);
-    TypeHandle bound = Convert<OtherType>(type->AsArray()->Bound(), region);
-    return ArrayType::New(element, bound, region);
+    return ArrayType::New(element, region);
   } else if (type->IsFunction()) {
     TypeHandle res = Convert<OtherType>(type->AsFunction()->Result(), region);
     TypeHandle rcv = Convert<OtherType>(type->AsFunction()->Receiver(), region);
-    TypeHandle bound = Convert<OtherType>(type->AsFunction()->Bound(), region);
     FunctionHandle function = FunctionType::New(
-        res, rcv, bound, type->AsFunction()->Arity(), region);
+        res, rcv, type->AsFunction()->Arity(), region);
     for (int i = 0; i < function->Arity(); ++i) {
       TypeHandle param = Convert<OtherType>(
           type->AsFunction()->Parameter(i), region);
@@ -841,8 +975,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
 // Printing.
 
 template<class Config>
-const char* TypeImpl<Config>::BitsetType::Name(int bitset) {
-  switch (bitset) {
+const char* TypeImpl<Config>::BitsetType::Name(bitset bits) {
+  switch (bits) {
     case REPRESENTATION(kAny): return "Any";
     #define RETURN_NAMED_REPRESENTATION_TYPE(type, value) \
     case REPRESENTATION(k##type): return #type;
@@ -862,15 +996,15 @@ const char* TypeImpl<Config>::BitsetType::Name(int bitset) {
 
 template <class Config>
 void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
-                                         int bitset) {
+                                         bitset bits) {
   DisallowHeapAllocation no_allocation;
-  const char* name = Name(bitset);
+  const char* name = Name(bits);
   if (name != NULL) {
     os << name;
     return;
   }
 
-  static const int named_bitsets[] = {
+  static const bitset named_bitsets[] = {
 #define BITSET_CONSTANT(type, value) REPRESENTATION(k##type),
       REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
 #undef BITSET_CONSTANT
@@ -882,16 +1016,16 @@ void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
 
   bool is_first = true;
   os << "(";
-  for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
-    int subset = named_bitsets[i];
-    if ((bitset & subset) == subset) {
+  for (int i(arraysize(named_bitsets) - 1); bits != 0 && i >= 0; --i) {
+    bitset subset = named_bitsets[i];
+    if ((bits & subset) == subset) {
       if (!is_first) os << " | ";
       is_first = false;
       os << Name(subset);
-      bitset -= subset;
+      bits -= subset;
     }
   }
-  DCHECK(bitset == 0);
+  DCHECK(bits == 0);
   os << ")";
 }
 
@@ -907,24 +1041,18 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
       BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
       os << ")";
     } else if (this->IsConstant()) {
-      os << "Constant(" << static_cast<void*>(*this->AsConstant()->Value())
-         << " : ";
-      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
-      os << ")";
+      os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
     } else if (this->IsRange()) {
-      os << "Range(" << this->AsRange()->Min()
-         << ".." << this->AsRange()->Max() << " : ";
-      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
-      os << ")";
+      os << "Range(" << this->AsRange()->Min()->Number()
+         << ", " << this->AsRange()->Max()->Number() << ")";
     } else if (this->IsContext()) {
       os << "Context(";
       this->AsContext()->Outer()->PrintTo(os, dim);
       os << ")";
     } else if (this->IsUnion()) {
       os << "(";
-      UnionHandle unioned = handle(this->AsUnion());
-      for (int i = 0; i < unioned->Length(); ++i) {
-        TypeHandle type_i = unioned->Get(i);
+      for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+        TypeHandle type_i = this->AsUnion()->Get(i);
         if (i > 0) os << " | ";
         type_i->PrintTo(os, dim);
       }
@@ -961,6 +1089,12 @@ template <class Config>
 void TypeImpl<Config>::Print() {
   OFStream os(stdout);
   PrintTo(os);
+  os << endl;
+}
+template <class Config>
+void TypeImpl<Config>::BitsetType::Print(bitset bits) {
+  OFStream os(stdout);
+  Print(os, bits);
   os << endl;
 }
 #endif

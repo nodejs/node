@@ -8,7 +8,8 @@
 // "new" operator on them.
 assertEquals("function", typeof (() => {}));
 assertEquals(Function.prototype, Object.getPrototypeOf(() => {}));
-assertThrows("new (() => {})", TypeError);
+assertThrows(function() { new (() => {}); }, TypeError);
+assertFalse("prototype" in (() => {}));
 
 // Check the different syntax variations
 assertEquals(1, (() => 1)());

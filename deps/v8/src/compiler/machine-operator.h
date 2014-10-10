@@ -6,163 +6,182 @@
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
 #include "src/compiler/machine-type.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
-#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(turbofan): other write barriers are possible based on type
+// Forward declarations.
+struct MachineOperatorBuilderImpl;
+class Operator;
+
+
+// Supported write barrier modes.
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
+
+OStream& operator<<(OStream& os, const WriteBarrierKind& write_barrier_kind);
+
+
+typedef MachineType LoadRepresentation;
 
 
 // A Store needs a MachineType and a WriteBarrierKind
 // in order to emit the correct write barrier.
-struct StoreRepresentation {
-  MachineType rep;
-  WriteBarrierKind write_barrier_kind;
+class StoreRepresentation FINAL {
+ public:
+  StoreRepresentation(MachineType machine_type,
+                      WriteBarrierKind write_barrier_kind)
+      : machine_type_(machine_type), write_barrier_kind_(write_barrier_kind) {}
+
+  MachineType machine_type() const { return machine_type_; }
+  WriteBarrierKind write_barrier_kind() const { return write_barrier_kind_; }
+
+ private:
+  MachineType machine_type_;
+  WriteBarrierKind write_barrier_kind_;
 };
+
+inline bool operator==(const StoreRepresentation& rep1,
+                       const StoreRepresentation& rep2) {
+  return rep1.machine_type() == rep2.machine_type() &&
+         rep1.write_barrier_kind() == rep2.write_barrier_kind();
+}
+
+inline bool operator!=(const StoreRepresentation& rep1,
+                       const StoreRepresentation& rep2) {
+  return !(rep1 == rep2);
+}
+
+OStream& operator<<(OStream& os, const StoreRepresentation& rep);
 
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
-class MachineOperatorBuilder {
+class MachineOperatorBuilder FINAL {
  public:
-  explicit MachineOperatorBuilder(Zone* zone, MachineType word = pointer_rep())
-      : zone_(zone), word_(word) {
-    CHECK(word == kMachineWord32 || word == kMachineWord64);
-  }
+  explicit MachineOperatorBuilder(MachineType word = kMachPtr);
 
-#define SIMPLE(name, properties, inputs, outputs) \
-  return new (zone_)                              \
-      SimpleOperator(IrOpcode::k##name, properties, inputs, outputs, #name);
+  const Operator* Word32And();
+  const Operator* Word32Or();
+  const Operator* Word32Xor();
+  const Operator* Word32Shl();
+  const Operator* Word32Shr();
+  const Operator* Word32Sar();
+  const Operator* Word32Ror();
+  const Operator* Word32Equal();
 
-#define OP1(name, ptype, pname, properties, inputs, outputs)               \
-  return new (zone_)                                                       \
-      Operator1<ptype>(IrOpcode::k##name, properties | Operator::kNoThrow, \
-                       inputs, outputs, #name, pname)
+  const Operator* Word64And();
+  const Operator* Word64Or();
+  const Operator* Word64Xor();
+  const Operator* Word64Shl();
+  const Operator* Word64Shr();
+  const Operator* Word64Sar();
+  const Operator* Word64Ror();
+  const Operator* Word64Equal();
 
-#define BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
-#define BINOP_O(name) SIMPLE(name, Operator::kPure, 2, 2)
-#define BINOP_C(name) \
-  SIMPLE(name, Operator::kCommutative | Operator::kPure, 2, 1)
-#define BINOP_AC(name)                                                         \
-  SIMPLE(name,                                                                 \
-         Operator::kAssociative | Operator::kCommutative | Operator::kPure, 2, \
-         1)
-#define BINOP_ACO(name)                                                        \
-  SIMPLE(name,                                                                 \
-         Operator::kAssociative | Operator::kCommutative | Operator::kPure, 2, \
-         2)
-#define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
+  const Operator* Int32Add();
+  const Operator* Int32AddWithOverflow();
+  const Operator* Int32Sub();
+  const Operator* Int32SubWithOverflow();
+  const Operator* Int32Mul();
+  const Operator* Int32Div();
+  const Operator* Int32UDiv();
+  const Operator* Int32Mod();
+  const Operator* Int32UMod();
+  const Operator* Int32LessThan();
+  const Operator* Int32LessThanOrEqual();
+  const Operator* Uint32LessThan();
+  const Operator* Uint32LessThanOrEqual();
 
-#define WORD_SIZE(x) return is64() ? Word64##x() : Word32##x()
+  const Operator* Int64Add();
+  const Operator* Int64Sub();
+  const Operator* Int64Mul();
+  const Operator* Int64Div();
+  const Operator* Int64UDiv();
+  const Operator* Int64Mod();
+  const Operator* Int64UMod();
+  const Operator* Int64LessThan();
+  const Operator* Int64LessThanOrEqual();
 
-  Operator* Load(MachineType rep) {  // load [base + index]
-    OP1(Load, MachineType, rep, Operator::kNoWrite, 2, 1);
-  }
-  // store [base + index], value
-  Operator* Store(MachineType rep, WriteBarrierKind kind) {
-    StoreRepresentation store_rep = {rep, kind};
-    OP1(Store, StoreRepresentation, store_rep, Operator::kNoRead, 3, 0);
-  }
+  // These operators change the representation of numbers while preserving the
+  // value of the number. Narrowing operators assume the input is representable
+  // in the target type and are *not* defined for other inputs.
+  // Use narrowing change operators only when there is a static guarantee that
+  // the input value is representable in the target value.
+  const Operator* ChangeFloat32ToFloat64();
+  const Operator* ChangeFloat64ToInt32();   // narrowing
+  const Operator* ChangeFloat64ToUint32();  // narrowing
+  const Operator* ChangeInt32ToFloat64();
+  const Operator* ChangeInt32ToInt64();
+  const Operator* ChangeUint32ToFloat64();
+  const Operator* ChangeUint32ToUint64();
 
-  Operator* WordAnd() { WORD_SIZE(And); }
-  Operator* WordOr() { WORD_SIZE(Or); }
-  Operator* WordXor() { WORD_SIZE(Xor); }
-  Operator* WordShl() { WORD_SIZE(Shl); }
-  Operator* WordShr() { WORD_SIZE(Shr); }
-  Operator* WordSar() { WORD_SIZE(Sar); }
-  Operator* WordEqual() { WORD_SIZE(Equal); }
-
-  Operator* Word32And() { BINOP_AC(Word32And); }
-  Operator* Word32Or() { BINOP_AC(Word32Or); }
-  Operator* Word32Xor() { BINOP_AC(Word32Xor); }
-  Operator* Word32Shl() { BINOP(Word32Shl); }
-  Operator* Word32Shr() { BINOP(Word32Shr); }
-  Operator* Word32Sar() { BINOP(Word32Sar); }
-  Operator* Word32Equal() { BINOP_C(Word32Equal); }
-
-  Operator* Word64And() { BINOP_AC(Word64And); }
-  Operator* Word64Or() { BINOP_AC(Word64Or); }
-  Operator* Word64Xor() { BINOP_AC(Word64Xor); }
-  Operator* Word64Shl() { BINOP(Word64Shl); }
-  Operator* Word64Shr() { BINOP(Word64Shr); }
-  Operator* Word64Sar() { BINOP(Word64Sar); }
-  Operator* Word64Equal() { BINOP_C(Word64Equal); }
-
-  Operator* Int32Add() { BINOP_AC(Int32Add); }
-  Operator* Int32AddWithOverflow() { BINOP_ACO(Int32AddWithOverflow); }
-  Operator* Int32Sub() { BINOP(Int32Sub); }
-  Operator* Int32SubWithOverflow() { BINOP_O(Int32SubWithOverflow); }
-  Operator* Int32Mul() { BINOP_AC(Int32Mul); }
-  Operator* Int32Div() { BINOP(Int32Div); }
-  Operator* Int32UDiv() { BINOP(Int32UDiv); }
-  Operator* Int32Mod() { BINOP(Int32Mod); }
-  Operator* Int32UMod() { BINOP(Int32UMod); }
-  Operator* Int32LessThan() { BINOP(Int32LessThan); }
-  Operator* Int32LessThanOrEqual() { BINOP(Int32LessThanOrEqual); }
-  Operator* Uint32LessThan() { BINOP(Uint32LessThan); }
-  Operator* Uint32LessThanOrEqual() { BINOP(Uint32LessThanOrEqual); }
-
-  Operator* Int64Add() { BINOP_AC(Int64Add); }
-  Operator* Int64Sub() { BINOP(Int64Sub); }
-  Operator* Int64Mul() { BINOP_AC(Int64Mul); }
-  Operator* Int64Div() { BINOP(Int64Div); }
-  Operator* Int64UDiv() { BINOP(Int64UDiv); }
-  Operator* Int64Mod() { BINOP(Int64Mod); }
-  Operator* Int64UMod() { BINOP(Int64UMod); }
-  Operator* Int64LessThan() { BINOP(Int64LessThan); }
-  Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
-
-  Operator* ConvertInt32ToInt64() { UNOP(ConvertInt32ToInt64); }
-  Operator* ConvertInt64ToInt32() { UNOP(ConvertInt64ToInt32); }
-
-  // Convert representation of integers between float64 and int32/uint32.
-  // The precise rounding mode and handling of out of range inputs are *not*
-  // defined for these operators, since they are intended only for use with
-  // integers.
-  // TODO(titzer): rename ConvertXXX to ChangeXXX in machine operators.
-  Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
-  Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
-  Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
-  Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
+  // These operators truncate numbers, both changing the representation of
+  // the number and mapping multiple input values onto the same output value.
+  const Operator* TruncateFloat64ToFloat32();
+  const Operator* TruncateFloat64ToInt32();  // JavaScript semantics.
+  const Operator* TruncateInt64ToInt32();
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
-  Operator* Float64Add() { BINOP_C(Float64Add); }
-  Operator* Float64Sub() { BINOP(Float64Sub); }
-  Operator* Float64Mul() { BINOP_C(Float64Mul); }
-  Operator* Float64Div() { BINOP(Float64Div); }
-  Operator* Float64Mod() { BINOP(Float64Mod); }
+  const Operator* Float64Add();
+  const Operator* Float64Sub();
+  const Operator* Float64Mul();
+  const Operator* Float64Div();
+  const Operator* Float64Mod();
+  const Operator* Float64Sqrt();
 
   // Floating point comparisons complying to IEEE 754.
-  Operator* Float64Equal() { BINOP_C(Float64Equal); }
-  Operator* Float64LessThan() { BINOP(Float64LessThan); }
-  Operator* Float64LessThanOrEqual() { BINOP(Float64LessThanOrEqual); }
+  const Operator* Float64Equal();
+  const Operator* Float64LessThan();
+  const Operator* Float64LessThanOrEqual();
 
-  inline bool is32() const { return word_ == kMachineWord32; }
-  inline bool is64() const { return word_ == kMachineWord64; }
-  inline MachineType word() const { return word_; }
+  // load [base + index]
+  const Operator* Load(LoadRepresentation rep);
 
-  static inline MachineType pointer_rep() {
-    return kPointerSize == 8 ? kMachineWord64 : kMachineWord32;
+  // store [base + index], value
+  const Operator* Store(StoreRepresentation rep);
+
+  // Target machine word-size assumed by this builder.
+  bool Is32() const { return word() == kRepWord32; }
+  bool Is64() const { return word() == kRepWord64; }
+  MachineType word() const { return word_; }
+
+// Pseudo operators that translate to 32/64-bit operators depending on the
+// word-size of the target machine assumed by this builder.
+#define PSEUDO_OP_LIST(V) \
+  V(Word, And)            \
+  V(Word, Or)             \
+  V(Word, Xor)            \
+  V(Word, Shl)            \
+  V(Word, Shr)            \
+  V(Word, Sar)            \
+  V(Word, Ror)            \
+  V(Word, Equal)          \
+  V(Int, Add)             \
+  V(Int, Sub)             \
+  V(Int, Mul)             \
+  V(Int, Div)             \
+  V(Int, UDiv)            \
+  V(Int, Mod)             \
+  V(Int, UMod)            \
+  V(Int, LessThan)        \
+  V(Int, LessThanOrEqual)
+#define PSEUDO_OP(Prefix, Suffix)                                \
+  const Operator* Prefix##Suffix() {                             \
+    return Is32() ? Prefix##32##Suffix() : Prefix##64##Suffix(); \
   }
-
-#undef WORD_SIZE
-#undef UNOP
-#undef BINOP
-#undef OP1
-#undef SIMPLE
+  PSEUDO_OP_LIST(PSEUDO_OP)
+#undef PSEUDO_OP
+#undef PSEUDO_OP_LIST
 
  private:
-  Zone* zone_;
-  MachineType word_;
+  const MachineOperatorBuilderImpl& impl_;
+  const MachineType word_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_MACHINE_OPERATOR_H_

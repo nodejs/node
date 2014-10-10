@@ -6,25 +6,26 @@
 #define V8_COMPILER_OPCODES_H_
 
 // Opcodes for control operators.
-#define CONTROL_OP_LIST(V) \
-  V(Start)                 \
+#define INNER_CONTROL_OP_LIST(V) \
   V(Dead)                  \
   V(Loop)                  \
-  V(End)                   \
   V(Branch)                \
   V(IfTrue)                \
   V(IfFalse)               \
   V(Merge)                 \
   V(Return)                \
-  V(Throw)                 \
-  V(Continuation)          \
-  V(LazyDeoptimization)    \
-  V(Deoptimize)
+  V(Throw)
+
+#define CONTROL_OP_LIST(V) \
+  INNER_CONTROL_OP_LIST(V) \
+  V(Start)                 \
+  V(End)
 
 // Opcodes for common operators.
 #define LEAF_OP_LIST(V) \
   V(Int32Constant)      \
   V(Int64Constant)      \
+  V(Float32Constant)    \
   V(Float64Constant)    \
   V(ExternalConstant)   \
   V(NumberConstant)     \
@@ -33,6 +34,9 @@
 #define INNER_OP_LIST(V) \
   V(Phi)                 \
   V(EffectPhi)           \
+  V(ControlEffect)       \
+  V(ValueEffect)         \
+  V(Finish)              \
   V(FrameState)          \
   V(StateValues)         \
   V(Call)                \
@@ -83,7 +87,8 @@
   V(JSToName)                      \
   V(JSToObject)
 
-#define JS_OTHER_UNOP_LIST(V) V(JSTypeOf)
+#define JS_OTHER_UNOP_LIST(V) \
+  V(JSTypeOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \
   JS_LOGIC_UNOP_LIST(V)        \
@@ -127,6 +132,7 @@
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_OP_LIST(V) \
   V(BooleanNot)               \
+  V(BooleanToNumber)          \
   V(NumberEqual)              \
   V(NumberLessThan)           \
   V(NumberLessThanOrEqual)    \
@@ -156,58 +162,65 @@
   V(StoreElement)
 
 // Opcodes for Machine-level operators.
-#define MACHINE_OP_LIST(V) \
-  V(Load)                  \
-  V(Store)                 \
-  V(Word32And)             \
-  V(Word32Or)              \
-  V(Word32Xor)             \
-  V(Word32Shl)             \
-  V(Word32Shr)             \
-  V(Word32Sar)             \
-  V(Word32Equal)           \
-  V(Word64And)             \
-  V(Word64Or)              \
-  V(Word64Xor)             \
-  V(Word64Shl)             \
-  V(Word64Shr)             \
-  V(Word64Sar)             \
-  V(Word64Equal)           \
-  V(Int32Add)              \
-  V(Int32AddWithOverflow)  \
-  V(Int32Sub)              \
-  V(Int32SubWithOverflow)  \
-  V(Int32Mul)              \
-  V(Int32Div)              \
-  V(Int32UDiv)             \
-  V(Int32Mod)              \
-  V(Int32UMod)             \
-  V(Int32LessThan)         \
-  V(Int32LessThanOrEqual)  \
-  V(Uint32LessThan)        \
-  V(Uint32LessThanOrEqual) \
-  V(Int64Add)              \
-  V(Int64Sub)              \
-  V(Int64Mul)              \
-  V(Int64Div)              \
-  V(Int64UDiv)             \
-  V(Int64Mod)              \
-  V(Int64UMod)             \
-  V(Int64LessThan)         \
-  V(Int64LessThanOrEqual)  \
-  V(ConvertInt64ToInt32)   \
-  V(ConvertInt32ToInt64)   \
-  V(ChangeInt32ToFloat64)  \
-  V(ChangeUint32ToFloat64) \
-  V(ChangeFloat64ToInt32)  \
-  V(ChangeFloat64ToUint32) \
-  V(Float64Add)            \
-  V(Float64Sub)            \
-  V(Float64Mul)            \
-  V(Float64Div)            \
-  V(Float64Mod)            \
-  V(Float64Equal)          \
-  V(Float64LessThan)       \
+#define MACHINE_OP_LIST(V)    \
+  V(Load)                     \
+  V(Store)                    \
+  V(Word32And)                \
+  V(Word32Or)                 \
+  V(Word32Xor)                \
+  V(Word32Shl)                \
+  V(Word32Shr)                \
+  V(Word32Sar)                \
+  V(Word32Ror)                \
+  V(Word32Equal)              \
+  V(Word64And)                \
+  V(Word64Or)                 \
+  V(Word64Xor)                \
+  V(Word64Shl)                \
+  V(Word64Shr)                \
+  V(Word64Sar)                \
+  V(Word64Ror)                \
+  V(Word64Equal)              \
+  V(Int32Add)                 \
+  V(Int32AddWithOverflow)     \
+  V(Int32Sub)                 \
+  V(Int32SubWithOverflow)     \
+  V(Int32Mul)                 \
+  V(Int32Div)                 \
+  V(Int32UDiv)                \
+  V(Int32Mod)                 \
+  V(Int32UMod)                \
+  V(Int32LessThan)            \
+  V(Int32LessThanOrEqual)     \
+  V(Uint32LessThan)           \
+  V(Uint32LessThanOrEqual)    \
+  V(Int64Add)                 \
+  V(Int64Sub)                 \
+  V(Int64Mul)                 \
+  V(Int64Div)                 \
+  V(Int64UDiv)                \
+  V(Int64Mod)                 \
+  V(Int64UMod)                \
+  V(Int64LessThan)            \
+  V(Int64LessThanOrEqual)     \
+  V(ChangeFloat32ToFloat64)   \
+  V(ChangeFloat64ToInt32)     \
+  V(ChangeFloat64ToUint32)    \
+  V(ChangeInt32ToFloat64)     \
+  V(ChangeInt32ToInt64)       \
+  V(ChangeUint32ToFloat64)    \
+  V(ChangeUint32ToUint64)     \
+  V(TruncateFloat64ToFloat32) \
+  V(TruncateFloat64ToInt32)   \
+  V(TruncateInt64ToInt32)     \
+  V(Float64Add)               \
+  V(Float64Sub)               \
+  V(Float64Mul)               \
+  V(Float64Div)               \
+  V(Float64Mod)               \
+  V(Float64Sqrt)              \
+  V(Float64Equal)             \
+  V(Float64LessThan)          \
   V(Float64LessThanOrEqual)
 
 #define VALUE_OP_LIST(V) \

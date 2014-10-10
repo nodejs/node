@@ -13,18 +13,6 @@
 namespace v8 {
 namespace internal {
 
-inline bool Representation::CanContainDouble(double value) {
-  if (IsDouble() || is_more_general_than(Representation::Double())) {
-    return true;
-  }
-  if (IsInt32Double(value)) {
-    if (IsInteger32()) return true;
-    if (IsSmi()) return Smi::IsValid(static_cast<int32_t>(value));
-  }
-  return false;
-}
-
-
 Representation Representation::FromType(Type* type) {
   DisallowHeapAllocation no_allocation;
   if (type->Is(Type::None())) return Representation::None();

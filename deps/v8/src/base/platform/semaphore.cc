@@ -12,6 +12,7 @@
 #include <errno.h>
 
 #include "src/base/logging.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 
 namespace v8 {
@@ -106,6 +107,17 @@ void Semaphore::Wait() {
 
 
 bool Semaphore::WaitFor(const TimeDelta& rel_time) {
+#if V8_OS_NACL
+  // PNaCL doesn't support sem_timedwait, do ugly busy waiting.
+  ElapsedTimer timer;
+  timer.Start();
+  do {
+    int result = sem_trywait(&native_handle_);
+    if (result == 0) return true;
+    DCHECK(errno == EAGAIN || errno == EINTR);
+  } while (!timer.HasExpired(rel_time));
+  return false;
+#else
   // Compute the time for end of timeout.
   const Time time = Time::NowFromSystemTime() + rel_time;
   const struct timespec ts = time.ToTimespec();
@@ -129,6 +141,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
     DCHECK_EQ(-1, result);
     DCHECK_EQ(EINTR, errno);
   }
+#endif
 }
 
 #elif V8_OS_WIN

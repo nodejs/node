@@ -84,19 +84,19 @@ class SnapshotWriter {
     i::List<i::byte> startup_blob;
     i::ListSnapshotSink sink(&startup_blob);
 
-    int spaces[] = {
-        i::NEW_SPACE, i::OLD_POINTER_SPACE, i::OLD_DATA_SPACE, i::CODE_SPACE,
-        i::MAP_SPACE, i::CELL_SPACE,  i::PROPERTY_CELL_SPACE
-    };
+    int spaces[] = {i::NEW_SPACE,           i::OLD_POINTER_SPACE,
+                    i::OLD_DATA_SPACE,      i::CODE_SPACE,
+                    i::MAP_SPACE,           i::CELL_SPACE,
+                    i::PROPERTY_CELL_SPACE, i::LO_SPACE};
 
     i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
-    for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
+    for (size_t i = 0; i < arraysize(spaces); ++i)
       sink.PutInt(serializer.CurrentAllocationAddress(spaces[i]), "spaces");
 
     i::byte* context_bytes = context_snapshot_data.begin();
     sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
-    for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
+    for (size_t i = 0; i < arraysize(spaces); ++i)
       sink.PutInt(context_serializer.CurrentAllocationAddress(spaces[i]),
                   "spaces");
 
@@ -197,6 +197,7 @@ class SnapshotWriter {
     WriteSizeVar(ser, prefix, "map", i::MAP_SPACE);
     WriteSizeVar(ser, prefix, "cell", i::CELL_SPACE);
     WriteSizeVar(ser, prefix, "property_cell", i::PROPERTY_CELL_SPACE);
+    WriteSizeVar(ser, prefix, "lo", i::LO_SPACE);
     fprintf(fp_, "\n");
   }
 
@@ -303,11 +304,6 @@ void DumpException(Handle<Message> message) {
 
 
 int main(int argc, char** argv) {
-  V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
-  i::CpuFeatures::Probe(true);
-
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
@@ -319,6 +315,13 @@ int main(int argc, char** argv) {
     i::FlagList::PrintHelp();
     return !i::FLAG_help;
   }
+
+  i::CpuFeatures::Probe(true);
+  V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
+  v8::V8::Initialize();
+
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   BZip2Decompressor natives_decompressor;
   int bz2_result = natives_decompressor.Decompress();
@@ -329,10 +332,11 @@ int main(int argc, char** argv) {
 #endif
   i::FLAG_logfile_per_isolate = false;
 
-  Isolate* isolate = v8::Isolate::New();
+  Isolate::CreateParams params;
+  params.enable_serializer = true;
+  Isolate* isolate = v8::Isolate::New(params);
   { Isolate::Scope isolate_scope(isolate);
     i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    internal_isolate->enable_serializer();
 
     Persistent<Context> context;
     {

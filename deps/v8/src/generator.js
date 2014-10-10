@@ -20,6 +20,7 @@ function GeneratorObjectNext(value) {
                         ['[Generator].prototype.next', this]);
   }
 
+  if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
   return %_GeneratorNext(this, value);
 }
 
@@ -47,9 +48,7 @@ function GeneratorFunctionConstructor(arg1) {  // length == 1
   var global_proxy = %GlobalProxy(global);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
-  var f = %CompileString(source, true);
-  if (!IS_FUNCTION(f)) return f;
-  f = %_CallFunction(global_proxy, f);
+  var f = %_CallFunction(global_proxy, %CompileString(source, true));
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }
@@ -57,11 +56,19 @@ function GeneratorFunctionConstructor(arg1) {  // length == 1
 
 function SetUpGenerators() {
   %CheckIsBootstrapping();
+
+  // Both Runtime_GeneratorNext and Runtime_GeneratorThrow are supported by
+  // neither Crankshaft nor TurboFan, disable optimization of wrappers here.
+  %NeverOptimizeFunction(GeneratorObjectNext);
+  %NeverOptimizeFunction(GeneratorObjectThrow);
+
+  // Set up non-enumerable functions on the generator prototype object.
   var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
   InstallFunctions(GeneratorObjectPrototype,
                    DONT_ENUM | DONT_DELETE | READ_ONLY,
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
+
   %FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
   %AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
       GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);

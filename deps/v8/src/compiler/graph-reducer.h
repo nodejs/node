@@ -5,9 +5,7 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
-#include <list>
-
-#include "src/zone-allocator.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +17,7 @@ class Node;
 
 
 // Represents the result of trying to reduce a node in the graph.
-class Reduction V8_FINAL {
+class Reduction FINAL {
  public:
   explicit Reduction(Node* replacement = NULL) : replacement_(replacement) {}
 
@@ -38,6 +36,7 @@ class Reduction V8_FINAL {
 // phase.
 class Reducer {
  public:
+  Reducer() {}
   virtual ~Reducer() {}
 
   // Try to reduce a node if possible.
@@ -47,11 +46,14 @@ class Reducer {
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }
   static Reduction Changed(Node* node) { return Reduction(node); }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Reducer);
 };
 
 
 // Performs an iterative reduction of a node graph.
-class GraphReducer V8_FINAL {
+class GraphReducer FINAL {
  public:
   explicit GraphReducer(Graph* graph);
 
@@ -65,13 +67,14 @@ class GraphReducer V8_FINAL {
   void ReduceGraph();
 
  private:
-  typedef std::list<Reducer*, zone_allocator<Reducer*> > Reducers;
-
   Graph* graph_;
-  Reducers reducers_;
+  ZoneVector<Reducer*> reducers_;
+
+  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GRAPH_REDUCER_H_

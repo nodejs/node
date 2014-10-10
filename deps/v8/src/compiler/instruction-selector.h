@@ -20,7 +20,7 @@ namespace compiler {
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 
-class InstructionSelector V8_FINAL {
+class InstructionSelector FINAL {
  public:
   // Forward declarations.
   class Features;
@@ -62,7 +62,7 @@ class InstructionSelector V8_FINAL {
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  class Features V8_FINAL {
+  class Features FINAL {
    public:
     Features() : bits_(0) {}
     explicit Features(unsigned bits) : bits_(bits) {}
@@ -83,6 +83,9 @@ class InstructionSelector V8_FINAL {
   static Features SupportedFeatures() {
     return Features(CpuFeatures::SupportedFeatures());
   }
+
+  // Checks if {node} is currently live.
+  bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
 
  private:
   friend class OperandGenerator;
@@ -139,8 +142,11 @@ class InstructionSelector V8_FINAL {
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             bool call_code_immediate,
-                            bool call_address_immediate, BasicBlock* cont_node,
-                            BasicBlock* deopt_node);
+                            bool call_address_immediate);
+
+  FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
+                           FrameStateDescriptor* descriptor);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
@@ -169,6 +175,7 @@ class InstructionSelector V8_FINAL {
   void VisitWord64Compare(Node* node, FlagsContinuation* cont);
   void VisitFloat64Compare(Node* node, FlagsContinuation* cont);
 
+  void VisitFinish(Node* node);
   void VisitParameter(Node* node);
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);
@@ -192,15 +199,12 @@ class InstructionSelector V8_FINAL {
 
   // ===========================================================================
 
-  typedef zone_allocator<Instruction*> InstructionPtrZoneAllocator;
-  typedef std::deque<Instruction*, InstructionPtrZoneAllocator> Instructions;
-
   Zone zone_;
   InstructionSequence* sequence_;
   SourcePositionTable* source_positions_;
   Features features_;
   BasicBlock* current_block_;
-  Instructions instructions_;
+  ZoneDeque<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
 };

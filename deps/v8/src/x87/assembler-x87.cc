@@ -38,6 +38,7 @@
 
 #if V8_TARGET_ARCH_X87
 
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
@@ -266,7 +267,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(IsPowerOf2(m));
+  DCHECK(base::bits::IsPowerOfTwo32(m));
   int mask = m - 1;
   int addr = pc_offset();
   Nop((m - (addr & mask)) & mask);
@@ -1518,6 +1519,20 @@ void Assembler::fst_s(const Operand& adr) {
 }
 
 
+void Assembler::fldcw(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  emit_operand(ebp, adr);
+}
+
+
+void Assembler::fnstcw(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  emit_operand(edi, adr);
+}
+
+
 void Assembler::fstp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDD);
@@ -1597,6 +1612,13 @@ void Assembler::fchs() {
 }
 
 
+void Assembler::fsqrt() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xFA);
+}
+
+
 void Assembler::fcos() {
   EnsureSpace ensure_space(this);
   EMIT(0xD9);
@@ -1655,6 +1677,13 @@ void Assembler::fadd(int i) {
 void Assembler::fadd_i(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xD8, 0xC0, i);
+}
+
+
+void Assembler::fadd_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(eax, adr);
 }
 
 
@@ -1771,6 +1800,13 @@ void Assembler::ftst() {
 }
 
 
+void Assembler::fxam() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xE5);
+}
+
+
 void Assembler::fucomp(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDD, 0xE8, i);
@@ -1832,6 +1868,20 @@ void Assembler::fnclex() {
 }
 
 
+void Assembler::fnsave(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDD);
+  emit_operand(esi, adr);
+}
+
+
+void Assembler::frstor(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDD);
+  emit_operand(esp, adr);
+}
+
+
 void Assembler::sahf() {
   EnsureSpace ensure_space(this);
   EMIT(0x9E);
@@ -1844,11 +1894,6 @@ void Assembler::setcc(Condition cc, Register reg) {
   EMIT(0x0F);
   EMIT(0x90 | cc);
   EMIT(0xC0 | reg.code());
-}
-
-
-void Assembler::Print() {
-  Disassembler::Decode(isolate(), stdout, buffer_, pc_);
 }
 
 

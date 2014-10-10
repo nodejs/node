@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
-#include "src/compiler-intrinsics.h"
+#include "src/base/bits.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -146,7 +146,9 @@ class MarkingDeque {
     HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
     HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
     array_ = obj_low;
-    mask_ = RoundDownToPowerOf2(static_cast<int>(obj_high - obj_low)) - 1;
+    mask_ = base::bits::RoundDownToPowerOfTwo32(
+                static_cast<uint32_t>(obj_high - obj_low)) -
+            1;
     top_ = bottom_ = 0;
     overflowed_ = false;
   }
@@ -545,11 +547,9 @@ class MarkCompactCollector {
   void EnableCodeFlushing(bool enable);
 
   enum SweeperType {
-    PARALLEL_CONSERVATIVE,
-    CONCURRENT_CONSERVATIVE,
-    PARALLEL_PRECISE,
-    CONCURRENT_PRECISE,
-    PRECISE
+    PARALLEL_SWEEPING,
+    CONCURRENT_SWEEPING,
+    SEQUENTIAL_SWEEPING
   };
 
   enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
@@ -561,12 +561,6 @@ class MarkCompactCollector {
   void VerifyWeakEmbeddedObjectsInCode();
   void VerifyOmittedMapChecks();
 #endif
-
-  // Sweep a single page from the given space conservatively.
-  // Returns the size of the biggest continuous freed memory chunk in bytes.
-  template <SweepingParallelism type>
-  static int SweepConservatively(PagedSpace* space, FreeList* free_list,
-                                 Page* p);
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
     return Page::FromAddress(reinterpret_cast<Address>(anchor))
@@ -693,10 +687,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  // Global flag that forces sweeping to be precise, so we can traverse the
-  // heap.
-  bool sweep_precisely_;
 
   bool reduce_memory_footprint_;
 

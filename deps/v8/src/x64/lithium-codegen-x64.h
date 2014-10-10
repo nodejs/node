@@ -143,8 +143,8 @@ class LCodeGen: public LCodeGenBase {
 
   // Code generation passes.  Returns true if code generation should
   // continue.
-  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
-  void GenerateBodyInstructionPost(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
+  void GenerateBodyInstructionPost(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateJumpTable();
@@ -206,10 +206,9 @@ class LCodeGen: public LCodeGenBase {
                                     int argc);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
-                    LEnvironment* environment,
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
@@ -253,7 +252,7 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-  void RecordAndWritePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) OVERRIDE;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -263,13 +262,8 @@ class LCodeGen: public LCodeGenBase {
   void EmitBranch(InstrType instr, Condition cc);
   template<class InstrType>
   void EmitFalseBranch(InstrType instr, Condition cc);
-  void EmitNumberUntagD(
-      Register input,
-      XMMRegister result,
-      bool allow_undefined_as_nan,
-      bool deoptimize_on_minus_zero,
-      LEnvironment* env,
-      NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
+                        XMMRegister result, NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -307,13 +301,17 @@ class LCodeGen: public LCodeGenBase {
                     int* offset,
                     AllocationSiteMode mode);
 
-  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
+  void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedArray(LLoadKeyed* instr);
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
+
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
 #ifdef _MSC_VER
   // On windows, you may not access the stack more than one page below
   // the most recently mapped page. To make the allocated area randomly
@@ -341,7 +339,7 @@ class LCodeGen: public LCodeGenBase {
 
   Safepoint::Kind expected_safepoint_kind_;
 
-  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
+  class PushSafepointRegistersScope FINAL BASE_EMBEDDED {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {

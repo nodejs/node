@@ -30,8 +30,8 @@
 function test() {
   var string = %NewString(10, true);
   for (var i = 0; i < 10; i++) {
-    %_OneByteSeqStringSetChar(string, i, 65);
-    %_OneByteSeqStringSetChar(string, i, 66);
+    %_OneByteSeqStringSetChar(i, 65, string);
+    %_OneByteSeqStringSetChar(i, 66, string);
   }
   for (var i = 0; i < 10; i++) {
     assertEquals("B", string[i]);

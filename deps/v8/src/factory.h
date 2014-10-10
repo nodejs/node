@@ -12,7 +12,7 @@ namespace internal {
 
 // Interface for handle based allocation.
 
-class Factory V8_FINAL {
+class Factory FINAL {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
                              const char* to_string,
@@ -85,34 +85,31 @@ class Factory V8_FINAL {
   // allocated in the old generation.  The pretenure flag defaults to
   // DONT_TENURE.
   //
-  // Creates a new String object.  There are two String encodings: ASCII and
-  // two byte.  One should choose between the three string factory functions
+  // Creates a new String object.  There are two String encodings: one-byte and
+  // two-byte.  One should choose between the three string factory functions
   // based on the encoding of the string buffer that the string is
   // initialized from.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and
-  //     the result will be ASCII encoded.
+  //   - ...FromOneByte initializes the string from a buffer that is Latin1
+  //     encoded (it does not check that the buffer is Latin1 encoded) and
+  //     the result will be Latin1 encoded.
   //   - ...FromUtf8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two
-  //     byte encoded.  If the characters are all single-byte characters,
-  //     the result will be converted to ASCII, otherwise it will be left as
-  //     two byte.
+  //     encoded.  If the characters are all ASCII characters, the result
+  //     will be Latin1 encoded, otherwise it will converted to two-byte.
+  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
+  //     encoded.  If the characters are all Latin1 characters, the result
+  //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
-  // ASCII strings are pretenured when used as keys in the SourceCodeCache.
+  // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
       Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  template<size_t N>
-  inline Handle<String> NewStringFromStaticAscii(
-      const char (&str)[N],
-      PretenureFlag pretenure = NOT_TENURED) {
+  template <size_t N>
+  inline Handle<String> NewStringFromStaticChars(
+      const char (&str)[N], PretenureFlag pretenure = NOT_TENURED) {
     DCHECK(N == StrLength(str) + 1);
-    return NewStringFromOneByte(
-        STATIC_ASCII_VECTOR(str), pretenure).ToHandleChecked();
+    return NewStringFromOneByte(STATIC_CHAR_VECTOR(str), pretenure)
+        .ToHandleChecked();
   }
 
   inline Handle<String> NewStringFromAsciiChecked(
@@ -123,20 +120,19 @@ class Factory V8_FINAL {
   }
 
 
-  // Allocates and fully initializes a String.  There are two String
-  // encodings: ASCII and two byte. One should choose between the three string
+  // Allocates and fully initializes a String.  There are two String encodings:
+  // one-byte and two-byte. One should choose between the threestring
   // allocation functions based on the encoding of the string buffer used to
   // initialized the string.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and the
-  //     result will be ASCII encoded.
+  //   - ...FromOneByte initializes the string from a buffer that is Latin1
+  //     encoded (it does not check that the buffer is Latin1 encoded) and the
+  //     result will be Latin1 encoded.
   //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
+  //     encoded.  If the characters are all ASCII characters, the result
+  //     will be Latin1 encoded, otherwise it will converted to two-byte.
   //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be converted to ASCII, otherwise it will be left as
+  //     encoded.  If the characters are all Latin1 characters, the
+  //     result will be converted to Latin1, otherwise it will be left as
   //     two-byte.
 
   // TODO(dcarney): remove this function.
@@ -164,8 +160,11 @@ class Factory V8_FINAL {
       uint32_t hash_field);
 
   MUST_USE_RESULT Handle<String> NewOneByteInternalizedString(
-        Vector<const uint8_t> str,
-        uint32_t hash_field);
+      Vector<const uint8_t> str, uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewOneByteInternalizedSubString(
+      Handle<SeqOneByteString> string, int offset, int length,
+      uint32_t hash_field);
 
   MUST_USE_RESULT Handle<String> NewTwoByteInternalizedString(
         Vector<const uc16> str,
@@ -179,7 +178,7 @@ class Factory V8_FINAL {
   MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
       Handle<String> string);
 
-  // Allocates and partially initializes an ASCII or TwoByte String. The
+  // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
   MUST_USE_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
@@ -190,7 +189,7 @@ class Factory V8_FINAL {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a single character string where the character has given code.
-  // A cache is used for ASCII codes.
+  // A cache is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint32_t code);
 
   // Create a new cons string object which consists of a pair of strings.
@@ -209,12 +208,12 @@ class Factory V8_FINAL {
   }
 
   // Creates a new external String object.  There are two String encodings
-  // in the system: ASCII and two byte.  Unlike other String types, it does
+  // in the system: one-byte and two-byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
-  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
+  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
+      const ExternalOneByteString::Resource* resource);
   MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
@@ -446,13 +445,6 @@ class Factory V8_FINAL {
                                      Handle<Object> construct_trap,
                                      Handle<Object> prototype);
 
-  // Reinitialize a JSReceiver into an (empty) JS object of respective type and
-  // size, but keeping the original prototype.  The receiver must have at least
-  // the size of the new object.  The object is reinitialized and behaves as an
-  // object that has been freshly allocated.
-  void ReinitializeJSReceiver(
-      Handle<JSReceiver> object, InstanceType type, int size);
-
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an
@@ -461,8 +453,8 @@ class Factory V8_FINAL {
                                  Handle<JSFunction> constructor);
 
   // Change the type of the argument into a JS object/function and reinitialize.
-  void BecomeJSObject(Handle<JSReceiver> object);
-  void BecomeJSFunction(Handle<JSReceiver> object);
+  void BecomeJSObject(Handle<JSProxy> object);
+  void BecomeJSFunction(Handle<JSProxy> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
@@ -511,40 +503,40 @@ class Factory V8_FINAL {
 
   // Interface for creating error objects.
 
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Handle<JSArray> args);
+  MaybeHandle<Object> NewError(const char* maker, const char* message,
+                               Handle<JSArray> args);
   Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Vector< Handle<Object> > args);
-  Handle<Object> NewError(const char* message,
-                          Vector< Handle<Object> > args);
-  Handle<Object> NewError(Handle<String> message);
-  Handle<Object> NewError(const char* constructor,
-                          Handle<String> message);
+  MaybeHandle<Object> NewError(const char* maker, const char* message,
+                               Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewError(const char* message,
+                               Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewError(Handle<String> message);
+  MaybeHandle<Object> NewError(const char* constructor, Handle<String> message);
 
-  Handle<Object> NewTypeError(const char* message,
-                              Vector< Handle<Object> > args);
-  Handle<Object> NewTypeError(Handle<String> message);
+  MaybeHandle<Object> NewTypeError(const char* message,
+                                   Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewTypeError(Handle<String> message);
 
-  Handle<Object> NewRangeError(const char* message,
-                               Vector< Handle<Object> > args);
-  Handle<Object> NewRangeError(Handle<String> message);
+  MaybeHandle<Object> NewRangeError(const char* message,
+                                    Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewRangeError(Handle<String> message);
 
-  Handle<Object> NewInvalidStringLengthError() {
+  MaybeHandle<Object> NewInvalidStringLengthError() {
     return NewRangeError("invalid_string_length",
                          HandleVector<Object>(NULL, 0));
   }
 
-  Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewSyntaxError(Handle<String> message);
+  MaybeHandle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
+  MaybeHandle<Object> NewSyntaxError(Handle<String> message);
 
-  Handle<Object> NewReferenceError(const char* message,
-                                   Vector< Handle<Object> > args);
-  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewReferenceError(Handle<String> message);
+  MaybeHandle<Object> NewReferenceError(const char* message,
+                                        Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewReferenceError(const char* message,
+                                        Handle<JSArray> args);
+  MaybeHandle<Object> NewReferenceError(Handle<String> message);
 
-  Handle<Object> NewEvalError(const char* message,
-                              Vector< Handle<Object> > args);
+  MaybeHandle<Object> NewEvalError(const char* message,
+                                   Vector<Handle<Object> > args);
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
@@ -572,26 +564,26 @@ class Factory V8_FINAL {
   MUST_USE_RESULT MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
       Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance);
 
-#define ROOT_ACCESSOR(type, name, camel_name)                                  \
-  inline Handle<type> name() {                                                 \
-    return Handle<type>(BitCast<type**>(                                       \
-        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex]));          \
+#define ROOT_ACCESSOR(type, name, camel_name)                         \
+  inline Handle<type> name() {                                        \
+    return Handle<type>(bit_cast<type**>(                             \
+        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex])); \
   }
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
-  inline Handle<Map> name##_map() {                                            \
-    return Handle<Map>(BitCast<Map**>(                                         \
-        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex]));             \
-    }
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                      \
+  inline Handle<Map> name##_map() {                                \
+    return Handle<Map>(bit_cast<Map**>(                            \
+        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex])); \
+  }
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define STRING_ACCESSOR(name, str)                                             \
-  inline Handle<String> name() {                                               \
-    return Handle<String>(BitCast<String**>(                                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex]));                \
+#define STRING_ACCESSOR(name, str)                              \
+  inline Handle<String> name() {                                \
+    return Handle<String>(bit_cast<String**>(                   \
+        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
   }
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
@@ -606,14 +598,14 @@ class Factory V8_FINAL {
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, int number_of_literals, bool is_generator,
-      bool is_arrow, Handle<Code> code, Handle<ScopeInfo> scope_info,
-      Handle<FixedArray> feedback_vector);
+      Handle<String> name, int number_of_literals, FunctionKind kind,
+      Handle<Code> code, Handle<ScopeInfo> scope_info,
+      Handle<TypeFeedbackVector> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<FixedArray> NewTypeFeedbackVector(int slot_count);
+  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(
@@ -704,6 +696,12 @@ class Factory V8_FINAL {
   Handle<JSFunction> NewFunction(Handle<Map> map,
                                  Handle<String> name,
                                  MaybeHandle<Code> maybe_code);
+
+  // Reinitialize a JSProxy into an (empty) JS object of respective type and
+  // size, but keeping the original prototype.  The receiver must have at least
+  // the size of the new object.  The object is reinitialized and behaves as an
+  // object that has been freshly allocated.
+  void ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type, int size);
 };
 
 } }  // namespace v8::internal

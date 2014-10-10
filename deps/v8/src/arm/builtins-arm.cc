@@ -10,8 +10,7 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
-#include "src/runtime.h"
-#include "src/stub-cache.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -808,8 +807,8 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
 }
 
@@ -1422,13 +1421,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
                               kPointerSize)));
 
-  if (FLAG_enable_ool_constant_pool) {
-    __ add(sp, fp, Operand(StandardFrameConstants::kConstantPoolOffset));
-    __ ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
-  } else {
-    __ mov(sp, fp);;
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  }
+  __ LeaveFrame(StackFrame::ARGUMENTS_ADAPTOR);
   __ add(sp, sp, Operand::PointerOffsetFromSmiKey(r1));
   __ add(sp, sp, Operand(kPointerSize));  // adjust for receiver
 }

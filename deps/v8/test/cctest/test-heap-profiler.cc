@@ -441,8 +441,8 @@ TEST(HeapSnapshotConsString) {
   CHECK_EQ(1, global->InternalFieldCount());
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> first = factory->NewStringFromStaticAscii("0123456789");
-  i::Handle<i::String> second = factory->NewStringFromStaticAscii("0123456789");
+  i::Handle<i::String> first = factory->NewStringFromStaticChars("0123456789");
+  i::Handle<i::String> second = factory->NewStringFromStaticChars("0123456789");
   i::Handle<i::String> cons_string =
       factory->NewConsString(first, second).ToHandleChecked();
 
@@ -875,9 +875,9 @@ class TestJSONStream : public v8::OutputStream {
   int abort_countdown_;
 };
 
-class AsciiResource: public v8::String::ExternalAsciiStringResource {
+class OneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit AsciiResource(i::Vector<char> string): data_(string.start()) {
+  explicit OneByteResource(i::Vector<char> string) : data_(string.start()) {
     length_ = string.length();
   }
   virtual const char* data() const { return data_; }
@@ -913,7 +913,7 @@ TEST(HeapSnapshotJSONSerialization) {
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  AsciiResource* json_res = new AsciiResource(json);
+  OneByteResource* json_res = new OneByteResource(json);
   v8::Local<v8::String> json_string =
       v8::String::NewExternal(env->GetIsolate(), json_res);
   env->Global()->Set(v8_str("json_snapshot"), json_string);
@@ -1863,12 +1863,16 @@ TEST(GetConstructorName) {
       "Constructor2", i::V8HeapExplorer::GetConstructorName(*js_obj2)));
   v8::Local<v8::Object> obj3 = js_global->Get(v8_str("obj3")).As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 = v8::Utils::OpenHandle(*obj3);
-  CHECK_EQ(0, StringCmp(
-      "Constructor3", i::V8HeapExplorer::GetConstructorName(*js_obj3)));
+  // TODO(verwaest): Restore to Constructor3 once supported by the
+  // heap-snapshot-generator.
+  CHECK_EQ(
+      0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(*js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(v8_str("obj4")).As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 = v8::Utils::OpenHandle(*obj4);
-  CHECK_EQ(0, StringCmp(
-      "Constructor4", i::V8HeapExplorer::GetConstructorName(*js_obj4)));
+  // TODO(verwaest): Restore to Constructor4 once supported by the
+  // heap-snapshot-generator.
+  CHECK_EQ(
+      0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(*js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(v8_str("obj5")).As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 = v8::Utils::OpenHandle(*obj5);
   CHECK_EQ(0, StringCmp(
@@ -1980,6 +1984,46 @@ TEST(HiddenPropertiesFastCase) {
   hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
       "hidden_properties");
   CHECK_NE(NULL, hidden_props);
+}
+
+
+TEST(AccessorInfo) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("function foo(x) { }\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("AccessorInfoTest"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* foo =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "foo");
+  CHECK_NE(NULL, foo);
+  const v8::HeapGraphNode* map =
+      GetProperty(foo, v8::HeapGraphEdge::kInternal, "map");
+  CHECK_NE(NULL, map);
+  const v8::HeapGraphNode* descriptors =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors");
+  CHECK_NE(NULL, descriptors);
+  const v8::HeapGraphNode* length_name =
+      GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "2");
+  CHECK_NE(NULL, length_name);
+  CHECK_EQ("length", *v8::String::Utf8Value(length_name->GetName()));
+  const v8::HeapGraphNode* length_accessor =
+      GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "4");
+  CHECK_NE(NULL, length_accessor);
+  CHECK_EQ("system / ExecutableAccessorInfo",
+           *v8::String::Utf8Value(length_accessor->GetName()));
+  const v8::HeapGraphNode* name =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "name");
+  CHECK_NE(NULL, name);
+  const v8::HeapGraphNode* getter =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "getter");
+  CHECK_NE(NULL, getter);
+  const v8::HeapGraphNode* setter =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "setter");
+  CHECK_NE(NULL, setter);
 }
 
 
@@ -2307,7 +2351,7 @@ TEST(CheckCodeNames) {
     "::(ArraySingleArgumentConstructorStub code)"
   };
   const v8::HeapGraphNode* node = GetNodeByPath(snapshot,
-      stub_path, ARRAY_SIZE(stub_path));
+      stub_path, arraysize(stub_path));
   CHECK_NE(NULL, node);
 
   const char* builtin_path1[] = {
@@ -2315,18 +2359,15 @@ TEST(CheckCodeNames) {
     "::(Builtins)",
     "::(KeyedLoadIC_Generic builtin)"
   };
-  node = GetNodeByPath(snapshot, builtin_path1, ARRAY_SIZE(builtin_path1));
+  node = GetNodeByPath(snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path2[] = {
-    "::(GC roots)",
-    "::(Builtins)",
-    "::(CompileUnoptimized builtin)"
-  };
-  node = GetNodeByPath(snapshot, builtin_path2, ARRAY_SIZE(builtin_path2));
+  const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
+                                 "::(CompileLazy builtin)"};
+  node = GetNodeByPath(snapshot, builtin_path2, arraysize(builtin_path2));
   CHECK_NE(NULL, node);
   v8::String::Utf8Value node_name(node->GetName());
-  CHECK_EQ("(CompileUnoptimized builtin)", *node_name);
+  CHECK_EQ("(CompileLazy builtin)", *node_name);
 }
 
 
@@ -2416,7 +2457,7 @@ TEST(ArrayGrowLeftTrim) {
   tracker->trace_tree()->Print(tracker);
 
   AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
   CHECK_NE(NULL, node);
   CHECK_GE(node->allocation_count(), 2);
   CHECK_GE(node->allocation_size(), 4 * 5);
@@ -2443,7 +2484,7 @@ TEST(TrackHeapAllocations) {
 
   const char* names[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
   AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
   CHECK_NE(NULL, node);
   CHECK_GE(node->allocation_count(), 100);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2492,7 +2533,7 @@ TEST(TrackBumpPointerAllocations) {
     tracker->trace_tree()->Print(tracker);
 
     AllocationTraceNode* node =
-        FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+        FindNode(tracker, Vector<const char*>(names, arraysize(names)));
     CHECK_NE(NULL, node);
     CHECK_GE(node->allocation_count(), 100);
     CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2518,7 +2559,7 @@ TEST(TrackBumpPointerAllocations) {
     tracker->trace_tree()->Print(tracker);
 
     AllocationTraceNode* node =
-        FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+        FindNode(tracker, Vector<const char*>(names, arraysize(names)));
     CHECK_NE(NULL, node);
     CHECK_LT(node->allocation_count(), 100);
 
@@ -2548,7 +2589,7 @@ TEST(TrackV8ApiAllocation) {
   tracker->trace_tree()->Print(tracker);
 
   AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+      FindNode(tracker, Vector<const char*>(names, arraysize(names)));
   CHECK_NE(NULL, node);
   CHECK_GE(node->allocation_count(), 2);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
@@ -2650,7 +2691,7 @@ TEST(BoxObject) {
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> string = factory->NewStringFromStaticAscii("string");
+  i::Handle<i::String> string = factory->NewStringFromStaticChars("string");
   i::Handle<i::Object> box = factory->NewBox(string);
   global->Set(0, v8::ToApiHandle<v8::Object>(box));
 

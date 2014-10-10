@@ -27,15 +27,15 @@ class SimpleStringResource : public Base {
 };
 
 
-typedef SimpleStringResource<char, v8::String::ExternalAsciiStringResource>
-    SimpleAsciiStringResource;
+typedef SimpleStringResource<char, v8::String::ExternalOneByteStringResource>
+    SimpleOneByteStringResource;
 typedef SimpleStringResource<uc16, v8::String::ExternalStringResource>
     SimpleTwoByteStringResource;
 
 
 const char* const ExternalizeStringExtension::kSource =
     "native function externalizeString();"
-    "native function isAsciiString();";
+    "native function isOneByteString();";
 
 v8::Handle<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
@@ -44,9 +44,9 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
   } else {
-    DCHECK(strcmp(*v8::String::Utf8Value(str), "isAsciiString") == 0);
+    DCHECK(strcmp(*v8::String::Utf8Value(str), "isOneByteString") == 0);
     return v8::FunctionTemplate::New(isolate,
-                                     ExternalizeStringExtension::IsAscii);
+                                     ExternalizeStringExtension::IsOneByte);
   }
 }
 
@@ -81,7 +81,7 @@ void ExternalizeStringExtension::Externalize(
   if (string->IsOneByteRepresentation() && !force_two_byte) {
     uint8_t* data = new uint8_t[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
-    SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
+    SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
     if (result) {
@@ -109,12 +109,12 @@ void ExternalizeStringExtension::Externalize(
 }
 
 
-void ExternalizeStringExtension::IsAscii(
+void ExternalizeStringExtension::IsOneByte(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1 || !args[0]->IsString()) {
     args.GetIsolate()->ThrowException(v8::String::NewFromUtf8(
         args.GetIsolate(),
-        "isAsciiString() requires a single string argument."));
+        "isOneByteString() requires a single string argument."));
     return;
   }
   bool is_one_byte =

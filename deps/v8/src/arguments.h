@@ -68,13 +68,13 @@ class Arguments BASE_EMBEDDED {
 // They are used to generate the Call() functions below
 // These aren't included in the list as they have duplicate signatures
 // F(NamedPropertyEnumeratorCallback, ...)
-// F(NamedPropertyGetterCallback, ...)
 
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_0(F) \
   F(IndexedPropertyEnumeratorCallback, v8::Array) \
 
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_1(F) \
-  F(AccessorGetterCallback, v8::Value, v8::Local<v8::String>) \
+  F(NamedPropertyGetterCallback, v8::Value, v8::Local<v8::String>) \
+  F(AccessorNameGetterCallback, v8::Value, v8::Local<v8::Name>) \
   F(NamedPropertyQueryCallback, \
     v8::Integer, \
     v8::Local<v8::String>) \
@@ -102,9 +102,9 @@ class Arguments BASE_EMBEDDED {
     v8::Local<v8::Value>) \
 
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_2_VOID_RETURN(F) \
-  F(AccessorSetterCallback, \
+  F(AccessorNameSetterCallback, \
     void, \
-    v8::Local<v8::String>, \
+    v8::Local<v8::Name>, \
     v8::Local<v8::Value>) \
 
 

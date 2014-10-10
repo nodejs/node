@@ -33,14 +33,9 @@ v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
 
 
-bool V8::Initialize(Deserializer* des) {
+bool V8::Initialize() {
   InitializeOncePerProcess();
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  if (isolate == NULL) return true;
-  if (isolate->IsDead()) return false;
-  if (isolate->IsInitialized()) return true;
-
-  return isolate->Init(des);
+  return true;
 }
 
 
@@ -52,8 +47,8 @@ void V8::TearDown() {
   ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
-
   Sampler::TearDown();
+  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
 }
 
 
@@ -78,6 +73,8 @@ void V8::InitializeOncePerProcessImpl() {
   }
 
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
+
+  Isolate::InitializeOncePerProcess();
 
   Sampler::SetUp();
   CpuFeatures::Probe(false);

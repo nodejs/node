@@ -77,6 +77,10 @@ inline double FastUI2D(unsigned x) {
 }
 
 
+// This function should match the exact semantics of ECMA-262 20.2.2.17.
+inline float DoubleToFloat32(double x);
+
+
 // This function should match the exact semantics of ECMA-262 9.4.
 inline double DoubleToInteger(double x);
 
@@ -150,6 +154,12 @@ char* DoubleToRadixCString(double value, int radix);
 static inline bool IsMinusZero(double value) {
   static const DoubleRepresentation minus_zero(-0.0);
   return DoubleRepresentation(value) == minus_zero;
+}
+
+
+static inline bool IsSmiDouble(double value) {
+  return !IsMinusZero(value) && value >= Smi::kMinValue &&
+         value <= Smi::kMaxValue && value == FastI2D(FastD2I(value));
 }
 
 

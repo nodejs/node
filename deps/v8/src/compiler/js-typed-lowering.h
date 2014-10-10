@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_OPERATOR_REDUCERS_H_
-#define V8_COMPILER_OPERATOR_REDUCERS_H_
+#ifndef V8_COMPILER_JS_TYPED_LOWERING_H_
+#define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/lowering-builder.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
@@ -17,51 +16,49 @@ namespace internal {
 namespace compiler {
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering : public LoweringBuilder {
+class JSTypedLowering FINAL : public Reducer {
  public:
-  explicit JSTypedLowering(JSGraph* jsgraph,
-                           SourcePositionTable* source_positions)
-      : LoweringBuilder(jsgraph->graph(), source_positions),
-        jsgraph_(jsgraph),
-        simplified_(jsgraph->zone()),
-        machine_(jsgraph->zone()) {}
-  virtual ~JSTypedLowering() {}
+  explicit JSTypedLowering(JSGraph* jsgraph)
+      : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
+  virtual ~JSTypedLowering();
 
-  Reduction Reduce(Node* node);
-  virtual void Lower(Node* node) { Reduce(node); }
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
+  Zone* zone() { return jsgraph_->zone(); }
 
  private:
   friend class JSBinopReduction;
-  JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
-  MachineOperatorBuilder machine_;
 
   Reduction ReplaceEagerly(Node* old, Node* node);
-  Reduction NoChange() { return Reducer::NoChange(); }
   Reduction ReplaceWith(Node* node) { return Reducer::Replace(node); }
-  Reduction Changed(Node* node) { return Reducer::Changed(node); }
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSComparison(Node* node);
+  Reduction ReduceJSLoadProperty(Node* node);
+  Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToBooleanInput(Node* input);
-  Reduction ReduceNumberBinop(Node* node, Operator* numberOp);
+  Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceI32Binop(Node* node, bool left_signed, bool right_signed,
-                           Operator* intOp);
-  Reduction ReduceI32Shift(Node* node, bool left_signed, Operator* shift_op);
+                           const Operator* intOp);
+  Reduction ReduceI32Shift(Node* node, bool left_signed,
+                           const Operator* shift_op);
 
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  MachineOperatorBuilder* machine() { return &machine_; }
-};
-}
-}
-}  // namespace v8::internal::compiler
+  MachineOperatorBuilder* machine() { return jsgraph_->machine(); }
 
-#endif  // V8_COMPILER_OPERATOR_REDUCERS_H_
+  JSGraph* jsgraph_;
+  SimplifiedOperatorBuilder simplified_;
+};
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_COMPILER_JS_TYPED_LOWERING_H_

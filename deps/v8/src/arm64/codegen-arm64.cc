@@ -485,15 +485,15 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ B(ne, call_runtime);
   __ Ldr(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
-  Label ascii, done;
+  Label one_byte, done;
   __ Bind(&check_encoding);
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ TestAndBranchIfAnySet(result, kStringEncodingMask, &ascii);
+  __ TestAndBranchIfAnySet(result, kStringEncodingMask, &one_byte);
   // Two-byte string.
   __ Ldrh(result, MemOperand(string, index, SXTW, 1));
   __ B(&done);
-  __ Bind(&ascii);
-  // Ascii string.
+  __ Bind(&one_byte);
+  // One-byte string.
   __ Ldrb(result, MemOperand(string, index, SXTW));
   __ Bind(&done);
 }

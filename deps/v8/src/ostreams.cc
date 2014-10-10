@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ostreams.h"
+
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 
 #include "src/base/platform/platform.h"  // For isinf/isnan with MSVC
-#include "src/ostreams.h"
 
 #if V8_OS_WIN
 #define snprintf sprintf_s
@@ -164,22 +164,26 @@ OFStream& OFStream::flush() {
 }
 
 
-OStream& operator<<(OStream& os, const AsReversiblyEscapedUC16& c) {
+// Locale-independent predicates.
+static bool IsPrint(uint16_t c) { return 0x20 <= c && c <= 0x7e; }
+static bool IsSpace(uint16_t c) { return (0x9 <= c && c <= 0xd) || c == 0x20; }
+static bool IsOK(uint16_t c) { return (IsPrint(c) || IsSpace(c)) && c != '\\'; }
+
+
+static OStream& PrintUC16(OStream& os, uint16_t c, bool (*pred)(uint16_t)) {
   char buf[10];
-  const char* format =
-      (std::isprint(c.value) || std::isspace(c.value)) && c.value != '\\'
-          ? "%c"
-          : (c.value <= 0xff) ? "\\x%02x" : "\\u%04x";
-  snprintf(buf, sizeof(buf), format, c.value);
+  const char* format = pred(c) ? "%c" : (c <= 0xff) ? "\\x%02x" : "\\u%04x";
+  snprintf(buf, sizeof(buf), format, c);
   return os << buf;
 }
 
 
+OStream& operator<<(OStream& os, const AsReversiblyEscapedUC16& c) {
+  return PrintUC16(os, c.value, IsOK);
+}
+
+
 OStream& operator<<(OStream& os, const AsUC16& c) {
-  char buf[10];
-  const char* format =
-      std::isprint(c.value) ? "%c" : (c.value <= 0xff) ? "\\x%02x" : "\\u%04x";
-  snprintf(buf, sizeof(buf), format, c.value);
-  return os << buf;
+  return PrintUC16(os, c.value, IsPrint);
 }
 } }  // namespace v8::internal

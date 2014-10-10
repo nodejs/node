@@ -172,10 +172,10 @@
       throw new $URIError("URI malformed");
     }
     if (value < 0x10000) {
-      %_TwoByteSeqStringSetChar(result, index++, value);
+      %_TwoByteSeqStringSetChar(index++, value, result);
     } else {
-      %_TwoByteSeqStringSetChar(result, index++, (value >> 10) + 0xd7c0);
-      %_TwoByteSeqStringSetChar(result, index++, (value & 0x3ff) + 0xdc00);
+      %_TwoByteSeqStringSetChar(index++, (value >> 10) + 0xd7c0, result);
+      %_TwoByteSeqStringSetChar(index++, (value & 0x3ff) + 0xdc00, result);
     }
     return index;
   }
@@ -205,7 +205,7 @@
 
     var result = %NewString(array.length, NEW_ONE_BYTE_STRING);
     for (var i = 0; i < array.length; i++) {
-      %_OneByteSeqStringSetChar(result, i, array[i]);
+      %_OneByteSeqStringSetChar(i, array[i], result);
     }
     return result;
   }
@@ -217,24 +217,24 @@
     var index = 0;
     var k = 0;
 
-    // Optimistically assume ascii string.
+    // Optimistically assume one-byte string.
     for ( ; k < uriLength; k++) {
       var code = uri.charCodeAt(k);
       if (code == 37) {  // '%'
         if (k + 2 >= uriLength) throw new $URIError("URI malformed");
         var cc = URIHexCharsToCharCode(uri.charCodeAt(k+1), uri.charCodeAt(k+2));
-        if (cc >> 7) break;  // Assumption wrong, two byte string.
+        if (cc >> 7) break;  // Assumption wrong, two-byte string.
         if (reserved(cc)) {
-          %_OneByteSeqStringSetChar(one_byte, index++, 37);  // '%'.
-          %_OneByteSeqStringSetChar(one_byte, index++, uri.charCodeAt(k+1));
-          %_OneByteSeqStringSetChar(one_byte, index++, uri.charCodeAt(k+2));
+          %_OneByteSeqStringSetChar(index++, 37, one_byte);  // '%'.
+          %_OneByteSeqStringSetChar(index++, uri.charCodeAt(k+1), one_byte);
+          %_OneByteSeqStringSetChar(index++, uri.charCodeAt(k+2), one_byte);
         } else {
-          %_OneByteSeqStringSetChar(one_byte, index++, cc);
+          %_OneByteSeqStringSetChar(index++, cc, one_byte);
         }
         k += 2;
       } else {
-        if (code > 0x7f) break;  // Assumption wrong, two byte string.
-        %_OneByteSeqStringSetChar(one_byte, index++, code);
+        if (code > 0x7f) break;  // Assumption wrong, two-byte string.
+        %_OneByteSeqStringSetChar(index++, code, one_byte);
       }
     }
 
@@ -264,14 +264,14 @@
           }
           index = URIDecodeOctets(octets, two_byte, index);
         } else  if (reserved(cc)) {
-          %_TwoByteSeqStringSetChar(two_byte, index++, 37);  // '%'.
-          %_TwoByteSeqStringSetChar(two_byte, index++, uri.charCodeAt(k - 1));
-          %_TwoByteSeqStringSetChar(two_byte, index++, uri.charCodeAt(k));
+          %_TwoByteSeqStringSetChar(index++, 37, two_byte);  // '%'.
+          %_TwoByteSeqStringSetChar(index++, uri.charCodeAt(k - 1), two_byte);
+          %_TwoByteSeqStringSetChar(index++, uri.charCodeAt(k), two_byte);
         } else {
-          %_TwoByteSeqStringSetChar(two_byte, index++, cc);
+          %_TwoByteSeqStringSetChar(index++, cc, two_byte);
         }
       } else {
-        %_TwoByteSeqStringSetChar(two_byte, index++, code);
+        %_TwoByteSeqStringSetChar(index++, code, two_byte);
       }
     }
 

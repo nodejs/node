@@ -8,6 +8,7 @@
 #include <set>
 
 #include "src/allocation.h"
+#include "src/bailout-reason.h"
 #include "src/hydrogen.h"
 #include "src/safepoint-table.h"
 #include "src/zone-allocator.h"
@@ -254,7 +255,7 @@ class LUnallocated : public LOperand {
 };
 
 
-class LMoveOperands V8_FINAL BASE_EMBEDDED {
+class LMoveOperands FINAL BASE_EMBEDDED {
  public:
   LMoveOperands(LOperand* source, LOperand* destination)
       : source_(source), destination_(destination) {
@@ -302,7 +303,7 @@ class LMoveOperands V8_FINAL BASE_EMBEDDED {
 
 
 template<LOperand::Kind kOperandKind, int kNumCachedOperands>
-class LSubKindOperand V8_FINAL : public LOperand {
+class LSubKindOperand FINAL : public LOperand {
  public:
   static LSubKindOperand* Create(int index, Zone* zone) {
     DCHECK(index >= 0);
@@ -332,7 +333,7 @@ LITHIUM_OPERAND_LIST(LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS)
 #undef LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS
 
 
-class LParallelMove V8_FINAL : public ZoneObject {
+class LParallelMove FINAL : public ZoneObject {
  public:
   explicit LParallelMove(Zone* zone) : move_operands_(4, zone) { }
 
@@ -351,7 +352,7 @@ class LParallelMove V8_FINAL : public ZoneObject {
 };
 
 
-class LPointerMap V8_FINAL : public ZoneObject {
+class LPointerMap FINAL : public ZoneObject {
  public:
   explicit LPointerMap(Zone* zone)
       : pointer_operands_(8, zone),
@@ -384,7 +385,7 @@ class LPointerMap V8_FINAL : public ZoneObject {
 };
 
 
-class LEnvironment V8_FINAL : public ZoneObject {
+class LEnvironment FINAL : public ZoneObject {
  public:
   LEnvironment(Handle<JSFunction> closure,
                FrameType frame_type,
@@ -534,7 +535,7 @@ class LEnvironment V8_FINAL : public ZoneObject {
 
 
 // Iterates over the non-null, non-constant operands in an environment.
-class ShallowIterator V8_FINAL BASE_EMBEDDED {
+class ShallowIterator FINAL BASE_EMBEDDED {
  public:
   explicit ShallowIterator(LEnvironment* env)
       : env_(env),
@@ -578,7 +579,7 @@ class ShallowIterator V8_FINAL BASE_EMBEDDED {
 
 
 // Iterator for non-null, non-constant operands incl. outer environments.
-class DeepIterator V8_FINAL BASE_EMBEDDED {
+class DeepIterator FINAL BASE_EMBEDDED {
  public:
   explicit DeepIterator(LEnvironment* env)
       : current_iterator_(env) {
@@ -697,13 +698,34 @@ class LChunk : public ZoneObject {
 
 class LChunkBuilderBase BASE_EMBEDDED {
  public:
-  explicit LChunkBuilderBase(Zone* zone)
+  explicit LChunkBuilderBase(CompilationInfo* info, HGraph* graph)
       : argument_count_(0),
-        zone_(zone) { }
+        chunk_(NULL),
+        info_(info),
+        graph_(graph),
+        status_(UNUSED),
+        zone_(graph->zone()) {}
 
   virtual ~LChunkBuilderBase() { }
 
+  void Abort(BailoutReason reason);
+  void Retry(BailoutReason reason);
+
  protected:
+  enum Status { UNUSED, BUILDING, DONE, ABORTED };
+
+  LPlatformChunk* chunk() const { return chunk_; }
+  CompilationInfo* info() const { return info_; }
+  HGraph* graph() const { return graph_; }
+  int argument_count() const { return argument_count_; }
+  Isolate* isolate() const { return graph_->isolate(); }
+  Heap* heap() const { return isolate()->heap(); }
+
+  bool is_unused() const { return status_ == UNUSED; }
+  bool is_building() const { return status_ == BUILDING; }
+  bool is_done() const { return status_ == DONE; }
+  bool is_aborted() const { return status_ == ABORTED; }
+
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
   virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
@@ -718,6 +740,10 @@ class LChunkBuilderBase BASE_EMBEDDED {
   Zone* zone() const { return zone_; }
 
   int argument_count_;
+  LPlatformChunk* chunk_;
+  CompilationInfo* info_;
+  HGraph* const graph_;
+  Status status_;
 
  private:
   Zone* zone_;

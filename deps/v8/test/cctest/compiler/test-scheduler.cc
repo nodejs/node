@@ -16,10 +16,12 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/verifier.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+// TODO(titzer): pull RPO tests out to their own file.
 struct TestLoop {
   int count;
   BasicBlock** nodes;
@@ -65,13 +67,49 @@ static void CheckLoopContains(BasicBlock** blocks, int body_size) {
 }
 
 
+static int GetScheduledNodeCount(Schedule* schedule) {
+  int node_count = 0;
+  for (BasicBlockVectorIter i = schedule->rpo_order()->begin();
+       i != schedule->rpo_order()->end(); ++i) {
+    BasicBlock* block = *i;
+    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
+         ++j) {
+      ++node_count;
+    }
+    BasicBlock::Control control = block->control_;
+    if (control != BasicBlock::kNone) {
+      ++node_count;
+    }
+  }
+  return node_count;
+}
+
+
+static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
+  if (FLAG_trace_turbo) {
+    OFStream os(stdout);
+    os << AsDOT(*graph);
+  }
+
+  Schedule* schedule = Scheduler::ComputeSchedule(graph);
+
+  if (FLAG_trace_turbo_scheduler) {
+    OFStream os(stdout);
+    os << *schedule << endl;
+  }
+  ScheduleVerifier::Run(schedule);
+  CHECK_EQ(expected, GetScheduledNodeCount(schedule));
+  return schedule;
+}
+
+
 TEST(RPODegenerate1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 1, false);
-  CHECK_EQ(schedule.entry(), order->at(0));
+  CHECK_EQ(schedule.start(), order->at(0));
 }
 
 
@@ -79,11 +117,11 @@ TEST(RPODegenerate2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  schedule.AddGoto(schedule.entry(), schedule.exit());
+  schedule.AddGoto(schedule.start(), schedule.end());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 2, false);
-  CHECK_EQ(schedule.entry(), order->at(0));
-  CHECK_EQ(schedule.exit(), order->at(1));
+  CHECK_EQ(schedule.start(), order->at(0));
+  CHECK_EQ(schedule.end(), order->at(1));
 }
 
 
@@ -93,7 +131,7 @@ TEST(RPOLine) {
   for (int i = 0; i < 10; i++) {
     Schedule schedule(scope.main_zone());
 
-    BasicBlock* last = schedule.entry();
+    BasicBlock* last = schedule.start();
     for (int j = 0; j < i; j++) {
       BasicBlock* block = schedule.NewBasicBlock();
       schedule.AddGoto(last, block);
@@ -117,10 +155,10 @@ TEST(RPOLine) {
 TEST(RPOSelfLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.entry(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 1, true);
-  BasicBlock* loop[] = {schedule.entry()};
+  BasicBlock* loop[] = {schedule.start()};
   CheckLoopContains(loop, 1);
 }
 
@@ -128,11 +166,11 @@ TEST(RPOSelfLoop) {
 TEST(RPOEntryLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.entry(), schedule.exit());
-  schedule.AddSuccessor(schedule.exit(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), schedule.end());
+  schedule.AddSuccessor(schedule.end(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 2, true);
-  BasicBlock* loop[] = {schedule.entry(), schedule.exit()};
+  BasicBlock* loop[] = {schedule.start(), schedule.end()};
   CheckLoopContains(loop, 2);
 }
 
@@ -141,7 +179,7 @@ TEST(RPOEndLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.entry(), loop1->header());
+  schedule.AddSuccessor(schedule.start(), loop1->header());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 3, true);
   CheckLoopContains(loop1->nodes, loop1->count);
@@ -152,8 +190,8 @@ TEST(RPOEndLoopNested) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.entry(), loop1->header());
-  schedule.AddSuccessor(loop1->last(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), loop1->header());
+  schedule.AddSuccessor(loop1->last(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 3, true);
   CheckLoopContains(loop1->nodes, loop1->count);
@@ -164,10 +202,10 @@ TEST(RPODiamond) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(A, C);
@@ -188,10 +226,10 @@ TEST(RPOLoop1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -209,10 +247,10 @@ TEST(RPOLoop2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -231,13 +269,13 @@ TEST(RPOLoopN) {
 
   for (int i = 0; i < 11; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
+    BasicBlock* A = schedule.start();
     BasicBlock* B = schedule.NewBasicBlock();
     BasicBlock* C = schedule.NewBasicBlock();
     BasicBlock* D = schedule.NewBasicBlock();
     BasicBlock* E = schedule.NewBasicBlock();
     BasicBlock* F = schedule.NewBasicBlock();
-    BasicBlock* G = schedule.exit();
+    BasicBlock* G = schedule.end();
 
     schedule.AddSuccessor(A, B);
     schedule.AddSuccessor(B, C);
@@ -273,12 +311,12 @@ TEST(RPOLoopNest1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.NewBasicBlock();
   BasicBlock* E = schedule.NewBasicBlock();
-  BasicBlock* F = schedule.exit();
+  BasicBlock* F = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -302,14 +340,14 @@ TEST(RPOLoopNest2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.NewBasicBlock();
   BasicBlock* E = schedule.NewBasicBlock();
   BasicBlock* F = schedule.NewBasicBlock();
   BasicBlock* G = schedule.NewBasicBlock();
-  BasicBlock* H = schedule.exit();
+  BasicBlock* H = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -343,8 +381,8 @@ TEST(RPOLoopFollow1) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* A = schedule.start();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, loop1->header());
   schedule.AddSuccessor(loop1->header(), loop2->header());
@@ -367,9 +405,9 @@ TEST(RPOLoopFollow2) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* S = schedule.NewBasicBlock();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, loop1->header());
   schedule.AddSuccessor(loop1->header(), S);
@@ -394,8 +432,8 @@ TEST(RPOLoopFollowN) {
       Schedule schedule(scope.main_zone());
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       SmartPointer<TestLoop> loop2(CreateLoop(&schedule, size));
-      BasicBlock* A = schedule.entry();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* A = schedule.start();
+      BasicBlock* E = schedule.end();
 
       schedule.AddSuccessor(A, loop1->header());
       schedule.AddSuccessor(loop1->nodes[exit], loop2->header());
@@ -418,10 +456,10 @@ TEST(RPONestedLoopFollow1) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, loop1->header());
@@ -450,8 +488,8 @@ TEST(RPOLoopBackedges1) {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
       Schedule schedule(scope.main_zone());
-      BasicBlock* A = schedule.entry();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* A = schedule.start();
+      BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessor(A, loop1->header());
@@ -475,9 +513,9 @@ TEST(RPOLoopOutedges1) {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
       Schedule schedule(scope.main_zone());
-      BasicBlock* A = schedule.entry();
+      BasicBlock* A = schedule.start();
       BasicBlock* D = schedule.NewBasicBlock();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessor(A, loop1->header());
@@ -501,8 +539,8 @@ TEST(RPOLoopOutedges2) {
   int size = 8;
   for (int i = 0; i < size; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
-    BasicBlock* E = schedule.exit();
+    BasicBlock* A = schedule.start();
+    BasicBlock* E = schedule.end();
 
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessor(A, loop1->header());
@@ -527,8 +565,8 @@ TEST(RPOLoopOutloops1) {
   int size = 8;
   for (int i = 0; i < size; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
-    BasicBlock* E = schedule.exit();
+    BasicBlock* A = schedule.start();
+    BasicBlock* E = schedule.end();
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessor(A, loop1->header());
     schedule.AddSuccessor(loop1->last(), E);
@@ -557,10 +595,10 @@ TEST(RPOLoopMultibackedge) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
   BasicBlock* E = schedule.NewBasicBlock();
 
   schedule.AddSuccessor(A, B);
@@ -605,36 +643,6 @@ TEST(BuildScheduleOneParameter) {
 }
 
 
-static int GetScheduledNodeCount(Schedule* schedule) {
-  int node_count = 0;
-  for (BasicBlockVectorIter i = schedule->rpo_order()->begin();
-       i != schedule->rpo_order()->end(); ++i) {
-    BasicBlock* block = *i;
-    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
-         ++j) {
-      ++node_count;
-    }
-    BasicBlock::Control control = block->control_;
-    if (control != BasicBlock::kNone) {
-      ++node_count;
-    }
-  }
-  return node_count;
-}
-
-
-static void PrintGraph(Graph* graph) {
-  OFStream os(stdout);
-  os << AsDOT(*graph);
-}
-
-
-static void PrintSchedule(Schedule* schedule) {
-  OFStream os(stdout);
-  os << *schedule << endl;
-}
-
-
 TEST(BuildScheduleIfSplit) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
@@ -658,14 +666,7 @@ TEST(BuildScheduleIfSplit) {
   Node* merge = graph.NewNode(builder.Merge(2), ret1, ret2);
   graph.SetEnd(graph.NewNode(builder.End(), merge));
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-
-  CHECK_EQ(13, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(13, &graph);
 }
 
 
@@ -675,12 +676,11 @@ TEST(BuildScheduleIfSplitWithEffects) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c, y) {
@@ -811,13 +811,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
   graph.SetStart(n0);
   graph.SetEnd(n23);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(20, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(20, &graph);
 }
 
 
@@ -827,12 +821,11 @@ TEST(BuildScheduleSimpleLoop) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b) {
@@ -851,7 +844,7 @@ TEST(BuildScheduleSimpleLoop) {
   op = common_builder.Return();
   Node* n19 = graph.NewNode(op, nil, nil, nil);
   USE(n19);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n8 = graph.NewNode(op, nil, nil, nil);
   USE(n8);
   op = common_builder.Parameter(0);
@@ -873,7 +866,7 @@ TEST(BuildScheduleSimpleLoop) {
   Node* n12 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n12);
   n12->ReplaceInput(0, n8);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
@@ -898,7 +891,7 @@ TEST(BuildScheduleSimpleLoop) {
   n9->ReplaceInput(2, n6);
   n12->ReplaceInput(1, n9);
   n12->ReplaceInput(2, n5);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   n10->ReplaceInput(0, n0);
@@ -930,13 +923,7 @@ TEST(BuildScheduleSimpleLoop) {
   graph.SetStart(n0);
   graph.SetEnd(n20);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(19, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(19, &graph);
 }
 
 
@@ -946,12 +933,11 @@ TEST(BuildScheduleComplexLoops) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -976,17 +962,17 @@ TEST(BuildScheduleComplexLoops) {
   op = common_builder.Return();
   Node* n45 = graph.NewNode(op, nil, nil, nil);
   USE(n45);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n35 = graph.NewNode(op, nil, nil, nil);
   USE(n35);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
   Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n9->ReplaceInput(0, n2);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n23 = graph.NewNode(op, nil, nil, nil);
   USE(n23);
   op = js_builder.Add();
@@ -1004,14 +990,14 @@ TEST(BuildScheduleComplexLoops) {
   Node* n14 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n14);
   n14->ReplaceInput(0, n9);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
   Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n10->ReplaceInput(0, n3);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n24 = graph.NewNode(op, nil, nil, nil);
   USE(n24);
   n24->ReplaceInput(0, n10);
@@ -1039,10 +1025,10 @@ TEST(BuildScheduleComplexLoops) {
   op = js_builder.LessThan();
   Node* n27 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n27);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n25 = graph.NewNode(op, nil, nil, nil);
   USE(n25);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
@@ -1079,7 +1065,7 @@ TEST(BuildScheduleComplexLoops) {
   n27->ReplaceInput(0, n25);
   n27->ReplaceInput(1, n24);
   n27->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n26 = graph.NewNode(op, nil, nil, nil);
   USE(n26);
   n26->ReplaceInput(0, n20);
@@ -1100,7 +1086,7 @@ TEST(BuildScheduleComplexLoops) {
   n10->ReplaceInput(2, n7);
   n14->ReplaceInput(1, n10);
   n14->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n12 = graph.NewNode(op, nil, nil, nil);
   USE(n12);
   n12->ReplaceInput(0, n0);
@@ -1134,7 +1120,7 @@ TEST(BuildScheduleComplexLoops) {
   Node* n39 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n39);
   n39->ReplaceInput(0, n35);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n36 = graph.NewNode(op, nil, nil, nil);
   USE(n36);
   n36->ReplaceInput(0, n10);
@@ -1160,7 +1146,7 @@ TEST(BuildScheduleComplexLoops) {
   n36->ReplaceInput(2, n33);
   n39->ReplaceInput(1, n36);
   n39->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n38 = graph.NewNode(op, nil, nil, nil);
   USE(n38);
   n38->ReplaceInput(0, n14);
@@ -1184,13 +1170,7 @@ TEST(BuildScheduleComplexLoops) {
   graph.SetStart(n0);
   graph.SetEnd(n46);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(46, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(46, &graph);
 }
 
 
@@ -1200,12 +1180,11 @@ TEST(BuildScheduleBreakAndContinue) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1235,14 +1214,14 @@ TEST(BuildScheduleBreakAndContinue) {
   op = js_builder.Add();
   Node* n56 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n56);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
   Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n10->ReplaceInput(0, n2);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n25 = graph.NewNode(op, nil, nil, nil);
   USE(n25);
   op = js_builder.Add();
@@ -1260,14 +1239,14 @@ TEST(BuildScheduleBreakAndContinue) {
   Node* n16 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n16);
   n16->ReplaceInput(0, n10);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
   Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n11->ReplaceInput(0, n3);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n26 = graph.NewNode(op, nil, nil, nil);
   USE(n26);
   n26->ReplaceInput(0, n11);
@@ -1304,23 +1283,23 @@ TEST(BuildScheduleBreakAndContinue) {
   USE(n46);
   n47->ReplaceInput(1, n46);
   n47->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n42 = graph.NewNode(op, nil, nil, nil);
   USE(n42);
   op = js_builder.LessThan();
   Node* n30 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n30);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n27 = graph.NewNode(op, nil, nil, nil);
   USE(n27);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n12 = graph.NewNode(op, nil, nil, nil);
   USE(n12);
   op = common_builder.Parameter(0);
   Node* n4 = graph.NewNode(op, n0);
   USE(n4);
   n12->ReplaceInput(0, n4);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n41 = graph.NewNode(op, nil, nil, nil);
   USE(n41);
   n41->ReplaceInput(0, n27);
@@ -1369,17 +1348,17 @@ TEST(BuildScheduleBreakAndContinue) {
   op = js_builder.Equal();
   Node* n37 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n37);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n28 = graph.NewNode(op, nil, nil, nil);
   USE(n28);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n13 = graph.NewNode(op, nil, nil, nil);
   USE(n13);
   op = common_builder.NumberConstant(0);
   Node* n7 = graph.NewNode(op);
   USE(n7);
   n13->ReplaceInput(0, n7);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n54 = graph.NewNode(op, nil, nil, nil);
   USE(n54);
   n54->ReplaceInput(0, n28);
@@ -1430,7 +1409,7 @@ TEST(BuildScheduleBreakAndContinue) {
   n30->ReplaceInput(0, n27);
   n30->ReplaceInput(1, n26);
   n30->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n29 = graph.NewNode(op, nil, nil, nil);
   USE(n29);
   n29->ReplaceInput(0, n22);
@@ -1477,11 +1456,11 @@ TEST(BuildScheduleBreakAndContinue) {
   n11->ReplaceInput(2, n8);
   n16->ReplaceInput(1, n11);
   n16->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n14 = graph.NewNode(op, nil, nil, nil);
   USE(n14);
   n14->ReplaceInput(0, n0);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n55 = graph.NewNode(op, nil, nil, nil);
   USE(n55);
   n55->ReplaceInput(0, n47);
@@ -1520,13 +1499,7 @@ TEST(BuildScheduleBreakAndContinue) {
   graph.SetStart(n0);
   graph.SetEnd(n58);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(62, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(62, &graph);
 }
 
 
@@ -1536,13 +1509,12 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder(scope.main_zone(), kMachineWord32);
-  Operator* op;
+  MachineOperatorBuilder machine_builder;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1561,7 +1533,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   op = common_builder.Return();
   Node* n21 = graph.NewNode(op, nil, nil, nil);
   USE(n21);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
@@ -1575,7 +1547,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   op = machine_builder.Int32Add();
   Node* n19 = graph.NewNode(op, nil, nil);
   USE(n19);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
@@ -1605,7 +1577,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n6 = graph.NewNode(op);
   USE(n6);
   n14->ReplaceInput(2, n6);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n12 = graph.NewNode(op, nil, nil, nil);
   USE(n12);
   n12->ReplaceInput(0, n0);
@@ -1623,7 +1595,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   n7->ReplaceInput(1, n17);
   n10->ReplaceInput(2, n7);
   n19->ReplaceInput(0, n2);
-  op = common_builder.Phi(2);
+  op = common_builder.Phi(kMachAnyTagged, 2);
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
@@ -1651,14 +1623,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   graph.SetStart(n0);
   graph.SetEnd(n22);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(19, GetScheduledNodeCount(schedule));
-
+  Schedule* schedule = ComputeAndVerifySchedule(19, &graph);
   // Make sure the integer-only add gets hoisted to a different block that the
   // JSAdd.
   CHECK(schedule->block(n19) != schedule->block(n20));
@@ -1667,143 +1632,82 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
 
 #if V8_TURBOFAN_TARGET
 
-// So we can get a real JS function.
-static Handle<JSFunction> Compile(const char* source) {
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
-                                   .ToHandleChecked();
-  Handle<SharedFunctionInfo> shared_function = Compiler::CompileScript(
-      source_code, Handle<String>(), 0, 0, false,
-      Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE);
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared_function, isolate->native_context());
+static Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common,
+                           Node* cond) {
+  Node* tv = graph->NewNode(common->Int32Constant(6));
+  Node* fv = graph->NewNode(common->Int32Constant(7));
+  Node* br = graph->NewNode(common->Branch(), cond, graph->start());
+  Node* t = graph->NewNode(common->IfTrue(), br);
+  Node* f = graph->NewNode(common->IfFalse(), br);
+  Node* m = graph->NewNode(common->Merge(2), t, f);
+  Node* phi = graph->NewNode(common->Phi(kMachAnyTagged, 2), tv, fv, m);
+  return phi;
 }
 
 
-TEST(BuildScheduleTrivialLazyDeoptCall) {
-  FLAG_turbo_deoptimization = true;
-
+TEST(FloatingDiamond1) {
   HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  JSOperatorBuilder js_builder(scope.main_zone());
 
-  InitializedHandleScope handles;
-  Handle<JSFunction> function = Compile("m()");
-  CompilationInfoWithZone info(function);
-  Linkage linkage(&info);
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
 
-  // Manually transcribed code for:
-  // function turbo_fan_test() {
-  //   m();
-  // }
-  // where m can lazy deopt (so it has a deopt block associated with it).
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* ret = graph.NewNode(common.Return(), d1, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(13, &graph);
+}
 
 
-  //                  Start                                    //
-  //                    ^                                      //
-  //                    | (EC)                                 //
-  //                    |                                      //
-  //         /------> Call <--------------\                    //
-  //        /        ^    ^                \                   //
-  //       /         |    |                 \        undef     //
-  //      /          /    \                  \         ^       //
-  //  (E) |     (C) /      \  (C)             \ (E)    |       //
-  //      | Continuation  LazyDeoptimization  |        |       //
-  //      \___    ^           ^               /        |       //
-  //          \   |           |        ______/    Framestate   //
-  //    undef  \  | (VC)      | (C)   /            ^           //
-  //         \  \ |           |      /            /            //
-  //          Return    Deoptimization ----------/             //
-  //              ^           ^                                //
-  //               \         /                                 //
-  //            (C) \       / (C)                              //
-  //                 \     /                                   //
-  //                  Merge                                    //
-  //                    ^                                      //
-  //                    |                                      //
-  //                   End                                     //
+TEST(FloatingDiamond2) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  MachineOperatorBuilder machine;
 
-  Handle<Object> undef_object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> undef_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(),
-                                                   undef_object);
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
 
-  Node* undef_node = graph.NewNode(common.HeapConstant(undef_constant));
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* d2 = CreateDiamond(&graph, &common, p1);
+  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* ret = graph.NewNode(common.Return(), add, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
 
-  Node* start_node = graph.NewNode(common.Start(0));
+  graph.SetEnd(end);
 
-  CallDescriptor* descriptor = linkage.GetJSCallDescriptor(0);
-  Node* call_node = graph.NewNode(common.Call(descriptor),
-                                  undef_node,   // function
-                                  undef_node,   // context
-                                  start_node,   // effect
-                                  start_node);  // control
+  ComputeAndVerifySchedule(24, &graph);
+}
 
-  Node* cont_node = graph.NewNode(common.Continuation(), call_node);
-  Node* lazy_deopt_node = graph.NewNode(common.LazyDeoptimization(), call_node);
 
-  Node* parameters = graph.NewNode(common.StateValues(1), undef_node);
-  Node* locals = graph.NewNode(common.StateValues(0));
-  Node* stack = graph.NewNode(common.StateValues(0));
+TEST(FloatingDiamond3) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  MachineOperatorBuilder machine;
 
-  Node* state_node = graph.NewNode(common.FrameState(BailoutId(1234)),
-                                   parameters, locals, stack);
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
 
-  Node* return_node = graph.NewNode(common.Return(),
-                                    undef_node,  // return value
-                                    call_node,   // effect
-                                    cont_node);  // control
-  Node* deoptimization_node = graph.NewNode(common.Deoptimize(),
-                                            state_node,  // deopt environment
-                                            call_node,   // effect
-                                            lazy_deopt_node);  // control
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* d2 = CreateDiamond(&graph, &common, p1);
+  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* d3 = CreateDiamond(&graph, &common, add);
+  Node* ret = graph.NewNode(common.Return(), d3, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
 
-  Node* merge_node =
-      graph.NewNode(common.Merge(2), return_node, deoptimization_node);
+  graph.SetEnd(end);
 
-  Node* end_node = graph.NewNode(common.End(), merge_node);
-
-  graph.SetStart(start_node);
-  graph.SetEnd(end_node);
-
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  // Tests:
-  // Continuation and deopt have basic blocks.
-  BasicBlock* cont_block = schedule->block(cont_node);
-  BasicBlock* deopt_block = schedule->block(lazy_deopt_node);
-  BasicBlock* call_block = schedule->block(call_node);
-  CHECK_NE(NULL, cont_block);
-  CHECK_NE(NULL, deopt_block);
-  CHECK_NE(NULL, call_block);
-  // The basic blocks are different.
-  CHECK_NE(cont_block, deopt_block);
-  CHECK_NE(cont_block, call_block);
-  CHECK_NE(deopt_block, call_block);
-  // The call node finishes its own basic block.
-  CHECK_EQ(BasicBlock::kCall, call_block->control_);
-  CHECK_EQ(call_node, call_block->control_input_);
-  // The lazy deopt block is deferred.
-  CHECK(deopt_block->deferred_);
-  CHECK(!call_block->deferred_);
-  CHECK(!cont_block->deferred_);
-  // The lazy deopt block contains framestate + bailout (and nothing else).
-  CHECK_EQ(deoptimization_node, deopt_block->control_input_);
-  CHECK_EQ(5, static_cast<int>(deopt_block->nodes_.size()));
-  CHECK_EQ(lazy_deopt_node, deopt_block->nodes_[0]);
-  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[1]->op()->opcode());
-  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[2]->op()->opcode());
-  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[3]->op()->opcode());
-  CHECK_EQ(state_node, deopt_block->nodes_[4]);
+  ComputeAndVerifySchedule(33, &graph);
 }
 
 #endif

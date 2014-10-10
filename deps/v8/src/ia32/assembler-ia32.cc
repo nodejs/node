@@ -38,6 +38,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
@@ -271,7 +272,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(IsPowerOf2(m));
+  DCHECK(base::bits::IsPowerOfTwo32(m));
   int mask = m - 1;
   int addr = pc_offset();
   Nop((m - (addr & mask)) & mask);
@@ -2013,6 +2014,15 @@ void Assembler::subsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::subsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x5C);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::divsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2461,11 +2471,6 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
   EMIT(0xC0 | (dst.code() << 3) | src.code());
-}
-
-
-void Assembler::Print() {
-  Disassembler::Decode(isolate(), stdout, buffer_, pc_);
 }
 
 

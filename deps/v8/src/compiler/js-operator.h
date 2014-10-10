@@ -40,7 +40,7 @@ class ContextAccess {
 // Defines the property being loaded from an object by a named load. This is
 // used as a parameter by JSLoadNamed operators.
 struct LoadNamedParameters {
-  PrintableUnique<Name> name;
+  Unique<Name> name;
   ContextualMode contextual_mode;
 };
 
@@ -49,6 +49,13 @@ struct LoadNamedParameters {
 struct CallParameters {
   int arity;
   CallFunctionFlags flags;
+};
+
+// Defines the property being stored to an object by a named store. This is
+// used as a parameter by JSStoreNamed operators.
+struct StoreNamedParameters {
+  StrictMode strict_mode;
+  Unique<Name> name;
 };
 
 // Interface for building JavaScript-level operators, e.g. directly from the
@@ -74,95 +81,106 @@ class JSOperatorBuilder {
 
 #define PURE_BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
 
-  Operator* Equal() { BINOP(JSEqual); }
-  Operator* NotEqual() { BINOP(JSNotEqual); }
-  Operator* StrictEqual() { PURE_BINOP(JSStrictEqual); }
-  Operator* StrictNotEqual() { PURE_BINOP(JSStrictNotEqual); }
-  Operator* LessThan() { BINOP(JSLessThan); }
-  Operator* GreaterThan() { BINOP(JSGreaterThan); }
-  Operator* LessThanOrEqual() { BINOP(JSLessThanOrEqual); }
-  Operator* GreaterThanOrEqual() { BINOP(JSGreaterThanOrEqual); }
-  Operator* BitwiseOr() { BINOP(JSBitwiseOr); }
-  Operator* BitwiseXor() { BINOP(JSBitwiseXor); }
-  Operator* BitwiseAnd() { BINOP(JSBitwiseAnd); }
-  Operator* ShiftLeft() { BINOP(JSShiftLeft); }
-  Operator* ShiftRight() { BINOP(JSShiftRight); }
-  Operator* ShiftRightLogical() { BINOP(JSShiftRightLogical); }
-  Operator* Add() { BINOP(JSAdd); }
-  Operator* Subtract() { BINOP(JSSubtract); }
-  Operator* Multiply() { BINOP(JSMultiply); }
-  Operator* Divide() { BINOP(JSDivide); }
-  Operator* Modulus() { BINOP(JSModulus); }
+  const Operator* Equal() { BINOP(JSEqual); }
+  const Operator* NotEqual() { BINOP(JSNotEqual); }
+  const Operator* StrictEqual() { PURE_BINOP(JSStrictEqual); }
+  const Operator* StrictNotEqual() { PURE_BINOP(JSStrictNotEqual); }
+  const Operator* LessThan() { BINOP(JSLessThan); }
+  const Operator* GreaterThan() { BINOP(JSGreaterThan); }
+  const Operator* LessThanOrEqual() { BINOP(JSLessThanOrEqual); }
+  const Operator* GreaterThanOrEqual() { BINOP(JSGreaterThanOrEqual); }
+  const Operator* BitwiseOr() { BINOP(JSBitwiseOr); }
+  const Operator* BitwiseXor() { BINOP(JSBitwiseXor); }
+  const Operator* BitwiseAnd() { BINOP(JSBitwiseAnd); }
+  const Operator* ShiftLeft() { BINOP(JSShiftLeft); }
+  const Operator* ShiftRight() { BINOP(JSShiftRight); }
+  const Operator* ShiftRightLogical() { BINOP(JSShiftRightLogical); }
+  const Operator* Add() { BINOP(JSAdd); }
+  const Operator* Subtract() { BINOP(JSSubtract); }
+  const Operator* Multiply() { BINOP(JSMultiply); }
+  const Operator* Divide() { BINOP(JSDivide); }
+  const Operator* Modulus() { BINOP(JSModulus); }
 
-  Operator* UnaryNot() { UNOP(JSUnaryNot); }
-  Operator* ToBoolean() { UNOP(JSToBoolean); }
-  Operator* ToNumber() { UNOP(JSToNumber); }
-  Operator* ToString() { UNOP(JSToString); }
-  Operator* ToName() { UNOP(JSToName); }
-  Operator* ToObject() { UNOP(JSToObject); }
-  Operator* Yield() { UNOP(JSYield); }
+  const Operator* UnaryNot() { UNOP(JSUnaryNot); }
+  const Operator* ToBoolean() { UNOP(JSToBoolean); }
+  const Operator* ToNumber() { UNOP(JSToNumber); }
+  const Operator* ToString() { UNOP(JSToString); }
+  const Operator* ToName() { UNOP(JSToName); }
+  const Operator* ToObject() { UNOP(JSToObject); }
+  const Operator* Yield() { UNOP(JSYield); }
 
-  Operator* Create() { SIMPLE(JSCreate, Operator::kEliminatable, 0, 1); }
+  const Operator* Create() { SIMPLE(JSCreate, Operator::kEliminatable, 0, 1); }
 
-  Operator* Call(int arguments, CallFunctionFlags flags) {
+  const Operator* Call(int arguments, CallFunctionFlags flags) {
     CallParameters parameters = {arguments, flags};
     OP1(JSCallFunction, CallParameters, parameters, Operator::kNoProperties,
         arguments, 1);
   }
 
-  Operator* CallNew(int arguments) {
+  const Operator* CallNew(int arguments) {
     return new (zone_)
         Operator1<int>(IrOpcode::kJSCallConstruct, Operator::kNoProperties,
                        arguments, 1, "JSCallConstruct", arguments);
   }
 
-  Operator* LoadProperty() { BINOP(JSLoadProperty); }
-  Operator* LoadNamed(PrintableUnique<Name> name,
-                      ContextualMode contextual_mode = NOT_CONTEXTUAL) {
+  const Operator* LoadProperty() { BINOP(JSLoadProperty); }
+  const Operator* LoadNamed(Unique<Name> name,
+                            ContextualMode contextual_mode = NOT_CONTEXTUAL) {
     LoadNamedParameters parameters = {name, contextual_mode};
     OP1(JSLoadNamed, LoadNamedParameters, parameters, Operator::kNoProperties,
         1, 1);
   }
 
-  Operator* StoreProperty() { NOPROPS(JSStoreProperty, 3, 0); }
-  Operator* StoreNamed(PrintableUnique<Name> name) {
-    OP1(JSStoreNamed, PrintableUnique<Name>, name, Operator::kNoProperties, 2,
+  const Operator* StoreProperty(StrictMode strict_mode) {
+    OP1(JSStoreProperty, StrictMode, strict_mode, Operator::kNoProperties, 3,
         0);
   }
 
-  Operator* DeleteProperty(StrictMode strict_mode) {
+  const Operator* StoreNamed(StrictMode strict_mode, Unique<Name> name) {
+    StoreNamedParameters parameters = {strict_mode, name};
+    OP1(JSStoreNamed, StoreNamedParameters, parameters, Operator::kNoProperties,
+        2, 0);
+  }
+
+  const Operator* DeleteProperty(StrictMode strict_mode) {
     OP1(JSDeleteProperty, StrictMode, strict_mode, Operator::kNoProperties, 2,
         1);
   }
 
-  Operator* HasProperty() { NOPROPS(JSHasProperty, 2, 1); }
+  const Operator* HasProperty() { NOPROPS(JSHasProperty, 2, 1); }
 
-  Operator* LoadContext(uint16_t depth, uint32_t index, bool immutable) {
+  const Operator* LoadContext(uint16_t depth, uint32_t index, bool immutable) {
     ContextAccess access(depth, index, immutable);
     OP1(JSLoadContext, ContextAccess, access,
         Operator::kEliminatable | Operator::kNoWrite, 1, 1);
   }
-  Operator* StoreContext(uint16_t depth, uint32_t index) {
+  const Operator* StoreContext(uint16_t depth, uint32_t index) {
     ContextAccess access(depth, index, false);
-    OP1(JSStoreContext, ContextAccess, access, Operator::kNoProperties, 2, 1);
+    OP1(JSStoreContext, ContextAccess, access, Operator::kNoProperties, 2, 0);
   }
 
-  Operator* TypeOf() { SIMPLE(JSTypeOf, Operator::kPure, 1, 1); }
-  Operator* InstanceOf() { NOPROPS(JSInstanceOf, 2, 1); }
-  Operator* Debugger() { NOPROPS(JSDebugger, 0, 0); }
+  const Operator* TypeOf() { SIMPLE(JSTypeOf, Operator::kPure, 1, 1); }
+  const Operator* InstanceOf() { NOPROPS(JSInstanceOf, 2, 1); }
+  const Operator* Debugger() { NOPROPS(JSDebugger, 0, 0); }
 
   // TODO(titzer): nail down the static parts of each of these context flavors.
-  Operator* CreateFunctionContext() { NOPROPS(JSCreateFunctionContext, 1, 1); }
-  Operator* CreateCatchContext(PrintableUnique<String> name) {
-    OP1(JSCreateCatchContext, PrintableUnique<String>, name,
-        Operator::kNoProperties, 1, 1);
+  const Operator* CreateFunctionContext() {
+    NOPROPS(JSCreateFunctionContext, 1, 1);
   }
-  Operator* CreateWithContext() { NOPROPS(JSCreateWithContext, 2, 1); }
-  Operator* CreateBlockContext() { NOPROPS(JSCreateBlockContext, 2, 1); }
-  Operator* CreateModuleContext() { NOPROPS(JSCreateModuleContext, 2, 1); }
-  Operator* CreateGlobalContext() { NOPROPS(JSCreateGlobalContext, 2, 1); }
+  const Operator* CreateCatchContext(Unique<String> name) {
+    OP1(JSCreateCatchContext, Unique<String>, name, Operator::kNoProperties, 1,
+        1);
+  }
+  const Operator* CreateWithContext() { NOPROPS(JSCreateWithContext, 2, 1); }
+  const Operator* CreateBlockContext() { NOPROPS(JSCreateBlockContext, 2, 1); }
+  const Operator* CreateModuleContext() {
+    NOPROPS(JSCreateModuleContext, 2, 1);
+  }
+  const Operator* CreateGlobalContext() {
+    NOPROPS(JSCreateGlobalContext, 2, 1);
+  }
 
-  Operator* Runtime(Runtime::FunctionId function, int arguments) {
+  const Operator* Runtime(Runtime::FunctionId function, int arguments) {
     const Runtime::Function* f = Runtime::FunctionForId(function);
     DCHECK(f->nargs == -1 || f->nargs == arguments);
     OP1(JSCallRuntime, Runtime::FunctionId, function, Operator::kNoProperties,
@@ -207,8 +225,9 @@ struct StaticParameterTraits<Runtime::FunctionId> {
     return a == b;
   }
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_OPERATOR_H_

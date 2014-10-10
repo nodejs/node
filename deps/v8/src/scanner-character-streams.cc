@@ -6,11 +6,39 @@
 
 #include "src/scanner-character-streams.h"
 
+#include "include/v8.h"
 #include "src/handles.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+unsigned CopyCharsHelper(uint16_t* dest, unsigned length, const uint8_t* src,
+                         unsigned* src_pos, unsigned src_length,
+                         ScriptCompiler::StreamedSource::Encoding encoding) {
+  if (encoding == ScriptCompiler::StreamedSource::UTF8) {
+    return v8::internal::Utf8ToUtf16CharacterStream::CopyChars(
+        dest, length, src, src_pos, src_length);
+  }
+
+  unsigned to_fill = length;
+  if (to_fill > src_length - *src_pos) to_fill = src_length - *src_pos;
+
+  if (encoding == ScriptCompiler::StreamedSource::ONE_BYTE) {
+    v8::internal::CopyChars<uint8_t, uint16_t>(dest, src + *src_pos, to_fill);
+  } else {
+    DCHECK(encoding == ScriptCompiler::StreamedSource::TWO_BYTE);
+    v8::internal::CopyChars<uint16_t, uint16_t>(
+        dest, reinterpret_cast<const uint16_t*>(src + *src_pos), to_fill);
+  }
+  *src_pos += to_fill;
+  return to_fill;
+}
+
+}  // namespace
+
 
 // ----------------------------------------------------------------------------
 // BufferedUtf16CharacterStreams
@@ -145,6 +173,35 @@ Utf8ToUtf16CharacterStream::Utf8ToUtf16CharacterStream(const byte* data,
 Utf8ToUtf16CharacterStream::~Utf8ToUtf16CharacterStream() { }
 
 
+unsigned Utf8ToUtf16CharacterStream::CopyChars(uint16_t* dest, unsigned length,
+                                               const byte* src,
+                                               unsigned* src_pos,
+                                               unsigned src_length) {
+  static const unibrow::uchar kMaxUtf16Character = 0xffff;
+  unsigned i = 0;
+  // Because of the UTF-16 lead and trail surrogates, we stop filling the buffer
+  // one character early (in the normal case), because we need to have at least
+  // two free spaces in the buffer to be sure that the next character will fit.
+  while (i < length - 1) {
+    if (*src_pos == src_length) break;
+    unibrow::uchar c = src[*src_pos];
+    if (c <= unibrow::Utf8::kMaxOneByteChar) {
+      *src_pos = *src_pos + 1;
+    } else {
+      c = unibrow::Utf8::CalculateValue(src + *src_pos, src_length - *src_pos,
+                                        src_pos);
+    }
+    if (c > kMaxUtf16Character) {
+      dest[i++] = unibrow::Utf16::LeadSurrogate(c);
+      dest[i++] = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      dest[i++] = static_cast<uc16>(c);
+    }
+  }
+  return i;
+}
+
+
 unsigned Utf8ToUtf16CharacterStream::BufferSeekForward(unsigned delta) {
   unsigned old_pos = pos_;
   unsigned target_pos = pos_ + delta;
@@ -156,31 +213,14 @@ unsigned Utf8ToUtf16CharacterStream::BufferSeekForward(unsigned delta) {
 
 
 unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position) {
-  static const unibrow::uchar kMaxUtf16Character = 0xffff;
   SetRawPosition(char_position);
   if (raw_character_position_ != char_position) {
     // char_position was not a valid position in the stream (hit the end
     // while spooling to it).
     return 0u;
   }
-  unsigned i = 0;
-  while (i < kBufferSize - 1) {
-    if (raw_data_pos_ == raw_data_length_) break;
-    unibrow::uchar c = raw_data_[raw_data_pos_];
-    if (c <= unibrow::Utf8::kMaxOneByteChar) {
-      raw_data_pos_++;
-    } else {
-      c =  unibrow::Utf8::CalculateValue(raw_data_ + raw_data_pos_,
-                                         raw_data_length_ - raw_data_pos_,
-                                         &raw_data_pos_);
-    }
-    if (c > kMaxUtf16Character) {
-      buffer_[i++] = unibrow::Utf16::LeadSurrogate(c);
-      buffer_[i++] = unibrow::Utf16::TrailSurrogate(c);
-    } else {
-      buffer_[i++] = static_cast<uc16>(c);
-    }
-  }
+  unsigned i = CopyChars(buffer_, kBufferSize, raw_data_, &raw_data_pos_,
+                         raw_data_length_);
   raw_character_position_ = char_position + i;
   return i;
 }
@@ -273,6 +313,118 @@ void Utf8ToUtf16CharacterStream::SetRawPosition(unsigned target_position) {
   }
   // No surrogate pair splitting.
   DCHECK(raw_character_position_ == target_position);
+}
+
+
+unsigned ExternalStreamingStream::FillBuffer(unsigned position) {
+  // Ignore "position" which is the position in the decoded data. Instead,
+  // ExternalStreamingStream keeps track of the position in the raw data.
+  unsigned data_in_buffer = 0;
+  // Note that the UTF-8 decoder might not be able to fill the buffer
+  // completely; it will typically leave the last character empty (see
+  // Utf8ToUtf16CharacterStream::CopyChars).
+  while (data_in_buffer < kBufferSize - 1) {
+    if (current_data_ == NULL) {
+      // GetSomeData will wait until the embedder has enough data. Here's an
+      // interface between the API which uses size_t (which is the correct type
+      // here) and the internal parts which use unsigned. TODO(marja): make the
+      // internal parts use size_t too.
+      current_data_length_ =
+          static_cast<unsigned>(source_stream_->GetMoreData(&current_data_));
+      current_data_offset_ = 0;
+      bool data_ends = current_data_length_ == 0;
+
+      // A caveat: a data chunk might end with bytes from an incomplete UTF-8
+      // character (the rest of the bytes will be in the next chunk).
+      if (encoding_ == ScriptCompiler::StreamedSource::UTF8) {
+        HandleUtf8SplitCharacters(&data_in_buffer);
+        if (!data_ends && current_data_offset_ == current_data_length_) {
+          // The data stream didn't end, but we used all the data in the
+          // chunk. This will only happen when the chunk was really small. We
+          // don't handle the case where a UTF-8 character is split over several
+          // chunks; in that case V8 won't crash, but it will be a parse error.
+          delete[] current_data_;
+          current_data_ = NULL;
+          current_data_length_ = 0;
+          current_data_offset_ = 0;
+          continue;  // Request a new chunk.
+        }
+      }
+
+      // Did the data stream end?
+      if (data_ends) {
+        DCHECK(utf8_split_char_buffer_length_ == 0);
+        return data_in_buffer;
+      }
+    }
+
+    // Fill the buffer from current_data_.
+    unsigned new_offset = 0;
+    unsigned new_chars_in_buffer =
+        CopyCharsHelper(buffer_ + data_in_buffer, kBufferSize - data_in_buffer,
+                        current_data_ + current_data_offset_, &new_offset,
+                        current_data_length_ - current_data_offset_, encoding_);
+    data_in_buffer += new_chars_in_buffer;
+    current_data_offset_ += new_offset;
+    DCHECK(data_in_buffer <= kBufferSize);
+
+    // Did we use all the data in the data chunk?
+    if (current_data_offset_ == current_data_length_) {
+      delete[] current_data_;
+      current_data_ = NULL;
+      current_data_length_ = 0;
+      current_data_offset_ = 0;
+    }
+  }
+  return data_in_buffer;
+}
+
+void ExternalStreamingStream::HandleUtf8SplitCharacters(
+    unsigned* data_in_buffer) {
+  // First check if we have leftover data from the last chunk.
+  unibrow::uchar c;
+  if (utf8_split_char_buffer_length_ > 0) {
+    // Move the bytes which are part of the split character (which started in
+    // the previous chunk) into utf8_split_char_buffer_.
+    while (current_data_offset_ < current_data_length_ &&
+           utf8_split_char_buffer_length_ < 4 &&
+           (c = current_data_[current_data_offset_]) >
+               unibrow::Utf8::kMaxOneByteChar) {
+      utf8_split_char_buffer_[utf8_split_char_buffer_length_] = c;
+      ++utf8_split_char_buffer_length_;
+      ++current_data_offset_;
+    }
+
+    // Convert the data in utf8_split_char_buffer_.
+    unsigned new_offset = 0;
+    unsigned new_chars_in_buffer =
+        CopyCharsHelper(buffer_ + *data_in_buffer,
+                        kBufferSize - *data_in_buffer, utf8_split_char_buffer_,
+                        &new_offset, utf8_split_char_buffer_length_, encoding_);
+    *data_in_buffer += new_chars_in_buffer;
+    // Make sure we used all the data.
+    DCHECK(new_offset == utf8_split_char_buffer_length_);
+    DCHECK(*data_in_buffer <= kBufferSize);
+
+    utf8_split_char_buffer_length_ = 0;
+  }
+
+  // Move bytes which are part of an incomplete character from the end of the
+  // current chunk to utf8_split_char_buffer_. They will be converted when the
+  // next data chunk arrives. Note that all valid UTF-8 characters are at most 4
+  // bytes long, but if the data is invalid, we can have character values bigger
+  // than unibrow::Utf8::kMaxOneByteChar for more than 4 consecutive bytes.
+  while (current_data_length_ > current_data_offset_ &&
+         (c = current_data_[current_data_length_ - 1]) >
+             unibrow::Utf8::kMaxOneByteChar &&
+         utf8_split_char_buffer_length_ < 4) {
+    --current_data_length_;
+    ++utf8_split_char_buffer_length_;
+  }
+  CHECK(utf8_split_char_buffer_length_ <= 4);
+  for (unsigned i = 0; i < utf8_split_char_buffer_length_; ++i) {
+    utf8_split_char_buffer_[i] = current_data_[current_data_length_ + i];
+  }
 }
 
 

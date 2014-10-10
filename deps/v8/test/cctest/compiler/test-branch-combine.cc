@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/compiler/generic-node-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -23,7 +24,7 @@ static IrOpcode::Value int32cmp_opcodes[] = {
 
 TEST(BranchCombineWord32EqualZero_1) {
   // Test combining a branch with x == 0
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
   int32_t eq_constant = -1033;
   int32_t ne_constant = 825118;
   Node* p0 = m.Parameter(0);
@@ -49,7 +50,7 @@ TEST(BranchCombineWord32EqualZero_chain) {
   int32_t ne_constant = 815118;
 
   for (int k = 0; k < 6; k++) {
-    RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+    RawMachineAssemblerTester<int32_t> m(kMachInt32);
     Node* p0 = m.Parameter(0);
     MLabel blocka, blockb;
     Node* cond = p0;
@@ -74,7 +75,7 @@ TEST(BranchCombineWord32EqualZero_chain) {
 
 TEST(BranchCombineInt32LessThanZero_1) {
   // Test combining a branch with x < 0
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
   int32_t eq_constant = -1433;
   int32_t ne_constant = 845118;
   Node* p0 = m.Parameter(0);
@@ -96,7 +97,7 @@ TEST(BranchCombineInt32LessThanZero_1) {
 
 TEST(BranchCombineUint32LessThan100_1) {
   // Test combining a branch with x < 100
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachUint32);
   int32_t eq_constant = 1471;
   int32_t ne_constant = 88845718;
   Node* p0 = m.Parameter(0);
@@ -118,7 +119,7 @@ TEST(BranchCombineUint32LessThan100_1) {
 
 TEST(BranchCombineUint32LessThanOrEqual100_1) {
   // Test combining a branch with x <= 100
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachUint32);
   int32_t eq_constant = 1479;
   int32_t ne_constant = 77845719;
   Node* p0 = m.Parameter(0);
@@ -140,7 +141,7 @@ TEST(BranchCombineUint32LessThanOrEqual100_1) {
 
 TEST(BranchCombineZeroLessThanInt32_1) {
   // Test combining a branch with 0 < x
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
   int32_t eq_constant = -2033;
   int32_t ne_constant = 225118;
   Node* p0 = m.Parameter(0);
@@ -162,7 +163,7 @@ TEST(BranchCombineZeroLessThanInt32_1) {
 
 TEST(BranchCombineInt32GreaterThanZero_1) {
   // Test combining a branch with x > 0
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
   int32_t eq_constant = -1073;
   int32_t ne_constant = 825178;
   Node* p0 = m.Parameter(0);
@@ -184,7 +185,7 @@ TEST(BranchCombineInt32GreaterThanZero_1) {
 
 TEST(BranchCombineWord32EqualP) {
   // Test combining a branch with an Word32Equal.
-  RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   int32_t eq_constant = -1035;
   int32_t ne_constant = 825018;
   Node* p0 = m.Parameter(0);
@@ -214,7 +215,7 @@ TEST(BranchCombineWord32EqualI) {
 
   for (int left = 0; left < 2; left++) {
     FOR_INT32_INPUTS(i) {
-      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      RawMachineAssemblerTester<int32_t> m(kMachInt32);
       int32_t a = *i;
 
       Node* p0 = m.Int32Constant(a);
@@ -243,7 +244,7 @@ TEST(BranchCombineInt32CmpP) {
   int32_t ne_constant = 725018;
 
   for (int op = 0; op < 2; op++) {
-    RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
     Node* p0 = m.Parameter(0);
     Node* p1 = m.Parameter(1);
 
@@ -275,7 +276,7 @@ TEST(BranchCombineInt32CmpI) {
 
   for (int op = 0; op < 2; op++) {
     FOR_INT32_INPUTS(i) {
-      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      RawMachineAssemblerTester<int32_t> m(kMachInt32);
       int32_t a = *i;
       Node* p0 = m.Int32Constant(a);
       Node* p1 = m.Parameter(0);
@@ -360,7 +361,7 @@ class CmpBranchGen : public BinopGen<int32_t> {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_materialized) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (size_t i = 0; i < arraysize(int32cmp_opcodes); i++) {
     CmpMaterializeBoolGen gen(int32cmp_opcodes[i], false);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -369,7 +370,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_materialized) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverted_materialized) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (size_t i = 0; i < arraysize(int32cmp_opcodes); i++) {
     CmpMaterializeBoolGen gen(int32cmp_opcodes[i], true);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -378,7 +379,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverted_materialized) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
-  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
+  for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], false, false, 995 + i, -1011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -387,7 +388,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
-  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
+  for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], false, true, 795 + i, -2011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -396,7 +397,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
-  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
+  for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], true, false, 695 + i, -3011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -405,7 +406,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
-  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
+  for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], true, true, 595 + i, -4011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -428,12 +429,12 @@ TEST(BranchCombineFloat64Compares) {
                            CompareWrapper(IrOpcode::kFloat64LessThan),
                            CompareWrapper(IrOpcode::kFloat64LessThanOrEqual)};
 
-  for (size_t c = 0; c < ARRAY_SIZE(cmps); c++) {
+  for (size_t c = 0; c < arraysize(cmps); c++) {
     CompareWrapper cmp = cmps[c];
     for (int invert = 0; invert < 2; invert++) {
       RawMachineAssemblerTester<int32_t> m;
-      Node* a = m.LoadFromPointer(&input_a, kMachineFloat64);
-      Node* b = m.LoadFromPointer(&input_b, kMachineFloat64);
+      Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
+      Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
 
       MLabel blocka, blockb;
       Node* cond = cmp.MakeNode(&m, a, b);
@@ -444,8 +445,8 @@ TEST(BranchCombineFloat64Compares) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(ne_constant));
 
-      for (size_t i = 0; i < ARRAY_SIZE(inputs); i++) {
-        for (size_t j = 0; j < ARRAY_SIZE(inputs); j += 2) {
+      for (size_t i = 0; i < arraysize(inputs); i++) {
+        for (size_t j = 0; j < arraysize(inputs); j += 2) {
           input_a = inputs[i];
           input_b = inputs[i];
           int32_t expected =

@@ -75,5 +75,7 @@
 #undef GetObject
 #undef CreateSemaphore
 #undef Yield
+#undef RotateRight32
+#undef RotateRight64
 
 #endif  // V8_BASE_WIN32_HEADERS_H_

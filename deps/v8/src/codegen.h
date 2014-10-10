@@ -6,7 +6,7 @@
 #define V8_CODEGEN_H_
 
 #include "src/code-stubs.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass

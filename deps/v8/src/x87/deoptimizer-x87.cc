@@ -194,7 +194,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
 
 void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
+    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler());
   int params = descriptor->GetHandlerParameterCount();
@@ -204,8 +204,10 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  // Do nothing for X87.
-  return;
+  for (int i = 0; i < X87Register::kMaxNumAllocatableRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
 }
 
 
@@ -230,9 +232,42 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
+
+  const int kDoubleRegsSize =
+      kDoubleSize * X87Register::kMaxNumAllocatableRegisters;
+
+  // Reserve space for x87 fp registers.
+  __ sub(esp, Immediate(kDoubleRegsSize));
+
   __ pushad();
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize;
+  // GP registers are safe to use now.
+  // Save used x87 fp registers in correct position of previous reserve space.
+  Label loop, done;
+  // Get the layout of x87 stack.
+  __ sub(esp, Immediate(kPointerSize));
+  __ fistp_s(MemOperand(esp, 0));
+  __ pop(eax);
+  // Preserve stack layout in edi
+  __ mov(edi, eax);
+  // Get the x87 stack depth, the first 3 bits.
+  __ mov(ecx, eax);
+  __ and_(ecx, 0x7);
+  __ j(zero, &done, Label::kNear);
+
+  __ bind(&loop);
+  __ shr(eax, 0x3);
+  __ mov(ebx, eax);
+  __ and_(ebx, 0x7);  // Extract the st_x index into ebx.
+  // Pop TOS to the correct position. The disp(0x20) is due to pushad.
+  // The st_i should be saved to (esp + ebx * kDoubleSize + 0x20).
+  __ fstp_d(Operand(esp, ebx, times_8, 0x20));
+  __ dec(ecx);  // Decrease stack depth.
+  __ j(not_zero, &loop, Label::kNear);
+  __ bind(&done);
+
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kPointerSize + kDoubleRegsSize;
 
   // Get the bailout id from the stack.
   __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
@@ -245,6 +280,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ sub(edx, ebp);
   __ neg(edx);
 
+  __ push(edi);
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, eax);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -260,6 +296,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
   }
 
+  __ pop(edi);
+
   // Preserve deoptimizer object in register eax and get the input
   // frame descriptor pointer.
   __ mov(ebx, Operand(eax, Deoptimizer::input_offset()));
@@ -270,13 +308,22 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ pop(Operand(ebx, offset));
   }
 
+  int double_regs_offset = FrameDescription::double_registers_offset();
+  // Fill in the double input registers.
+  for (int i = 0; i < X87Register::kMaxNumAllocatableRegisters; ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize;
+    __ fld_d(Operand(esp, src_offset));
+    __ fstp_d(Operand(ebx, dst_offset));
+  }
+
   // Clear FPU all exceptions.
   // TODO(ulan): Find out why the TOP register is not zero here in some cases,
   // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
   // Remove the bailout id, return address and the double registers.
-  __ add(esp, Immediate(2 * kPointerSize));
+  __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
@@ -298,6 +345,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ j(not_equal, &pop_loop);
 
   // Compute the output frame in the deoptimizer.
+  __ push(edi);
   __ push(eax);
   __ PrepareCallCFunction(1, ebx);
   __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -307,6 +355,7 @@ void Deoptimizer::EntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(eax);
+  __ pop(edi);
 
   // If frame was dynamically aligned, pop padding.
   Label no_padding;
@@ -344,6 +393,25 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ cmp(eax, edx);
   __ j(below, &outer_push_loop);
+
+
+  // In case of a failed STUB, we have to restore the x87 stack.
+  // x87 stack layout is in edi.
+  Label loop2, done2;
+  // Get the x87 stack depth, the first 3 bits.
+  __ mov(ecx, edi);
+  __ and_(ecx, 0x7);
+  __ j(zero, &done2, Label::kNear);
+
+  __ lea(ecx, Operand(ecx, ecx, times_2, 0));
+  __ bind(&loop2);
+  __ mov(eax, edi);
+  __ shr_cl(eax);
+  __ and_(eax, 0x7);
+  __ fld_d(Operand(ebx, eax, times_8, double_regs_offset));
+  __ sub(ecx, Immediate(0x3));
+  __ j(not_zero, &loop2, Label::kNear);
+  __ bind(&done2);
 
   // Push state, pc, and continuation from the last output frame.
   __ push(Operand(ebx, FrameDescription::state_offset()));

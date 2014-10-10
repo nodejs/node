@@ -4,6 +4,7 @@ include_rules = [
   "+src/compiler/pipeline.h",
   "-src/libplatform",
   "-include/libplatform",
+  "+testing",
 ]
 
 specific_include_rules = {

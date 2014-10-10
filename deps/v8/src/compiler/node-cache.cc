@@ -31,7 +31,7 @@ inline int32_t NodeCacheHash(int64_t key) {
 
 template <>
 inline int32_t NodeCacheHash(double key) {
-  return ComputeLongHash(BitCast<int64_t>(key));
+  return ComputeLongHash(bit_cast<int64_t>(key));
 }
 
 

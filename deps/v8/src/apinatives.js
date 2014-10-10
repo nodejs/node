@@ -72,7 +72,7 @@ function InstantiateFunction(data, name) {
         }
       }
       var fun = %CreateApiFunction(data, prototype);
-      if (name) %FunctionSetName(fun, name);
+      if (IS_STRING(name)) %FunctionSetName(fun, name);
       var doNotCache = flags & (1 << kDoNotCacheBit);
       if (!doNotCache) cache[serialNumber] = fun;
       ConfigureTemplateInstance(fun, data);

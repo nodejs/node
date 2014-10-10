@@ -649,15 +649,15 @@ Handle<Code> FunctionInfoWrapper::GetFunctionCode() {
 }
 
 
-Handle<FixedArray> FunctionInfoWrapper::GetFeedbackVector() {
+Handle<TypeFeedbackVector> FunctionInfoWrapper::GetFeedbackVector() {
   Handle<Object> element = this->GetField(kSharedFunctionInfoOffset_);
-  Handle<FixedArray> result;
+  Handle<TypeFeedbackVector> result;
   if (element->IsJSValue()) {
     Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
     Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
     Handle<SharedFunctionInfo> shared =
         Handle<SharedFunctionInfo>::cast(raw_result);
-    result = Handle<FixedArray>(shared->feedback_vector(), isolate());
+    result = Handle<TypeFeedbackVector>(shared->feedback_vector(), isolate());
     CHECK_EQ(result->length(), GetSlotCount());
   } else {
     // Scripts may never have a SharedFunctionInfo created, so
@@ -875,11 +875,11 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
 
       Factory* factory = isolate->factory();
       Handle<String> start_pos_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("startPosition"));
-      Handle<String> end_pos_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("endPosition"));
-      Handle<String> script_obj_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("scriptObject"));
+          STATIC_CHAR_VECTOR("startPosition"));
+      Handle<String> end_pos_key =
+          factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("endPosition"));
+      Handle<String> script_obj_key =
+          factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptObject"));
       Handle<Smi> start_pos(
           Smi::FromInt(message_location.start_pos()), isolate);
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
@@ -1203,7 +1203,7 @@ void LiveEdit::ReplaceFunctionCode(
     }
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector
-    Handle<FixedArray> feedback_vector =
+    Handle<TypeFeedbackVector> feedback_vector =
         compile_info_wrapper.GetFeedbackVector();
     shared_info->set_feedback_vector(*feedback_vector);
   }

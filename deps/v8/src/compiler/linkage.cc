@@ -34,8 +34,8 @@ OStream& operator<<(OStream& os, const CallDescriptor::Kind& k) {
 OStream& operator<<(OStream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
-            << "p" << d.ParameterCount() << "i" << d.InputCount()
-            << (d.CanLazilyDeoptimize() ? "deopt" : "");
+            << "j" << d.JSParameterCount() << "i" << d.InputCount() << "f"
+            << d.FrameStateCount();
 }
 
 
@@ -51,9 +51,8 @@ Linkage::Linkage(CompilationInfo* info) : info_(info) {
     incoming_ = GetJSCallDescriptor(1 + shared->formal_parameter_count());
   } else if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
-    HydrogenCodeStub* stub = info->code_stub();
-    CodeStubInterfaceDescriptor* descriptor =
-        info_->isolate()->code_stub_interface_descriptor(stub->MajorKey());
+    CallInterfaceDescriptor descriptor =
+        info->code_stub()->GetCallInterfaceDescriptor();
     incoming_ = GetStubCallDescriptor(descriptor);
   } else {
     incoming_ = NULL;  // TODO(titzer): ?
@@ -95,18 +94,42 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count) {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize) {
+    Operator::Properties properties) {
   return GetRuntimeCallDescriptor(function, parameter_count, properties,
-                                  can_deoptimize, this->info_->zone());
+                                  this->info_->zone());
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize) {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count,
-                               can_deoptimize, this->info_->zone());
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
+    CallDescriptor::Flags flags) {
+  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
+                               this->info_->zone());
+}
+
+
+// static
+bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
+  if (!FLAG_turbo_deoptimization) {
+    return false;
+  }
+  // TODO(jarin) At the moment, we only add frame state for
+  // few chosen runtime functions.
+  switch (function) {
+    case Runtime::kDebugBreak:
+    case Runtime::kDebugGetLoadedScripts:
+    case Runtime::kDeoptimizeFunction:
+    case Runtime::kInlineCallFunction:
+    case Runtime::kPrepareStep:
+    case Runtime::kSetScriptBreakPoint:
+    case Runtime::kStackGuard:
+    case Runtime::kCheckExecutionState:
+    case Runtime::kDebugEvaluate:
+    case Runtime::kCollectStackTrace:
+      return true;
+    default:
+      return false;
+  }
 }
 
 
@@ -122,24 +145,22 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+    Operator::Properties properties, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
+    CallDescriptor::Flags flags, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineType return_type,
-    const MachineType* param_types) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
+                                                  MachineSignature* sig) {
   UNIMPLEMENTED();
   return NULL;
 }

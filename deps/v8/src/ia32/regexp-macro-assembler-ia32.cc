@@ -220,7 +220,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
   __ add(eax, ebx);
   BranchOrBacktrack(greater, on_no_match);
 
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     Label success;
     Label fail;
     Label loop_increment;
@@ -366,7 +366,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
 
   Label loop;
   __ bind(&loop);
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     __ movzx_b(eax, Operand(edx, 0));
     __ cmpb_al(Operand(ebx, 0));
   } else {
@@ -476,7 +476,7 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
     Label* on_bit_set) {
   __ mov(eax, Immediate(table));
   Register index = current_character();
-  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ mov(ebx, kTableSize - 1);
     __ and_(ebx, current_character());
     index = ebx;
@@ -493,7 +493,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
   switch (type) {
   case 's':
     // Match space-characters
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ cmp(current_character(), ' ');
@@ -543,8 +543,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       __ cmp(current_character(), Immediate('z'));
       BranchOrBacktrack(above, on_no_match);
     }
@@ -557,8 +557,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
   }
   case 'W': {
     Label done;
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       __ cmp(current_character(), Immediate('z'));
       __ j(above, &done);
     }
@@ -567,7 +567,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     __ test_b(current_character(),
               Operand::StaticArray(current_character(), times_1, word_map));
     BranchOrBacktrack(not_zero, on_no_match);
-    if (mode_ != ASCII) {
+    if (mode_ != LATIN1) {
       __ bind(&done);
     }
     return true;
@@ -584,7 +584,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
     __ sub(eax, Immediate(0x0b));
     __ cmp(eax, 0x0c - 0x0b);
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       BranchOrBacktrack(above, on_no_match);
     } else {
       Label done;
@@ -1099,7 +1099,7 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
 
   // Current string.
-  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
 
   DCHECK(re_code->instruction_start() <= *return_address);
   DCHECK(*return_address <=
@@ -1130,8 +1130,8 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
-    // If we changed between an ASCII and an UC16 string, the specialized
+  if (subject_tmp->IsOneByteRepresentation() != is_one_byte) {
+    // If we changed between an LATIN1 and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
     return RETRY;
@@ -1278,7 +1278,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
 
 void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     if (characters == 4) {
       __ mov(current_character(), Operand(esi, edi, times_1, cp_offset));
     } else if (characters == 2) {

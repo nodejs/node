@@ -571,10 +571,6 @@ SetUpLockedPrototype(PropertyDescriptor, $Array(
 // property descriptor. For a description of the array layout please
 // see the runtime.cc file.
 function ConvertDescriptorArrayToDescriptor(desc_array) {
-  if (desc_array === false) {
-    throw 'Internal error: invalid desc_array';
-  }
-
   if (IS_UNDEFINED(desc_array)) {
     return UNDEFINED;
   }
@@ -649,9 +645,6 @@ function GetOwnPropertyJS(obj, v) {
   // If p is not a property on obj undefined is returned.
   var props = %GetOwnProperty(ToObject(obj), p);
 
-  // A false value here means that access checks failed.
-  if (props === false) return UNDEFINED;
-
   return ConvertDescriptorArrayToDescriptor(props);
 }
 
@@ -692,11 +685,8 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_or_access = %GetOwnProperty(ToObject(obj), ToName(p));
-  // A false value here means that access checks failed.
-  if (current_or_access === false) return UNDEFINED;
-
-  var current = ConvertDescriptorArrayToDescriptor(current_or_access);
+  var current_array = %GetOwnProperty(ToObject(obj), ToName(p));
+  var current = ConvertDescriptorArrayToDescriptor(current_array);
   var extensible = %IsExtensible(ToObject(obj));
 
   // Error handling according to spec.
@@ -840,8 +830,18 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     //                 property.
     // Step 12 - updating an existing accessor property with an accessor
     //           descriptor.
-    var getter = desc.hasGetter() ? desc.getGet() : null;
-    var setter = desc.hasSetter() ? desc.getSet() : null;
+    var getter = null;
+    if (desc.hasGetter()) {
+      getter = desc.getGet();
+    } else if (IsAccessorDescriptor(current) && current.hasGetter()) {
+      getter = current.getGet();
+    }
+    var setter = null;
+    if (desc.hasSetter()) {
+      setter = desc.getSet();
+    } else if (IsAccessorDescriptor(current) && current.hasSetter()) {
+      setter = current.getSet();
+    }
     %DefineAccessorPropertyUnchecked(obj, p, getter, setter, flag);
   }
   return true;
@@ -1757,7 +1757,11 @@ function FunctionSourceString(func) {
   var name = %FunctionNameShouldPrintAsAnonymous(func)
       ? 'anonymous'
       : %FunctionGetName(func);
-  var head = %FunctionIsGenerator(func) ? 'function* ' : 'function ';
+
+  var isGenerator = %FunctionIsGenerator(func);
+  var head = %FunctionIsConciseMethod(func)
+      ? (isGenerator ? '*' : '')
+      : (isGenerator ? 'function* ' : 'function ');
   return head + name + source;
 }
 
@@ -1855,9 +1859,7 @@ function FunctionConstructor(arg1) {  // length == 1
   var global_proxy = %GlobalProxy(global);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
-  var f = %CompileString(source, true);
-  if (!IS_FUNCTION(f)) return f;
-  f = %_CallFunction(global_proxy, f);
+  var f = %_CallFunction(global_proxy, %CompileString(source, true));
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }

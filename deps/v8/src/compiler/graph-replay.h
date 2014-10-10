@@ -5,21 +5,19 @@
 #ifndef V8_COMPILER_GRAPH_REPLAY_H_
 #define V8_COMPILER_GRAPH_REPLAY_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class Graph;
-class Operator;
 
 // Helper class to print a full replay of a graph. This replay can be used to
 // materialize the same graph within a C++ unit test and hence test subsequent
 // optimization passes on a graph without going through the construction steps.
-class GraphReplayPrinter : public NullNodeVisitor {
+class GraphReplayPrinter FINAL : public NullNodeVisitor {
  public:
 #ifdef DEBUG
   static void PrintReplay(Graph* graph);
@@ -33,12 +31,13 @@ class GraphReplayPrinter : public NullNodeVisitor {
  private:
   GraphReplayPrinter() {}
 
-  static void PrintReplayOpCreator(Operator* op);
+  static void PrintReplayOpCreator(const Operator* op);
 
   DISALLOW_COPY_AND_ASSIGN(GraphReplayPrinter);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GRAPH_REPLAY_H_

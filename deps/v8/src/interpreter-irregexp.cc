@@ -584,7 +584,7 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
   const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
   String::FlatContent subject_content = subject->GetFlatContent();
-  if (subject_content.IsAscii()) {
+  if (subject_content.IsOneByte()) {
     Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate,

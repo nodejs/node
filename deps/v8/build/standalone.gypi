@@ -215,9 +215,18 @@
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
        or OS=="netbsd"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                    '-Wno-long-long', '-pthread', '-fno-exceptions',
-                    '-pedantic' ],
+        'cflags': [
+          '-Wall',
+          '<(werror)',
+          '-W',
+          '-Wno-unused-parameter',
+          '-Wno-long-long',
+          '-pthread',
+          '-fno-exceptions',
+          '-pedantic',
+          # Don't warn about the "struct foo f = {0};" initialization pattern.
+          '-Wno-missing-field-initializers',
+        ],
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
@@ -234,8 +243,15 @@
     #  or OS=="netbsd"'
     ['OS=="qnx"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                    '-fno-exceptions' ],
+        'cflags': [
+          '-Wall',
+          '<(werror)',
+          '-W',
+          '-Wno-unused-parameter',
+          '-fno-exceptions',
+          # Don't warn about the "struct foo f = {0};" initialization pattern.
+          '-Wno-missing-field-initializers',
+        ],
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'conditions': [
           [ 'visibility=="hidden"', {
@@ -263,6 +279,7 @@
         'defines': [
           '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE',
+          '_USING_V110_SDK71_',
         ],
         'conditions': [
           ['component=="static_library"', {
@@ -298,6 +315,7 @@
             'AdditionalOptions': ['/ignore:4221'],
           },
           'VCLinkerTool': {
+            'MinimumRequiredVersion': '5.01',  # XP.
             'AdditionalDependencies': [
               'ws2_32.lib',
             ],
@@ -359,6 +377,8 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
+            # Don't warn about the "struct foo f = {0};" initialization pattern.
+            '-Wno-missing-field-initializers',
           ],
         },
         'conditions': [

@@ -118,9 +118,14 @@ TEST(NodeUseIteratorOne) {
 TEST(NodeUseIteratorReplaceNoUses) {
   GraphTester graph;
   Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n3 = graph.NewNode(&dummy_operator);
-  n0->ReplaceUses(n3);
+  Node* n1 = graph.NewNode(&dummy_operator);
+  Node* n2 = graph.NewNode(&dummy_operator);
+  Node* n3 = graph.NewNode(&dummy_operator, n2);
+  n0->ReplaceUses(n1);
   CHECK(n0->uses().begin() == n0->uses().end());
+  n0->ReplaceUses(n2);
+  CHECK(n0->uses().begin() == n0->uses().end());
+  USE(n3);
 }
 
 
@@ -330,6 +335,27 @@ TEST(Inputs) {
   CHECK(*current == n3);
   ++current;
   CHECK(current == uses.end());
+}
+
+
+TEST(RemoveInput) {
+  GraphTester graph;
+
+  Node* n0 = graph.NewNode(&dummy_operator);
+  Node* n1 = graph.NewNode(&dummy_operator, n0);
+  Node* n2 = graph.NewNode(&dummy_operator, n0, n1);
+
+  n1->RemoveInput(0);
+  CHECK_EQ(0, n1->InputCount());
+  CHECK_EQ(1, n0->UseCount());
+
+  n2->RemoveInput(0);
+  CHECK_EQ(1, n2->InputCount());
+  CHECK_EQ(0, n0->UseCount());
+  CHECK_EQ(1, n1->UseCount());
+
+  n2->RemoveInput(0);
+  CHECK_EQ(0, n2->InputCount());
 }
 
 

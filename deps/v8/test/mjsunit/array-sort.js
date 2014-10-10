@@ -404,3 +404,47 @@ function cmpTest(a, b) {
   return a.val - b.val;
 }
 arr.sort(cmpTest);
+
+function TestSortDoesNotDependOnObjectPrototypeHasOwnProperty() {
+  Array.prototype.sort.call({
+    __proto__: { hasOwnProperty: null, 0: 1 },
+    length: 5
+  });
+
+  var arr = new Array(2);
+  Object.defineProperty(arr, 0, { get: function() {}, set: function() {} });
+  arr.hasOwnProperty = null;
+  arr.sort();
+}
+
+TestSortDoesNotDependOnObjectPrototypeHasOwnProperty();
+
+function TestSortDoesNotDependOnArrayPrototypePush() {
+  // InsertionSort is used for arrays which length <= 22
+  var arr = [];
+  for (var i = 0; i < 22; i++) arr[i] = {};
+  Array.prototype.push = function() {
+    fail('Should not call push');
+  };
+  arr.sort();
+
+  // Quicksort is used for arrays which length > 22
+  // Arrays which length > 1000 guarantee GetThirdIndex is executed
+  arr = [];
+  for (var i = 0; i < 2000; ++i) arr[i] = {};
+  arr.sort();
+}
+
+TestSortDoesNotDependOnArrayPrototypePush();
+
+function TestSortDoesNotDependOnArrayPrototypeSort() {
+  var arr = [];
+  for (var i = 0; i < 2000; i++) arr[i] = {};
+  var sortfn = Array.prototype.sort;
+  Array.prototype.sort = function() {
+    fail('Should not call sort');
+  };
+  sortfn.call(arr);
+}
+
+TestSortDoesNotDependOnArrayPrototypeSort();

@@ -99,8 +99,8 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    CHECK_EQ(key->GetIdentityHash(),
-             CcTest::heap()->undefined_value());
+    Object* identity_hash = key->GetIdentityHash();
+    CHECK_EQ(identity_hash, CcTest::heap()->undefined_value());
   }
 }
 

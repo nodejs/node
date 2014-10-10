@@ -24,10 +24,6 @@ OStream& operator<<(OStream& os, const BasicBlockData::Control& c) {
       return os << "return";
     case BasicBlockData::kThrow:
       return os << "throw";
-    case BasicBlockData::kCall:
-      return os << "call";
-    case BasicBlockData::kDeoptimize:
-      return os << "deoptimize";
   }
   UNREACHABLE();
   return os;

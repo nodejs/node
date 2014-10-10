@@ -226,7 +226,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
     if (info->is_osr()) {
       if (FLAG_trace_osr) {
         PrintF("[COSR - ");
-        info->closure()->PrintName();
+        function->ShortPrint();
         PrintF(" is ready for install and entry at AST id %d]\n",
                info->osr_ast_id().ToInt());
       }
@@ -237,6 +237,11 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
       BackEdgeTable::RemoveStackCheck(code, offset);
     } else {
       if (function->IsOptimized()) {
+        if (FLAG_trace_concurrent_recompilation) {
+          PrintF("  ** Aborting compilation for ");
+          function->ShortPrint();
+          PrintF(" as it has already been optimized.\n");
+        }
         DisposeOptimizedCompileJob(job, false);
       } else {
         Handle<Code> code = Compiler::GetConcurrentlyOptimizedCode(job);

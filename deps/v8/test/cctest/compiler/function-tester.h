@@ -26,10 +26,15 @@ namespace compiler {
 
 class FunctionTester : public InitializedHandleScope {
  public:
-  explicit FunctionTester(const char* source)
+  explicit FunctionTester(const char* source, uint32_t flags = 0)
       : isolate(main_isolate()),
-        function((FLAG_allow_natives_syntax = true, NewFunction(source))) {
+        function((FLAG_allow_natives_syntax = true, NewFunction(source))),
+        flags_(flags) {
     Compile(function);
+    const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
+                                     CompilationInfo::kInliningEnabled |
+                                     CompilationInfo::kTypingEnabled;
+    CHECK_EQ(0, flags_ & ~supported_flags);
   }
 
   Isolate* isolate;
@@ -40,17 +45,25 @@ class FunctionTester : public InitializedHandleScope {
     CompilationInfoWithZone info(function);
 
     CHECK(Parser::Parse(&info));
-    StrictMode strict_mode = info.function()->strict_mode();
-    info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
+    if (flags_ & CompilationInfo::kContextSpecializing) {
+      info.MarkAsContextSpecializing();
+    }
+    if (flags_ & CompilationInfo::kInliningEnabled) {
+      info.MarkAsInliningEnabled();
+    }
+    if (flags_ & CompilationInfo::kTypingEnabled) {
+      info.MarkAsTypingEnabled();
+    }
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
-    CHECK_NE(NULL, info.scope());
-
-    EnsureDeoptimizationSupport(&info);
+    CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
+    if (FLAG_turbo_deoptimization) {
+      info.context()->native_context()->AddOptimizedCode(*code);
+    }
 
     CHECK(!code.is_null());
     function->ReplaceCode(*code);
@@ -68,23 +81,6 @@ class FunctionTester : public InitializedHandleScope {
     function->ReplaceCode(*code);
 #endif
     return function;
-  }
-
-  static void EnsureDeoptimizationSupport(CompilationInfo* info) {
-    bool should_recompile = !info->shared_info()->has_deoptimization_support();
-    if (should_recompile) {
-      CompilationInfoWithZone unoptimized(info->shared_info());
-      // Note that we use the same AST that we will use for generating the
-      // optimized code.
-      unoptimized.SetFunction(info->function());
-      unoptimized.PrepareForCompilation(info->scope());
-      unoptimized.SetContext(info->context());
-      if (should_recompile) unoptimized.EnableDeoptimizationSupport();
-      bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
-      CHECK(succeeded);
-      Handle<SharedFunctionInfo> shared = info->shared_info();
-      shared->EnableDeoptimizationSupport(*unoptimized.code());
-    }
   }
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b) {
@@ -186,6 +182,9 @@ class FunctionTester : public InitializedHandleScope {
   Handle<Object> true_value() { return isolate->factory()->true_value(); }
 
   Handle<Object> false_value() { return isolate->factory()->false_value(); }
+
+ private:
+  uint32_t flags_;
 };
 }
 }

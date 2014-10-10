@@ -158,6 +158,7 @@ class RegisteredExtension {
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
   V(DataView, JSDataView)                      \
+  V(Name, Name)                                \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, JSFunction)                        \
@@ -189,6 +190,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Function> ToLocal(
       v8::internal::Handle<v8::internal::JSFunction> obj);
+  static inline Local<Name> ToLocal(
+      v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
       v8::internal::Handle<v8::internal::String> obj);
   static inline Local<Symbol> ToLocal(
@@ -333,6 +336,7 @@ inline v8::Local<T> ToApiHandle(
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
 MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
+MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
@@ -671,9 +675,9 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 // Interceptor functions called from generated inline caches to notify
 // CPU profiler that external callbacks are invoked.
 void InvokeAccessorGetterCallback(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorGetterCallback getter);
+    v8::AccessorNameGetterCallback getter);
 
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);

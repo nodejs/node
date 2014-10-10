@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sys-info.h"
 #include "src/libplatform/worker-thread.h"
 
 namespace v8 {
@@ -58,8 +59,9 @@ DefaultPlatform::~DefaultPlatform() {
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
   DCHECK(thread_pool_size >= 0);
-  if (thread_pool_size < 1)
-    thread_pool_size = base::OS::NumberOfProcessorsOnline();
+  if (thread_pool_size < 1) {
+    thread_pool_size = base::SysInfo::NumberOfProcessors();
+  }
   thread_pool_size_ =
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }

@@ -34,36 +34,36 @@ class OStream;
   V(JSArray, 0x621)        /* 0000 0110 0010 0001 */  \
   V(None, 0x7ff)           /* 0000 0111 1111 1111 */
 
-class HType V8_FINAL {
+class HType FINAL {
  public:
   #define DECLARE_CONSTRUCTOR(Name, mask) \
-    static HType Name() V8_WARN_UNUSED_RESULT { return HType(k##Name); }
+    static HType Name() WARN_UNUSED_RESULT { return HType(k##Name); }
   HTYPE_LIST(DECLARE_CONSTRUCTOR)
   #undef DECLARE_CONSTRUCTOR
 
   // Return the weakest (least precise) common type.
-  HType Combine(HType other) const V8_WARN_UNUSED_RESULT {
+  HType Combine(HType other) const WARN_UNUSED_RESULT {
     return HType(static_cast<Kind>(kind_ & other.kind_));
   }
 
-  bool Equals(HType other) const V8_WARN_UNUSED_RESULT {
+  bool Equals(HType other) const WARN_UNUSED_RESULT {
     return kind_ == other.kind_;
   }
 
-  bool IsSubtypeOf(HType other) const V8_WARN_UNUSED_RESULT {
+  bool IsSubtypeOf(HType other) const WARN_UNUSED_RESULT {
     return Combine(other).Equals(other);
   }
 
   #define DECLARE_IS_TYPE(Name, mask)               \
-    bool Is##Name() const V8_WARN_UNUSED_RESULT {   \
+    bool Is##Name() const WARN_UNUSED_RESULT {   \
       return IsSubtypeOf(HType::Name());            \
     }
   HTYPE_LIST(DECLARE_IS_TYPE)
   #undef DECLARE_IS_TYPE
 
   template <class T>
-  static HType FromType(typename T::TypeHandle type) V8_WARN_UNUSED_RESULT;
-  static HType FromValue(Handle<Object> value) V8_WARN_UNUSED_RESULT;
+  static HType FromType(typename T::TypeHandle type) WARN_UNUSED_RESULT;
+  static HType FromValue(Handle<Object> value) WARN_UNUSED_RESULT;
 
   friend OStream& operator<<(OStream& os, const HType& t);
 

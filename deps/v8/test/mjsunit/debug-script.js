@@ -59,7 +59,7 @@ for (i = 0; i < scripts.length; i++) {
 }
 
 // This has to be updated if the number of native scripts change.
-assertTrue(named_native_count == 25 || named_native_count == 26);
+assertTrue(named_native_count == 26 || named_native_count == 27);
 // Only the 'gc' extension is loaded.
 assertEquals(1, extension_count);
 // This script and mjsunit.js has been loaded.  If using d8, d8 loads

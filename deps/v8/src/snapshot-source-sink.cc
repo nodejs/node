@@ -24,14 +24,10 @@ SnapshotByteSource::~SnapshotByteSource() { }
 
 int32_t SnapshotByteSource::GetUnalignedInt() {
   DCHECK(position_ < length_);  // Require at least one byte left.
-#if defined(V8_HOST_CAN_READ_UNALIGNED) &&  __BYTE_ORDER == __LITTLE_ENDIAN
-  int32_t answer = *reinterpret_cast<const int32_t*>(data_ + position_);
-#else
   int32_t answer = data_[position_];
   answer |= data_[position_ + 1] << 8;
   answer |= data_[position_ + 2] << 16;
   answer |= data_[position_ + 3] << 24;
-#endif
   return answer;
 }
 
@@ -43,15 +39,17 @@ void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
 
 
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
-  DCHECK(integer < 1 << 22);
+  DCHECK(integer < 1 << 30);
   integer <<= 2;
   int bytes = 1;
   if (integer > 0xff) bytes = 2;
   if (integer > 0xffff) bytes = 3;
-  integer |= bytes;
+  if (integer > 0xffffff) bytes = 4;
+  integer |= (bytes - 1);
   Put(static_cast<int>(integer & 0xff), "IntPart1");
   if (bytes > 1) Put(static_cast<int>((integer >> 8) & 0xff), "IntPart2");
   if (bytes > 2) Put(static_cast<int>((integer >> 16) & 0xff), "IntPart3");
+  if (bytes > 3) Put(static_cast<int>((integer >> 24) & 0xff), "IntPart4");
 }
 
 void SnapshotByteSink::PutRaw(byte* data, int number_of_bytes,

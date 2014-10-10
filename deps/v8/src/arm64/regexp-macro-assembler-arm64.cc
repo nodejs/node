@@ -260,7 +260,7 @@ void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
   }
 
   for (int i = 0; i < str.length(); i++) {
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       __ Ldrb(w10, MemOperand(characters_address, 1, PostIndex));
       DCHECK(str[i] <= String::kMaxOneByteCharCode);
     } else {
@@ -307,7 +307,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
   __ Cmn(capture_length, current_input_offset());
   BranchOrBacktrack(gt, on_no_match);
 
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     Label success;
     Label fail;
     Label loop_check;
@@ -447,7 +447,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(
 
   Label loop;
   __ Bind(&loop);
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     __ Ldrb(w10, MemOperand(capture_start_address, 1, PostIndex));
     __ Ldrb(w11, MemOperand(current_position_address, 1, PostIndex));
   } else {
@@ -530,7 +530,7 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
   __ Mov(x11, Operand(table));
-  if ((mode_ != ASCII) || (kTableMask != String::kMaxOneByteCharCode)) {
+  if ((mode_ != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
     __ And(w10, current_character(), kTableMask);
     __ Add(w10, w10, ByteArray::kHeaderSize - kHeapObjectTag);
   } else {
@@ -548,7 +548,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
   switch (type) {
   case 's':
     // Match space-characters
-    if (mode_ == ASCII) {
+    if (mode_ == LATIN1) {
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       // Check for ' ' or 0x00a0.
@@ -611,8 +611,8 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
     }
     ExternalReference map = ExternalReference::re_word_character_map();
@@ -623,8 +623,8 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
   }
   case 'W': {
     Label done;
-    if (mode_ != ASCII) {
-      // Table is 128 entries, so all ASCII characters can be tested.
+    if (mode_ != LATIN1) {
+      // Table is 256 entries, so all Latin1 characters can be tested.
       __ Cmp(current_character(), 'z');
       __ B(hi, &done);
     }
@@ -1315,7 +1315,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(Address* return_address,
   Handle<String> subject(frame_entry<String*>(re_frame, kInput));
 
   // Current string.
-  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
 
   DCHECK(re_code->instruction_start() <= *return_address);
   DCHECK(*return_address <=
@@ -1346,8 +1346,8 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
-    // If we changed between an ASCII and an UC16 string, the specialized
+  if (subject_tmp->IsOneByteRepresentation() != is_one_byte) {
+    // If we changed between an Latin1 and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
     return RETRY;
@@ -1675,7 +1675,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
     offset = w10;
   }
 
-  if (mode_ == ASCII) {
+  if (mode_ == LATIN1) {
     if (characters == 4) {
       __ Ldr(current_character(), MemOperand(input_end(), offset, SXTW));
     } else if (characters == 2) {

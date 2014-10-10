@@ -34,6 +34,32 @@ for more details about the presubmit API built into gcl.
 import sys
 
 
+_EXCLUDED_PATHS = (
+    r"^test[\\\/].*",
+    r"^testing[\\\/].*",
+    r"^third_party[\\\/].*",
+    r"^tools[\\\/].*",
+)
+
+
+# Regular expression that matches code only used for test binaries
+# (best effort).
+_TEST_CODE_EXCLUDED_PATHS = (
+    r'.+-unittest\.cc',
+    # Has a method VisitForTest().
+    r'src[\\\/]compiler[\\\/]ast-graph-builder\.cc',
+    # Test extension.
+    r'src[\\\/]extensions[\\\/]gc-extension\.cc',
+)
+
+
+_TEST_ONLY_WARNING = (
+    'You might be calling functions intended only for testing from\n'
+    'production code.  It is OK to ignore this warning if you know what\n'
+    'you are doing, as the heuristics used to detect the situation are\n'
+    'not perfect.  The commit queue will not block on this warning.')
+
+
 def _V8PresubmitChecks(input_api, output_api):
   """Runs the V8 presubmit checks."""
   import sys
@@ -41,7 +67,7 @@ def _V8PresubmitChecks(input_api, output_api):
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
-  from presubmit import CheckGeneratedRuntimeTests
+  from presubmit import CheckRuntimeVsNativesNameClashes
   from presubmit import CheckExternalReferenceRegistration
 
   results = []
@@ -51,9 +77,9 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
-  if not CheckGeneratedRuntimeTests(input_api.PresubmitLocalPath()):
+  if not CheckRuntimeVsNativesNameClashes(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
-        "Generated runtime tests check failed"))
+        "Runtime/natives name clash check failed"))
   if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "External references registration check failed"))
@@ -113,6 +139,49 @@ def _CheckUnwantedDependencies(input_api, output_api):
   return results
 
 
+def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
+  """Attempts to prevent use of functions intended only for testing in
+  non-testing code. For now this is just a best-effort implementation
+  that ignores header files and may have some false positives. A
+  better implementation would probably need a proper C++ parser.
+  """
+  # We only scan .cc files, as the declaration of for-testing functions in
+  # header files are hard to distinguish from calls to such functions without a
+  # proper C++ parser.
+  file_inclusion_pattern = r'.+\.cc'
+
+  base_function_pattern = r'[ :]test::[^\s]+|ForTest(ing)?|for_test(ing)?'
+  inclusion_pattern = input_api.re.compile(r'(%s)\s*\(' % base_function_pattern)
+  comment_pattern = input_api.re.compile(r'//.*(%s)' % base_function_pattern)
+  exclusion_pattern = input_api.re.compile(
+    r'::[A-Za-z0-9_]+(%s)|(%s)[^;]+\{' % (
+      base_function_pattern, base_function_pattern))
+
+  def FilterFile(affected_file):
+    black_list = (_EXCLUDED_PATHS +
+                  _TEST_CODE_EXCLUDED_PATHS +
+                  input_api.DEFAULT_BLACK_LIST)
+    return input_api.FilterSourceFile(
+      affected_file,
+      white_list=(file_inclusion_pattern, ),
+      black_list=black_list)
+
+  problems = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    local_path = f.LocalPath()
+    for line_number, line in f.ChangedContents():
+      if (inclusion_pattern.search(line) and
+          not comment_pattern.search(line) and
+          not exclusion_pattern.search(line)):
+        problems.append(
+          '%s:%d\n    %s' % (local_path, line_number, line.strip()))
+
+  if problems:
+    return [output_api.PresubmitPromptOrNotify(_TEST_ONLY_WARNING, problems)]
+  else:
+    return []
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
@@ -122,6 +191,8 @@ def _CommonChecks(input_api, output_api):
       input_api, output_api))
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
+  results.extend(
+      _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api))
   return results
 
 
@@ -180,6 +251,6 @@ def GetPreferredTryMasters(project, change):
       'v8_linux_layout_dbg': set(['defaulttests']),
       'v8_mac_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
-      'v8_win64_rel': set(['defaulttests']),
+      'v8_win64_compile_rel': set(['defaulttests']),
     },
   }

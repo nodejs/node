@@ -146,7 +146,7 @@ var lastMicrotaskId = 0;
   // For bootstrapper.
 
   IsPromise = function IsPromise(x) {
-    return IS_SPEC_OBJECT(x) && HAS_PRIVATE(x, promiseStatus);
+    return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatus);
   }
 
   PromiseCreate = function PromiseCreate() {
@@ -162,7 +162,7 @@ var lastMicrotaskId = 0;
     // Check promiseDebug property to avoid duplicate event.
     if (DEBUG_IS_ACTIVE &&
         GET_PRIVATE(promise, promiseStatus) == 0 &&
-        !HAS_PRIVATE(promise, promiseDebug)) {
+        !HAS_DEFINED_PRIVATE(promise, promiseDebug)) {
       %DebugPromiseRejectEvent(promise, r);
     }
     PromiseDone(promise, -1, r, promiseOnReject)
@@ -325,11 +325,22 @@ var lastMicrotaskId = 0;
 
   // Utility for debugger
 
+  function PromiseHasRejectHandlerRecursive(promise) {
+    var queue = GET_PRIVATE(promise, promiseOnReject);
+    if (IS_UNDEFINED(queue)) return false;
+    // Do a depth first search for a reject handler that's not
+    // the default PromiseIdRejectHandler.
+    for (var i = 0; i < queue.length; i += 2) {
+      if (queue[i] != PromiseIdRejectHandler) return true;
+      if (PromiseHasRejectHandlerRecursive(queue[i + 1].promise)) return true;
+    }
+    return false;
+  }
+
   PromiseHasRejectHandler = function PromiseHasRejectHandler() {
     // Mark promise as already having triggered a reject event.
     SET_PRIVATE(this, promiseDebug, true);
-    var queue = GET_PRIVATE(this, promiseOnReject);
-    return !IS_UNDEFINED(queue) && queue.length > 0;
+    return PromiseHasRejectHandlerRecursive(this);
   };
 
   // -------------------------------------------------------------------

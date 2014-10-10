@@ -56,22 +56,22 @@ class AstRawStringInternalizationKey : public HashTableKey {
   explicit AstRawStringInternalizationKey(const AstRawString* string)
       : string_(string) {}
 
-  virtual bool IsMatch(Object* other) V8_OVERRIDE {
+  virtual bool IsMatch(Object* other) OVERRIDE {
     if (string_->is_one_byte_)
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     return string_->hash() >> Name::kHashShift;
   }
 
-  virtual uint32_t HashForObject(Object* key) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* key) OVERRIDE {
     return String::cast(key)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     if (string_->is_one_byte_)
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());
@@ -249,7 +249,7 @@ const AstRawString* AstValueFactory::GetTwoByteString(
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   DisallowHeapAllocation no_gc;
   String::FlatContent content = literal->GetFlatContent();
-  if (content.IsAscii()) {
+  if (content.IsOneByte()) {
     return GetOneByteString(content.ToOneByteVector());
   }
   DCHECK(content.IsTwoByte());

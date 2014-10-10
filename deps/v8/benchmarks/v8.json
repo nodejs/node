@@ -3,7 +3,7 @@
   "main": "run.js",
   "run_count": 2,
   "results_regexp": "^%s: (.+)$",
-  "benchmarks": [
+  "tests": [
     {"name": "Richards"},
     {"name": "DeltaBlue"},
     {"name": "Crypto"},

@@ -29,13 +29,13 @@
 
 function MyStringFromCharCode(code, i) {
   var one_byte = %NewString(3, true);
-  %_OneByteSeqStringSetChar(one_byte, 0, code);
-  %_OneByteSeqStringSetChar(one_byte, 1, code);
-  %_OneByteSeqStringSetChar(one_byte, i, code);
+  %_OneByteSeqStringSetChar(0, code, one_byte);
+  %_OneByteSeqStringSetChar(1, code, one_byte);
+  %_OneByteSeqStringSetChar(i, code, one_byte);
   var two_byte = %NewString(3, false);
-  %_TwoByteSeqStringSetChar(two_byte, 0, code);
-  %_TwoByteSeqStringSetChar(two_byte, 1, code);
-  %_TwoByteSeqStringSetChar(two_byte, i, code);
+  %_TwoByteSeqStringSetChar(0, code, two_byte);
+  %_TwoByteSeqStringSetChar(1, code, two_byte);
+  %_TwoByteSeqStringSetChar(i, code, two_byte);
   return one_byte + two_byte;
 }
 

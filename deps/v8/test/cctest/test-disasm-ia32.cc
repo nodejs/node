@@ -32,9 +32,9 @@
 #include "src/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
-#include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -416,6 +416,7 @@ TEST(DisasmIa320) {
     __ addsd(xmm1, xmm0);
     __ mulsd(xmm1, xmm0);
     __ subsd(xmm1, xmm0);
+    __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);

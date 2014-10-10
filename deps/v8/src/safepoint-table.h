@@ -84,7 +84,8 @@ class SafepointTable BASE_EMBEDDED {
 
   int size() const {
     return kHeaderSize +
-           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_)); }
+           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_));
+  }
   unsigned length() const { return length_; }
   unsigned entry_size() const { return entry_size_; }
 
@@ -165,8 +166,8 @@ class Safepoint BASE_EMBEDDED {
   void DefinePointerRegister(Register reg, Zone* zone);
 
  private:
-  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers) :
-      indexes_(indexes), registers_(registers) { }
+  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+      : indexes_(indexes), registers_(registers) {}
   ZoneList<int>* indexes_;
   ZoneList<int>* registers_;
 

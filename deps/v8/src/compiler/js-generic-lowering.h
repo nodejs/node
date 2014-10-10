@@ -8,18 +8,14 @@
 #include "src/v8.h"
 
 #include "src/allocation.h"
+#include "src/code-factory.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/lowering-builder.h"
 #include "src/compiler/opcodes.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class HydrogenCodeStub;
-
 namespace compiler {
 
 // Forward declarations.
@@ -28,18 +24,16 @@ class MachineOperatorBuilder;
 class Linkage;
 
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering : public LoweringBuilder {
+class JSGenericLowering : public Reducer {
  public:
-  JSGenericLowering(CompilationInfo* info, JSGraph* graph,
-                    MachineOperatorBuilder* machine,
-                    SourcePositionTable* source_positions);
+  JSGenericLowering(CompilationInfo* info, JSGraph* graph);
   virtual ~JSGenericLowering() {}
 
-  virtual void Lower(Node* node);
+  virtual Reduction Reduce(Node* node);
 
  protected:
-// Dispatched depending on opcode.
-#define DECLARE_LOWER(x) Node* Lower##x(Node* node);
+#define DECLARE_LOWER(x) void Lower##x(Node* node);
+  // Dispatched depending on opcode.
   ALL_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
 
@@ -51,12 +45,12 @@ class JSGenericLowering : public LoweringBuilder {
   Node* ExternalConstant(ExternalReference ref);
 
   // Helpers to patch existing nodes in the graph.
-  void PatchOperator(Node* node, Operator* new_op);
+  void PatchOperator(Node* node, const Operator* new_op);
   void PatchInsertInput(Node* node, int index, Node* input);
 
   // Helpers to replace existing nodes with a generic call.
   void ReplaceWithCompareIC(Node* node, Token::Value token, bool pure);
-  void ReplaceWithICStubCall(Node* node, HydrogenCodeStub* stub);
+  void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 
@@ -67,17 +61,17 @@ class JSGenericLowering : public LoweringBuilder {
   Linkage* linkage() const { return linkage_; }
   CompilationInfo* info() const { return info_; }
   CommonOperatorBuilder* common() const { return jsgraph()->common(); }
-  MachineOperatorBuilder* machine() const { return machine_; }
+  MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
 
  private:
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Linkage* linkage_;
-  MachineOperatorBuilder* machine_;
   SetOncePointer<Node> centrystub_constant_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_GENERIC_LOWERING_H_

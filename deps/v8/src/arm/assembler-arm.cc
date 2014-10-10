@@ -39,6 +39,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
@@ -435,6 +436,10 @@ const Instr kMovLeaveCCPattern = 0x1a0 * B16;
 const Instr kMovwPattern = 0x30 * B20;
 const Instr kMovtPattern = 0x34 * B20;
 const Instr kMovwLeaveCCFlip = 0x5 * B21;
+const Instr kMovImmedMask = 0x7f * B21;
+const Instr kMovImmedPattern = 0x1d * B21;
+const Instr kOrrImmedMask = 0x7f * B21;
+const Instr kOrrImmedPattern = 0x1c * B21;
 const Instr kCmpCmnMask = 0xdd * B20 | 0xf * B12;
 const Instr kCmpCmnPattern = 0x15 * B20;
 const Instr kCmpCmnFlip = B21;
@@ -494,7 +499,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && IsPowerOf2(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -1052,9 +1057,6 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
   if (assembler != NULL && !assembler->is_constant_pool_available()) {
-    // If there is no constant pool available, we must use an mov immediate.
-    // TODO(rmcilroy): enable ARMv6 support.
-    DCHECK(CpuFeatures::IsSupported(ARMv7));
     return true;
   } else if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
              (assembler == NULL || !assembler->predictable_code_size())) {
@@ -1081,11 +1083,14 @@ int Operand::instructions_required(const Assembler* assembler,
     // for the constant pool or immediate load
     int instructions;
     if (use_mov_immediate_load(*this, assembler)) {
-      instructions = 2;  // A movw, movt immediate load.
+      // A movw / movt or mov / orr immediate load.
+      instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
     } else if (assembler != NULL && assembler->use_extended_constant_pool()) {
-      instructions = 3;  // An extended constant pool load.
+      // An extended constant pool load.
+      instructions = CpuFeatures::IsSupported(ARMv7) ? 3 : 5;
     } else {
-      instructions = 1;  // A small constant pool load.
+      // A small constant pool load.
+      instructions = 1;
     }
 
     if ((instr & ~kCondMask) != 13 * B21) {  // mov, S not set
@@ -1107,21 +1112,27 @@ void Assembler::move_32_bit_immediate(Register rd,
                                       const Operand& x,
                                       Condition cond) {
   RelocInfo rinfo(pc_, x.rmode_, x.imm32_, NULL);
+  uint32_t imm32 = static_cast<uint32_t>(x.imm32_);
   if (x.must_output_reloc_info(this)) {
     RecordRelocInfo(rinfo);
   }
 
   if (use_mov_immediate_load(x, this)) {
     Register target = rd.code() == pc.code() ? ip : rd;
-    // TODO(rmcilroy): add ARMv6 support for immediate loads.
-    DCHECK(CpuFeatures::IsSupported(ARMv7));
-    if (!FLAG_enable_ool_constant_pool &&
-        x.must_output_reloc_info(this)) {
-      // Make sure the movw/movt doesn't get separated.
-      BlockConstPoolFor(2);
+    if (CpuFeatures::IsSupported(ARMv7)) {
+      if (!FLAG_enable_ool_constant_pool && x.must_output_reloc_info(this)) {
+        // Make sure the movw/movt doesn't get separated.
+        BlockConstPoolFor(2);
+      }
+      movw(target, imm32 & 0xffff, cond);
+      movt(target, imm32 >> 16, cond);
+    } else {
+      DCHECK(FLAG_enable_ool_constant_pool);
+      mov(target, Operand(imm32 & kImm8Mask), LeaveCC, cond);
+      orr(target, target, Operand(imm32 & (kImm8Mask << 8)), LeaveCC, cond);
+      orr(target, target, Operand(imm32 & (kImm8Mask << 16)), LeaveCC, cond);
+      orr(target, target, Operand(imm32 & (kImm8Mask << 24)), LeaveCC, cond);
     }
-    movw(target, static_cast<uint32_t>(x.imm32_ & 0xffff), cond);
-    movt(target, static_cast<uint32_t>(x.imm32_) >> 16, cond);
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
     }
@@ -1132,8 +1143,15 @@ void Assembler::move_32_bit_immediate(Register rd,
       DCHECK(FLAG_enable_ool_constant_pool);
       Register target = rd.code() == pc.code() ? ip : rd;
       // Emit instructions to load constant pool offset.
-      movw(target, 0, cond);
-      movt(target, 0, cond);
+      if (CpuFeatures::IsSupported(ARMv7)) {
+        movw(target, 0, cond);
+        movt(target, 0, cond);
+      } else {
+        mov(target, Operand(0), LeaveCC, cond);
+        orr(target, target, Operand(0), LeaveCC, cond);
+        orr(target, target, Operand(0), LeaveCC, cond);
+        orr(target, target, Operand(0), LeaveCC, cond);
+      }
       // Load from constant pool at offset.
       ldr(rd, MemOperand(pp, target), cond);
     } else {
@@ -3147,10 +3165,37 @@ Instr Assembler::PatchMovwImmediate(Instr instruction, uint32_t immediate) {
 }
 
 
+int Assembler::DecodeShiftImm(Instr instr) {
+  int rotate = Instruction::RotateValue(instr) * 2;
+  int immed8 = Instruction::Immed8Value(instr);
+  return (immed8 >> rotate) | (immed8 << (32 - rotate));
+}
+
+
+Instr Assembler::PatchShiftImm(Instr instr, int immed) {
+  uint32_t rotate_imm = 0;
+  uint32_t immed_8 = 0;
+  bool immed_fits = fits_shifter(immed, &rotate_imm, &immed_8, NULL);
+  DCHECK(immed_fits);
+  USE(immed_fits);
+  return (instr & ~kOff12Mask) | (rotate_imm << 8) | immed_8;
+}
+
+
 bool Assembler::IsNop(Instr instr, int type) {
   DCHECK(0 <= type && type <= 14);  // mov pc, pc isn't a nop.
   // Check for mov rx, rx where x = type.
   return instr == (al | 13*B21 | type*B12 | type);
+}
+
+
+bool Assembler::IsMovImmed(Instr instr) {
+  return (instr & kMovImmedMask) == kMovImmedPattern;
+}
+
+
+bool Assembler::IsOrrImmed(Instr instr) {
+  return (instr & kOrrImmedMask) == kOrrImmedPattern;
 }
 
 
@@ -3735,17 +3780,46 @@ void ConstantPoolBuilder::Populate(Assembler* assm,
     // Patch vldr/ldr instruction with correct offset.
     Instr instr = assm->instr_at(rinfo.pc());
     if (entry->section_ == ConstantPoolArray::EXTENDED_SECTION) {
-      // Instructions to patch must be 'movw rd, [#0]' and 'movt rd, [#0].
-      Instr next_instr = assm->instr_at(rinfo.pc() + Assembler::kInstrSize);
-      DCHECK((Assembler::IsMovW(instr) &&
-              Instruction::ImmedMovwMovtValue(instr) == 0));
-      DCHECK((Assembler::IsMovT(next_instr) &&
-              Instruction::ImmedMovwMovtValue(next_instr) == 0));
-      assm->instr_at_put(rinfo.pc(),
-                         Assembler::PatchMovwImmediate(instr, offset & 0xffff));
-      assm->instr_at_put(
-          rinfo.pc() + Assembler::kInstrSize,
-          Assembler::PatchMovwImmediate(next_instr, offset >> 16));
+      if (CpuFeatures::IsSupported(ARMv7)) {
+        // Instructions to patch must be 'movw rd, [#0]' and 'movt rd, [#0].
+        Instr next_instr = assm->instr_at(rinfo.pc() + Assembler::kInstrSize);
+        DCHECK((Assembler::IsMovW(instr) &&
+                Instruction::ImmedMovwMovtValue(instr) == 0));
+        DCHECK((Assembler::IsMovT(next_instr) &&
+                Instruction::ImmedMovwMovtValue(next_instr) == 0));
+        assm->instr_at_put(
+            rinfo.pc(), Assembler::PatchMovwImmediate(instr, offset & 0xffff));
+        assm->instr_at_put(
+            rinfo.pc() + Assembler::kInstrSize,
+            Assembler::PatchMovwImmediate(next_instr, offset >> 16));
+      } else {
+        // Instructions to patch must be 'mov rd, [#0]' and 'orr rd, rd, [#0].
+        Instr instr_2 = assm->instr_at(rinfo.pc() + Assembler::kInstrSize);
+        Instr instr_3 = assm->instr_at(rinfo.pc() + 2 * Assembler::kInstrSize);
+        Instr instr_4 = assm->instr_at(rinfo.pc() + 3 * Assembler::kInstrSize);
+        DCHECK((Assembler::IsMovImmed(instr) &&
+                Instruction::Immed8Value(instr) == 0));
+        DCHECK((Assembler::IsOrrImmed(instr_2) &&
+                Instruction::Immed8Value(instr_2) == 0) &&
+               Assembler::GetRn(instr_2).is(Assembler::GetRd(instr_2)));
+        DCHECK((Assembler::IsOrrImmed(instr_3) &&
+                Instruction::Immed8Value(instr_3) == 0) &&
+               Assembler::GetRn(instr_3).is(Assembler::GetRd(instr_3)));
+        DCHECK((Assembler::IsOrrImmed(instr_4) &&
+                Instruction::Immed8Value(instr_4) == 0) &&
+               Assembler::GetRn(instr_4).is(Assembler::GetRd(instr_4)));
+        assm->instr_at_put(
+            rinfo.pc(), Assembler::PatchShiftImm(instr, (offset & kImm8Mask)));
+        assm->instr_at_put(
+            rinfo.pc() + Assembler::kInstrSize,
+            Assembler::PatchShiftImm(instr_2, (offset & (kImm8Mask << 8))));
+        assm->instr_at_put(
+            rinfo.pc() + 2 * Assembler::kInstrSize,
+            Assembler::PatchShiftImm(instr_3, (offset & (kImm8Mask << 16))));
+        assm->instr_at_put(
+            rinfo.pc() + 3 * Assembler::kInstrSize,
+            Assembler::PatchShiftImm(instr_4, (offset & (kImm8Mask << 24))));
+      }
     } else if (type == ConstantPoolArray::INT64) {
       // Instruction to patch must be 'vldr rd, [pp, #0]'.
       DCHECK((Assembler::IsVldrDPpImmediateOffset(instr) &&

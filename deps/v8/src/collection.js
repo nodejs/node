@@ -23,7 +23,7 @@ function SetConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
+    iter = GetIterator(ToObject(iterable));
     adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['add', this]);
@@ -48,6 +48,13 @@ function SetAddJS(key) {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.add', this]);
+  }
+  // Normalize -0 to +0 as required by the spec.
+  // Even though we use SameValueZero as the comparison for the keys we don't
+  // want to ever store -0 as the key since the key is directly exposed when
+  // doing iteration.
+  if (key === 0) {
+    key = 0;
   }
   return %SetAdd(this, key);
 }
@@ -147,7 +154,7 @@ function MapConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
+    iter = GetIterator(ToObject(iterable));
     adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['set', this]);
@@ -185,6 +192,13 @@ function MapSetJS(key, value) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.set', this]);
+  }
+  // Normalize -0 to +0 as required by the spec.
+  // Even though we use SameValueZero as the comparison for the keys we don't
+  // want to ever store -0 as the key since the key is directly exposed when
+  // doing iteration.
+  if (key === 0) {
+    key = 0;
   }
   return %MapSet(this, key, value);
 }

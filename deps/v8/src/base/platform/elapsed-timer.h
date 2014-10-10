@@ -11,7 +11,7 @@
 namespace v8 {
 namespace base {
 
-class ElapsedTimer V8_FINAL {
+class ElapsedTimer FINAL {
  public:
 #ifdef DEBUG
   ElapsedTimer() : started_(false) {}

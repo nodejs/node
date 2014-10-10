@@ -233,3 +233,57 @@ TEST(ReceiverPatching) {
   Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
   T.CheckCall(g, T.undefined());
 }
+
+
+TEST(CallEval) {
+  FunctionTester T(
+      "var x = 42;"
+      "(function () {"
+      "function bar() { return eval('x') };"
+      "return bar;"
+      "})();");
+
+  T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
+}
+
+
+TEST(ContextLoadedFromActivation) {
+  const char* script =
+      "var x = 42;"
+      "(function() {"
+      "  return function () { return x };"
+      "})()";
+
+  // Disable context specialization.
+  FunctionTester T(script);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope scope(context);
+  v8::Local<v8::Value> value = CompileRun(script);
+  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
+  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
+  jsfun->set_code(T.function->code());
+  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CompileRun("var x = 24;");
+  ExpectInt32("foo();", 24);
+}
+
+
+TEST(BuiltinLoadedFromActivation) {
+  const char* script =
+      "var x = 42;"
+      "(function() {"
+      "  return function () { return this; };"
+      "})()";
+
+  // Disable context specialization.
+  FunctionTester T(script);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope scope(context);
+  v8::Local<v8::Value> value = CompileRun(script);
+  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
+  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
+  jsfun->set_code(T.function->code());
+  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CompileRun("var x = 24;");
+  ExpectObject("foo()", context->Global());
+}

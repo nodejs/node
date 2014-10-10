@@ -30,7 +30,7 @@ class StringSearchBase {
   // a potentially less efficient searching, but is a safe approximation.
   // For needles using only characters in the same Unicode 256-code point page,
   // there is no search speed degradation.
-  static const int kAsciiAlphabetSize = 256;
+  static const int kLatin1AlphabetSize = 256;
   static const int kUC16AlphabetSize = Isolate::kUC16AlphabetSize;
 
   // Bad-char shift table stored in the state. It's length is the alphabet size.
@@ -81,8 +81,8 @@ class StringSearch : private StringSearchBase {
 
   static inline int AlphabetSize() {
     if (sizeof(PatternChar) == 1) {
-      // ASCII needle.
-      return kAsciiAlphabetSize;
+      // Latin1 needle.
+      return kLatin1AlphabetSize;
     } else {
       DCHECK(sizeof(PatternChar) == 2);
       // UC16 needle.

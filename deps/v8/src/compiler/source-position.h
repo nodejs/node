@@ -14,7 +14,7 @@ namespace compiler {
 
 // Encapsulates encoding and decoding of sources positions from which Nodes
 // originated.
-class SourcePosition V8_FINAL {
+class SourcePosition FINAL {
  public:
   explicit SourcePosition(int raw = kUnknownPosition) : raw_(raw) {}
 
@@ -43,7 +43,7 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
 }
 
 
-class SourcePositionTable V8_FINAL {
+class SourcePositionTable FINAL {
  public:
   class Scope {
    public:

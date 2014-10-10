@@ -12,8 +12,8 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
-#include "src/runtime.h"
-#include "src/stub-cache.h"
+#include "src/runtime/runtime.h"
+
 
 namespace v8 {
 namespace internal {
@@ -45,11 +45,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
-  // JumpToExternalReference expects s0 to contain the number of arguments
+  // JumpToExternalReference expects a0 to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ Addu(s0, a0, num_extra_args + 1);
-  __ sll(s1, s0, kPointerSizeLog2);
-  __ Subu(s1, s1, kPointerSize);
+  __ Addu(a0, a0, num_extra_args + 1);
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
@@ -824,8 +822,8 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
 }
 

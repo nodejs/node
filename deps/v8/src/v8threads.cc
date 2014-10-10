@@ -307,6 +307,9 @@ void ThreadManager::EagerlyArchiveThread() {
 
 
 void ThreadManager::FreeThreadResources() {
+  DCHECK(!isolate_->has_pending_exception());
+  DCHECK(!isolate_->external_caught_exception());
+  DCHECK(isolate_->try_catch_handler() == NULL);
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
   isolate_->debug()->FreeThreadResources();

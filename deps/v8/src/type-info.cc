@@ -7,31 +7,28 @@
 #include "src/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
-#include "src/ic.h"
+#include "src/ic/ic.h"
+#include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
-#include "src/stub-cache.h"
 #include "src/type-info.h"
 
-#include "src/ic-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
-TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
-                                       Handle<FixedArray> feedback_vector,
-                                       Handle<Context> native_context,
-                                       Zone* zone)
-    : native_context_(native_context),
-      zone_(zone) {
+TypeFeedbackOracle::TypeFeedbackOracle(
+    Handle<Code> code, Handle<TypeFeedbackVector> feedback_vector,
+    Handle<Context> native_context, Zone* zone)
+    : native_context_(native_context), zone_(zone) {
   BuildDictionary(code);
   DCHECK(dictionary_->IsDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
   // traverse the feedback vector at GC time.
-  feedback_vector_ = isolate()->factory()->CopyFixedArray(feedback_vector);
+  feedback_vector_ = TypeFeedbackVector::Copy(isolate(), feedback_vector);
 }
 
 
@@ -112,8 +109,9 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
 byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
   Handle<Object> value = GetInfo(feedback_vector_slot);
   return value.is_identical_to(
-      TypeFeedbackInfo::UninitializedSentinel(isolate()))
-      ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
+             TypeFeedbackVector::UninitializedSentinel(isolate()))
+             ? ForInStatement::FAST_FOR_IN
+             : ForInStatement::SLOW_FOR_IN;
 }
 
 
@@ -197,8 +195,10 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   }
 
   if (code->is_compare_ic_stub()) {
-    CompareIC::StubInfoToType(code->stub_key(), left_type, right_type,
-                              combined_type, map, zone());
+    CompareICStub stub(code->stub_key(), isolate());
+    *left_type = CompareICState::StateToType(zone(), stub.left());
+    *right_type = CompareICState::StateToType(zone(), stub.right());
+    *combined_type = CompareICState::StateToType(zone(), stub.state(), map);
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
@@ -218,8 +218,8 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   if (!object->IsCode()) {
     // For some binary ops we don't have ICs, e.g. Token::COMMA, but for the
     // operations covered by the BinaryOpIC we should always have them.
-    DCHECK(op < BinaryOpIC::State::FIRST_TOKEN ||
-           op > BinaryOpIC::State::LAST_TOKEN);
+    DCHECK(op < BinaryOpICState::FIRST_TOKEN ||
+           op > BinaryOpICState::LAST_TOKEN);
     *left = *right = *result = Type::None(zone());
     *fixed_right_arg = Maybe<int>();
     *allocation_site = Handle<AllocationSite>::null();
@@ -227,7 +227,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(isolate(), code->extra_ic_state());
+  BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
@@ -249,7 +249,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(isolate(), code->extra_ic_state());
+  BinaryOpICState state(isolate(), code->extra_ic_state());
   return state.GetLeftType(zone());
 }
 

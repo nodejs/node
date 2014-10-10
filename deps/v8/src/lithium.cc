@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/lithium.h"
+
 #include "src/v8.h"
 
-#include "src/lithium.h"
 #include "src/scopes.h"
 #include "src/serialize.h"
 
@@ -145,6 +146,7 @@ void LSubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
 template<LOperand::Kind kOperandKind, int kNumCachedOperands>
 void LSubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
   delete[] cache;
+  cache = NULL;
 }
 
 
@@ -436,7 +438,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersForValues);
+    info->AbortOptimization(kNotEnoughVirtualRegistersForValues);
     return NULL;
   }
   LAllocator allocator(values, graph);
@@ -445,7 +447,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   if (chunk == NULL) return NULL;
 
   if (!allocator.Allocate(chunk)) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersRegalloc);
+    info->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return NULL;
   }
 
@@ -509,19 +511,35 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
 }
 
 
+void LChunkBuilderBase::Abort(BailoutReason reason) {
+  info()->AbortOptimization(reason);
+  status_ = ABORTED;
+}
+
+
+void LChunkBuilderBase::Retry(BailoutReason reason) {
+  info()->RetryOptimization(reason);
+  status_ = ABORTED;
+}
+
+
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
-    HEnvironment* hydrogen_env,
-    int* argument_index_accumulator,
+    HEnvironment* hydrogen_env, int* argument_index_accumulator,
     ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
-  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
-                                          argument_index_accumulator,
-                                          objects_to_materialize);
+  LEnvironment* outer =
+      CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator,
+                        objects_to_materialize);
   BailoutId ast_id = hydrogen_env->ast_id();
   DCHECK(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
-  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
+
+  int omitted_count = (hydrogen_env->frame_type() == JS_FUNCTION)
+                          ? 0
+                          : hydrogen_env->specials_count();
+
+  int value_count = hydrogen_env->length() - omitted_count;
   LEnvironment* result =
       new(zone()) LEnvironment(hydrogen_env->closure(),
                                hydrogen_env->frame_type(),
@@ -537,8 +555,10 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
   // Store the environment description into the environment
   // (with holes for nested objects)
   for (int i = 0; i < hydrogen_env->length(); ++i) {
-    if (hydrogen_env->is_special_index(i)) continue;
-
+    if (hydrogen_env->is_special_index(i) &&
+        hydrogen_env->frame_type() != JS_FUNCTION) {
+      continue;
+    }
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
     CHECK(!value->IsPushArguments());  // Do not deopt outgoing arguments

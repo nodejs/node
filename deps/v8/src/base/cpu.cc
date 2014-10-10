@@ -115,8 +115,32 @@ static uint32_t ReadELFHWCaps() {
 
 #endif  // V8_HOST_ARCH_ARM
 
+#if V8_HOST_ARCH_MIPS
+int __detect_fp64_mode(void) {
+  double result = 0;
+  // Bit representation of (double)1 is 0x3FF0000000000000.
+  asm(
+    "lui $t0, 0x3FF0\n\t"
+    "ldc1 $f0, %0\n\t"
+    "mtc1 $t0, $f1\n\t"
+    "sdc1 $f0, %0\n\t"
+    : "+m" (result)
+    : : "t0", "$f0", "$f1", "memory");
+
+  return !(result == 1);
+}
+
+
+int __detect_mips_arch_revision(void) {
+  // TODO(dusmil): Do the specific syscall as soon as it is implemented in mips
+  // kernel. Currently fail-back to the least common denominator which is
+  // mips32 revision 1.
+  return 1;
+}
+#endif
+
 // Extract the information exposed by the kernel via /proc/cpuinfo.
-class CPUInfo V8_FINAL {
+class CPUInfo FINAL {
  public:
   CPUInfo() : datalen_(0) {
     // Get the size of the cpuinfo file by reading it until the end. This is
@@ -263,7 +287,8 @@ CPU::CPU() : stepping_(0),
              has_thumb2_(false),
              has_vfp_(false),
              has_vfp3_(false),
-             has_vfp3_d32_(false) {
+             has_vfp3_d32_(false),
+             is_fp64_mode_(false) {
   memcpy(vendor_, "Unknown", 8);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
@@ -466,6 +491,10 @@ CPU::CPU() : stepping_(0),
   char* cpu_model = cpu_info.ExtractField("cpu model");
   has_fpu_ = HasListItem(cpu_model, "FPU");
   delete[] cpu_model;
+#ifdef V8_HOST_ARCH_MIPS
+  is_fp64_mode_ = __detect_fp64_mode();
+  architecture_ = __detect_mips_arch_revision();
+#endif
 
 #elif V8_HOST_ARCH_ARM64
 

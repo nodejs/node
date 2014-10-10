@@ -53,6 +53,13 @@
   static void Test##Name()
 #endif
 
+#ifndef UNINITIALIZED_DEPENDENT_TEST
+#define UNINITIALIZED_DEPENDENT_TEST(Name, Dep)                                \
+  static void Test##Name();                                                    \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, false); \
+  static void Test##Name()
+#endif
+
 #ifndef DISABLED_TEST
 #define DISABLED_TEST(Name)                                                    \
   static void Test##Name();                                                    \

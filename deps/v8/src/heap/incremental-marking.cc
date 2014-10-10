@@ -421,6 +421,11 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 }
 
 
+bool IncrementalMarking::ShouldActivate() {
+  return WorthActivating() && heap_->NextGCIsLikelyToBeFull();
+}
+
+
 bool IncrementalMarking::WorthActivating() {
 #ifndef DEBUG
   static const intptr_t kActivationThreshold = 8 * MB;
@@ -811,12 +816,78 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
-  if (IsStopped() && WorthActivating() && heap_->NextGCIsLikelyToBeFull()) {
+  if (IsStopped() && ShouldActivate()) {
     // TODO(hpayer): Let's play safe for now, but compaction should be
     // in principle possible.
     Start(PREVENT_COMPACTION);
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
+  }
+}
+
+
+void IncrementalMarking::SpeedUp() {
+  bool speed_up = false;
+
+  if ((steps_count_ % kMarkingSpeedAccellerationInterval) == 0) {
+    if (FLAG_trace_gc) {
+      PrintPID("Speed up marking after %d steps\n",
+               static_cast<int>(kMarkingSpeedAccellerationInterval));
+    }
+    speed_up = true;
+  }
+
+  bool space_left_is_very_small =
+      (old_generation_space_available_at_start_of_incremental_ < 10 * MB);
+
+  bool only_1_nth_of_space_that_was_available_still_left =
+      (SpaceLeftInOldSpace() * (marking_speed_ + 1) <
+       old_generation_space_available_at_start_of_incremental_);
+
+  if (space_left_is_very_small ||
+      only_1_nth_of_space_that_was_available_still_left) {
+    if (FLAG_trace_gc) PrintPID("Speed up marking because of low space left\n");
+    speed_up = true;
+  }
+
+  bool size_of_old_space_multiplied_by_n_during_marking =
+      (heap_->PromotedTotalSize() >
+       (marking_speed_ + 1) *
+           old_generation_space_used_at_start_of_incremental_);
+  if (size_of_old_space_multiplied_by_n_during_marking) {
+    speed_up = true;
+    if (FLAG_trace_gc) {
+      PrintPID("Speed up marking because of heap size increase\n");
+    }
+  }
+
+  int64_t promoted_during_marking =
+      heap_->PromotedTotalSize() -
+      old_generation_space_used_at_start_of_incremental_;
+  intptr_t delay = marking_speed_ * MB;
+  intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
+
+  // We try to scan at at least twice the speed that we are allocating.
+  if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
+    if (FLAG_trace_gc) {
+      PrintPID("Speed up marking because marker was not keeping up\n");
+    }
+    speed_up = true;
+  }
+
+  if (speed_up) {
+    if (state_ != MARKING) {
+      if (FLAG_trace_gc) {
+        PrintPID("Postponing speeding up marking until marking starts\n");
+      }
+    } else {
+      marking_speed_ += kMarkingSpeedAccelleration;
+      marking_speed_ = static_cast<int>(
+          Min(kMaxMarkingSpeed, static_cast<intptr_t>(marking_speed_ * 1.3)));
+      if (FLAG_trace_gc) {
+        PrintPID("Marking speed increased to %d\n", marking_speed_);
+      }
+    }
   }
 }
 
@@ -877,69 +948,9 @@ void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
 
     steps_count_++;
 
-    bool speed_up = false;
-
-    if ((steps_count_ % kMarkingSpeedAccellerationInterval) == 0) {
-      if (FLAG_trace_gc) {
-        PrintPID("Speed up marking after %d steps\n",
-                 static_cast<int>(kMarkingSpeedAccellerationInterval));
-      }
-      speed_up = true;
-    }
-
-    bool space_left_is_very_small =
-        (old_generation_space_available_at_start_of_incremental_ < 10 * MB);
-
-    bool only_1_nth_of_space_that_was_available_still_left =
-        (SpaceLeftInOldSpace() * (marking_speed_ + 1) <
-         old_generation_space_available_at_start_of_incremental_);
-
-    if (space_left_is_very_small ||
-        only_1_nth_of_space_that_was_available_still_left) {
-      if (FLAG_trace_gc)
-        PrintPID("Speed up marking because of low space left\n");
-      speed_up = true;
-    }
-
-    bool size_of_old_space_multiplied_by_n_during_marking =
-        (heap_->PromotedTotalSize() >
-         (marking_speed_ + 1) *
-             old_generation_space_used_at_start_of_incremental_);
-    if (size_of_old_space_multiplied_by_n_during_marking) {
-      speed_up = true;
-      if (FLAG_trace_gc) {
-        PrintPID("Speed up marking because of heap size increase\n");
-      }
-    }
-
-    int64_t promoted_during_marking =
-        heap_->PromotedTotalSize() -
-        old_generation_space_used_at_start_of_incremental_;
-    intptr_t delay = marking_speed_ * MB;
-    intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
-
-    // We try to scan at at least twice the speed that we are allocating.
-    if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
-      if (FLAG_trace_gc) {
-        PrintPID("Speed up marking because marker was not keeping up\n");
-      }
-      speed_up = true;
-    }
-
-    if (speed_up) {
-      if (state_ != MARKING) {
-        if (FLAG_trace_gc) {
-          PrintPID("Postponing speeding up marking until marking starts\n");
-        }
-      } else {
-        marking_speed_ += kMarkingSpeedAccelleration;
-        marking_speed_ = static_cast<int>(
-            Min(kMaxMarkingSpeed, static_cast<intptr_t>(marking_speed_ * 1.3)));
-        if (FLAG_trace_gc) {
-          PrintPID("Marking speed increased to %d\n", marking_speed_);
-        }
-      }
-    }
+    // Speed up marking if we are marking too slow or if we are almost done
+    // with marking.
+    SpeedUp();
 
     double end = base::OS::TimeCurrentMillis();
     double duration = (end - start);

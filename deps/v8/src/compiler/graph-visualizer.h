@@ -22,6 +22,13 @@ struct AsDOT {
 };
 
 OStream& operator<<(OStream& os, const AsDOT& ad);
+
+struct AsJSON {
+  explicit AsJSON(const Graph& g) : graph(g) {}
+  const Graph& graph;
+};
+
+OStream& operator<<(OStream& os, const AsJSON& ad);
 }
 }
 }  // namespace v8::internal::compiler

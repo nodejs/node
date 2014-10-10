@@ -19,8 +19,11 @@ class NodeProperties {
  public:
   static inline Node* GetValueInput(Node* node, int index);
   static inline Node* GetContextInput(Node* node);
+  static inline Node* GetFrameStateInput(Node* node);
   static inline Node* GetEffectInput(Node* node, int index = 0);
   static inline Node* GetControlInput(Node* node, int index = 0);
+
+  static inline int GetFrameStateIndex(Node* node);
 
   static inline bool IsValueEdge(Node::Edge edge);
   static inline bool IsContextEdge(Node::Edge edge);
@@ -32,18 +35,22 @@ class NodeProperties {
   static inline void ReplaceControlInput(Node* node, Node* control);
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);
+  static inline void ReplaceFrameStateInput(Node* node, Node* frame_state);
   static inline void RemoveNonValueInputs(Node* node);
+  static inline void ReplaceWithValue(Node* node, Node* value,
+                                      Node* effect = NULL);
 
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
 
- private:
   static inline int FirstValueIndex(Node* node);
   static inline int FirstContextIndex(Node* node);
+  static inline int FirstFrameStateIndex(Node* node);
   static inline int FirstEffectIndex(Node* node);
   static inline int FirstControlIndex(Node* node);
   static inline int PastValueIndex(Node* node);
   static inline int PastContextIndex(Node* node);
+  static inline int PastFrameStateIndex(Node* node);
   static inline int PastEffectIndex(Node* node);
   static inline int PastControlIndex(Node* node);
 

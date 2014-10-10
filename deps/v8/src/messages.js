@@ -8,6 +8,7 @@ var kMessages = {
   // Error
   cyclic_proto:                  ["Cyclic __proto__ value"],
   code_gen_from_strings:         ["%0"],
+  constructor_special_method:    ["Class constructor may not be an accessor"],
   generator_running:             ["Generator is already running"],
   generator_finished:            ["Generator has already finished"],
   // TypeError
@@ -37,6 +38,8 @@ var kMessages = {
   cannot_convert_to_primitive:   ["Cannot convert object to primitive value"],
   not_constructor:               ["%0", " is not a constructor"],
   not_defined:                   ["%0", " is not defined"],
+  non_method:                    ["'super' is referenced from non-method"],
+  unsupported_super:             ["Unsupported reference to 'super'"],
   non_object_property_load:      ["Cannot read property '", "%0", "' of ", "%1"],
   non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
   with_expression:               ["%0", " has no properties"],
@@ -44,6 +47,8 @@ var kMessages = {
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   apply_non_function:            ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
   apply_wrong_args:              ["Function.prototype.apply: Arguments list has wrong type"],
+  toMethod_non_function:         ["Function.prototype.toMethod was called on ", "%0", ", which is a ", "%1", " and not a function"],
+  toMethod_non_object:           ["Function.prototype.toMethod: home object ", "%0", " is not an object"],
   invalid_in_operator_use:       ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
   instanceof_function_expected:  ["Expecting a function in instanceof check, but got ", "%0"],
   instanceof_nonobject_proto:    ["Function has non-object prototype '", "%0", "' in instanceof check"],
@@ -137,6 +142,7 @@ var kMessages = {
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
+  static_prototype:              ["Classes may not have static property named prototype"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
@@ -167,7 +173,8 @@ var kMessages = {
   symbol_to_number:              ["Cannot convert a Symbol value to a number"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
-  module_export_undefined:       ["Export '", "%0", "' is not defined in module"]
+  module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
+  unexpected_super:              ["'super' keyword unexpected here"]
 };
 
 
@@ -750,10 +757,10 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = NEW_PRIVATE("CallSite#receiver");
-var CallSiteFunctionKey = NEW_PRIVATE("CallSite#function");
-var CallSitePositionKey = NEW_PRIVATE("CallSite#position");
-var CallSiteStrictModeKey = NEW_PRIVATE("CallSite#strict_mode");
+var CallSiteReceiverKey = NEW_PRIVATE_OWN("CallSite#receiver");
+var CallSiteFunctionKey = NEW_PRIVATE_OWN("CallSite#function");
+var CallSitePositionKey = NEW_PRIVATE_OWN("CallSite#position");
+var CallSiteStrictModeKey = NEW_PRIVATE_OWN("CallSite#strict_mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, CallSiteReceiverKey, receiver);
@@ -1108,26 +1115,33 @@ function GetTypeName(receiver, requireConstructor) {
 
 
 var stack_trace_symbol;  // Set during bootstrapping.
-var formatted_stack_trace_symbol = NEW_PRIVATE("formatted stack trace");
+var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
 
 
 // Format the stack trace if not yet done, and return it.
 // Cache the formatted stack trace on the holder.
 var StackTraceGetter = function() {
-  var formatted_stack_trace = GET_PRIVATE(this, formatted_stack_trace_symbol);
-  if (IS_UNDEFINED(formatted_stack_trace)) {
-    var holder = this;
-    while (!HAS_PRIVATE(holder, stack_trace_symbol)) {
-      holder = %GetPrototype(holder);
-      if (!holder) return UNDEFINED;
+  var formatted_stack_trace = UNDEFINED;
+  var holder = this;
+  while (holder) {
+    var formatted_stack_trace =
+      GET_PRIVATE(holder, formatted_stack_trace_symbol);
+    if (IS_UNDEFINED(formatted_stack_trace)) {
+      // No formatted stack trace available.
+      var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
+      if (IS_UNDEFINED(stack_trace)) {
+        // Neither formatted nor structured stack trace available.
+        // Look further up the prototype chain.
+        holder = %GetPrototype(holder);
+        continue;
+      }
+      formatted_stack_trace = FormatStackTrace(holder, stack_trace);
+      SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
+      SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
     }
-    var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
-    if (IS_UNDEFINED(stack_trace)) return UNDEFINED;
-    formatted_stack_trace = FormatStackTrace(holder, stack_trace);
-    SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
-    SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
+    return formatted_stack_trace;
   }
-  return formatted_stack_trace;
+  return UNDEFINED;
 };
 
 

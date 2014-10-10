@@ -37,7 +37,7 @@
         'gtest/src/gtest-test-part.cc',
         'gtest/src/gtest-typed-test.cc',
         'gtest/src/gtest.cc',
-        'gtest-type-names.h',
+        'gtest-support.h',
       ],
       'sources!': [
         'gtest/src/gtest-all.cc',  # Not needed by our build.

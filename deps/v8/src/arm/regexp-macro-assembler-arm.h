@@ -190,7 +190,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 
   MacroAssembler* masm_;
 
-  // Which mode to generate code for (ASCII or UC16).
+  // Which mode to generate code for (Latin1 or UC16).
   Mode mode_;
 
   // One greater than maximal register index actually used.

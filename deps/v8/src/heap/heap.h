@@ -11,6 +11,7 @@
 #include "src/assert-scope.h"
 #include "src/counters.h"
 #include "src/globals.h"
+#include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
@@ -73,34 +74,34 @@ namespace internal {
   V(Smi, hash_seed, HashSeed)                                                  \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, string_map, StringMap)                                                \
-  V(Map, ascii_string_map, AsciiStringMap)                                     \
+  V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, cons_string_map, ConsStringMap)                                       \
-  V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
+  V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
-  V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
+  V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
-  V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
+  V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map, short_external_string_with_one_byte_data_map,                         \
     ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
-  V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
+  V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_internalized_string_with_one_byte_data_map,                  \
     ExternalInternalizedStringWithOneByteDataMap)                              \
-  V(Map, external_ascii_internalized_string_map,                               \
-    ExternalAsciiInternalizedStringMap)                                        \
+  V(Map, external_one_byte_internalized_string_map,                            \
+    ExternalOneByteInternalizedStringMap)                                      \
   V(Map, short_external_internalized_string_map,                               \
     ShortExternalInternalizedStringMap)                                        \
   V(Map, short_external_internalized_string_with_one_byte_data_map,            \
     ShortExternalInternalizedStringWithOneByteDataMap)                         \
-  V(Map, short_external_ascii_internalized_string_map,                         \
-    ShortExternalAsciiInternalizedStringMap)                                   \
-  V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
+  V(Map, short_external_one_byte_internalized_string_map,                      \
+    ShortExternalOneByteInternalizedStringMap)                                 \
+  V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
-  V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
+  V(Map, undetectable_one_byte_string_map, UndetectableOneByteStringMap)       \
   V(Map, external_int8_array_map, ExternalInt8ArrayMap)                        \
   V(Map, external_uint8_array_map, ExternalUint8ArrayMap)                      \
   V(Map, external_int16_array_map, ExternalInt16ArrayMap)                      \
@@ -182,9 +183,12 @@ namespace internal {
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
   V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
+  V(Symbol, premonomorphic_symbol, PremonomorphicSymbol)                       \
+  V(Symbol, generic_symbol, GenericSymbol)                                     \
   V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \
+  V(Symbol, home_object_symbol, HomeObjectSymbol)                              \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)
@@ -256,13 +260,10 @@ namespace internal {
   V(neander_map)
 
 #define INTERNALIZED_STRING_LIST(V)                                \
-  V(Array_string, "Array")                                         \
   V(Object_string, "Object")                                       \
   V(proto_string, "__proto__")                                     \
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
-  V(call_string, "call")                                           \
-  V(apply_string, "apply")                                         \
   V(caller_string, "caller")                                       \
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
@@ -273,59 +274,51 @@ namespace internal {
   V(eval_string, "eval")                                           \
   V(empty_string, "")                                              \
   V(function_string, "function")                                   \
+  V(Function_string, "Function")                                   \
   V(length_string, "length")                                       \
   V(name_string, "name")                                           \
   V(null_string, "null")                                           \
   V(number_string, "number")                                       \
   V(Number_string, "Number")                                       \
   V(nan_string, "NaN")                                             \
-  V(RegExp_string, "RegExp")                                       \
   V(source_string, "source")                                       \
   V(source_url_string, "source_url")                               \
   V(source_mapping_url_string, "source_mapping_url")               \
   V(global_string, "global")                                       \
   V(ignore_case_string, "ignoreCase")                              \
   V(multiline_string, "multiline")                                 \
+  V(sticky_string, "sticky")                                       \
+  V(harmony_regexps_string, "harmony_regexps")                     \
   V(input_string, "input")                                         \
   V(index_string, "index")                                         \
   V(last_index_string, "lastIndex")                                \
   V(object_string, "object")                                       \
-  V(literals_string, "literals")                                   \
   V(prototype_string, "prototype")                                 \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(Map_string, "Map")                                             \
+  V(Set_string, "Set")                                             \
+  V(WeakMap_string, "WeakMap")                                     \
+  V(WeakSet_string, "WeakSet")                                     \
   V(for_string, "for")                                             \
   V(for_api_string, "for_api")                                     \
   V(for_intern_string, "for_intern")                               \
   V(private_api_string, "private_api")                             \
   V(private_intern_string, "private_intern")                       \
   V(Date_string, "Date")                                           \
-  V(to_string_string, "toString")                                  \
   V(char_at_string, "CharAt")                                      \
   V(undefined_string, "undefined")                                 \
   V(value_of_string, "valueOf")                                    \
   V(stack_string, "stack")                                         \
   V(toJSON_string, "toJSON")                                       \
-  V(InitializeVarGlobal_string, "InitializeVarGlobal")             \
-  V(InitializeConstGlobal_string, "InitializeConstGlobal")         \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(stack_overflow_string, "kStackOverflowBoilerplate")            \
   V(illegal_access_string, "illegal access")                       \
-  V(get_string, "get")                                             \
-  V(set_string, "set")                                             \
-  V(map_field_string, "%map")                                      \
-  V(elements_field_string, "%elements")                            \
-  V(length_field_string, "%length")                                \
   V(cell_value_string, "%cell_value")                              \
-  V(function_class_string, "Function")                             \
   V(illegal_argument_string, "illegal argument")                   \
-  V(space_string, " ")                                             \
-  V(exec_string, "exec")                                           \
-  V(zero_string, "0")                                              \
-  V(global_eval_string, "GlobalEval")                              \
   V(identity_hash_string, "v8::IdentityHash")                      \
   V(closure_string, "(closure)")                                   \
   V(dot_string, ".")                                               \
@@ -341,7 +334,6 @@ namespace internal {
   V(next_string, "next")                                           \
   V(byte_length_string, "byteLength")                              \
   V(byte_offset_string, "byteOffset")                              \
-  V(buffer_string, "buffer")                                       \
   V(intl_initialized_marker_string, "v8::intl_initialized_marker") \
   V(intl_impl_object_string, "v8::intl_object")
 
@@ -393,18 +385,11 @@ class PromotionQueue {
     emergency_stack_ = NULL;
   }
 
-  inline void ActivateGuardIfOnTheSamePage();
-
   Page* GetHeadPage() {
     return Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
   }
 
   void SetNewLimit(Address limit) {
-    if (!guard_) {
-      return;
-    }
-
-    DCHECK(GetHeadPage() == Page::FromAllocationTop(limit));
     limit_ = reinterpret_cast<intptr_t*>(limit);
 
     if (limit_ <= rear_) {
@@ -460,8 +445,6 @@ class PromotionQueue {
   intptr_t* front_;
   intptr_t* rear_;
   intptr_t* limit_;
-
-  bool guard_;
 
   static const int kEntrySizeInWords = 2;
 
@@ -731,14 +714,11 @@ class Heap {
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   static const int kNoGCFlags = 0;
-  static const int kSweepPreciselyMask = 1;
-  static const int kReduceMemoryFootprintMask = 2;
-  static const int kAbortIncrementalMarkingMask = 4;
+  static const int kReduceMemoryFootprintMask = 1;
+  static const int kAbortIncrementalMarkingMask = 2;
 
-  // Making the heap iterable requires us to sweep precisely and abort any
-  // incremental marking as well.
-  static const int kMakeHeapIterableMask =
-      kSweepPreciselyMask | kAbortIncrementalMarkingMask;
+  // Making the heap iterable requires us to abort incremental marking.
+  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
@@ -960,7 +940,7 @@ class Heap {
 
   // Returns deterministic "time" value in ms. Works only with
   // FLAG_verify_predictable.
-  double synthetic_time() { return allocations_count_ / 100.0; }
+  double synthetic_time() { return allocations_count_ / 2.0; }
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
@@ -1068,7 +1048,7 @@ class Heap {
   void DisableInlineAllocation();
 
   // Implements the corresponding V8 API function.
-  bool IdleNotification(int hint);
+  bool IdleNotification(int idle_time_in_ms);
 
   // Declare all the root indices.  This defines the root list order.
   enum RootListIndex {
@@ -1716,9 +1696,9 @@ class Heap {
                                    Object* filler);
 
   // Allocate and partially initializes a String.  There are two String
-  // encodings: ASCII and two byte.  These functions allocate a string of the
-  // given length and set its map and length fields.  The characters of the
-  // string are uninitialized.
+  // encodings: one-byte and two-byte.  These functions allocate a string of
+  // the given length and set its map and length fields.  The characters of
+  // the string are uninitialized.
   MUST_USE_RESULT AllocationResult
       AllocateRawOneByteString(int length, PretenureFlag pretenure);
   MUST_USE_RESULT AllocationResult
@@ -1770,7 +1750,7 @@ class Heap {
 
 
   // Computes a single character string where the character has code.
-  // A cache is used for ASCII codes.
+  // A cache is used for one-byte (Latin1) codes.
   MUST_USE_RESULT AllocationResult
       LookupSingleCharacterStringFromCode(uint16_t code);
 
@@ -1946,30 +1926,9 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void StartIdleRound() { mark_sweeps_since_idle_round_started_ = 0; }
-
-  void FinishIdleRound() {
-    mark_sweeps_since_idle_round_started_ = kMaxMarkSweepsInIdleRound;
-    scavenges_since_last_idle_round_ = 0;
-  }
-
-  bool EnoughGarbageSinceLastIdleRound() {
-    return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
-  }
-
-  // Estimates how many milliseconds a Mark-Sweep would take to complete.
-  // In idle notification handler we assume that this function will return:
-  // - a number less than 10 for small heaps, which are less than 8Mb.
-  // - a number greater than 10 for large heaps, which are greater than 32Mb.
-  int TimeMarkSweepWouldTakeInMs() {
-    // Rough estimate of how many megabytes of heap can be processed in 1 ms.
-    static const int kMbPerMs = 2;
-
-    int heap_size_mb = static_cast<int>(SizeOfObjects() / MB);
-    return heap_size_mb / kMbPerMs;
-  }
-
   void AdvanceIdleIncrementalMarking(intptr_t step_size);
+
+  bool WorthActivatingIncrementalMarking();
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
@@ -2022,13 +1981,8 @@ class Heap {
 
   IncrementalMarking incremental_marking_;
 
-  int number_idle_notifications_;
-  unsigned int last_idle_notification_gc_count_;
-  bool last_idle_notification_gc_count_init_;
-
-  int mark_sweeps_since_idle_round_started_;
+  GCIdleTimeHandler gc_idle_time_handler_;
   unsigned int gc_count_at_last_idle_gc_;
-  int scavenges_since_last_idle_round_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
@@ -2046,7 +2000,7 @@ class Heap {
   static const int kAllocationSiteScratchpadSize = 256;
   int allocation_sites_scratchpad_length_;
 
-  static const int kMaxMarkSweepsInIdleRound = 7;
+  static const int kMaxMarkCompactsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
 
   // Shared state read by the scavenge collector and set by ScavengeObject.
@@ -2067,6 +2021,7 @@ class Heap {
   int gc_callbacks_depth_;
 
   friend class AlwaysAllocateScope;
+  friend class Deserializer;
   friend class Factory;
   friend class GCCallbacksScope;
   friend class GCTracer;

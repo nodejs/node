@@ -261,11 +261,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
       (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
-       target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
+       target->ic_state() == POLYMORPHIC ||
+       (heap->flush_monomorphic_ics() && !target->is_weak_stub()) ||
        heap->isolate()->serializer_enabled() ||
        target->ic_age() != heap->global_ic_age() ||
        target->is_invalidated_weak_stub())) {
-    IC::Clear(heap->isolate(), rinfo->pc(), rinfo->host()->constant_pool());
+    ICUtility::Clear(heap->isolate(), rinfo->pc(),
+                     rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);

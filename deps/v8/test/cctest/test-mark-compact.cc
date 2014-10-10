@@ -139,13 +139,13 @@ TEST(MarkCompactCollector) {
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
 
   // keep allocating garbage in new space until it fails
-  const int ARRAY_SIZE = 100;
+  const int arraysize = 100;
   AllocationResult allocation;
   do {
-    allocation = heap->AllocateFixedArray(ARRAY_SIZE);
+    allocation = heap->AllocateFixedArray(arraysize);
   } while (!allocation.IsRetry());
   heap->CollectGarbage(NEW_SPACE, "trigger 2");
-  heap->AllocateFixedArray(ARRAY_SIZE).ToObjectChecked();
+  heap->AllocateFixedArray(arraysize).ToObjectChecked();
 
   // keep allocating maps until it fails
   do {
@@ -301,15 +301,13 @@ TEST(ObjectGroups) {
 
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
-    Object** g1_children[] = { g1c1.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    Object** g2_children[] = { g2c1.location() };
     global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetReference(Handle<HeapObject>::cast(g1s1).location(),
+                                 g1c1.location());
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
+    global_handles->SetReference(Handle<HeapObject>::cast(g2s1).location(),
+                                 g2c1.location());
   }
   // Do a full GC
   heap->CollectGarbage(OLD_POINTER_SPACE);
@@ -330,15 +328,13 @@ TEST(ObjectGroups) {
   // Groups are deleted, rebuild groups.
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
-    Object** g1_children[] = { g1c1.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    Object** g2_children[] = { g2c1.location() };
     global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetReference(Handle<HeapObject>::cast(g1s1).location(),
+                                 g1c1.location());
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
+    global_handles->SetReference(Handle<HeapObject>::cast(g2s1).location(),
+                                 g2c1.location());
   }
 
   heap->CollectGarbage(OLD_POINTER_SPACE);
@@ -389,15 +385,9 @@ TEST(EmptyObjectGroups) {
 
   v8::HandleScope handle_scope(CcTest::isolate());
 
-  Handle<Object> object = global_handles->Create(
-      CcTest::test_heap()->AllocateFixedArray(1).ToObjectChecked());
-
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);
   DCHECK(info.has_been_disposed());
-
-  global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(object).location(), NULL, 0);
 }
 
 

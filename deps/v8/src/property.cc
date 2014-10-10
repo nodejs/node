@@ -13,8 +13,8 @@ namespace internal {
 void LookupResult::Iterate(ObjectVisitor* visitor) {
   LookupResult* current = this;  // Could be NULL.
   while (current != NULL) {
-    visitor->VisitPointer(BitCast<Object**>(&current->holder_));
-    visitor->VisitPointer(BitCast<Object**>(&current->transition_));
+    visitor->VisitPointer(bit_cast<Object**>(&current->holder_));
+    visitor->VisitPointer(bit_cast<Object**>(&current->transition_));
     current = current->next_;
   }
 }
@@ -24,34 +24,8 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
   if (!r.IsFound()) return os << "Not Found\n";
 
   os << "LookupResult:\n";
-  os << " -cacheable = " << (r.IsCacheable() ? "true" : "false") << "\n";
-  os << " -attributes = " << hex << r.GetAttributes() << dec << "\n";
   if (r.IsTransition()) {
     os << " -transition target:\n" << Brief(r.GetTransitionTarget()) << "\n";
-  }
-  switch (r.type()) {
-    case NORMAL:
-      return os << " -type = normal\n"
-                << " -entry = " << r.GetDictionaryEntry() << "\n";
-    case CONSTANT:
-      return os << " -type = constant\n"
-                << " -value:\n" << Brief(r.GetConstant()) << "\n";
-    case FIELD:
-      os << " -type = field\n"
-         << " -index = " << r.GetFieldIndex().property_index() << "\n"
-         << " -field type:";
-      r.GetFieldType()->PrintTo(os);
-      return os << "\n";
-    case CALLBACKS:
-      return os << " -type = call backs\n"
-                << " -callback object:\n" << Brief(r.GetCallbackObject());
-    case HANDLER:
-      return os << " -type = lookup proxy\n";
-    case INTERCEPTOR:
-      return os << " -type = lookup interceptor\n";
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
   }
   return os;
 }

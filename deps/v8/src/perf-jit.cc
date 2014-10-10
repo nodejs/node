@@ -83,7 +83,8 @@ void PerfJitLogger::LogRecordedBuffer(Code* code, SharedFunctionInfo*,
 
   const char* code_name = name;
   uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
-  uint32_t code_size = code->instruction_size();
+  uint32_t code_size = code->is_crankshafted() ? code->safepoint_table_offset()
+                                               : code->instruction_size();
 
   static const char string_terminator[] = "\0";
 

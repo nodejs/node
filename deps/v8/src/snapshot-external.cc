@@ -25,6 +25,7 @@ struct SnapshotImpl {
   int map_space_used;
   int cell_space_used;
   int property_cell_space_used;
+  int lo_space_used;
 
   const byte* context_data;
   int context_size;
@@ -35,6 +36,7 @@ struct SnapshotImpl {
   int context_map_space_used;
   int context_cell_space_used;
   int context_property_cell_space_used;
+  int context_lo_space_used;
 };
 
 
@@ -46,7 +48,7 @@ bool Snapshot::HaveASnapshotToStartFrom() {
 }
 
 
-bool Snapshot::Initialize() {
+bool Snapshot::Initialize(Isolate* isolate) {
   if (!HaveASnapshotToStartFrom())
     return false;
 
@@ -66,7 +68,8 @@ bool Snapshot::Initialize() {
   deserializer.set_reservation(CELL_SPACE, snapshot_impl_->cell_space_used);
   deserializer.set_reservation(PROPERTY_CELL_SPACE,
                                snapshot_impl_->property_cell_space_used);
-  bool success = V8::Initialize(&deserializer);
+  deserializer.set_reservation(LO_SPACE, snapshot_impl_->lo_space_used);
+  bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
@@ -97,6 +100,7 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   deserializer.set_reservation(PROPERTY_CELL_SPACE,
                                snapshot_impl_->
                                    context_property_cell_space_used);
+  deserializer.set_reservation(LO_SPACE, snapshot_impl_->context_lo_space_used);
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
@@ -123,6 +127,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
   snapshot_impl_->map_space_used = source.GetInt();
   snapshot_impl_->cell_space_used = source.GetInt();
   snapshot_impl_->property_cell_space_used = source.GetInt();
+  snapshot_impl_->lo_space_used = source.GetInt();
 
   success &= source.GetBlob(&snapshot_impl_->context_data,
                             &snapshot_impl_->context_size);

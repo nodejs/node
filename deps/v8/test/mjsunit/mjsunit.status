@@ -51,6 +51,10 @@
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
+  # This test relies on --noopt-safe-uint32-operations, which is broken. See
+  # issue 3487 for details.
+  'compiler/shift-shr': [SKIP],
+
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -59,53 +63,38 @@
   # from the deoptimizer to do that.
   'arguments-indirect': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
-  'debug-references': [PASS, NO_VARIANTS],
-  'regress/regress-263': [PASS, NO_VARIANTS],
+  # TODO(rossberg): Typer doesn't like contexts very much.
+  'harmony/block-conflicts': [PASS, NO_VARIANTS],
+  'harmony/block-for': [PASS, NO_VARIANTS],
+  'harmony/block-leave': [PASS, NO_VARIANTS],
+  'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
+  'harmony/empty-for': [PASS, NO_VARIANTS],
 
-  # Some tests are over-restrictive about object layout.
+  # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
+  'compare-known-objects-slow': [PASS, NO_VARIANTS],
+  'elements-kind': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
-  'big-object-literal': [PASS, NO_VARIANTS],
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
-  'compiler/optimized-for-in': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
-  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
-  'es7/object-observe': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
-  'regress/regress-284': [PASS, NO_VARIANTS],
-  'regress/string-set-char-deopt': [PASS, NO_VARIANTS],
-  'tools/profviz': [PASS, NO_VARIANTS],
-
-  # Support for breakpoints requires special relocation info for DebugBreak.
-  'debug-clearbreakpointgroup': [PASS, NO_VARIANTS],
-  'debug-step-2': [PASS, NO_VARIANTS],
-  'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
-  'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
-  'debug-backtrace-text': [PASS, NO_VARIANTS],
-  'debug-break-inline': [PASS, NO_VARIANTS],
-  'debug-evaluate-arguments': [PASS, NO_VARIANTS],
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
-  'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-evaluate-with-context': [PASS, NO_VARIANTS],
-  'debug-evaluate-with': [PASS, NO_VARIANTS],
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
-  'debug-receiver': [PASS, NO_VARIANTS],
   'debug-return-value': [PASS, NO_VARIANTS],
-  'debug-scopes': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
   'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
   'debug-stepin-accessor': [PASS, NO_VARIANTS],
@@ -127,36 +116,13 @@
   'es6/debug-promises/throw-uncaught-all': [PASS, NO_VARIANTS],
   'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
   'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-caught-by-default-reject-handler': [PASS, NO_VARIANTS],
+  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
   'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
-  'harmony/generators-debug-scopes': [PASS, NO_VARIANTS],
   'regress/regress-1081309': [PASS, NO_VARIANTS],
-  'regress/regress-1170187': [PASS, NO_VARIANTS],
-  'regress/regress-119609': [PASS, NO_VARIANTS],
-  'regress/regress-131994': [PASS, NO_VARIANTS],
   'regress/regress-269': [PASS, NO_VARIANTS],
-  'regress/regress-325676': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
-
-  # Support for ES6 generators is missing.
-  'regress-3225': [PASS, NO_VARIANTS],
-  'harmony/generators-debug-liveedit': [PASS, NO_VARIANTS],
-  'harmony/generators-iteration': [PASS, NO_VARIANTS],
-  'harmony/generators-parsing': [PASS, NO_VARIANTS],
-  'harmony/generators-poisoned-properties': [PASS, NO_VARIANTS],
-  'harmony/generators-relocation': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-2681': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-2691': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-3280': [PASS, NO_VARIANTS],
-
-  # Support for ES6 for-of iteration is missing.
-  'es6/array-iterator': [PASS, NO_VARIANTS],
-  'es6/iteration-semantics': [PASS, NO_VARIANTS],
-  'es6/string-iterator': [PASS, NO_VARIANTS],
-  'es6/typed-array-iterator': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -267,34 +233,8 @@
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
-
-##############################################################################
-['no_i18n', {
-  # Don't call runtime functions that don't exist without i18n support.
-  'runtime-gen/availablelocalesof': [SKIP],
-  'runtime-gen/breakiteratoradopttext': [SKIP],
-  'runtime-gen/breakiteratorbreaktype': [SKIP],
-  'runtime-gen/breakiteratorbreaktype': [SKIP],
-  'runtime-gen/breakiteratorcurrent': [SKIP],
-  'runtime-gen/breakiteratorfirst': [SKIP],
-  'runtime-gen/breakiteratornext': [SKIP],
-  'runtime-gen/canonicalizelanguagetag': [SKIP],
-  'runtime-gen/createbreakiterator': [SKIP],
-  'runtime-gen/createcollator': [SKIP],
-  'runtime-gen/getdefaulticulocale': [SKIP],
-  'runtime-gen/getimplfrominitializedintlobject': [SKIP],
-  'runtime-gen/getlanguagetagvariants': [SKIP],
-  'runtime-gen/internalcompare': [SKIP],
-  'runtime-gen/internaldateformat': [SKIP],
-  'runtime-gen/internaldateparse': [SKIP],
-  'runtime-gen/internalnumberformat': [SKIP],
-  'runtime-gen/internalnumberparse': [SKIP],
-  'runtime-gen/isinitializedintlobject': [SKIP],
-  'runtime-gen/isinitializedintlobjectoftype': [SKIP],
-  'runtime-gen/markasinitializedintlobjectoftype': [SKIP],
-  'runtime-gen/stringnormalize': [SKIP],
-}],
 
 ##############################################################################
 ['arch == arm64 or arch == android_arm64', {
@@ -348,7 +288,6 @@
   'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],
-  'compiler/osr-warm': [PASS, TIMEOUT, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
@@ -473,9 +412,6 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
-
-  # BUG(v8:3457).
-  'deserialize-reference': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -527,9 +463,6 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
-
-  # BUG(v8:3457).
-  'deserialize-reference': [SKIP],
 }],  # 'arch == mips64el'
 
 ['arch == mips64el and simulator_run == False', {
@@ -538,6 +471,9 @@
 }],
 ##############################################################################
 ['system == windows', {
+  # TODO(mstarzinger): Too slow with turbo fan.
+  'big-object-literal': [PASS, ['mode == debug', SKIP]],
+
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
 }],  # 'system == windows'
@@ -573,6 +509,18 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Skip tests that timout with turbofan.
+  'regress/regress-1257': [PASS, NO_VARIANTS],
+  'regress/regress-2618': [PASS, NO_VARIANTS],
+  'regress/regress-298269': [PASS, NO_VARIANTS],
+  'regress/regress-634': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
+  'compiler/osr-alignment': [PASS, NO_VARIANTS],
+  'compiler/osr-one': [PASS, NO_VARIANTS],
+  'compiler/osr-two': [PASS, NO_VARIANTS],
+  'stack-traces-overflow': [PASS, NO_VARIANTS],
+  'mirror-object': [PASS, NO_VARIANTS],
 
   # Bug(v8:2978).
   'lithium/MathExp': [PASS, FAIL],

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --turbo-deoptimization
 
 Debug = debug.Debug;
 var listened = false;

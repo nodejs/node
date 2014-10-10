@@ -34,7 +34,9 @@ class NativesStore {
 
   int GetIndex(const char* name) {
     for (int i = 0; i < native_names_.length(); ++i) {
-      if (strcmp(name, native_names_[i].start()) == 0) {
+      int native_name_length = native_names_[i].length();
+      if ((static_cast<int>(strlen(name)) == native_name_length) &&
+          (strncmp(name, native_names_[i].start(), native_name_length) == 0)) {
         return i;
       }
     }

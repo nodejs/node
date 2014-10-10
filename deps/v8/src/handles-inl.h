@@ -41,7 +41,7 @@ inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
 template <typename T>
 inline T* Handle<T>::operator*() const {
   SLOW_DCHECK(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
-  return *BitCast<T**>(location_);
+  return *bit_cast<T**>(location_);
 }
 
 template <typename T>
@@ -55,7 +55,7 @@ inline T** Handle<T>::location() const {
 template <typename T>
 bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK(location_ != NULL);
-  Object* object = *BitCast<T**>(location_);
+  Object* object = *bit_cast<T**>(location_);
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);
   Heap* heap = heap_object->GetHeap();

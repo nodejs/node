@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <deque>
+#include <queue>
+
 #include "src/compiler/scheduler.h"
 
 #include "src/compiler/graph.h"
@@ -15,274 +18,290 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+static inline void Trace(const char* msg, ...) {
+  if (FLAG_trace_turbo_scheduler) {
+    va_list arguments;
+    va_start(arguments, msg);
+    base::OS::VPrint(msg, arguments);
+    va_end(arguments);
+  }
+}
+
+
+// Internal class to build a control flow graph (i.e the basic blocks and edges
+// between them within a Schedule) from the node graph.
+// Visits the control edges of the graph backwards from end in order to find
+// the connected control subgraph, needed for scheduling.
+class CFGBuilder {
+ public:
+  Scheduler* scheduler_;
+  Schedule* schedule_;
+  ZoneQueue<Node*> queue_;
+  NodeVector control_;
+
+  CFGBuilder(Zone* zone, Scheduler* scheduler)
+      : scheduler_(scheduler),
+        schedule_(scheduler->schedule_),
+        queue_(zone),
+        control_(zone) {}
+
+  // Run the control flow graph construction algorithm by walking the graph
+  // backwards from end through control edges, building and connecting the
+  // basic blocks for control nodes.
+  void Run() {
+    Graph* graph = scheduler_->graph_;
+    FixNode(schedule_->start(), graph->start());
+    Queue(graph->end());
+
+    while (!queue_.empty()) {  // Breadth-first backwards traversal.
+      Node* node = queue_.front();
+      queue_.pop();
+      int max = NodeProperties::PastControlIndex(node);
+      for (int i = NodeProperties::FirstControlIndex(node); i < max; i++) {
+        Queue(node->InputAt(i));
+      }
+    }
+
+    for (NodeVector::iterator i = control_.begin(); i != control_.end(); ++i) {
+      ConnectBlocks(*i);  // Connect block to its predecessor/successors.
+    }
+
+    FixNode(schedule_->end(), graph->end());
+  }
+
+  void FixNode(BasicBlock* block, Node* node) {
+    schedule_->AddNode(block, node);
+    scheduler_->GetData(node)->is_connected_control_ = true;
+    scheduler_->GetData(node)->placement_ = Scheduler::kFixed;
+  }
+
+  void Queue(Node* node) {
+    // Mark the connected control nodes as they queued.
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+    if (!data->is_connected_control_) {
+      BuildBlocks(node);
+      queue_.push(node);
+      control_.push_back(node);
+      data->is_connected_control_ = true;
+    }
+  }
+
+  void BuildBlocks(Node* node) {
+    switch (node->opcode()) {
+      case IrOpcode::kLoop:
+      case IrOpcode::kMerge:
+        BuildBlockForNode(node);
+        break;
+      case IrOpcode::kBranch:
+        BuildBlocksForSuccessors(node, IrOpcode::kIfTrue, IrOpcode::kIfFalse);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void ConnectBlocks(Node* node) {
+    switch (node->opcode()) {
+      case IrOpcode::kLoop:
+      case IrOpcode::kMerge:
+        ConnectMerge(node);
+        break;
+      case IrOpcode::kBranch:
+        scheduler_->schedule_root_nodes_.push_back(node);
+        ConnectBranch(node);
+        break;
+      case IrOpcode::kReturn:
+        scheduler_->schedule_root_nodes_.push_back(node);
+        ConnectReturn(node);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void BuildBlockForNode(Node* node) {
+    if (schedule_->block(node) == NULL) {
+      BasicBlock* block = schedule_->NewBasicBlock();
+      Trace("Create block B%d for #%d:%s\n", block->id(), node->id(),
+            node->op()->mnemonic());
+      FixNode(block, node);
+    }
+  }
+
+  void BuildBlocksForSuccessors(Node* node, IrOpcode::Value a,
+                                IrOpcode::Value b) {
+    Node* successors[2];
+    CollectSuccessorProjections(node, successors, a, b);
+    BuildBlockForNode(successors[0]);
+    BuildBlockForNode(successors[1]);
+  }
+
+  // Collect the branch-related projections from a node, such as IfTrue,
+  // IfFalse.
+  // TODO(titzer): consider moving this to node.h
+  void CollectSuccessorProjections(Node* node, Node** buffer,
+                                   IrOpcode::Value true_opcode,
+                                   IrOpcode::Value false_opcode) {
+    buffer[0] = NULL;
+    buffer[1] = NULL;
+    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
+      if ((*i)->opcode() == true_opcode) {
+        DCHECK_EQ(NULL, buffer[0]);
+        buffer[0] = *i;
+      }
+      if ((*i)->opcode() == false_opcode) {
+        DCHECK_EQ(NULL, buffer[1]);
+        buffer[1] = *i;
+      }
+    }
+    DCHECK_NE(NULL, buffer[0]);
+    DCHECK_NE(NULL, buffer[1]);
+  }
+
+  void CollectSuccessorBlocks(Node* node, BasicBlock** buffer,
+                              IrOpcode::Value true_opcode,
+                              IrOpcode::Value false_opcode) {
+    Node* successors[2];
+    CollectSuccessorProjections(node, successors, true_opcode, false_opcode);
+    buffer[0] = schedule_->block(successors[0]);
+    buffer[1] = schedule_->block(successors[1]);
+  }
+
+  void ConnectBranch(Node* branch) {
+    Node* branch_block_node = NodeProperties::GetControlInput(branch);
+    BasicBlock* branch_block = schedule_->block(branch_block_node);
+    DCHECK(branch_block != NULL);
+
+    BasicBlock* successor_blocks[2];
+    CollectSuccessorBlocks(branch, successor_blocks, IrOpcode::kIfTrue,
+                           IrOpcode::kIfFalse);
+
+    TraceConnect(branch, branch_block, successor_blocks[0]);
+    TraceConnect(branch, branch_block, successor_blocks[1]);
+
+    schedule_->AddBranch(branch_block, branch, successor_blocks[0],
+                         successor_blocks[1]);
+  }
+
+  void ConnectMerge(Node* merge) {
+    BasicBlock* block = schedule_->block(merge);
+    DCHECK(block != NULL);
+    // For all of the merge's control inputs, add a goto at the end to the
+    // merge's basic block.
+    for (InputIter j = merge->inputs().begin(); j != merge->inputs().end();
+         ++j) {
+      BasicBlock* predecessor_block = schedule_->block(*j);
+      if ((*j)->opcode() != IrOpcode::kReturn) {
+        TraceConnect(merge, predecessor_block, block);
+        schedule_->AddGoto(predecessor_block, block);
+      }
+    }
+  }
+
+  void ConnectReturn(Node* ret) {
+    Node* return_block_node = NodeProperties::GetControlInput(ret);
+    BasicBlock* return_block = schedule_->block(return_block_node);
+    TraceConnect(ret, return_block, NULL);
+    schedule_->AddReturn(return_block, ret);
+  }
+
+  void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {
+    DCHECK_NE(NULL, block);
+    if (succ == NULL) {
+      Trace("Connect #%d:%s, B%d -> end\n", node->id(), node->op()->mnemonic(),
+            block->id());
+    } else {
+      Trace("Connect #%d:%s, B%d -> B%d\n", node->id(), node->op()->mnemonic(),
+            block->id(), succ->id());
+    }
+  }
+};
+
+
+Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
+  SchedulerData def = {0, 0, false, false, kUnknown};
+  return def;
+}
+
+
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : graph_(graph),
+    : zone_(zone),
+      graph_(graph),
       schedule_(schedule),
-      branches_(NodeVector::allocator_type(zone)),
-      calls_(NodeVector::allocator_type(zone)),
-      deopts_(NodeVector::allocator_type(zone)),
-      returns_(NodeVector::allocator_type(zone)),
-      loops_and_merges_(NodeVector::allocator_type(zone)),
-      node_block_placement_(BasicBlockVector::allocator_type(zone)),
-      unscheduled_uses_(IntVector::allocator_type(zone)),
-      scheduled_nodes_(NodeVectorVector::allocator_type(zone)),
-      schedule_root_nodes_(NodeVector::allocator_type(zone)),
-      schedule_early_rpo_index_(IntVector::allocator_type(zone)) {}
+      scheduled_nodes_(zone),
+      schedule_root_nodes_(zone),
+      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone),
+      has_floating_control_(false) {}
 
 
 Schedule* Scheduler::ComputeSchedule(Graph* graph) {
-  Zone tmp_zone(graph->zone()->isolate());
-  Schedule* schedule = new (graph->zone()) Schedule(graph->zone());
-  Scheduler scheduler(&tmp_zone, graph, schedule);
+  Schedule* schedule;
+  bool had_floating_control = false;
+  do {
+    Zone tmp_zone(graph->zone()->isolate());
+    schedule = new (graph->zone())
+        Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
+    Scheduler scheduler(&tmp_zone, graph, schedule);
 
-  schedule->AddNode(schedule->end(), graph->end());
+    scheduler.BuildCFG();
 
-  scheduler.PrepareAuxiliaryNodeData();
-  scheduler.CreateBlocks();
-  scheduler.WireBlocks();
-  scheduler.PrepareAuxiliaryBlockData();
+    Scheduler::ComputeSpecialRPO(schedule);
+    scheduler.GenerateImmediateDominatorTree();
 
-  Scheduler::ComputeSpecialRPO(schedule);
-  scheduler.GenerateImmediateDominatorTree();
+    scheduler.PrepareUses();
+    scheduler.ScheduleEarly();
+    scheduler.ScheduleLate();
 
-  scheduler.PrepareUses();
-  scheduler.ScheduleEarly();
-  scheduler.ScheduleLate();
+    had_floating_control = scheduler.ConnectFloatingControl();
+  } while (had_floating_control);
 
   return schedule;
 }
 
 
-class CreateBlockVisitor : public NullNodeVisitor {
- public:
-  explicit CreateBlockVisitor(Scheduler* scheduler) : scheduler_(scheduler) {}
-
-  GenericGraphVisit::Control Post(Node* node) {
-    Schedule* schedule = scheduler_->schedule_;
+Scheduler::Placement Scheduler::GetPlacement(Node* node) {
+  SchedulerData* data = GetData(node);
+  if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
     switch (node->opcode()) {
-      case IrOpcode::kIfTrue:
-      case IrOpcode::kIfFalse:
-      case IrOpcode::kContinuation:
-      case IrOpcode::kLazyDeoptimization: {
-        BasicBlock* block = schedule->NewBasicBlock();
-        schedule->AddNode(block, node);
+      case IrOpcode::kParameter:
+        // Parameters are always fixed to the start node.
+        data->placement_ = kFixed;
+        break;
+      case IrOpcode::kPhi:
+      case IrOpcode::kEffectPhi: {
+        // Phis and effect phis are fixed if their control inputs are.
+        data->placement_ = GetPlacement(NodeProperties::GetControlInput(node));
         break;
       }
-      case IrOpcode::kLoop:
-      case IrOpcode::kMerge: {
-        BasicBlock* block = schedule->NewBasicBlock();
-        schedule->AddNode(block, node);
-        scheduler_->loops_and_merges_.push_back(node);
-        break;
-      }
-      case IrOpcode::kBranch: {
-        scheduler_->branches_.push_back(node);
-        break;
-      }
-      case IrOpcode::kDeoptimize: {
-        scheduler_->deopts_.push_back(node);
-        break;
-      }
-      case IrOpcode::kCall: {
-        if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
-          scheduler_->calls_.push_back(node);
-        }
-        break;
-      }
-      case IrOpcode::kReturn:
-        scheduler_->returns_.push_back(node);
-        break;
-      default:
-        break;
-    }
-
-    return GenericGraphVisit::CONTINUE;
-  }
-
- private:
-  Scheduler* scheduler_;
-};
-
-
-void Scheduler::CreateBlocks() {
-  CreateBlockVisitor create_blocks(this);
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("---------------- CREATING BLOCKS ------------------\n");
-  }
-  schedule_->AddNode(schedule_->entry(), graph_->start());
-  graph_->VisitNodeInputsFromEnd(&create_blocks);
-}
-
-
-void Scheduler::WireBlocks() {
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("----------------- WIRING BLOCKS -------------------\n");
-  }
-  AddSuccessorsForBranches();
-  AddSuccessorsForReturns();
-  AddSuccessorsForCalls();
-  AddSuccessorsForDeopts();
-  AddPredecessorsForLoopsAndMerges();
-  // TODO(danno): Handle Throw, et al.
-}
-
-
-void Scheduler::PrepareAuxiliaryNodeData() {
-  unscheduled_uses_.resize(graph_->NodeCount(), 0);
-  schedule_early_rpo_index_.resize(graph_->NodeCount(), 0);
-}
-
-
-void Scheduler::PrepareAuxiliaryBlockData() {
-  Zone* zone = schedule_->zone();
-  scheduled_nodes_.resize(schedule_->BasicBlockCount(),
-                          NodeVector(NodeVector::allocator_type(zone)));
-  schedule_->immediate_dominator_.resize(schedule_->BasicBlockCount(), NULL);
-}
-
-
-void Scheduler::AddPredecessorsForLoopsAndMerges() {
-  for (NodeVectorIter i = loops_and_merges_.begin();
-       i != loops_and_merges_.end(); ++i) {
-    Node* merge_or_loop = *i;
-    BasicBlock* block = schedule_->block(merge_or_loop);
-    DCHECK(block != NULL);
-    // For all of the merge's control inputs, add a goto at the end to the
-    // merge's basic block.
-    for (InputIter j = (*i)->inputs().begin(); j != (*i)->inputs().end(); ++j) {
-      if (OperatorProperties::IsBasicBlockBegin((*i)->op())) {
-        BasicBlock* predecessor_block = schedule_->block(*j);
-        if ((*j)->opcode() != IrOpcode::kReturn &&
-            (*j)->opcode() != IrOpcode::kDeoptimize) {
-          DCHECK(predecessor_block != NULL);
-          if (FLAG_trace_turbo_scheduler) {
-            IrOpcode::Value opcode = (*i)->opcode();
-            PrintF("node %d (%s) in block %d -> block %d\n", (*i)->id(),
-                   IrOpcode::Mnemonic(opcode), predecessor_block->id(),
-                   block->id());
+#define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
+        CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
+#undef DEFINE_FLOATING_CONTROL_CASE
+        {
+          // Control nodes that were not control-reachable from end may float.
+          data->placement_ = kSchedulable;
+          if (!data->is_connected_control_) {
+            data->is_floating_control_ = true;
+            has_floating_control_ = true;
+            Trace("Floating control found: #%d:%s\n", node->id(),
+                  node->op()->mnemonic());
           }
-          schedule_->AddGoto(predecessor_block, block);
-        }
-      }
-    }
-  }
-}
-
-
-void Scheduler::AddSuccessorsForCalls() {
-  for (NodeVectorIter i = calls_.begin(); i != calls_.end(); ++i) {
-    Node* call = *i;
-    DCHECK(call->opcode() == IrOpcode::kCall);
-    DCHECK(OperatorProperties::CanLazilyDeoptimize(call->op()));
-
-    Node* lazy_deopt_node = NULL;
-    Node* cont_node = NULL;
-    // Find the continuation and lazy-deopt nodes among the uses.
-    for (UseIter use_iter = call->uses().begin();
-         use_iter != call->uses().end(); ++use_iter) {
-      switch ((*use_iter)->opcode()) {
-        case IrOpcode::kContinuation: {
-          DCHECK(cont_node == NULL);
-          cont_node = *use_iter;
           break;
         }
-        case IrOpcode::kLazyDeoptimization: {
-          DCHECK(lazy_deopt_node == NULL);
-          lazy_deopt_node = *use_iter;
-          break;
-        }
-        default:
-          break;
-      }
+      default:
+        data->placement_ = kSchedulable;
+        break;
     }
-    DCHECK(lazy_deopt_node != NULL);
-    DCHECK(cont_node != NULL);
-    BasicBlock* cont_successor_block = schedule_->block(cont_node);
-    BasicBlock* deopt_successor_block = schedule_->block(lazy_deopt_node);
-    Node* call_block_node = NodeProperties::GetControlInput(call);
-    BasicBlock* call_block = schedule_->block(call_block_node);
-    if (FLAG_trace_turbo_scheduler) {
-      IrOpcode::Value opcode = call->opcode();
-      PrintF("node %d (%s) in block %d -> block %d\n", call->id(),
-             IrOpcode::Mnemonic(opcode), call_block->id(),
-             cont_successor_block->id());
-      PrintF("node %d (%s) in block %d -> block %d\n", call->id(),
-             IrOpcode::Mnemonic(opcode), call_block->id(),
-             deopt_successor_block->id());
-    }
-    schedule_->AddCall(call_block, call, cont_successor_block,
-                       deopt_successor_block);
   }
+  return data->placement_;
 }
 
 
-void Scheduler::AddSuccessorsForDeopts() {
-  for (NodeVectorIter i = deopts_.begin(); i != deopts_.end(); ++i) {
-    Node* deopt_block_node = NodeProperties::GetControlInput(*i);
-    BasicBlock* deopt_block = schedule_->block(deopt_block_node);
-    DCHECK(deopt_block != NULL);
-    if (FLAG_trace_turbo_scheduler) {
-      IrOpcode::Value opcode = (*i)->opcode();
-      PrintF("node %d (%s) in block %d -> end\n", (*i)->id(),
-             IrOpcode::Mnemonic(opcode), deopt_block->id());
-    }
-    schedule_->AddDeoptimize(deopt_block, *i);
-  }
-}
-
-
-void Scheduler::AddSuccessorsForBranches() {
-  for (NodeVectorIter i = branches_.begin(); i != branches_.end(); ++i) {
-    Node* branch = *i;
-    DCHECK(branch->opcode() == IrOpcode::kBranch);
-    Node* branch_block_node = NodeProperties::GetControlInput(branch);
-    BasicBlock* branch_block = schedule_->block(branch_block_node);
-    DCHECK(branch_block != NULL);
-    UseIter use_iter = branch->uses().begin();
-    Node* first_successor = *use_iter;
-    ++use_iter;
-    DCHECK(use_iter != branch->uses().end());
-    Node* second_successor = *use_iter;
-    DCHECK(++use_iter == branch->uses().end());
-    Node* true_successor_node = first_successor->opcode() == IrOpcode::kIfTrue
-                                    ? first_successor
-                                    : second_successor;
-    Node* false_successor_node = first_successor->opcode() == IrOpcode::kIfTrue
-                                     ? second_successor
-                                     : first_successor;
-    DCHECK(true_successor_node->opcode() == IrOpcode::kIfTrue);
-    DCHECK(false_successor_node->opcode() == IrOpcode::kIfFalse);
-    BasicBlock* true_successor_block = schedule_->block(true_successor_node);
-    BasicBlock* false_successor_block = schedule_->block(false_successor_node);
-    DCHECK(true_successor_block != NULL);
-    DCHECK(false_successor_block != NULL);
-    if (FLAG_trace_turbo_scheduler) {
-      IrOpcode::Value opcode = branch->opcode();
-      PrintF("node %d (%s) in block %d -> block %d\n", branch->id(),
-             IrOpcode::Mnemonic(opcode), branch_block->id(),
-             true_successor_block->id());
-      PrintF("node %d (%s) in block %d -> block %d\n", branch->id(),
-             IrOpcode::Mnemonic(opcode), branch_block->id(),
-             false_successor_block->id());
-    }
-    schedule_->AddBranch(branch_block, branch, true_successor_block,
-                         false_successor_block);
-  }
-}
-
-
-void Scheduler::AddSuccessorsForReturns() {
-  for (NodeVectorIter i = returns_.begin(); i != returns_.end(); ++i) {
-    Node* return_block_node = NodeProperties::GetControlInput(*i);
-    BasicBlock* return_block = schedule_->block(return_block_node);
-    DCHECK(return_block != NULL);
-    if (FLAG_trace_turbo_scheduler) {
-      IrOpcode::Value opcode = (*i)->opcode();
-      PrintF("node %d (%s) in block %d -> end\n", (*i)->id(),
-             IrOpcode::Mnemonic(opcode), return_block->id());
-    }
-    schedule_->AddReturn(return_block, *i);
-  }
+void Scheduler::BuildCFG() {
+  Trace("---------------- CREATING CFG ------------------\n");
+  CFGBuilder cfg_builder(zone_, this);
+  cfg_builder.Run();
+  // Initialize per-block data.
+  scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
 }
 
 
@@ -292,9 +311,9 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
     int b2_rpo = GetRPONumber(b2);
     DCHECK(b1_rpo != b2_rpo);
     if (b1_rpo < b2_rpo) {
-      b2 = schedule_->immediate_dominator_[b2->id()];
+      b2 = b2->dominator_;
     } else {
-      b1 = schedule_->immediate_dominator_[b1->id()];
+      b1 = b1->dominator_;
     }
   }
   return b1;
@@ -304,12 +323,10 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
 void Scheduler::GenerateImmediateDominatorTree() {
   // Build the dominator graph.  TODO(danno): consider using Lengauer & Tarjan's
   // if this becomes really slow.
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("------------ IMMEDIATE BLOCK DOMINATORS -----------\n");
-  }
+  Trace("------------ IMMEDIATE BLOCK DOMINATORS -----------\n");
   for (size_t i = 0; i < schedule_->rpo_order_.size(); i++) {
     BasicBlock* current_rpo = schedule_->rpo_order_[i];
-    if (current_rpo != schedule_->entry()) {
+    if (current_rpo != schedule_->start()) {
       BasicBlock::Predecessors::iterator current_pred =
           current_rpo->predecessors().begin();
       BasicBlock::Predecessors::iterator end =
@@ -328,10 +345,8 @@ void Scheduler::GenerateImmediateDominatorTree() {
         }
         ++current_pred;
       }
-      schedule_->immediate_dominator_[current_rpo->id()] = dominator;
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Block %d's idom is %d\n", current_rpo->id(), dominator->id());
-      }
+      current_rpo->dominator_ = dominator;
+      Trace("Block %d's idom is %d\n", current_rpo->id(), dominator->id());
     }
   }
 }
@@ -345,51 +360,41 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
         schedule_(scheduler->schedule_) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    int id = node->id();
     int max_rpo = 0;
     // Fixed nodes already know their schedule early position.
-    if (IsFixedNode(node)) {
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
       BasicBlock* block = schedule_->block(node);
       DCHECK(block != NULL);
       max_rpo = block->rpo_number_;
-      if (scheduler_->schedule_early_rpo_index_[id] != max_rpo) {
+      if (scheduler_->GetData(node)->minimum_rpo_ != max_rpo) {
         has_changed_rpo_constraints_ = true;
       }
-      scheduler_->schedule_early_rpo_index_[id] = max_rpo;
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Node %d pre-scheduled early at rpo limit %d\n", id, max_rpo);
-      }
+      scheduler_->GetData(node)->minimum_rpo_ = max_rpo;
+      Trace("Preschedule #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), max_rpo);
     }
     return GenericGraphVisit::CONTINUE;
   }
 
   GenericGraphVisit::Control Post(Node* node) {
-    int id = node->id();
     int max_rpo = 0;
     // Otherwise, the minimum rpo for the node is the max of all of the inputs.
-    if (!IsFixedNode(node)) {
-      DCHECK(!OperatorProperties::IsBasicBlockBegin(node->op()));
+    if (scheduler_->GetPlacement(node) != Scheduler::kFixed) {
       for (InputIter i = node->inputs().begin(); i != node->inputs().end();
            ++i) {
-        int control_rpo = scheduler_->schedule_early_rpo_index_[(*i)->id()];
+        int control_rpo = scheduler_->GetData(*i)->minimum_rpo_;
         if (control_rpo > max_rpo) {
           max_rpo = control_rpo;
         }
       }
-      if (scheduler_->schedule_early_rpo_index_[id] != max_rpo) {
+      if (scheduler_->GetData(node)->minimum_rpo_ != max_rpo) {
         has_changed_rpo_constraints_ = true;
       }
-      scheduler_->schedule_early_rpo_index_[id] = max_rpo;
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Node %d post-scheduled early at rpo limit %d\n", id, max_rpo);
-      }
+      scheduler_->GetData(node)->minimum_rpo_ = max_rpo;
+      Trace("Postschedule #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), max_rpo);
     }
     return GenericGraphVisit::CONTINUE;
-  }
-
-  static bool IsFixedNode(Node* node) {
-    return OperatorProperties::HasFixedSchedulePosition(node->op()) ||
-           !OperatorProperties::CanBeScheduled(node->op());
   }
 
   // TODO(mstarzinger): Dirty hack to unblock others, schedule early should be
@@ -403,9 +408,7 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
 
 
 void Scheduler::ScheduleEarly() {
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("------------------- SCHEDULE EARLY ----------------\n");
-  }
+  Trace("------------------- SCHEDULE EARLY ----------------\n");
 
   int fixpoint_count = 0;
   ScheduleEarlyNodeVisitor visitor(this);
@@ -415,9 +418,7 @@ void Scheduler::ScheduleEarly() {
     fixpoint_count++;
   }
 
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("It took %d iterations to determine fixpoint\n", fixpoint_count);
-  }
+  Trace("It took %d iterations to determine fixpoint\n", fixpoint_count);
 }
 
 
@@ -427,26 +428,21 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    // Some nodes must be scheduled explicitly to ensure they are in exactly the
-    // right place; it's a convenient place during the preparation of use counts
-    // to schedule them.
-    if (!schedule_->IsScheduled(node) &&
-        OperatorProperties::HasFixedSchedulePosition(node->op())) {
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Fixed position node %d is unscheduled, scheduling now\n",
-               node->id());
-      }
-      IrOpcode::Value opcode = node->opcode();
-      BasicBlock* block =
-          opcode == IrOpcode::kParameter
-              ? schedule_->entry()
-              : schedule_->block(NodeProperties::GetControlInput(node));
-      DCHECK(block != NULL);
-      schedule_->AddNode(block, node);
-    }
-
-    if (OperatorProperties::IsScheduleRoot(node->op())) {
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+      // Fixed nodes are always roots for schedule late.
       scheduler_->schedule_root_nodes_.push_back(node);
+      if (!schedule_->IsScheduled(node)) {
+        // Make sure root nodes are scheduled in their respective blocks.
+        Trace("  Scheduling fixed position node #%d:%s\n", node->id(),
+              node->op()->mnemonic());
+        IrOpcode::Value opcode = node->opcode();
+        BasicBlock* block =
+            opcode == IrOpcode::kParameter
+                ? schedule_->start()
+                : schedule_->block(NodeProperties::GetControlInput(node));
+        DCHECK(block != NULL);
+        schedule_->AddNode(block, node);
+      }
     }
 
     return GenericGraphVisit::CONTINUE;
@@ -456,14 +452,12 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // If the edge is from an unscheduled node, then tally it in the use count
     // for all of its inputs. The same criterion will be used in ScheduleLate
     // for decrementing use counts.
-    if (!schedule_->IsScheduled(from) &&
-        OperatorProperties::CanBeScheduled(from->op())) {
-      DCHECK(!OperatorProperties::HasFixedSchedulePosition(from->op()));
-      ++scheduler_->unscheduled_uses_[to->id()];
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Incrementing uses of node %d from %d to %d\n", to->id(),
-               from->id(), scheduler_->unscheduled_uses_[to->id()]);
-      }
+    if (!schedule_->IsScheduled(from)) {
+      DCHECK_NE(Scheduler::kFixed, scheduler_->GetPlacement(from));
+      ++(scheduler_->GetData(to)->unscheduled_count_);
+      Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", to->id(),
+            to->op()->mnemonic(), from->id(), from->op()->mnemonic(),
+            scheduler_->GetData(to)->unscheduled_count_);
     }
   }
 
@@ -474,9 +468,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
 
 
 void Scheduler::PrepareUses() {
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("------------------- PREPARE USES ------------------\n");
-  }
+  Trace("------------------- PREPARE USES ------------------\n");
   // Count the uses of every node, it will be used to ensure that all of a
   // node's uses are scheduled before the node itself.
   PrepareUsesVisitor prepare_uses(this);
@@ -490,20 +482,18 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
       : scheduler_(scheduler), schedule_(scheduler_->schedule_) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    // Don't schedule nodes that cannot be scheduled or are already scheduled.
-    if (!OperatorProperties::CanBeScheduled(node->op()) ||
-        schedule_->IsScheduled(node)) {
+    // Don't schedule nodes that are already scheduled.
+    if (schedule_->IsScheduled(node)) {
       return GenericGraphVisit::CONTINUE;
     }
-    DCHECK(!OperatorProperties::HasFixedSchedulePosition(node->op()));
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+    DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
 
     // If all the uses of a node have been scheduled, then the node itself can
     // be scheduled.
-    bool eligible = scheduler_->unscheduled_uses_[node->id()] == 0;
-    if (FLAG_trace_turbo_scheduler) {
-      PrintF("Testing for schedule eligibility for node %d -> %s\n", node->id(),
-             eligible ? "true" : "false");
-    }
+    bool eligible = data->unscheduled_count_ == 0;
+    Trace("Testing for schedule eligibility for #%d:%s = %s\n", node->id(),
+          node->op()->mnemonic(), eligible ? "true" : "false");
     if (!eligible) return GenericGraphVisit::DEFER;
 
     // Determine the dominating block for all of the uses of this node. It is
@@ -519,36 +509,31 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     }
     DCHECK(block != NULL);
 
-    int min_rpo = scheduler_->schedule_early_rpo_index_[node->id()];
-    if (FLAG_trace_turbo_scheduler) {
-      PrintF(
-          "Schedule late conservative for node %d is block %d at "
-          "loop depth %d, min rpo = %d\n",
-          node->id(), block->id(), block->loop_depth_, min_rpo);
-    }
+    int min_rpo = data->minimum_rpo_;
+    Trace(
+        "Schedule late conservative for #%d:%s is B%d at loop depth %d, "
+        "minimum_rpo = %d\n",
+        node->id(), node->op()->mnemonic(), block->id(), block->loop_depth_,
+        min_rpo);
     // Hoist nodes out of loops if possible. Nodes can be hoisted iteratively
-    // into enlcosing loop pre-headers until they would preceed their
+    // into enclosing loop pre-headers until they would preceed their
     // ScheduleEarly position.
     BasicBlock* hoist_block = block;
     while (hoist_block != NULL && hoist_block->rpo_number_ >= min_rpo) {
       if (hoist_block->loop_depth_ < block->loop_depth_) {
         block = hoist_block;
-        if (FLAG_trace_turbo_scheduler) {
-          PrintF("Hoisting node %d to block %d\n", node->id(), block->id());
-        }
+        Trace("  hoisting #%d:%s to block %d\n", node->id(),
+              node->op()->mnemonic(), block->id());
       }
       // Try to hoist to the pre-header of the loop header.
       hoist_block = hoist_block->loop_header();
       if (hoist_block != NULL) {
-        BasicBlock* pre_header = schedule_->dominator(hoist_block);
+        BasicBlock* pre_header = hoist_block->dominator_;
         DCHECK(pre_header == NULL ||
                *hoist_block->predecessors().begin() == pre_header);
-        if (FLAG_trace_turbo_scheduler) {
-          PrintF(
-              "Try hoist to pre-header block %d of loop header block %d,"
-              " depth would be %d\n",
-              pre_header->id(), hoist_block->id(), pre_header->loop_depth_);
-        }
+        Trace(
+            "  hoist to pre-header B%d of loop header B%d, depth would be %d\n",
+            pre_header->id(), hoist_block->id(), pre_header->loop_depth_);
         hoist_block = pre_header;
       }
     }
@@ -562,29 +547,24 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
   BasicBlock* GetBlockForUse(Node::Edge edge) {
     Node* use = edge.from();
     IrOpcode::Value opcode = use->opcode();
-    // If the use is a phi, forward through the the phi to the basic block
-    // corresponding to the phi's input.
     if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
+      // If the use is from a fixed (i.e. non-floating) phi, use the block
+      // of the corresponding control input to the merge.
       int index = edge.index();
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Use %d is input %d to a phi\n", use->id(), index);
+      if (scheduler_->GetPlacement(use) == Scheduler::kFixed) {
+        Trace("  input@%d into a fixed phi #%d:%s\n", index, use->id(),
+              use->op()->mnemonic());
+        Node* merge = NodeProperties::GetControlInput(use, 0);
+        opcode = merge->opcode();
+        DCHECK(opcode == IrOpcode::kMerge || opcode == IrOpcode::kLoop);
+        use = NodeProperties::GetControlInput(merge, index);
       }
-      use = NodeProperties::GetControlInput(use, 0);
-      opcode = use->opcode();
-      DCHECK(opcode == IrOpcode::kMerge || opcode == IrOpcode::kLoop);
-      use = NodeProperties::GetControlInput(use, index);
     }
     BasicBlock* result = schedule_->block(use);
     if (result == NULL) return NULL;
-    if (FLAG_trace_turbo_scheduler) {
-      PrintF("Must dominate use %d in block %d\n", use->id(), result->id());
-    }
+    Trace("  must dominate use #%d:%s in B%d\n", use->id(),
+          use->op()->mnemonic(), result->id());
     return result;
-  }
-
-  bool IsNodeEligible(Node* node) {
-    bool eligible = scheduler_->unscheduled_uses_[node->id()] == 0;
-    return eligible;
   }
 
   void ScheduleNode(BasicBlock* block, Node* node) {
@@ -592,16 +572,18 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     scheduler_->scheduled_nodes_[block->id()].push_back(node);
 
     // Reduce the use count of the node's inputs to potentially make them
-    // scheduable.
+    // schedulable.
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      DCHECK(scheduler_->unscheduled_uses_[(*i)->id()] > 0);
-      --scheduler_->unscheduled_uses_[(*i)->id()];
+      Scheduler::SchedulerData* data = scheduler_->GetData(*i);
+      DCHECK(data->unscheduled_count_ > 0);
+      --data->unscheduled_count_;
       if (FLAG_trace_turbo_scheduler) {
-        PrintF("Decrementing use count for node %d from node %d (now %d)\n",
-               (*i)->id(), i.edge().from()->id(),
-               scheduler_->unscheduled_uses_[(*i)->id()]);
-        if (scheduler_->unscheduled_uses_[(*i)->id()] == 0) {
-          PrintF("node %d is now eligible for scheduling\n", (*i)->id());
+        Trace("  Use count for #%d:%s (used by #%d:%s)-- = %d\n", (*i)->id(),
+              (*i)->op()->mnemonic(), i.edge().from()->id(),
+              i.edge().from()->op()->mnemonic(), data->unscheduled_count_);
+        if (data->unscheduled_count_ == 0) {
+          Trace("  newly eligible #%d:%s\n", (*i)->id(),
+                (*i)->op()->mnemonic());
         }
       }
     }
@@ -613,18 +595,25 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
 
 
 void Scheduler::ScheduleLate() {
+  Trace("------------------- SCHEDULE LATE -----------------\n");
   if (FLAG_trace_turbo_scheduler) {
-    PrintF("------------------- SCHEDULE LATE -----------------\n");
+    Trace("roots: ");
+    for (NodeVectorIter i = schedule_root_nodes_.begin();
+         i != schedule_root_nodes_.end(); ++i) {
+      Trace("#%d:%s ", (*i)->id(), (*i)->op()->mnemonic());
+    }
+    Trace("\n");
   }
 
   // Schedule: Places nodes in dominator block of all their uses.
   ScheduleLateNodeVisitor schedule_late_visitor(this);
 
-  for (NodeVectorIter i = schedule_root_nodes_.begin();
-       i != schedule_root_nodes_.end(); ++i) {
+  {
+    Zone zone(zone_->isolate());
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, *i, &schedule_late_visitor);
+        graph_, &zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
+        &schedule_late_visitor);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.
@@ -636,6 +625,102 @@ void Scheduler::ScheduleLate() {
     }
     block_num++;
   }
+}
+
+
+bool Scheduler::ConnectFloatingControl() {
+  if (!has_floating_control_) return false;
+
+  Trace("Connecting floating control...\n");
+
+  // Process blocks and instructions backwards to find and connect floating
+  // control nodes into the control graph according to the block they were
+  // scheduled into.
+  int max = static_cast<int>(schedule_->rpo_order()->size());
+  for (int i = max - 1; i >= 0; i--) {
+    BasicBlock* block = schedule_->rpo_order()->at(i);
+    // TODO(titzer): we place at most one floating control structure per
+    // basic block because scheduling currently can interleave phis from
+    // one subgraph with the merges from another subgraph.
+    bool one_placed = false;
+    for (int j = static_cast<int>(block->nodes_.size()) - 1; j >= 0; j--) {
+      Node* node = block->nodes_[j];
+      SchedulerData* data = GetData(node);
+      if (data->is_floating_control_ && !data->is_connected_control_ &&
+          !one_placed) {
+        Trace("  Floating control #%d:%s was scheduled in B%d\n", node->id(),
+              node->op()->mnemonic(), block->id());
+        ConnectFloatingControlSubgraph(block, node);
+        one_placed = true;
+      }
+    }
+  }
+
+  return true;
+}
+
+
+void Scheduler::ConnectFloatingControlSubgraph(BasicBlock* block, Node* end) {
+  Node* block_start = block->nodes_[0];
+  DCHECK(IrOpcode::IsControlOpcode(block_start->opcode()));
+  // Find the current "control successor" of the node that starts the block
+  // by searching the control uses for a control input edge from a connected
+  // control node.
+  Node* control_succ = NULL;
+  for (UseIter i = block_start->uses().begin(); i != block_start->uses().end();
+       ++i) {
+    Node::Edge edge = i.edge();
+    if (NodeProperties::IsControlEdge(edge) &&
+        GetData(edge.from())->is_connected_control_) {
+      DCHECK_EQ(NULL, control_succ);
+      control_succ = edge.from();
+      control_succ->ReplaceInput(edge.index(), end);
+    }
+  }
+  DCHECK_NE(NULL, control_succ);
+  Trace("  Inserting floating control end %d:%s between %d:%s -> %d:%s\n",
+        end->id(), end->op()->mnemonic(), control_succ->id(),
+        control_succ->op()->mnemonic(), block_start->id(),
+        block_start->op()->mnemonic());
+
+  // Find the "start" node of the control subgraph, which should be the
+  // unique node that is itself floating control but has a control input that
+  // is not floating.
+  Node* start = NULL;
+  ZoneQueue<Node*> queue(zone_);
+  queue.push(end);
+  GetData(end)->is_connected_control_ = true;
+  while (!queue.empty()) {
+    Node* node = queue.front();
+    queue.pop();
+    Trace("  Search #%d:%s for control subgraph start\n", node->id(),
+          node->op()->mnemonic());
+    int max = NodeProperties::PastControlIndex(node);
+    for (int i = NodeProperties::FirstControlIndex(node); i < max; i++) {
+      Node* input = node->InputAt(i);
+      SchedulerData* data = GetData(input);
+      if (data->is_floating_control_) {
+        // {input} is floating control.
+        if (!data->is_connected_control_) {
+          // First time seeing {input} during this traversal, queue it.
+          queue.push(input);
+          data->is_connected_control_ = true;
+        }
+      } else {
+        // Otherwise, {node} is the start node, because it is floating control
+        // but is connected to {input} that is not floating control.
+        DCHECK_EQ(NULL, start);  // There can be only one.
+        start = node;
+      }
+    }
+  }
+
+  DCHECK_NE(NULL, start);
+  start->ReplaceInput(NodeProperties::FirstControlIndex(start), block_start);
+
+  Trace("  Connecting floating control start %d:%s to %d:%s\n", start->id(),
+        start->op()->mnemonic(), block_start->id(),
+        block_start->op()->mnemonic());
 }
 
 
@@ -848,11 +933,9 @@ static void VerifySpecialRPO(int num_loops, LoopInfo* loops,
 BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
   Zone tmp_zone(schedule->zone()->isolate());
   Zone* zone = &tmp_zone;
-  if (FLAG_trace_turbo_scheduler) {
-    PrintF("------------- COMPUTING SPECIAL RPO ---------------\n");
-  }
+  Trace("------------- COMPUTING SPECIAL RPO ---------------\n");
   // RPO should not have been computed for this schedule yet.
-  CHECK_EQ(kBlockUnvisited1, schedule->entry()->rpo_number_);
+  CHECK_EQ(kBlockUnvisited1, schedule->start()->rpo_number_);
   CHECK_EQ(0, static_cast<int>(schedule->rpo_order_.size()));
 
   // Perform an iterative RPO traversal using an explicit stack,
@@ -860,7 +943,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
   ZoneList<std::pair<BasicBlock*, int> > backedges(1, zone);
   SpecialRPOStackFrame* stack =
       zone->NewArray<SpecialRPOStackFrame>(schedule->BasicBlockCount());
-  BasicBlock* entry = schedule->entry();
+  BasicBlock* entry = schedule->start();
   BlockList* order = NULL;
   int stack_depth = Push(stack, 0, entry, kBlockUnvisited1);
   int num_loops = 0;
@@ -1010,10 +1093,8 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
       current->loop_end_ = end == NULL ? static_cast<int>(final_order->size())
                                        : end->block->rpo_number_;
       current_header = current_loop->header;
-      if (FLAG_trace_turbo_scheduler) {
-        PrintF("Block %d is a loop header, increment loop depth to %d\n",
-               current->id(), loop_depth);
-      }
+      Trace("B%d is a loop header, increment loop depth to %d\n", current->id(),
+            loop_depth);
     } else {
       while (current_header != NULL &&
              current->rpo_number_ >= current_header->loop_end_) {
@@ -1025,15 +1106,12 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
       }
     }
     current->loop_depth_ = loop_depth;
-    if (FLAG_trace_turbo_scheduler) {
-      if (current->loop_header_ == NULL) {
-        PrintF("Block %d's loop header is NULL, loop depth %d\n", current->id(),
-               current->loop_depth_);
-      } else {
-        PrintF("Block %d's loop header is block %d, loop depth %d\n",
-               current->id(), current->loop_header_->id(),
-               current->loop_depth_);
-      }
+    if (current->loop_header_ == NULL) {
+      Trace("B%d is not in a loop (depth == %d)\n", current->id(),
+            current->loop_depth_);
+    } else {
+      Trace("B%d has loop header B%d, (depth == %d)\n", current->id(),
+            current->loop_header_->id(), current->loop_depth_);
     }
   }
 

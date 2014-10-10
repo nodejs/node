@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/base/bits.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
 
@@ -161,7 +162,7 @@ Operand::Operand(const Operand& operand, int32_t offset) {
   int32_t disp_value = 0;
   if (mode == 0x80 || is_baseless) {
     // Mode 2 or mode 0 with rbp/r13 as base: Word displacement.
-    disp_value = *BitCast<const int32_t*>(&operand.buf_[disp_offset]);
+    disp_value = *bit_cast<const int32_t*>(&operand.buf_[disp_offset]);
   } else if (mode == 0x40) {
     // Mode 1: Byte displacement.
     disp_value = static_cast<signed char>(operand.buf_[disp_offset]);
@@ -265,7 +266,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(IsPowerOf2(m));
+  DCHECK(base::bits::IsPowerOfTwo32(m));
   int delta = (m - (pc_offset() & (m - 1))) & (m - 1);
   Nop(delta);
 }
@@ -941,6 +942,20 @@ void Assembler::emit_imul(Register dst, Register src, Immediate imm, int size) {
 }
 
 
+void Assembler::emit_imul(Register dst, const Operand& src, Immediate imm,
+                          int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, src, size);
+  if (is_int8(imm.value_)) {
+    emit(0x6B);
+  } else {
+    emit(0x69);
+  }
+  emit_operand(dst, src);
+  emit(imm.value_);
+}
+
+
 void Assembler::emit_inc(Register dst, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, size);
@@ -1176,6 +1191,7 @@ void Assembler::movb(Register dst, const Operand& src) {
 void Assembler::movb(Register dst, Immediate imm) {
   EnsureSpace ensure_space(this);
   if (!dst.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(dst);
   }
   emit(0xB0 + dst.low_bits());
@@ -1186,6 +1202,7 @@ void Assembler::movb(Register dst, Immediate imm) {
 void Assembler::movb(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(src, dst);
   } else {
     emit_optional_rex_32(src, dst);
@@ -1397,7 +1414,12 @@ void Assembler::emit_movzxb(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
   // 32 bit operations zero the top 32 bits of 64 bit registers.  Therefore
   // there is no need to make this a 64 bit operation.
-  emit_optional_rex_32(dst, src);
+  if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  } else {
+    emit_optional_rex_32(dst, src);
+  }
   emit(0x0F);
   emit(0xB6);
   emit_modrm(dst, src);
@@ -1653,7 +1675,8 @@ void Assembler::setcc(Condition cc, Register reg) {
   }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
-  if (!reg.is_byte_register()) {  // Use x64 byte registers, where different.
+  if (!reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(reg);
   }
   emit(0x0F);
@@ -2620,6 +2643,16 @@ void Assembler::cvttsd2siq(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::cvttsd2siq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2C);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -2887,6 +2920,12 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
+  emit_operand(ireg, adr);
+}
+
+
+void Assembler::emit_sse_operand(Register reg, const Operand& adr) {
+  Register ireg = {reg.code()};
   emit_operand(ireg, adr);
 }
 

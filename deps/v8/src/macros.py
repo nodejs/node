@@ -166,14 +166,16 @@ macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString
 macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber(arg));
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
+macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnProperty));
 
 # Private names.
 # GET_PRIVATE should only be used if the property is known to exists on obj
 # itself (it should really use %GetOwnProperty, but that would be way slower).
-macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateSymbol(name));
-macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
+macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateOwnSymbol(name));
+macro NEW_PRIVATE_OWN(name) = (%CreatePrivateOwnSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
 macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
+macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);

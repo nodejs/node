@@ -151,9 +151,9 @@ inline int StrLength(const char* string) {
 }
 
 
-#define STATIC_ASCII_VECTOR(x)                        \
+#define STATIC_CHAR_VECTOR(x)                                              \
   v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
-                                      ARRAY_SIZE(x)-1)
+                                      arraysize(x) - 1)
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));

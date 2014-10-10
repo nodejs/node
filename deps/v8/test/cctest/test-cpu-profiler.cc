@@ -469,7 +469,7 @@ static const v8::CpuProfileNode* GetChild(v8::Isolate* isolate,
   const v8::CpuProfileNode* result = FindChild(isolate, node, name);
   if (!result) {
     char buffer[100];
-    i::SNPrintF(Vector<char>(buffer, ARRAY_SIZE(buffer)),
+    i::SNPrintF(Vector<char>(buffer, arraysize(buffer)),
                 "Failed to GetChild: %s", name);
     FATAL(buffer);
   }
@@ -552,8 +552,8 @@ TEST(CollectCpuProfile) {
     v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
   };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
+      RunProfiler(env.local(), function, args, arraysize(args), 200);
+  function->Call(env->Global(), arraysize(args), args);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -575,13 +575,13 @@ TEST(CollectCpuProfile) {
 
   const char* barBranch[] = { "bar", "delay", "loop" };
   CheckSimpleBranch(env->GetIsolate(), fooNode, barBranch,
-                    ARRAY_SIZE(barBranch));
+                    arraysize(barBranch));
   const char* bazBranch[] = { "baz", "delay", "loop" };
   CheckSimpleBranch(env->GetIsolate(), fooNode, bazBranch,
-                    ARRAY_SIZE(bazBranch));
+                    arraysize(bazBranch));
   const char* delayBranch[] = { "delay", "loop" };
   CheckSimpleBranch(env->GetIsolate(), fooNode, delayBranch,
-                    ARRAY_SIZE(delayBranch));
+                    arraysize(delayBranch));
 
   profile->Delete();
 }
@@ -630,8 +630,8 @@ TEST(HotDeoptNoFrameEntry) {
     v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
   };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
+      RunProfiler(env.local(), function, args, arraysize(args), 200);
+  function->Call(env->Global(), arraysize(args), args);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -667,7 +667,7 @@ TEST(CollectCpuProfileSamples) {
     v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
   };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200, true);
+      RunProfiler(env.local(), function, args, arraysize(args), 200, true);
 
   CHECK_LE(200, profile->GetSamplesCount());
   uint64_t end_time = profile->GetEndTime();
@@ -723,7 +723,7 @@ TEST(SampleWhenFrameIsNotSetup) {
     v8::Integer::New(env->GetIsolate(), repeat_count)
   };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -843,7 +843,7 @@ TEST(NativeAccessorUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 180);
+      RunProfiler(env.local(), function, args, arraysize(args), 180);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -893,14 +893,14 @@ TEST(NativeAccessorMonomorphicIC) {
     v8::Handle<v8::Value> args[] = {
       v8::Integer::New(isolate, warm_up_iterations)
     };
-    function->Call(env->Global(), ARRAY_SIZE(args), args);
+    function->Call(env->Global(), arraysize(args), args);
     accessors.set_warming_up(false);
   }
 
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
+      RunProfiler(env.local(), function, args, arraysize(args), 200);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -954,7 +954,7 @@ TEST(NativeMethodUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode =
@@ -1004,14 +1004,14 @@ TEST(NativeMethodMonomorphicIC) {
     v8::Handle<v8::Value> args[] = {
       v8::Integer::New(isolate, warm_up_iterations)
     };
-    function->Call(env->Global(), ARRAY_SIZE(args), args);
+    function->Call(env->Global(), arraysize(args), args);
     callbacks.set_warming_up(false);
   }
 
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(isolate, repeat_count) };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   GetChild(isolate, root, "start");
@@ -1105,7 +1105,7 @@ TEST(FunctionCallSample) {
     v8::Integer::New(env->GetIsolate(), duration_ms)
   };
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1188,7 +1188,7 @@ TEST(FunctionApplySample) {
   };
 
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1321,7 +1321,7 @@ static const char* js_native_js_test_source =
 static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Handle<v8::Function> function = info[0].As<v8::Function>();
   v8::Handle<v8::Value> argv[] = { info[1] };
-  function->Call(info.This(), ARRAY_SIZE(argv), argv);
+  function->Call(info.This(), arraysize(argv), argv);
 }
 
 

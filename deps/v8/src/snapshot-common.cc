@@ -21,12 +21,12 @@ void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
   deserializer->set_reservation(CODE_SPACE, code_space_used_);
   deserializer->set_reservation(MAP_SPACE, map_space_used_);
   deserializer->set_reservation(CELL_SPACE, cell_space_used_);
-  deserializer->set_reservation(PROPERTY_CELL_SPACE,
-                                property_cell_space_used_);
+  deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_space_used_);
+  deserializer->set_reservation(LO_SPACE, lo_space_used_);
 }
 
 
-bool Snapshot::Initialize() {
+bool Snapshot::Initialize(Isolate* isolate) {
   if (size_ > 0) {
     base::ElapsedTimer timer;
     if (FLAG_profile_deserialization) {
@@ -35,7 +35,7 @@ bool Snapshot::Initialize() {
     SnapshotByteSource source(raw_data_, raw_size_);
     Deserializer deserializer(&source);
     ReserveSpaceForLinkedInSnapshot(&deserializer);
-    bool success = V8::Initialize(&deserializer);
+    bool success = isolate->Init(&deserializer);
     if (FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
       PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
@@ -67,6 +67,7 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   deserializer.set_reservation(CELL_SPACE, context_cell_space_used_);
   deserializer.set_reservation(PROPERTY_CELL_SPACE,
                                context_property_cell_space_used_);
+  deserializer.set_reservation(LO_SPACE, context_lo_space_used_);
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
   return Handle<Context>(Context::cast(root));

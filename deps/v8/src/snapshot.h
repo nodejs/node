@@ -12,9 +12,9 @@ namespace internal {
 
 class Snapshot {
  public:
-  // Initialize the VM from the internal snapshot. Returns false if no snapshot
-  // could be found.
-  static bool Initialize();
+  // Initialize the Isolate from the internal snapshot. Returns false if no
+  // snapshot could be found.
+  static bool Initialize(Isolate* isolate);
 
   static bool HaveASnapshotToStartFrom();
 
@@ -48,6 +48,7 @@ class Snapshot {
   static const int map_space_used_;
   static const int cell_space_used_;
   static const int property_cell_space_used_;
+  static const int lo_space_used_;
   static const int context_new_space_used_;
   static const int context_pointer_space_used_;
   static const int context_data_space_used_;
@@ -55,6 +56,7 @@ class Snapshot {
   static const int context_map_space_used_;
   static const int context_cell_space_used_;
   static const int context_property_cell_space_used_;
+  static const int context_lo_space_used_;
   static const int size_;
   static const int raw_size_;
   static const int context_size_;

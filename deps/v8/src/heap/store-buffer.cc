@@ -477,19 +477,18 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
-          Address start = page->area_start();
-          Address end = page->area_end();
           if (owner == heap_->map_space()) {
-            DCHECK(page->WasSweptPrecisely());
+            DCHECK(page->WasSwept());
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We skip free space objects.
               if (!heap_object->IsFiller()) {
+                DCHECK(heap_object->IsMap());
                 FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(), slot_callback,
-                    clear_maps);
+                    heap_object->address() + Map::kPointerFieldsBeginOffset,
+                    heap_object->address() + Map::kPointerFieldsEndOffset,
+                    slot_callback, clear_maps);
               }
             }
           } else {
@@ -503,24 +502,17 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                 heap_->mark_compact_collector()->EnsureSweepingCompleted();
               }
             }
-            // TODO(hpayer): remove the special casing and merge map and pointer
-            // space handling as soon as we removed conservative sweeping.
             CHECK(page->owner() == heap_->old_pointer_space());
-            if (heap_->old_pointer_space()->swept_precisely()) {
-              HeapObjectIterator iterator(page, NULL);
-              for (HeapObject* heap_object = iterator.Next();
-                   heap_object != NULL; heap_object = iterator.Next()) {
-                // We iterate over objects that contain new space pointers only.
-                if (heap_object->MayContainNewSpacePointers()) {
-                  FindPointersToNewSpaceInRegion(
-                      heap_object->address() + HeapObject::kHeaderSize,
-                      heap_object->address() + heap_object->Size(),
-                      slot_callback, clear_maps);
-                }
+            HeapObjectIterator iterator(page, NULL);
+            for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
+                 heap_object = iterator.Next()) {
+              // We iterate over objects that contain new space pointers only.
+              if (!heap_object->MayContainRawValues()) {
+                FindPointersToNewSpaceInRegion(
+                    heap_object->address() + HeapObject::kHeaderSize,
+                    heap_object->address() + heap_object->Size(), slot_callback,
+                    clear_maps);
               }
-            } else {
-              FindPointersToNewSpaceInRegion(start, end, slot_callback,
-                                             clear_maps);
             }
           }
         }

@@ -31,7 +31,7 @@ class TimeDelta;
 // count reaches zero,  threads waiting for the semaphore blocks until the
 // count becomes non-zero.
 
-class Semaphore V8_FINAL {
+class Semaphore FINAL {
  public:
   explicit Semaphore(int count);
   ~Semaphore();
@@ -47,7 +47,7 @@ class Semaphore V8_FINAL {
   // time has passed. If timeout happens the return value is false and the
   // counter is unchanged. Otherwise the semaphore counter is decremented and
   // true is returned.
-  bool WaitFor(const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
+  bool WaitFor(const TimeDelta& rel_time) WARN_UNUSED_RESULT;
 
 #if V8_OS_MACOSX
   typedef semaphore_t NativeHandle;

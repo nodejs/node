@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_GENERIC_ALGORITHM_H_
 #define V8_COMPILER_GENERIC_ALGORITHM_H_
 
-#include <deque>
 #include <stack>
 
 #include "src/compiler/generic-graph.h"
@@ -38,18 +37,15 @@ class GenericGraphVisit {
   //   void PostEdge(Traits::Node* from, int index, Traits::Node* to);
   // }
   template <class Visitor, class Traits, class RootIterator>
-  static void Visit(GenericGraphBase* graph, RootIterator root_begin,
-                    RootIterator root_end, Visitor* visitor) {
-    // TODO(bmeurer): Pass "local" zone as parameter.
-    Zone* zone = graph->zone();
+  static void Visit(GenericGraphBase* graph, Zone* zone,
+                    RootIterator root_begin, RootIterator root_end,
+                    Visitor* visitor) {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
-    typedef zone_allocator<NodeState> ZoneNodeStateAllocator;
-    typedef std::deque<NodeState, ZoneNodeStateAllocator> NodeStateDeque;
-    typedef std::stack<NodeState, NodeStateDeque> NodeStateStack;
-    NodeStateStack stack((NodeStateDeque(ZoneNodeStateAllocator(zone))));
-    BoolVector visited(Traits::max_id(graph), false, ZoneBoolAllocator(zone));
+    typedef std::stack<NodeState, ZoneDeque<NodeState> > NodeStateStack;
+    NodeStateStack stack((ZoneDeque<NodeState>(zone)));
+    BoolVector visited(Traits::max_id(graph), false, zone);
     Node* current = *root_begin;
     while (true) {
       DCHECK(current != NULL);
@@ -97,10 +93,10 @@ class GenericGraphVisit {
   }
 
   template <class Visitor, class Traits>
-  static void Visit(GenericGraphBase* graph, typename Traits::Node* current,
-                    Visitor* visitor) {
+  static void Visit(GenericGraphBase* graph, Zone* zone,
+                    typename Traits::Node* current, Visitor* visitor) {
     typename Traits::Node* array[] = {current};
-    Visit<Visitor, Traits>(graph, &array[0], &array[1], visitor);
+    Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }
 
   template <class B, class S>

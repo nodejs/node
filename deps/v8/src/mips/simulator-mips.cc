@@ -12,8 +12,8 @@
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/assembler.h"
+#include "src/base/bits.h"
 #include "src/disasm.h"
-#include "src/globals.h"    // Need the BitCast.
 #include "src/mips/constants-mips.h"
 #include "src/mips/simulator-mips.h"
 #include "src/ostreams.h"
@@ -67,11 +67,12 @@ class MipsDebugger {
   Simulator* sim_;
 
   int32_t GetRegisterValue(int regnum);
-  int32_t GetFPURegisterValueInt(int regnum);
-  int64_t GetFPURegisterValueLong(int regnum);
+  int32_t GetFPURegisterValue32(int regnum);
+  int64_t GetFPURegisterValue64(int regnum);
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
   bool GetValue(const char* desc, int32_t* value);
+  bool GetValue(const char* desc, int64_t* value);
 
   // Set or delete a breakpoint. Returns true if successful.
   bool SetBreakpoint(Instruction* breakpc);
@@ -160,20 +161,20 @@ int32_t MipsDebugger::GetRegisterValue(int regnum) {
 }
 
 
-int32_t MipsDebugger::GetFPURegisterValueInt(int regnum) {
+int32_t MipsDebugger::GetFPURegisterValue32(int regnum) {
   if (regnum == kNumFPURegisters) {
     return sim_->get_pc();
   } else {
-    return sim_->get_fpu_register(regnum);
+    return sim_->get_fpu_register_word(regnum);
   }
 }
 
 
-int64_t MipsDebugger::GetFPURegisterValueLong(int regnum) {
+int64_t MipsDebugger::GetFPURegisterValue64(int regnum) {
   if (regnum == kNumFPURegisters) {
     return sim_->get_pc();
   } else {
-    return sim_->get_fpu_register_long(regnum);
+    return sim_->get_fpu_register(regnum);
   }
 }
 
@@ -204,12 +205,32 @@ bool MipsDebugger::GetValue(const char* desc, int32_t* value) {
     *value = GetRegisterValue(regnum);
     return true;
   } else if (fpuregnum != kInvalidFPURegister) {
-    *value = GetFPURegisterValueInt(fpuregnum);
+    *value = GetFPURegisterValue32(fpuregnum);
     return true;
   } else if (strncmp(desc, "0x", 2) == 0) {
     return SScanF(desc, "%x", reinterpret_cast<uint32_t*>(value)) == 1;
   } else {
     return SScanF(desc, "%i", value) == 1;
+  }
+  return false;
+}
+
+
+bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
+  int regnum = Registers::Number(desc);
+  int fpuregnum = FPURegisters::Number(desc);
+
+  if (regnum != kInvalidRegister) {
+    *value = GetRegisterValue(regnum);
+    return true;
+  } else if (fpuregnum != kInvalidFPURegister) {
+    *value = GetFPURegisterValue64(fpuregnum);
+    return true;
+  } else if (strncmp(desc, "0x", 2) == 0) {
+    return SScanF(desc + 2, "%" SCNx64,
+                  reinterpret_cast<uint64_t*>(value)) == 1;
+  } else {
+    return SScanF(desc, "%" SCNu64, reinterpret_cast<uint64_t*>(value)) == 1;
   }
   return false;
 }
@@ -295,34 +316,76 @@ void MipsDebugger::PrintAllRegs() {
 
 
 void MipsDebugger::PrintAllRegsIncludingFPU() {
-#define FPU_REG_INFO(n) FPURegisters::Name(n), FPURegisters::Name(n+1), \
-        GetFPURegisterValueInt(n+1), \
-        GetFPURegisterValueInt(n), \
-                        GetFPURegisterValueDouble(n)
+#define FPU_REG_INFO32(n) FPURegisters::Name(n), FPURegisters::Name(n+1), \
+        GetFPURegisterValue32(n+1), \
+        GetFPURegisterValue32(n), \
+        GetFPURegisterValueDouble(n)
+
+#define FPU_REG_INFO64(n) FPURegisters::Name(n), \
+        GetFPURegisterValue64(n), \
+        GetFPURegisterValueDouble(n)
 
   PrintAllRegs();
 
   PrintF("\n\n");
   // f0, f1, f2, ... f31.
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(0) );
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(2) );
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(4) );
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(6) );
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(8) );
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(10));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(12));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(14));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(16));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(18));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(20));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(22));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(24));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(26));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(28));
-  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO(30));
+  // This must be a compile-time switch,
+  // compiler will throw out warnings otherwise.
+  if (kFpuMode == kFP64) {
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(0) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(1) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(2) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(3) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(4) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(5) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(6) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(7) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(8) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(9) );
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(10));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(11));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(12));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(13));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(14));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(15));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(16));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(17));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(18));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(19));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(20));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(21));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(22));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(23));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(24));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(25));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(26));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(27));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(28));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(29));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(30));
+    PrintF("%3s: 0x%016llx %16.4e\n", FPU_REG_INFO64(31));
+  } else {
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(0) );
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(2) );
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(4) );
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(6) );
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(8) );
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(10));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(12));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(14));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(16));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(18));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(20));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(22));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(24));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(26));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(28));
+    PrintF("%3s,%3s: 0x%08x%08x %16.4e\n", FPU_REG_INFO32(30));
+  }
 
 #undef REG_INFO
-#undef FPU_REG_INFO
+#undef FPU_REG_INFO32
+#undef FPU_REG_INFO64
 }
 
 
@@ -397,8 +460,6 @@ void MipsDebugger::Debug() {
         done = true;
       } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
         if (argc == 2) {
-          int32_t value;
-          float fvalue;
           if (strcmp(arg1, "all") == 0) {
             PrintAllRegs();
           } else if (strcmp(arg1, "allf") == 0) {
@@ -408,24 +469,36 @@ void MipsDebugger::Debug() {
             int fpuregnum = FPURegisters::Number(arg1);
 
             if (regnum != kInvalidRegister) {
+              int32_t value;
               value = GetRegisterValue(regnum);
               PrintF("%s: 0x%08x %d \n", arg1, value, value);
             } else if (fpuregnum != kInvalidFPURegister) {
-              if (fpuregnum % 2 == 1) {
-                value = GetFPURegisterValueInt(fpuregnum);
-                fvalue = GetFPURegisterValueFloat(fpuregnum);
-                PrintF("%s: 0x%08x %11.4e\n", arg1, value, fvalue);
+              if (IsFp64Mode()) {
+                int64_t value;
+                double dvalue;
+                value = GetFPURegisterValue64(fpuregnum);
+                dvalue = GetFPURegisterValueDouble(fpuregnum);
+                PrintF("%3s: 0x%016llx %16.4e\n",
+                       FPURegisters::Name(fpuregnum), value, dvalue);
               } else {
-                double dfvalue;
-                int32_t lvalue1 = GetFPURegisterValueInt(fpuregnum);
-                int32_t lvalue2 = GetFPURegisterValueInt(fpuregnum + 1);
-                dfvalue = GetFPURegisterValueDouble(fpuregnum);
-                PrintF("%3s,%3s: 0x%08x%08x %16.4e\n",
-                       FPURegisters::Name(fpuregnum+1),
-                       FPURegisters::Name(fpuregnum),
-                       lvalue1,
-                       lvalue2,
-                       dfvalue);
+                if (fpuregnum % 2 == 1) {
+                  int32_t value;
+                  float fvalue;
+                  value = GetFPURegisterValue32(fpuregnum);
+                  fvalue = GetFPURegisterValueFloat(fpuregnum);
+                  PrintF("%s: 0x%08x %11.4e\n", arg1, value, fvalue);
+                } else {
+                  double dfvalue;
+                  int32_t lvalue1 = GetFPURegisterValue32(fpuregnum);
+                  int32_t lvalue2 = GetFPURegisterValue32(fpuregnum + 1);
+                  dfvalue = GetFPURegisterValueDouble(fpuregnum);
+                  PrintF("%3s,%3s: 0x%08x%08x %16.4e\n",
+                         FPURegisters::Name(fpuregnum+1),
+                         FPURegisters::Name(fpuregnum),
+                         lvalue1,
+                         lvalue2,
+                         dfvalue);
+                }
               }
             } else {
               PrintF("%s unrecognized\n", arg1);
@@ -439,7 +512,7 @@ void MipsDebugger::Debug() {
               int fpuregnum = FPURegisters::Number(arg1);
 
               if (fpuregnum != kInvalidFPURegister) {
-                value = GetFPURegisterValueInt(fpuregnum);
+                value = GetFPURegisterValue32(fpuregnum);
                 fvalue = GetFPURegisterValueFloat(fpuregnum);
                 PrintF("%s: 0x%08x %11.4e\n", arg1, value, fvalue);
               } else {
@@ -489,15 +562,28 @@ void MipsDebugger::Debug() {
           next_arg++;
         }
 
-        int32_t words;
-        if (argc == next_arg) {
-          words = 10;
-        } else {
-          if (!GetValue(argv[next_arg], &words)) {
+        // TODO(palfia): optimize this.
+        if (IsFp64Mode()) {
+          int64_t words;
+          if (argc == next_arg) {
             words = 10;
+          } else {
+            if (!GetValue(argv[next_arg], &words)) {
+              words = 10;
+            }
           }
+          end = cur + words;
+        } else {
+          int32_t words;
+          if (argc == next_arg) {
+            words = 10;
+          } else {
+            if (!GetValue(argv[next_arg], &words)) {
+              words = 10;
+            }
+          }
+          end = cur + words;
         }
-        end = cur + words;
 
         while (cur < end) {
           PrintF("  0x%08x:  0x%08x %10d",
@@ -1012,21 +1098,47 @@ void Simulator::set_dw_register(int reg, const int* dbl) {
 }
 
 
-void Simulator::set_fpu_register(int fpureg, int32_t value) {
+void Simulator::set_fpu_register(int fpureg, int64_t value) {
+  DCHECK(IsFp64Mode());
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   FPUregisters_[fpureg] = value;
 }
 
 
+void Simulator::set_fpu_register_word(int fpureg, int32_t value) {
+  // Set ONLY lower 32-bits, leaving upper bits untouched.
+  // TODO(plind): big endian issue.
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  int32_t *pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
+  *pword = value;
+}
+
+
+void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
+  // Set ONLY upper 32-bits, leaving lower bits untouched.
+  // TODO(plind): big endian issue.
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  int32_t *phiword = (reinterpret_cast<int32_t*>(&FPUregisters_[fpureg])) + 1;
+  *phiword = value;
+}
+
+
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *BitCast<float*>(&FPUregisters_[fpureg]) = value;
+  *bit_cast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
-  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
-  *BitCast<double*>(&FPUregisters_[fpureg]) = value;
+  if (IsFp64Mode()) {
+    DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+    *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  } else {
+    DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
+    int64_t i64 = bit_cast<int64_t>(value);
+    set_fpu_register_word(fpureg, i64 & 0xffffffff);
+    set_fpu_register_word(fpureg + 1, i64 >> 32);
+  }
 }
 
 
@@ -1042,6 +1154,7 @@ int32_t Simulator::get_register(int reg) const {
 
 
 double Simulator::get_double_from_register_pair(int reg) {
+  // TODO(plind): bad ABI stuff, refactor or remove.
   DCHECK((reg >= 0) && (reg < kNumSimuRegisters) && ((reg % 2) == 0));
 
   double dm_val = 0.0;
@@ -1054,29 +1167,48 @@ double Simulator::get_double_from_register_pair(int reg) {
 }
 
 
-int32_t Simulator::get_fpu_register(int fpureg) const {
+int64_t Simulator::get_fpu_register(int fpureg) const {
+  DCHECK(IsFp64Mode());
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   return FPUregisters_[fpureg];
 }
 
 
-int64_t Simulator::get_fpu_register_long(int fpureg) const {
-  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
-  return *BitCast<int64_t*>(
-      const_cast<int32_t*>(&FPUregisters_[fpureg]));
+int32_t Simulator::get_fpu_register_word(int fpureg) const {
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  return static_cast<int32_t>(FPUregisters_[fpureg] & 0xffffffff);
+}
+
+
+int32_t Simulator::get_fpu_register_signed_word(int fpureg) const {
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  return static_cast<int32_t>(FPUregisters_[fpureg] & 0xffffffff);
+}
+
+
+int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  return static_cast<int32_t>((FPUregisters_[fpureg] >> 32) & 0xffffffff);
 }
 
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *BitCast<float*>(
-      const_cast<int32_t*>(&FPUregisters_[fpureg]));
+  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 
 double Simulator::get_fpu_register_double(int fpureg) const {
-  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
-  return *BitCast<double*>(const_cast<int32_t*>(&FPUregisters_[fpureg]));
+  if (IsFp64Mode()) {
+    DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+    return *bit_cast<double*>(&FPUregisters_[fpureg]);
+  } else {
+    DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
+    int64_t i64;
+    i64 = static_cast<uint32_t>(get_fpu_register_word(fpureg));
+    i64 |= static_cast<uint64_t>(get_fpu_register_word(fpureg + 1)) << 32;
+    return bit_cast<double>(i64);
+  }
 }
 
 
@@ -1089,6 +1221,7 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     *y = get_fpu_register_double(14);
     *z = get_register(a2);
   } else {
+    // TODO(plind): bad ABI stuff, refactor or remove.
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
     char buffer[sizeof(*x)];
@@ -1143,6 +1276,8 @@ bool Simulator::test_fcsr_bit(uint32_t cc) {
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
   bool ret = false;
+  double max_int32 = std::numeric_limits<int32_t>::max();
+  double min_int32 = std::numeric_limits<int32_t>::min();
 
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
@@ -1158,7 +1293,7 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
     ret = true;
   }
 
-  if (rounded > INT_MAX || rounded < INT_MIN) {
+  if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
@@ -1420,18 +1555,35 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       switch (redirection->type()) {
       case ExternalReference::BUILTIN_FP_FP_CALL:
       case ExternalReference::BUILTIN_COMPARE_CALL:
-        arg0 = get_fpu_register(f12);
-        arg1 = get_fpu_register(f13);
-        arg2 = get_fpu_register(f14);
-        arg3 = get_fpu_register(f15);
+        if (IsFp64Mode()) {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_hi_word(f12);
+          arg2 = get_fpu_register_word(f14);
+          arg3 = get_fpu_register_hi_word(f14);
+        } else {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_word(f13);
+          arg2 = get_fpu_register_word(f14);
+          arg3 = get_fpu_register_word(f15);
+        }
         break;
       case ExternalReference::BUILTIN_FP_CALL:
-        arg0 = get_fpu_register(f12);
-        arg1 = get_fpu_register(f13);
+        if (IsFp64Mode()) {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_hi_word(f12);
+        } else {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_word(f13);
+        }
         break;
       case ExternalReference::BUILTIN_FP_INT_CALL:
-        arg0 = get_fpu_register(f12);
-        arg1 = get_fpu_register(f13);
+        if (IsFp64Mode()) {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_hi_word(f12);
+        } else {
+          arg0 = get_fpu_register_word(f12);
+          arg1 = get_fpu_register_word(f13);
+        }
         arg2 = get_register(a2);
         break;
       default:
@@ -1735,25 +1887,20 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
   switch (op) {
     case COP1:    // Coprocessor instructions.
       switch (instr->RsFieldRaw()) {
-        case BC1:   // Handled in DecodeTypeImmed, should never come here.
-          UNREACHABLE();
-          break;
         case CFC1:
           // At the moment only FCSR is supported.
           DCHECK(fs_reg == kFCSRRegister);
           *alu_out = FCSR_;
           break;
         case MFC1:
-          *alu_out = get_fpu_register(fs_reg);
+          *alu_out = get_fpu_register_word(fs_reg);
           break;
         case MFHC1:
-          UNIMPLEMENTED_MIPS();
+          *alu_out = get_fpu_register_hi_word(fs_reg);
           break;
         case CTC1:
         case MTC1:
         case MTHC1:
-          // Do the store in the execution step.
-          break;
         case S:
         case D:
         case W:
@@ -1762,7 +1909,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           // Do everything in the execution step.
           break;
         default:
-          UNIMPLEMENTED_MIPS();
+        // BC1 BC1EQZ BC1NEZ handled in DecodeTypeImmed, should never come here.
+          UNREACHABLE();
       }
       break;
     case COP1X:
@@ -1810,17 +1958,51 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case SRAV:
           *alu_out = rt >> rs;
           break;
-        case MFHI:
-          *alu_out = get_register(HI);
+        case MFHI:  // MFHI == CLZ on R6.
+          if (!IsMipsArchVariant(kMips32r6)) {
+            DCHECK(instr->SaValue() == 0);
+            *alu_out = get_register(HI);
+          } else {
+            // MIPS spec: If no bits were set in GPR rs, the result written to
+            // GPR rd is 32.
+            DCHECK(instr->SaValue() == 1);
+            *alu_out = base::bits::CountLeadingZeros32(rs_u);
+          }
           break;
         case MFLO:
           *alu_out = get_register(LO);
           break;
-        case MULT:
-          *i64hilo = static_cast<int64_t>(rs) * static_cast<int64_t>(rt);
+        case MULT:  // MULT == MUL_MUH.
+          if (!IsMipsArchVariant(kMips32r6)) {
+            *i64hilo = static_cast<int64_t>(rs) * static_cast<int64_t>(rt);
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+              case MUH_OP:
+                *i64hilo = static_cast<int64_t>(rs) * static_cast<int64_t>(rt);
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
-        case MULTU:
-          *u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);
+        case MULTU:  // MULTU == MUL_MUH_U.
+          if (!IsMipsArchVariant(kMips32r6)) {
+            *u64hilo = static_cast<uint64_t>(rs_u) *
+                static_cast<uint64_t>(rt_u);
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+              case MUH_OP:
+                *u64hilo = static_cast<uint64_t>(rs_u) *
+                    static_cast<uint64_t>(rt_u);
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case ADD:
           if (HaveSameSign(rs, rt)) {
@@ -1909,9 +2091,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case CLZ:
           // MIPS32 spec: If no bits were set in GPR rs, the result written to
           // GPR rd is 32.
-          // GCC __builtin_clz: If input is 0, the result is undefined.
-          *alu_out =
-              rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
+          *alu_out = base::bits::CountLeadingZeros32(rs_u);
           break;
         default:
           UNREACHABLE();
@@ -1998,16 +2178,14 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   switch (op) {
     case COP1:
       switch (instr->RsFieldRaw()) {
-        case BC1:   // Branch on coprocessor condition.
-          UNREACHABLE();
-          break;
         case CFC1:
           set_register(rt_reg, alu_out);
+          break;
         case MFC1:
           set_register(rt_reg, alu_out);
           break;
         case MFHC1:
-          UNIMPLEMENTED_MIPS();
+          set_register(rt_reg, alu_out);
           break;
         case CTC1:
           // At the moment only FCSR is supported.
@@ -2015,10 +2193,12 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           FCSR_ = registers_[rt_reg];
           break;
         case MTC1:
-          FPUregisters_[fs_reg] = registers_[rt_reg];
+          // Hardware writes upper 32-bits to zero on mtc1.
+          set_fpu_register_hi_word(fs_reg, 0);
+          set_fpu_register_word(fs_reg, registers_[rt_reg]);
           break;
         case MTHC1:
-          UNIMPLEMENTED_MIPS();
+          set_fpu_register_hi_word(fs_reg, registers_[rt_reg]);
           break;
         case S:
           float f;
@@ -2027,20 +2207,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               f = get_fpu_register_float(fs_reg);
               set_fpu_register_double(fd_reg, static_cast<double>(f));
               break;
-            case CVT_W_S:
-            case CVT_L_S:
-            case TRUNC_W_S:
-            case TRUNC_L_S:
-            case ROUND_W_S:
-            case ROUND_L_S:
-            case FLOOR_W_S:
-            case FLOOR_L_S:
-            case CEIL_W_S:
-            case CEIL_L_S:
-            case CVT_PS_S:
-              UNIMPLEMENTED_MIPS();
-              break;
             default:
+            // CVT_W_S CVT_L_S TRUNC_W_S ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
+            // CEIL_W_S CEIL_L_S CVT_PS_S are unimplemented.
               UNREACHABLE();
           }
           break;
@@ -2114,9 +2283,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                   // round to the even one.
                   result--;
                 }
-                set_fpu_register(fd_reg, result);
+                set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2124,9 +2293,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               {
                 double rounded = trunc(fs);
                 int32_t result = static_cast<int32_t>(rounded);
-                set_fpu_register(fd_reg, result);
+                set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2134,9 +2303,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               {
                 double rounded = std::floor(fs);
                 int32_t result = static_cast<int32_t>(rounded);
-                set_fpu_register(fd_reg, result);
+                set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2144,9 +2313,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               {
                 double rounded = std::ceil(fs);
                 int32_t result = static_cast<int32_t>(rounded);
-                set_fpu_register(fd_reg, result);
+                set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2156,34 +2325,54 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
             case CVT_L_D: {  // Mips32r2: Truncate double to 64-bit long-word.
               double rounded = trunc(fs);
               i64 = static_cast<int64_t>(rounded);
-              set_fpu_register(fd_reg, i64 & 0xffffffff);
-              set_fpu_register(fd_reg + 1, i64 >> 32);
+              if (IsFp64Mode()) {
+                set_fpu_register(fd_reg, i64);
+              } else {
+                set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+                set_fpu_register_word(fd_reg + 1, i64 >> 32);
+              }
               break;
             }
             case TRUNC_L_D: {  // Mips32r2 instruction.
               double rounded = trunc(fs);
               i64 = static_cast<int64_t>(rounded);
-              set_fpu_register(fd_reg, i64 & 0xffffffff);
-              set_fpu_register(fd_reg + 1, i64 >> 32);
+              if (IsFp64Mode()) {
+                set_fpu_register(fd_reg, i64);
+              } else {
+                set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+                set_fpu_register_word(fd_reg + 1, i64 >> 32);
+              }
               break;
             }
             case ROUND_L_D: {  // Mips32r2 instruction.
               double rounded =
                   fs > 0 ? std::floor(fs + 0.5) : std::ceil(fs - 0.5);
               i64 = static_cast<int64_t>(rounded);
-              set_fpu_register(fd_reg, i64 & 0xffffffff);
-              set_fpu_register(fd_reg + 1, i64 >> 32);
+              if (IsFp64Mode()) {
+                set_fpu_register(fd_reg, i64);
+              } else {
+                set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+                set_fpu_register_word(fd_reg + 1, i64 >> 32);
+              }
               break;
             }
             case FLOOR_L_D:  // Mips32r2 instruction.
               i64 = static_cast<int64_t>(std::floor(fs));
-              set_fpu_register(fd_reg, i64 & 0xffffffff);
-              set_fpu_register(fd_reg + 1, i64 >> 32);
+              if (IsFp64Mode()) {
+                set_fpu_register(fd_reg, i64);
+              } else {
+                set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+                set_fpu_register_word(fd_reg + 1, i64 >> 32);
+              }
               break;
             case CEIL_L_D:  // Mips32r2 instruction.
               i64 = static_cast<int64_t>(std::ceil(fs));
-              set_fpu_register(fd_reg, i64 & 0xffffffff);
-              set_fpu_register(fd_reg + 1, i64 >> 32);
+              if (IsFp64Mode()) {
+                set_fpu_register(fd_reg, i64);
+              } else {
+                set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+                set_fpu_register_word(fd_reg + 1, i64 >> 32);
+              }
               break;
             case C_F_D:
               UNIMPLEMENTED_MIPS();
@@ -2195,34 +2384,91 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
         case W:
           switch (instr->FunctionFieldRaw()) {
             case CVT_S_W:   // Convert word to float (single).
-              alu_out = get_fpu_register(fs_reg);
+              alu_out = get_fpu_register_signed_word(fs_reg);
               set_fpu_register_float(fd_reg, static_cast<float>(alu_out));
               break;
             case CVT_D_W:   // Convert word to double.
-              alu_out = get_fpu_register(fs_reg);
+              alu_out = get_fpu_register_signed_word(fs_reg);
               set_fpu_register_double(fd_reg, static_cast<double>(alu_out));
               break;
-            default:
+            default:  // Mips64r6 CMP.S instructions unimplemented.
               UNREACHABLE();
           }
           break;
         case L:
+          fs = get_fpu_register_double(fs_reg);
+          ft = get_fpu_register_double(ft_reg);
           switch (instr->FunctionFieldRaw()) {
           case CVT_D_L:  // Mips32r2 instruction.
             // Watch the signs here, we want 2 32-bit vals
             // to make a sign-64.
-            i64 = static_cast<uint32_t>(get_fpu_register(fs_reg));
-            i64 |= static_cast<int64_t>(get_fpu_register(fs_reg + 1)) << 32;
+            if (IsFp64Mode()) {
+              i64 = get_fpu_register(fs_reg);
+            } else {
+              i64 = static_cast<uint32_t>(get_fpu_register_word(fs_reg));
+              i64 |= static_cast<int64_t>(
+                  get_fpu_register_word(fs_reg + 1)) << 32;
+            }
             set_fpu_register_double(fd_reg, static_cast<double>(i64));
             break;
             case CVT_S_L:
               UNIMPLEMENTED_MIPS();
               break;
-            default:
+            case CMP_AF:  // Mips64r6 CMP.D instructions.
+              UNIMPLEMENTED_MIPS();
+              break;
+            case CMP_UN:
+              if (std::isnan(fs) || std::isnan(ft)) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_EQ:
+              if (fs == ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_UEQ:
+              if ((fs == ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_LT:
+              if (fs < ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_ULT:
+              if ((fs < ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_LE:
+              if (fs <= ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_ULE:
+              if ((fs <= ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            default:  // CMP_OR CMP_UNE CMP_NE UNIMPLEMENTED.
               UNREACHABLE();
           }
-          break;
-        case PS:
           break;
         default:
           UNREACHABLE();
@@ -2263,30 +2509,100 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
         }
         // Instructions using HI and LO registers.
         case MULT:
-          set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
-          set_register(HI, static_cast<int32_t>(i64hilo >> 32));
+          if (!IsMipsArchVariant(kMips32r6)) {
+            set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
+            set_register(HI, static_cast<int32_t>(i64hilo >> 32));
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+                set_register(rd_reg,
+                    static_cast<int32_t>(i64hilo & 0xffffffff));
+                break;
+              case MUH_OP:
+                set_register(rd_reg, static_cast<int32_t>(i64hilo >> 32));
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case MULTU:
-          set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
-          set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+          if (!IsMipsArchVariant(kMips32r6)) {
+            set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
+            set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+                set_register(rd_reg,
+                    static_cast<int32_t>(u64hilo & 0xffffffff));
+                break;
+              case MUH_OP:
+                set_register(rd_reg, static_cast<int32_t>(u64hilo >> 32));
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case DIV:
-          // Divide by zero and overflow was not checked in the configuration
-          // step - div and divu do not raise exceptions. On division by 0
-          // the result will be UNPREDICTABLE. On overflow (INT_MIN/-1),
-          // return INT_MIN which is what the hardware does.
-          if (rs == INT_MIN && rt == -1) {
-            set_register(LO, INT_MIN);
-            set_register(HI, 0);
-          } else if (rt != 0) {
-            set_register(LO, rs / rt);
-            set_register(HI, rs % rt);
+          if (IsMipsArchVariant(kMips32r6)) {
+            switch (instr->SaValue()) {
+              case DIV_OP:
+                if (rs == INT_MIN && rt == -1) {
+                  set_register(rd_reg, INT_MIN);
+                } else if (rt != 0) {
+                  set_register(rd_reg, rs / rt);
+                }
+                break;
+              case MOD_OP:
+                if (rs == INT_MIN && rt == -1) {
+                  set_register(rd_reg, 0);
+                } else if (rt != 0) {
+                  set_register(rd_reg, rs % rt);
+                }
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          } else {
+            // Divide by zero and overflow was not checked in the
+            // configuration step - div and divu do not raise exceptions. On
+            // division by 0 the result will be UNPREDICTABLE. On overflow
+            // (INT_MIN/-1), return INT_MIN which is what the hardware does.
+            if (rs == INT_MIN && rt == -1) {
+              set_register(LO, INT_MIN);
+              set_register(HI, 0);
+            } else if (rt != 0) {
+              set_register(LO, rs / rt);
+              set_register(HI, rs % rt);
+            }
           }
           break;
         case DIVU:
-          if (rt_u != 0) {
-            set_register(LO, rs_u / rt_u);
-            set_register(HI, rs_u % rt_u);
+          if (IsMipsArchVariant(kMips32r6)) {
+            switch (instr->SaValue()) {
+              case DIV_OP:
+                if (rt_u != 0) {
+                  set_register(rd_reg, rs_u / rt_u);
+                }
+                break;
+              case MOD_OP:
+                if (rt_u != 0) {
+                  set_register(rd_reg, rs_u % rt_u);
+                }
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+              }
+          } else {
+            if (rt_u != 0) {
+              set_register(LO, rs_u / rt_u);
+              set_register(HI, rs_u % rt_u);
+            }
           }
           break;
         // Break and trap instructions.
@@ -2368,6 +2684,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   int16_t  imm16  = instr->Imm16Value();
 
   int32_t  ft_reg = instr->FtValue();  // Destination register.
+  int64_t  ft;
 
   // Zero extended immediate.
   uint32_t  oe_imm16 = 0xffff & imm16;
@@ -2404,6 +2721,28 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
           fcsr_cc = get_fcsr_condition_bit(cc);
           cc_value = test_fcsr_bit(fcsr_cc);
           do_branch = (instr->FBtrueValue()) ? cc_value : !cc_value;
+          execute_branch_delay_instruction = true;
+          // Set next_pc.
+          if (do_branch) {
+            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+          } else {
+            next_pc = current_pc + kBranchReturnOffset;
+          }
+          break;
+        case BC1EQZ:
+          ft = get_fpu_register(ft_reg);
+          do_branch = (ft & 0x1) ? false : true;
+          execute_branch_delay_instruction = true;
+          // Set next_pc.
+          if (do_branch) {
+            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+          } else {
+            next_pc = current_pc + kBranchReturnOffset;
+          }
+          break;
+        case BC1NEZ:
+          ft = get_fpu_register(ft_reg);
+          do_branch = (ft & 0x1) ? true : false;
           execute_branch_delay_instruction = true;
           // Set next_pc.
           if (do_branch) {
@@ -2646,14 +2985,15 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       WriteW(addr, mem_value, instr);
       break;
     case LWC1:
-      set_fpu_register(ft_reg, alu_out);
+      set_fpu_register_hi_word(ft_reg, 0);
+      set_fpu_register_word(ft_reg, alu_out);
       break;
     case LDC1:
       set_fpu_register_double(ft_reg, fp_out);
       break;
     case SWC1:
       addr = rs + se_imm16;
-      WriteW(addr, get_fpu_register(ft_reg), instr);
+      WriteW(addr, get_fpu_register_word(ft_reg), instr);
       break;
     case SDC1:
       addr = rs + se_imm16;

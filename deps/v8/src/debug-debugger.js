@@ -21,7 +21,8 @@ Debug.DebugEvent = { Break: 1,
                      AfterCompile: 5,
                      CompileError: 6,
                      PromiseEvent: 7,
-                     AsyncTaskEvent: 8 };
+                     AsyncTaskEvent: 8,
+                     BreakForCommand: 9 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1172,10 +1173,13 @@ CompileEvent.prototype.toJSONProtocol = function() {
   switch (this.type_) {
     case Debug.DebugEvent.BeforeCompile:
       o.event = "beforeCompile";
+      break;
     case Debug.DebugEvent.AfterCompile:
       o.event = "afterCompile";
+      break;
     case Debug.DebugEvent.CompileError:
       o.event = "compileError";
+      break;
   }
   o.body = {};
   o.body.script = this.script_;

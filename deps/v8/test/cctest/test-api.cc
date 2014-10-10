@@ -63,6 +63,7 @@ using ::v8::FunctionTemplate;
 using ::v8::Handle;
 using ::v8::HandleScope;
 using ::v8::Local;
+using ::v8::Name;
 using ::v8::Message;
 using ::v8::MessageCallback;
 using ::v8::Object;
@@ -71,6 +72,7 @@ using ::v8::Persistent;
 using ::v8::Script;
 using ::v8::StackTrace;
 using ::v8::String;
+using ::v8::Symbol;
 using ::v8::TryCatch;
 using ::v8::Undefined;
 using ::v8::UniqueId;
@@ -128,19 +130,18 @@ static void SignatureCallback(
 
 
 // Tests that call v8::V8::Dispose() cannot be threaded.
-TEST(InitializeAndDisposeOnce) {
+UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
   CHECK(v8::V8::Initialize());
   CHECK(v8::V8::Dispose());
 }
 
 
 // Tests that call v8::V8::Dispose() cannot be threaded.
-TEST(InitializeAndDisposeMultiple) {
+UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  // TODO(mstarzinger): This should fail gracefully instead of asserting.
-  // for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
 
@@ -261,7 +262,7 @@ THREADED_TEST(ReceiverSignature) {
   const char* test_objects[] = {
       "fun_instance", "sub_fun_instance", "obj", "unrel" };
   unsigned bad_signature_start_offset = 2;
-  for (unsigned i = 0; i < ARRAY_SIZE(test_objects); i++) {
+  for (unsigned i = 0; i < arraysize(test_objects); i++) {
     i::ScopedVector<char> source(200);
     i::SNPrintF(
         source, "var test_object = %s; test_object", test_objects[i]);
@@ -436,16 +437,16 @@ class TestResource: public String::ExternalStringResource {
 };
 
 
-class TestAsciiResource: public String::ExternalAsciiStringResource {
+class TestOneByteResource : public String::ExternalOneByteStringResource {
  public:
-  explicit TestAsciiResource(const char* data, int* counter = NULL,
-                             size_t offset = 0)
+  explicit TestOneByteResource(const char* data, int* counter = NULL,
+                               size_t offset = 0)
       : orig_data_(data),
         data_(data + offset),
         length_(strlen(data) - offset),
         counter_(counter) {}
 
-  ~TestAsciiResource() {
+  ~TestOneByteResource() {
     i::DeleteArray(orig_data_);
     if (counter_ != NULL) ++*counter_;
   }
@@ -495,22 +496,22 @@ THREADED_TEST(ScriptUsingStringResource) {
 }
 
 
-THREADED_TEST(ScriptUsingAsciiStringResource) {
+THREADED_TEST(ScriptUsingOneByteStringResource) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    TestAsciiResource* resource = new TestAsciiResource(i::StrDup(c_source),
-                                                        &dispose_count);
+    TestOneByteResource* resource =
+        new TestOneByteResource(i::StrDup(c_source), &dispose_count);
     Local<String> source = String::NewExternal(env->GetIsolate(), resource);
-    CHECK(source->IsExternalAscii());
+    CHECK(source->IsExternalOneByte());
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
-             source->GetExternalAsciiStringResource());
+             source->GetExternalOneByteStringResource());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
              source->GetExternalStringResourceBase(&encoding));
-    CHECK_EQ(String::ASCII_ENCODING, encoding);
+    CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
@@ -536,10 +537,10 @@ THREADED_TEST(ScriptMakingExternalString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     CHECK_EQ(source->IsExternal(), false);
-    CHECK_EQ(source->IsExternalAscii(), false);
+    CHECK_EQ(source->IsExternalOneByte(), false);
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK_EQ(NULL, source->GetExternalStringResourceBase(&encoding));
-    CHECK_EQ(String::ASCII_ENCODING, encoding);
+    CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
     bool success = source->MakeExternal(new TestResource(two_byte_source,
                                                          &dispose_count));
     CHECK(success);
@@ -556,7 +557,7 @@ THREADED_TEST(ScriptMakingExternalString) {
 }
 
 
-THREADED_TEST(ScriptMakingExternalAsciiString) {
+THREADED_TEST(ScriptMakingExternalOneByteString) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -567,7 +568,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
-        new TestAsciiResource(i::StrDup(c_source), &dispose_count));
+        new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run();
@@ -630,7 +631,7 @@ TEST(MakingExternalStringConditions) {
 }
 
 
-TEST(MakingExternalAsciiStringConditions) {
+TEST(MakingExternalOneByteStringConditions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -667,7 +668,7 @@ TEST(MakingExternalAsciiStringConditions) {
 }
 
 
-TEST(MakingExternalUnalignedAsciiString) {
+TEST(MakingExternalUnalignedOneByteString) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -687,12 +688,12 @@ TEST(MakingExternalUnalignedAsciiString) {
 
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
-  bool success = cons->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_cons), NULL, 1));
+  bool success =
+      cons->MakeExternal(new TestOneByteResource(i::StrDup(c_cons), NULL, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
-  success = slice->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_slice), NULL, 1));
+  success =
+      slice->MakeExternal(new TestOneByteResource(i::StrDup(c_slice), NULL, 1));
   CHECK(success);
 
   // Trigger GCs and force evacuation.
@@ -721,13 +722,13 @@ THREADED_TEST(UsingExternalString) {
 }
 
 
-THREADED_TEST(UsingExternalAsciiString) {
+THREADED_TEST(UsingExternalOneByteString) {
   i::Factory* factory = CcTest::i_isolate()->factory();
   {
     v8::HandleScope scope(CcTest::isolate());
     const char* one_byte_string = "test string";
     Local<String> string = String::NewExternal(
-        CcTest::isolate(), new TestAsciiResource(i::StrDup(one_byte_string)));
+        CcTest::isolate(), new TestOneByteResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
@@ -738,6 +739,53 @@ THREADED_TEST(UsingExternalAsciiString) {
   }
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+}
+
+
+class DummyResource : public v8::String::ExternalStringResource {
+ public:
+  virtual const uint16_t* data() const { return string_; }
+  virtual size_t length() const { return 1 << 30; }
+
+ private:
+  uint16_t string_[10];
+};
+
+
+class DummyOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  virtual const char* data() const { return string_; }
+  virtual size_t length() const { return 1 << 30; }
+
+ private:
+  char string_[10];
+};
+
+
+THREADED_TEST(NewExternalForVeryLongString) {
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    v8::TryCatch try_catch;
+    DummyOneByteResource r;
+    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    CHECK(str.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::Utf8Value exception_value(try_catch.Exception());
+    CHECK_EQ("RangeError: Invalid string length", *exception_value);
+  }
+
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    v8::TryCatch try_catch;
+    DummyResource r;
+    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    CHECK(str.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::Utf8Value exception_value(try_catch.Exception());
+    CHECK_EQ("RangeError: Invalid string length", *exception_value);
+  }
 }
 
 
@@ -763,7 +811,7 @@ THREADED_TEST(ScavengeExternalString) {
 }
 
 
-THREADED_TEST(ScavengeExternalAsciiString) {
+THREADED_TEST(ScavengeExternalOneByteString) {
   i::FLAG_stress_compaction = false;
   i::FLAG_gc_global = false;
   int dispose_count = 0;
@@ -773,7 +821,7 @@ THREADED_TEST(ScavengeExternalAsciiString) {
     const char* one_byte_string = "test string";
     Local<String> string = String::NewExternal(
         CcTest::isolate(),
-        new TestAsciiResource(i::StrDup(one_byte_string), &dispose_count));
+        new TestOneByteResource(i::StrDup(one_byte_string), &dispose_count));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     in_new_space = CcTest::heap()->InNewSpace(*istring);
@@ -786,15 +834,14 @@ THREADED_TEST(ScavengeExternalAsciiString) {
 }
 
 
-class TestAsciiResourceWithDisposeControl: public TestAsciiResource {
+class TestOneByteResourceWithDisposeControl : public TestOneByteResource {
  public:
   // Only used by non-threaded tests, so it can use static fields.
   static int dispose_calls;
   static int dispose_count;
 
-  TestAsciiResourceWithDisposeControl(const char* data, bool dispose)
-      : TestAsciiResource(data, &dispose_count),
-        dispose_(dispose) { }
+  TestOneByteResourceWithDisposeControl(const char* data, bool dispose)
+      : TestOneByteResource(data, &dispose_count), dispose_(dispose) {}
 
   void Dispose() {
     ++dispose_calls;
@@ -805,17 +852,17 @@ class TestAsciiResourceWithDisposeControl: public TestAsciiResource {
 };
 
 
-int TestAsciiResourceWithDisposeControl::dispose_count = 0;
-int TestAsciiResourceWithDisposeControl::dispose_calls = 0;
+int TestOneByteResourceWithDisposeControl::dispose_count = 0;
+int TestOneByteResourceWithDisposeControl::dispose_calls = 0;
 
 
 TEST(ExternalStringWithDisposeHandling) {
   const char* c_source = "1 + 2 * 3";
 
   // Use a stack allocated external string resource allocated object.
-  TestAsciiResourceWithDisposeControl::dispose_count = 0;
-  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
-  TestAsciiResourceWithDisposeControl res_stack(i::StrDup(c_source), false);
+  TestOneByteResourceWithDisposeControl::dispose_count = 0;
+  TestOneByteResourceWithDisposeControl::dispose_calls = 0;
+  TestOneByteResourceWithDisposeControl res_stack(i::StrDup(c_source), false);
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
@@ -825,18 +872,18 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
     CcTest::heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+    CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
-  CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
+  CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
 
   // Use a heap allocated external string resource allocated object.
-  TestAsciiResourceWithDisposeControl::dispose_count = 0;
-  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
-  TestAsciiResource* res_heap =
-      new TestAsciiResourceWithDisposeControl(i::StrDup(c_source), true);
+  TestOneByteResourceWithDisposeControl::dispose_count = 0;
+  TestOneByteResourceWithDisposeControl::dispose_calls = 0;
+  TestOneByteResource* res_heap =
+      new TestOneByteResourceWithDisposeControl(i::StrDup(c_source), true);
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
@@ -846,12 +893,12 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
     CcTest::heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+    CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_count);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_count);
 }
 
 
@@ -875,7 +922,8 @@ THREADED_TEST(StringConcat) {
 
     Local<String> source = String::Concat(left, right);
     right = String::NewExternal(
-        env->GetIsolate(), new TestAsciiResource(i::StrDup(one_byte_extern_1)));
+        env->GetIsolate(),
+        new TestOneByteResource(i::StrDup(one_byte_extern_1)));
     source = String::Concat(source, right);
     right = String::NewExternal(
         env->GetIsolate(),
@@ -1187,7 +1235,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
       0, 234, -723,
       i::Smi::kMinValue, i::Smi::kMaxValue
   };
-  for (size_t i = 0; i < ARRAY_SIZE(int_values); i++) {
+  for (size_t i = 0; i < arraysize(int_values); i++) {
     for (int modifier = -1; modifier <= 1; modifier++) {
       int int_value = int_values[i] + modifier;
       // check int32_t
@@ -1219,7 +1267,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
       kUndefinedReturnValue,
       kEmptyStringReturnValue
   };
-  for (size_t i = 0; i < ARRAY_SIZE(oddballs); i++) {
+  for (size_t i = 0; i < arraysize(oddballs); i++) {
     fast_return_value_void = oddballs[i];
     value = TestFastReturnValues<void>();
     switch (fast_return_value_void) {
@@ -1538,6 +1586,83 @@ THREADED_TEST(IsNativeError) {
   CHECK(!not_error->IsNativeError());
   v8::Handle<Value> not_object = CompileRun("42");
   CHECK(!not_object->IsNativeError());
+}
+
+
+THREADED_TEST(IsGeneratorFunctionOrObject) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun("function *gen() { yield 1; }\nfunction func() {}");
+  v8::Handle<Value> gen = CompileRun("gen");
+  v8::Handle<Value> genObj = CompileRun("gen()");
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  v8::Handle<Value> func = CompileRun("func");
+
+  CHECK(gen->IsGeneratorFunction());
+  CHECK(gen->IsFunction());
+  CHECK(!gen->IsGeneratorObject());
+
+  CHECK(!genObj->IsGeneratorFunction());
+  CHECK(!genObj->IsFunction());
+  CHECK(genObj->IsGeneratorObject());
+
+  CHECK(!object->IsGeneratorFunction());
+  CHECK(!object->IsFunction());
+  CHECK(!object->IsGeneratorObject());
+
+  CHECK(!func->IsGeneratorFunction());
+  CHECK(func->IsFunction());
+  CHECK(!func->IsGeneratorObject());
+}
+
+
+THREADED_TEST(ArgumentsObject) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<Value> arguments_object =
+      CompileRun("var out = 0; (function(){ out = arguments; })(1,2,3); out;");
+  CHECK(arguments_object->IsArgumentsObject());
+  v8::Handle<Value> array = CompileRun("[1,2,3]");
+  CHECK(!array->IsArgumentsObject());
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  CHECK(!object->IsArgumentsObject());
+}
+
+
+THREADED_TEST(IsMapOrSet) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<Value> map = CompileRun("new Map()");
+  v8::Handle<Value> set = CompileRun("new Set()");
+  v8::Handle<Value> weak_map = CompileRun("new WeakMap()");
+  v8::Handle<Value> weak_set = CompileRun("new WeakSet()");
+  CHECK(map->IsMap());
+  CHECK(set->IsSet());
+  CHECK(weak_map->IsWeakMap());
+  CHECK(weak_set->IsWeakSet());
+
+  CHECK(!map->IsSet());
+  CHECK(!map->IsWeakMap());
+  CHECK(!map->IsWeakSet());
+
+  CHECK(!set->IsMap());
+  CHECK(!set->IsWeakMap());
+  CHECK(!set->IsWeakSet());
+
+  CHECK(!weak_map->IsMap());
+  CHECK(!weak_map->IsSet());
+  CHECK(!weak_map->IsWeakSet());
+
+  CHECK(!weak_set->IsMap());
+  CHECK(!weak_set->IsSet());
+  CHECK(!weak_set->IsWeakMap());
+
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  CHECK(!object->IsMap());
+  CHECK(!object->IsSet());
+  CHECK(!object->IsWeakMap());
+  CHECK(!object->IsWeakSet());
 }
 
 
@@ -1878,6 +2003,24 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
   self->Set(String::Concat(v8_str("accessor_"), name), value);
 }
 
+void SymbolAccessorGetter(Local<Name> name,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(name->IsSymbol());
+  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  if (sym->Name()->IsUndefined())
+    return;
+  SimpleAccessorGetter(Local<String>::Cast(sym->Name()), info);
+}
+
+void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
+                          const v8::PropertyCallbackInfo<void>& info) {
+  CHECK(name->IsSymbol());
+  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  if (sym->Name()->IsUndefined())
+    return;
+  SimpleAccessorSetter(Local<String>::Cast(sym->Name()), value, info);
+}
+
 void EmptyInterceptorGetter(Local<String> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
@@ -1936,6 +2079,14 @@ void AddInterceptor(Handle<FunctionTemplate> templ,
 }
 
 
+void AddAccessor(Handle<FunctionTemplate> templ,
+                 Handle<Name> name,
+                 v8::AccessorNameGetterCallback getter,
+                 v8::AccessorNameSetterCallback setter) {
+  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
+}
+
+
 THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   v8::HandleScope scope(CcTest::isolate());
   Handle<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
@@ -1968,10 +2119,9 @@ THREADED_TEST(ExecutableAccessorIsPreservedOnAttributeChange) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::LookupResult lookup(i_isolate);
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
-  a->LookupOwnRealNamedProperty(name, &lookup);
-  CHECK(lookup.IsPropertyCallbacks());
-  i::Handle<i::Object> callback(lookup.GetCallbackObject(), i_isolate);
-  CHECK(callback->IsExecutableAccessorInfo());
+  i::LookupIterator it(a, name, i::LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
+  CHECK(it.GetAccessors()->IsExecutableAccessorInfo());
 }
 
 
@@ -2747,6 +2897,8 @@ THREADED_TEST(SymbolProperties) {
   v8::Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
   v8::Local<v8::Symbol> sym2 =
       v8::Symbol::New(isolate, v8_str("my-symbol"));
+  v8::Local<v8::Symbol> sym3 =
+      v8::Symbol::New(isolate, v8_str("sym3"));
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
@@ -2802,28 +2954,59 @@ THREADED_TEST(SymbolProperties) {
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
+  CHECK(obj->SetAccessor(sym3, SymbolAccessorGetter, SymbolAccessorSetter));
+  CHECK(obj->Get(sym3)->IsUndefined());
+  CHECK(obj->Set(sym3, v8::Integer::New(isolate, 42)));
+  CHECK(obj->Get(sym3)->Equals(v8::Integer::New(isolate, 42)));
+  CHECK(obj->Get(v8::String::NewFromUtf8(isolate, "accessor_sym3"))->Equals(
+      v8::Integer::New(isolate, 42)));
+
   // Add another property and delete it afterwards to force the object in
   // slow case.
   CHECK(obj->Set(sym2, v8::Integer::New(isolate, 2008)));
   CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
   CHECK_EQ(2008, obj->Get(sym2)->Int32Value());
   CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
-  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+  CHECK_EQ(2, obj->GetOwnPropertyNames()->Length());
 
   CHECK(obj->Has(sym1));
   CHECK(obj->Has(sym2));
+  CHECK(obj->Has(sym3));
+  CHECK(obj->Has(v8::String::NewFromUtf8(isolate, "accessor_sym3")));
   CHECK(obj->Delete(sym2));
   CHECK(obj->Has(sym1));
   CHECK(!obj->Has(sym2));
+  CHECK(obj->Has(sym3));
+  CHECK(obj->Has(v8::String::NewFromUtf8(isolate, "accessor_sym3")));
   CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
-  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+  CHECK(obj->Get(sym3)->Equals(v8::Integer::New(isolate, 42)));
+  CHECK(obj->Get(v8::String::NewFromUtf8(isolate, "accessor_sym3"))->Equals(
+      v8::Integer::New(isolate, 42)));
+  CHECK_EQ(2, obj->GetOwnPropertyNames()->Length());
 
   // Symbol properties are inherited.
   v8::Local<v8::Object> child = v8::Object::New(isolate);
   child->SetPrototype(obj);
   CHECK(child->Has(sym1));
   CHECK_EQ(2002, child->Get(sym1)->Int32Value());
+  CHECK(obj->Get(sym3)->Equals(v8::Integer::New(isolate, 42)));
+  CHECK(obj->Get(v8::String::NewFromUtf8(isolate, "accessor_sym3"))->Equals(
+      v8::Integer::New(isolate, 42)));
   CHECK_EQ(0, child->GetOwnPropertyNames()->Length());
+}
+
+
+THREADED_TEST(SymbolTemplateProperties) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> foo = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::Name> name = v8::Symbol::New(isolate);
+  CHECK(!name.IsEmpty());
+  foo->PrototypeTemplate()->Set(name, v8::FunctionTemplate::New(isolate));
+  v8::Local<v8::Object> new_instance = foo->InstanceTemplate()->NewInstance();
+  CHECK(!new_instance.IsEmpty());
+  CHECK(new_instance->Has(name));
 }
 
 
@@ -2908,6 +3091,29 @@ THREADED_TEST(GlobalSymbols) {
   v8::Local<Value> sym2 = env->Global()->Get(v8_str("sym2"));
   CHECK(sym2->SameValue(glob));
   CHECK(!sym2->SameValue(glob_api));
+}
+
+
+static void CheckWellKnownSymbol(v8::Local<v8::Symbol>(*getter)(v8::Isolate*),
+                                 const char* name) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Symbol> symbol = getter(isolate);
+  std::string script = std::string("var sym = ") + name;
+  CompileRun(script.c_str());
+  v8::Local<Value> value = env->Global()->Get(v8_str("sym"));
+
+  CHECK(!value.IsEmpty());
+  CHECK(!symbol.IsEmpty());
+  CHECK(value->SameValue(symbol));
+}
+
+
+THREADED_TEST(WellKnownSymbols) {
+  CheckWellKnownSymbol(v8::Symbol::GetIterator, "Symbol.iterator");
+  CheckWellKnownSymbol(v8::Symbol::GetUnscopables, "Symbol.unscopables");
 }
 
 
@@ -9412,18 +9618,14 @@ TEST(AccessControlES5) {
 }
 
 
-static bool GetOwnPropertyNamesNamedBlocker(Local<v8::Object> global,
-                                            Local<Value> name,
-                                            v8::AccessType type,
-                                            Local<Value> data) {
+static bool BlockEverythingNamed(Local<v8::Object> object, Local<Value> name,
+                                 v8::AccessType type, Local<Value> data) {
   return false;
 }
 
 
-static bool GetOwnPropertyNamesIndexedBlocker(Local<v8::Object> global,
-                                              uint32_t key,
-                                              v8::AccessType type,
-                                              Local<Value> data) {
+static bool BlockEverythingIndexed(Local<v8::Object> object, uint32_t key,
+                                   v8::AccessType type, Local<Value> data) {
   return false;
 }
 
@@ -9435,8 +9637,8 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
       v8::ObjectTemplate::New(isolate);
 
   obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
-  obj_template->SetAccessCheckCallbacks(GetOwnPropertyNamesNamedBlocker,
-                                        GetOwnPropertyNamesIndexedBlocker);
+  obj_template->SetAccessCheckCallbacks(BlockEverythingNamed,
+                                        BlockEverythingIndexed);
 
   // Create an environment
   v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
@@ -9468,6 +9670,50 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 
   context1->Exit();
   context0->Exit();
+}
+
+
+TEST(SuperAccessControl) {
+  i::FLAG_harmony_classes = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+  obj_template->SetAccessCheckCallbacks(BlockEverythingNamed,
+                                        BlockEverythingIndexed);
+  LocalContext env;
+  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { return super.hasOwnProperty; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { super.hasOwnProperty = function () {}; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
+        "function f() { "
+        "     'use strict';"
+        "     super.x = function () {}; "
+        "};"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
 }
 
 
@@ -14040,18 +14286,13 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
 
 void SetFunctionEntryHookTest::RunTest() {
   // Work in a new isolate throughout.
-  v8::Isolate* isolate = v8::Isolate::New();
-
-  // Test setting the entry hook on the new isolate.
-  CHECK(v8::V8::SetFunctionEntryHook(isolate, EntryHook));
-
-  // Replacing the hook, once set should fail.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
+  v8::Isolate::CreateParams create_params;
+  create_params.entry_hook = EntryHook;
+  create_params.code_event_handler = JitEvent;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
     v8::Isolate::Scope scope(isolate);
-
-    v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, JitEvent);
 
     RunLoopInNewEnv(isolate);
 
@@ -14080,9 +14321,6 @@ void SetFunctionEntryHookTest::RunTest() {
     // We should record no invocations in this isolate.
     CHECK_EQ(0, static_cast<int>(invocations_.size()));
   }
-  // Since the isolate has been used, we shouldn't be able to set an entry
-  // hook anymore.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
 
   isolate->Dispose();
 }
@@ -14276,7 +14514,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     saw_bar = 0;
     move_events = 0;
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
 
     // Generate new code objects sparsely distributed across several
     // different fragmented code-space pages.
@@ -14300,7 +14538,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     // Force code movement.
     heap->CollectAllAvailableGarbage("TestSetJitCodeEventHandler");
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
     CHECK_LE(kIterations, saw_bar);
     CHECK_LT(0, move_events);
@@ -14330,8 +14568,9 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     i::HashMap lineinfo(MatchPointers);
     jitcode_line_info = &lineinfo;
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting, event_handler);
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
+                                    event_handler);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
     jitcode_line_info = NULL;
     // We expect that we got some events. Note that if we could get code removal
@@ -15003,11 +15242,11 @@ TEST(ObjectClone) {
 }
 
 
-class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit AsciiVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~AsciiVectorResource() {}
+  virtual ~OneByteVectorResource() {}
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
  private:
@@ -15028,12 +15267,12 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
 
 
 static void MorphAString(i::String* string,
-                         AsciiVectorResource* ascii_resource,
+                         OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsOneByteRepresentation()) {
     // Check old map is not internalized or long.
-    CHECK(string->map() == CcTest::heap()->external_ascii_string_map());
+    CHECK(string->map() == CcTest::heap()->external_one_byte_string_map());
     // Morph external string to be TwoByte string.
     string->set_map(CcTest::heap()->external_string_map());
     i::ExternalTwoByteString* morphed =
@@ -15042,11 +15281,10 @@ static void MorphAString(i::String* string,
   } else {
     // Check old map is not internalized or long.
     CHECK(string->map() == CcTest::heap()->external_string_map());
-    // Morph external string to be ASCII string.
-    string->set_map(CcTest::heap()->external_ascii_string_map());
-    i::ExternalAsciiString* morphed =
-         i::ExternalAsciiString::cast(string);
-    morphed->set_resource(ascii_resource);
+    // Morph external string to be one-byte string.
+    string->set_map(CcTest::heap()->external_one_byte_string_map());
+    i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
+    morphed->set_resource(one_byte_resource);
   }
 }
 
@@ -15062,18 +15300,18 @@ THREADED_TEST(MorphCompositeStringTest) {
     LocalContext env;
     i::Factory* factory = CcTest::i_isolate()->factory();
     v8::HandleScope scope(env->GetIsolate());
-    AsciiVectorResource ascii_resource(
+    OneByteVectorResource one_byte_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
         i::Vector<const uint16_t>(two_byte_string,
                                   i::StrLength(c_string)));
 
-    Local<String> lhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)
-            .ToHandleChecked()));
-    Local<String> rhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)
-            .ToHandleChecked()));
+    Local<String> lhs(
+        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
+                                        &one_byte_resource).ToHandleChecked()));
+    Local<String> rhs(
+        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
+                                        &one_byte_resource).ToHandleChecked()));
 
     env->Global()->Set(v8_str("lhs"), lhs);
     env->Global()->Set(v8_str("rhs"), rhs);
@@ -15086,8 +15324,10 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK(lhs->IsOneByte());
     CHECK(rhs->IsOneByte());
 
-    MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
-    MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*lhs), &one_byte_resource,
+                 &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*rhs), &one_byte_resource,
+                 &uc16_resource);
 
     // This should UTF-8 without flattening, since everything is ASCII.
     Handle<String> cons = v8_compile("cons")->Run().As<String>();
@@ -15130,16 +15370,15 @@ TEST(CompileExternalTwoByteSource) {
 
   // This is a very short list of sources, which currently is to check for a
   // regression caused by r2703.
-  const char* ascii_sources[] = {
-    "0.5",
-    "-0.5",   // This mainly testes PushBack in the Scanner.
-    "--0.5",  // This mainly testes PushBack in the Scanner.
-    NULL
-  };
+  const char* one_byte_sources[] = {
+      "0.5",
+      "-0.5",   // This mainly testes PushBack in the Scanner.
+      "--0.5",  // This mainly testes PushBack in the Scanner.
+      NULL};
 
   // Compile the sources as external two byte strings.
-  for (int i = 0; ascii_sources[i] != NULL; i++) {
-    uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
+  for (int i = 0; one_byte_sources[i] != NULL; i++) {
+    uint16_t* two_byte_string = AsciiToTwoByteString(one_byte_sources[i]);
     TestResource* uc16_resource = new TestResource(two_byte_string);
     v8::Local<v8::String> source =
         v8::String::NewExternal(context->GetIsolate(), uc16_resource);
@@ -15198,14 +15437,14 @@ TEST(RegExpInterruption) {
   RegExpInterruptionThread timeout_thread(CcTest::isolate());
 
   v8::V8::AddGCPrologueCallback(RunBeforeGC);
-  static const char* ascii_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  i::uc16* uc16_content = AsciiToTwoByteString(ascii_content);
-  v8::Local<v8::String> string = v8_str(ascii_content);
+  static const char* one_byte_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  i::uc16* uc16_content = AsciiToTwoByteString(one_byte_content);
+  v8::Local<v8::String> string = v8_str(one_byte_content);
 
   CcTest::global()->Set(v8_str("a"), string);
   regexp_interruption_data.string.Reset(CcTest::isolate(), string);
   regexp_interruption_data.string_resource = new UC16VectorResource(
-      i::Vector<const i::uc16>(uc16_content, i::StrLength(ascii_content)));
+      i::Vector<const i::uc16>(uc16_content, i::StrLength(one_byte_content)));
 
   v8::TryCatch try_catch;
   timeout_thread.Start();
@@ -17697,14 +17936,13 @@ TEST(IdleNotificationWithLargeHint) {
 
 TEST(Regress2107) {
   const intptr_t MB = 1024 * 1024;
-  const int kShortIdlePauseInMs = 100;
-  const int kLongIdlePauseInMs = 1000;
+  const int kIdlePauseInMs = 1000;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(env->GetIsolate());
   intptr_t initial_size = CcTest::heap()->SizeOfObjects();
   // Send idle notification to start a round of incremental GCs.
-  env->GetIsolate()->IdleNotification(kShortIdlePauseInMs);
+  env->GetIsolate()->IdleNotification(kIdlePauseInMs);
   // Emulate 7 page reloads.
   for (int i = 0; i < 7; i++) {
     {
@@ -17715,7 +17953,7 @@ TEST(Regress2107) {
       ctx->Exit();
     }
     env->GetIsolate()->ContextDisposedNotification();
-    env->GetIsolate()->IdleNotification(kLongIdlePauseInMs);
+    env->GetIsolate()->IdleNotification(kIdlePauseInMs);
   }
   // Create garbage and check that idle notification still collects it.
   CreateGarbageInOldSpace();
@@ -17723,7 +17961,7 @@ TEST(Regress2107) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
-    finished = env->GetIsolate()->IdleNotification(kShortIdlePauseInMs);
+    finished = env->GetIsolate()->IdleNotification(kIdlePauseInMs);
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK_LT(final_size, initial_size + 1);
@@ -17764,13 +18002,11 @@ static uint32_t* ComputeStackLimit(uint32_t size) {
 static const int stack_breathing_room = 256 * i::KB;
 
 
-TEST(SetResourceConstraints) {
+TEST(SetStackLimit) {
   uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
-  v8::ResourceConstraints constraints;
-  constraints.set_stack_limit(set_limit);
-  CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
+  CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
 
   // Execute a script.
   LocalContext env;
@@ -17785,16 +18021,14 @@ TEST(SetResourceConstraints) {
 }
 
 
-TEST(SetResourceConstraintsInThread) {
+TEST(SetStackLimitInThread) {
   uint32_t* set_limit;
   {
     v8::Locker locker(CcTest::isolate());
     set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
-    v8::ResourceConstraints constraints;
-    constraints.set_stack_limit(set_limit);
-    CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
+    CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -17837,7 +18071,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
   virtual ~VisitorImpl() {}
   virtual void VisitExternalString(v8::Handle<v8::String> string) {
     if (!string->IsExternal()) {
-      CHECK(string->IsExternalAscii());
+      CHECK(string->IsExternalOneByte());
       return;
     }
     v8::String::ExternalStringResource* resource =
@@ -17894,12 +18128,12 @@ TEST(ExternalizeOldSpaceOneByteCons) {
   CHECK(CcTest::heap()->old_pointer_space()->Contains(
             *v8::Utils::OpenHandle(*cons)));
 
-  TestAsciiResource* resource =
-      new TestAsciiResource(i::StrDup("Romeo Montague Juliet Capulet"));
+  TestOneByteResource* resource =
+      new TestOneByteResource(i::StrDup("Romeo Montague Juliet Capulet"));
   cons->MakeExternal(resource);
 
-  CHECK(cons->IsExternalAscii());
-  CHECK_EQ(resource, cons->GetExternalAsciiStringResource());
+  CHECK(cons->IsExternalOneByte());
+  CHECK_EQ(resource, cons->GetExternalOneByteStringResource());
   String::Encoding encoding;
   CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
   CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
@@ -17954,8 +18188,8 @@ TEST(ExternalStringCollectedAtTearDown) {
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     const char* s = "One string to test them all, one string to find them.";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = v8::String::NewExternal(isolate, inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -17976,8 +18210,8 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
     v8::HandleScope handle_scope(isolate);
     CompileRun("var ring = 'One string to test them all';");
     const char* s = "One string to test them all";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring")->ToString();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
     ring->MakeExternal(inscription);
@@ -17998,8 +18232,8 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
     v8::HandleScope handle_scope(env->GetIsolate());
     CompileRun("var ring = 'One string to test them all';");
     const char* s = "One string to test them all";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring")->ToString();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
     ring->MakeExternal(inscription);
@@ -18942,7 +19176,7 @@ THREADED_TEST(TestEviction) {
 }
 
 
-THREADED_TEST(TwoByteStringInAsciiCons) {
+THREADED_TEST(TwoByteStringInOneByteCons) {
   // See Chromium issue 47824.
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -18980,10 +19214,10 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 
   // If the cons string has been short-circuited, skip the following checks.
   if (!string.is_identical_to(flat_string)) {
-    // At this point, we should have a Cons string which is flat and ASCII,
+    // At this point, we should have a Cons string which is flat and one-byte,
     // with a first half that is a two-byte string (although it only contains
-    // ASCII characters). This is a valid sequence of steps, and it can happen
-    // in real pages.
+    // one-byte characters). This is a valid sequence of steps, and it can
+    // happen in real pages.
     CHECK(string->IsOneByteRepresentation());
     i::ConsString* cons = i::ConsString::cast(*string);
     CHECK_EQ(0, cons->second()->length());
@@ -19071,7 +19305,7 @@ TEST(ContainsOnlyOneByte) {
       String::NewExternal(isolate,
                           new TestResource(string_contents, NULL, false));
   USE(two_byte); USE(cons_strings);
-  for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
+  for (size_t i = 0; i < arraysize(cons_strings); i++) {
     // Base assumptions.
     string = cons_strings[i];
     CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
@@ -19367,31 +19601,26 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 
 class IsolateThread : public v8::base::Thread {
  public:
-  IsolateThread(v8::Isolate* isolate, int fib_limit)
-      : Thread(Options("IsolateThread")),
-        isolate_(isolate),
-        fib_limit_(fib_limit),
-        result_(0) {}
+  explicit IsolateThread(int fib_limit)
+      : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
 
   void Run() {
-    result_ = CalcFibonacci(isolate_, fib_limit_);
+    v8::Isolate* isolate = v8::Isolate::New();
+    result_ = CalcFibonacci(isolate, fib_limit_);
+    isolate->Dispose();
   }
 
   int result() { return result_; }
 
  private:
-  v8::Isolate* isolate_;
   int fib_limit_;
   int result_;
 };
 
 
 TEST(MultipleIsolatesOnIndividualThreads) {
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
-
-  IsolateThread thread1(isolate1, 21);
-  IsolateThread thread2(isolate2, 12);
+  IsolateThread thread1(21);
+  IsolateThread thread2(12);
 
   // Compute some fibonacci numbers on 3 threads in 3 isolates.
   thread1.Start();
@@ -19409,9 +19638,6 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   CHECK_EQ(result2, 144);
   CHECK_EQ(result1, thread1.result());
   CHECK_EQ(result2, thread2.result());
-
-  isolate1->Dispose();
-  isolate2->Dispose();
 }
 
 
@@ -19455,16 +19681,22 @@ class InitDefaultIsolateThread : public v8::base::Thread {
         result_(false) {}
 
   void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
-    isolate->Enter();
+    v8::Isolate::CreateParams create_params;
     switch (testCase_) {
       case SetResourceConstraints: {
-        v8::ResourceConstraints constraints;
-        constraints.set_max_semi_space_size(1);
-        constraints.set_max_old_space_size(4);
-        v8::SetResourceConstraints(CcTest::isolate(), &constraints);
+        create_params.constraints.set_max_semi_space_size(1);
+        create_params.constraints.set_max_old_space_size(4);
         break;
       }
+      default:
+        break;
+    }
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    isolate->Enter();
+    switch (testCase_) {
+      case SetResourceConstraints:
+        // Already handled in pre-Isolate-creation block.
+        break;
 
       case SetFatalHandler:
         v8::V8::SetFatalErrorHandler(NULL);
@@ -21490,7 +21722,7 @@ THREADED_TEST(JSONParseNumber) {
 }
 
 
-#if V8_OS_POSIX
+#if V8_OS_POSIX && !V8_OS_NACL
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(0), sem_value_(0) { }
@@ -21689,7 +21921,6 @@ TEST(AccessCheckThrows) {
 
   // Create a context and set an x property on it's global object.
   LocalContext context0(NULL, global_template);
-  context0->Global()->Set(v8_str("x"), v8_num(42));
   v8::Handle<v8::Object> global0 = context0->Global();
 
   // Create a context with a different security token so that the
@@ -22287,12 +22518,12 @@ class ApiCallOptimizationChecker {
   void RunAll() {
     SignatureType signature_types[] =
       {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
-    for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
+    for (unsigned i = 0; i < arraysize(signature_types); i++) {
       SignatureType signature_type = signature_types[i];
       for (int j = 0; j < 2; j++) {
         bool global = j == 0;
         int key = signature_type +
-            ARRAY_SIZE(signature_types) * (global ? 1 : 0);
+            arraysize(signature_types) * (global ? 1 : 0);
         Run(signature_type, global, key);
       }
     }
@@ -22736,32 +22967,6 @@ TEST(ScriptNameAndLineNumber) {
 }
 
 
-Local<v8::Context> call_eval_context;
-Local<v8::Function> call_eval_bound_function;
-static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Context::Scope scope(call_eval_context);
-  args.GetReturnValue().Set(
-      call_eval_bound_function->Call(call_eval_context->Global(), 0, NULL));
-}
-
-
-TEST(CrossActivationEval) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  {
-    call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
-    call_eval_bound_function =
-        Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
-  }
-  env->Global()->Set(v8_str("CallEval"),
-      v8::FunctionTemplate::New(isolate, CallEval)->GetFunction());
-  Local<Value> result = CompileRun("CallEval();");
-  CHECK_EQ(result, v8::Integer::New(isolate, 1));
-}
-
-
 void SourceURLHelper(const char* source, const char* expected_source_url,
                      const char* expected_source_mapping_url) {
   Local<Script> script = v8_compile(source);
@@ -22869,4 +23074,382 @@ TEST(GetOwnPropertyDescriptor) {
   Handle<Value> args[] = { v8_num(14) };
   set->Call(x, 1, args);
   CHECK_EQ(v8_num(14), get->Call(x, 0, NULL));
+}
+
+
+TEST(Regress411877) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("o"), object_template->NewInstance());
+  CompileRun("Object.getOwnPropertyNames(o)");
+}
+
+
+TEST(GetHiddenPropertyTableAfterAccessCheck) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  v8::Handle<v8::Object> obj = object_template->NewInstance();
+  obj->Set(v8_str("key"), v8_str("value"));
+  obj->Delete(v8_str("key"));
+
+  obj->SetHiddenValue(v8_str("hidden key 2"), v8_str("hidden value 2"));
+}
+
+
+TEST(Regress411793) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("o"), object_template->NewInstance());
+  CompileRun(
+      "Object.defineProperty(o, 'key', "
+      "    { get: function() {}, set: function() {} });");
+}
+
+class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit TestSourceStream(const char** chunks) : chunks_(chunks), index_(0) {}
+
+  virtual size_t GetMoreData(const uint8_t** src) {
+    // Unlike in real use cases, this function will never block.
+    if (chunks_[index_] == NULL) {
+      return 0;
+    }
+    // Copy the data, since the caller takes ownership of it.
+    size_t len = strlen(chunks_[index_]);
+    // We don't need to zero-terminate since we return the length.
+    uint8_t* copy = new uint8_t[len];
+    memcpy(copy, chunks_[index_], len);
+    *src = copy;
+    ++index_;
+    return len;
+  }
+
+  // Helper for constructing a string from chunks (the compilation needs it
+  // too).
+  static char* FullSourceString(const char** chunks) {
+    size_t total_len = 0;
+    for (size_t i = 0; chunks[i] != NULL; ++i) {
+      total_len += strlen(chunks[i]);
+    }
+    char* full_string = new char[total_len + 1];
+    size_t offset = 0;
+    for (size_t i = 0; chunks[i] != NULL; ++i) {
+      size_t len = strlen(chunks[i]);
+      memcpy(full_string + offset, chunks[i], len);
+      offset += len;
+    }
+    full_string[total_len] = 0;
+    return full_string;
+  }
+
+ private:
+  const char** chunks_;
+  unsigned index_;
+};
+
+
+// Helper function for running streaming tests.
+void RunStreamingTest(const char** chunks,
+                      v8::ScriptCompiler::StreamedSource::Encoding encoding =
+                          v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                      bool expected_success = true) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch;
+
+  v8::ScriptCompiler::StreamedSource source(new TestSourceStream(chunks),
+                                            encoding);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
+  // task here in the main thread.
+  task->Run();
+  delete task;
+
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  char* full_source = TestSourceStream::FullSourceString(chunks);
+
+  // The possible errors are only produced while compiling.
+  CHECK_EQ(false, try_catch.HasCaught());
+
+  v8::Handle<Script> script = v8::ScriptCompiler::Compile(
+      isolate, &source, v8_str(full_source), origin);
+  if (expected_success) {
+    CHECK(!script.IsEmpty());
+    v8::Handle<Value> result(script->Run());
+    // All scripts are supposed to return the fixed value 13 when ran.
+    CHECK_EQ(13, result->Int32Value());
+  } else {
+    CHECK(script.IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  delete[] full_source;
+}
+
+
+TEST(StreamingSimpleScript) {
+  // This script is unrealistically small, since no one chunk is enough to fill
+  // the backing buffer of Scanner, let alone overflow it.
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+                          NULL};
+  RunStreamingTest(chunks);
+}
+
+
+TEST(StreamingBiggerScript) {
+  const char* chunk1 =
+      "function foo() {\n"
+      "  // Make this chunk sufficiently long so that it will overflow the\n"
+      "  // backing buffer of the Scanner.\n"
+      "  var i = 0;\n"
+      "  var result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  return result;\n"
+      "}\n";
+  const char* chunks[] = {chunk1, "foo(); ", NULL};
+  RunStreamingTest(chunks);
+}
+
+
+TEST(StreamingScriptWithParseError) {
+  // Test that parse errors from streamed scripts are propagated correctly.
+  {
+    char chunk1[] =
+        "  // This will result in a parse error.\n"
+        "  var if else then foo";
+    char chunk2[] = "  13\n";
+    const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                     false);
+  }
+  // Test that the next script succeeds normally.
+  {
+    char chunk1[] =
+        "  // This will be parsed successfully.\n"
+        "  function foo() { return ";
+    char chunk2[] = "  13; }\n";
+    const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+
+    RunStreamingTest(chunks);
+  }
+}
+
+
+TEST(StreamingUtf8Script) {
+  // We'd want to write \uc481 instead of \xeb\x91\x80, but Windows compilers
+  // don't like it.
+  const char* chunk1 =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foob\xeb\x91\x80r = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  const char* chunks[] = {chunk1, "foo(); ", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
+  // A sanity check to prove that the approach of splitting UTF-8
+  // characters is correct. Here is an UTF-8 character which will take three
+  // bytes.
+  const char* reference = "\xeb\x91\x80";
+  CHECK(3u == strlen(reference));  // NOLINT - no CHECK_EQ for unsigned.
+
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foob";
+  char chunk2[] =
+      "XXXr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  for (int i = 0; i < 3; ++i) {
+    chunk2[i] = reference[i];
+  }
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharacters) {
+  // Stream data where a multi-byte UTF-8 character is split between two data
+  // chunks.
+  const char* reference = "\xeb\x91\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobX";
+  char chunk2[] =
+      "XXr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk2[1] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
+  // Tests edge cases which should still be decoded correctly.
+
+  // Case 1: a chunk contains only bytes for a split character (and no other
+  // data). This kind of a chunk would be exceptionally small, but we should
+  // still decode it correctly.
+  const char* reference = "\xeb\x91\x80";
+  // The small chunk is at the beginning of the split character
+  {
+    char chunk1[] =
+        "function foo() {\n"
+        "  // This function will contain an UTF-8 character which is not in\n"
+        "  // ASCII.\n"
+        "  var foob";
+    char chunk2[] = "XX";
+    char chunk3[] =
+        "Xr = 13;\n"
+        "  return foob\xeb\x91\x80r;\n"
+        "}\n";
+    chunk2[0] = reference[0];
+    chunk2[1] = reference[1];
+    chunk3[0] = reference[2];
+    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+  // The small chunk is at the end of a character
+  {
+    char chunk1[] =
+        "function foo() {\n"
+        "  // This function will contain an UTF-8 character which is not in\n"
+        "  // ASCII.\n"
+        "  var foobX";
+    char chunk2[] = "XX";
+    char chunk3[] =
+        "r = 13;\n"
+        "  return foob\xeb\x91\x80r;\n"
+        "}\n";
+    chunk1[strlen(chunk1) - 1] = reference[0];
+    chunk2[0] = reference[1];
+    chunk2[1] = reference[2];
+    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+  // Case 2: the script ends with a multi-byte character. Make sure that it's
+  // decoded correctly and not just ignored.
+  {
+    char chunk1[] =
+        "var foob\xeb\x91\x80 = 13;\n"
+        "foob\xeb\x91\x80";
+    const char* chunks[] = {chunk1, NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
+  // Test cases where a UTF-8 character is split over several chunks. Those
+  // cases are not supported (the embedder should give the data in big enough
+  // chunks), but we shouldn't crash, just produce a parse error.
+  const char* reference = "\xeb\x91\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobX";
+  char chunk2[] = "X";
+  char chunk3[] =
+      "Xr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk3[0] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
+}
+
+
+TEST(StreamingProducesParserCache) {
+  i::FLAG_min_preparse_length = 0;
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+                          NULL};
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::ScriptCompiler::StreamedSource source(
+      new TestSourceStream(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(
+          isolate, &source, v8::ScriptCompiler::kProduceParserCache);
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
+  // task here in the main thread.
+  task->Run();
+  delete task;
+
+  const v8::ScriptCompiler::CachedData* cached_data = source.GetCachedData();
+  CHECK(cached_data != NULL);
+  CHECK(cached_data->data != NULL);
+  CHECK_GT(cached_data->length, 0);
+}
+
+
+TEST(StreamingScriptWithInvalidUtf8) {
+  // Regression test for a crash: test that invalid UTF-8 bytes in the end of a
+  // chunk don't produce a crash.
+  const char* reference = "\xeb\x91\x80\x80\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobXXXXX";  // Too many bytes which look like incomplete chars!
+  char chunk2[] =
+      "r = 13;\n"
+      "  return foob\xeb\x91\x80\x80\x80r;\n"
+      "}\n";
+  for (int i = 0; i < 5; ++i) chunk1[strlen(chunk1) - 5 + i] = reference[i];
+
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
 }

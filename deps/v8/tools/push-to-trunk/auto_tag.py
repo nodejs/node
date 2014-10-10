@@ -8,36 +8,28 @@ import sys
 
 from common_includes import *
 
-CONFIG = {
-  BRANCHNAME: "auto-tag-v8",
-  PERSISTFILE_BASENAME: "/tmp/v8-auto-tag-tempfile",
-  DOT_GIT_LOCATION: ".git",
-  VERSION_FILE: "src/version.cc",
-}
-
 
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
+    # TODO(machenbach): Remove after the git switch.
+    if self.Config("PERSISTFILE_BASENAME") == "/tmp/v8-auto-tag-tempfile":
+      print "This script is disabled until after the v8 git migration."
+      return True
+
     self.CommonPrepare()
     self.PrepareBranch()
     self.GitCheckout("master")
-    self.GitSVNRebase()
+    self.vc.Pull()
 
 
 class GetTags(Step):
   MESSAGE = "Get all V8 tags."
 
   def RunStep(self):
-    self.GitCreateBranch(self._config[BRANCHNAME])
-
-    # Get remote tags.
-    tags = filter(lambda s: re.match(r"^svn/tags/[\d+\.]+$", s),
-                  self.GitRemotes())
-
-    # Remove 'svn/tags/' prefix.
-    self["tags"] = map(lambda s: s[9:], tags)
+    self.GitCreateBranch(self._config["BRANCHNAME"])
+    self["tags"] = self.vc.GetTags()
 
 
 class GetOldestUntaggedVersion(Step):
@@ -55,7 +47,7 @@ class GetOldestUntaggedVersion(Step):
         format="%H", grep="\\[Auto\\-roll\\] Bump up version to").splitlines():
 
       # Get the version.
-      if not self.GitCheckoutFileSafe(self._config[VERSION_FILE], git_hash):
+      if not self.GitCheckoutFileSafe(VERSION_FILE, git_hash):
         continue
 
       self.ReadAndPersistVersion()
@@ -66,7 +58,7 @@ class GetOldestUntaggedVersion(Step):
         version = version[:-2]
 
       # Clean up checked-out version file.
-      self.GitCheckoutFileSafe(self._config[VERSION_FILE], "HEAD")
+      self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
 
       if version in tags:
         if self["candidate"]:
@@ -121,9 +113,9 @@ class CalculateTagRevision(Step):
 
   def RunStep(self):
     # Get the lkgr after the tag candidate and before the next tag candidate.
-    candidate_svn = self.GitSVNFindSVNRev(self["candidate"])
+    candidate_svn = self.vc.GitSvn(self["candidate"])
     if self["next"]:
-      next_svn = self.GitSVNFindSVNRev(self["next"])
+      next_svn = self.vc.GitSvn(self["next"])
     else:
       # Don't include the version change commit itself if there is no upper
       # limit yet.
@@ -137,7 +129,7 @@ class CalculateTagRevision(Step):
       return True
 
     # Let's check if the lkgr is at least three hours old.
-    self["lkgr"] = self.GitSVNFindGitHash(lkgr_svn)
+    self["lkgr"] = self.vc.SvnGit(lkgr_svn)
     if not self["lkgr"]:
       print "Couldn't find git hash for lkgr %s" % lkgr_svn
       self.CommonCleanup()
@@ -160,7 +152,7 @@ class MakeTag(Step):
   def RunStep(self):
     if not self._options.dry_run:
       self.GitReset(self["lkgr"])
-      self.GitSVNTag(self["candidate_version"])
+      self.vc.Tag(self["candidate_version"])
 
 
 class CleanUp(Step):
@@ -184,6 +176,12 @@ class AutoTag(ScriptsBase):
     options.force_upload = True
     return True
 
+  def _Config(self):
+    return {
+      "BRANCHNAME": "auto-tag-v8",
+      "PERSISTFILE_BASENAME": "/tmp/v8-auto-tag-tempfile",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -197,4 +195,4 @@ class AutoTag(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(AutoTag(CONFIG).Run())
+  sys.exit(AutoTag().Run())
