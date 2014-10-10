@@ -179,16 +179,17 @@ Initial membership invitations to the TC were given to individuals who had
 been active contributors to Node. Current membership is:
 
 ```
-Fedor Indutny
-Trevor Norris
-Ben Noordhuis
-Isaac Z. Schlueter
-Nathan Rajlich
-Bert Belder
+Fedor Indutny (@indutny)
+Trevor Norris (@trevnorris)
+Ben Noordhuis (@bnoordhuis)
+Isaac Z. Schlueter (@isaacs)
+Nathan Rajlich (@TooTallNate)
+Bert Belder (@piscisaureus)
 ```
 
-Invitations were also given to `TJ Fontaine` and `Alexis Campailla` who have
-not accepted but are still invited to participate without accepting a role or
+Invitations were also given to `TJ Fontaine (@tjfontaine)` and
+`Alexis Campailla (@orangemocha)` who have not accepted but are
+still invited to participate without accepting a role or
 officially endorsing this effort.
 
 The TC has final authority over this project including:
@@ -209,7 +210,8 @@ employer.
 ## TC Meetings
 
 The TC meets weekly on a Google hangout. The meeting is run by a designated
-moderator, currently @mikeal. Each meeting should be published to Youtube.
+moderator, currently `Mikeal Rogers (@mikeal)`. Each meeting should be
+published to Youtube.
 
 ## Contributor Policy
 
