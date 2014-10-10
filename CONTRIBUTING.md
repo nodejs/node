@@ -147,7 +147,7 @@ feature branch.  Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
-[stability index page]: https://github.com/joyent/node/blob/master/doc/api/documentation.markdown
+[stability index page]: https://github.com/node-forward/node/blob/master/doc/api/documentation.markdown
 [issue tracker]: https://github.com/node-forward/node/issues
 [node.js mailing list]: http://groups.google.com/group/nodejs
 [IRC]: http://webchat.freenode.net/?channels=node.js
@@ -160,7 +160,7 @@ rules to follow.
   - Always include the `Reviewed-by: You Name <your-email>` in the commit
   message.
   - In commit messages also include `Fixes:` that either includes the
-  **full url** (e.g. `https://github.com/joyent/node/issues/...`), and/or
+  **full url** (e.g. `https://github.com/node-forward/node/issues/...`), and/or
   the hash and commit message if the commit fixes a bug in a previous commit.
   - PR's should include their full `PR-URL:` so it's easy to trace a commit
   back to the conversation that lead up to that change.
