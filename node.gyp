@@ -102,6 +102,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_v8.cc',
+        'src/node_v8_platform.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
         'src/node_zlib.cc',
