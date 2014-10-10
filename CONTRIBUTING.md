@@ -209,8 +209,8 @@ governance rules are:
 
 * [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
 * Motions with voting when consensus cannot be reached.
-* Quorum of 60%, simple majority wins.
-* No more than 30% of the TC membership can be affiliated with the same
+* Quorum of 2/3 (66%), simple definite majority wins.
+* No more than 1/3 (34%) of the TC membership can be affiliated with the same
 employer.
 
 ## TC Meetings
