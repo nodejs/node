@@ -1353,10 +1353,6 @@ ssize_t DecodeBytes(Isolate* isolate,
   return StringBytes::Size(isolate, val, encoding);
 }
 
-#ifndef MIN
-# define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 // Returns number of bytes written.
 ssize_t DecodeWrite(Isolate* isolate,
                     char* buf,
