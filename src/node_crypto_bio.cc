@@ -21,6 +21,8 @@
 
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
+#include "util.h"
+#include "util-inl.h"
 #include <string.h>
 
 namespace node {
@@ -185,11 +187,11 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
         *reinterpret_cast<void**>(ptr) = NULL;
       break;
     case BIO_C_SET_BUF_MEM:
-      assert(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
+      CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
       abort();
       break;
     case BIO_C_GET_BUF_MEM_PTR:
-      assert(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
+      CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
       ret = 0;
       break;
     case BIO_CTRL_GET_CLOSE:
@@ -244,7 +246,7 @@ size_t NodeBIO::Read(char* out, size_t size) {
   size_t left = size;
 
   while (bytes_read < expected) {
-    assert(read_head_->read_pos_ <= read_head_->write_pos_);
+    CHECK_LE(read_head_->read_pos_, read_head_->write_pos_);
     size_t avail = read_head_->write_pos_ - read_head_->read_pos_;
     if (avail > left)
       avail = left;
@@ -261,7 +263,7 @@ size_t NodeBIO::Read(char* out, size_t size) {
 
     TryMoveReadHead();
   }
-  assert(expected == bytes_read);
+  CHECK_EQ(expected, bytes_read);
   length_ -= bytes_read;
 
   // Free all empty buffers, but write_head's child
@@ -283,8 +285,8 @@ void NodeBIO::FreeEmpty() {
 
   Buffer* prev = child;
   while (cur != read_head_) {
-    assert(cur != write_head_);
-    assert(cur->write_pos_ == cur->read_pos_);
+    CHECK_NE(cur, write_head_);
+    CHECK_EQ(cur->write_pos_, cur->read_pos_);
 
     Buffer* next = cur->next_;
     delete cur;
@@ -301,7 +303,7 @@ size_t NodeBIO::IndexOf(char delim, size_t limit) {
   Buffer* current = read_head_;
 
   while (bytes_read < max) {
-    assert(current->read_pos_ <= current->write_pos_);
+    CHECK_LE(current->read_pos_, current->write_pos_);
     size_t avail = current->write_pos_ - current->read_pos_;
     if (avail > left)
       avail = left;
@@ -328,7 +330,7 @@ size_t NodeBIO::IndexOf(char delim, size_t limit) {
       current = current->next_;
     }
   }
-  assert(max == bytes_read);
+  CHECK_EQ(max, bytes_read);
 
   return max;
 }
@@ -343,7 +345,7 @@ void NodeBIO::Write(const char* data, size_t size) {
 
   while (left > 0) {
     size_t to_write = left;
-    assert(write_head_->write_pos_ <= write_head_->len_);
+    CHECK_LE(write_head_->write_pos_, write_head_->len_);
     size_t avail = write_head_->len_ - write_head_->write_pos_;
 
     if (to_write > avail)
@@ -359,11 +361,11 @@ void NodeBIO::Write(const char* data, size_t size) {
     offset += to_write;
     length_ += to_write;
     write_head_->write_pos_ += to_write;
-    assert(write_head_->write_pos_ <= write_head_->len_);
+    CHECK_LE(write_head_->write_pos_, write_head_->len_);
 
     // Go to next buffer if there still are some bytes to write
     if (left != 0) {
-      assert(write_head_->write_pos_ == write_head_->len_);
+      CHECK_EQ(write_head_->write_pos_, write_head_->len_);
       TryAllocateForWrite(left);
       write_head_ = write_head_->next_;
 
@@ -372,7 +374,7 @@ void NodeBIO::Write(const char* data, size_t size) {
       TryMoveReadHead();
     }
   }
-  assert(left == 0);
+  CHECK_EQ(left, 0);
 }
 
 
@@ -392,7 +394,7 @@ char* NodeBIO::PeekWritable(size_t* size) {
 void NodeBIO::Commit(size_t size) {
   write_head_->write_pos_ += size;
   length_ += size;
-  assert(write_head_->write_pos_ <= write_head_->len_);
+  CHECK_LE(write_head_->write_pos_, write_head_->len_);
 
   // Allocate new buffer if write head is full,
   // and there're no other place to go
@@ -437,7 +439,7 @@ void NodeBIO::Reset() {
     return;
 
   while (read_head_->read_pos_ != read_head_->write_pos_) {
-    assert(read_head_->write_pos_ > read_head_->read_pos_);
+    CHECK(read_head_->write_pos_ > read_head_->read_pos_);
 
     length_ -= read_head_->write_pos_ - read_head_->read_pos_;
     read_head_->write_pos_ = 0;
@@ -446,7 +448,7 @@ void NodeBIO::Reset() {
     read_head_ = read_head_->next_;
   }
   write_head_ = read_head_;
-  assert(length_ == 0);
+  CHECK_EQ(length_, 0);
 }
 
 

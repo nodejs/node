@@ -94,7 +94,7 @@ class ZCtx : public AsyncWrap {
 
 
   ~ZCtx() {
-    assert(!write_in_progress_ && "write in progress");
+    CHECK_EQ(false, write_in_progress_ && "write in progress");
     Close();
   }
 
@@ -105,8 +105,8 @@ class ZCtx : public AsyncWrap {
     }
 
     pending_close_ = false;
-    assert(init_done_ && "close before init");
-    assert(mode_ <= UNZIP);
+    CHECK(init_done_ && "close before init");
+    CHECK_LE(mode_, UNZIP);
 
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
       (void)deflateEnd(&strm_);
@@ -136,18 +136,18 @@ class ZCtx : public AsyncWrap {
   // write(flush, in, in_off, in_len, out, out_off, out_len)
   template <bool async>
   static void Write(const FunctionCallbackInfo<Value>& args) {
-    assert(args.Length() == 7);
+    CHECK_EQ(args.Length(), 7);
 
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
-    assert(ctx->init_done_ && "write before init");
-    assert(ctx->mode_ != NONE && "already finalized");
+    CHECK(ctx->init_done_ && "write before init");
+    CHECK(ctx->mode_ != NONE && "already finalized");
 
-    assert(!ctx->write_in_progress_ && "write already in progress");
-    assert(!ctx->pending_close_ && "close is pending");
+    CHECK_EQ(false, ctx->write_in_progress_ && "write already in progress");
+    CHECK_EQ(false, ctx->pending_close_ && "close is pending");
     ctx->write_in_progress_ = true;
     ctx->Ref();
 
-    assert(!args[0]->IsUndefined() && "must provide flush value");
+    CHECK_EQ(false, args[0]->IsUndefined() && "must provide flush value");
 
     unsigned int flush = args[0]->Uint32Value();
 
@@ -157,7 +157,7 @@ class ZCtx : public AsyncWrap {
         flush != Z_FULL_FLUSH &&
         flush != Z_FINISH &&
         flush != Z_BLOCK) {
-      assert(0 && "Invalid flush value");
+      CHECK(0 && "Invalid flush value");
     }
 
     Bytef *in;
@@ -171,21 +171,21 @@ class ZCtx : public AsyncWrap {
       in_len = 0;
       in_off = 0;
     } else {
-      assert(Buffer::HasInstance(args[1]));
+      CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
       in_buf = args[1]->ToObject();
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
-      assert(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
+      CHECK(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
       in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
     }
 
-    assert(Buffer::HasInstance(args[4]));
+    CHECK(Buffer::HasInstance(args[4]));
     Local<Object> out_buf = args[4]->ToObject();
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
-    assert(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
+    CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
     // build up the work request
@@ -276,7 +276,7 @@ class ZCtx : public AsyncWrap {
         }
         break;
       default:
-        assert(0 && "wtf?");
+        CHECK(0 && "wtf?");
     }
 
     // pass any errors back to the main thread to deal with.
@@ -313,7 +313,7 @@ class ZCtx : public AsyncWrap {
 
   // v8 land!
   static void After(uv_work_t* work_req, int status) {
-    assert(status == 0);
+    CHECK_EQ(status, 0);
 
     ZCtx* ctx = ContainerOf(&ZCtx::work_req_, work_req);
     Environment* env = ctx->env();
@@ -344,7 +344,7 @@ class ZCtx : public AsyncWrap {
     Environment* env = ctx->env();
 
     // If you hit this assertion, you forgot to enter the v8::Context first.
-    assert(env->context() == env->isolate()->GetCurrentContext());
+    CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
     if (ctx->strm_.msg != NULL) {
       message = ctx->strm_.msg;
@@ -383,22 +383,22 @@ class ZCtx : public AsyncWrap {
   static void Init(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-    assert((args.Length() == 4 || args.Length() == 5) &&
+    CHECK((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
     int windowBits = args[0]->Uint32Value();
-    assert((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
+    CHECK((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
 
     int level = args[1]->Int32Value();
-    assert((level >= -1 && level <= 9) && "invalid compression level");
+    CHECK((level >= -1 && level <= 9) && "invalid compression level");
 
     int memLevel = args[2]->Uint32Value();
-    assert((memLevel >= 1 && memLevel <= 9) && "invalid memlevel");
+    CHECK((memLevel >= 1 && memLevel <= 9) && "invalid memlevel");
 
     int strategy = args[3]->Uint32Value();
-    assert((strategy == Z_FILTERED ||
+    CHECK((strategy == Z_FILTERED ||
             strategy == Z_HUFFMAN_ONLY ||
             strategy == Z_RLE ||
             strategy == Z_FIXED ||
@@ -423,7 +423,7 @@ class ZCtx : public AsyncWrap {
   static void Params(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-    assert(args.Length() == 2 && "params(level, strategy)");
+    CHECK(args.Length() == 2 && "params(level, strategy)");
 
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
@@ -488,7 +488,7 @@ class ZCtx : public AsyncWrap {
             ->AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
         break;
       default:
-        assert(0 && "wtf?");
+        CHECK(0 && "wtf?");
     }
 
     if (ctx->err_ != Z_OK) {
@@ -571,7 +571,7 @@ class ZCtx : public AsyncWrap {
   }
 
   void Unref() {
-    assert(refs_ > 0);
+    CHECK_GT(refs_, 0);
     if (--refs_ == 0) {
       MakeWeak<ZCtx>(this);
     }

@@ -168,8 +168,8 @@ static void crypto_lock_init(void) {
 
 
 static void crypto_lock_cb(int mode, int n, const char* file, int line) {
-  assert((mode & CRYPTO_LOCK) || (mode & CRYPTO_UNLOCK));
-  assert((mode & CRYPTO_READ) || (mode & CRYPTO_WRITE));
+  CHECK((mode & CRYPTO_LOCK) || (mode & CRYPTO_UNLOCK));
+  CHECK((mode & CRYPTO_READ) || (mode & CRYPTO_WRITE));
 
   if (mode & CRYPTO_LOCK) {
     if (mode & CRYPTO_READ)
@@ -669,7 +669,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
-  assert(sc->ca_store_ == NULL);
+  CHECK_EQ(sc->ca_store_, NULL);
 
   if (!root_cert_store) {
     root_cert_store = X509_STORE_new();
@@ -1149,10 +1149,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     int rv;
 
     ext = X509_get_ext(cert, index);
-    assert(ext != NULL);
+    CHECK_NE(ext, NULL);
 
     rv = X509V3_EXT_print(bio, ext, 0, 0);
-    assert(rv == 1);
+    CHECK_EQ(rv, 1);
 
     BIO_get_mem_ptr(bio, &mem);
     info->Set(keys[i],
@@ -1386,7 +1386,7 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
     return;
 
   int slen = i2d_SSL_SESSION(sess, NULL);
-  assert(slen > 0);
+  CHECK_GT(slen, 0);
 
   unsigned char* sbuf = new unsigned char[slen];
   unsigned char* p = sbuf;
@@ -1806,7 +1806,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
 
     // OpenSSL takes control of the pointer after accepting it
     char* data = reinterpret_cast<char*>(malloc(len));
-    assert(data != NULL);
+    CHECK_NE(data, NULL);
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
@@ -1930,7 +1930,7 @@ int Connection::HandleSSLError(const char* func,
     BUF_MEM* mem;
     BIO *bio;
 
-    assert(err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL);
+    CHECK(err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL);
 
     // XXX We need to drain the error queue for this thread or else OpenSSL
     // has the possibility of blocking connections? This problem is not well
@@ -1963,7 +1963,7 @@ void Connection::ClearError() {
   // We should clear the error in JS-land
   Local<String> error_key = ssl_env()->error_string();
   Local<Value> error = object()->Get(error_key);
-  assert(error->BooleanValue() == false);
+  CHECK_EQ(error->BooleanValue(), false);
 #endif  // NDEBUG
 }
 
@@ -2477,7 +2477,7 @@ void CipherBase::Initialize(Environment* env, Handle<Object> target) {
 
 
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall() == true);
+  CHECK_EQ(args.IsConstructCall(), true);
   CipherKind kind = args[0]->IsTrue() ? kCipher : kDecipher;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new CipherBase(env, args.This(), kind);
@@ -2489,7 +2489,7 @@ void CipherBase::Init(const char* cipher_type,
                       int key_buf_len) {
   HandleScope scope(env()->isolate());
 
-  assert(cipher_ == NULL);
+  CHECK_EQ(cipher_, NULL);
   cipher_ = EVP_get_cipherbyname(cipher_type);
   if (cipher_ == NULL) {
     return env()->ThrowError("Unknown cipher");
@@ -2851,7 +2851,7 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  assert(md_ == NULL);
+  CHECK_EQ(md_, NULL);
   md_ = EVP_get_digestbyname(hash_type);
   if (md_ == NULL) {
     return env()->ThrowError("Unknown message digest");
@@ -2994,7 +2994,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hash::HashInit(const char* hash_type) {
-  assert(md_ == NULL);
+  CHECK_EQ(md_, NULL);
   md_ = EVP_get_digestbyname(hash_type);
   if (md_ == NULL)
     return false;
@@ -3137,7 +3137,7 @@ void Sign::New(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error Sign::SignInit(const char* sign_type) {
-  assert(md_ == NULL);
+  CHECK_EQ(md_, NULL);
   md_ = EVP_get_digestbyname(sign_type);
   if (!md_)
     return kSignUnknownDigest;
@@ -3314,7 +3314,7 @@ void Verify::New(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error Verify::VerifyInit(const char* verify_type) {
-  assert(md_ == NULL);
+  CHECK_EQ(md_, NULL);
   md_ = EVP_get_digestbyname(verify_type);
   if (md_ == NULL)
     return kSignUnknownDigest;
@@ -3485,7 +3485,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
                                           hlen,
                                           args[1],
                                           encoding);
-    assert(hwritten == hlen);
+    CHECK_EQ(hwritten, hlen);
   } else {
     hbuf = Buffer::Data(args[1]);
   }
@@ -3943,14 +3943,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   BN_free(key);
-  assert(size >= 0);
+  CHECK_GE(size, 0);
 
   // DH_size returns number of bytes in a prime number
   // DH_compute_key returns number of bytes in a remainder of exponent, which
   // may have less bytes than a prime number. Therefore add 0-padding to the
   // allocated buffer.
   if (size != dataSize) {
-    assert(dataSize > size);
+    CHECK(dataSize > size);
     memmove(data + dataSize - size, data, size);
     memset(data, 0, dataSize - size);
   }
@@ -4363,7 +4363,7 @@ void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
 
 
 void EIO_PBKDF2After(uv_work_t* work_req, int status) {
-  assert(status == 0);
+  CHECK_EQ(status, 0);
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
   Environment* env = req->env();
   HandleScope handle_scope(env->isolate());
@@ -4600,7 +4600,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 
 
 void RandomBytesAfter(uv_work_t* work_req, int status) {
-  assert(status == 0);
+  CHECK_EQ(status, 0);
   RandomBytesRequest* req =
       ContainerOf(&RandomBytesRequest::work_req_, work_req);
   Environment* env = req->env();
@@ -4789,7 +4789,7 @@ void Certificate::VerifySpkac(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(i);
 
   char* data = Buffer::Data(args[0]);
-  assert(data != NULL);
+  CHECK_NE(data, NULL);
 
   i = certificate->VerifySpkac(data, length);
 
@@ -4853,7 +4853,7 @@ void Certificate::ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   char* data = Buffer::Data(args[0]);
-  assert(data != NULL);
+  CHECK_NE(data, NULL);
 
   const char* pkey = certificate->ExportPublicKey(data, length);
   if (pkey == NULL)
@@ -4896,7 +4896,7 @@ void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   char* data = Buffer::Data(args[0]);
-  assert(data != NULL);
+  CHECK_NE(data, NULL);
 
   const char* cert = crt->ExportChallenge(data, len);
   if (cert == NULL)
@@ -4927,7 +4927,7 @@ void InitCryptoOnce() {
   STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
 #endif
   sk_SSL_COMP_zero(comp_methods);
-  assert(sk_SSL_COMP_num(comp_methods) == 0);
+  CHECK_EQ(sk_SSL_COMP_num(comp_methods), 0);
 #endif
 
 #ifndef OPENSSL_NO_ENGINE

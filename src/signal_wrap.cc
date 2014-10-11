@@ -67,7 +67,7 @@ class SignalWrap : public HandleWrap {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
-    assert(args.IsConstructCall());
+    CHECK(args.IsConstructCall());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     new SignalWrap(env, args.This());
   }
@@ -78,7 +78,7 @@ class SignalWrap : public HandleWrap {
                    reinterpret_cast<uv_handle_t*>(&handle_),
                    AsyncWrap::PROVIDER_SIGNALWRAP) {
     int r = uv_signal_init(env->event_loop(), &handle_);
-    assert(r == 0);
+    CHECK_EQ(r, 0);
   }
 
   ~SignalWrap() {

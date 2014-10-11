@@ -23,7 +23,6 @@
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
-#include <assert.h>
 
 namespace node {
 

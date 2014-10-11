@@ -78,7 +78,7 @@ UDPWrap::UDPWrap(Environment* env, Handle<Object> object)
                  reinterpret_cast<uv_handle_t*>(&handle_),
                  AsyncWrap::PROVIDER_UDPWRAP) {
   int r = uv_udp_init(env->event_loop(), &handle_);
-  assert(r == 0);  // can't fail anyway
+  CHECK_EQ(r, 0);  // can't fail anyway
 }
 
 
@@ -128,7 +128,7 @@ void UDPWrap::Initialize(Handle<Object> target,
 
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall());
+  CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new UDPWrap(env, args.This());
 }
@@ -149,7 +149,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
   // bind(ip, port, flags)
-  assert(args.Length() == 3);
+  CHECK_EQ(args.Length(), 3);
 
   node::Utf8Value address(args[0]);
   const int port = args[1]->Uint32Value();
@@ -165,7 +165,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
     err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
     break;
   default:
-    assert(0 && "unexpected address family");
+    CHECK(0 && "unexpected address family");
     abort();
   }
 
@@ -192,7 +192,7 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 #define X(name, fn)                                                           \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
-    assert(args.Length() == 1);                                               \
+    CHECK_EQ(args.Length(), 1);                                               \
     int flag = args[0]->Int32Value();                                         \
     int err = fn(&wrap->handle_, flag);                                       \
     args.GetReturnValue().Set(err);                                           \
@@ -210,7 +210,7 @@ void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
                             uv_membership membership) {
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
-  assert(args.Length() == 2);
+  CHECK_EQ(args.Length(), 2);
 
   node::Utf8Value address(args[0]);
   node::Utf8Value iface(args[1]);
@@ -244,13 +244,13 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
   // send(req, buffer, offset, length, port, address)
-  assert(args[0]->IsObject());
-  assert(Buffer::HasInstance(args[1]));
-  assert(args[2]->IsUint32());
-  assert(args[3]->IsUint32());
-  assert(args[4]->IsUint32());
-  assert(args[5]->IsString());
-  assert(args[6]->IsBoolean());
+  CHECK(args[0]->IsObject());
+  CHECK(Buffer::HasInstance(args[1]));
+  CHECK(args[2]->IsUint32());
+  CHECK(args[3]->IsUint32());
+  CHECK(args[4]->IsUint32());
+  CHECK(args[5]->IsString());
+  CHECK(args[6]->IsBoolean());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -260,7 +260,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(args[5]);
   const bool have_callback = args[6]->IsTrue();
 
-  assert(length <= Buffer::Length(buffer_obj) - offset);
+  CHECK_LE(length, Buffer::Length(buffer_obj) - offset);
 
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
 
@@ -277,7 +277,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     err = uv_ip6_addr(*address, port, reinterpret_cast<sockaddr_in6*>(&addr));
     break;
   default:
-    assert(0 && "unexpected address family");
+    CHECK(0 && "unexpected address family");
     abort();
   }
 
@@ -331,7 +331,7 @@ void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
   struct sockaddr_storage address;
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
-  assert(args[0]->IsObject());
+  CHECK(args[0]->IsObject());
   Local<Object> obj = args[0].As<Object>();
 
   int addrlen = sizeof(address);
@@ -416,7 +416,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 Local<Object> UDPWrap::Instantiate(Environment* env) {
   // If this assert fires then Initialize hasn't been called yet.
-  assert(env->udp_constructor_function().IsEmpty() == false);
+  CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
   return env->udp_constructor_function()->NewInstance();
 }
 

@@ -74,7 +74,7 @@ FSEventWrap::FSEventWrap(Environment* env, Handle<Object> object)
 
 
 FSEventWrap::~FSEventWrap() {
-  assert(initialized_ == false);
+  CHECK_EQ(initialized_, false);
 }
 
 
@@ -95,7 +95,7 @@ void FSEventWrap::Initialize(Handle<Object> target,
 
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall());
+  CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new FSEventWrap(env, args.This());
 }
@@ -144,7 +144,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  assert(wrap->persistent().IsEmpty() == false);
+  CHECK_EQ(wrap->persistent().IsEmpty(), false);
 
   // We're in a bind here. libuv can set both UV_RENAME and UV_CHANGE but
   // the Node API only lets us pass a single event to JS land.
@@ -165,7 +165,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   } else if (events & UV_CHANGE) {
     event_string = env->change_string();
   } else {
-    assert(0 && "bad fs events flag");
+    CHECK(0 && "bad fs events flag");
     abort();
   }
 

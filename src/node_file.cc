@@ -34,7 +34,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -116,7 +115,7 @@ static inline bool IsInt64(double x) {
 
 static void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
-  assert(&req_wrap->req_ == req);
+  CHECK_EQ(&req_wrap->req_, req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
 
   Environment* env = req_wrap->env();
@@ -234,7 +233,7 @@ static void After(uv_fs_t *req) {
         break;
 
       default:
-        assert(0 && "Unhandled eio response");
+        CHECK(0 && "Unhandled eio response");
     }
   }
 
@@ -330,7 +329,7 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
 Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
-  assert(env->context() == env->isolate()->GetCurrentContext());
+  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   EscapableHandleScope handle_scope(env->isolate());
 
@@ -699,7 +698,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(readdir, *path, *path, 0 /*flags*/)
 
-    assert(SYNC_REQ.result >= 0);
+    CHECK_GE(SYNC_REQ.result, 0);
     int r;
     Local<Array> names = Array::New(env->isolate(), 0);
 
@@ -763,8 +762,8 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsInt32());
-  assert(Buffer::HasInstance(args[1]));
+  CHECK(args[0]->IsInt32());
+  CHECK(Buffer::HasInstance(args[1]));
 
   int fd = args[0]->Int32Value();
   Local<Object> obj = args[1].As<Object>();
@@ -1090,7 +1089,7 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 
 void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Local<Function> stats_constructor = args[0].As<Function>();
-  assert(stats_constructor->IsFunction());
+  CHECK(stats_constructor->IsFunction());
 
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   env->set_fs_stats_constructor_function(stats_constructor);

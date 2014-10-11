@@ -25,7 +25,6 @@
 #include "node_buffer.h"
 #include "v8.h"
 
-#include <assert.h>
 #include <limits.h>
 #include <string.h>  // memcpy
 
@@ -378,7 +377,7 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
 
     default:
-      assert(0 && "unknown encoding");
+      CHECK(0 && "unknown encoding");
       break;
   }
 
@@ -435,12 +434,12 @@ size_t StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case HEX:
-      assert(str->Length() % 2 == 0 && "invalid hex string length");
+      CHECK(str->Length() % 2 == 0 && "invalid hex string length");
       data_size = str->Length() / 2;
       break;
 
     default:
-      assert(0 && "unknown encoding");
+      CHECK(0 && "unknown encoding");
       break;
   }
 
@@ -490,7 +489,7 @@ size_t StringBytes::Size(Isolate* isolate,
       break;
 
     default:
-      assert(0 && "unknown encoding");
+      CHECK(0 && "unknown encoding");
       break;
   }
 
@@ -610,8 +609,8 @@ static size_t base64_encode(const char* src,
                             char* dst,
                             size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
-  assert(dlen >= base64_encoded_size(slen) &&
-      "not enough space provided for base64 encode");
+  CHECK(dlen >= base64_encoded_size(slen) &&
+        "not enough space provided for base64 encode");
 
   dlen = base64_encoded_size(slen);
 
@@ -671,7 +670,7 @@ static size_t base64_encode(const char* src,
 
 static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
-  assert(dlen >= slen * 2 &&
+  CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
 
   dlen = slen * 2;
@@ -693,7 +692,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
                                  enum encoding encoding) {
   EscapableHandleScope scope(isolate);
 
-  assert(buflen <= Buffer::kMaxLength);
+  CHECK_LE(buflen, Buffer::kMaxLength);
   if (!buflen && encoding != BUFFER)
     return scope.Escape(String::Empty(isolate));
 
@@ -739,7 +738,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
       char* dst = new char[dlen];
 
       size_t written = base64_encode(buf, buflen, dst, dlen);
-      assert(written == dlen);
+      CHECK_EQ(written, dlen);
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
@@ -780,7 +779,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
       size_t dlen = buflen * 2;
       char* dst = new char[dlen];
       size_t written = hex_encode(buf, buflen, dst, dlen);
-      assert(written == dlen);
+      CHECK_EQ(written, dlen);
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
@@ -792,7 +791,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
     }
 
     default:
-      assert(0 && "unknown encoding");
+      CHECK(0 && "unknown encoding");
       break;
   }
 

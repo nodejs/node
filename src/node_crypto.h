@@ -139,7 +139,7 @@ class SecureContext : public BaseObject {
       cert_ = NULL;
       issuer_ = NULL;
     } else {
-      assert(ca_store_ == NULL);
+      CHECK_EQ(ca_store_, NULL);
     }
   }
 };
@@ -161,7 +161,7 @@ class SSLWrap {
         session_callbacks_(false),
         new_session_wait_(false) {
     ssl_ = SSL_new(sc->ctx_);
-    assert(ssl_ != NULL);
+    CHECK_NE(ssl_, NULL);
   }
 
   ~SSLWrap() {

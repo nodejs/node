@@ -29,9 +29,7 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-
 #include "v8.h"
-#include <assert.h>
 
 namespace node {
 
@@ -74,7 +72,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     const v8::Handle<v8::Function> cb,
     int argc,
     v8::Handle<v8::Value>* argv) {
-  assert(env()->context() == env()->isolate()->GetCurrentContext());
+  CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
 
   v8::Local<v8::Object> context = object();
   v8::Local<v8::Object> process = env()->process_object();
@@ -169,7 +167,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   if (env()->using_domains())
     return MakeDomainCallback(cb, argc, argv);
 
-  assert(env()->context() == env()->isolate()->GetCurrentContext());
+  CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
 
   v8::Local<v8::Object> context = object();
   v8::Local<v8::Object> process = env()->process_object();
@@ -235,7 +233,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(symbol);
   v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  assert(cb->IsFunction());
+  CHECK(cb->IsFunction());
 
   return MakeCallback(cb, argc, argv);
 }
@@ -247,7 +245,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(index);
   v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  assert(cb->IsFunction());
+  CHECK(cb->IsFunction());
 
   return MakeCallback(cb, argc, argv);
 }

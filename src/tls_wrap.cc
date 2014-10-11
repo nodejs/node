@@ -272,7 +272,7 @@ void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
   wrap->started_ = true;
 
   // Send ClientHello handshake
-  assert(wrap->is_client());
+  CHECK(wrap->is_client());
   wrap->ClearOut();
   wrap->EncOut();
 }
@@ -336,7 +336,7 @@ void TLSCallbacks::EncOut() {
   size_t size[ARRAY_SIZE(data)];
   size_t count = ARRAY_SIZE(data);
   write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
-  assert(write_size_ != 0 && count != 0);
+  CHECK(write_size_ != 0 && count != 0);
 
   write_req_.data = this;
   uv_buf_t buf[ARRAY_SIZE(data)];
@@ -387,7 +387,7 @@ int TLSCallbacks::PrintErrorsCb(const char* str, size_t len, void* arg) {
 
   memcpy(error_buf_, str, avail);
   error_off_ += avail;
-  assert(error_off_ < sizeof(error_buf_));
+  CHECK_LT(error_off_, sizeof(error_buf_));
 
   // Zero-terminate
   error_buf_[error_off_] = '\0';
@@ -418,7 +418,7 @@ Local<Value> TLSCallbacks::GetSSLError(int status, int* err, const char** msg) {
       break;
     default:
       {
-        assert(*err == SSL_ERROR_SSL || *err == SSL_ERROR_SYSCALL);
+        CHECK(*err == SSL_ERROR_SSL || *err == SSL_ERROR_SYSCALL);
 
         const char* buf = PrintErrors();
 
@@ -427,7 +427,7 @@ Local<Value> TLSCallbacks::GetSSLError(int status, int* err, const char** msg) {
         Local<Value> exception = Exception::Error(message);
 
         if (msg != NULL) {
-          assert(*msg == NULL);
+          CHECK_EQ(*msg, NULL);
           *msg = buf;
         }
 
@@ -450,7 +450,7 @@ void TLSCallbacks::ClearOut() {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
-  assert(ssl_ != NULL);
+  CHECK_NE(ssl_, NULL);
 
   char out[kClearOutChunkSize];
   int read;
@@ -502,7 +502,7 @@ bool TLSCallbacks::ClearIn() {
     size_t avail = 0;
     char* data = clear_in_->Peek(&avail);
     written = SSL_write(ssl_, data, avail);
-    assert(written == -1 || written == static_cast<int>(avail));
+    CHECK(written == -1 || written == static_cast<int>(avail));
     if (written == -1)
       break;
     clear_in_->Read(NULL, avail);
@@ -510,7 +510,7 @@ bool TLSCallbacks::ClearIn() {
 
   // All written
   if (clear_in_->Length() == 0) {
-    assert(written >= 0);
+    CHECK_GE(written, 0);
     return true;
   }
 
@@ -549,7 +549,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
                           size_t count,
                           uv_stream_t* send_handle,
                           uv_write_cb cb) {
-  assert(send_handle == NULL);
+  CHECK_EQ(send_handle, NULL);
 
   bool empty = true;
 
@@ -589,7 +589,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
   int written = 0;
   for (i = 0; i < count; i++) {
     written = SSL_write(ssl_, bufs[i].base, bufs[i].len);
-    assert(written == -1 || written == static_cast<int>(bufs[i].len));
+    CHECK(written == -1 || written == static_cast<int>(bufs[i].len));
     if (written == -1)
       break;
   }
@@ -651,7 +651,7 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
   }
 
   // Only client connections can receive data
-  assert(ssl_ != NULL);
+  CHECK_NE(ssl_, NULL);
 
   // Commit read data
   NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
@@ -661,7 +661,7 @@ void TLSCallbacks::DoRead(uv_stream_t* handle,
   if (!hello_parser_.IsEnded()) {
     size_t avail = 0;
     uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
-    assert(avail == 0 || data != NULL);
+    CHECK(avail == 0 || data != NULL);
     return hello_parser_.Parse(data, avail);
   }
 

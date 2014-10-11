@@ -100,7 +100,7 @@ uv_tty_t* TTYWrap::UVHandle() {
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   int fd = args[0]->Int32Value();
-  assert(fd >= 0);
+  CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
   const char* type = NULL;
@@ -122,7 +122,7 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
-  assert(fd >= 0);
+  CHECK_GE(fd, 0);
   bool rc = uv_guess_handle(fd) == UV_TTY;
   args.GetReturnValue().Set(rc);
 }
@@ -132,7 +132,7 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
-  assert(args[0]->IsArray());
+  CHECK(args[0]->IsArray());
 
   int width, height;
   int err = uv_tty_get_winsize(&wrap->handle_, &width, &height);
@@ -160,10 +160,10 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a
   // normal function.
-  assert(args.IsConstructCall());
+  CHECK(args.IsConstructCall());
 
   int fd = args[0]->Int32Value();
-  assert(fd >= 0);
+  CHECK_GE(fd, 0);
 
   TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue());
   wrap->UpdateWriteQueueSize();

@@ -28,7 +28,6 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 

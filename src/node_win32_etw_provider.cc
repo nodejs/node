@@ -183,7 +183,7 @@ void init_etw() {
                                     etw_events_enable_callback,
                                     NULL,
                                     &node_provider);
-      assert(status == ERROR_SUCCESS);
+      CHECK_EQ(status, ERROR_SUCCESS);
     }
   }
 }
