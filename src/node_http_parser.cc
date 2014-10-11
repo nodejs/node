@@ -213,8 +213,8 @@ class Parser : public BaseObject {
       fields_[num_fields_ - 1].Reset();
     }
 
-    assert(num_fields_ < static_cast<int>(ARRAY_SIZE(fields_)));
-    assert(num_fields_ == num_values_ + 1);
+    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
 
@@ -229,8 +229,8 @@ class Parser : public BaseObject {
       values_[num_values_ - 1].Reset();
     }
 
-    assert(num_values_ < static_cast<int>(ARRAY_SIZE(values_)));
-    assert(num_values_ == num_fields_);
+    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
 
@@ -353,7 +353,7 @@ class Parser : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
-    assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
+    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     new Parser(env, args.This(), type);
   }
 
@@ -383,10 +383,10 @@ class Parser : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     Parser* parser = Unwrap<Parser>(args.Holder());
-    assert(parser->current_buffer_.IsEmpty());
-    assert(parser->current_buffer_len_ == 0);
-    assert(parser->current_buffer_data_ == NULL);
-    assert(Buffer::HasInstance(args[0]) == true);
+    CHECK(parser->current_buffer_.IsEmpty());
+    CHECK_EQ(parser->current_buffer_len_, 0);
+    CHECK_EQ(parser->current_buffer_data_, NULL);
+    CHECK_EQ(Buffer::HasInstance(args[0]), true);
 
     Local<Object> buffer_obj = args[0].As<Object>();
     char* buffer_data = Buffer::Data(buffer_obj);
@@ -438,7 +438,7 @@ class Parser : public BaseObject {
 
     Parser* parser = Unwrap<Parser>(args.Holder());
 
-    assert(parser->current_buffer_.IsEmpty());
+    CHECK(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
 
     int rv = http_parser_execute(&(parser->parser_), &settings, NULL, 0);
@@ -466,10 +466,10 @@ class Parser : public BaseObject {
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
 
-    assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
+    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
-    assert(env == parser->env());
+    CHECK_EQ(env, parser->env());
     parser->Init(type);
   }
 
@@ -479,7 +479,7 @@ class Parser : public BaseObject {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
-    assert(env == parser->env());
+    CHECK_EQ(env, parser->env());
     http_parser_pause(&parser->parser_, should_pause);
   }
 

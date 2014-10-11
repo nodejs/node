@@ -61,11 +61,11 @@ uv_pipe_t* PipeWrap::UVHandle() {
 
 Local<Object> PipeWrap::Instantiate(Environment* env) {
   EscapableHandleScope handle_scope(env->isolate());
-  assert(!env->pipe_constructor_template().IsEmpty());
+  CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
-  assert(!constructor.IsEmpty());
+  CHECK_EQ(false, constructor.IsEmpty());
   Local<Object> instance = constructor->NewInstance();
-  assert(!instance.IsEmpty());
+  CHECK_EQ(false, instance.IsEmpty());
   return handle_scope.Escape(instance);
 }
 
@@ -126,7 +126,7 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a
   // normal function.
-  assert(args.IsConstructCall());
+  CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new PipeWrap(env, args.This(), args[0]->IsTrue());
 }
@@ -138,7 +138,7 @@ PipeWrap::PipeWrap(Environment* env, Handle<Object> object, bool ipc)
                  reinterpret_cast<uv_stream_t*>(&handle_),
                  AsyncWrap::PROVIDER_PIPEWRAP) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
-  assert(r == 0);  // How do we proxy this error up to javascript?
+  CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
   UpdateWriteQueueSize();
 }
@@ -174,7 +174,7 @@ void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 // TODO(bnoordhuis) maybe share with TCPWrap?
 void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   PipeWrap* pipe_wrap = static_cast<PipeWrap*>(handle->data);
-  assert(&pipe_wrap->handle_ == reinterpret_cast<uv_pipe_t*>(handle));
+  CHECK_EQ(&pipe_wrap->handle_, reinterpret_cast<uv_pipe_t*>(handle));
 
   Environment* env = pipe_wrap->env();
   HandleScope handle_scope(env->isolate());
@@ -182,7 +182,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
-  assert(pipe_wrap->persistent().IsEmpty() == false);
+  CHECK_EQ(pipe_wrap->persistent().IsEmpty(), false);
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),
@@ -212,15 +212,15 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
   PipeWrap* wrap = static_cast<PipeWrap*>(req->handle->data);
-  assert(req_wrap->env() == wrap->env());
+  CHECK_EQ(req_wrap->env(), wrap->env());
   Environment* env = wrap->env();
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   // The wrap and request objects should still be there.
-  assert(req_wrap->persistent().IsEmpty() == false);
-  assert(wrap->persistent().IsEmpty() == false);
+  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(wrap->persistent().IsEmpty(), false);
 
   bool readable, writable;
 
@@ -265,8 +265,8 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
-  assert(args[0]->IsObject());
-  assert(args[1]->IsString());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value name(args[1]);

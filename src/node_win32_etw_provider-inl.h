@@ -113,7 +113,7 @@ extern int events_enabled;
                              sizeof(dataDescriptors) /                        \
                                  sizeof(*dataDescriptors),                    \
                              dataDescriptors);                                \
-  assert(status == ERROR_SUCCESS);
+  CHECK_EQ(status, ERROR_SUCCESS);
 
 
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,

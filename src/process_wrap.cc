@@ -73,7 +73,7 @@ class ProcessWrap : public HandleWrap {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
-    assert(args.IsConstructCall());
+    CHECK(args.IsConstructCall());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     new ProcessWrap(env, args.This());
   }
@@ -116,7 +116,7 @@ class ProcessWrap : public HandleWrap {
         Local<String> handle_key = env->handle_string();
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
         uv_stream_t* stream = HandleToStream(env, handle);
-        assert(stream != NULL);
+        CHECK_NE(stream, NULL);
 
         options->stdio[i].flags = UV_INHERIT_STREAM;
         options->stdio[i].data.stream = stream;
@@ -231,7 +231,7 @@ class ProcessWrap : public HandleWrap {
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
 
     if (err == 0) {
-      assert(wrap->process_.data == wrap);
+      CHECK_EQ(wrap->process_.data, wrap);
       wrap->object()->Set(env->pid_string(),
                           Integer::New(env->isolate(), wrap->process_.pid));
     }
@@ -262,8 +262,8 @@ class ProcessWrap : public HandleWrap {
                      int64_t exit_status,
                      int term_signal) {
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
-    assert(wrap != NULL);
-    assert(&wrap->process_ == handle);
+    CHECK_NE(wrap, NULL);
+    CHECK_EQ(&wrap->process_, handle);
 
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());

@@ -69,7 +69,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   if (wrap == NULL || wrap->handle__ == NULL)
     return;
 
-  assert(!wrap->persistent().IsEmpty());
+  CHECK_EQ(false, wrap->persistent().IsEmpty());
   uv_close(wrap->handle__, OnClose);
   wrap->handle__ = NULL;
 
@@ -95,7 +95,7 @@ HandleWrap::HandleWrap(Environment* env,
 
 
 HandleWrap::~HandleWrap() {
-  assert(persistent().IsEmpty());
+  CHECK(persistent().IsEmpty());
   QUEUE_REMOVE(&handle_wrap_queue_);
 }
 
@@ -106,10 +106,10 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   HandleScope scope(env->isolate());
 
   // The wrap object should still be there.
-  assert(wrap->persistent().IsEmpty() == false);
+  CHECK_EQ(wrap->persistent().IsEmpty(), false);
 
   // But the handle pointer should be gone.
-  assert(wrap->handle__ == NULL);
+  CHECK_EQ(wrap->handle__, NULL);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

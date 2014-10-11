@@ -27,7 +27,6 @@
 #include "util.h"
 #include "util-inl.h"
 
-#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -85,7 +84,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
                            const uv_stat_t* prev,
                            const uv_stat_t* curr) {
   StatWatcher* wrap = static_cast<StatWatcher*>(handle->data);
-  assert(wrap->watcher_ == handle);
+  CHECK_EQ(wrap->watcher_, handle);
   Environment* env = wrap->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -99,14 +98,14 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall());
+  CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new StatWatcher(env, args.This());
 }
 
 
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
-  assert(args.Length() == 3);
+  CHECK_EQ(args.Length(), 3);
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   node::Utf8Value path(args[0]);

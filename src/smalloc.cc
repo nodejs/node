@@ -29,7 +29,6 @@
 #include "v8.h"
 
 #include <string.h>
-#include <assert.h>
 
 #define ALLOC_ID (0xA10C)
 
@@ -251,8 +250,8 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   Local<Object> source = args[0].As<Object>();
   Local<Object> dest = args[1].As<Object>();
 
-  assert(source->HasIndexedPropertiesInExternalArrayData());
-  assert(!dest->HasIndexedPropertiesInExternalArrayData());
+  CHECK(source->HasIndexedPropertiesInExternalArrayData());
+  CHECK_EQ(false, dest->HasIndexedPropertiesInExternalArrayData());
 
   char* source_data = static_cast<char*>(
       source->GetIndexedPropertiesExternalArrayData());
@@ -261,20 +260,20 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
     source->GetIndexedPropertiesExternalArrayDataType();
   size_t source_size = ExternalArraySize(source_type);
 
-  assert(source_size != 0);
+  CHECK_NE(source_size, 0);
 
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
   size_t length = end - start;
 
   if (source_size > 1) {
-    assert(length * source_size >= length);
+    CHECK_GE(length * source_size, length);
     length *= source_size;
   }
 
-  assert(source_data != NULL || length == 0);
-  assert(end <= source_len);
-  assert(start <= end);
+  CHECK(source_data != NULL || length == 0);
+  CHECK_LE(end, source_len);
+  CHECK_LE(start, end);
 
   dest->SetIndexedPropertiesToExternalArrayData(source_data + start,
                                                 source_type,
@@ -303,7 +302,7 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
   } else {
     array_type = static_cast<ExternalArrayType>(args[2]->Uint32Value());
     size_t type_length = ExternalArraySize(array_type);
-    assert(type_length * length >= length);
+    CHECK_GE(type_length * length, length);
     length *= type_length;
   }
 
@@ -318,8 +317,8 @@ void Alloc(Environment* env,
            enum ExternalArrayType type) {
   size_t type_size = ExternalArraySize(type);
 
-  assert(length <= kMaxLength);
-  assert(type_size > 0);
+  CHECK_LE(length, kMaxLength);
+  CHECK_GT(type_size, 0);
 
   if (length == 0)
     return Alloc(env, obj, NULL, length, type);
@@ -339,7 +338,7 @@ void Alloc(Environment* env,
            char* data,
            size_t length,
            enum ExternalArrayType type) {
-  assert(!obj->HasIndexedPropertiesInExternalArrayData());
+  CHECK_EQ(false, obj->HasIndexedPropertiesInExternalArrayData());
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
   size_t size = length / ExternalArraySize(type);
   obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
@@ -373,8 +372,8 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
     obj->GetIndexedPropertiesExternalArrayDataType();
   size_t array_size = ExternalArraySize(array_type);
 
-  assert(array_size > 0);
-  assert(length * array_size >= length);
+  CHECK_GT(array_size, 0);
+  CHECK_GE(length * array_size, length);
 
   length *= array_size;
 
@@ -397,12 +396,12 @@ void Alloc(Environment* env,
            FreeCallback fn,
            void* hint,
            enum ExternalArrayType type) {
-  assert(length <= kMaxLength);
+  CHECK_LE(length, kMaxLength);
 
   size_t type_size = ExternalArraySize(type);
 
-  assert(type_size > 0);
-  assert(length * type_size >= length);
+  CHECK_GT(type_size, 0);
+  CHECK_GE(length * type_size, length);
 
   length *= type_size;
 
@@ -418,7 +417,7 @@ void Alloc(Environment* env,
            FreeCallback fn,
            void* hint,
            enum ExternalArrayType type) {
-  assert(!obj->HasIndexedPropertiesInExternalArrayData());
+  CHECK_EQ(false, obj->HasIndexedPropertiesInExternalArrayData());
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
   env->set_using_smalloc_alloc_cb(true);

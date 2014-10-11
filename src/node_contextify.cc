@@ -184,7 +184,7 @@ class ContextifyContext {
               "binding:script");
           Local<Script> script = Script::Compile(code, fname);
           clone_property_method = Local<Function>::Cast(script->Run());
-          assert(clone_property_method->IsFunction());
+          CHECK(clone_property_method->IsFunction());
         }
         Local<Value> args[] = { global, key, sandbox };
         clone_property_method->Call(global, ARRAY_SIZE(args), args);
@@ -276,7 +276,7 @@ class ContextifyContext {
         FIXED_ONE_BYTE_STRING(env->isolate(), "_contextifyHidden");
 
     // Don't allow contextifying a sandbox multiple times.
-    assert(sandbox->GetHiddenValue(hidden_name).IsEmpty());
+    CHECK(sandbox->GetHiddenValue(hidden_name).IsEmpty());
 
     TryCatch try_catch;
     ContextifyContext* context = new ContextifyContext(env, sandbox);

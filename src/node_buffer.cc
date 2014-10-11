@@ -30,7 +30,6 @@
 #include "v8-profiler.h"
 #include "v8.h"
 
-#include <assert.h>
 #include <string.h>
 #include <limits.h>
 
@@ -47,7 +46,7 @@
   char* obj_data = static_cast<char*>(                                      \
     obj->GetIndexedPropertiesExternalArrayData());                          \
   if (obj_length > 0)                                                       \
-    assert(obj_data != NULL);
+    CHECK_NE(obj_data, NULL);
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
@@ -91,7 +90,7 @@ bool HasInstance(Handle<Object> obj) {
 
 
 char* Data(Handle<Value> val) {
-  assert(val->IsObject());
+  CHECK(val->IsObject());
   // Use a fully qualified name here to work around a bug in gcc 4.2.
   // It mistakes an unadorned call to Data() for the v8::String::Data type.
   return node::Buffer::Data(val.As<Object>());
@@ -99,19 +98,19 @@ char* Data(Handle<Value> val) {
 
 
 char* Data(Handle<Object> obj) {
-  assert(obj->HasIndexedPropertiesInExternalArrayData());
+  CHECK(obj->HasIndexedPropertiesInExternalArrayData());
   return static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
 }
 
 
 size_t Length(Handle<Value> val) {
-  assert(val->IsObject());
+  CHECK(val->IsObject());
   return Length(val.As<Object>());
 }
 
 
 size_t Length(Handle<Object> obj) {
-  assert(obj->HasIndexedPropertiesInExternalArrayData());
+  CHECK(obj->HasIndexedPropertiesInExternalArrayData());
   return obj->GetIndexedPropertiesExternalArrayDataLength();
 }
 
@@ -141,7 +140,7 @@ Local<Object> New(Isolate* isolate, size_t length) {
 Local<Object> New(Environment* env, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
-  assert(length <= kMaxLength);
+  CHECK_LE(length, kMaxLength);
 
   Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
@@ -177,7 +176,7 @@ Local<Object> New(Isolate* isolate, const char* data, size_t length) {
 Local<Object> New(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
-  assert(length <= kMaxLength);
+  CHECK_LE(length, kMaxLength);
 
   Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
@@ -220,7 +219,7 @@ Local<Object> New(Environment* env,
                   void* hint) {
   EscapableHandleScope scope(env->isolate());
 
-  assert(length <= kMaxLength);
+  CHECK_LE(length, kMaxLength);
 
   Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
@@ -242,7 +241,7 @@ Local<Object> Use(Isolate* isolate, char* data, uint32_t length) {
 Local<Object> Use(Environment* env, char* data, uint32_t length) {
   EscapableHandleScope scope(env->isolate());
 
-  assert(length <= kMaxLength);
+  CHECK_LE(length, kMaxLength);
 
   Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
@@ -591,13 +590,13 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsFunction());
+  CHECK(args[0]->IsFunction());
 
   Local<Function> bv = args[0].As<Function>();
   env->set_buffer_constructor_function(bv);
   Local<Value> proto_v = bv->Get(env->prototype_string());
 
-  assert(proto_v->IsObject());
+  CHECK(proto_v->IsObject());
 
   Local<Object> proto = proto_v.As<Object>();
 
@@ -622,7 +621,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
                   Uint32::New(env->isolate(), 0),
                   v8::ReadOnly);
 
-  assert(args[1]->IsObject());
+  CHECK(args[1]->IsObject());
 
   Local<Object> internal = args[1].As<Object>();
   ASSERT(internal->IsObject());

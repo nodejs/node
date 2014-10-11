@@ -63,7 +63,7 @@ void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
 
 void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
   // If we hand out the same chunk twice, this should catch it.
-  assert(buf->base == data_ + used());
+  CHECK_EQ(buf->base, data_ + used());
   used_ += static_cast<unsigned int>(nread);
 }
 
@@ -111,12 +111,12 @@ SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
       shutdown_req_(),
 
       lifecycle_(kUninitialized) {
-  assert(readable || writable);
+  CHECK(readable || writable);
 }
 
 
 SyncProcessStdioPipe::~SyncProcessStdioPipe() {
-  assert(lifecycle_ == kUninitialized || lifecycle_ == kClosed);
+  CHECK(lifecycle_ == kUninitialized || lifecycle_ == kClosed);
 
   SyncProcessOutputBuffer* buf;
   SyncProcessOutputBuffer* next;
@@ -129,7 +129,7 @@ SyncProcessStdioPipe::~SyncProcessStdioPipe() {
 
 
 int SyncProcessStdioPipe::Initialize(uv_loop_t* loop) {
-  assert(lifecycle_ == kUninitialized);
+  CHECK_EQ(lifecycle_, kUninitialized);
 
   int r = uv_pipe_init(loop, uv_pipe(), 0);
   if (r < 0)
@@ -143,7 +143,7 @@ int SyncProcessStdioPipe::Initialize(uv_loop_t* loop) {
 
 
 int SyncProcessStdioPipe::Start() {
-  assert(lifecycle_ == kInitialized);
+  CHECK_EQ(lifecycle_, kInitialized);
 
   // Set the busy flag already. If this function fails no recovery is
   // possible.
@@ -151,7 +151,7 @@ int SyncProcessStdioPipe::Start() {
 
   if (readable()) {
     if (input_buffer_.len > 0) {
-      assert(input_buffer_.base != NULL);
+      CHECK_NE(input_buffer_.base, NULL);
 
       int r = uv_write(&write_req_,
                        uv_stream(),
@@ -178,7 +178,7 @@ int SyncProcessStdioPipe::Start() {
 
 
 void SyncProcessStdioPipe::Close() {
-  assert(lifecycle_ == kInitialized || lifecycle_ == kStarted);
+  CHECK(lifecycle_ == kInitialized || lifecycle_ == kStarted);
 
   uv_close(uv_handle(), CloseCallback);
 
@@ -218,7 +218,7 @@ uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
 
 
 uv_pipe_t* SyncProcessStdioPipe::uv_pipe() const {
-  assert(lifecycle_ < kClosing);
+  CHECK_LT(lifecycle_, kClosing);
   return &uv_pipe_;
 }
 
@@ -309,7 +309,7 @@ void SyncProcessStdioPipe::OnClose() {
 
 
 void SyncProcessStdioPipe::SetError(int error) {
-  assert(error != 0);
+  CHECK_NE(error, 0);
   process_handler_->SetPipeError(error);
 }
 
@@ -406,7 +406,7 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 
 
 SyncProcessRunner::~SyncProcessRunner() {
-  assert(lifecycle_ == kHandlesClosed);
+  CHECK_EQ(lifecycle_, kHandlesClosed);
 
   if (stdio_pipes_ != NULL) {
     for (size_t i = 0; i < stdio_count_; i++) {
@@ -432,7 +432,7 @@ Environment* SyncProcessRunner::env() const {
 Local<Object> SyncProcessRunner::Run(Local<Value> options) {
   EscapableHandleScope scope(env()->isolate());
 
-  assert(lifecycle_ == kUninitialized);
+  CHECK_EQ(lifecycle_, kUninitialized);
 
   TryInitializeAndRunLoop(options);
   CloseHandlesAndDeleteLoop();
@@ -448,7 +448,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
 
   // There is no recovery from failure inside TryInitializeAndRunLoop - the
   // only option we'd have is to close all handles and destroy the loop.
-  assert(lifecycle_ == kUninitialized);
+  CHECK_EQ(lifecycle_, kUninitialized);
   lifecycle_ = kInitialized;
 
   uv_loop_ = new uv_loop_t;
@@ -500,12 +500,12 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     abort();
 
   // If we get here the process should have exited.
-  assert(exit_status_ >= 0);
+  CHECK_GE(exit_status_, 0);
 }
 
 
 void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
-  assert(lifecycle_ < kHandlesClosed);
+  CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (uv_loop_ != NULL) {
     CloseStdioPipes();
@@ -528,8 +528,8 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
 
   } else {
     // If the loop doesn't exist, neither should any pipes or timers.
-    assert(!stdio_pipes_initialized_);
-    assert(!kill_timer_initialized_);
+    CHECK_EQ(false, stdio_pipes_initialized_);
+    CHECK_EQ(false, kill_timer_initialized_);
   }
 
   lifecycle_ = kHandlesClosed;
@@ -537,11 +537,11 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
 
 
 void SyncProcessRunner::CloseStdioPipes() {
-  assert(lifecycle_ < kHandlesClosed);
+  CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (stdio_pipes_initialized_) {
-    assert(stdio_pipes_ != NULL);
-    assert(uv_loop_ != NULL);
+    CHECK_NE(stdio_pipes_, NULL);
+    CHECK_NE(uv_loop_, NULL);
 
     for (uint32_t i = 0; i < stdio_count_; i++) {
       if (stdio_pipes_[i] != NULL)
@@ -554,11 +554,11 @@ void SyncProcessRunner::CloseStdioPipes() {
 
 
 void SyncProcessRunner::CloseKillTimer() {
-  assert(lifecycle_ < kHandlesClosed);
+  CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (kill_timer_initialized_) {
-    assert(timeout_ > 0);
-    assert(uv_loop_ != NULL);
+    CHECK_GT(timeout_, 0);
+    CHECK_NE(uv_loop_, NULL);
 
     uv_handle_t* uv_timer_handle = reinterpret_cast<uv_handle_t*>(&uv_timer_);
     uv_ref(uv_timer_handle);
@@ -590,7 +590,7 @@ void SyncProcessRunner::Kill() {
       SetError(r);
 
       r = uv_process_kill(&uv_process_, SIGKILL);
-      assert(r >= 0 || r == UV_ESRCH);
+      CHECK(r >= 0 || r == UV_ESRCH);
     }
   }
 
@@ -683,8 +683,8 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
 
 
 Local<Array> SyncProcessRunner::BuildOutputArray() {
-  assert(lifecycle_ >= kInitialized);
-  assert(stdio_pipes_ != NULL);
+  CHECK_GE(lifecycle_, kInitialized);
+  CHECK_NE(stdio_pipes_, NULL);
 
   EscapableHandleScope scope(env()->isolate());
   Local<Array> js_output = Array::New(env()->isolate(), stdio_count_);
@@ -868,15 +868,15 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
-    assert(0 && "invalid child stdio type");
+    CHECK(0 && "invalid child stdio type");
     return UV_EINVAL;
   }
 }
 
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
-  assert(child_fd < stdio_count_);
-  assert(stdio_pipes_[child_fd] == NULL);
+  CHECK_LT(child_fd, stdio_count_);
+  CHECK_EQ(stdio_pipes_[child_fd], NULL);
 
   uv_stdio_containers_[child_fd].flags = UV_IGNORE;
 
@@ -888,8 +888,8 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool readable,
                                     bool writable,
                                     uv_buf_t input_buffer) {
-  assert(child_fd < stdio_count_);
-  assert(stdio_pipes_[child_fd] == NULL);
+  CHECK_LT(child_fd, stdio_count_);
+  CHECK_EQ(stdio_pipes_[child_fd], NULL);
 
   SyncProcessStdioPipe* h = new SyncProcessStdioPipe(this,
                                                      readable,
@@ -912,8 +912,8 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
 
 
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
-  assert(child_fd < stdio_count_);
-  assert(stdio_pipes_[child_fd] == NULL);
+  CHECK_LT(child_fd, stdio_count_);
+  CHECK_EQ(stdio_pipes_[child_fd], NULL);
 
   uv_stdio_containers_[child_fd].flags = UV_INHERIT_FD;
   uv_stdio_containers_[child_fd].data.fd = inherit_fd;

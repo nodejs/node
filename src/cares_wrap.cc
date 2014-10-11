@@ -31,7 +31,6 @@
 #include "util.h"
 #include "uv.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +84,7 @@ RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
 /* call back into c-ares for possibly processing timeouts. */
 static void ares_timeout(uv_timer_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(handle);
-  assert(!RB_EMPTY(env->cares_task_list()));
+  CHECK_EQ(false, RB_EMPTY(env->cares_task_list()));
   ares_process_fd(env->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
@@ -159,7 +158,7 @@ static void ares_sockstate_cb(void* data,
       /* If this is the first socket then start the timer. */
       uv_timer_t* timer_handle = env->cares_timer_handle();
       if (!uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle))) {
-        assert(RB_EMPTY(env->cares_task_list()));
+        CHECK(RB_EMPTY(env->cares_task_list()));
         uv_timer_start(timer_handle, ares_timeout, 1000, 1000);
       }
 
@@ -184,8 +183,8 @@ static void ares_sockstate_cb(void* data,
     /* read == 0 and write == 0 this is c-ares's way of notifying us that */
     /* the socket is now closed. We must free the data associated with */
     /* socket. */
-    assert(task &&
-           "When an ares socket is closed we should have a handle for it");
+    CHECK(task &&
+          "When an ares socket is closed we should have a handle for it");
 
     RB_REMOVE(ares_task_list, env->cares_task_list(), task);
     uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
@@ -233,18 +232,18 @@ class QueryWrap : public AsyncWrap {
   }
 
   virtual ~QueryWrap() {
-    assert(!persistent().IsEmpty());
+    CHECK_EQ(false, persistent().IsEmpty());
     persistent().Reset();
   }
 
   // Subclasses should implement the appropriate Send method.
   virtual int Send(const char* name) {
-    assert(0);
+    UNREACHABLE();
     return 0;
   }
 
   virtual int Send(const char* name, int family) {
-    assert(0);
+    UNREACHABLE();
     return 0;
   }
 
@@ -301,7 +300,7 @@ class QueryWrap : public AsyncWrap {
   }
 
   void ParseError(int status) {
-    assert(status != ARES_SUCCESS);
+    CHECK_NE(status, ARES_SUCCESS);
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> arg;
@@ -344,11 +343,11 @@ class QueryWrap : public AsyncWrap {
 
   // Subclasses should implement the appropriate Parse method.
   virtual void Parse(unsigned char* buf, int len) {
-    assert(0);
+    UNREACHABLE();
   };
 
   virtual void Parse(struct hostent* host) {
-    assert(0);
+    UNREACHABLE();
   };
 };
 
@@ -843,9 +842,9 @@ template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(!args.IsConstructCall());
-  assert(args[0]->IsObject());
-  assert(args[1]->IsString());
+  CHECK_EQ(false, args.IsConstructCall());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
@@ -894,7 +893,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     // strings for each IP and filling the results array.
     address = res;
     while (address) {
-      assert(address->ai_socktype == SOCK_STREAM);
+      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
 
       // Ignore random ai_family types.
       if (address->ai_family == AF_INET) {
@@ -921,7 +920,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     // Iterate over the IPv6 responses putting them in the array.
     address = res;
     while (address) {
-      assert(address->ai_socktype == SOCK_STREAM);
+      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
 
       // Ignore random ai_family types.
       if (address->ai_family == AF_INET6) {
@@ -1008,9 +1007,9 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsObject());
-  assert(args[1]->IsString());
-  assert(args[2]->IsInt32());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString());
+  CHECK(args[2]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(args[1]);
 
@@ -1028,7 +1027,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     family = AF_INET6;
     break;
   default:
-    assert(0 && "bad address family");
+    CHECK(0 && "bad address family");
     abort();
   }
 
@@ -1097,7 +1096,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
   ares_addr_node* servers;
 
   int r = ares_get_servers(env->cares_channel(), &servers);
-  assert(r == ARES_SUCCESS);
+  CHECK_EQ(r, ARES_SUCCESS);
 
   ares_addr_node* cur = servers;
 
@@ -1106,7 +1105,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
     const void* caddr = static_cast<const void*>(&cur->addr);
     int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
-    assert(err == 0);
+    CHECK_EQ(err, 0);
 
     Local<String> addr = OneByteString(env->isolate(), ip);
     server_array->Set(i, addr);
@@ -1121,7 +1120,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 static void SetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsArray());
+  CHECK(args[0]->IsArray());
 
   Local<Array> arr = Local<Array>::Cast(args[0]);
 
@@ -1138,12 +1137,12 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   for (uint32_t i = 0; i < len; i++) {
-    assert(arr->Get(i)->IsArray());
+    CHECK(arr->Get(i)->IsArray());
 
     Local<Array> elm = Local<Array>::Cast(arr->Get(i));
 
-    assert(elm->Get(0)->Int32Value());
-    assert(elm->Get(1)->IsString());
+    CHECK(elm->Get(0)->Int32Value());
+    CHECK(elm->Get(1)->IsString());
 
     int fam = elm->Get(0)->Int32Value();
     node::Utf8Value ip(elm->Get(1));
@@ -1160,7 +1159,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
         err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
         break;
       default:
-        assert(0 && "Bad address family.");
+        CHECK(0 && "Bad address family.");
         abort();
     }
 
@@ -1213,7 +1212,7 @@ static void Initialize(Handle<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);
-  assert(r == ARES_SUCCESS);
+  CHECK_EQ(r, ARES_SUCCESS);
 
   struct ares_options options;
   memset(&options, 0, sizeof(options));
@@ -1225,7 +1224,7 @@ static void Initialize(Handle<Object> target,
   r = ares_init_options(env->cares_channel_ptr(),
                         &options,
                         ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
-  assert(r == ARES_SUCCESS);
+  CHECK_EQ(r, ARES_SUCCESS);
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */

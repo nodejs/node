@@ -48,7 +48,7 @@ class WriteWrap: public ReqWrap<uv_write_t> {
 
   // This is just to keep the compiler happy. It should never be called, since
   // we don't use exceptions in node.
-  void operator delete(void* ptr, char* storage) { assert(0); }
+  void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
 
   inline StreamWrap* wrap() const {
     return wrap_;
@@ -57,8 +57,8 @@ class WriteWrap: public ReqWrap<uv_write_t> {
  private:
   // People should not be using the non-placement new and delete operator on a
   // WriteWrap. Ensure this never happens.
-  void* operator new(size_t size) { assert(0); }
-  void operator delete(void* ptr) { assert(0); }
+  void* operator new(size_t size) { UNREACHABLE(); }
+  void operator delete(void* ptr) { UNREACHABLE(); }
 
   StreamWrap* const wrap_;
 };

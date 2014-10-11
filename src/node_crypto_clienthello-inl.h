@@ -22,7 +22,8 @@
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
 
-#include <assert.h>
+#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -45,7 +46,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
     return;
   Reset();
 
-  assert(onhello_cb != NULL);
+  CHECK_NE(onhello_cb, NULL);
 
   state_ = kWaiting;
   onhello_cb_ = onhello_cb;

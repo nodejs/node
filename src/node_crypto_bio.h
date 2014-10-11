@@ -23,7 +23,8 @@
 #define SRC_NODE_CRYPTO_BIO_H_
 
 #include "openssl/bio.h"
-#include <assert.h>
+#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -88,7 +89,7 @@ class NodeBIO {
   }
 
   static inline NodeBIO* FromBIO(BIO* bio) {
-    assert(bio->ptr != NULL);
+    CHECK_NE(bio->ptr, NULL);
     return static_cast<NodeBIO*>(bio->ptr);
   }
 

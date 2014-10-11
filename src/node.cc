@@ -58,7 +58,6 @@
 #include "v8-profiler.h"
 #include "zlib.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>  // PATH_MAX
 #include <locale.h>
@@ -911,10 +910,10 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsObject());
-  assert(args[1]->IsFunction());
-  assert(args[2]->IsFunction());
-  assert(args[3]->IsFunction());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsFunction());
+  CHECK(args[3]->IsFunction());
 
   env->set_async_listener_run_function(args[1].As<Function>());
   env->set_async_listener_load_function(args[2].As<Function>());
@@ -955,8 +954,8 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   process_object->Set(env->tick_callback_string(), tick_callback_function);
   env->set_tick_callback_function(tick_callback_function);
 
-  assert(args[0]->IsArray());
-  assert(args[1]->IsObject());
+  CHECK(args[0]->IsArray());
+  CHECK(args[1]->IsObject());
 
   env->set_domain_array(args[0].As<Array>());
 
@@ -980,9 +979,9 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args[0]->IsObject());
-  assert(args[1]->IsFunction());
-  assert(args[2]->IsObject());
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsObject());
 
   // Values use to cross communicate with processNextTick.
   Local<Object> tick_info_obj = args[0].As<Object>();
@@ -1007,7 +1006,7 @@ Handle<Value> MakeDomainCallback(Environment* env,
                                  int argc,
                                  Handle<Value> argv[]) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
-  assert(env->context() == env->isolate()->GetCurrentContext());
+  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   Local<Object> process = env->process_object();
   Local<Object> object, domain;
@@ -1118,7 +1117,7 @@ Handle<Value> MakeCallback(Environment* env,
     return MakeDomainCallback(env, recv, callback, argc, argv);
 
   // If you hit this assertion, you forgot to enter the v8::Context first.
-  assert(env->context() == env->isolate()->GetCurrentContext());
+  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   Local<Object> process = env->process_object();
 
@@ -1185,7 +1184,7 @@ Handle<Value> MakeCallback(Environment* env,
                            int argc,
                            Handle<Value> argv[]) {
   Local<Function> callback = recv->Get(index).As<Function>();
-  assert(callback->IsFunction());
+  CHECK(callback->IsFunction());
 
   return MakeCallback(env, recv.As<Value>(), callback, argc, argv);
 }
@@ -1197,7 +1196,7 @@ Handle<Value> MakeCallback(Environment* env,
                            int argc,
                            Handle<Value> argv[]) {
   Local<Function> callback = recv->Get(symbol).As<Function>();
-  assert(callback->IsFunction());
+  CHECK(callback->IsFunction());
   return MakeCallback(env, recv.As<Value>(), callback, argc, argv);
 }
 
@@ -1337,7 +1336,7 @@ ssize_t DecodeBytes(Isolate* isolate,
   if (val->IsArray()) {
     fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
                     "Use 'binary'.\n");
-    assert(0);
+    UNREACHABLE();
     return -1;
   }
 
@@ -1414,7 +1413,7 @@ void AppendExceptionLine(Environment* env,
                      filename_string,
                      linenum,
                      sourceline_string);
-  assert(off >= 0);
+  CHECK_GE(off, 0);
 
   // Print wavy underline (GetUnderline is deprecated).
   for (int i = 0; i < start; i++) {
@@ -1422,7 +1421,7 @@ void AppendExceptionLine(Environment* env,
         static_cast<size_t>(off) >= sizeof(arrow)) {
       break;
     }
-    assert(static_cast<size_t>(off) < sizeof(arrow));
+    CHECK_LT(static_cast<size_t>(off), sizeof(arrow));
     arrow[off++] = (sourceline_string[i] == '\t') ? '\t' : ' ';
   }
   for (int i = start; i < end; i++) {
@@ -1430,10 +1429,10 @@ void AppendExceptionLine(Environment* env,
         static_cast<size_t>(off) >= sizeof(arrow)) {
       break;
     }
-    assert(static_cast<size_t>(off) < sizeof(arrow));
+    CHECK_LT(static_cast<size_t>(off), sizeof(arrow));
     arrow[off++] = '^';
   }
-  assert(static_cast<size_t>(off - 1) <= sizeof(arrow) - 1);
+  CHECK_LE(static_cast<size_t>(off - 1), sizeof(arrow) - 1);
   arrow[off++] = '\n';
   arrow[off] = '\0';
 
@@ -2035,7 +2034,7 @@ extern "C" void node_module_register(void* m) {
     mp->nm_link = modlist_builtin;
     modlist_builtin = mp;
   } else {
-    assert(modpending == NULL);
+    CHECK_EQ(modpending, NULL);
     modpending = mp;
   }
 }
@@ -2048,7 +2047,7 @@ struct node_module* get_builtin_module(const char* name) {
       break;
   }
 
-  assert(mp == NULL || (mp->nm_flags & NM_F_BUILTIN) != 0);
+  CHECK(mp == NULL || (mp->nm_flags & NM_F_BUILTIN) != 0);
   return (mp);
 }
 
@@ -2230,8 +2229,8 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   if (mod != NULL) {
     exports = Object::New(env->isolate());
     // Internal bindings don't have a "module" object, only exports.
-    assert(mod->nm_register_func == NULL);
-    assert(mod->nm_context_register_func != NULL);
+    CHECK_EQ(mod->nm_register_func, NULL);
+    CHECK_NE(mod->nm_context_register_func, NULL);
     Local<Value> unused = Undefined(env->isolate());
     mod->nm_context_register_func(exports, unused,
       env->context(), mod->nm_priv);
@@ -2825,8 +2824,8 @@ static void SignalExit(int signo) {
 static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  assert(args.Length() == 1 && args[0]->IsString() &&
-         "must be called with a single string");
+  CHECK(args.Length() == 1 && args[0]->IsString() &&
+        "must be called with a single string");
 
   node::Utf8Value message(args[0]);
   fprintf(stderr, "%s\n", *message);
@@ -2860,7 +2859,7 @@ void LoadEnvironment(Environment* env) {
     ReportException(env, try_catch);
     exit(10);
   }
-  assert(f_value->IsFunction());
+  CHECK(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Now we call 'f' with the 'process' variable that we've built up with
@@ -3675,7 +3674,7 @@ int Start(int argc, char** argv) {
   InstallEarlyDebugSignalHandler();
 #endif
 
-  assert(argc > 0);
+  CHECK_GT(argc, 0);
 
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
