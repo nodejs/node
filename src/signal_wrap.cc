@@ -68,7 +68,6 @@ class SignalWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     new SignalWrap(env, args.This());
   }
@@ -86,20 +85,14 @@ class SignalWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
-
     int signum = args[0]->Int32Value();
     int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
-
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }

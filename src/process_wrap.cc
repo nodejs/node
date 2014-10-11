@@ -74,7 +74,6 @@ class ProcessWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     new ProcessWrap(env, args.This());
   }
@@ -131,7 +130,6 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
@@ -254,10 +252,7 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
-
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);

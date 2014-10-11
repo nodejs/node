@@ -41,9 +41,6 @@ using v8::Value;
 
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
@@ -54,9 +51,6 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   if (wrap != NULL && wrap->handle__ != NULL) {
@@ -68,7 +62,6 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 

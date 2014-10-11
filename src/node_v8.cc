@@ -173,7 +173,6 @@ void Environment::StopGarbageCollectionTracking() {
 
 void StartGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFunction() == true);
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   env->StartGarbageCollectionTracking(args[0].As<Function>());
 }
@@ -181,7 +180,6 @@ void StartGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
 
 void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   HeapStatistics s;
   isolate->GetHeapStatistics(&s);
@@ -202,7 +200,6 @@ void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
 
 void StopGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment::GetCurrent(args.GetIsolate())->StopGarbageCollectionTracking();
 }
 

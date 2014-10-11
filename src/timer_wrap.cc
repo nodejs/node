@@ -79,7 +79,6 @@ class TimerWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     new TimerWrap(env, args.This());
   }

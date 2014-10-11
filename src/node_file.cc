@@ -313,7 +313,6 @@ struct fs_req_wrap {
 
 static void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -428,7 +427,6 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -448,7 +446,6 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -468,7 +465,6 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -487,7 +483,6 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -523,7 +518,6 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
 static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -547,7 +541,6 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -568,7 +561,6 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
 static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -592,7 +584,6 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -612,7 +603,6 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -629,7 +619,6 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -646,7 +635,6 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -664,7 +652,6 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -682,7 +669,6 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
 
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -700,7 +686,6 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -738,7 +723,6 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -778,7 +762,6 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   assert(args[0]->IsInt32());
   assert(Buffer::HasInstance(args[1]));
@@ -824,7 +807,6 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   if (!args[0]->IsInt32())
@@ -898,7 +880,6 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  */
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -952,7 +933,6 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
  */
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -973,7 +953,6 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
  */
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -994,7 +973,6 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
  */
 static void Chown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -1027,7 +1005,6 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
  */
 static void FChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -1057,7 +1034,6 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)
@@ -1086,7 +1062,6 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int len = args.Length();
   if (len < 1)

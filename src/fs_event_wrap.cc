@@ -96,7 +96,6 @@ void FSEventWrap::Initialize(Handle<Object> target,
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   assert(args.IsConstructCall());
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new FSEventWrap(env, args.This());
 }
@@ -104,7 +103,6 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
@@ -186,9 +184,6 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
   if (wrap == NULL || wrap->initialized_ == false)

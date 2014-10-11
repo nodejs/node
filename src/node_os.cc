@@ -51,7 +51,6 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Number;
@@ -62,7 +61,6 @@ using v8::Value;
 
 static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   const char* rval = IsBigEndian() ? "BE" : "LE";
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
@@ -70,7 +68,6 @@ static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   char buf[MAXHOSTNAMELEN + 1];
 
   if (gethostname(buf, sizeof(buf))) {
@@ -89,7 +86,6 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   const char* rval;
 
 #ifdef __POSIX__
@@ -108,7 +104,6 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
 
 static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   const char* rval;
 
 #ifdef __POSIX__
@@ -140,7 +135,6 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
@@ -180,8 +174,6 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   double amount = uv_get_free_memory();
   if (amount < 0)
     return;
@@ -190,8 +182,6 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   double amount = uv_get_total_memory();
   if (amount < 0)
     return;
@@ -200,8 +190,6 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   double uptime;
   int err = uv_uptime(&uptime);
   if (err == 0)
@@ -211,7 +199,6 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   double loadavg[3];
   uv_loadavg(loadavg);
   Local<Array> loads = Array::New(env->isolate(), 3);
@@ -224,7 +211,6 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
