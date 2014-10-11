@@ -36,6 +36,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -50,7 +51,6 @@ using v8::PropertyAttribute;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
-using v8::Boolean;
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
