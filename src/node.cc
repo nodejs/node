@@ -835,6 +835,16 @@ Local<Value> UVException(Isolate* isolate,
 }
 
 
+// Look up environment variable unless running as setuid root.
+inline const char* secure_getenv(const char* key) {
+#ifndef _WIN32
+  if (getuid() != geteuid() || getgid() != getegid())
+    return NULL;
+#endif
+  return getenv(key);
+}
+
+
 #ifdef _WIN32
 // Does about the same as strerror(),
 // but supports all windows error messages
@@ -3424,7 +3434,7 @@ void Init(int* argc,
 #if defined(NODE_HAVE_I18N_SUPPORT)
   if (icu_data_dir == NULL) {
     // if the parameter isn't given, use the env variable.
-    icu_data_dir = getenv("NODE_ICU_DATA");
+    icu_data_dir = secure_getenv("NODE_ICU_DATA");
   }
   // Initialize ICU.
   // If icu_data_dir is NULL here, it will load the 'minimal' data.
@@ -3664,7 +3674,7 @@ Environment* CreateEnvironment(Isolate* isolate,
 
 
 int Start(int argc, char** argv) {
-  const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
+  const char* replaceInvalid = secure_getenv("NODE_INVALID_UTF8");
 
   if (replaceInvalid == NULL)
     WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
