@@ -257,7 +257,6 @@ Local<Object> Use(Environment* env, char* data, uint32_t length) {
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   ARGS_THIS(args.This())
   SLICE_START_END(args[0], args[1], obj_length)
@@ -300,7 +299,6 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 // bytesCopied = buffer.copy(target[, targetStart][, sourceStart][, sourceEnd]);
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   Local<Object> target = args[0]->ToObject();
 
@@ -381,7 +379,6 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   ARGS_THIS(args.This())
 
@@ -546,7 +543,6 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 void ByteLength(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
@@ -595,7 +591,6 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   assert(args[0]->IsFunction());
 

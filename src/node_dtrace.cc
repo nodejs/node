@@ -148,7 +148,6 @@ void DTRACE_NET_SERVER_CONNECTION(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_NET_SERVER_CONNECTION_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION(args[0], conn);
   NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port, conn.fd);
 }
@@ -158,7 +157,6 @@ void DTRACE_NET_STREAM_END(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_NET_STREAM_END_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION(args[0], conn);
   NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
 }
@@ -168,7 +166,6 @@ void DTRACE_NET_SOCKET_READ(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_NET_SOCKET_READ_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION(args[0], conn);
 
   if (!args[1]->IsNumber()) {
@@ -184,7 +181,6 @@ void DTRACE_NET_SOCKET_WRITE(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_NET_SOCKET_WRITE_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION(args[0], conn);
 
   if (!args[1]->IsNumber()) {
@@ -234,7 +230,6 @@ void DTRACE_HTTP_SERVER_RESPONSE(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_HTTP_SERVER_RESPONSE_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION(args[0], conn);
   NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
 }
@@ -284,7 +279,6 @@ void DTRACE_HTTP_CLIENT_RESPONSE(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_HTTP_CLIENT_RESPONSE_ENABLED())
     return;
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(args[0], args[1], conn);
   NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
 }

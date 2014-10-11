@@ -841,7 +841,6 @@ class GetHostByNameWrap: public QueryWrap {
 
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(!args.IsConstructCall());
@@ -992,7 +991,6 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
 
 static void IsIP(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   node::Utf8Value ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
@@ -1008,7 +1006,6 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject());
@@ -1062,7 +1059,6 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
 static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope handle_scope(env->isolate());
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -1094,7 +1090,6 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetServers(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<Array> server_array = Array::New(env->isolate());
@@ -1124,7 +1119,6 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetServers(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsArray());
@@ -1194,7 +1188,6 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 
 static void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   const char* errmsg = ares_strerror(args[0]->Int32Value());
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }

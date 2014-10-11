@@ -90,23 +90,14 @@ void StreamWrap::UpdateWriteQueueSize() {
 }
 
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
-
   int err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
-
   args.GetReturnValue().Set(err);
 }
 
 
 void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
-
   int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
 }
@@ -190,7 +181,6 @@ size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
 
 
 void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
@@ -247,7 +237,6 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
 template <enum encoding encoding>
 void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   int err;
 
@@ -376,7 +365,6 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
@@ -505,14 +493,9 @@ void StreamWrap::WriteBinaryString(const FunctionCallbackInfo<Value>& args) {
 }
 
 void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
-
   assert(args.Length() > 0);
   int err = uv_stream_set_blocking(wrap->stream(), args[0]->IsTrue());
-
   args.GetReturnValue().Set(err);
 }
 
@@ -552,7 +535,6 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 
 
 void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());

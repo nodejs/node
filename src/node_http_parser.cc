@@ -350,7 +350,6 @@ class Parser : public BaseObject {
 
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
@@ -360,7 +359,6 @@ class Parser : public BaseObject {
 
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Parser* parser = Unwrap<Parser>(args.Holder());
     delete parser;
   }
@@ -382,7 +380,6 @@ class Parser : public BaseObject {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     Parser* parser = Unwrap<Parser>(args.Holder());
@@ -438,7 +435,6 @@ class Parser : public BaseObject {
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
 
     Parser* parser = Unwrap<Parser>(args.Holder());
 
@@ -465,7 +461,6 @@ class Parser : public BaseObject {
 
 
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
 
     http_parser_type type =
@@ -481,7 +476,6 @@ class Parser : public BaseObject {
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Environment* env = Environment::GetCurrent(args.GetIsolate());
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.

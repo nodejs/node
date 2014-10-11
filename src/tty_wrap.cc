@@ -39,7 +39,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
@@ -100,7 +99,6 @@ uv_tty_t* TTYWrap::UVHandle() {
 
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
 
@@ -123,8 +121,6 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
   bool rc = uv_guess_handle(fd) == UV_TTY;
@@ -134,7 +130,6 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
 
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
   assert(args[0]->IsArray());
@@ -153,18 +148,13 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
-
   int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
   args.GetReturnValue().Set(err);
 }
 
 
 void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   // This constructor should not be exposed to public javascript.

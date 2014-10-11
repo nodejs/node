@@ -909,7 +909,6 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject());
@@ -979,7 +978,6 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   assert(args[0]->IsObject());
@@ -1552,7 +1550,6 @@ static Local<Value> ExecuteString(Environment* env,
 
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   Local<Array> ary = Array::New(args.GetIsolate());
   QUEUE* q = NULL;
@@ -1573,7 +1570,6 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 // implemented here for consistency with GetActiveRequests().
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   Local<Array> ary = Array::New(env->isolate());
   QUEUE* q = NULL;
@@ -1603,7 +1599,6 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     // FIXME(bnoordhuis) ThrowTypeError?
@@ -1620,7 +1615,6 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
 
 static void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 #ifdef _WIN32
   /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
   char buf[MAX_PATH * 4];
@@ -1644,7 +1638,6 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
 
 static void Umask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   uint32_t old;
 
   if (args.Length() < 1 || args[0]->IsUndefined()) {
@@ -1793,7 +1786,6 @@ static void GetGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setgid argument must be a number or a string");
@@ -1813,7 +1805,6 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setuid argument must be a number or a string");
@@ -1833,7 +1824,6 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   int ngroups = getgroups(0, NULL);
 
@@ -1872,7 +1862,6 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (!args[0]->IsArray()) {
     return env->ThrowTypeError("argument 1 must be an array");
@@ -1904,7 +1893,6 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
 
 static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("argument 1 must be a number or a string");
@@ -1954,15 +1942,12 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   exit(args[0]->Int32Value());
 }
 
 
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
   double uptime;
 
   uv_update_time(env->event_loop());
@@ -1974,7 +1959,6 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -2002,7 +1986,6 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() != 2) {
     return env->ThrowError("Bad argument.");
@@ -2024,7 +2007,6 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 // Pass in an Array from a previous hrtime() call to instead get a time diff.
 void Hrtime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   uint64_t t = uv_hrtime();
 
@@ -2079,7 +2061,6 @@ typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 // when two contexts try to load the same shared object. Maybe have a shadow
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   struct node_module* mp;
   uv_lib_t lib;
@@ -2223,7 +2204,6 @@ void OnMessage(Handle<Message> message, Handle<Value> error) {
 
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<String> module = args[0]->ToString();
@@ -2528,7 +2508,6 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 void NeedImmediateCallbackGetter(Local<String> property,
                                  const PropertyCallbackInfo<Value>& info) {
-  HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   const uv_check_t* immediate_check_handle = env->immediate_check_handle();
   bool active = uv_is_active(
@@ -2589,14 +2568,12 @@ void StopProfilerIdleNotifier(Environment* env) {
 
 
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   StartProfilerIdleNotifier(env);
 }
 
 
 void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   StopProfilerIdleNotifier(env);
 }
@@ -2847,7 +2824,6 @@ static void SignalExit(int signo) {
 // function, it is useful to bypass JavaScript entirely.
 static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   assert(args.Length() == 1 && args[0]->IsString() &&
          "must be called with a single string");
@@ -3217,7 +3193,6 @@ static void RegisterSignalHandler(int signal,
 
 void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() != 1) {
     return env->ThrowError("Invalid number of arguments.");
@@ -3306,7 +3281,6 @@ static int RegisterDebugSignalHandler() {
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
-  HandleScope scope(isolate);
   DWORD pid;
   HANDLE process = NULL;
   HANDLE thread = NULL;

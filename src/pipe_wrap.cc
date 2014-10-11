@@ -127,7 +127,6 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   assert(args.IsConstructCall());
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new PipeWrap(env, args.This(), args[0]->IsTrue());
 }
@@ -146,11 +145,7 @@ PipeWrap::PipeWrap(Environment* env, Handle<Object> object, bool ipc)
 
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-
   node::Utf8Value name(args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
@@ -159,24 +154,15 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef _WIN32
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-
   int instances = args[0]->Int32Value();
-
   uv_pipe_pending_instances(&wrap->handle_, instances);
 }
 #endif
 
 
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
@@ -262,7 +248,6 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 
 void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
@@ -276,7 +261,6 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
 
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());

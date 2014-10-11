@@ -362,7 +362,6 @@ void SyncProcessRunner::Initialize(Handle<Object> target,
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
   SyncProcessRunner p(Environment::GetCurrent(isolate));
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
