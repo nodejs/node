@@ -2828,11 +2828,8 @@ static void SignalExit(int signo) {
 // when debugging the stream.Writable class or the process.nextTick
 // function, it is useful to bypass JavaScript entirely.
 static void RawDebug(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
-
   node::Utf8Value message(args[0]);
   fprintf(stderr, "%s\n", *message);
   fflush(stderr);

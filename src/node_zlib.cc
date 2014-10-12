@@ -381,8 +381,6 @@ class ZCtx : public AsyncWrap {
 
   // just pull the ints out of the args and call the other Init
   static void Init(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-
     CHECK((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
@@ -421,20 +419,13 @@ class ZCtx : public AsyncWrap {
   }
 
   static void Params(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-
     CHECK(args.Length() == 2 && "params(level, strategy)");
-
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
-
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
 
   static void Reset(const FunctionCallbackInfo<Value> &args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
-
     Reset(ctx);
     SetDictionary(ctx);
   }

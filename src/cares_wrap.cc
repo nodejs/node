@@ -989,8 +989,6 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
 
 
 static void IsIP(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-
   node::Utf8Value ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
