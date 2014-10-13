@@ -191,6 +191,9 @@ website_files = \
 
 doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
 
+doc-branch: NODE_DOC_VERSION = v$(shell $(PYTHON) tools/getnodeversion.py | cut -f1,2 -d.)
+doc-branch: doc
+
 $(apidoc_dirs):
 	mkdir -p $@
 
@@ -204,10 +207,10 @@ out/doc/%: doc/%
 	cp -r $< $@
 
 out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
-	out/Release/$(NODE_EXE) tools/doc/generate.js --format=json $< > $@
+	NODE_DOC_VERSION=$(NODE_DOC_VERSION) out/Release/$(NODE_EXE) tools/doc/generate.js --format=json $< > $@
 
 out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
-	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
+	NODE_DOC_VERSION=$(NODE_DOC_VERSION) out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
 email.md: ChangeLog tools/email-footer.md
 	bash tools/changelog-head.sh | sed 's|^\* #|* \\#|g' > $@
@@ -215,6 +218,7 @@ email.md: ChangeLog tools/email-footer.md
 
 blog.html: email.md
 	cat $< | ./$(NODE_EXE) tools/doc/node_modules/.bin/marked > $@
+
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
@@ -224,6 +228,7 @@ docclean:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+NODE_DOC_VERSION=$(VERSION)
 RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)

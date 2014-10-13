@@ -76,7 +76,7 @@ function render(lexed, filename, template, cb) {
     template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
     template = template.replace(/__SECTION__/g, section);
-    template = template.replace(/__VERSION__/g, process.version);
+    template = template.replace(/__VERSION__/g, process.env.NODE_DOC_VERSION);
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
       /__GTOC__/g,
