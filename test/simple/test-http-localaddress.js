@@ -23,7 +23,7 @@ var common = require('../common');
 var http = require('http'),
     assert = require('assert');
 
-if (['linux', 'win32'].indexOf(process.platform) == -1) {
+if (!common.hasMultiLocalhost()) {
   console.log('Skipping platform-specific test.');
   process.exit();
 }

@@ -24,7 +24,7 @@ var https = require('https'),
     fs = require('fs'),
     assert = require('assert');
 
-if (['linux', 'win32'].indexOf(process.platform) == -1) {
+if (!common.hasMultiLocalhost()) {
   console.log('Skipping platform-specific test.');
   process.exit();
 }
