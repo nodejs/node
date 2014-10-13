@@ -350,7 +350,7 @@ class Parser : public BaseObject {
 
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
@@ -380,7 +380,7 @@ class Parser : public BaseObject {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     Parser* parser = Unwrap<Parser>(args.Holder());
     CHECK(parser->current_buffer_.IsEmpty());
@@ -434,7 +434,7 @@ class Parser : public BaseObject {
 
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     Parser* parser = Unwrap<Parser>(args.Holder());
 
@@ -461,7 +461,7 @@ class Parser : public BaseObject {
 
 
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
@@ -476,7 +476,7 @@ class Parser : public BaseObject {
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
@@ -569,8 +569,7 @@ void InitHttpParser(Handle<Object> target,
                     Handle<Context> context,
                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    Parser::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
@@ -594,12 +593,12 @@ void InitHttpParser(Handle<Object> target,
 #undef V
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Parser::Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
-  NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
-  NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
-  NODE_SET_PROTOTYPE_METHOD(t, "pause", Parser::Pause<true>);
-  NODE_SET_PROTOTYPE_METHOD(t, "resume", Parser::Pause<false>);
+  env->SetProtoMethod(t, "close", Parser::Close);
+  env->SetProtoMethod(t, "execute", Parser::Execute);
+  env->SetProtoMethod(t, "finish", Parser::Finish);
+  env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);
+  env->SetProtoMethod(t, "pause", Parser::Pause<true>);
+  env->SetProtoMethod(t, "resume", Parser::Pause<false>);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction());

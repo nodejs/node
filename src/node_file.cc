@@ -256,7 +256,7 @@ struct fs_req_wrap {
 
 
 #define ASYNC_DEST_CALL(func, callback, dest_path, ...)                       \
-  Environment* env = Environment::GetCurrent(args.GetIsolate());              \
+  Environment* env = Environment::GetCurrent(args);                           \
   FSReqWrap* req_wrap;                                                        \
   char* dest_str = (dest_path);                                               \
   int dest_len = dest_str == NULL ? 0 : strlen(dest_str);                     \
@@ -311,7 +311,7 @@ struct fs_req_wrap {
 
 
 static void Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -425,7 +425,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 }
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -444,7 +444,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -463,7 +463,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -481,7 +481,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -516,7 +516,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Link(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -539,7 +539,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void ReadLink(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -559,7 +559,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Rename(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -582,7 +582,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -601,7 +601,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -617,7 +617,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -633,7 +633,7 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -650,7 +650,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -667,7 +667,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -684,7 +684,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
     return TYPE_ERROR("path required");
@@ -721,7 +721,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Open(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -760,7 +760,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 // 4 position  if integer, position to write at in the file.
 //             if null, write from the current position
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsInt32());
   CHECK(Buffer::HasInstance(args[1]));
@@ -806,7 +806,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsInt32())
     return env->ThrowTypeError("First argument must be file descriptor");
@@ -878,7 +878,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  *
  */
 static void Read(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -931,7 +931,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
  * Wrapper for chmod(1) / EIO_CHMOD
  */
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -951,7 +951,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
  * Wrapper for fchmod(1) / EIO_FCHMOD
  */
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
@@ -971,7 +971,7 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
  * Wrapper for chown(1) / EIO_CHOWN
  */
 static void Chown(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -1003,7 +1003,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
  * Wrapper for fchown(1) / EIO_FCHOWN
  */
 static void FChown(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -1032,7 +1032,7 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 
 
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -1060,7 +1060,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int len = args.Length();
   if (len < 1)
@@ -1091,7 +1091,7 @@ void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Local<Function> stats_constructor = args[0].As<Function>();
   CHECK(stats_constructor->IsFunction());
 
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   env->set_fs_stats_constructor_function(stats_constructor);
 }
 
@@ -1102,40 +1102,39 @@ void InitFs(Handle<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   // Function which creates a new Stats object.
-  target->Set(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "FSInitialize"),
-      FunctionTemplate::New(env->isolate(), FSInitialize)->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSInitialize"),
+              env->NewFunctionTemplate(FSInitialize)->GetFunction());
 
-  NODE_SET_METHOD(target, "close", Close);
-  NODE_SET_METHOD(target, "open", Open);
-  NODE_SET_METHOD(target, "read", Read);
-  NODE_SET_METHOD(target, "fdatasync", Fdatasync);
-  NODE_SET_METHOD(target, "fsync", Fsync);
-  NODE_SET_METHOD(target, "rename", Rename);
-  NODE_SET_METHOD(target, "ftruncate", FTruncate);
-  NODE_SET_METHOD(target, "rmdir", RMDir);
-  NODE_SET_METHOD(target, "mkdir", MKDir);
-  NODE_SET_METHOD(target, "readdir", ReadDir);
-  NODE_SET_METHOD(target, "stat", Stat);
-  NODE_SET_METHOD(target, "lstat", LStat);
-  NODE_SET_METHOD(target, "fstat", FStat);
-  NODE_SET_METHOD(target, "link", Link);
-  NODE_SET_METHOD(target, "symlink", Symlink);
-  NODE_SET_METHOD(target, "readlink", ReadLink);
-  NODE_SET_METHOD(target, "unlink", Unlink);
-  NODE_SET_METHOD(target, "writeBuffer", WriteBuffer);
-  NODE_SET_METHOD(target, "writeString", WriteString);
+  env->SetMethod(target, "close", Close);
+  env->SetMethod(target, "open", Open);
+  env->SetMethod(target, "read", Read);
+  env->SetMethod(target, "fdatasync", Fdatasync);
+  env->SetMethod(target, "fsync", Fsync);
+  env->SetMethod(target, "rename", Rename);
+  env->SetMethod(target, "ftruncate", FTruncate);
+  env->SetMethod(target, "rmdir", RMDir);
+  env->SetMethod(target, "mkdir", MKDir);
+  env->SetMethod(target, "readdir", ReadDir);
+  env->SetMethod(target, "stat", Stat);
+  env->SetMethod(target, "lstat", LStat);
+  env->SetMethod(target, "fstat", FStat);
+  env->SetMethod(target, "link", Link);
+  env->SetMethod(target, "symlink", Symlink);
+  env->SetMethod(target, "readlink", ReadLink);
+  env->SetMethod(target, "unlink", Unlink);
+  env->SetMethod(target, "writeBuffer", WriteBuffer);
+  env->SetMethod(target, "writeString", WriteString);
 
-  NODE_SET_METHOD(target, "chmod", Chmod);
-  NODE_SET_METHOD(target, "fchmod", FChmod);
-  // NODE_SET_METHOD(target, "lchmod", LChmod);
+  env->SetMethod(target, "chmod", Chmod);
+  env->SetMethod(target, "fchmod", FChmod);
+  // env->SetMethod(target, "lchmod", LChmod);
 
-  NODE_SET_METHOD(target, "chown", Chown);
-  NODE_SET_METHOD(target, "fchown", FChown);
-  // NODE_SET_METHOD(target, "lchown", LChown);
+  env->SetMethod(target, "chown", Chown);
+  env->SetMethod(target, "fchown", FChown);
+  // env->SetMethod(target, "lchown", LChown);
 
-  NODE_SET_METHOD(target, "utimes", UTimes);
-  NODE_SET_METHOD(target, "futimes", FUTimes);
+  env->SetMethod(target, "utimes", UTimes);
+  env->SetMethod(target, "futimes", FUTimes);
 
   StatWatcher::Initialize(env, target);
 }

@@ -356,13 +356,13 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 void SyncProcessRunner::Initialize(Handle<Object> target,
                                    Handle<Value> unused,
                                    Handle<Context> context) {
-  NODE_SET_METHOD(target, "spawn", Spawn);
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "spawn", Spawn);
 }
 
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  SyncProcessRunner p(Environment::GetCurrent(isolate));
+  SyncProcessRunner p(Environment::GetCurrent(args));
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
 }

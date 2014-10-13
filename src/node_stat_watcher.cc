@@ -46,13 +46,12 @@ using v8::Value;
 void StatWatcher::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    StatWatcher::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "start", StatWatcher::Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "stop", StatWatcher::Stop);
+  env->SetProtoMethod(t, "start", StatWatcher::Start);
+  env->SetProtoMethod(t, "stop", StatWatcher::Stop);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"),
               t->GetFunction());
@@ -99,7 +98,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new StatWatcher(env, args.This());
 }
 

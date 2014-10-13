@@ -219,7 +219,7 @@ class ZCtx : public AsyncWrap {
 
 
   static void AfterSync(ZCtx* ctx, const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     Local<Integer> avail_out = Integer::New(env->isolate(),
                                             ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(env->isolate(),
@@ -365,7 +365,7 @@ class ZCtx : public AsyncWrap {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (args.Length() < 1 || !args[0]->IsInt32()) {
       return env->ThrowTypeError("Bad argument");
@@ -595,16 +595,16 @@ void InitZlib(Handle<Object> target,
               Handle<Context> context,
               void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> z = FunctionTemplate::New(env->isolate(), ZCtx::New);
+  Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);
 
   z->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(z, "write", ZCtx::Write<true>);
-  NODE_SET_PROTOTYPE_METHOD(z, "writeSync", ZCtx::Write<false>);
-  NODE_SET_PROTOTYPE_METHOD(z, "init", ZCtx::Init);
-  NODE_SET_PROTOTYPE_METHOD(z, "close", ZCtx::Close);
-  NODE_SET_PROTOTYPE_METHOD(z, "params", ZCtx::Params);
-  NODE_SET_PROTOTYPE_METHOD(z, "reset", ZCtx::Reset);
+  env->SetProtoMethod(z, "write", ZCtx::Write<true>);
+  env->SetProtoMethod(z, "writeSync", ZCtx::Write<false>);
+  env->SetProtoMethod(z, "init", ZCtx::Init);
+  env->SetProtoMethod(z, "close", ZCtx::Close);
+  env->SetProtoMethod(z, "params", ZCtx::Params);
+  env->SetProtoMethod(z, "reset", ZCtx::Reset);
 
   z->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib"), z->GetFunction());

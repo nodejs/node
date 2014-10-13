@@ -171,7 +171,7 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
 
 // copyOnto(source, source_start, dest, dest_start, copy_length)
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsObject())
     return env->ThrowTypeError("source must be an object");
@@ -285,7 +285,7 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 // for internal use:
 //    alloc(obj, n[, type]);
 void Alloc(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Object> obj = args[0].As<Object>();
 
@@ -348,7 +348,7 @@ void Alloc(Environment* env,
 
 // for internal use: dispose(obj);
 void AllocDispose(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   AllocDispose(env, args[0].As<Object>());
 }
 
@@ -430,7 +430,7 @@ void Alloc(Environment* env,
 
 
 void HasExternalData(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(args[0]->IsObject() &&
                             HasExternalData(env, args[0].As<Object>()));
 }
@@ -442,7 +442,7 @@ bool HasExternalData(Environment* env, Local<Object> obj) {
 
 
 void AllocTruncate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Object> obj = args[0].As<Object>();
 
@@ -532,14 +532,14 @@ void Initialize(Handle<Object> exports,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  NODE_SET_METHOD(exports, "copyOnto", CopyOnto);
-  NODE_SET_METHOD(exports, "sliceOnto", SliceOnto);
+  env->SetMethod(exports, "copyOnto", CopyOnto);
+  env->SetMethod(exports, "sliceOnto", SliceOnto);
 
-  NODE_SET_METHOD(exports, "alloc", Alloc);
-  NODE_SET_METHOD(exports, "dispose", AllocDispose);
-  NODE_SET_METHOD(exports, "truncate", AllocTruncate);
+  env->SetMethod(exports, "alloc", Alloc);
+  env->SetMethod(exports, "dispose", AllocDispose);
+  env->SetMethod(exports, "truncate", AllocTruncate);
 
-  NODE_SET_METHOD(exports, "hasExternalData", HasExternalData);
+  env->SetMethod(exports, "hasExternalData", HasExternalData);
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
                Uint32::NewFromUnsigned(env->isolate(), kMaxLength));

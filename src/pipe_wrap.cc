@@ -75,7 +75,7 @@ void PipeWrap::Initialize(Handle<Object> target,
                           Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -88,33 +88,29 @@ void PipeWrap::Initialize(Handle<Object> target,
                                      v8::DEFAULT,
                                      attributes);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
-  NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "close", HandleWrap::Close);
+  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "setBlocking", StreamWrap::SetBlocking);
+  env->SetProtoMethod(t, "setBlocking", StreamWrap::SetBlocking);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
-  NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
+  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
+  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
+  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "writeBuffer", StreamWrap::WriteBuffer);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeAsciiString",
-                            StreamWrap::WriteAsciiString);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeBinaryString",
-                            StreamWrap::WriteBinaryString);
+  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
+  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
+  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
+  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
-  NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
-  NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
-  NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
+  env->SetProtoMethod(t, "bind", Bind);
+  env->SetProtoMethod(t, "listen", Listen);
+  env->SetProtoMethod(t, "connect", Connect);
+  env->SetProtoMethod(t, "open", Open);
 
 #ifdef _WIN32
-  NODE_SET_PROTOTYPE_METHOD(t, "setPendingInstances", SetPendingInstances);
+  env->SetProtoMethod(t, "setPendingInstances", SetPendingInstances);
 #endif
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe"), t->GetFunction());
@@ -127,7 +123,7 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new PipeWrap(env, args.This(), args[0]->IsTrue());
 }
 
@@ -247,7 +243,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 
 
 void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 
@@ -261,7 +257,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
 
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
 

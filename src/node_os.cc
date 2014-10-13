@@ -60,14 +60,14 @@ using v8::Value;
 
 
 static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   const char* rval = IsBigEndian() ? "BE" : "LE";
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
 
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   char buf[MAXHOSTNAMELEN + 1];
 
   if (gethostname(buf, sizeof(buf))) {
@@ -85,7 +85,7 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   const char* rval;
 
 #ifdef __POSIX__
@@ -103,7 +103,7 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   const char* rval;
 
 #ifdef __POSIX__
@@ -134,7 +134,7 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
@@ -198,7 +198,7 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   double loadavg[3];
   uv_loadavg(loadavg);
   Local<Array> loads = Array::New(env->isolate(), 3);
@@ -210,7 +210,7 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
@@ -289,16 +289,17 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 void Initialize(Handle<Object> target,
                 Handle<Value> unused,
                 Handle<Context> context) {
-  NODE_SET_METHOD(target, "getEndianness", GetEndianness);
-  NODE_SET_METHOD(target, "getHostname", GetHostname);
-  NODE_SET_METHOD(target, "getLoadAvg", GetLoadAvg);
-  NODE_SET_METHOD(target, "getUptime", GetUptime);
-  NODE_SET_METHOD(target, "getTotalMem", GetTotalMemory);
-  NODE_SET_METHOD(target, "getFreeMem", GetFreeMemory);
-  NODE_SET_METHOD(target, "getCPUs", GetCPUInfo);
-  NODE_SET_METHOD(target, "getOSType", GetOSType);
-  NODE_SET_METHOD(target, "getOSRelease", GetOSRelease);
-  NODE_SET_METHOD(target, "getInterfaceAddresses", GetInterfaceAddresses);
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "getEndianness", GetEndianness);
+  env->SetMethod(target, "getHostname", GetHostname);
+  env->SetMethod(target, "getLoadAvg", GetLoadAvg);
+  env->SetMethod(target, "getUptime", GetUptime);
+  env->SetMethod(target, "getTotalMem", GetTotalMemory);
+  env->SetMethod(target, "getFreeMem", GetFreeMemory);
+  env->SetMethod(target, "getCPUs", GetCPUInfo);
+  env->SetMethod(target, "getOSType", GetOSType);
+  env->SetMethod(target, "getOSRelease", GetOSRelease);
+  env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
 }
 
 }  // namespace os

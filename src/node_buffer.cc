@@ -254,7 +254,7 @@ Local<Object> Use(Environment* env, char* data, uint32_t length) {
 
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ARGS_THIS(args.This())
   SLICE_START_END(args[0], args[1], obj_length)
@@ -296,7 +296,7 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 
 // bytesCopied = buffer.copy(target[, targetStart][, sourceStart][, sourceEnd]);
 void Copy(const FunctionCallbackInfo<Value> &args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Object> target = args[0]->ToObject();
 
@@ -376,7 +376,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ARGS_THIS(args.This())
 
@@ -540,7 +540,7 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 void ByteLength(const FunctionCallbackInfo<Value> &args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
@@ -588,7 +588,7 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
 
@@ -600,21 +600,21 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> proto = proto_v.As<Object>();
 
-  NODE_SET_METHOD(proto, "asciiSlice", AsciiSlice);
-  NODE_SET_METHOD(proto, "base64Slice", Base64Slice);
-  NODE_SET_METHOD(proto, "binarySlice", BinarySlice);
-  NODE_SET_METHOD(proto, "hexSlice", HexSlice);
-  NODE_SET_METHOD(proto, "ucs2Slice", Ucs2Slice);
-  NODE_SET_METHOD(proto, "utf8Slice", Utf8Slice);
+  env->SetMethod(proto, "asciiSlice", AsciiSlice);
+  env->SetMethod(proto, "base64Slice", Base64Slice);
+  env->SetMethod(proto, "binarySlice", BinarySlice);
+  env->SetMethod(proto, "hexSlice", HexSlice);
+  env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
+  env->SetMethod(proto, "utf8Slice", Utf8Slice);
 
-  NODE_SET_METHOD(proto, "asciiWrite", AsciiWrite);
-  NODE_SET_METHOD(proto, "base64Write", Base64Write);
-  NODE_SET_METHOD(proto, "binaryWrite", BinaryWrite);
-  NODE_SET_METHOD(proto, "hexWrite", HexWrite);
-  NODE_SET_METHOD(proto, "ucs2Write", Ucs2Write);
-  NODE_SET_METHOD(proto, "utf8Write", Utf8Write);
+  env->SetMethod(proto, "asciiWrite", AsciiWrite);
+  env->SetMethod(proto, "base64Write", Base64Write);
+  env->SetMethod(proto, "binaryWrite", BinaryWrite);
+  env->SetMethod(proto, "hexWrite", HexWrite);
+  env->SetMethod(proto, "ucs2Write", Ucs2Write);
+  env->SetMethod(proto, "utf8Write", Utf8Write);
 
-  NODE_SET_METHOD(proto, "copy", Copy);
+  env->SetMethod(proto, "copy", Copy);
 
   // for backwards compatibility
   proto->ForceSet(env->offset_string(),
@@ -626,19 +626,19 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Local<Object> internal = args[1].As<Object>();
   ASSERT(internal->IsObject());
 
-  NODE_SET_METHOD(internal, "byteLength", ByteLength);
-  NODE_SET_METHOD(internal, "compare", Compare);
-  NODE_SET_METHOD(internal, "fill", Fill);
+  env->SetMethod(internal, "byteLength", ByteLength);
+  env->SetMethod(internal, "compare", Compare);
+  env->SetMethod(internal, "fill", Fill);
 
-  NODE_SET_METHOD(internal, "readDoubleBE", ReadDoubleBE);
-  NODE_SET_METHOD(internal, "readDoubleLE", ReadDoubleLE);
-  NODE_SET_METHOD(internal, "readFloatBE", ReadFloatBE);
-  NODE_SET_METHOD(internal, "readFloatLE", ReadFloatLE);
+  env->SetMethod(internal, "readDoubleBE", ReadDoubleBE);
+  env->SetMethod(internal, "readDoubleLE", ReadDoubleLE);
+  env->SetMethod(internal, "readFloatBE", ReadFloatBE);
+  env->SetMethod(internal, "readFloatLE", ReadFloatLE);
 
-  NODE_SET_METHOD(internal, "writeDoubleBE", WriteDoubleBE);
-  NODE_SET_METHOD(internal, "writeDoubleLE", WriteDoubleLE);
-  NODE_SET_METHOD(internal, "writeFloatBE", WriteFloatBE);
-  NODE_SET_METHOD(internal, "writeFloatLE", WriteFloatLE);
+  env->SetMethod(internal, "writeDoubleBE", WriteDoubleBE);
+  env->SetMethod(internal, "writeDoubleLE", WriteDoubleLE);
+  env->SetMethod(internal, "writeFloatBE", WriteFloatBE);
+  env->SetMethod(internal, "writeFloatLE", WriteFloatLE);
 }
 
 
@@ -647,8 +647,7 @@ void Initialize(Handle<Object> target,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "setupBufferJS"),
-              FunctionTemplate::New(env->isolate(), SetupBufferJS)
-                  ->GetFunction());
+              env->NewFunctionTemplate(SetupBufferJS)->GetFunction());
 }
 
 

@@ -38,7 +38,7 @@ using v8::Value;
 
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
   if (err >= 0)
     return env->ThrowError("err >= 0");
@@ -52,7 +52,7 @@ void Initialize(Handle<Object> target,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
-              FunctionTemplate::New(env->isolate(), ErrName)->GetFunction());
+              env->NewFunctionTemplate(ErrName)->GetFunction());
 #define V(name, _)                                                            \
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UV_" # name),            \
               Integer::New(env->isolate(), UV_ ## name));

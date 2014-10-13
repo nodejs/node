@@ -61,7 +61,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 

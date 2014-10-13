@@ -52,7 +52,7 @@ void TTYWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -65,27 +65,23 @@ void TTYWrap::Initialize(Handle<Object> target,
                                      v8::DEFAULT,
                                      attributes);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "close", HandleWrap::Close);
+  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
-  NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
+  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
+  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "writeBuffer", StreamWrap::WriteBuffer);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeAsciiString",
-                            StreamWrap::WriteAsciiString);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeBinaryString",
-                            StreamWrap::WriteBinaryString);
+  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
+  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
+  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
+  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "getWindowSize", TTYWrap::GetWindowSize);
-  NODE_SET_PROTOTYPE_METHOD(t, "setRawMode", SetRawMode);
+  env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
+  env->SetProtoMethod(t, "setRawMode", SetRawMode);
 
-  NODE_SET_METHOD(target, "isTTY", IsTTY);
-  NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
+  env->SetMethod(target, "isTTY", IsTTY);
+  env->SetMethod(target, "guessHandleType", GuessHandleType);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"), t->GetFunction());
   env->set_tty_constructor_template(t);
@@ -98,7 +94,7 @@ uv_tty_t* TTYWrap::UVHandle() {
 
 
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   int fd = args[0]->Int32Value();
   CHECK_GE(fd, 0);
 
@@ -129,7 +125,7 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
   CHECK(args[0]->IsArray());
@@ -155,7 +151,7 @@ void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a

@@ -83,12 +83,12 @@ void FSEventWrap::Initialize(Handle<Object> target,
                              Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),  New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(env->fsevent_string());
 
-  NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+  env->SetProtoMethod(t, "start", Start);
+  env->SetProtoMethod(t, "close", Close);
 
   target->Set(env->fsevent_string(), t->GetFunction());
 }
@@ -96,13 +96,13 @@ void FSEventWrap::Initialize(Handle<Object> target,
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new FSEventWrap(env, args.This());
 }
 
 
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 

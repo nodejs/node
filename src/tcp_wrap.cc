@@ -71,7 +71,7 @@ void TCPWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -96,41 +96,35 @@ void TCPWrap::Initialize(Handle<Object> target,
                              Null(env->isolate()));
 
 
-  NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
+  env->SetProtoMethod(t, "close", HandleWrap::Close);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
-  NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
-  NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
+  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
+  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
+  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "writeBuffer", StreamWrap::WriteBuffer);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeAsciiString",
-                            StreamWrap::WriteAsciiString);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "writeBinaryString",
-                            StreamWrap::WriteBinaryString);
-  NODE_SET_PROTOTYPE_METHOD(t, "writev", StreamWrap::Writev);
+  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
+  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
+  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
+  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
+  env->SetProtoMethod(t, "writev", StreamWrap::Writev);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
-  NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
-  NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
-  NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
-  NODE_SET_PROTOTYPE_METHOD(t, "bind6", Bind6);
-  NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
-  NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
-  NODE_SET_PROTOTYPE_METHOD(t, "getpeername", GetPeerName);
-  NODE_SET_PROTOTYPE_METHOD(t, "setNoDelay", SetNoDelay);
-  NODE_SET_PROTOTYPE_METHOD(t, "setKeepAlive", SetKeepAlive);
+  env->SetProtoMethod(t, "open", Open);
+  env->SetProtoMethod(t, "bind", Bind);
+  env->SetProtoMethod(t, "listen", Listen);
+  env->SetProtoMethod(t, "connect", Connect);
+  env->SetProtoMethod(t, "bind6", Bind6);
+  env->SetProtoMethod(t, "connect6", Connect6);
+  env->SetProtoMethod(t, "getsockname", GetSockName);
+  env->SetProtoMethod(t, "getpeername", GetPeerName);
+  env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
+  env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
 
 #ifdef _WIN32
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "setSimultaneousAccepts",
-                            SetSimultaneousAccepts);
+  env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"), t->GetFunction());
@@ -148,7 +142,7 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   TCPWrap* wrap = new TCPWrap(env, args.This());
   CHECK(wrap);
 }
@@ -172,7 +166,7 @@ TCPWrap::~TCPWrap() {
 
 
 void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   struct sockaddr_storage address;
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
@@ -194,7 +188,7 @@ void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   struct sockaddr_storage address;
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
@@ -353,7 +347,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
 
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 
@@ -386,7 +380,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
 

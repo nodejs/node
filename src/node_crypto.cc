@@ -257,35 +257,30 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 
 
 void SecureContext::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    SecureContext::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(SecureContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "init", SecureContext::Init);
-  NODE_SET_PROTOTYPE_METHOD(t, "setKey", SecureContext::SetKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "setCert", SecureContext::SetCert);
-  NODE_SET_PROTOTYPE_METHOD(t, "addCACert", SecureContext::AddCACert);
-  NODE_SET_PROTOTYPE_METHOD(t, "addCRL", SecureContext::AddCRL);
-  NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
-  NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
-  NODE_SET_PROTOTYPE_METHOD(t, "setECDHCurve", SecureContext::SetECDHCurve);
-  NODE_SET_PROTOTYPE_METHOD(t, "setDHParam", SecureContext::SetDHParam);
-  NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
-  NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
-                               SecureContext::SetSessionIdContext);
-  NODE_SET_PROTOTYPE_METHOD(t, "setSessionTimeout",
-                               SecureContext::SetSessionTimeout);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "loadPKCS12", SecureContext::LoadPKCS12);
-  NODE_SET_PROTOTYPE_METHOD(t, "getTicketKeys", SecureContext::GetTicketKeys);
-  NODE_SET_PROTOTYPE_METHOD(t, "setTicketKeys", SecureContext::SetTicketKeys);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "getCertificate",
-                            SecureContext::GetCertificate<true>);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "getIssuer",
-                            SecureContext::GetCertificate<false>);
+  env->SetProtoMethod(t, "init", SecureContext::Init);
+  env->SetProtoMethod(t, "setKey", SecureContext::SetKey);
+  env->SetProtoMethod(t, "setCert", SecureContext::SetCert);
+  env->SetProtoMethod(t, "addCACert", SecureContext::AddCACert);
+  env->SetProtoMethod(t, "addCRL", SecureContext::AddCRL);
+  env->SetProtoMethod(t, "addRootCerts", SecureContext::AddRootCerts);
+  env->SetProtoMethod(t, "setCiphers", SecureContext::SetCiphers);
+  env->SetProtoMethod(t, "setECDHCurve", SecureContext::SetECDHCurve);
+  env->SetProtoMethod(t, "setDHParam", SecureContext::SetDHParam);
+  env->SetProtoMethod(t, "setOptions", SecureContext::SetOptions);
+  env->SetProtoMethod(t, "setSessionIdContext",
+                      SecureContext::SetSessionIdContext);
+  env->SetProtoMethod(t, "setSessionTimeout",
+                      SecureContext::SetSessionTimeout);
+  env->SetProtoMethod(t, "close", SecureContext::Close);
+  env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
+  env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
+  env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
+  env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
+  env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
 
   NODE_SET_EXTERNAL(
       t->PrototypeTemplate(),
@@ -299,7 +294,7 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
 
 
 void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new SecureContext(env, args.This());
 }
 
@@ -430,7 +425,7 @@ static X509* LoadX509(Environment* env, Handle<Value> v) {
 
 
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
@@ -575,7 +570,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 
 
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
@@ -606,7 +601,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   bool newCAStore = false;
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
@@ -635,7 +630,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
@@ -835,7 +830,7 @@ void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
 
 // Takes .pfx or .p12 and password in string or buffer format
 void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   BIO* in = NULL;
   PKCS12* p12 = NULL;
@@ -974,32 +969,32 @@ template <class Base>
 void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
-  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", GetPeerCertificate);
-  NODE_SET_PROTOTYPE_METHOD(t, "getSession", GetSession);
-  NODE_SET_PROTOTYPE_METHOD(t, "setSession", SetSession);
-  NODE_SET_PROTOTYPE_METHOD(t, "loadSession", LoadSession);
-  NODE_SET_PROTOTYPE_METHOD(t, "isSessionReused", IsSessionReused);
-  NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", IsInitFinished);
-  NODE_SET_PROTOTYPE_METHOD(t, "verifyError", VerifyError);
-  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", GetCurrentCipher);
-  NODE_SET_PROTOTYPE_METHOD(t, "endParser", EndParser);
-  NODE_SET_PROTOTYPE_METHOD(t, "renegotiate", Renegotiate);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "getTLSTicket", GetTLSTicket);
-  NODE_SET_PROTOTYPE_METHOD(t, "newSessionDone", NewSessionDone);
-  NODE_SET_PROTOTYPE_METHOD(t, "setOCSPResponse", SetOCSPResponse);
-  NODE_SET_PROTOTYPE_METHOD(t, "requestOCSP", RequestOCSP);
+  env->SetProtoMethod(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethod(t, "getSession", GetSession);
+  env->SetProtoMethod(t, "setSession", SetSession);
+  env->SetProtoMethod(t, "loadSession", LoadSession);
+  env->SetProtoMethod(t, "isSessionReused", IsSessionReused);
+  env->SetProtoMethod(t, "isInitFinished", IsInitFinished);
+  env->SetProtoMethod(t, "verifyError", VerifyError);
+  env->SetProtoMethod(t, "getCurrentCipher", GetCurrentCipher);
+  env->SetProtoMethod(t, "endParser", EndParser);
+  env->SetProtoMethod(t, "renegotiate", Renegotiate);
+  env->SetProtoMethod(t, "shutdown", Shutdown);
+  env->SetProtoMethod(t, "getTLSTicket", GetTLSTicket);
+  env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
+  env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
+  env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
 
 #ifdef SSL_set_max_send_fragment
-  NODE_SET_PROTOTYPE_METHOD(t, "setMaxSendFragment", SetMaxSendFragment);
+  env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-  NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", GetNegotiatedProto);
+  env->SetProtoMethod(t, "getNegotiatedProtocol", GetNegotiatedProto);
 #endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-  NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", SetNPNProtocols);
+  env->SetProtoMethod(t, "setNPNProtocols", SetNPNProtocols);
 #endif
 
   NODE_SET_EXTERNAL(
@@ -1377,7 +1372,7 @@ void SSLWrap<Base>::GetPeerCertificate(
 
 template <class Base>
 void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Base* w = Unwrap<Base>(args.Holder());
 
@@ -1398,7 +1393,7 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
 
 template <class Base>
 void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Base* w = Unwrap<Base>(args.Holder());
 
@@ -1993,26 +1988,25 @@ void Connection::NewSessionDoneCb() {
 
 
 void Connection::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    Connection::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(Connection::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "encIn", Connection::EncIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearOut", Connection::ClearOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearIn", Connection::ClearIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "encOut", Connection::EncOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearPending", Connection::ClearPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "encPending", Connection::EncPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "start", Connection::Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
+  env->SetProtoMethod(t, "encIn", Connection::EncIn);
+  env->SetProtoMethod(t, "clearOut", Connection::ClearOut);
+  env->SetProtoMethod(t, "clearIn", Connection::ClearIn);
+  env->SetProtoMethod(t, "encOut", Connection::EncOut);
+  env->SetProtoMethod(t, "clearPending", Connection::ClearPending);
+  env->SetProtoMethod(t, "encPending", Connection::EncPending);
+  env->SetProtoMethod(t, "start", Connection::Start);
+  env->SetProtoMethod(t, "close", Connection::Close);
 
   SSLWrap<Connection>::AddMethods(env, t);
 
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  NODE_SET_PROTOTYPE_METHOD(t, "getServername", Connection::GetServername);
-  NODE_SET_PROTOTYPE_METHOD(t, "setSNICallback",  Connection::SetSNICallback);
+  env->SetProtoMethod(t, "getServername", Connection::GetServername);
+  env->SetProtoMethod(t, "setSNICallback",  Connection::SetSNICallback);
 #endif
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"),
@@ -2104,7 +2098,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
 #endif
 
 void Connection::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     env->ThrowError("First argument must be a tls module SecureContext");
@@ -2458,18 +2452,18 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
 
 
 void CipherBase::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "init", Init);
-  NODE_SET_PROTOTYPE_METHOD(t, "initiv", InitIv);
-  NODE_SET_PROTOTYPE_METHOD(t, "update", Update);
-  NODE_SET_PROTOTYPE_METHOD(t, "final", Final);
-  NODE_SET_PROTOTYPE_METHOD(t, "setAutoPadding", SetAutoPadding);
-  NODE_SET_PROTOTYPE_METHOD(t, "getAuthTag", GetAuthTag);
-  NODE_SET_PROTOTYPE_METHOD(t, "setAuthTag", SetAuthTag);
-  NODE_SET_PROTOTYPE_METHOD(t, "setAAD", SetAAD);
+  env->SetProtoMethod(t, "init", Init);
+  env->SetProtoMethod(t, "initiv", InitIv);
+  env->SetProtoMethod(t, "update", Update);
+  env->SetProtoMethod(t, "final", Final);
+  env->SetProtoMethod(t, "setAutoPadding", SetAutoPadding);
+  env->SetProtoMethod(t, "getAuthTag", GetAuthTag);
+  env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
+  env->SetProtoMethod(t, "setAAD", SetAAD);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
               t->GetFunction());
@@ -2479,7 +2473,7 @@ void CipherBase::Initialize(Environment* env, Handle<Object> target) {
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.IsConstructCall(), true);
   CipherKind kind = args[0]->IsTrue() ? kCipher : kDecipher;
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new CipherBase(env, args.This(), kind);
 }
 
@@ -2615,7 +2609,7 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
 
 
 void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
   char* out = NULL;
@@ -2642,7 +2636,7 @@ bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
 
 
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Object> buf = args[0].As<Object>();
   if (!buf->IsObject() || !Buffer::HasInstance(buf))
@@ -2671,7 +2665,7 @@ bool CipherBase::SetAAD(const char* data, unsigned int len) {
 
 
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ASSERT_IS_BUFFER(args[0]);
 
@@ -2710,7 +2704,7 @@ bool CipherBase::Update(const char* data,
 
 
 void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
@@ -2798,7 +2792,7 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
 
 
 void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
@@ -2830,20 +2824,20 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
 
 void Hmac::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "init", HmacInit);
-  NODE_SET_PROTOTYPE_METHOD(t, "update", HmacUpdate);
-  NODE_SET_PROTOTYPE_METHOD(t, "digest", HmacDigest);
+  env->SetProtoMethod(t, "init", HmacInit);
+  env->SetProtoMethod(t, "update", HmacUpdate);
+  env->SetProtoMethod(t, "digest", HmacDigest);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"), t->GetFunction());
 }
 
 
 void Hmac::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new Hmac(env, args.This());
 }
 
@@ -2892,7 +2886,7 @@ bool Hmac::HmacUpdate(const char* data, int len) {
 
 
 void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Hmac* hmac = Unwrap<Hmac>(args.Holder());
 
@@ -2938,7 +2932,7 @@ bool Hmac::HmacDigest(unsigned char** md_value, unsigned int* md_len) {
 
 
 void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Hmac* hmac = Unwrap<Hmac>(args.Holder());
 
@@ -2966,19 +2960,19 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
 
 void Hash::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "update", HashUpdate);
-  NODE_SET_PROTOTYPE_METHOD(t, "digest", HashDigest);
+  env->SetProtoMethod(t, "update", HashUpdate);
+  env->SetProtoMethod(t, "digest", HashDigest);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"), t->GetFunction());
 }
 
 
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() == 0 || !args[0]->IsString()) {
     return env->ThrowError("Must give hashtype string as argument");
@@ -3014,7 +3008,7 @@ bool Hash::HashUpdate(const char* data, int len) {
 
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Hash* hash = Unwrap<Hash>(args.Holder());
 
@@ -3049,7 +3043,7 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
 
 
 void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Hash* hash = Unwrap<Hash>(args.Holder());
 
@@ -3118,20 +3112,20 @@ void SignBase::CheckThrow(SignBase::Error error) {
 
 
 void Sign::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "init", SignInit);
-  NODE_SET_PROTOTYPE_METHOD(t, "update", SignUpdate);
-  NODE_SET_PROTOTYPE_METHOD(t, "sign", SignFinal);
+  env->SetProtoMethod(t, "init", SignInit);
+  env->SetProtoMethod(t, "update", SignUpdate);
+  env->SetProtoMethod(t, "sign", SignFinal);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"), t->GetFunction());
 }
 
 
 void Sign::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new Sign(env, args.This());
 }
 
@@ -3173,7 +3167,7 @@ SignBase::Error Sign::SignUpdate(const char* data, int len) {
 
 
 void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Sign* sign = Unwrap<Sign>(args.Holder());
 
@@ -3249,7 +3243,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
 
 
 void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Sign* sign = Unwrap<Sign>(args.Holder());
 
@@ -3294,13 +3288,13 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
 
 void Verify::Initialize(Environment* env, v8::Handle<v8::Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "init", VerifyInit);
-  NODE_SET_PROTOTYPE_METHOD(t, "update", VerifyUpdate);
-  NODE_SET_PROTOTYPE_METHOD(t, "verify", VerifyFinal);
+  env->SetProtoMethod(t, "init", VerifyInit);
+  env->SetProtoMethod(t, "update", VerifyUpdate);
+  env->SetProtoMethod(t, "verify", VerifyFinal);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
               t->GetFunction());
@@ -3308,7 +3302,7 @@ void Verify::Initialize(Environment* env, v8::Handle<v8::Object> target) {
 
 
 void Verify::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new Verify(env, args.This());
 }
 
@@ -3352,7 +3346,7 @@ SignBase::Error Verify::VerifyUpdate(const char* data, int len) {
 
 
 void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Verify* verify = Unwrap<Verify>(args.Holder());
 
@@ -3459,7 +3453,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
 
 
 void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Verify* verify = Unwrap<Verify>(args.Holder());
 
@@ -3591,7 +3585,7 @@ template <PublicKeyCipher::Operation operation,
           PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
           PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
 void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ASSERT_IS_BUFFER(args[0]);
   char* kbuf = Buffer::Data(args[0]);
@@ -3635,21 +3629,21 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   static enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "generateKeys", GenerateKeys);
-  NODE_SET_PROTOTYPE_METHOD(t, "computeSecret", ComputeSecret);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPrime", GetPrime);
-  NODE_SET_PROTOTYPE_METHOD(t, "getGenerator", GetGenerator);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", GetPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPrivateKey", GetPrivateKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", SetPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
+  env->SetProtoMethod(t, "generateKeys", GenerateKeys);
+  env->SetProtoMethod(t, "computeSecret", ComputeSecret);
+  env->SetProtoMethod(t, "getPrime", GetPrime);
+  env->SetProtoMethod(t, "getGenerator", GetGenerator);
+  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
+  env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
   t->InstanceTemplate()->SetAccessor(env->verify_error_string(),
                                      DiffieHellman::VerifyErrorGetter,
@@ -3661,16 +3655,15 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
               t->GetFunction());
 
-  Local<FunctionTemplate> t2 = FunctionTemplate::New(env->isolate(),
-                                                     DiffieHellmanGroup);
+  Local<FunctionTemplate> t2 = env->NewFunctionTemplate(DiffieHellmanGroup);
   t2->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t2, "generateKeys", GenerateKeys);
-  NODE_SET_PROTOTYPE_METHOD(t2, "computeSecret", ComputeSecret);
-  NODE_SET_PROTOTYPE_METHOD(t2, "getPrime", GetPrime);
-  NODE_SET_PROTOTYPE_METHOD(t2, "getGenerator", GetGenerator);
-  NODE_SET_PROTOTYPE_METHOD(t2, "getPublicKey", GetPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t2, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethod(t2, "generateKeys", GenerateKeys);
+  env->SetProtoMethod(t2, "computeSecret", ComputeSecret);
+  env->SetProtoMethod(t2, "getPrime", GetPrime);
+  env->SetProtoMethod(t2, "getGenerator", GetGenerator);
+  env->SetProtoMethod(t2, "getPublicKey", GetPublicKey);
+  env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
 
   t2->InstanceTemplate()->SetAccessor(env->verify_error_string(),
                                       DiffieHellman::VerifyErrorGetter,
@@ -3723,7 +3716,7 @@ bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
 
 void DiffieHellman::DiffieHellmanGroup(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
@@ -3753,7 +3746,7 @@ void DiffieHellman::DiffieHellmanGroup(
 
 
 void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   DiffieHellman* diffieHellman =
       new DiffieHellman(env, args.This());
   bool initialized = false;
@@ -3785,7 +3778,7 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -3808,7 +3801,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -3826,7 +3819,7 @@ void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -3844,7 +3837,7 @@ void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -3867,7 +3860,7 @@ void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -3890,7 +3883,7 @@ void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
@@ -4024,16 +4017,16 @@ bool DiffieHellman::VerifyContext() {
 void ECDH::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "generateKeys", GenerateKeys);
-  NODE_SET_PROTOTYPE_METHOD(t, "computeSecret", ComputeSecret);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPublicKey", GetPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPrivateKey", GetPrivateKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "setPublicKey", SetPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
+  env->SetProtoMethod(t, "generateKeys", GenerateKeys);
+  env->SetProtoMethod(t, "computeSecret", ComputeSecret);
+  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
+  env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
               t->GetFunction());
@@ -4041,7 +4034,7 @@ void ECDH::Initialize(Environment* env, Handle<Object> target) {
 
 
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   // TODO(indutny): Support raw curves?
   CHECK(args[0]->IsString());
@@ -4060,7 +4053,7 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
@@ -4101,7 +4094,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
 
 
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ASSERT_IS_BUFFER(args[0]);
 
@@ -4130,7 +4123,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   // Conversion form
   CHECK_EQ(args.Length(), 1);
@@ -4168,7 +4161,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
@@ -4195,7 +4188,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
@@ -4214,7 +4207,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
@@ -4377,7 +4370,7 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
 
 
 void PBKDF2(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   const EVP_MD* digest = NULL;
   const char* type_error = NULL;
@@ -4615,7 +4608,7 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 
 template <bool pseudoRandom>
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   // maybe allow a buffer to write to? cuts down on object creation
   // when generating random data in a loop
@@ -4656,7 +4649,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
 
 
 void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
   if (ctx == NULL) {
@@ -4711,7 +4704,7 @@ static void array_push_back(const TypeName* md,
 
 
 void GetCiphers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   CipherPushContext ctx(env);
   EVP_CIPHER_do_all_sorted(array_push_back<EVP_CIPHER>, &ctx);
   args.GetReturnValue().Set(ctx.arr);
@@ -4719,7 +4712,7 @@ void GetCiphers(const FunctionCallbackInfo<Value>& args) {
 
 
 void GetHashes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   CipherPushContext ctx(env);
   EVP_MD_do_all_sorted(array_push_back<EVP_MD>, &ctx);
   args.GetReturnValue().Set(ctx.arr);
@@ -4729,13 +4722,13 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 void Certificate::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "verifySpkac", VerifySpkac);
-  NODE_SET_PROTOTYPE_METHOD(t, "exportPublicKey", ExportPublicKey);
-  NODE_SET_PROTOTYPE_METHOD(t, "exportChallenge", ExportChallenge);
+  env->SetProtoMethod(t, "verifySpkac", VerifySpkac);
+  env->SetProtoMethod(t, "exportPublicKey", ExportPublicKey);
+  env->SetProtoMethod(t, "exportChallenge", ExportChallenge);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Certificate"),
               t->GetFunction());
@@ -4743,7 +4736,7 @@ void Certificate::Initialize(Environment* env, Handle<Object> target) {
 
 
 void Certificate::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new Certificate(env, args.This());
 }
 
@@ -4839,7 +4832,7 @@ const char* Certificate::ExportPublicKey(const char* data, int len) {
 
 
 void Certificate::ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Certificate* certificate = Unwrap<Certificate>(args.Holder());
 
@@ -4882,7 +4875,7 @@ const char* Certificate::ExportChallenge(const char* data, int len) {
 
 
 void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Certificate* crt = Unwrap<Certificate>(args.Holder());
 
@@ -4939,7 +4932,7 @@ void InitCryptoOnce() {
 
 #ifndef OPENSSL_NO_ENGINE
 void SetEngine(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   CHECK(args.Length() >= 2 && args[0]->IsString());
   unsigned int flags = args[1]->Uint32Value();
 
@@ -5001,24 +4994,22 @@ void InitCrypto(Handle<Object> target,
   Certificate::Initialize(env, target);
 
 #ifndef OPENSSL_NO_ENGINE
-  NODE_SET_METHOD(target, "setEngine", SetEngine);
+  env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
-  NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
-  NODE_SET_METHOD(target, "randomBytes", RandomBytes<false>);
-  NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<true>);
-  NODE_SET_METHOD(target, "getSSLCiphers", GetSSLCiphers);
-  NODE_SET_METHOD(target, "getCiphers", GetCiphers);
-  NODE_SET_METHOD(target, "getHashes", GetHashes);
-  NODE_SET_METHOD(target,
-                  "publicEncrypt",
-                  PublicKeyCipher::Cipher<PublicKeyCipher::kEncrypt,
-                                          EVP_PKEY_encrypt_init,
-                                          EVP_PKEY_encrypt>);
-  NODE_SET_METHOD(target,
-                  "privateDecrypt",
-                  PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
-                                          EVP_PKEY_decrypt_init,
-                                          EVP_PKEY_decrypt>);
+  env->SetMethod(target, "PBKDF2", PBKDF2);
+  env->SetMethod(target, "randomBytes", RandomBytes<false>);
+  env->SetMethod(target, "pseudoRandomBytes", RandomBytes<true>);
+  env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
+  env->SetMethod(target, "getCiphers", GetCiphers);
+  env->SetMethod(target, "getHashes", GetHashes);
+  env->SetMethod(target, "publicEncrypt",
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kEncrypt,
+                                         EVP_PKEY_encrypt_init,
+                                         EVP_PKEY_encrypt>);
+  env->SetMethod(target, "privateDecrypt",
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
+                                         EVP_PKEY_decrypt_init,
+                                         EVP_PKEY_decrypt>);
 }
 
 }  // namespace crypto

@@ -840,7 +840,7 @@ class GetHostByNameWrap: public QueryWrap {
 
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(false, args.IsConstructCall());
   CHECK(args[0]->IsObject());
@@ -1003,7 +1003,7 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -1055,7 +1055,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -1087,7 +1087,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetServers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Array> server_array = Array::New(env->isolate());
 
@@ -1116,7 +1116,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetServers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsArray());
 
@@ -1184,7 +1184,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 
 
 static void StrError(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   const char* errmsg = ares_strerror(args[0]->Int32Value());
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }
@@ -1232,24 +1232,24 @@ static void Initialize(Handle<Object> target,
       CaresTimerClose,
       NULL);
 
-  NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
-  NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);
-  NODE_SET_METHOD(target, "queryCname", Query<QueryCnameWrap>);
-  NODE_SET_METHOD(target, "queryMx", Query<QueryMxWrap>);
-  NODE_SET_METHOD(target, "queryNs", Query<QueryNsWrap>);
-  NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
-  NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
-  NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
-  NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
-  NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
+  env->SetMethod(target, "queryA", Query<QueryAWrap>);
+  env->SetMethod(target, "queryAaaa", Query<QueryAaaaWrap>);
+  env->SetMethod(target, "queryCname", Query<QueryCnameWrap>);
+  env->SetMethod(target, "queryMx", Query<QueryMxWrap>);
+  env->SetMethod(target, "queryNs", Query<QueryNsWrap>);
+  env->SetMethod(target, "queryTxt", Query<QueryTxtWrap>);
+  env->SetMethod(target, "querySrv", Query<QuerySrvWrap>);
+  env->SetMethod(target, "queryNaptr", Query<QueryNaptrWrap>);
+  env->SetMethod(target, "querySoa", Query<QuerySoaWrap>);
+  env->SetMethod(target, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
-  NODE_SET_METHOD(target, "getnameinfo", GetNameInfo);
-  NODE_SET_METHOD(target, "isIP", IsIP);
+  env->SetMethod(target, "getaddrinfo", GetAddrInfo);
+  env->SetMethod(target, "getnameinfo", GetNameInfo);
+  env->SetMethod(target, "isIP", IsIP);
 
-  NODE_SET_METHOD(target, "strerror", StrError);
-  NODE_SET_METHOD(target, "getServers", GetServers);
-  NODE_SET_METHOD(target, "setServers", SetServers);
+  env->SetMethod(target, "strerror", StrError);
+  env->SetMethod(target, "getServers", GetServers);
+  env->SetMethod(target, "setServers", SetServers);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
               Integer::New(env->isolate(), AF_INET));
