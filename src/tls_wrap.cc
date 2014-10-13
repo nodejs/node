@@ -206,7 +206,7 @@ void TLSCallbacks::InitSSL() {
 
 
 void TLSCallbacks::Wrap(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return env->ThrowTypeError(
@@ -263,7 +263,7 @@ void TLSCallbacks::Receive(const FunctionCallbackInfo<Value>& args) {
 
 
 void TLSCallbacks::Start(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
@@ -680,7 +680,7 @@ int TLSCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
 
 
 void TLSCallbacks::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
@@ -734,7 +734,7 @@ void TLSCallbacks::OnClientHelloParseEnd(void* arg) {
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
@@ -749,7 +749,7 @@ void TLSCallbacks::GetServername(const FunctionCallbackInfo<Value>& args) {
 
 
 void TLSCallbacks::SetServername(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   TLSCallbacks* wrap = Unwrap<TLSCallbacks>(args.Holder());
 
@@ -811,27 +811,23 @@ void TLSCallbacks::Initialize(Handle<Object> target,
                               Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  NODE_SET_METHOD(target, "wrap", TLSCallbacks::Wrap);
+  env->SetMethod(target, "wrap", TLSCallbacks::Wrap);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate());
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "receive", Receive);
-  NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "setVerifyMode", SetVerifyMode);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "enableSessionCallbacks",
-                            EnableSessionCallbacks);
-  NODE_SET_PROTOTYPE_METHOD(t,
-                            "enableHelloParser",
-                            EnableHelloParser);
+  env->SetProtoMethod(t, "receive", Receive);
+  env->SetProtoMethod(t, "start", Start);
+  env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
+  env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
+  env->SetProtoMethod(t, "enableHelloParser", EnableHelloParser);
 
   SSLWrap<TLSCallbacks>::AddMethods(env, t);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  NODE_SET_PROTOTYPE_METHOD(t, "getServername", GetServername);
-  NODE_SET_PROTOTYPE_METHOD(t, "setServername", SetServername);
+  env->SetProtoMethod(t, "getServername", GetServername);
+  env->SetProtoMethod(t, "setServername", SetServername);
 #endif  // SSL_CRT_SET_TLSEXT_SERVERNAME_CB
 
   env->set_tls_wrap_constructor_function(t->GetFunction());

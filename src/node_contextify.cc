@@ -246,9 +246,9 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
-    NODE_SET_METHOD(target, "runInDebugContext", RunInDebugContext);
-    NODE_SET_METHOD(target, "makeContext", MakeContext);
-    NODE_SET_METHOD(target, "isContext", IsContext);
+    env->SetMethod(target, "runInDebugContext", RunInDebugContext);
+    env->SetMethod(target, "makeContext", MakeContext);
+    env->SetMethod(target, "isContext", IsContext);
   }
 
 
@@ -265,7 +265,7 @@ class ContextifyContext {
 
 
   static void MakeContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
       return env->ThrowTypeError("sandbox argument must be an object.");
@@ -295,7 +295,7 @@ class ContextifyContext {
 
 
   static void IsContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
       env->ThrowTypeError("sandbox must be an object");
@@ -453,14 +453,11 @@ class ContextifyScript : public BaseObject {
     Local<String> class_name =
         FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
 
-    Local<FunctionTemplate> script_tmpl = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
     script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
     script_tmpl->SetClassName(class_name);
-    NODE_SET_PROTOTYPE_METHOD(script_tmpl, "runInContext", RunInContext);
-    NODE_SET_PROTOTYPE_METHOD(script_tmpl,
-                              "runInThisContext",
-                              RunInThisContext);
+    env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
+    env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
     target->Set(class_name, script_tmpl->GetFunction());
     env->set_script_context_constructor_template(script_tmpl);
@@ -469,7 +466,7 @@ class ContextifyScript : public BaseObject {
 
   // args: code, [options]
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args.IsConstructCall()) {
       return env->ThrowError("Must call vm.Script as a constructor.");
@@ -511,8 +508,6 @@ class ContextifyScript : public BaseObject {
 
   // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
-    Isolate* isolate = args.GetIsolate();
-
     // Assemble arguments
     TryCatch try_catch;
     uint64_t timeout = GetTimeoutArg(args, 0);
@@ -523,13 +518,13 @@ class ContextifyScript : public BaseObject {
     }
 
     // Do the eval within this context
-    Environment* env = Environment::GetCurrent(isolate);
+    Environment* env = Environment::GetCurrent(args);
     EvalMachine(env, timeout, display_errors, args, try_catch);
   }
 
   // args: sandbox, [options]
   static void RunInContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     int64_t timeout;
     bool display_errors;

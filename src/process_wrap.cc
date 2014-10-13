@@ -51,18 +51,17 @@ class ProcessWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
+    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "spawn", Spawn);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "kill", Kill);
+    env->SetProtoMethod(constructor, "spawn", Spawn);
+    env->SetProtoMethod(constructor, "kill", Kill);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
@@ -74,7 +73,7 @@ class ProcessWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     CHECK(args.IsConstructCall());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     new ProcessWrap(env, args.This());
   }
 
@@ -130,7 +129,7 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
 

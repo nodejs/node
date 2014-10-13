@@ -918,7 +918,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsFunction());
@@ -943,7 +943,7 @@ void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (env->using_domains())
     return;
@@ -987,7 +987,7 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsFunction());
@@ -1002,7 +1002,7 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
   env->set_tick_callback_function(args[1].As<Function>());
 
-  NODE_SET_METHOD(args[2].As<Object>(), "runMicrotasks", RunMicrotasks);
+  env->SetMethod(args[2].As<Object>(), "runMicrotasks", RunMicrotasks);
 
   // Do a little housekeeping.
   env->process_object()->Delete(
@@ -1554,7 +1554,7 @@ static Local<Value> ExecuteString(Environment* env,
 
 
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(args.GetIsolate());
   QUEUE* q = NULL;
@@ -1574,7 +1574,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
 // implemented here for consistency with GetActiveRequests().
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(env->isolate());
   QUEUE* q = NULL;
@@ -1603,7 +1603,7 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     // FIXME(bnoordhuis) ThrowTypeError?
@@ -1619,7 +1619,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Cwd(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 #ifdef _WIN32
   /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
   char buf[MAX_PATH * 4];
@@ -1642,7 +1642,7 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Umask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   uint32_t old;
 
   if (args.Length() < 1 || args[0]->IsUndefined()) {
@@ -1790,7 +1790,7 @@ static void GetGid(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setgid argument must be a number or a string");
@@ -1809,7 +1809,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setuid argument must be a number or a string");
@@ -1828,7 +1828,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetGroups(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   int ngroups = getgroups(0, NULL);
 
@@ -1866,7 +1866,7 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsArray()) {
     return env->ThrowTypeError("argument 1 must be an array");
@@ -1897,7 +1897,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 static void InitGroups(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("argument 1 must be a number or a string");
@@ -1952,7 +1952,7 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   double uptime;
 
   uv_update_time(env->event_loop());
@@ -1963,7 +1963,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 
 
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -1990,7 +1990,7 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 
 void Kill(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 2) {
     return env->ThrowError("Bad argument.");
@@ -2011,7 +2011,7 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 // and nanoseconds, to avoid any integer overflow possibility.
 // Pass in an Array from a previous hrtime() call to instead get a time diff.
 void Hrtime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   uint64_t t = uv_hrtime();
 
@@ -2066,7 +2066,7 @@ typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 // when two contexts try to load the same shared object. Maybe have a shadow
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   struct node_module* mp;
   uv_lib_t lib;
 
@@ -2209,7 +2209,7 @@ void OnMessage(Handle<Message> message, Handle<Value> error) {
 
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   Local<String> module = args[0]->ToString();
   node::Utf8Value module_v(module);
@@ -2573,13 +2573,13 @@ void StopProfilerIdleNotifier(Environment* env) {
 
 
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   StartProfilerIdleNotifier(env);
 }
 
 
 void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   StopProfilerIdleNotifier(env);
 }
 
@@ -2758,51 +2758,51 @@ void SetupProcessObject(Environment* env,
                        DebugPortSetter);
 
   // define various internal methods
-  NODE_SET_METHOD(process,
-                  "_startProfilerIdleNotifier",
-                  StartProfilerIdleNotifier);
-  NODE_SET_METHOD(process,
-                  "_stopProfilerIdleNotifier",
-                  StopProfilerIdleNotifier);
-  NODE_SET_METHOD(process, "_getActiveRequests", GetActiveRequests);
-  NODE_SET_METHOD(process, "_getActiveHandles", GetActiveHandles);
-  NODE_SET_METHOD(process, "reallyExit", Exit);
-  NODE_SET_METHOD(process, "abort", Abort);
-  NODE_SET_METHOD(process, "chdir", Chdir);
-  NODE_SET_METHOD(process, "cwd", Cwd);
+  env->SetMethod(process,
+                 "_startProfilerIdleNotifier",
+                 StartProfilerIdleNotifier);
+  env->SetMethod(process,
+                 "_stopProfilerIdleNotifier",
+                 StopProfilerIdleNotifier);
+  env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
+  env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
+  env->SetMethod(process, "reallyExit", Exit);
+  env->SetMethod(process, "abort", Abort);
+  env->SetMethod(process, "chdir", Chdir);
+  env->SetMethod(process, "cwd", Cwd);
 
-  NODE_SET_METHOD(process, "umask", Umask);
+  env->SetMethod(process, "umask", Umask);
 
 #if defined(__POSIX__) && !defined(__ANDROID__)
-  NODE_SET_METHOD(process, "getuid", GetUid);
-  NODE_SET_METHOD(process, "setuid", SetUid);
+  env->SetMethod(process, "getuid", GetUid);
+  env->SetMethod(process, "setuid", SetUid);
 
-  NODE_SET_METHOD(process, "setgid", SetGid);
-  NODE_SET_METHOD(process, "getgid", GetGid);
+  env->SetMethod(process, "setgid", SetGid);
+  env->SetMethod(process, "getgid", GetGid);
 
-  NODE_SET_METHOD(process, "getgroups", GetGroups);
-  NODE_SET_METHOD(process, "setgroups", SetGroups);
-  NODE_SET_METHOD(process, "initgroups", InitGroups);
+  env->SetMethod(process, "getgroups", GetGroups);
+  env->SetMethod(process, "setgroups", SetGroups);
+  env->SetMethod(process, "initgroups", InitGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__)
 
-  NODE_SET_METHOD(process, "_kill", Kill);
+  env->SetMethod(process, "_kill", Kill);
 
-  NODE_SET_METHOD(process, "_debugProcess", DebugProcess);
-  NODE_SET_METHOD(process, "_debugPause", DebugPause);
-  NODE_SET_METHOD(process, "_debugEnd", DebugEnd);
+  env->SetMethod(process, "_debugProcess", DebugProcess);
+  env->SetMethod(process, "_debugPause", DebugPause);
+  env->SetMethod(process, "_debugEnd", DebugEnd);
 
-  NODE_SET_METHOD(process, "hrtime", Hrtime);
+  env->SetMethod(process, "hrtime", Hrtime);
 
-  NODE_SET_METHOD(process, "dlopen", DLOpen);
+  env->SetMethod(process, "dlopen", DLOpen);
 
-  NODE_SET_METHOD(process, "uptime", Uptime);
-  NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
+  env->SetMethod(process, "uptime", Uptime);
+  env->SetMethod(process, "memoryUsage", MemoryUsage);
 
-  NODE_SET_METHOD(process, "binding", Binding);
+  env->SetMethod(process, "binding", Binding);
 
-  NODE_SET_METHOD(process, "_setupAsyncListener", SetupAsyncListener);
-  NODE_SET_METHOD(process, "_setupNextTick", SetupNextTick);
-  NODE_SET_METHOD(process, "_setupDomainUse", SetupDomainUse);
+  env->SetMethod(process, "_setupAsyncListener", SetupAsyncListener);
+  env->SetMethod(process, "_setupNextTick", SetupNextTick);
+  env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
   // pre-set _events object for faster emit checks
   process->Set(env->events_string(), Object::New(env->isolate()));
@@ -2892,7 +2892,7 @@ void LoadEnvironment(Environment* env) {
   // thrown during process startup.
   try_catch.SetVerbose(true);
 
-  NODE_SET_METHOD(env->process_object(), "_rawDebug", RawDebug);
+  env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
   Local<Value> arg = env->process_object();
   f->Call(global, 1, &arg);
@@ -3194,7 +3194,7 @@ static void RegisterSignalHandler(int signal,
 
 
 void DebugProcess(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1) {
     return env->ThrowError("Invalid number of arguments.");
@@ -3281,8 +3281,8 @@ static int RegisterDebugSignalHandler() {
 
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
   DWORD pid;
   HANDLE process = NULL;
   HANDLE thread = NULL;
@@ -3377,7 +3377,7 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     env->debugger_agent()->Stop();
     debugger_running = false;
   }

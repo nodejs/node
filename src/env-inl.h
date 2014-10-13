@@ -209,6 +209,18 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
 }
 
+inline Environment* Environment::GetCurrent(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ASSERT(info.Data()->IsExternal());
+  return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
+}
+
+inline Environment* Environment::GetCurrent(
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ASSERT(info.Data()->IsExternal());
+  return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
+}
+
 inline Environment::Environment(v8::Local<v8::Context> context,
                                 uv_loop_t* loop)
     : isolate_(context->GetIsolate()),
@@ -435,6 +447,50 @@ inline void Environment::ThrowUVException(int errorno,
                                           const char* path) {
   isolate()->ThrowException(
       UVException(isolate(), errorno, syscall, message, path));
+}
+
+inline v8::Local<v8::FunctionTemplate>
+    Environment::NewFunctionTemplate(v8::FunctionCallback callback,
+                                     v8::Local<v8::Signature> signature) {
+  v8::Local<v8::External> external;
+  if (external_.IsEmpty()) {
+    external = v8::External::New(isolate(), this);
+    external_.Reset(isolate(), external);
+  } else {
+    external = StrongPersistentToLocal(external_);
+  }
+  return v8::FunctionTemplate::New(isolate(), callback, external, signature);
+}
+
+inline void Environment::SetMethod(v8::Local<v8::Object> that,
+                                   const char* name,
+                                   v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
+                                        const char* name,
+                                        v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback, signature)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->PrototypeTemplate()->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
+                                           const char* name,
+                                           v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
 #define V(PropertyName, StringValue)                                          \

@@ -91,7 +91,7 @@ void UDPWrap::Initialize(Handle<Object> target,
                          Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(), New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"));
 
@@ -104,23 +104,23 @@ void UDPWrap::Initialize(Handle<Object> target,
                                      v8::DEFAULT,
                                      attributes);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
-  NODE_SET_PROTOTYPE_METHOD(t, "send", Send);
-  NODE_SET_PROTOTYPE_METHOD(t, "bind6", Bind6);
-  NODE_SET_PROTOTYPE_METHOD(t, "send6", Send6);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "recvStart", RecvStart);
-  NODE_SET_PROTOTYPE_METHOD(t, "recvStop", RecvStop);
-  NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
-  NODE_SET_PROTOTYPE_METHOD(t, "addMembership", AddMembership);
-  NODE_SET_PROTOTYPE_METHOD(t, "dropMembership", DropMembership);
-  NODE_SET_PROTOTYPE_METHOD(t, "setMulticastTTL", SetMulticastTTL);
-  NODE_SET_PROTOTYPE_METHOD(t, "setMulticastLoopback", SetMulticastLoopback);
-  NODE_SET_PROTOTYPE_METHOD(t, "setBroadcast", SetBroadcast);
-  NODE_SET_PROTOTYPE_METHOD(t, "setTTL", SetTTL);
+  env->SetProtoMethod(t, "bind", Bind);
+  env->SetProtoMethod(t, "send", Send);
+  env->SetProtoMethod(t, "bind6", Bind6);
+  env->SetProtoMethod(t, "send6", Send6);
+  env->SetProtoMethod(t, "close", Close);
+  env->SetProtoMethod(t, "recvStart", RecvStart);
+  env->SetProtoMethod(t, "recvStop", RecvStop);
+  env->SetProtoMethod(t, "getsockname", GetSockName);
+  env->SetProtoMethod(t, "addMembership", AddMembership);
+  env->SetProtoMethod(t, "dropMembership", DropMembership);
+  env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
+  env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
+  env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
+  env->SetProtoMethod(t, "setTTL", SetTTL);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
-  NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
@@ -129,15 +129,14 @@ void UDPWrap::Initialize(Handle<Object> target,
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new UDPWrap(env, args.This());
 }
 
 
 void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  HandleScope scope(args.GetIsolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
   int fd = (wrap == NULL) ? -1 : wrap->handle_.io_watcher.fd;
   args.GetReturnValue().Set(fd);
@@ -239,7 +238,7 @@ void UDPWrap::DropMembership(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
@@ -326,7 +325,7 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   struct sockaddr_storage address;
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());

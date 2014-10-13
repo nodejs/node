@@ -173,14 +173,14 @@ void Environment::StopGarbageCollectionTracking() {
 
 void StartGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFunction() == true);
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   env->StartGarbageCollectionTracking(args[0].As<Function>());
 }
 
 
 void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
   HeapStatistics s;
   isolate->GetHeapStatistics(&s);
   Local<Object> info = Object::New(isolate);
@@ -200,20 +200,21 @@ void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
 
 void StopGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
-  Environment::GetCurrent(args.GetIsolate())->StopGarbageCollectionTracking();
+  Environment::GetCurrent(args)->StopGarbageCollectionTracking();
 }
 
 
 void InitializeV8Bindings(Handle<Object> target,
                           Handle<Value> unused,
                           Handle<Context> context) {
-  NODE_SET_METHOD(target,
-                  "startGarbageCollectionTracking",
-                  StartGarbageCollectionTracking);
-  NODE_SET_METHOD(target,
-                  "stopGarbageCollectionTracking",
-                  StopGarbageCollectionTracking);
-  NODE_SET_METHOD(target, "getHeapStatistics", GetHeapStatistics);
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target,
+                 "startGarbageCollectionTracking",
+                 StartGarbageCollectionTracking);
+  env->SetMethod(target,
+                 "stopGarbageCollectionTracking",
+                 StopGarbageCollectionTracking);
+  env->SetMethod(target, "getHeapStatistics", GetHeapStatistics);
 }
 
 }  // namespace node

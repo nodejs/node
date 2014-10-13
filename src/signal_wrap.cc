@@ -47,16 +47,15 @@ class SignalWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"));
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
+    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
+    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "start", Start);
+    env->SetProtoMethod(constructor, "stop", Stop);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"),
                 constructor->GetFunction());
@@ -68,7 +67,7 @@ class SignalWrap : public HandleWrap {
     // Therefore we assert that we are not trying to call this as a
     // normal function.
     CHECK(args.IsConstructCall());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     new SignalWrap(env, args.This());
   }
 
