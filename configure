@@ -31,7 +31,7 @@ parser.add_option('--debug',
 parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
-    help='CPU architecture to build for. Valid values are: arm, ia32, x64')
+    help='CPU architecture to build for. Valid values are: arm, ia32, x32, x64')
 
 parser.add_option('--dest-os',
     action='store',
