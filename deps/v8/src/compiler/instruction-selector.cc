@@ -722,7 +722,7 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 #endif  // V8_TURBOFAN_BACKEND
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_BACKEND
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -785,7 +785,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 
 // 32-bit targets and unsupported architectures need dummy implementations of
 // selected 64-bit ops.
-#if V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_BACKEND
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 || !V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord64Test(Node* node, FlagsContinuation* cont) {
   UNIMPLEMENTED();
