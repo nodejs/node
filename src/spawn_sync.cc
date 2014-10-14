@@ -737,9 +737,9 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
     r = CopyJsStringArray(js_env_pairs, &env_buffer_);
     if (r < 0)
       return r;
-    uv_process_options_.args = reinterpret_cast<char**>(env_buffer_);
-  }
 
+    uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
+  }
   Local<Value> js_uid = js_options->Get(env()->uid_string());
   if (IsSet(js_uid)) {
     if (!CheckRange<uv_uid_t>(js_uid))
