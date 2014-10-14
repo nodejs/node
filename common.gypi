@@ -185,6 +185,10 @@
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
+          [ 'target_arch=="x32"', {
+            'cflags': [ '-mx32' ],
+            'ldflags': [ '-mx32' ],
+          }],
           [ 'target_arch=="x64"', {
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
