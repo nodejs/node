@@ -171,6 +171,10 @@ automatically set as a listener for the [secureConnection][] event.  The
     SSL version 3. The possible values depend on your installation of
     OpenSSL and are defined in the constant [SSL_METHODS][].
 
+  - `secureOptions`: Set server options. For example, to disable the SSLv3
+    protocol set the `SSL_OP_NO_SSLv3` flag. See [SSL_CTX_set_options]
+    for all available options.
+
 Here is a simple example echo server:
 
     var tls = require('tls');
@@ -569,3 +573,4 @@ The numeric representation of the remote port. For example, `443`.
 [Stream]: stream.html#stream_stream
 [SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server
+[SSL_CTX_set_options]: https://www.openssl.org/docs/ssl/SSL_CTX_set_options.html
