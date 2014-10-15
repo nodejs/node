@@ -84,6 +84,8 @@ extern "C" {
 #endif
 
 #define DTLS1_VERSION			0xFEFF
+#define DTLS_MAX_VERSION		DTLS1_VERSION
+
 #define DTLS1_BAD_VER			0x0100
 
 #if 0
@@ -284,4 +286,3 @@ typedef struct dtls1_record_data_st
 }
 #endif
 #endif
-

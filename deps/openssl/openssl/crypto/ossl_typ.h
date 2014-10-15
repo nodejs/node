@@ -55,6 +55,10 @@
 #ifndef HEADER_OPENSSL_TYPES_H
 #define HEADER_OPENSSL_TYPES_H
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #include <openssl/e_os2.h>
 
 #ifdef NO_ASN1_TYPEDEFS
@@ -199,4 +203,7 @@ typedef struct ocsp_req_ctx_st OCSP_REQ_CTX;
 typedef struct ocsp_response_st OCSP_RESPONSE;
 typedef struct ocsp_responder_id_st OCSP_RESPID;
 
+#ifdef  __cplusplus
+}
+#endif
 #endif /* def HEADER_OPENSSL_TYPES_H */

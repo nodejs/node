@@ -3355,6 +3355,33 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
 #endif
 
 #endif /* !OPENSSL_NO_TLSEXT */
+
+	case SSL_CTRL_CHECK_PROTO_VERSION:
+		/* For library-internal use; checks that the current protocol
+		 * is the highest enabled version (according to s->ctx->method,
+		 * as version negotiation may have changed s->method). */
+		if (s->version == s->ctx->method->version)
+			return 1;
+		/* Apparently we're using a version-flexible SSL_METHOD
+		 * (not at its highest protocol version). */
+		if (s->ctx->method->version == SSLv23_method()->version)
+			{
+#if TLS_MAX_VERSION != TLS1_2_VERSION
+#  error Code needs update for SSLv23_method() support beyond TLS1_2_VERSION.
+#endif
+			if (!(s->options & SSL_OP_NO_TLSv1_2))
+				return s->version == TLS1_2_VERSION;
+			if (!(s->options & SSL_OP_NO_TLSv1_1))
+				return s->version == TLS1_1_VERSION;
+			if (!(s->options & SSL_OP_NO_TLSv1))
+				return s->version == TLS1_VERSION;
+			if (!(s->options & SSL_OP_NO_SSLv3))
+				return s->version == SSL3_VERSION;
+			if (!(s->options & SSL_OP_NO_SSLv2))
+				return s->version == SSL2_VERSION;
+			}
+		return 0; /* Unexpected state; fail closed. */
+
 	default:
 		break;
 		}
@@ -3714,6 +3741,7 @@ long ssl3_ctx_callback_ctrl(SSL_CTX *ctx, int cmd, void (*fp)(void))
 		break;
 #endif
 #endif
+
 	default:
 		return(0);
 		}
@@ -3822,10 +3850,15 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 		emask_k = cert->export_mask_k;
 		emask_a = cert->export_mask_a;
 #ifndef OPENSSL_NO_SRP
-		mask_k=cert->mask_k | s->srp_ctx.srp_Mask;
-		emask_k=cert->export_mask_k | s->srp_ctx.srp_Mask;
+		if (s->srp_ctx.srp_Mask & SSL_kSRP)
+			{
+			mask_k |= SSL_kSRP;
+			emask_k |= SSL_kSRP;
+			mask_a |= SSL_aSRP;
+			emask_a |= SSL_aSRP;
+			}
 #endif
-			
+
 #ifdef KSSL_DEBUG
 /*		printf("ssl3_choose_cipher %d alg= %lx\n", i,c->algorithms);*/
 #endif    /* KSSL_DEBUG */
@@ -4291,4 +4324,3 @@ long ssl_get_algorithm2(SSL *s)
 		return SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256;
 	return alg2;
 	}
-		

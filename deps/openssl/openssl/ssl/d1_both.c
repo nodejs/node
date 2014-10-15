@@ -1492,6 +1492,9 @@ dtls1_process_heartbeat(SSL *s)
 	/* Read type and payload length first */
 	if (1 + 2 + 16 > s->s3->rrec.length)
 		return 0; /* silently discard */
+	if (s->s3->rrec.length > SSL3_RT_MAX_PLAIN_LENGTH)
+		return 0; /* silently discard per RFC 6520 sec. 4 */
+
 	hbtype = *p++;
 	n2s(p, payload);
 	if (1 + 2 + payload + 16 > s->s3->rrec.length)

@@ -1767,6 +1767,9 @@ open(OUT,'>crypto/opensslconf.h.new') || die "unable to create crypto/opensslcon
 print OUT "/* opensslconf.h */\n";
 print OUT "/* WARNING: Generated automatically from opensslconf.h.in by Configure. */\n\n";
 
+print OUT "#ifdef  __cplusplus\n";
+print OUT "extern \"C\" {\n";
+print OUT "#endif\n";
 print OUT "/* OpenSSL was configured with the following options: */\n";
 my $openssl_algorithm_defines_trans = $openssl_algorithm_defines;
 $openssl_experimental_defines =~ s/^\s*#\s*define\s+OPENSSL_NO_(.*)/#ifndef OPENSSL_EXPERIMENTAL_$1\n# ifndef OPENSSL_NO_$1\n#  define OPENSSL_NO_$1\n# endif\n#endif/mg;
@@ -1871,6 +1874,9 @@ while (<IN>)
 		{ print OUT $_; }
 	}
 close(IN);
+print OUT "#ifdef  __cplusplus\n";
+print OUT "}\n";
+print OUT "#endif\n";
 close(OUT);
 rename("crypto/opensslconf.h","crypto/opensslconf.h.bak") || die "unable to rename crypto/opensslconf.h\n" if -e "crypto/opensslconf.h";
 rename("crypto/opensslconf.h.new","crypto/opensslconf.h") || die "unable to rename crypto/opensslconf.h.new\n";

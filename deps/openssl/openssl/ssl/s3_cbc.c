@@ -53,6 +53,7 @@
  *
  */
 
+#include "../crypto/constant_time_locl.h"
 #include "ssl_locl.h"
 
 #include <openssl/md5.h>
@@ -66,37 +67,6 @@
  * Currently SHA-384/512 has a 128-byte block size and that's the largest
  * supported by TLS.) */
 #define MAX_HASH_BLOCK_SIZE 128
-
-/* Some utility functions are needed:
- *
- * These macros return the given value with the MSB copied to all the other
- * bits. They use the fact that arithmetic shift shifts-in the sign bit.
- * However, this is not ensured by the C standard so you may need to replace
- * them with something else on odd CPUs. */
-#define DUPLICATE_MSB_TO_ALL(x) ( (unsigned)( (int)(x) >> (sizeof(int)*8-1) ) )
-#define DUPLICATE_MSB_TO_ALL_8(x) ((unsigned char)(DUPLICATE_MSB_TO_ALL(x)))
-
-/* constant_time_lt returns 0xff if a<b and 0x00 otherwise. */
-static unsigned constant_time_lt(unsigned a, unsigned b)
-	{
-	a -= b;
-	return DUPLICATE_MSB_TO_ALL(a);
-	}
-
-/* constant_time_ge returns 0xff if a>=b and 0x00 otherwise. */
-static unsigned constant_time_ge(unsigned a, unsigned b)
-	{
-	a -= b;
-	return DUPLICATE_MSB_TO_ALL(~a);
-	}
-
-/* constant_time_eq_8 returns 0xff if a==b and 0x00 otherwise. */
-static unsigned char constant_time_eq_8(unsigned a, unsigned b)
-	{
-	unsigned c = a ^ b;
-	c--;
-	return DUPLICATE_MSB_TO_ALL_8(c);
-	}
 
 /* ssl3_cbc_remove_padding removes padding from the decrypted, SSLv3, CBC
  * record in |rec| by updating |rec->length| in constant time.
@@ -126,8 +96,8 @@ int ssl3_cbc_remove_padding(const SSL* s,
 	padding_length = good & (padding_length+1);
 	rec->length -= padding_length;
 	rec->type |= padding_length<<8;	/* kludge: pass padding length */
-	return (int)((good & 1) | (~good & -1));
-}
+	return constant_time_select_int(good, 1, -1);
+	}
 
 /* tls1_cbc_remove_padding removes the CBC padding from the decrypted, TLS, CBC
  * record in |rec| in constant time and returns 1 if the padding is valid and
@@ -208,7 +178,7 @@ int tls1_cbc_remove_padding(const SSL* s,
 
 	for (i = 0; i < to_check; i++)
 		{
-		unsigned char mask = constant_time_ge(padding_length, i);
+		unsigned char mask = constant_time_ge_8(padding_length, i);
 		unsigned char b = rec->data[rec->length-1-i];
 		/* The final |padding_length+1| bytes should all have the value
 		 * |padding_length|. Therefore the XOR should be zero. */
@@ -216,20 +186,14 @@ int tls1_cbc_remove_padding(const SSL* s,
 		}
 
 	/* If any of the final |padding_length+1| bytes had the wrong value,
-	 * one or more of the lower eight bits of |good| will be cleared. We
-	 * AND the bottom 8 bits together and duplicate the result to all the
-	 * bits. */
-	good &= good >> 4;
-	good &= good >> 2;
-	good &= good >> 1;
-	good <<= sizeof(good)*8-1;
-	good = DUPLICATE_MSB_TO_ALL(good);
-
+	 * one or more of the lower eight bits of |good| will be cleared.
+	 */
+	good = constant_time_eq(0xff, good & 0xff);
 	padding_length = good & (padding_length+1);
 	rec->length -= padding_length;
 	rec->type |= padding_length<<8;	/* kludge: pass padding length */
 
-	return (int)((good & 1) | (~good & -1));
+	return constant_time_select_int(good, 1, -1);
 	}
 
 /* ssl3_cbc_copy_mac copies |md_size| bytes from the end of |rec| to |out| in
@@ -296,8 +260,8 @@ void ssl3_cbc_copy_mac(unsigned char* out,
 	memset(rotated_mac, 0, md_size);
 	for (i = scan_start, j = 0; i < orig_len; i++)
 		{
-		unsigned char mac_started = constant_time_ge(i, mac_start);
-		unsigned char mac_ended = constant_time_ge(i, mac_end);
+		unsigned char mac_started = constant_time_ge_8(i, mac_start);
+		unsigned char mac_ended = constant_time_ge_8(i, mac_end);
 		unsigned char b = rec->data[i];
 		rotated_mac[j++] |= b & mac_started & ~mac_ended;
 		j &= constant_time_lt(j,md_size);
@@ -683,12 +647,12 @@ void ssl3_cbc_digest_record(
 				b = data[k-header_length];
 			k++;
 
-			is_past_c = is_block_a & constant_time_ge(j, c);
-			is_past_cp1 = is_block_a & constant_time_ge(j, c+1);
+			is_past_c = is_block_a & constant_time_ge_8(j, c);
+			is_past_cp1 = is_block_a & constant_time_ge_8(j, c+1);
 			/* If this is the block containing the end of the
 			 * application data, and we are at the offset for the
 			 * 0x80 value, then overwrite b with 0x80. */
-			b = (b&~is_past_c) | (0x80&is_past_c);
+                        b =  constant_time_select_8(is_past_c, 0x80, b);
 			/* If this the the block containing the end of the
 			 * application data and we're past the 0x80 value then
 			 * just write zero. */
@@ -704,7 +668,8 @@ void ssl3_cbc_digest_record(
 			if (j >= md_block_size - md_length_size)
 				{
 				/* If this is index_b, write a length byte. */
-				b = (b&~is_block_b) | (is_block_b&length_bytes[j-(md_block_size-md_length_size)]);
+				b = constant_time_select_8(
+					is_block_b, length_bytes[j-(md_block_size-md_length_size)], b);
 				}
 			block[j] = b;
 			}
