@@ -69,9 +69,13 @@ const char* root_certs[] = {
   NULL
 };
 
+bool SSL2_ENABLE = false;
+bool SSL3_ENABLE = false;
+
 namespace crypto {
 
 using namespace v8;
+
 
 // Forcibly clear OpenSSL's error stack on return. This stops stale errors
 // from popping up later in the lifecycle of crypto operations where they
@@ -234,6 +238,24 @@ Handle<Value> SecureContext::New(const Arguments& args) {
 }
 
 
+bool MaybeThrowSSL3() {
+  if (!SSL3_ENABLE) {
+    ThrowException(Exception::Error(String::New("SSLv3 is considered unsafe, see node --help")));
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool MaybeThrowSSL2() {
+  if (!SSL2_ENABLE) {
+    ThrowException(Exception::Error(String::New("SSLv2 is considered unsafe, see node --help")));
+    return true;
+  } else {
+    return false;
+  }
+}
+
 Handle<Value> SecureContext::Init(const Arguments& args) {
   HandleScope scope;
 
@@ -246,28 +268,46 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
+      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
+      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_server_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
+      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_client_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
+      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
+      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_server_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
+      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_client_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
@@ -294,6 +334,20 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
   SSL_CTX_sess_set_get_cb(sc->ctx_, GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc->ctx_, NewSessionCallback);
+
+  int options = 0;
+
+#ifndef OPENSSL_NO_SSL2
+  if (!SSL2_ENABLE)
+    options |= SSL_OP_NO_SSLv2;
+#endif
+
+#ifndef OPENSSL_NO_SSL3 
+  if (!SSL3_ENABLE)
+    options |= SSL_OP_NO_SSLv3;
+#endif
+
+  SSL_CTX_set_options(sc->ctx_, options);
 
   sc->ca_store_ = NULL;
   return True();

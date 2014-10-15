@@ -40,11 +40,13 @@ To create .pfx or .p12, do this:
 
 ## Protocol support
 
-Node.js is compiled without SSL2/SSL3 protocol support by default. These
-protocols are insecure and could be easily compromised as was shown by
-[CVE-2014-3566][]. However, in some situations, it may cause
-problems with legacy clients/servers (such as Internet Explorer 6). If you do
-really wish to use them, please rebuild node.js with `./configure --with-ssl3`.
+Node.js is compiled with SSLv2 and SSLv3 protocol support by default, but these
+protocols are **disabled**. They are considered insecure and could be easily
+compromised as was shown by [CVE-2014-3566][]. However, in some situations, it
+may cause problems with legacy clients/servers (such as Internet Explorer 6).
+If you wish to enable SSLv2 or SSLv3, run node with the `--enable-ssl2` or
+`--enable-ssl3` flag respectively.  In future versions of Node.js SSLv2 and
+SSLv3 will not be compiled in by default.
 
 
 ## Client-initiated renegotiation attack mitigation
