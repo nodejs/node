@@ -112,15 +112,15 @@ parser.add_option("--systemtap-includes",
     dest="systemtap_includes",
     help=optparse.SUPPRESS_HELP)
 
-parser.add_option("--ssl2",
+parser.add_option("--without-ssl2",
     action="store_true",
     dest="ssl2",
-    help="Enable SSL v2")
+    help="Disable SSL v2")
 
-parser.add_option("--ssl3",
+parser.add_option("--without-ssl3",
     action="store_true",
     dest="ssl3",
-    help="Enable SSL v3")
+    help="Disable SSL v3")
 
 parser.add_option("--shared-zlib",
     action="store_true",
@@ -625,10 +625,10 @@ def configure_openssl(o):
   if options.without_ssl:
     return
 
-  if not options.ssl2:
+  if options.ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
-  if not options.ssl3:
+  if options.ssl3:
     o['defines'] += ['OPENSSL_NO_SSL3=1']
 
   if options.shared_openssl:
