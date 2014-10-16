@@ -84,12 +84,6 @@
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
-          ['clang == 0 and gcc_version >= 40', {
-            'cflags': [ '-fno-tree-vrp' ],  # Work around compiler bug.
-          }],
-          ['clang == 0 and gcc_version <= 44', {
-            'cflags': [ '-fno-tree-sink' ],  # Work around compiler bug.
-          }],
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
