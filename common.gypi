@@ -12,6 +12,12 @@
     'clang%': 0,
     'python%': 'python',
 
+    'node_tag%': '',
+    'uv_library%': 'static_library',
+
+    # Default to -O0 for debug builds.
+    'v8_optimized_debug%': 0,
+
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
