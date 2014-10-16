@@ -110,7 +110,7 @@ struct ClearErrorOnReturn {
 
 static uv_rwlock_t* locks;
 
-const char* root_certs[] = {
+const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
   nullptr
 };
