@@ -31,7 +31,8 @@ CXX ?= g++
 LINK ?= g++
 OUTDIR ?= out
 TESTJOBS ?=
-GYPFLAGS ?=
+# TODO(bnoordhuis) Make i18n support configurable.
+GYPFLAGS ?= -Dv8_enable_i18n_support=0
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
 ANDROID_NDK_HOST_ARCH ?=
@@ -229,9 +230,16 @@ ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel android_x
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
-GYPFILES = build/all.gyp build/features.gypi build/standalone.gypi \
-           build/toolchain.gypi samples/samples.gyp src/compiler/compiler.gyp \
-           src/d8.gyp test/cctest/cctest.gyp tools/gyp/v8.gyp
+GYPFILES = \
+	common.gypi \
+	deps/cares/cares.gyp \
+	deps/debugger-agent/debugger-agent.gyp \
+	deps/http_parser/http_parser.gyp \
+	deps/openssl/openssl.gyp \
+	deps/uv/uv.gyp \
+	deps/v8/tools/gyp/v8.gyp \
+	deps/zlib/zlib.gyp \
+	node.gyp \
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)
@@ -403,10 +411,10 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	        cut -f 2 -d " " | cut -f 1 -d "-" ))
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. \
+	tools/gyp/gyp --generator-output="$(OUTDIR)" node.gyp \
+	              -Icommon.gypi --depth=. \
+	              -Dtarget_arch=$(V8_TARGET_ARCH) \
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
 	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
@@ -414,10 +422,9 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
+	tools/gyp/gyp --generator-output="$(OUTDIR)" node.gyp \
+	              -Icommon.gypi --depth=. -S.native $(GYPFLAGS)
 
 must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
 ifndef ANDROID_NDK_ROOT
