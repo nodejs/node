@@ -368,10 +368,11 @@ class CommandOutput(object):
 
 class TestCase(object):
 
-  def __init__(self, context, path, mode):
+  def __init__(self, context, path, arch, mode):
     self.path = path
     self.context = context
     self.duration = None
+    self.arch = arch
     self.mode = mode
 
   def IsNegative(self):
@@ -644,9 +645,10 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
-  def AddTestsToList(self, result, current_path, path, context, mode):
+  def AddTestsToList(self, result, current_path, path, context, arch, mode):
     for v in VARIANT_FLAGS:
-      tests = self.GetConfiguration(context).ListTests(current_path, path, mode)
+      tests = self.GetConfiguration(context).ListTests(current_path, path,
+                                                       arch, mode)
       for t in tests: t.variant_flags = v
       result += tests
 
@@ -669,14 +671,14 @@ class LiteralTestSuite(TestSuite):
         result += test.GetBuildRequirements(rest, context)
     return result
 
-  def ListTests(self, current_path, path, context, mode):
+  def ListTests(self, current_path, path, context, arch, mode):
     (name, rest) = CarCdr(path)
     result = [ ]
     for test in self.tests:
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        test.AddTestsToList(result, full_path, path, context, mode)
+        test.AddTestsToList(result, full_path, path, context, arch, mode)
     result.sort(cmp=lambda a, b: cmp(a.GetName(), b.GetName()))
     return result
 
@@ -708,11 +710,11 @@ class Context(object):
     self.suppress_dialogs = suppress_dialogs
     self.store_unexpected_output = store_unexpected_output
 
-  def GetVm(self, mode):
-    if mode == 'debug':
-      name = 'out/Debug/node'
+  def GetVm(self, arch, mode):
+    if arch == 'none':
+      name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
     else:
-      name = 'out/Release/node'
+      name = 'out/%s.%s/node' % (arch, mode)
 
     # Currently GYP does not support output_dir for MSVS.
     # http://code.google.com/p/gyp/issues/detail?id=40
@@ -728,9 +730,6 @@ class Context(object):
         name = os.path.abspath(name + '.exe')
 
     return name
-
-  def GetVmCommand(self, testcase, mode):
-    return [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
 
   def GetVmFlags(self, testcase, mode):
     return testcase.variant_flags + FLAGS[mode]
@@ -1203,8 +1202,6 @@ def BuildOptions():
       default='none')
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
-  result.add_option("--simulator", help="Run tests with architecture simulator",
-      default='none')
   result.add_option("--special-command", default=None)
   result.add_option("--use-http1", help="Pass --use-http1 switch to node",
       default=False, action="store_true")
@@ -1235,29 +1232,8 @@ def BuildOptions():
 def ProcessOptions(options):
   global VERBOSE
   VERBOSE = options.verbose
+  options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
-  for mode in options.mode:
-    if not mode in ['debug', 'release']:
-      print "Unknown mode %s" % mode
-      return False
-  if options.simulator != 'none':
-    # Simulator argument was set. Make sure arch and simulator agree.
-    if options.simulator != options.arch:
-      if options.arch == 'none':
-        options.arch = options.simulator
-      else:
-        print "Architecture %s does not match sim %s" %(options.arch, options.simulator)
-        return False
-    # Ensure that the simulator argument is handed down to scons.
-    options.scons_flags.append("simulator=" + options.simulator)
-  else:
-    # If options.arch is not set by the command line and no simulator setting
-    # was found, set the arch to the guess.
-    if options.arch == 'none':
-      options.arch = ARCH_GUESS
-    options.scons_flags.append("arch=" + options.arch)
-  if options.snapshot:
-    options.scons_flags.append("snapshot=on")
   return True
 
 
@@ -1415,25 +1391,28 @@ def Main():
   unclassified_tests = [ ]
   globally_unused_rules = None
   for path in paths:
-    for mode in options.mode:
-      if not exists(context.GetVm(mode)):
-        print "Can't find shell executable: '%s'" % context.GetVm(mode)
-        continue
-      env = {
-        'mode': mode,
-        'system': utils.GuessOS(),
-        'arch': options.arch,
-        'simulator': options.simulator
-      }
-      test_list = root.ListTests([], path, context, mode)
-      unclassified_tests += test_list
-      (cases, unused_rules, all_outcomes) = config.ClassifyTests(test_list, env)
-      if globally_unused_rules is None:
-        globally_unused_rules = set(unused_rules)
-      else:
-        globally_unused_rules = globally_unused_rules.intersection(unused_rules)
-      all_cases += cases
-      all_unused.append(unused_rules)
+    for arch in options.arch:
+      for mode in options.mode:
+        vm = context.GetVm(arch, mode)
+        if not exists(vm):
+          print "Can't find shell executable: '%s'" % vm
+          continue
+        env = {
+          'mode': mode,
+          'system': utils.GuessOS(),
+          'arch': arch,
+        }
+        test_list = root.ListTests([], path, context, arch, mode)
+        unclassified_tests += test_list
+        (cases, unused_rules, all_outcomes) = (
+            config.ClassifyTests(test_list, env))
+        if globally_unused_rules is None:
+          globally_unused_rules = set(unused_rules)
+        else:
+          globally_unused_rules = (
+              globally_unused_rules.intersection(unused_rules))
+        all_cases += cases
+        all_unused.append(unused_rules)
 
   if options.cat:
     visited = set()
