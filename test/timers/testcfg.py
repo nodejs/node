@@ -40,10 +40,11 @@ FAKETIME_BIN_PATH = os.path.join("tools", "faketime", "src", "faketime")
 
 class TimersTestCase(test.TestCase):
 
-  def __init__(self, path, file, mode, context, config):
-    super(TimersTestCase, self).__init__(context, path, mode)
+  def __init__(self, path, file, arch, mode, context, config):
+    super(TimersTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.config = config
+    self.arch = arch
     self.mode = mode
 
   def GetLabel(self):
@@ -60,7 +61,7 @@ class TimersTestCase(test.TestCase):
     if faketime_flags_match:
       result += shlex.split(faketime_flags_match.group(1).strip())
 
-    result += [self.config.context.GetVm(self.mode)]
+    result += [self.config.context.GetVm(self.arch, self.mode)]
     result += [self.file]
 
     return result
@@ -79,13 +80,14 @@ class TimersTestConfiguration(test.TestConfiguration):
       return name.startswith('test-') and name.endswith('.js')
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(TimersTestCase(test, file_path, mode, self.context, self))
+        result.append(TimersTestCase(test, file_path, arch, mode,
+                                     self.context, self))
     return result
 
   def GetBuildRequirements(self):
