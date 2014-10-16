@@ -1,5 +1,6 @@
 {
   'variables': {
+    'asan%': 0,
     'werror': '',                     # Turn off -Werror in V8 build.
     'visibility%': 'hidden',          # V8's visibility setting
     'target_arch%': 'ia32',           # set v8's target architecture
@@ -159,6 +160,16 @@
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
     'conditions': [
+      ['asan != 0', {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-fsanitize=address',
+          '-w',  # http://crbug.com/162783
+        ],
+        'cflags_cc+': [ '-gline-tables-only' ],
+        'cflags!': [ '-fomit-frame-pointer' ],
+        'ldflags': [ '-fsanitize=address' ],
+      }],
       ['OS == "win"', {
         'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
         'defines': [
