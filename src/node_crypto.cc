@@ -337,15 +337,11 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
   int options = 0;
 
-#ifndef OPENSSL_NO_SSL2
   if (!SSL2_ENABLE)
     options |= SSL_OP_NO_SSLv2;
-#endif
 
-#ifndef OPENSSL_NO_SSL3 
   if (!SSL3_ENABLE)
     options |= SSL_OP_NO_SSLv3;
-#endif
 
   SSL_CTX_set_options(sc->ctx_, options);
 
