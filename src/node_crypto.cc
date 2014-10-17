@@ -335,16 +335,6 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
   SSL_CTX_sess_set_get_cb(sc->ctx_, GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc->ctx_, NewSessionCallback);
 
-  int options = 0;
-
-  if (!SSL2_ENABLE)
-    options |= SSL_OP_NO_SSLv2;
-
-  if (!SSL3_ENABLE)
-    options |= SSL_OP_NO_SSLv3;
-
-  SSL_CTX_set_options(sc->ctx_, options);
-
   sc->ca_store_ = NULL;
   return True();
 }
@@ -705,7 +695,7 @@ Handle<Value> SecureContext::SetOptions(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IntegerValue()) {
+  if (args.Length() != 1 && !args[0]->IsUint32()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
@@ -4295,6 +4285,9 @@ void InitCrypto(Handle<Object> target) {
   name_symbol       = NODE_PSYMBOL("name");
   version_symbol    = NODE_PSYMBOL("version");
   ext_key_usage_symbol = NODE_PSYMBOL("ext_key_usage");
+
+  NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
+  NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
 }
 
 }  // namespace crypto
