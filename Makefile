@@ -187,7 +187,7 @@ website-upload: doc
 doc-branch-upload: NODE_DOC_VERSION = v$(shell $(PYTHON) tools/getnodeversion.py | cut -f1,2 -d.)
 doc-branch-upload: doc-branch
 	echo $(NODE_DOC_VERSION)
-	rsync -r out/doc/api/ node@nodejs.org:~/web/nodejs.org/api/$(NODE_DOC_VERSION)
+	rsync -r out/doc/api/ node@nodejs.org:~/web/nodejs.org/$(NODE_DOC_VERSION)
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
