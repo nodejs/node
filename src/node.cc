@@ -1636,7 +1636,7 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   Local<String> cwd = String::NewFromUtf8(env->isolate(),
                                           buf,
                                           String::kNormalString,
-                                          cwd_len - 1);
+                                          cwd_len);
   args.GetReturnValue().Set(cwd);
 }
 
