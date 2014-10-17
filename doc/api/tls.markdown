@@ -48,6 +48,26 @@ If you wish to enable SSLv2 or SSLv3, run node with the `--enable-ssl2` or
 `--enable-ssl3` flag respectively.  In future versions of Node.js SSLv2 and
 SSLv3 will not be compiled in by default.
 
+This means that without having one or both of those flags set on the command
+line, Node.js will **throw** if you explicitly set the `secureProtocol` to
+`SSLv3_method` or similar. However the default protocol method Node.js uses is
+`SSLv23_method` which would be more accurately named `AutoNegotiate_method`.
+This method will try and negotiate from the highest level down to whatever the
+client supports.  To provide a secure default, Node.js (since v0.10.33)
+explicitly disables the use of SSLv3 and SSLv2 by setting the `secureOptions`
+to be `SSL_OP_NO_SSLv3|SSL_OP_NO_SSLv2` (again, unless you have passed
+`--enable-ssl3` or `--enable-ssl2`).
+
+The ramifications of this behavior change:
+
+ * If your application is behaving as a secure server, clients who are `SSLv3`
+only will now not be able to appropriately negotiate a connection and will be
+refused. In this case your server will emit a `clientError` event. The error
+message will include `'wrong version number'`.
+ * If your application is behaving as a secure client and communicating with a
+server that doesn't support methods more secure than SSLv3 then your connection
+won't be able to negotiate and will fail. In this case your client will emit a
+an `error` event. The error message will include `'wrong version number'`.
 
 ## Client-initiated renegotiation attack mitigation
 
