@@ -37,6 +37,8 @@ if (process.platform === 'win32') {
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
+if (process.env.NODE_COMMON_PIPE)
+  exports.PIPE = process.env.NODE_COMMON_PIPE;
 if (!fs.existsSync(exports.opensslCli))
   exports.opensslCli = false;
 
