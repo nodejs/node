@@ -13,13 +13,20 @@ automatically set as a listener for the ['connection'][] event.
 
 `options` is an object with the following defaults:
 
-    { allowHalfOpen: false
+    {
+      allowHalfOpen: false,
+      pauseOnConnect: false
     }
 
 If `allowHalfOpen` is `true`, then the socket won't automatically send a FIN
 packet when the other end of the socket sends a FIN packet. The socket becomes
 non-readable, but still writable. You should call the `end()` method explicitly.
 See ['end'][] event for more information.
+
+If `pauseOnConnect` is `true`, then the socket associated with each incoming
+connection will be paused, and no data will be read from its handle. This allows
+connections to be passed between processes without any data being read by the
+original process. To begin reading data from a paused socket, call `resume()`.
 
 Here is an example of an echo server which listens for connections
 on port 8124:
