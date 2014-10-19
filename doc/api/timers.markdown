@@ -28,7 +28,7 @@ you can also pass arguments to the callback.
 
 ## clearInterval(intervalObject)
 
-Stops a interval from triggering.
+Stops an interval from triggering.
 
 ## unref()
 
@@ -56,7 +56,7 @@ can also pass arguments to the callback.
 
 Callbacks for immediates are queued in the order in which they were created.
 The entire callback queue is processed every event loop iteration. If you queue
-an immediate from a inside an executing callback that immediate won't fire
+an immediate from inside an executing callback, that immediate won't fire
 until the next event loop iteration.
 
 ## clearImmediate(immediateObject)
