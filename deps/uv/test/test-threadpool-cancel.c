@@ -301,7 +301,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_open(loop, reqs + n++, "/", 0, 0, fs_cb));
   ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_readdir(loop, reqs + n++, "/", 0, fs_cb));
+  ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_rename(loop, reqs + n++, "/", "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));

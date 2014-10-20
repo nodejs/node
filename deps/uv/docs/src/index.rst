@@ -50,6 +50,17 @@ Installation
 Installation instructions can be found on `the README <https://github.com/joyent/libuv/blob/master/README.md>`_.
 
 
+Upgrading
+---------
+
+Migration guides for different libuv versions, starting with 1.0.
+
+.. toctree::
+   :maxdepth: 1
+
+   migration_010_100
+
+
 Documentation
 -------------
 

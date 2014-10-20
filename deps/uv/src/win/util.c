@@ -206,7 +206,7 @@ int uv_cwd(char* buffer, size_t* size) {
   if (r == 0) {
     return uv_translate_sys_error(GetLastError());
   } else if (r > (int) *size) {
-    *size = r;
+    *size = r -1;
     return UV_ENOBUFS;
   }
 
@@ -223,7 +223,7 @@ int uv_cwd(char* buffer, size_t* size) {
     return uv_translate_sys_error(GetLastError());
   }
 
-  *size = r;
+  *size = r - 1;
   return 0;
 }
 
@@ -778,11 +778,76 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
+static int is_windows_version_or_greater(DWORD os_major,
+                                         DWORD os_minor,
+                                         WORD service_pack_major,
+                                         WORD service_pack_minor) {
+  OSVERSIONINFOEX osvi;
+  DWORDLONG condition_mask = 0;
+  int op = VER_GREATER_EQUAL;
+
+  /* Initialize the OSVERSIONINFOEX structure. */
+  ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+  osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+  osvi.dwMajorVersion = os_major;
+  osvi.dwMinorVersion = os_minor;
+  osvi.wServicePackMajor = service_pack_major;
+  osvi.wServicePackMinor = service_pack_minor;
+
+  /* Initialize the condition mask. */
+  VER_SET_CONDITION(condition_mask, VER_MAJORVERSION, op);
+  VER_SET_CONDITION(condition_mask, VER_MINORVERSION, op);
+  VER_SET_CONDITION(condition_mask, VER_SERVICEPACKMAJOR, op);
+  VER_SET_CONDITION(condition_mask, VER_SERVICEPACKMINOR, op);
+
+  /* Perform the test. */
+  return (int) VerifyVersionInfo(
+    &osvi, 
+    VER_MAJORVERSION | VER_MINORVERSION | 
+    VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
+    condition_mask);
+}
+
+
+static int address_prefix_match(int family,
+                                struct sockaddr* address,
+                                struct sockaddr* prefix_address,
+                                int prefix_len) {
+  uint8_t* address_data;
+  uint8_t* prefix_address_data;
+  int i;
+
+  assert(address->sa_family == family);
+  assert(prefix_address->sa_family == family);
+
+  if (family == AF_INET6) {
+    address_data = (uint8_t*) &(((struct sockaddr_in6 *) address)->sin6_addr);
+    prefix_address_data =
+      (uint8_t*) &(((struct sockaddr_in6 *) prefix_address)->sin6_addr);
+  } else {
+    address_data = (uint8_t*) &(((struct sockaddr_in *) address)->sin_addr);
+    prefix_address_data =
+      (uint8_t*) &(((struct sockaddr_in *) prefix_address)->sin_addr);
+  }
+
+  for (i = 0; i < prefix_len >> 3; i++) {
+    if (address_data[i] != prefix_address_data[i])
+      return 0;
+  }
+
+  if (prefix_len % 8)
+    return prefix_address_data[i] ==
+      (address_data[i] & (0xff << (8 - prefix_len % 8)));
+
+  return 1;
+}
+
+
 int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     int* count_ptr) {
   IP_ADAPTER_ADDRESSES* win_address_buf;
   ULONG win_address_buf_size;
-  IP_ADAPTER_ADDRESSES* win_address;
+  IP_ADAPTER_ADDRESSES* adapter;
 
   uv_interface_address_t* uv_address_buf;
   char* name_buf;
@@ -790,6 +855,23 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   uv_interface_address_t* uv_address;
 
   int count;
+
+  int is_vista_or_greater;
+  ULONG flags;
+
+  is_vista_or_greater = is_windows_version_or_greater(6, 0, 0, 0);
+  if (is_vista_or_greater) {
+    flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST |
+      GAA_FLAG_SKIP_DNS_SERVER;
+  } else {
+    /* We need at least XP SP1. */
+    if (!is_windows_version_or_greater(5, 1, 1, 0))
+      return UV_ENOTSUP;
+
+    flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST |
+      GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_INCLUDE_PREFIX;
+  }
+  
 
   /* Fetch the size of the adapters reported by windows, and then get the */
   /* list itself. */
@@ -803,7 +885,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     /* ERROR_BUFFER_OVERFLOW, and the required buffer size will be stored in */
     /* win_address_buf_size. */
     r = GetAdaptersAddresses(AF_UNSPEC,
-                             GAA_FLAG_INCLUDE_PREFIX,
+                             flags,
                              NULL,
                              win_address_buf,
                              &win_address_buf_size);
@@ -862,25 +944,23 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   count = 0;
   uv_address_buf_size = 0;
 
-  for (win_address = win_address_buf;
-       win_address != NULL;
-       win_address = win_address->Next) {
-    /* Use IP_ADAPTER_UNICAST_ADDRESS_XP to retain backwards compatibility */
-    /* with Windows XP */
-    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+  for (adapter = win_address_buf;
+       adapter != NULL;
+       adapter = adapter->Next) {
+    IP_ADAPTER_UNICAST_ADDRESS* unicast_address;
     int name_size;
 
     /* Interfaces that are not 'up' should not be reported. Also skip */
     /* interfaces that have no associated unicast address, as to avoid */
     /* allocating space for the name for this interface. */
-    if (win_address->OperStatus != IfOperStatusUp ||
-        win_address->FirstUnicastAddress == NULL)
+    if (adapter->OperStatus != IfOperStatusUp ||
+        adapter->FirstUnicastAddress == NULL)
       continue;
 
     /* Compute the size of the interface name. */
     name_size = WideCharToMultiByte(CP_UTF8,
                                     0,
-                                    win_address->FriendlyName,
+                                    adapter->FriendlyName,
                                     -1,
                                     NULL,
                                     0,
@@ -894,8 +974,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
 
     /* Count the number of addresses associated with this interface, and */
     /* compute the size. */
-    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                           win_address->FirstUnicastAddress;
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS*)
+                           adapter->FirstUnicastAddress;
          unicast_address != NULL;
          unicast_address = unicast_address->Next) {
       count++;
@@ -916,16 +996,15 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   name_buf = (char*) (uv_address_buf + count);
 
   /* Fill out the output buffer. */
-  for (win_address = win_address_buf;
-       win_address != NULL;
-       win_address = win_address->Next) {
-    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
-    IP_ADAPTER_PREFIX* prefix;
+  for (adapter = win_address_buf;
+       adapter != NULL;
+       adapter = adapter->Next) {
+    IP_ADAPTER_UNICAST_ADDRESS* unicast_address;
     int name_size;
     size_t max_name_size;
 
-    if (win_address->OperStatus != IfOperStatusUp ||
-        win_address->FirstUnicastAddress == NULL)
+    if (adapter->OperStatus != IfOperStatusUp ||
+        adapter->FirstUnicastAddress == NULL)
       continue;
 
     /* Convert the interface name to UTF8. */
@@ -934,7 +1013,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
       max_name_size = INT_MAX;
     name_size = WideCharToMultiByte(CP_UTF8,
                                     0,
-                                    win_address->FriendlyName,
+                                    adapter->FriendlyName,
                                     -1,
                                     name_buf,
                                     (int) max_name_size,
@@ -946,47 +1025,77 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
       return uv_translate_sys_error(GetLastError());
     }
 
-    prefix = win_address->FirstPrefix;
-
     /* Add an uv_interface_address_t element for every unicast address. */
-    /* Walk the prefix list in tandem with the address list. */
-    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                           win_address->FirstUnicastAddress;
-         unicast_address != NULL && prefix != NULL;
-         unicast_address = unicast_address->Next, prefix = prefix->Next) {
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS*)
+                           adapter->FirstUnicastAddress;
+         unicast_address != NULL;
+         unicast_address = unicast_address->Next) {
       struct sockaddr* sa;
       ULONG prefix_len;
 
       sa = unicast_address->Address.lpSockaddr;
-      prefix_len = prefix->PrefixLength;
+
+      /* XP has no OnLinkPrefixLength field. */
+      if (is_vista_or_greater) {
+        prefix_len = unicast_address->OnLinkPrefixLength;
+      } else {
+        /* Prior to Windows Vista the FirstPrefix pointed to the list with
+         * single prefix for each IP address assigned to the adapter.
+         * Order of FirstPrefix does not match order of FirstUnicastAddress,
+         * so we need to find corresponding prefix.
+         */
+        IP_ADAPTER_PREFIX* prefix;
+        prefix_len = 0;
+
+        for (prefix = adapter->FirstPrefix; prefix; prefix = prefix->Next) {
+          /* We want the longest matching prefix. */
+          if (prefix->Address.lpSockaddr->sa_family != sa->sa_family ||
+              prefix->PrefixLength <= prefix_len)
+            continue;
+
+          if (address_prefix_match(sa->sa_family, sa, 
+              prefix->Address.lpSockaddr, prefix->PrefixLength)) {
+            prefix_len = prefix->PrefixLength;
+          }
+        }
+
+        /* If there is no matching prefix information, return a single-host
+         * subnet mask (e.g. 255.255.255.255 for IPv4). 
+         */
+        if (!prefix_len)
+          prefix_len = (sa->sa_family == AF_INET6) ? 128 : 32;
+      }
 
       memset(uv_address, 0, sizeof *uv_address);
 
       uv_address->name = name_buf;
 
-      if (win_address->PhysicalAddressLength == sizeof(uv_address->phys_addr)) {
+      if (adapter->PhysicalAddressLength == sizeof(uv_address->phys_addr)) {
         memcpy(uv_address->phys_addr,
-               win_address->PhysicalAddress,
+               adapter->PhysicalAddress,
                sizeof(uv_address->phys_addr));
       }
 
       uv_address->is_internal =
-          (win_address->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
+          (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
 
       if (sa->sa_family == AF_INET6) {
         uv_address->address.address6 = *((struct sockaddr_in6 *) sa);
 
         uv_address->netmask.netmask6.sin6_family = AF_INET6;
         memset(uv_address->netmask.netmask6.sin6_addr.s6_addr, 0xff, prefix_len >> 3);
-        uv_address->netmask.netmask6.sin6_addr.s6_addr[prefix_len >> 3] =
-            0xff << (8 - prefix_len % 8);
+        /* This check ensures that we don't write past the size of the data. */
+        if (prefix_len % 8) {
+          uv_address->netmask.netmask6.sin6_addr.s6_addr[prefix_len >> 3] =
+              0xff << (8 - prefix_len % 8);
+        }
 
       } else {
         uv_address->address.address4 = *((struct sockaddr_in *) sa);
 
         uv_address->netmask.netmask4.sin_family = AF_INET;
-        uv_address->netmask.netmask4.sin_addr.s_addr =
-            htonl(0xffffffff << (32 - prefix_len));
+        uv_address->netmask.netmask4.sin_addr.s_addr = (prefix_len > 0) ?
+            htonl(0xffffffff << (32 - prefix_len)) : 0;
       }
 
       uv_address++;

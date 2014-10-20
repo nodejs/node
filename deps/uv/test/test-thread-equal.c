@@ -19,21 +19,27 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_VERSION_H
-#define UV_VERSION_H
+#include "uv.h"
+#include "task.h"
 
- /*
- * Versions with the same major number are ABI stable. API is allowed to
- * evolve between minor releases, but only in a backwards compatible way.
- * Make sure you update the -soname directives in configure.ac
- * and uv.gyp whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
+uv_thread_t main_thread_id;
+uv_thread_t subthreads[2];
 
-#define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 0
-#define UV_VERSION_PATCH 0
-#define UV_VERSION_IS_RELEASE 1
-#define UV_VERSION_SUFFIX "rc2"
+static void check_thread(void* arg) {
+  uv_thread_t *thread_id = arg;
+  uv_thread_t self_id = uv_thread_self();
+  ASSERT(uv_thread_equal(&main_thread_id, &self_id) == 0);
+  *thread_id = uv_thread_self();
+}
 
-#endif /* UV_VERSION_H */
+TEST_IMPL(thread_equal) {
+  uv_thread_t threads[2];
+  main_thread_id = uv_thread_self();
+  ASSERT(0 != uv_thread_equal(&main_thread_id, &main_thread_id));
+  ASSERT(0 == uv_thread_create(threads + 0, check_thread, subthreads + 0));
+  ASSERT(0 == uv_thread_create(threads + 1, check_thread, subthreads + 1));
+  ASSERT(0 == uv_thread_join(threads + 0));
+  ASSERT(0 == uv_thread_join(threads + 1));
+  ASSERT(0 == uv_thread_equal(subthreads + 0, subthreads + 1));
+  return 0;
+}

@@ -1022,6 +1022,7 @@ typedef enum {
   UV_FS_FTRUNCATE,
   UV_FS_UTIME,
   UV_FS_FUTIME,
+  UV_FS_ACCESS,
   UV_FS_CHMOD,
   UV_FS_FCHMOD,
   UV_FS_FSYNC,
@@ -1031,7 +1032,7 @@ typedef enum {
   UV_FS_MKDIR,
   UV_FS_MKDTEMP,
   UV_FS_RENAME,
-  UV_FS_READDIR,
+  UV_FS_SCANDIR,
   UV_FS_LINK,
   UV_FS_SYMLINK,
   UV_FS_READLINK,
@@ -1094,12 +1095,12 @@ UV_EXTERN int uv_fs_rmdir(uv_loop_t* loop,
                           uv_fs_t* req,
                           const char* path,
                           uv_fs_cb cb);
-UV_EXTERN int uv_fs_readdir(uv_loop_t* loop,
+UV_EXTERN int uv_fs_scandir(uv_loop_t* loop,
                             uv_fs_t* req,
                             const char* path,
                             int flags,
                             uv_fs_cb cb);
-UV_EXTERN int uv_fs_readdir_next(uv_fs_t* req,
+UV_EXTERN int uv_fs_scandir_next(uv_fs_t* req,
                                  uv_dirent_t* ent);
 UV_EXTERN int uv_fs_stat(uv_loop_t* loop,
                          uv_fs_t* req,
@@ -1134,6 +1135,11 @@ UV_EXTERN int uv_fs_sendfile(uv_loop_t* loop,
                              int64_t in_offset,
                              size_t length,
                              uv_fs_cb cb);
+UV_EXTERN int uv_fs_access(uv_loop_t* loop,
+                           uv_fs_t* req,
+                           const char* path,
+                           int flags,
+                           uv_fs_cb cb);
 UV_EXTERN int uv_fs_chmod(uv_loop_t* loop,
                           uv_fs_t* req,
                           const char* path,
@@ -1363,8 +1369,9 @@ UV_EXTERN void uv_key_set(uv_key_t* key, void* value);
 typedef void (*uv_thread_cb)(void* arg);
 
 UV_EXTERN int uv_thread_create(uv_thread_t* tid, uv_thread_cb entry, void* arg);
-UV_EXTERN unsigned long uv_thread_self(void);
+UV_EXTERN uv_thread_t uv_thread_self(void);
 UV_EXTERN int uv_thread_join(uv_thread_t *tid);
+UV_EXTERN int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2);
 
 /* The presence of these unions force similar struct layout. */
 #define XX(_, name) uv_ ## name ## _t name;

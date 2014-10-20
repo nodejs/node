@@ -106,6 +106,9 @@ libuv_la_SOURCES += src/unix/async.c \
 
 endif  # WINNT
 
+EXTRA_DIST = test/fixtures/empty_file \
+             test/fixtures/load_error.node
+
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
 test_run_tests_CFLAGS =
@@ -203,6 +206,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-writealot.c \
                          test/test-tcp-try-write.c \
                          test/test-tcp-write-queue-order.c \
+                         test/test-thread-equal.c \
                          test/test-thread.c \
                          test/test-threadpool-cancel.c \
                          test/test-threadpool.c \
@@ -266,6 +270,11 @@ libuv_la_SOURCES += src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \
                     src/unix/proctitle.c
+endif
+
+if DRAGONFLY
+include_HEADERS += include/uv-bsd.h
+libuv_la_SOURCES += src/unix/kqueue.c src/unix/freebsd.c
 endif
 
 if FREEBSD
