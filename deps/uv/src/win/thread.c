@@ -129,6 +129,11 @@ int uv_thread_join(uv_thread_t *tid) {
 }
 
 
+int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
+  return *t1 == *t2;
+}
+
+
 int uv_mutex_init(uv_mutex_t* mutex) {
   InitializeCriticalSection(mutex);
   return 0;

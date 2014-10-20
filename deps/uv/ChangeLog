@@ -1,4 +1,46 @@
+2014.10.21, Version 1.0.0-rc2 (Pre-release)
+
+Changes since version 1.0.0-rc1:
+
+* build: add missing fixtures to distribution tarball (Rob Adams)
+
+* doc: update references to current stable branch (Zachary Newman)
+
+* fs: fix readdir on empty directory (Fedor Indutny)
+
+* fs: rename uv_fs_readdir to uv_fs_scandir (Saúl Ibarra Corretgé)
+
+* doc: document uv_alloc_cb (Saúl Ibarra Corretgé)
+
+* doc: add migration guide from version 0.10 (Saúl Ibarra Corretgé)
+
+* build: add DragonFly BSD support in autotools (Robin Hahling)
+
+* doc: document missing stream related structures (Saúl Ibarra Corretgé)
+
+* doc: clarify uv_loop_t.data field lifetime (Saúl Ibarra Corretgé)
+
+* doc: add documentation for missing functions and structures (Saúl Ibarra
+  Corretgé)
+
+* doc: fix punctuation and grammar in README (Jeff Widman)
+
+* windows: return libuv error codes in uv_poll_init() (cjihrig)
+
+* unix, windows: add uv_fs_access() (cjihrig)
+
+* windows: fix netmask detection (Alexis Campailla)
+
+* unix, windows: don't include null byte in uv_cwd size (Saúl Ibarra Corretgé)
+
+* unix, windows: add uv_thread_equal (Tomasz Kołodziejski)
+
+* windows: fix fs_write with nbufs > 1 and offset (Unknown W. Brackets)
+
+
 2014.09.18, Version 1.0.0-rc1 (Unstable), 0c28bbf7b42882853d1799ab96ff68b07f7f8d49
+
+Changes since version 0.11.29:
 
 * windows: improve timer precision (Alexis Campailla)
 

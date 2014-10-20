@@ -42,6 +42,10 @@ N/A
 API
 ---
 
+.. c:function:: int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle)
+
+    Initialize the handle.
+
 .. c:function:: int uv_fs_poll_start(uv_fs_poll_t* handle, uv_fs_poll_cb poll_cb, const char* path, unsigned int interval)
 
     Check the file at `path` for changes every `interval` milliseconds.

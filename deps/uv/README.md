@@ -85,7 +85,7 @@ Documentation can be browsed online [here](http://docs.libuv.org).
 
 ## Build Instructions
 
-For GCC there are two methods building: via autotools or via [GYP][].
+For GCC there are two build methods: via autotools or via [GYP][].
 GYP is a meta-build system which can generate MSVS, Makefile, and XCode
 backends. It is best used for integration into other projects.
 
@@ -100,7 +100,7 @@ To build with autotools:
 ### Windows
 
 First, [Python][] 2.6 or 2.7 must be installed as it is required by [GYP][].
-If python is not in your path set the environment variable `PYTHON` to its
+If python is not in your path, set the environment variable `PYTHON` to its
 location. For example: `set PYTHON=C:\Python27\python.exe`
 
 To build with Visual Studio, launch a git shell (e.g. Cmd or PowerShell)

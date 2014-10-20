@@ -306,11 +306,11 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 }
 
 
-unsigned long uv_thread_self(void) {
+uv_thread_t uv_thread_self(void) {
 #ifdef _WIN32
-  return (unsigned long) GetCurrentThreadId();
+  return GetCurrentThreadId();
 #else
-  return (unsigned long) pthread_self();
+  return pthread_self();
 #endif
 }
 
@@ -437,7 +437,7 @@ int uv_fs_event_getpath(uv_fs_event_t* handle, char* buf, size_t* len) {
 }
 
 
-void uv__fs_readdir_cleanup(uv_fs_t* req) {
+void uv__fs_scandir_cleanup(uv_fs_t* req) {
   uv__dirent_t** dents;
 
   dents = req->ptr;
@@ -448,7 +448,7 @@ void uv__fs_readdir_cleanup(uv_fs_t* req) {
 }
 
 
-int uv_fs_readdir_next(uv_fs_t* req, uv_dirent_t* ent) {
+int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   uv__dirent_t** dents;
   uv__dirent_t* dent;
 

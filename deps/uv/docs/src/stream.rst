@@ -16,6 +16,18 @@ Data types
 
     Stream handle type.
 
+.. c:type:: uv_connect_t
+
+    Connect request type.
+
+.. c:type:: uv_shutdown_t
+
+    Shutdown request type.
+
+.. c:type:: uv_write_t
+
+    Write request type.
+
 .. c:type:: void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
     Callback called when data was read on a stream.
@@ -59,6 +71,22 @@ Public members
 .. c:member:: size_t uv_stream_t.write_queue_size
 
     Contains the amount of queued bytes waiting to be sent. Readonly.
+
+.. c:member:: uv_stream_t* uv_connect_t.handle
+
+    Pointer to the stream where this connection request is running.
+
+.. c:member:: uv_stream_t* uv_shutdown_t.handle
+
+    Pointer to the stream where this shutdown request is running.
+
+.. c:member:: uv_stream_t* uv_write_t.handle
+
+    Pointer to the stream where this write request is running.
+
+.. c:member:: uv_stream_t* uv_write_t.send_handle
+
+    Pointer to the stream being sent using this write request..
 
 .. seealso:: The :c:type:`uv_handle_t` members also apply.
 

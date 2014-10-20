@@ -613,11 +613,6 @@ void fs__write(uv_fs_t* req) {
 
   if (offset != -1) {
     memset(&overlapped, 0, sizeof overlapped);
-
-    offset_.QuadPart = offset;
-    overlapped.Offset = offset_.LowPart;
-    overlapped.OffsetHigh = offset_.HighPart;
-
     overlapped_ptr = &overlapped;
   } else {
     overlapped_ptr = NULL;
@@ -627,6 +622,14 @@ void fs__write(uv_fs_t* req) {
   bytes = 0;
   do {
     DWORD incremental_bytes;
+
+    /* WriteFile() does not advance overlapped as ReadFile() does. */
+    if (offset != -1) {
+      offset_.QuadPart = offset + bytes;
+      overlapped.Offset = offset_.LowPart;
+      overlapped.OffsetHigh = offset_.HighPart;
+    }
+
     result = WriteFile(handle,
                        req->bufs[index].base,
                        req->bufs[index].len,
@@ -783,7 +786,7 @@ void fs__mkdtemp(uv_fs_t* req) {
 }
 
 
-void fs__readdir(uv_fs_t* req) {
+void fs__scandir(uv_fs_t* req) {
   WCHAR* pathw = req->pathw;
   size_t len = wcslen(pathw);
   int result;
@@ -1220,6 +1223,25 @@ static void fs__sendfile(uv_fs_t* req) {
 }
 
 
+static void fs__access(uv_fs_t* req) {
+  DWORD attr = GetFileAttributesW(req->pathw);
+
+  if (attr == INVALID_FILE_ATTRIBUTES) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  if ((req->flags & W_OK) &&
+      ((attr & FILE_ATTRIBUTE_READONLY) ||
+      (attr & FILE_ATTRIBUTE_DIRECTORY))) {
+    SET_REQ_WIN32_ERROR(req, UV_EPERM);
+    return;
+  }
+
+  SET_REQ_RESULT(req, 0);
+}
+
+
 static void fs__chmod(uv_fs_t* req) {
   int result = _wchmod(req->pathw, req->mode);
   SET_REQ_RESULT(req, result);
@@ -1595,6 +1617,7 @@ static void uv__fs_work(struct uv__work* w) {
     XX(FTRUNCATE, ftruncate)
     XX(UTIME, utime)
     XX(FUTIME, futime)
+    XX(ACCESS, access)
     XX(CHMOD, chmod)
     XX(FCHMOD, fchmod)
     XX(FSYNC, fsync)
@@ -1604,7 +1627,7 @@ static void uv__fs_work(struct uv__work* w) {
     XX(MKDIR, mkdir)
     XX(MKDTEMP, mkdtemp)
     XX(RENAME, rename)
-    XX(READDIR, readdir)
+    XX(SCANDIR, scandir)
     XX(LINK, link)
     XX(SYMLINK, symlink)
     XX(READLINK, readlink)
@@ -1839,11 +1862,11 @@ int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 }
 
 
-int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
+int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     uv_fs_cb cb) {
   int err;
 
-  uv_fs_req_init(loop, req, UV_FS_READDIR, cb);
+  uv_fs_req_init(loop, req, UV_FS_SCANDIR, cb);
 
   err = fs__capture_path(loop, req, path, NULL, cb != NULL);
   if (err) {
@@ -1856,7 +1879,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     QUEUE_FS_TP_JOB(loop, req);
     return 0;
   } else {
-    fs__readdir(req);
+    fs__scandir(req);
     return req->result;
   }
 }
@@ -2099,6 +2122,31 @@ int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file fd_out,
     fs__sendfile(req);
     return req->result;
   }
+}
+
+
+int uv_fs_access(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 const char* path,
+                 int flags,
+                 uv_fs_cb cb) {
+  int err;
+
+  uv_fs_req_init(loop, req, UV_FS_ACCESS, cb);
+
+  err = fs__capture_path(loop, req, path, NULL, cb != NULL);
+  if (err)
+    return uv_translate_sys_error(err);
+
+  req->flags = flags;
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  }
+
+  fs__access(req);
+  return req->result;
 }
 
 
