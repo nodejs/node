@@ -194,6 +194,7 @@
           },
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
+            '_DARWIN_UNLIMITED_SELECT=1',
           ]
         }],
         [ 'OS!="mac"', {

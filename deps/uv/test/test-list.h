@@ -232,6 +232,7 @@ TEST_DECLARE   (closed_fd_events)
 #endif
 #ifdef __APPLE__
 TEST_DECLARE   (osx_select)
+TEST_DECLARE   (osx_select_many_fds)
 #endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
@@ -468,6 +469,7 @@ TASK_LIST_START
 
 #ifdef __APPLE__
   TEST_ENTRY (osx_select)
+  TEST_ENTRY (osx_select_many_fds)
 #endif
 
   TEST_ENTRY  (fs_file_noent)

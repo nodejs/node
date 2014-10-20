@@ -1,4 +1,15 @@
-2014.07.32, Version 0.10.28 (Stable)
+2014.10.21, Version 0.10.29 (Stable)
+
+Changes since version 0.10.28:
+
+* darwin: allocate enough space for select() hack (Fedor Indutny)
+
+* linux: try epoll_pwait if epoll_wait is missing (Michael Hudson-Doyle)
+
+* windows: map ERROR_INVALID_DRIVE to UV_ENOENT (Saúl Ibarra Corretgé)
+
+
+2014.07.32, Version 0.10.28 (Stable), 9c14b616f5fb84bfd7d45707bab4bbb85894443e
 
 Changes since version 0.10.27:
 
