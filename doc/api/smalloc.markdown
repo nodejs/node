@@ -48,6 +48,10 @@ possible options are listed in `smalloc.Types`. Example usage:
 
     // { '0': 0, '1': 0.1, '2': 0.2 }
 
+It is not possible to freeze, seal and prevent extensions of objects with
+external data using `Object.freeze`, `Object.seal` and
+`Object.preventExtensions` respectively.
+
 ### smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength);
 
 * `source` {Object} with external array allocation
@@ -105,8 +109,10 @@ careful. Cryptic errors may arise in applications that are difficult to trace.
     smalloc.copyOnto(b, 2, a, 0, 2);
 
     // now results in:
-    // Error: source has no external array data
+    // RangeError: copy_length > source_length
 
+After `dispose()` is called object still behaves as one with external data, for
+example `smalloc.hasExternalData()` returns `true`.
 `dispose()` does not support Buffers, and will throw if passed.
 
 ### smalloc.hasExternalData(obj)
