@@ -54,7 +54,7 @@ class FSEventWrap: public HandleWrap {
 
  private:
   FSEventWrap(Environment* env, Handle<Object> object);
-  virtual ~FSEventWrap();
+  virtual ~FSEventWrap() override;
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);

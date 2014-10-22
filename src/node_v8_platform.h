@@ -51,7 +51,7 @@ class TaskQueue {
 class Platform : public v8::Platform {
  public:
   explicit Platform(unsigned int worker_count);
-  ~Platform();
+  virtual ~Platform() override;
 
   void CallOnBackgroundThread(v8::Task* task,
                               ExpectedRuntime expected_runtime);
