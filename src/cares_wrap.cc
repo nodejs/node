@@ -231,7 +231,7 @@ class QueryWrap : public AsyncWrap {
       : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_CARES) {
   }
 
-  virtual ~QueryWrap() {
+  virtual ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     persistent().Reset();
   }
@@ -358,7 +358,7 @@ class QueryAWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -369,7 +369,7 @@ class QueryAWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -395,7 +395,7 @@ class QueryAaaaWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -406,7 +406,7 @@ class QueryAaaaWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -432,7 +432,7 @@ class QueryCnameWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -443,7 +443,7 @@ class QueryCnameWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     struct hostent* host;
@@ -471,7 +471,7 @@ class QueryMxWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -482,7 +482,7 @@ class QueryMxWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -520,7 +520,7 @@ class QueryNsWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -531,7 +531,7 @@ class QueryNsWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     struct hostent* host;
@@ -556,7 +556,7 @@ class QueryTxtWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -567,7 +567,7 @@ class QueryTxtWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     struct ares_txt_reply* txt_out;
@@ -610,7 +610,7 @@ class QuerySrvWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -621,7 +621,7 @@ class QuerySrvWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -664,7 +664,7 @@ class QueryNaptrWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -675,7 +675,7 @@ class QueryNaptrWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -726,7 +726,7 @@ class QuerySoaWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     ares_query(env()->cares_channel(),
                name,
                ns_c_in,
@@ -737,7 +737,7 @@ class QuerySoaWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(unsigned char* buf, int len) {
+  void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
@@ -779,7 +779,7 @@ class GetHostByAddrWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name) {
+  int Send(const char* name) override {
     int length, family;
     char address_buffer[sizeof(struct in6_addr)];
 
@@ -803,7 +803,7 @@ class GetHostByAddrWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(struct hostent* host) {
+  void Parse(struct hostent* host) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     this->CallOnComplete(HostentToNames(env(), host));
@@ -817,7 +817,7 @@ class GetHostByNameWrap: public QueryWrap {
       : QueryWrap(env, req_wrap_obj) {
   }
 
-  int Send(const char* name, int family) {
+  int Send(const char* name, int family) override {
     ares_gethostbyname(env()->cares_channel(),
                        name,
                        family,
@@ -827,7 +827,7 @@ class GetHostByNameWrap: public QueryWrap {
   }
 
  protected:
-  void Parse(struct hostent* host) {
+  void Parse(struct hostent* host) override {
     HandleScope scope(env()->isolate());
 
     Local<Array> addresses = HostentToAddresses(env(), host);

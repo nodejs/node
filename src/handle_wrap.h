@@ -64,7 +64,7 @@ class HandleWrap : public AsyncWrap {
              v8::Handle<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
-  virtual ~HandleWrap();
+  virtual ~HandleWrap() override;
 
  private:
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);

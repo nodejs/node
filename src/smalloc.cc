@@ -473,11 +473,11 @@ class RetainedAllocInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAllocInfo(Handle<Value> wrapper);
 
-  virtual void Dispose();
-  virtual bool IsEquivalent(RetainedObjectInfo* other);
-  virtual intptr_t GetHash();
-  virtual const char* GetLabel();
-  virtual intptr_t GetSizeInBytes();
+  virtual void Dispose() override;
+  virtual bool IsEquivalent(RetainedObjectInfo* other) override;
+  virtual intptr_t GetHash() override;
+  virtual const char* GetLabel() override;
+  virtual intptr_t GetSizeInBytes() override;
 
  private:
   static const char label_[];

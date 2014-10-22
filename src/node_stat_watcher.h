@@ -32,7 +32,7 @@ namespace node {
 
 class StatWatcher : public AsyncWrap {
  public:
-  virtual ~StatWatcher();
+  virtual ~StatWatcher() override;
 
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
