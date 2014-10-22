@@ -47,9 +47,6 @@ class ClientHelloParser {
 
   class ClientHello {
    public:
-    ClientHello() {
-    }
-
     inline uint8_t session_size() const { return session_size_; }
     inline const uint8_t* session_id() const { return session_id_; }
     inline bool has_ticket() const { return has_ticket_; }

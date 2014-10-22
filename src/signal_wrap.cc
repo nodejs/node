@@ -80,9 +80,6 @@ class SignalWrap : public HandleWrap {
     CHECK_EQ(r, 0);
   }
 
-  ~SignalWrap() {
-  }
-
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
     int signum = args[0]->Int32Value();

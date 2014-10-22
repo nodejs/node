@@ -72,8 +72,7 @@ class StreamWrapCallbacks {
   explicit StreamWrapCallbacks(StreamWrapCallbacks* old) : wrap_(old->wrap()) {
   }
 
-  virtual ~StreamWrapCallbacks() {
-  }
+  virtual ~StreamWrapCallbacks() = default;
 
   virtual const char* Error();
 

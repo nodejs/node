@@ -159,12 +159,12 @@ class ArrayBufferAllocator : public ArrayBuffer::Allocator {
   // the process.
   static const size_t kMaxLength = 0x3fffffff;
   static ArrayBufferAllocator the_singleton;
-  virtual ~ArrayBufferAllocator() {}
+  virtual ~ArrayBufferAllocator() = default;
   virtual void* Allocate(size_t length) override;
   virtual void* AllocateUninitialized(size_t length) override;
   virtual void Free(void* data, size_t length) override;
  private:
-  ArrayBufferAllocator() {}
+  ArrayBufferAllocator() = default;
   DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocator);
 };
 
