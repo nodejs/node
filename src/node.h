@@ -148,14 +148,6 @@ NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
-#ifndef STATIC_ASSERT
-#if defined(_MSC_VER)
-#  define STATIC_ASSERT(expr) static_assert(expr, "")
-# else
-#  define STATIC_ASSERT(expr) static_cast<void>((sizeof(char[-1 + !!(expr)])))
-# endif
-#endif
-
 #ifdef _WIN32
 // TODO(tjfontaine) consider changing the usage of ssize_t to ptrdiff_t
 #if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)

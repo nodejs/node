@@ -101,7 +101,8 @@ void Platform::WorkerBody(void* arg) {
 TaskQueue::TaskQueue() {
   int err;
 
-  STATIC_ASSERT(kRingSize == (kRingSize & (~(kRingSize - 1))));
+  static_assert(kRingSize == (kRingSize & (~(kRingSize - 1))),
+                "kRingSize is not a power of two");
 
   size_ = kRingSize;
   ring_ = new Task*[size_];
