@@ -91,9 +91,6 @@ class TimerWrap : public HandleWrap {
     CHECK_EQ(r, 0);
   }
 
-  ~TimerWrap() {
-  }
-
   static void Start(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 

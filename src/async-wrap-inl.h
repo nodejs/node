@@ -54,9 +54,6 @@ inline AsyncWrap::AsyncWrap(Environment* env,
 }
 
 
-inline AsyncWrap::~AsyncWrap() {
-}
-
 inline uint32_t AsyncWrap::provider_type() const {
   return provider_type_;
 }

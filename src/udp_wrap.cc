@@ -82,10 +82,6 @@ UDPWrap::UDPWrap(Environment* env, Handle<Object> object)
 }
 
 
-UDPWrap::~UDPWrap() {
-}
-
-
 void UDPWrap::Initialize(Handle<Object> target,
                          Handle<Value> unused,
                          Handle<Context> context) {

@@ -84,9 +84,6 @@ class ProcessWrap : public HandleWrap {
                    AsyncWrap::PROVIDER_PROCESSWRAP) {
   }
 
-  ~ProcessWrap() {
-  }
-
   static void ParseStdioOptions(Environment* env,
                                 Local<Object> js_options,
                                 uv_process_options_t* options) {

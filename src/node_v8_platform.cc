@@ -35,9 +35,6 @@ using v8::Isolate;
 // The last task to encounter before killing the worker
 class StopTask : public Task {
  public:
-  StopTask() {}
-  ~StopTask() {}
-
   void Run() {}
 };
 
