@@ -248,10 +248,8 @@ static void After(uv_fs_t *req) {
 struct fs_req_wrap {
   fs_req_wrap() {}
   ~fs_req_wrap() { uv_fs_req_cleanup(&req); }
-  // Ensure that copy ctor and assignment operator are not used.
-  fs_req_wrap(const fs_req_wrap& req);
-  fs_req_wrap& operator=(const fs_req_wrap& req);
   uv_fs_t req;
+  DISALLOW_COPY_AND_ASSIGN(fs_req_wrap);
 };
 
 

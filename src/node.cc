@@ -165,8 +165,7 @@ class ArrayBufferAllocator : public ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t length) override;
  private:
   ArrayBufferAllocator() {}
-  ArrayBufferAllocator(const ArrayBufferAllocator&);
-  void operator=(const ArrayBufferAllocator&);
+  DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocator);
 };
 
 ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
