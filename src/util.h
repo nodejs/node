@@ -34,8 +34,10 @@ namespace node {
   (node::OneByteString((isolate), (string), sizeof(string) - 1))
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
-  void operator=(const TypeName&);                                            \
-  TypeName(const TypeName&)
+  void operator=(const TypeName&) = delete;                                   \
+  void operator=(TypeName&&) = delete;                                        \
+  TypeName(const TypeName&) = delete;                                         \
+  TypeName(TypeName&&) = delete
 
 #if defined(NDEBUG)
 # define ASSERT(expression)
