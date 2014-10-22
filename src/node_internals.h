@@ -51,28 +51,28 @@ v8::Handle<v8::Value> MakeCallback(Environment* env,
                                    v8::Handle<v8::Object> recv,
                                    const char* method,
                                    int argc = 0,
-                                   v8::Handle<v8::Value>* argv = NULL);
+                                   v8::Handle<v8::Value>* argv = nullptr);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
                                    v8::Handle<v8::Object> recv,
                                    uint32_t index,
                                    int argc = 0,
-                                   v8::Handle<v8::Value>* argv = NULL);
+                                   v8::Handle<v8::Value>* argv = nullptr);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
                                    v8::Handle<v8::Object> recv,
                                    v8::Handle<v8::String> symbol,
                                    int argc = 0,
-                                   v8::Handle<v8::Value>* argv = NULL);
+                                   v8::Handle<v8::Value>* argv = nullptr);
 
 // Call with valid HandleScope and while inside Context scope.
 v8::Handle<v8::Value> MakeCallback(Environment* env,
                                    v8::Handle<v8::Value> recv,
                                    v8::Handle<v8::Function> callback,
                                    int argc = 0,
-                                   v8::Handle<v8::Value>* argv = NULL);
+                                   v8::Handle<v8::Value>* argv = nullptr);
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -174,14 +174,14 @@ void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
 void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);
 void ThrowErrnoException(v8::Isolate* isolate,
                          int errorno,
-                         const char* syscall = NULL,
-                         const char* message = NULL,
-                         const char* path = NULL);
+                         const char* syscall = nullptr,
+                         const char* message = nullptr,
+                         const char* path = nullptr);
 void ThrowUVException(v8::Isolate* isolate,
                       int errorno,
-                      const char* syscall = NULL,
-                      const char* message = NULL,
-                      const char* path = NULL);
+                      const char* syscall = nullptr,
+                      const char* message = nullptr,
+                      const char* path = nullptr);
 
 NODE_DEPRECATED("Use ThrowError(isolate)",
                 inline void ThrowError(const char* errmsg) {
@@ -200,17 +200,17 @@ NODE_DEPRECATED("Use ThrowRangeError(isolate)",
 })
 NODE_DEPRECATED("Use ThrowErrnoException(isolate)",
                 inline void ThrowErrnoException(int errorno,
-                                                const char* syscall = NULL,
-                                                const char* message = NULL,
-                                                const char* path = NULL) {
+                                                const char* syscall = nullptr,
+                                                const char* message = nullptr,
+                                                const char* path = nullptr) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   return ThrowErrnoException(isolate, errorno, syscall, message, path);
 })
 NODE_DEPRECATED("Use ThrowUVException(isolate)",
                 inline void ThrowUVException(int errorno,
-                                             const char* syscall = NULL,
-                                             const char* message = NULL,
-                                             const char* path = NULL) {
+                                             const char* syscall = nullptr,
+                                             const char* message = nullptr,
+                                             const char* path = nullptr) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   return ThrowUVException(isolate, errorno, syscall, message, path);
 })
@@ -223,7 +223,7 @@ inline void NODE_SET_EXTERNAL(v8::Handle<v8::ObjectTemplate> target,
   v8::Local<v8::String> prop = v8::String::NewFromUtf8(isolate, key);
   target->SetAccessor(prop,
                       getter,
-                      NULL,
+                      nullptr,
                       v8::Handle<v8::Value>(),
                       v8::DEFAULT,
                       static_cast<v8::PropertyAttribute>(v8::ReadOnly |

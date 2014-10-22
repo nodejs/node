@@ -227,8 +227,8 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                        int len) {
   if (events_enabled > 0) {
     wchar_t symbuf[128];
-    if (symbol == NULL) {
-      SETSYMBUF(L"NULL");
+    if (symbol == nullptr) {
+      SETSYMBUF(L"nullptr");
     } else {
       symbol_len = MultiByteToWideChar(CP_ACP,
                                        0,
@@ -245,7 +245,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
         symbuf[symbol_len] = L'\0';
       }
     }
-    void* context = NULL;
+    void* context = nullptr;
     INT64 size = (INT64)len;
     INT_PTR id = (INT_PTR)addr1;
     INT16 flags = 0;

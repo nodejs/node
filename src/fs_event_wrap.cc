@@ -175,7 +175,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     Null(env->isolate())
   };
 
-  if (filename != NULL) {
+  if (filename != nullptr) {
     argv[2] = OneByteString(env->isolate(), filename);
   }
 
@@ -186,7 +186,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
-  if (wrap == NULL || wrap->initialized_ == false)
+  if (wrap == nullptr || wrap->initialized_ == false)
     return;
   wrap->initialized_ = false;
 

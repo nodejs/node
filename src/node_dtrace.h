@@ -58,7 +58,7 @@ typedef struct {
  *
  * This version of the structure also contains padding that should be zeroed out
  * by the consumer so that future versions of the translator can simply check if
- * a field is present by checking it against NULL.
+ * a field is present by checking it against nullptr.
  */
 typedef struct {
   union {

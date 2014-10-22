@@ -26,7 +26,7 @@
 namespace node {
 
 Utf8Value::Utf8Value(v8::Handle<v8::Value> value)
-  : length_(0), str_(NULL) {
+  : length_(0), str_(nullptr) {
   if (value.IsEmpty())
     return;
 

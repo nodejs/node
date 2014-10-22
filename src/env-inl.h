@@ -76,7 +76,7 @@ inline Environment::IsolateData* Environment::IsolateData::Get(
 inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
     v8::Isolate* isolate, uv_loop_t* loop) {
   IsolateData* isolate_data = Get(isolate);
-  if (isolate_data == NULL) {
+  if (isolate_data == nullptr) {
     isolate_data = new IsolateData(isolate, loop);
     isolate->SetData(kIsolateSlot, isolate_data);
   }
@@ -86,7 +86,7 @@ inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
 
 inline void Environment::IsolateData::Put() {
   if (--ref_count_ == 0) {
-    isolate()->SetData(kIsolateSlot, NULL);
+    isolate()->SetData(kIsolateSlot, nullptr);
     delete this;
   }
 }
@@ -246,7 +246,8 @@ inline Environment::Environment(v8::Local<v8::Context> context,
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
-  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, NULL);
+  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
+                                             nullptr);
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V

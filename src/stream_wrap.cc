@@ -73,7 +73,7 @@ void StreamWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
   int fd = -1;
-  if (wrap != NULL && wrap->stream() != NULL) {
+  if (wrap != nullptr && wrap->stream() != nullptr) {
     fd = wrap->stream()->io_watcher.fd;
   }
   args.GetReturnValue().Set(fd);
@@ -214,7 +214,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   err = wrap->callbacks()->DoWrite(req_wrap,
                                    bufs,
                                    count,
-                                   NULL,
+                                   nullptr,
                                    StreamWrap::AfterWrite);
   req_wrap->Dispatched();
   req_wrap_obj->Set(env->async(), True(env->isolate()));
@@ -226,7 +226,7 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
  done:
   const char* msg = wrap->callbacks()->Error();
-  if (msg != NULL)
+  if (msg != nullptr)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
   req_wrap_obj->Set(env->bytes_string(),
                     Integer::NewFromUnsigned(env->isolate(), length));
@@ -322,10 +322,10 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
     err = wrap->callbacks()->DoWrite(req_wrap,
                                      &buf,
                                      1,
-                                     NULL,
+                                     nullptr,
                                      StreamWrap::AfterWrite);
   } else {
-    uv_handle_t* send_handle = NULL;
+    uv_handle_t* send_handle = nullptr;
 
     if (args[2]->IsObject()) {
       Local<Object> send_handle_obj = args[2].As<Object>();
@@ -355,7 +355,7 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 
  done:
   const char* msg = wrap->callbacks()->Error();
-  if (msg != NULL)
+  if (msg != nullptr)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
   req_wrap_obj->Set(env->bytes_string(),
                     Integer::NewFromUnsigned(env->isolate(), data_size));
@@ -449,7 +449,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   int err = wrap->callbacks()->DoWrite(req_wrap,
                                        bufs,
                                        count,
-                                       NULL,
+                                       nullptr,
                                        StreamWrap::AfterWrite);
 
   // Deallocate space
@@ -461,7 +461,7 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   req_wrap->object()->Set(env->bytes_string(),
                           Number::New(env->isolate(), bytes));
   const char* msg = wrap->callbacks()->Error();
-  if (msg != NULL)
+  if (msg != nullptr)
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
 
   if (err) {
@@ -523,7 +523,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   };
 
   const char* msg = wrap->callbacks()->Error();
-  if (msg != NULL)
+  if (msg != nullptr)
     argv[3] = OneByteString(env->isolate(), msg);
 
   req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
@@ -578,7 +578,7 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
 
 
 const char* StreamWrapCallbacks::Error() {
-  return NULL;
+  return nullptr;
 }
 
 
@@ -628,7 +628,7 @@ int StreamWrapCallbacks::DoWrite(WriteWrap* w,
                                  uv_stream_t* send_handle,
                                  uv_write_cb cb) {
   int r;
-  if (send_handle == NULL) {
+  if (send_handle == nullptr) {
     r = uv_write(&w->req_, wrap()->stream(), bufs, count, cb);
   } else {
     r = uv_write2(&w->req_, wrap()->stream(), bufs, count, send_handle, cb);
@@ -662,7 +662,7 @@ void StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
   buf->base = static_cast<char*>(malloc(suggested_size));
   buf->len = suggested_size;
 
-  if (buf->base == NULL && suggested_size > 0) {
+  if (buf->base == nullptr && suggested_size > 0) {
     FatalError(
         "node::StreamWrapCallbacks::DoAlloc(uv_handle_t*, size_t, uv_buf_t*)",
         "Out Of Memory");
@@ -685,14 +685,14 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
   };
 
   if (nread < 0)  {
-    if (buf->base != NULL)
+    if (buf->base != nullptr)
       free(buf->base);
     wrap()->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
     return;
   }
 
   if (nread == 0) {
-    if (buf->base != NULL)
+    if (buf->base != nullptr)
       free(buf->base);
     return;
   }

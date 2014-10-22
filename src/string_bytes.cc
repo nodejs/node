@@ -296,7 +296,7 @@ size_t StringBytes::Write(Isolate* isolate,
                           enum encoding encoding,
                           int* chars_written) {
   HandleScope scope(isolate);
-  const char* data = NULL;
+  const char* data = nullptr;
   size_t len = 0;
   bool is_extern = GetExternalParts(isolate, val, &data, &len);
   size_t extlen = len;
@@ -319,7 +319,7 @@ size_t StringBytes::Write(Isolate* isolate,
                                 0,
                                 buflen,
                                 flags);
-      if (chars_written != NULL)
+      if (chars_written != nullptr)
         *chars_written = len;
       break;
 
@@ -347,7 +347,7 @@ size_t StringBytes::Write(Isolate* isolate,
           buf16[i] = (buf16[i] << 8) | (buf16[i] >> 8);
         }
       }
-      if (chars_written != NULL)
+      if (chars_written != nullptr)
         *chars_written = len;
       len = len * sizeof(uint16_t);
       break;
@@ -359,7 +359,7 @@ size_t StringBytes::Write(Isolate* isolate,
         String::Value value(str);
         len = base64_decode(buf, buflen, *value, value.length());
       }
-      if (chars_written != NULL) {
+      if (chars_written != nullptr) {
         *chars_written = len;
       }
       break;
@@ -371,7 +371,7 @@ size_t StringBytes::Write(Isolate* isolate,
         String::Value value(str);
         len = hex_decode(buf, buflen, *value, value.length());
       }
-      if (chars_written != NULL) {
+      if (chars_written != nullptr) {
         *chars_written = len * 2;
       }
       break;
@@ -749,7 +749,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case UCS2: {
       const uint16_t* out = reinterpret_cast<const uint16_t*>(buf);
-      uint16_t* dst = NULL;
+      uint16_t* dst = nullptr;
       if (IsBigEndian()) {
         // Node's "ucs2" encoding expects LE character data inside a
         // Buffer, so we need to reorder on BE platforms.  See

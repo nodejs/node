@@ -89,8 +89,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
     WriteItem(WriteWrap* w, uv_write_cb cb) : w_(w), cb_(cb) {
     }
     ~WriteItem() {
-      w_ = NULL;
-      cb_ = NULL;
+      w_ = nullptr;
+      cb_ = nullptr;
     }
 
     WriteWrap* w_;

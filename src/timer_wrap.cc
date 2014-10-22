@@ -140,7 +140,7 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    wrap->MakeCallback(kOnTimeout, 0, NULL);
+    wrap->MakeCallback(kOnTimeout, 0, nullptr);
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {

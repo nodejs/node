@@ -99,7 +99,7 @@ void UDPWrap::Initialize(Handle<Object> target,
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      UDPWrap::GetFD,
-                                     NULL,
+                                     nullptr,
                                      Handle<Value>(),
                                      v8::DEFAULT,
                                      attributes);
@@ -138,7 +138,7 @@ void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 #if !defined(_WIN32)
   HandleScope scope(args.GetIsolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
-  int fd = (wrap == NULL) ? -1 : wrap->handle_.io_watcher.fd;
+  int fd = (wrap == nullptr) ? -1 : wrap->handle_.io_watcher.fd;
   args.GetReturnValue().Set(fd);
 #endif
 }
@@ -216,7 +216,7 @@ void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
 
   const char* iface_cstr = *iface;
   if (args[1]->IsUndefined() || args[1]->IsNull()) {
-      iface_cstr = NULL;
+      iface_cstr = nullptr;
   }
 
   int err = uv_udp_set_membership(&wrap->handle_,
@@ -367,7 +367,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
   buf->base = static_cast<char*>(malloc(suggested_size));
   buf->len = suggested_size;
 
-  if (buf->base == NULL && suggested_size > 0) {
+  if (buf->base == nullptr && suggested_size > 0) {
     FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
                "Out Of Memory");
   }
@@ -379,8 +379,8 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
                      const uv_buf_t* buf,
                      const struct sockaddr* addr,
                      unsigned int flags) {
-  if (nread == 0 && addr == NULL) {
-    if (buf->base != NULL)
+  if (nread == 0 && addr == nullptr) {
+    if (buf->base != nullptr)
       free(buf->base);
     return;
   }
@@ -400,7 +400,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   };
 
   if (nread < 0) {
-    if (buf->base != NULL)
+    if (buf->base != nullptr)
       free(buf->base);
     wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
     return;

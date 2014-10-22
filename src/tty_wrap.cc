@@ -60,7 +60,7 @@ void TTYWrap::Initialize(Handle<Object> target,
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      StreamWrap::GetFD,
-                                     NULL,
+                                     nullptr,
                                      Handle<Value>(),
                                      v8::DEFAULT,
                                      attributes);
@@ -99,7 +99,7 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
-  const char* type = NULL;
+  const char* type = nullptr;
 
   switch (t) {
   case UV_TCP: type = "TCP"; break;

@@ -67,7 +67,7 @@ namespace node {
 namespace i18n {
 
 bool InitializeICUDirectory(const char* icu_data_path) {
-  if (icu_data_path != NULL) {
+  if (icu_data_path != nullptr) {
     u_setDataDirectory(icu_data_path);
     return true;  // no error
   } else {

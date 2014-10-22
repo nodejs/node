@@ -230,7 +230,7 @@ class ContextifyContext {
     object_template->SetAccessCheckCallbacks(GlobalPropertyNamedAccessCheck,
                                              GlobalPropertyIndexedAccessCheck);
 
-    Local<Context> ctx = Context::New(env->isolate(), NULL, object_template);
+    Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
     if (!ctx.IsEmpty())
       ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
@@ -332,7 +332,7 @@ class ContextifyContext {
         FIXED_ONE_BYTE_STRING(isolate, "_contextifyHidden");
     Local<Value> context_external_v = sandbox->GetHiddenValue(hidden_name);
     if (context_external_v.IsEmpty() || !context_external_v->IsExternal()) {
-      return NULL;
+      return nullptr;
     }
     Local<External> context_external = context_external_v.As<External>();
 
@@ -550,7 +550,7 @@ class ContextifyScript : public BaseObject {
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env->isolate(),
                                                           sandbox);
-    if (contextify_context == NULL) {
+    if (contextify_context == nullptr) {
       return env->ThrowTypeError(
           "sandbox argument must have been converted to a context.");
     }

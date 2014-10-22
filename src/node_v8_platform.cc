@@ -124,7 +124,7 @@ TaskQueue::~TaskQueue() {
   CHECK_EQ(read_off_, write_off_);
 
   delete[] ring_;
-  ring_ = NULL;
+  ring_ = nullptr;
   uv_sem_destroy(&sem_);
   uv_cond_destroy(&cond_);
   uv_mutex_destroy(&mutex_);
@@ -135,7 +135,7 @@ void TaskQueue::Push(Task* task) {
   uv_mutex_lock(&mutex_);
 
   // Wait for empty cell
-  while (ring_[write_off_] != NULL)
+  while (ring_[write_off_] != nullptr)
     uv_cond_wait(&cond_, &mutex_);
 
   ring_[write_off_] = task;
@@ -152,7 +152,7 @@ Task* TaskQueue::Shift() {
 
   uv_mutex_lock(&mutex_);
   Task* task = ring_[read_off_];
-  ring_[read_off_] = NULL;
+  ring_[read_off_] = nullptr;
   uv_cond_signal(&cond_);
 
   read_off_++;

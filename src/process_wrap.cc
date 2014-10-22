@@ -115,7 +115,7 @@ class ProcessWrap : public HandleWrap {
         Local<String> handle_key = env->handle_string();
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
         uv_stream_t* stream = HandleToStream(env, handle);
-        CHECK_NE(stream, NULL);
+        CHECK_NE(stream, nullptr);
 
         options->stdio[i].flags = UV_INHERIT_STREAM;
         options->stdio[i].data.stream = stream;
@@ -182,13 +182,13 @@ class ProcessWrap : public HandleWrap {
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
       Local<Array> js_argv = Local<Array>::Cast(argv_v);
       int argc = js_argv->Length();
-      // Heap allocate to detect errors. +1 is for NULL.
+      // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
         node::Utf8Value arg(js_argv->Get(i));
         options.args[i] = strdup(*arg);
       }
-      options.args[argc] = NULL;
+      options.args[argc] = nullptr;
     }
 
     // options.cwd
@@ -208,7 +208,7 @@ class ProcessWrap : public HandleWrap {
         node::Utf8Value pair(env->Get(i));
         options.env[i] = strdup(*pair);
       }
-      options.env[envc] = NULL;
+      options.env[envc] = nullptr;
     }
 
     // options.stdio
@@ -261,7 +261,7 @@ class ProcessWrap : public HandleWrap {
                      int64_t exit_status,
                      int term_signal) {
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
-    CHECK_NE(wrap, NULL);
+    CHECK_NE(wrap, nullptr);
     CHECK_EQ(&wrap->process_, handle);
 
     Environment* env = wrap->env();

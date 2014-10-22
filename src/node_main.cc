@@ -31,10 +31,10 @@ int wmain(int argc, wchar_t *wargv[]) {
                                      0,
                                      wargv[i],
                                      -1,
-                                     NULL,
+                                     nullptr,
                                      0,
-                                     NULL,
-                                     NULL);
+                                     nullptr,
+                                     nullptr);
     if (size == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
@@ -48,8 +48,8 @@ int wmain(int argc, wchar_t *wargv[]) {
                                        -1,
                                        argv[i],
                                        size,
-                                       NULL,
-                                       NULL);
+                                       nullptr,
+                                       nullptr);
     if (result == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");

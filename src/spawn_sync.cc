@@ -48,14 +48,14 @@ using v8::Value;
 
 SyncProcessOutputBuffer::SyncProcessOutputBuffer()
     : used_(0),
-      next_(NULL) {
+      next_(nullptr) {
 }
 
 
 void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
                                       uv_buf_t* buf) const {
   if (used() == kBufferSize)
-    *buf = uv_buf_init(NULL, 0);
+    *buf = uv_buf_init(nullptr, 0);
   else
     *buf = uv_buf_init(data_ + used(), available());
 }
@@ -103,8 +103,8 @@ SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
       writable_(writable),
       input_buffer_(input_buffer),
 
-      first_output_buffer_(NULL),
-      last_output_buffer_(NULL),
+      first_output_buffer_(nullptr),
+      last_output_buffer_(nullptr),
 
       uv_pipe_(),
       write_req_(),
@@ -121,7 +121,7 @@ SyncProcessStdioPipe::~SyncProcessStdioPipe() {
   SyncProcessOutputBuffer* buf;
   SyncProcessOutputBuffer* next;
 
-  for (buf = first_output_buffer_; buf != NULL; buf = next) {
+  for (buf = first_output_buffer_; buf != nullptr; buf = next) {
     next = buf->next();
     delete buf;
   }
@@ -151,7 +151,7 @@ int SyncProcessStdioPipe::Start() {
 
   if (readable()) {
     if (input_buffer_.len > 0) {
-      CHECK_NE(input_buffer_.base, NULL);
+      CHECK_NE(input_buffer_.base, nullptr);
 
       int r = uv_write(&write_req_,
                        uv_stream(),
@@ -237,7 +237,7 @@ size_t SyncProcessStdioPipe::OutputLength() const {
   SyncProcessOutputBuffer* buf;
   size_t size = 0;
 
-  for (buf = first_output_buffer_; buf != NULL; buf = buf->next())
+  for (buf = first_output_buffer_; buf != nullptr; buf = buf->next())
     size += buf->used();
 
   return size;
@@ -248,7 +248,7 @@ void SyncProcessStdioPipe::CopyOutput(char* dest) const {
   SyncProcessOutputBuffer* buf;
   size_t offset = 0;
 
-  for (buf = first_output_buffer_; buf != NULL; buf = buf->next())
+  for (buf = first_output_buffer_; buf != nullptr; buf = buf->next())
     offset += buf->Copy(dest + offset);
 }
 
@@ -259,7 +259,7 @@ void SyncProcessStdioPipe::OnAlloc(size_t suggested_size, uv_buf_t* buf) {
   // SyncProcessOutputBuffer::OnRead that would fail if this assumption was
   // ever violated.
 
-  if (last_output_buffer_ == NULL) {
+  if (last_output_buffer_ == nullptr) {
     // Allocate the first capture buffer.
     first_output_buffer_ = new SyncProcessOutputBuffer();
     last_output_buffer_ = first_output_buffer_;
@@ -373,18 +373,18 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
       timeout_(0),
       kill_signal_(SIGTERM),
 
-      uv_loop_(NULL),
+      uv_loop_(nullptr),
 
       stdio_count_(0),
-      uv_stdio_containers_(NULL),
-      stdio_pipes_(NULL),
+      uv_stdio_containers_(nullptr),
+      stdio_pipes_(nullptr),
       stdio_pipes_initialized_(false),
 
       uv_process_options_(),
-      file_buffer_(NULL),
-      args_buffer_(NULL),
-      env_buffer_(NULL),
-      cwd_buffer_(NULL),
+      file_buffer_(nullptr),
+      args_buffer_(nullptr),
+      env_buffer_(nullptr),
+      cwd_buffer_(nullptr),
 
       uv_process_(),
       killed_(false),
@@ -408,9 +408,9 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
 
-  if (stdio_pipes_ != NULL) {
+  if (stdio_pipes_ != nullptr) {
     for (size_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i] != NULL)
+      if (stdio_pipes_[i] != nullptr)
         delete stdio_pipes_[i];
     }
   }
@@ -452,7 +452,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   lifecycle_ = kInitialized;
 
   uv_loop_ = new uv_loop_t;
-  if (uv_loop_ == NULL)
+  if (uv_loop_ == nullptr)
     return SetError(UV_ENOMEM);
   CHECK_EQ(uv_loop_init(uv_loop_), 0);
 
@@ -487,7 +487,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
-    if (h != NULL) {
+    if (h != nullptr) {
       r = h->Start();
       if (r < 0)
         return SetPipeError(r);
@@ -507,14 +507,14 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
 void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
   CHECK_LT(lifecycle_, kHandlesClosed);
 
-  if (uv_loop_ != NULL) {
+  if (uv_loop_ != nullptr) {
     CloseStdioPipes();
     CloseKillTimer();
     // Close the process handle when ExitCallback was not called.
     uv_handle_t* uv_process_handle =
         reinterpret_cast<uv_handle_t*>(&uv_process_);
     if (!uv_is_closing(uv_process_handle))
-      uv_close(uv_process_handle, NULL);
+      uv_close(uv_process_handle, nullptr);
 
     // Give closing watchers a chance to finish closing and get their close
     // callbacks called.
@@ -524,7 +524,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
 
     CHECK_EQ(uv_loop_close(uv_loop_), 0);
     delete uv_loop_;
-    uv_loop_ = NULL;
+    uv_loop_ = nullptr;
 
   } else {
     // If the loop doesn't exist, neither should any pipes or timers.
@@ -540,11 +540,11 @@ void SyncProcessRunner::CloseStdioPipes() {
   CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (stdio_pipes_initialized_) {
-    CHECK_NE(stdio_pipes_, NULL);
-    CHECK_NE(uv_loop_, NULL);
+    CHECK_NE(stdio_pipes_, nullptr);
+    CHECK_NE(uv_loop_, nullptr);
 
     for (uint32_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i] != NULL)
+      if (stdio_pipes_[i] != nullptr)
         stdio_pipes_[i]->Close();
     }
 
@@ -558,7 +558,7 @@ void SyncProcessRunner::CloseKillTimer() {
 
   if (kill_timer_initialized_) {
     CHECK_GT(timeout_, 0);
-    CHECK_NE(uv_loop_, NULL);
+    CHECK_NE(uv_loop_, nullptr);
 
     uv_handle_t* uv_timer_handle = reinterpret_cast<uv_handle_t*>(&uv_timer_);
     uv_ref(uv_timer_handle);
@@ -684,14 +684,14 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
 
 Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK_GE(lifecycle_, kInitialized);
-  CHECK_NE(stdio_pipes_, NULL);
+  CHECK_NE(stdio_pipes_, nullptr);
 
   EscapableHandleScope scope(env()->isolate());
   Local<Array> js_output = Array::New(env()->isolate(), stdio_count_);
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
-    if (h != NULL && h->writable())
+    if (h != nullptr && h->writable())
       js_output->Set(i, h->GetOutputAsBuffer());
     else
       js_output->Set(i, Null(env()->isolate()));
@@ -845,7 +845,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     bool readable = js_stdio_option->Get(rs)->BooleanValue();
     bool writable = js_stdio_option->Get(ws)->BooleanValue();
 
-    uv_buf_t buf = uv_buf_init(NULL, 0);
+    uv_buf_t buf = uv_buf_init(nullptr, 0);
 
     if (readable) {
       Local<Value> input = js_stdio_option->Get(env()->input_string());
@@ -876,7 +876,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], NULL);
+  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
 
   uv_stdio_containers_[child_fd].flags = UV_IGNORE;
 
@@ -889,7 +889,7 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool writable,
                                     uv_buf_t input_buffer) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], NULL);
+  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
 
   SyncProcessStdioPipe* h = new SyncProcessStdioPipe(this,
                                                      readable,
@@ -913,7 +913,7 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
 
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], NULL);
+  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
 
   uv_stdio_containers_[child_fd].flags = UV_INHERIT_FD;
   uv_stdio_containers_[child_fd].data.fd = inherit_fd;
@@ -1024,7 +1024,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                            sizeof(void*));  // NOLINT(runtime/sizeof)
   }
 
-  list[length] = NULL;
+  list[length] = nullptr;
 
   *target = buffer;
   return 0;
@@ -1035,7 +1035,7 @@ void SyncProcessRunner::ExitCallback(uv_process_t* handle,
                                      int64_t exit_status,
                                      int term_signal) {
   SyncProcessRunner* self = reinterpret_cast<SyncProcessRunner*>(handle->data);
-  uv_close(reinterpret_cast<uv_handle_t*>(handle), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), nullptr);
   self->OnExit(exit_status, term_signal);
 }
 

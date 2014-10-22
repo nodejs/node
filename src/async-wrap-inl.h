@@ -100,7 +100,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     v8::Local<v8::Function> enter =
       domain->Get(env()->enter_string()).As<v8::Function>();
     if (enter->IsFunction()) {
-      enter->Call(domain, 0, NULL);
+      enter->Call(domain, 0, nullptr);
       if (try_catch.HasCaught())
         return Undefined(env()->isolate());
     }
@@ -116,7 +116,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     v8::Local<v8::Function> exit =
       domain->Get(env()->exit_string()).As<v8::Function>();
     if (exit->IsFunction()) {
-      exit->Call(domain, 0, NULL);
+      exit->Call(domain, 0, nullptr);
       if (try_catch.HasCaught())
         return Undefined(env()->isolate());
     }
@@ -147,7 +147,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
 
   tick_info->set_in_tick(true);
 
-  env()->tick_callback_function()->Call(process, 0, NULL);
+  env()->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 
@@ -214,7 +214,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
 
   tick_info->set_in_tick(true);
 
-  env()->tick_callback_function()->Call(process, 0, NULL);
+  env()->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 

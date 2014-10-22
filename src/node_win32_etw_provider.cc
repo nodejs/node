@@ -133,7 +133,7 @@ void etw_events_change_async(uv_async_t* handle) {
   } else {
     v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
         v8::kJitCodeEventDefault,
-        NULL);
+        nullptr);
   }
 }
 
@@ -184,7 +184,7 @@ void init_etw() {
     if (event_register) {
       DWORD status = event_register(&NODE_ETW_PROVIDER,
                                     etw_events_enable_callback,
-                                    NULL,
+                                    nullptr,
                                     &node_provider);
       CHECK_EQ(status, ERROR_SUCCESS);
     }
@@ -201,11 +201,11 @@ void shutdown_etw() {
   events_enabled = 0;
   v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
       v8::kJitCodeEventDefault,
-      NULL);
+      nullptr);
 
   if (advapi) {
     FreeLibrary(advapi);
-    advapi = NULL;
+    advapi = nullptr;
   }
 }
 }

@@ -122,7 +122,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
-  wrap->MakeCallback(env->onstop_string(), 0, NULL);
+  wrap->MakeCallback(env->onstop_string(), 0, nullptr);
   wrap->Stop();
 }
 

@@ -43,7 +43,7 @@ using v8::Value;
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
-  if (wrap != NULL && wrap->handle__ != NULL) {
+  if (wrap != nullptr && wrap->handle__ != nullptr) {
     uv_ref(wrap->handle__);
     wrap->flags_ &= ~kUnref;
   }
@@ -53,7 +53,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
-  if (wrap != NULL && wrap->handle__ != NULL) {
+  if (wrap != nullptr && wrap->handle__ != nullptr) {
     uv_unref(wrap->handle__);
     wrap->flags_ |= kUnref;
   }
@@ -66,12 +66,12 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   // guard against uninitialized handle or double close
-  if (wrap == NULL || wrap->handle__ == NULL)
+  if (wrap == nullptr || wrap->handle__ == nullptr)
     return;
 
   CHECK_EQ(false, wrap->persistent().IsEmpty());
   uv_close(wrap->handle__, OnClose);
-  wrap->handle__ = NULL;
+  wrap->handle__ = nullptr;
 
   if (args[0]->IsFunction()) {
     wrap->object()->Set(env->close_string(), args[0]);
@@ -109,17 +109,17 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   CHECK_EQ(wrap->persistent().IsEmpty(), false);
 
   // But the handle pointer should be gone.
-  CHECK_EQ(wrap->handle__, NULL);
+  CHECK_EQ(wrap->handle__, nullptr);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {
-    wrap->MakeCallback(env->close_string(), 0, NULL);
+    wrap->MakeCallback(env->close_string(), 0, nullptr);
   }
 
-  object->SetAlignedPointerInInternalField(0, NULL);
+  object->SetAlignedPointerInInternalField(0, nullptr);
   wrap->persistent().Reset();
   delete wrap;
 }

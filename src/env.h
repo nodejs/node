@@ -442,13 +442,13 @@ class Environment {
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
   inline void ThrowErrnoException(int errorno,
-                                  const char* syscall = NULL,
-                                  const char* message = NULL,
-                                  const char* path = NULL);
+                                  const char* syscall = nullptr,
+                                  const char* message = nullptr,
+                                  const char* path = nullptr);
   inline void ThrowUVException(int errorno,
-                               const char* syscall = NULL,
-                               const char* message = NULL,
-                               const char* path = NULL);
+                               const char* syscall = nullptr,
+                               const char* message = nullptr,
+                               const char* path = nullptr);
 
   // Convenience methods for contextify
   inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);

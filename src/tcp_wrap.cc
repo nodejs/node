@@ -79,7 +79,7 @@ void TCPWrap::Initialize(Handle<Object> target,
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      StreamWrap::GetFD,
-                                     NULL,
+                                     nullptr,
                                      Handle<Value>(),
                                      v8::DEFAULT,
                                      attributes);
