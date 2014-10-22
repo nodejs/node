@@ -113,10 +113,10 @@ class SecureContext : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        ca_store_(NULL),
-        ctx_(NULL),
-        cert_(NULL),
-        issuer_(NULL) {
+        ca_store_(nullptr),
+        ctx_(nullptr),
+        cert_(nullptr),
+        issuer_(nullptr) {
     MakeWeak<SecureContext>(this);
   }
 
@@ -127,19 +127,19 @@ class SecureContext : public BaseObject {
         // Since we want our root_cert_store to stay around forever
         // we just clear the field. Hopefully OpenSSL will not modify this
         // struct in future versions.
-        ctx_->cert_store = NULL;
+        ctx_->cert_store = nullptr;
       }
       SSL_CTX_free(ctx_);
-      if (cert_ != NULL)
+      if (cert_ != nullptr)
         X509_free(cert_);
-      if (issuer_ != NULL)
+      if (issuer_ != nullptr)
         X509_free(issuer_);
-      ctx_ = NULL;
-      ca_store_ = NULL;
-      cert_ = NULL;
-      issuer_ = NULL;
+      ctx_ = nullptr;
+      ca_store_ = nullptr;
+      cert_ = nullptr;
+      issuer_ = nullptr;
     } else {
-      CHECK_EQ(ca_store_, NULL);
+      CHECK_EQ(ca_store_, nullptr);
     }
   }
 };
@@ -157,21 +157,21 @@ class SSLWrap {
   SSLWrap(Environment* env, SecureContext* sc, Kind kind)
       : env_(env),
         kind_(kind),
-        next_sess_(NULL),
+        next_sess_(nullptr),
         session_callbacks_(false),
         new_session_wait_(false) {
     ssl_ = SSL_new(sc->ctx_);
-    CHECK_NE(ssl_, NULL);
+    CHECK_NE(ssl_, nullptr);
   }
 
   ~SSLWrap() {
-    if (ssl_ != NULL) {
+    if (ssl_ != nullptr) {
       SSL_free(ssl_);
-      ssl_ = NULL;
+      ssl_ = nullptr;
     }
-    if (next_sess_ != NULL) {
+    if (next_sess_ != nullptr) {
       SSL_SESSION_free(next_sess_);
-      next_sess_ = NULL;
+      next_sess_ = nullptr;
     }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -336,8 +336,8 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
              SSLWrap<Connection>::Kind kind)
       : SSLWrap<Connection>(env, sc, kind),
         AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
-        bio_read_(NULL),
-        bio_write_(NULL),
+        bio_read_(nullptr),
+        bio_write_(nullptr),
         hello_offset_(0) {
     MakeWeak<Connection>(this);
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
@@ -406,10 +406,10 @@ class CipherBase : public BaseObject {
              v8::Local<v8::Object> wrap,
              CipherKind kind)
       : BaseObject(env, wrap),
-        cipher_(NULL),
+        cipher_(nullptr),
         initialised_(false),
         kind_(kind),
-        auth_tag_(NULL),
+        auth_tag_(nullptr),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
   }
@@ -445,7 +445,7 @@ class Hmac : public BaseObject {
 
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(NULL),
+        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hmac>(this);
   }
@@ -476,7 +476,7 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(NULL),
+        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hash>(this);
   }
@@ -501,7 +501,7 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(NULL),
+        md_(nullptr),
         initialised_(false) {
   }
 
@@ -599,7 +599,7 @@ class PublicKeyCipher {
 class DiffieHellman : public BaseObject {
  public:
   ~DiffieHellman() {
-    if (dh != NULL) {
+    if (dh != nullptr) {
       DH_free(dh);
     }
   }
@@ -630,7 +630,7 @@ class DiffieHellman : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false),
         verifyError_(0),
-        dh(NULL) {
+        dh(nullptr) {
     MakeWeak<DiffieHellman>(this);
   }
 
@@ -645,10 +645,10 @@ class DiffieHellman : public BaseObject {
 class ECDH : public BaseObject {
  public:
   ~ECDH() {
-    if (key_ != NULL)
+    if (key_ != nullptr)
       EC_KEY_free(key_);
-    key_ = NULL;
-    group_ = NULL;
+    key_ = nullptr;
+    group_ = nullptr;
   }
 
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
@@ -660,7 +660,7 @@ class ECDH : public BaseObject {
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
     MakeWeak<ECDH>(this);
-    ASSERT(group_ != NULL);
+    ASSERT(group_ != nullptr);
   }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -164,7 +164,7 @@ class StreamWrap : public HandleWrap {
     if (!callbacks_gc_ && callbacks_ != &default_callbacks_) {
       delete callbacks_;
     }
-    callbacks_ = NULL;
+    callbacks_ = nullptr;
   }
 
   void StateChange() { }

@@ -76,7 +76,7 @@ class ZCtx : public AsyncWrap {
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
         chunk_size_(0),
-        dictionary_(NULL),
+        dictionary_(nullptr),
         dictionary_len_(0),
         err_(0),
         flush_(0),
@@ -120,9 +120,9 @@ class ZCtx : public AsyncWrap {
     }
     mode_ = NONE;
 
-    if (dictionary_ != NULL) {
+    if (dictionary_ != nullptr) {
       delete[] dictionary_;
-      dictionary_ = NULL;
+      dictionary_ = nullptr;
     }
   }
 
@@ -259,7 +259,7 @@ class ZCtx : public AsyncWrap {
         ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
 
         // If data was encoded with dictionary
-        if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != NULL) {
+        if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != nullptr) {
           // Load it
           ctx->err_ = inflateSetDictionary(&ctx->strm_,
                                            ctx->dictionary_,
@@ -296,7 +296,7 @@ class ZCtx : public AsyncWrap {
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
-      if (ctx->dictionary_ == NULL)
+      if (ctx->dictionary_ == nullptr)
         ZCtx::Error(ctx, "Missing dictionary");
       else
         ZCtx::Error(ctx, "Bad dictionary");
@@ -346,7 +346,7 @@ class ZCtx : public AsyncWrap {
     // If you hit this assertion, you forgot to enter the v8::Context first.
     CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-    if (ctx->strm_.msg != NULL) {
+    if (ctx->strm_.msg != nullptr) {
       message = ctx->strm_.msg;
     }
 
@@ -402,7 +402,7 @@ class ZCtx : public AsyncWrap {
             strategy == Z_FIXED ||
             strategy == Z_DEFAULT_STRATEGY) && "invalid strategy");
 
-    char* dictionary = NULL;
+    char* dictionary = nullptr;
     size_t dictionary_len = 0;
     if (args.Length() >= 5 && Buffer::HasInstance(args[4])) {
       Local<Object> dictionary_ = args[4]->ToObject();
@@ -495,7 +495,7 @@ class ZCtx : public AsyncWrap {
   }
 
   static void SetDictionary(ZCtx* ctx) {
-    if (ctx->dictionary_ == NULL)
+    if (ctx->dictionary_ == nullptr)
       return;
 
     ctx->err_ = Z_OK;

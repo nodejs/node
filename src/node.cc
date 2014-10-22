@@ -126,7 +126,7 @@ static bool print_eval = false;
 static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
-static const char* eval_string = NULL;
+static const char* eval_string = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
@@ -137,7 +137,7 @@ static node_module* modlist_addon;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
-static const char* icu_data_dir = NULL;
+static const char* icu_data_dir = nullptr;
 #endif
 
 // used by C++ modules as well
@@ -148,7 +148,7 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
-static Isolate* node_isolate = NULL;
+static Isolate* node_isolate = nullptr;
 
 int WRITE_UTF8_FLAGS = v8::String::HINT_MANY_WRITES_EXPECTED |
                        v8::String::NO_NULL_TERMINATION;
@@ -174,7 +174,7 @@ ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
 
 void* ArrayBufferAllocator::Allocate(size_t length) {
   if (length > kMaxLength)
-    return NULL;
+    return nullptr;
   char* data = new char[length];
   memset(data, 0, length);
   return data;
@@ -183,7 +183,7 @@ void* ArrayBufferAllocator::Allocate(size_t length) {
 
 void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
   if (length > kMaxLength)
-    return NULL;
+    return nullptr;
   return new char[length];
 }
 
@@ -203,7 +203,7 @@ static void CheckImmediate(uv_check_t* handle) {
 
 static void IdleImmediateDummy(uv_idle_t* handle) {
   // Do nothing. Only for maintaining event loop.
-  // TODO(bnoordhuis) Maybe make libuv accept NULL idle callbacks.
+  // TODO(bnoordhuis) Maybe make libuv accept nullptr idle callbacks.
 }
 
 
@@ -735,7 +735,7 @@ Local<Value> ErrnoException(Isolate* isolate,
 
   Local<Value> e;
   Local<String> estring = OneByteString(env->isolate(), errno_string(errorno));
-  if (msg == NULL || msg[0] == '\0') {
+  if (msg == nullptr || msg[0] == '\0') {
     msg = strerror(errorno);
   }
   Local<String> message = OneByteString(env->isolate(), msg);
@@ -760,11 +760,11 @@ Local<Value> ErrnoException(Isolate* isolate,
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
-  if (path != NULL) {
+  if (path != nullptr) {
     obj->Set(env->path_string(), String::NewFromUtf8(env->isolate(), path));
   }
 
-  if (syscall != NULL) {
+  if (syscall != nullptr) {
     obj->Set(env->syscall_string(), OneByteString(env->isolate(), syscall));
   }
 
@@ -823,11 +823,11 @@ Local<Value> UVException(Isolate* isolate,
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
-  if (path != NULL) {
+  if (path != nullptr) {
     obj->Set(env->path_string(), path_str);
   }
 
-  if (syscall != NULL) {
+  if (syscall != nullptr) {
     obj->Set(env->syscall_string(), OneByteString(env->isolate(), syscall));
   }
 
@@ -839,7 +839,7 @@ Local<Value> UVException(Isolate* isolate,
 inline const char* secure_getenv(const char* key) {
 #ifndef _WIN32
   if (getuid() != geteuid() || getgid() != getegid())
-    return NULL;
+    return nullptr;
 #endif
   return getenv(key);
 }
@@ -849,11 +849,11 @@ inline const char* secure_getenv(const char* key) {
 // Does about the same as strerror(),
 // but supports all windows error messages
 static const char *winapi_strerror(const int errorno, bool* must_free) {
-  char *errmsg = NULL;
+  char *errmsg = nullptr;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-      FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
+      FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, nullptr);
 
   if (errmsg) {
     *must_free = true;
@@ -901,11 +901,11 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   Local<Object> obj = e->ToObject();
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
-  if (path != NULL) {
+  if (path != nullptr) {
     obj->Set(env->path_string(), String::NewFromUtf8(isolate, path));
   }
 
-  if (syscall != NULL) {
+  if (syscall != nullptr) {
     obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
 
@@ -1054,7 +1054,7 @@ Handle<Value> MakeDomainCallback(Environment* env,
 
       Local<Function> enter = domain->Get(env->enter_string()).As<Function>();
       if (enter->IsFunction()) {
-        enter->Call(domain, 0, NULL);
+        enter->Call(domain, 0, nullptr);
         if (try_catch.HasCaught())
           return Undefined(env->isolate());
       }
@@ -1070,7 +1070,7 @@ Handle<Value> MakeDomainCallback(Environment* env,
   if (has_domain) {
     Local<Function> exit = domain->Get(env->exit_string()).As<Function>();
     if (exit->IsFunction()) {
-      exit->Call(domain, 0, NULL);
+      exit->Call(domain, 0, nullptr);
       if (try_catch.HasCaught())
         return Undefined(env->isolate());
     }
@@ -1105,7 +1105,7 @@ Handle<Value> MakeDomainCallback(Environment* env,
 
   tick_info->set_in_tick(true);
 
-  env->tick_callback_function()->Call(process, 0, NULL);
+  env->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 
@@ -1174,7 +1174,7 @@ Handle<Value> MakeCallback(Environment* env,
   tick_info->set_in_tick(true);
 
   // process nextTicks after call
-  env->tick_callback_function()->Call(process, 0, NULL);
+  env->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 
@@ -1359,7 +1359,7 @@ ssize_t DecodeWrite(Isolate* isolate,
                     size_t buflen,
                     Handle<Value> val,
                     enum encoding encoding) {
-  return StringBytes::Write(isolate, buf, buflen, val, encoding, NULL);
+  return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
 void AppendExceptionLine(Environment* env,
@@ -1557,7 +1557,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(args.GetIsolate());
-  QUEUE* q = NULL;
+  QUEUE* q = nullptr;
   int i = 0;
 
   QUEUE_FOREACH(q, env->req_wrap_queue()) {
@@ -1577,7 +1577,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(env->isolate());
-  QUEUE* q = NULL;
+  QUEUE* q = nullptr;
   int i = 0;
 
   Local<String> owner_sym = env->owner_string();
@@ -1687,9 +1687,9 @@ static uid_t uid_by_name(const char* name) {
   char buf[8192];
 
   errno = 0;
-  pp = NULL;
+  pp = nullptr;
 
-  if (getpwnam_r(name, &pwd, buf, sizeof(buf), &pp) == 0 && pp != NULL) {
+  if (getpwnam_r(name, &pwd, buf, sizeof(buf), &pp) == 0 && pp != nullptr) {
     return pp->pw_uid;
   }
 
@@ -1704,9 +1704,10 @@ static char* name_by_uid(uid_t uid) {
   int rc;
 
   errno = 0;
-  pp = NULL;
+  pp = nullptr;
 
-  if ((rc = getpwuid_r(uid, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+  if ((rc = getpwuid_r(uid, &pwd, buf, sizeof(buf), &pp)) == 0 &&
+      pp != nullptr) {
     return strdup(pp->pw_name);
   }
 
@@ -1714,7 +1715,7 @@ static char* name_by_uid(uid_t uid) {
     errno = ENOENT;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -1724,9 +1725,9 @@ static gid_t gid_by_name(const char* name) {
   char buf[8192];
 
   errno = 0;
-  pp = NULL;
+  pp = nullptr;
 
-  if (getgrnam_r(name, &pwd, buf, sizeof(buf), &pp) == 0 && pp != NULL) {
+  if (getgrnam_r(name, &pwd, buf, sizeof(buf), &pp) == 0 && pp != nullptr) {
     return pp->gr_gid;
   }
 
@@ -1742,9 +1743,10 @@ static const char* name_by_gid(gid_t gid) {
   int rc;
 
   errno = 0;
-  pp = NULL;
+  pp = nullptr;
 
-  if ((rc = getgrgid_r(gid, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+  if ((rc = getgrgid_r(gid, &pwd, buf, sizeof(buf), &pp)) == 0 &&
+      pp != nullptr) {
     return strdup(pp->gr_name);
   }
 
@@ -1752,7 +1754,7 @@ static const char* name_by_gid(gid_t gid) {
     errno = ENOENT;
   }
 
-  return NULL;
+  return nullptr;
 }
 #endif
 
@@ -1830,7 +1832,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int ngroups = getgroups(0, NULL);
+  int ngroups = getgroups(0, nullptr);
 
   if (ngroups == -1) {
     return env->ThrowErrnoException(errno, "getgroups");
@@ -1920,7 +1922,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
     must_free = false;
   }
 
-  if (user == NULL) {
+  if (user == nullptr) {
     return env->ThrowError("initgroups user not found");
   }
 
@@ -2040,7 +2042,7 @@ extern "C" void node_module_register(void* m) {
     mp->nm_link = modlist_builtin;
     modlist_builtin = mp;
   } else {
-    CHECK_EQ(modpending, NULL);
+    CHECK_EQ(modpending, nullptr);
     modpending = mp;
   }
 }
@@ -2048,12 +2050,12 @@ extern "C" void node_module_register(void* m) {
 struct node_module* get_builtin_module(const char* name) {
   struct node_module* mp;
 
-  for (mp = modlist_builtin; mp != NULL; mp = mp->nm_link) {
+  for (mp = modlist_builtin; mp != nullptr; mp = mp->nm_link) {
     if (strcmp(mp->nm_modname, name) == 0)
       break;
   }
 
-  CHECK(mp == NULL || (mp->nm_flags & NM_F_BUILTIN) != 0);
+  CHECK(mp == nullptr || (mp->nm_flags & NM_F_BUILTIN) != 0);
   return (mp);
 }
 
@@ -2097,9 +2099,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
    * module per object is supported.
    */
   mp = modpending;
-  modpending = NULL;
+  modpending = nullptr;
 
-  if (mp == NULL) {
+  if (mp == nullptr) {
     env->ThrowError("Module did not self-register.");
     return;
   }
@@ -2121,9 +2123,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
 
-  if (mp->nm_context_register_func != NULL) {
+  if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
-  } else if (mp->nm_register_func != NULL) {
+  } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
     env->ThrowError("Module has no declared entry point.");
@@ -2232,11 +2234,11 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_builtin_module(*module_v);
-  if (mod != NULL) {
+  if (mod != nullptr) {
     exports = Object::New(env->isolate());
     // Internal bindings don't have a "module" object, only exports.
-    CHECK_EQ(mod->nm_register_func, NULL);
-    CHECK_NE(mod->nm_context_register_func, NULL);
+    CHECK_EQ(mod->nm_register_func, nullptr);
+    CHECK_NE(mod->nm_context_register_func, nullptr);
     Local<Value> unused = Undefined(env->isolate());
     mod->nm_context_register_func(exports, unused,
       env->context(), mod->nm_priv);
@@ -2350,7 +2352,7 @@ static void EnvQuery(Local<String> property,
 #else  // _WIN32
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  if (GetEnvironmentVariableW(key_ptr, NULL, 0) > 0 ||
+  if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
       GetLastError() == ERROR_SUCCESS) {
     rc = 0;
     if (key_ptr[0] == L'=') {
@@ -2373,16 +2375,16 @@ static void EnvDeleter(Local<String> property,
   bool rc = true;
 #ifdef __POSIX__
   node::Utf8Value key(property);
-  rc = getenv(*key) != NULL;
+  rc = getenv(*key) != nullptr;
   if (rc)
     unsetenv(*key);
 #else
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  if (key_ptr[0] == L'=' || !SetEnvironmentVariableW(key_ptr, NULL)) {
+  if (key_ptr[0] == L'=' || !SetEnvironmentVariableW(key_ptr, nullptr)) {
     // Deletion failed. Return true if the key wasn't there in the first place,
     // false if it is still there.
-    rc = GetEnvironmentVariableW(key_ptr, NULL, NULL) == 0 &&
+    rc = GetEnvironmentVariableW(key_ptr, nullptr, 0) == 0 &&
          GetLastError() != ERROR_SUCCESS;
   }
 #endif
@@ -2412,12 +2414,12 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
-  if (environment == NULL)
+  if (environment == nullptr)
     return;  // This should not happen.
   Local<Array> envarr = Array::New(env->isolate());
   WCHAR* p = environment;
   int i = 0;
-  while (*p != NULL) {
+  while (*p != nullptr) {
     WCHAR *s;
     if (*p == L'=') {
       // If the key starts with '=' it is a hidden environment variable.
@@ -2483,7 +2485,8 @@ static Handle<Object> GetFeatures(Environment* env) {
   obj->Set(env->tls_ocsp_string(), tls_ocsp);
 
   obj->Set(env->tls_string(),
-           Boolean::New(env->isolate(), get_builtin_module("crypto") != NULL));
+           Boolean::New(env->isolate(),
+                        get_builtin_module("crypto") != nullptr));
 
   return scope.Escape(obj);
 }
@@ -2901,7 +2904,7 @@ void LoadEnvironment(Environment* env) {
 static void PrintHelp();
 
 static bool ParseDebugOpt(const char* arg) {
-  const char* port = NULL;
+  const char* port = nullptr;
 
   if (!strcmp(arg, "--debug")) {
     use_debug_agent = true;
@@ -2921,7 +2924,7 @@ static bool ParseDebugOpt(const char* arg) {
     return false;
   }
 
-  if (port != NULL) {
+  if (port != nullptr) {
     debug_port = atoi(port);
     if (debug_port < 1024 || debug_port > 65535) {
       fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
@@ -3002,9 +3005,9 @@ static void ParseArgs(int* argc,
   const char** new_argv = new const char*[nargs];
 
   for (unsigned int i = 0; i < nargs; ++i) {
-    new_exec_argv[i] = NULL;
-    new_v8_argv[i] = NULL;
-    new_argv[i] = NULL;
+    new_exec_argv[i] = nullptr;
+    new_v8_argv[i] = nullptr;
+    new_argv[i] = nullptr;
   }
 
   // exec_argv starts with the first option, the other two start with argv[0].
@@ -3032,19 +3035,19 @@ static void ParseArgs(int* argc,
                strcmp(arg, "--print") == 0 ||
                strcmp(arg, "-pe") == 0 ||
                strcmp(arg, "-p") == 0) {
-      bool is_eval = strchr(arg, 'e') != NULL;
-      bool is_print = strchr(arg, 'p') != NULL;
+      bool is_eval = strchr(arg, 'e') != nullptr;
+      bool is_print = strchr(arg, 'p') != nullptr;
       print_eval = print_eval || is_print;
       // --eval, -e and -pe always require an argument.
       if (is_eval == true) {
         args_consumed += 1;
         eval_string = argv[index + 1];
-        if (eval_string == NULL) {
+        if (eval_string == nullptr) {
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
       } else if ((index + 1 < nargs) &&
-                 argv[index + 1] != NULL &&
+                 argv[index + 1] != nullptr &&
                  argv[index + 1][0] != '-') {
         args_consumed += 1;
         eval_string = argv[index + 1];
@@ -3170,7 +3173,7 @@ static void InstallEarlyDebugSignalHandler() {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = EarlyDebugSignalHandler;
-  sigaction(SIGUSR1, &sa, NULL);
+  sigaction(SIGUSR1, &sa, nullptr);
 }
 
 
@@ -3189,7 +3192,7 @@ static void RegisterSignalHandler(int signal,
   sa.sa_handler = handler;
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
   sigfillset(&sa.sa_mask);
-  CHECK_EQ(sigaction(signal, &sa, NULL), 0);
+  CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
 
 
@@ -3252,12 +3255,12 @@ static int RegisterDebugSignalHandler() {
   }
 
   mapping_handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
-                                      NULL,
+                                      nullptr,
                                       PAGE_READWRITE,
                                       0,
                                       sizeof *handler,
                                       mapping_name);
-  if (mapping_handle == NULL) {
+  if (mapping_handle == nullptr) {
     return -1;
   }
 
@@ -3267,7 +3270,7 @@ static int RegisterDebugSignalHandler() {
                     0,
                     0,
                     sizeof *handler));
-  if (handler == NULL) {
+  if (handler == nullptr) {
     CloseHandle(mapping_handle);
     return -1;
   }
@@ -3284,11 +3287,11 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   DWORD pid;
-  HANDLE process = NULL;
-  HANDLE thread = NULL;
-  HANDLE mapping = NULL;
+  HANDLE process = nullptr;
+  HANDLE thread = nullptr;
+  HANDLE mapping = nullptr;
   wchar_t mapping_name[32];
-  LPTHREAD_START_ROUTINE* handler = NULL;
+  LPTHREAD_START_ROUTINE* handler = nullptr;
 
   if (args.Length() != 1) {
     env->ThrowError("Invalid number of arguments.");
@@ -3302,7 +3305,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                             PROCESS_VM_READ,
                         FALSE,
                         pid);
-  if (process == NULL) {
+  if (process == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
     goto out;
@@ -3316,7 +3319,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   }
 
   mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
-  if (mapping == NULL) {
+  if (mapping == nullptr) {
     isolate->ThrowException(WinapiErrnoException(isolate,
                                              GetLastError(),
                                              "OpenFileMappingW"));
@@ -3329,20 +3332,20 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                     0,
                     0,
                     sizeof *handler));
-  if (handler == NULL || *handler == NULL) {
+  if (handler == nullptr || *handler == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
     goto out;
   }
 
   thread = CreateRemoteThread(process,
-                              NULL,
+                              nullptr,
                               0,
                               *handler,
-                              NULL,
+                              nullptr,
                               0,
-                              NULL);
-  if (thread == NULL) {
+                              nullptr);
+  if (thread == nullptr) {
     isolate->ThrowException(WinapiErrnoException(isolate,
                                                  GetLastError(),
                                                  "CreateRemoteThread"));
@@ -3358,13 +3361,13 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   }
 
  out:
-  if (process != NULL)
+  if (process != nullptr)
     CloseHandle(process);
-  if (thread != NULL)
+  if (thread != nullptr)
     CloseHandle(thread);
-  if (handler != NULL)
+  if (handler != nullptr)
     UnmapViewOfFile(handler);
-  if (mapping != NULL)
+  if (mapping != nullptr)
     CloseHandle(mapping);
 }
 #endif  // _WIN32
@@ -3425,14 +3428,14 @@ void Init(int* argc,
   }
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  if (icu_data_dir == NULL) {
+  if (icu_data_dir == nullptr) {
     // if the parameter isn't given, use the env variable.
     icu_data_dir = secure_getenv("NODE_ICU_DATA");
   }
   // Initialize ICU.
-  // If icu_data_dir is NULL here, it will load the 'minimal' data.
+  // If icu_data_dir is nullptr here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
-    FatalError(NULL, "Could not initialize ICU "
+    FatalError(nullptr, "Could not initialize ICU "
                      "(check NODE_ICU_DATA or --icu-data-dir parameters)");
   }
 #endif
@@ -3445,7 +3448,7 @@ void Init(int* argc,
     fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
   }
   delete[] v8_argv;
-  v8_argv = NULL;
+  v8_argv = nullptr;
 
   if (v8_argc > 1) {
     exit(9);
@@ -3505,7 +3508,7 @@ static AtExitCallback* at_exit_functions_;
 // TODO(bnoordhuis) Turn into per-context event.
 void RunAtExit(Environment* env) {
   AtExitCallback* p = at_exit_functions_;
-  at_exit_functions_ = NULL;
+  at_exit_functions_ = nullptr;
 
   while (p) {
     AtExitCallback* q = p->next_;
@@ -3636,19 +3639,19 @@ Environment* CreateEnvironment(Isolate* isolate,
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()),
       HandleCleanup,
-      NULL);
+      nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_idle_handle()),
       HandleCleanup,
-      NULL);
+      nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()),
       HandleCleanup,
-      NULL);
+      nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_check_handle()),
       HandleCleanup,
-      NULL);
+      nullptr);
 
   if (v8_is_profiling) {
     StartProfilerIdleNotifier(env);
@@ -3669,7 +3672,7 @@ Environment* CreateEnvironment(Isolate* isolate,
 int Start(int argc, char** argv) {
   const char* replaceInvalid = secure_getenv("NODE_INVALID_UTF8");
 
-  if (replaceInvalid == NULL)
+  if (replaceInvalid == nullptr)
     WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
 
 #if !defined(_WIN32)
@@ -3744,16 +3747,16 @@ int Start(int argc, char** argv) {
     RunAtExit(env);
 
     env->Dispose();
-    env = NULL;
+    env = nullptr;
   }
 
-  CHECK_NE(node_isolate, NULL);
+  CHECK_NE(node_isolate, nullptr);
   node_isolate->Dispose();
-  node_isolate = NULL;
+  node_isolate = nullptr;
   V8::Dispose();
 
   delete[] exec_argv;
-  exec_argv = NULL;
+  exec_argv = nullptr;
 
   return code;
 }

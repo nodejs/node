@@ -106,7 +106,7 @@ void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
 }
 
 void ClearWrap(v8::Local<v8::Object> object) {
-  Wrap<void>(object, NULL);
+  Wrap<void>(object, nullptr);
 }
 
 template <typename TypeName>

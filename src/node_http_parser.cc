@@ -123,13 +123,13 @@ struct StringPtr {
       on_heap_ = false;
     }
 
-    str_ = NULL;
+    str_ = nullptr;
     size_ = 0;
   }
 
 
   void Update(const char* str, size_t size) {
-    if (str_ == NULL)
+    if (str_ == nullptr)
       str_ = str;
     else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
@@ -168,7 +168,7 @@ class Parser : public BaseObject {
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
       : BaseObject(env, wrap),
         current_buffer_len_(0),
-        current_buffer_data_(NULL) {
+        current_buffer_data_(nullptr) {
     Wrap(object(), this);
     Init(type);
   }
@@ -338,7 +338,7 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> r = cb.As<Function>()->Call(obj, 0, NULL);
+    Local<Value> r = cb.As<Function>()->Call(obj, 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -385,7 +385,7 @@ class Parser : public BaseObject {
     Parser* parser = Unwrap<Parser>(args.Holder());
     CHECK(parser->current_buffer_.IsEmpty());
     CHECK_EQ(parser->current_buffer_len_, 0);
-    CHECK_EQ(parser->current_buffer_data_, NULL);
+    CHECK_EQ(parser->current_buffer_data_, nullptr);
     CHECK_EQ(Buffer::HasInstance(args[0]), true);
 
     Local<Object> buffer_obj = args[0].As<Object>();
@@ -408,7 +408,7 @@ class Parser : public BaseObject {
     // Unassign the 'buffer_' variable
     parser->current_buffer_.Clear();
     parser->current_buffer_len_ = 0;
-    parser->current_buffer_data_ = NULL;
+    parser->current_buffer_data_ = nullptr;
 
     // If there was an exception in one of the callbacks
     if (parser->got_exception_)
@@ -441,7 +441,7 @@ class Parser : public BaseObject {
     CHECK(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
 
-    int rv = http_parser_execute(&(parser->parser_), &settings, NULL, 0);
+    int rv = http_parser_execute(&(parser->parser_), &settings, nullptr, 0);
 
     if (parser->got_exception_)
       return;

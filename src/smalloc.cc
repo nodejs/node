@@ -135,7 +135,7 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
     CHECK_GT(array_length * array_size, array_length);  // Overflow check.
     array_length *= array_size;
   }
-  object->SetIndexedPropertiesToExternalArrayData(NULL, array_type, 0);
+  object->SetIndexedPropertiesToExternalArrayData(nullptr, array_type, 0);
   int64_t change_in_bytes = -static_cast<int64_t>(array_length + sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   callback_(static_cast<char*>(array_data), hint_);
@@ -271,7 +271,7 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
     length *= source_size;
   }
 
-  CHECK(source_data != NULL || length == 0);
+  CHECK(source_data != nullptr || length == 0);
   CHECK_LE(end, source_len);
   CHECK_LE(start, end);
 
@@ -321,10 +321,10 @@ void Alloc(Environment* env,
   CHECK_GT(type_size, 0);
 
   if (length == 0)
-    return Alloc(env, obj, NULL, length, type);
+    return Alloc(env, obj, nullptr, length, type);
 
   char* data = static_cast<char*>(malloc(length));
-  if (data == NULL) {
+  if (data == nullptr) {
     FatalError("node::smalloc::Alloc(v8::Handle<v8::Object>, size_t,"
                " v8::ExternalArrayType)", "Out Of Memory");
   }
@@ -377,8 +377,8 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
 
   length *= array_size;
 
-  if (data != NULL) {
-    obj->SetIndexedPropertiesToExternalArrayData(NULL,
+  if (data != nullptr) {
+    obj->SetIndexedPropertiesToExternalArrayData(nullptr,
                                                  kExternalUint8Array,
                                                  0);
     free(data);

@@ -78,7 +78,7 @@ using v8::Value;
   } \
   node::Utf8Value _##member(obj->Get(OneByteString(env->isolate(), \
                                                      #member))); \
-  if ((*(const char **)valp = *_##member) == NULL) \
+  if ((*(const char **)valp = *_##member) == nullptr) \
     *(const char **)valp = "<unknown>";
 
 #define SLURP_INT(obj, member, valp) \
@@ -217,7 +217,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
   node::Utf8Value fwdfor(strfwdfor);
 
-  if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == NULL)
+  if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == nullptr)
     req.forwardedFor = const_cast<char*>("");
 
   SLURP_CONNECTION(args[1], conn);

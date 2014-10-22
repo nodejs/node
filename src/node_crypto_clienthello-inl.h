@@ -32,11 +32,11 @@ inline void ClientHelloParser::Reset() {
   body_offset_ = 0;
   extension_offset_ = 0;
   session_size_ = 0;
-  session_id_ = NULL;
+  session_id_ = nullptr;
   tls_ticket_size_ = -1;
-  tls_ticket_ = NULL;
+  tls_ticket_ = nullptr;
   servername_size_ = 0;
-  servername_ = NULL;
+  servername_ = nullptr;
 }
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
@@ -46,7 +46,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
     return;
   Reset();
 
-  CHECK_NE(onhello_cb, NULL);
+  CHECK_NE(onhello_cb, nullptr);
 
   state_ = kWaiting;
   onhello_cb_ = onhello_cb;
@@ -58,9 +58,9 @@ inline void ClientHelloParser::End() {
   if (state_ == kEnded)
     return;
   state_ = kEnded;
-  if (onend_cb_ != NULL) {
+  if (onend_cb_ != nullptr) {
     onend_cb_(cb_arg_);
-    onend_cb_ = NULL;
+    onend_cb_ = nullptr;
   }
 }
 

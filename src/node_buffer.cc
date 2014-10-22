@@ -46,7 +46,7 @@
   char* obj_data = static_cast<char*>(                                      \
     obj->GetIndexedPropertiesExternalArrayData());                          \
   if (obj_length > 0)                                                       \
-    CHECK_NE(obj_data, NULL);
+    CHECK_NE(obj_data, nullptr);
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
@@ -151,10 +151,10 @@ Local<Object> New(Environment* env, size_t length) {
   char* data;
   if (length > 0) {
     data = static_cast<char*>(malloc(length));
-    if (data == NULL)
+    if (data == nullptr)
       FatalError("node::Buffer::New(size_t)", "Out Of Memory");
   } else {
-    data = NULL;
+    data = nullptr;
   }
   smalloc::Alloc(env, obj, data, length);
 
@@ -187,11 +187,11 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
   char* new_data;
   if (length > 0) {
     new_data = static_cast<char*>(malloc(length));
-    if (new_data == NULL)
+    if (new_data == nullptr)
       FatalError("node::Buffer::New(const char*, size_t)", "Out Of Memory");
     memcpy(new_data, data, length);
   } else {
-    new_data = NULL;
+    new_data = nullptr;
   }
 
   smalloc::Alloc(env, obj, new_data, length);
@@ -410,7 +410,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
                                         max_length,
                                         str,
                                         encoding,
-                                        NULL);
+                                        nullptr);
   args.GetReturnValue().Set(written);
 }
 

@@ -121,9 +121,9 @@ static void ares_poll_close_cb(uv_handle_t* watcher) {
 static ares_task_t* ares_task_create(Environment* env, ares_socket_t sock) {
   ares_task_t* task = static_cast<ares_task_t*>(malloc(sizeof(*task)));
 
-  if (task == NULL) {
+  if (task == nullptr) {
     /* Out of memory. */
-    return NULL;
+    return nullptr;
   }
 
   task->env = env;
@@ -132,7 +132,7 @@ static ares_task_t* ares_task_create(Environment* env, ares_socket_t sock) {
   if (uv_poll_init_socket(env->event_loop(), &task->poll_watcher, sock) < 0) {
     /* This should never happen. */
     free(task);
-    return NULL;
+    return nullptr;
   }
 
   return task;
@@ -163,7 +163,7 @@ static void ares_sockstate_cb(void* data,
       }
 
       task = ares_task_create(env, sock);
-      if (task == NULL) {
+      if (task == nullptr) {
         /* This should never happen unless we're out of memory or something */
         /* is seriously wrong. The socket won't be polled, but the the query */
         /* will eventually time out. */
@@ -202,7 +202,7 @@ static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
   Local<Array> addresses = Array::New(env->isolate());
 
   char ip[INET6_ADDRSTRLEN];
-  for (uint32_t i = 0; host->h_addr_list[i] != NULL; ++i) {
+  for (uint32_t i = 0; host->h_addr_list[i] != nullptr; ++i) {
     uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
     Local<String> address = OneByteString(env->isolate(), ip);
     addresses->Set(i, address);
@@ -216,7 +216,7 @@ static Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
   Local<Array> names = Array::New(env->isolate());
 
-  for (uint32_t i = 0; host->h_aliases[i] != NULL; ++i) {
+  for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i) {
     Local<String> address = OneByteString(env->isolate(), host->h_aliases[i]);
     names->Set(i, address);
   }
@@ -375,7 +375,7 @@ class QueryAWrap: public QueryWrap {
 
     struct hostent* host;
 
-    int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
+    int status = ares_parse_a_reply(buf, len, &host, nullptr, nullptr);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -412,7 +412,7 @@ class QueryAaaaWrap: public QueryWrap {
 
     struct hostent* host;
 
-    int status = ares_parse_aaaa_reply(buf, len, &host, NULL, NULL);
+    int status = ares_parse_aaaa_reply(buf, len, &host, nullptr, nullptr);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -448,7 +448,7 @@ class QueryCnameWrap: public QueryWrap {
     Context::Scope context_scope(env()->context());
     struct hostent* host;
 
-    int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
+    int status = ares_parse_a_reply(buf, len, &host, nullptr, nullptr);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -498,7 +498,7 @@ class QueryMxWrap: public QueryWrap {
     Local<String> priority_symbol = env()->priority_string();
 
     ares_mx_reply* current = mx_start;
-    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+    for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
       Local<Object> mx_record = Object::New(env()->isolate());
       mx_record->Set(exchange_symbol,
                      OneByteString(env()->isolate(), current->host));
@@ -583,7 +583,7 @@ class QueryTxtWrap: public QueryWrap {
 
     ares_txt_reply* current = txt_out;
     uint32_t i = 0;
-    for (uint32_t j = 0; current != NULL; current = current->next) {
+    for (uint32_t j = 0; current != nullptr; current = current->next) {
       Local<String> txt = OneByteString(env()->isolate(), current->txt);
       // New record found - write out the current chunk
       if (current->record_start) {
@@ -639,7 +639,7 @@ class QuerySrvWrap: public QueryWrap {
     Local<String> weight_symbol = env()->weight_string();
 
     ares_srv_reply* current = srv_start;
-    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+    for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
       Local<Object> srv_record = Object::New(env()->isolate());
       srv_record->Set(name_symbol,
                       OneByteString(env()->isolate(), current->host));
@@ -696,7 +696,7 @@ class QueryNaptrWrap: public QueryWrap {
     Local<String> preference_symbol = env()->preference_string();
 
     ares_naptr_reply* current = naptr_start;
-    for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+    for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
       Local<Object> naptr_record = Object::New(env()->isolate());
       naptr_record->Set(flags_symbol,
                         OneByteString(env()->isolate(), current->flags));
@@ -1044,7 +1044,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                            &req_wrap->req_,
                            AfterGetAddrInfo,
                            *hostname,
-                           NULL,
+                           nullptr,
                            &hints);
   req_wrap->Dispatched();
   if (err)
@@ -1098,7 +1098,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 
   ares_addr_node* cur = servers;
 
-  for (uint32_t i = 0; cur != NULL; ++i, cur = cur->next) {
+  for (uint32_t i = 0; cur != nullptr; ++i, cur = cur->next) {
     char ip[INET6_ADDRSTRLEN];
 
     const void* caddr = static_cast<const void*>(&cur->addr);
@@ -1125,12 +1125,12 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = arr->Length();
 
   if (len == 0) {
-    int rv = ares_set_servers(env->cares_channel(), NULL);
+    int rv = ares_set_servers(env->cares_channel(), nullptr);
     return args.GetReturnValue().Set(rv);
   }
 
   ares_addr_node* servers = new ares_addr_node[len];
-  ares_addr_node* last = NULL;
+  ares_addr_node* last = nullptr;
 
   int err;
 
@@ -1164,9 +1164,9 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     if (err)
       break;
 
-    cur->next = NULL;
+    cur->next = nullptr;
 
-    if (last != NULL)
+    if (last != nullptr)
       last->next = cur;
 
     last = cur;
@@ -1230,7 +1230,7 @@ static void Initialize(Handle<Object> target,
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->cares_timer_handle()),
       CaresTimerClose,
-      NULL);
+      nullptr);
 
   env->SetMethod(target, "queryA", Query<QueryAWrap>);
   env->SetMethod(target, "queryAaaa", Query<QueryAaaaWrap>);

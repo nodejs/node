@@ -69,7 +69,7 @@ void Watchdog::Destroy() {
   uv_async_send(&async_);
   uv_thread_join(&thread_);
 
-  uv_close(reinterpret_cast<uv_handle_t*>(&async_), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(&async_), nullptr);
 
   // UV_RUN_DEFAULT so that libuv has a chance to clean up.
   uv_run(loop_, UV_RUN_DEFAULT);
@@ -77,7 +77,7 @@ void Watchdog::Destroy() {
   int rc = uv_loop_close(loop_);
   CHECK_EQ(0, rc);
   delete loop_;
-  loop_ = NULL;
+  loop_ = nullptr;
 
   destroyed_ = true;
 }
@@ -91,7 +91,7 @@ void Watchdog::Run(void* arg) {
 
   // Loop ref count reaches zero when both handles are closed.
   // Close the timer handle on this side and let Destroy() close async_
-  uv_close(reinterpret_cast<uv_handle_t*>(&wd->timer_), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(&wd->timer_), nullptr);
 }
 
 
