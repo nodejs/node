@@ -164,7 +164,7 @@ class SSLWrap {
     CHECK_NE(ssl_, nullptr);
   }
 
-  ~SSLWrap() {
+  virtual ~SSLWrap() {
     if (ssl_ != nullptr) {
       SSL_free(ssl_);
       ssl_ = nullptr;
