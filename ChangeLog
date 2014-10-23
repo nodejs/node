@@ -1,4 +1,25 @@
-2014.09.16, Version 0.10.32 (Stable)
+2014.10.20, Version 0.10.33 (Stable)
+
+* openssl: Update to 1.0.1j (Addressing multiple CVEs)
+
+* uv: Update to v0.10.29
+
+* child_process: properly support optional args (cjihrig)
+
+* crypto: Disable autonegotiation for SSLv2/3 by default (Fedor Indutny,
+	Timothy J Fontaine, Alexis Campailla)
+
+	This is a behavior change, by default we will not allow the negotiation to
+	SSLv2 or SSLv3. If you want this behavior, run Node.js with either
+	`--enable-ssl2` or `--enable-ssl3` respectively.
+
+	This does not change the behavior for users specifically requesting
+	`SSLv2_method` or `SSLv3_method`. While this behavior is not advised, it is
+	assumed you know what you're doing since you're specifically asking to use
+	these methods.
+
+
+2014.09.16, Version 0.10.32 (Stable), 0fe0d121551593c23a565db8397f85f17bb0f00e
 
 * npm: Update to 1.4.28
 
