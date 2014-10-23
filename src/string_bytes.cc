@@ -47,7 +47,7 @@ using v8::Value;
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
   public:
-    ~ExternString() {
+    ~ExternString() override {
       delete[] data_;
       int64_t change_in_bytes = -static_cast<int64_t>(length_);
       isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);

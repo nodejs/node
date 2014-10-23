@@ -698,7 +698,7 @@ class ContextifyScript : public BaseObject {
   }
 
 
-  ~ContextifyScript() {
+  ~ContextifyScript() override {
     script_.Reset();
   }
 };

@@ -71,7 +71,7 @@ class Connection;
 
 class SecureContext : public BaseObject {
  public:
-  ~SecureContext() {
+  ~SecureContext() override {
     FreeCTXMem();
   }
 
@@ -271,7 +271,7 @@ class SSLWrap {
 // assumes that any args.This() called will be the handle from Connection.
 class Connection : public SSLWrap<Connection>, public AsyncWrap {
  public:
-  ~Connection() {
+  ~Connection() override {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sniObject_.Reset();
     sniContext_.Reset();
@@ -361,7 +361,7 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
 
 class CipherBase : public BaseObject {
  public:
-  ~CipherBase() {
+  ~CipherBase() override {
     if (!initialised_)
       return;
     delete[] auth_tag_;
@@ -425,7 +425,7 @@ class CipherBase : public BaseObject {
 
 class Hmac : public BaseObject {
  public:
-  ~Hmac() {
+  ~Hmac() override {
     if (!initialised_)
       return;
     HMAC_CTX_cleanup(&ctx_);
@@ -458,7 +458,7 @@ class Hmac : public BaseObject {
 
 class Hash : public BaseObject {
  public:
-  ~Hash() {
+  ~Hash() override {
     if (!initialised_)
       return;
     EVP_MD_CTX_cleanup(&mdctx_);
@@ -505,7 +505,7 @@ class SignBase : public BaseObject {
         initialised_(false) {
   }
 
-  ~SignBase() {
+  ~SignBase() override {
     if (!initialised_)
       return;
     EVP_MD_CTX_cleanup(&mdctx_);
@@ -598,7 +598,7 @@ class PublicKeyCipher {
 
 class DiffieHellman : public BaseObject {
  public:
-  ~DiffieHellman() {
+  ~DiffieHellman() override {
     if (dh != nullptr) {
       DH_free(dh);
     }
@@ -644,7 +644,7 @@ class DiffieHellman : public BaseObject {
 
 class ECDH : public BaseObject {
  public:
-  ~ECDH() {
+  ~ECDH() override {
     if (key_ != nullptr)
       EC_KEY_free(key_);
     key_ = nullptr;

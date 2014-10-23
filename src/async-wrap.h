@@ -61,7 +61,7 @@ class AsyncWrap : public BaseObject {
                    v8::Handle<v8::Object> object,
                    ProviderType provider);
 
-  inline virtual ~AsyncWrap() = default;
+  inline virtual ~AsyncWrap() override = default;
 
   inline bool has_async_listener();
 
