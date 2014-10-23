@@ -174,7 +174,7 @@ class Parser : public BaseObject {
   }
 
 
-  ~Parser() {
+  ~Parser() override {
     ClearWrap(object());
     persistent().Reset();
   }

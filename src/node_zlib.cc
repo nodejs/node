@@ -93,7 +93,7 @@ class ZCtx : public AsyncWrap {
   }
 
 
-  ~ZCtx() {
+  ~ZCtx() override {
     CHECK_EQ(false, write_in_progress_ && "write in progress");
     Close();
   }

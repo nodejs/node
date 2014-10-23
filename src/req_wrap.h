@@ -45,7 +45,7 @@ class ReqWrap : public AsyncWrap {
   }
 
 
-  ~ReqWrap() {
+  ~ReqWrap() override {
     QUEUE_REMOVE(&req_wrap_queue_);
     // Assert that someone has called Dispatched()
     CHECK_EQ(req_.data, this);

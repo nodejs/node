@@ -4254,7 +4254,7 @@ class PBKDF2Request : public AsyncWrap {
       FatalError("node::PBKDF2Request()", "Out of Memory");
   }
 
-  ~PBKDF2Request() {
+  ~PBKDF2Request() override {
     persistent().Reset();
   }
 
@@ -4504,7 +4504,7 @@ class RandomBytesRequest : public AsyncWrap {
       FatalError("node::RandomBytesRequest()", "Out of Memory");
   }
 
-  ~RandomBytesRequest() {
+  ~RandomBytesRequest() override {
     persistent().Reset();
   }
 

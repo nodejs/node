@@ -46,7 +46,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
                      public StreamWrapCallbacks,
                      public AsyncWrap {
  public:
-  ~TLSCallbacks();
+  ~TLSCallbacks() override;
 
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
