@@ -30,6 +30,9 @@ if (os.type() != 'SunOS') {
   process.exit(0);
 }
 
+function LanguageH(chapter) { this.OBEY = 'CHAPTER ' + parseInt(chapter, 10); }
+var obj = new LanguageH(1);
+
 /*
  * Now we're going to fork ourselves to gcore
  */
@@ -43,9 +46,6 @@ var args = [ corefile ];
 
 if (process.env.MDB_LIBRARY_PATH && process.env.MDB_LIBRARY_PATH != '')
   args = args.concat([ '-L', process.env.MDB_LIBRARY_PATH ]);
-
-function LanguageH(chapter) { this.OBEY = 'CHAPTER ' + parseInt(chapter, 10); }
-var obj = new LanguageH(1);
 
 gcore.stderr.on('data', function (data) {
   console.log('gcore: ' + data);
@@ -68,7 +68,7 @@ gcore.on('exit', function (code) {
     }
 
     var lines = output.split('\n');
-    var found = 0, i, expected = 'OBEY: "' + obj.OBEY + '"', nexpected = 2;
+    var found = 0, i, expected = '"OBEY": "' + obj.OBEY + '"', nexpected = 2;
 
     for (var i = 0; i < lines.length; i++) {
       if (lines[i].indexOf(expected) != -1)

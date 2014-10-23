@@ -22,6 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
+var path = require('path');
 var util = require('util');
 
 if (os.type() != 'SunOS') {
@@ -107,7 +108,7 @@ dtrace.on('exit', function (code) {
     }
 
     var sentinel = '<anonymous> (as ';
-    var arg1 = '    arg1: ';
+    var arg1 = '          arg1: ';
     var lines = output.split('\n');
     var matched = 0;
     var straddr = undefined;
