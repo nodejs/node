@@ -30,7 +30,7 @@ namespace node {
 class BaseObject {
  public:
   BaseObject(Environment* env, v8::Local<v8::Object> handle);
-  ~BaseObject();
+  virtual ~BaseObject();
 
   // Returns the wrapped object.  Returns an empty handle when
   // persistent.IsEmpty() is true.
