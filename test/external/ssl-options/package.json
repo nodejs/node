@@ -1,0 +1,15 @@
+{
+  "name": "ssl-options-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^0.9.0",
+    "debug": "^2.1.0"
+  }
+}
