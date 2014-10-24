@@ -57,7 +57,11 @@ class HandleWrap : public AsyncWrap {
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  inline uv_handle_t* GetHandle() { return handle__; }
+  static inline bool IsAlive(const HandleWrap* wrap) {
+    return wrap != nullptr && wrap->GetHandle() != nullptr;
+  }
+
+  inline uv_handle_t* GetHandle() const { return handle__; }
 
  protected:
   HandleWrap(Environment* env,
