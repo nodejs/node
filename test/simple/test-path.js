@@ -321,7 +321,7 @@ if (isWindows) {
        [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
        [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
        [['d:/ignore', 'd:some/dir//'], 'd:\\ignore\\some\\dir'],
-       [['.'], process.cwd()],
+       [['.'], path.normalize(process.cwd())],
        [['//server/share', '..', 'relative\\'], '\\\\server\\share\\relative'],
        [['c:/', '//'], 'c:\\'],
        [['c:/', '//dir'], 'c:\\dir'],

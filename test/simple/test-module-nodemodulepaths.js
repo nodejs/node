@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var path = require('path');
 
 var module = require('module');
 
@@ -29,7 +30,7 @@ var isWindows = process.platform === 'win32';
 var file, delimiter, paths;
 
 if (isWindows) {
-  file = 'C:\\Users\\Rocko Artischocko\\node_stuff\\foo';
+  file = path.normalize('C:\\Users\\Rocko Artischocko\\node_stuff\\foo');
   delimiter = '\\'
 } else {
   file = '/usr/test/lib/node_modules/npm/foo';
