@@ -59,7 +59,7 @@ and SSLv2 by setting the `secureOptions` to be
 `SSL_OP_NO_SSLv3|SSL_OP_NO_SSLv2` (again, unless you have passed
 `--enable-ssl3`, or `--enable-ssl2`, or `SSLv3_method` as `secureProtocol`).
 
-If you have set `securityOptions` to anything, we will not override your
+If you have set `secureOptions` to anything, we will not override your
 options.
 
 The ramifications of this behavior change:
