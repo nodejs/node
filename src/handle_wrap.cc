@@ -43,7 +43,7 @@ using v8::Value;
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
-  if (wrap != nullptr && wrap->handle__ != nullptr) {
+  if (IsAlive(wrap)) {
     uv_ref(wrap->handle__);
     wrap->flags_ &= ~kUnref;
   }
@@ -53,7 +53,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
-  if (wrap != nullptr && wrap->handle__ != nullptr) {
+  if (IsAlive(wrap)) {
     uv_unref(wrap->handle__);
     wrap->flags_ |= kUnref;
   }
@@ -66,7 +66,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
   // guard against uninitialized handle or double close
-  if (wrap == nullptr || wrap->handle__ == nullptr)
+  if (!IsAlive(wrap))
     return;
 
   CHECK_EQ(false, wrap->persistent().IsEmpty());

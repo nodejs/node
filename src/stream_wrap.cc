@@ -90,6 +90,9 @@ void StreamWrap::UpdateWriteQueueSize() {
 
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
+
   int err = uv_read_start(wrap->stream(), OnAlloc, OnRead);
   args.GetReturnValue().Set(err);
 }
@@ -97,6 +100,8 @@ void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
 
 void StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
   int err = uv_read_stop(wrap->stream());
   args.GetReturnValue().Set(err);
 }
@@ -183,6 +188,8 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
 
   CHECK(args[0]->IsObject());
   CHECK(Buffer::HasInstance(args[1]));
@@ -240,6 +247,8 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -367,6 +376,8 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsArray());
@@ -493,6 +504,8 @@ void StreamWrap::WriteBinaryString(const FunctionCallbackInfo<Value>& args) {
 
 void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
   CHECK_GT(args.Length(), 0);
   int err = uv_stream_set_blocking(wrap->stream(), args[0]->IsTrue());
   args.GetReturnValue().Set(err);
@@ -537,6 +550,8 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  if (!IsAlive(wrap))
+    return args.GetReturnValue().Set(UV_EINVAL);
 
   CHECK(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();
