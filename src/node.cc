@@ -2418,7 +2418,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Local<Array> envarr = Array::New(env->isolate());
   WCHAR* p = environment;
   int i = 0;
-  while (*p != nullptr) {
+  while (*p) {
     WCHAR *s;
     if (*p == L'=') {
       // If the key starts with '=' it is a hidden environment variable.
