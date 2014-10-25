@@ -36,18 +36,15 @@ class TaskQueue {
   v8::Task* Shift();
 
  private:
-  static const unsigned int kRingSize = 1024;
-  static const unsigned int kRingMask = kRingSize - 1;
-
-  static_assert(kRingSize == (kRingSize & ~kRingMask),
-                "kRingSize is not a power of two");
-
-  uv_sem_t sem_;
-  uv_cond_t cond_;
+  static unsigned int next(unsigned int n);
+  bool can_read() const;
+  bool can_write() const;
+  uv_cond_t read_cond_;
+  uv_cond_t write_cond_;
   uv_mutex_t mutex_;
   unsigned int read_off_;
   unsigned int write_off_;
-  v8::Task* ring_[kRingSize];
+  v8::Task* ring_[1024];
 };
 
 class Platform : public v8::Platform {
