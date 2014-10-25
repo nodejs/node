@@ -98,12 +98,9 @@ void Platform::WorkerBody(void* arg) {
 TaskQueue::TaskQueue() {
   int err;
 
-  static_assert(kRingSize == (kRingSize & (~(kRingSize - 1))),
-                "kRingSize is not a power of two");
+  for (size_t i = 0; i < ARRAY_SIZE(ring_); i += 1)
+    ring_[i] = nullptr;
 
-  size_ = kRingSize;
-  ring_ = new Task*[size_];
-  mask_ = size_ - 1;
   read_off_ = 0;
   write_off_ = 0;
 
@@ -120,9 +117,6 @@ TaskQueue::TaskQueue() {
 
 TaskQueue::~TaskQueue() {
   CHECK_EQ(read_off_, write_off_);
-
-  delete[] ring_;
-  ring_ = nullptr;
   uv_sem_destroy(&sem_);
   uv_cond_destroy(&cond_);
   uv_mutex_destroy(&mutex_);
@@ -138,7 +132,7 @@ void TaskQueue::Push(Task* task) {
 
   ring_[write_off_] = task;
   write_off_++;
-  write_off_ &= mask_;
+  write_off_ &= kRingMask;
   uv_mutex_unlock(&mutex_);
 
   uv_sem_post(&sem_);
@@ -154,7 +148,7 @@ Task* TaskQueue::Shift() {
   uv_cond_signal(&cond_);
 
   read_off_++;
-  read_off_ &= mask_;
+  read_off_ &= kRingMask;
   uv_mutex_unlock(&mutex_);
 
   return task;
