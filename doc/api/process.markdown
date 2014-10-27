@@ -172,7 +172,7 @@ emulation with `process.kill()`, and `child_process.kill()`:
 
 ## process.stdout
 
-A `Writable Stream` to `stdout`.
+A `Writable Stream` to `stdout` (on fd `1`).
 
 Example: the definition of `console.log`
 
@@ -207,7 +207,7 @@ See [the tty docs](tty.html#tty_tty) for more information.
 
 ## process.stderr
 
-A writable stream to stderr.
+A writable stream to stderr (on fd `2`).
 
 `process.stderr` and `process.stdout` are unlike other streams in Node in
 that they cannot be closed (`end()` will throw), they never emit the `finish`
@@ -222,7 +222,7 @@ event and that writes are usually blocking.
 
 ## process.stdin
 
-A `Readable Stream` for stdin. 
+A `Readable Stream` for stdin (on fd `0`).
 
 Example of opening standard input and listening for both events:
 
