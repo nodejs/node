@@ -5,8 +5,8 @@ Evented I/O for V8 javascript.
 
 Prerequisites (Unix only):
 
-    * GCC 4.2 or newer
-    * G++ 4.2 or newer
+    * `gcc` and `g++` 4.8 or newer, or
+    * `clang` and `clang++` 3.3 or newer
     * Python 2.6 or 2.7
     * GNU Make 3.81 or newer
     * libexecinfo (FreeBSD and OpenBSD only)
@@ -32,7 +32,8 @@ make install
 Prerequisites (Windows only):
 
     * Python 2.6 or 2.7
-    * Visual Studio 2010 or 2012
+    * Visual Studio 2013 for Windows Desktop, or
+    * Visual Studio Express 2013 for Windows Desktop
 
 Windows:
 
