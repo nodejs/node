@@ -142,7 +142,7 @@ Task* TaskQueue::Shift() {
 
 
 unsigned int TaskQueue::next(unsigned int n) {
-  return (n + 1) % ARRAY_SIZE(TaskQueue::ring_);
+  return (n + 1) % ARRAY_SIZE(TaskQueue{}.ring_);
 }
 
 
