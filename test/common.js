@@ -37,8 +37,18 @@ if (process.platform === 'win32') {
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
-if (process.env.NODE_COMMON_PIPE)
+
+if (process.env.NODE_COMMON_PIPE) {
   exports.PIPE = process.env.NODE_COMMON_PIPE;
+  // Remove manually, the test runner won't do it
+  // for us like it does for files in test/tmp.
+  try {
+    fs.unlinkSync(exports.PIPE);
+  } catch (e) {
+    // Ignore.
+  }
+}
+
 if (!fs.existsSync(exports.opensslCli))
   exports.opensslCli = false;
 
