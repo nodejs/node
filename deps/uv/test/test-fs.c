@@ -417,12 +417,16 @@ static void rmdir_cb(uv_fs_t* req) {
 
 
 static void readdir_cb(uv_fs_t* req) {
+  uv_dirent_t dent;
   ASSERT(req == &readdir_req);
   ASSERT(req->fs_type == UV_FS_READDIR);
   ASSERT(req->result == 2);
   ASSERT(req->ptr);
-  ASSERT(memcmp(req->ptr, "file1\0file2\0", 12) == 0
-      || memcmp(req->ptr, "file2\0file1\0", 12) == 0);
+
+  while (UV_EOF != uv_fs_readdir_next(req, &dent)) {
+    ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
+    ASSERT(dent.type == UV_DIRENT_FILE || dent.type == UV_DIRENT_UNKNOWN);
+  }
   readdir_cb_count++;
   ASSERT(req->path);
   ASSERT(memcmp(req->path, "test_dir\0", 9) == 0);
@@ -432,10 +436,13 @@ static void readdir_cb(uv_fs_t* req) {
 
 
 static void empty_readdir_cb(uv_fs_t* req) {
+  uv_dirent_t dent;
+
   ASSERT(req == &readdir_req);
   ASSERT(req->fs_type == UV_FS_READDIR);
   ASSERT(req->result == 0);
   ASSERT(req->ptr == NULL);
+  ASSERT(UV_EOF == uv_fs_readdir_next(req, &dent));
   uv_fs_req_cleanup(req);
   readdir_cb_count++;
 }
@@ -802,6 +809,7 @@ TEST_IMPL(fs_file_write_null_buffer) {
 
 TEST_IMPL(fs_async_dir) {
   int r;
+  uv_dirent_t dent;
 
   /* Setup */
   unlink("test_dir/file1");
@@ -844,8 +852,10 @@ TEST_IMPL(fs_async_dir) {
   ASSERT(r == 2);
   ASSERT(readdir_req.result == 2);
   ASSERT(readdir_req.ptr);
-  ASSERT(memcmp(readdir_req.ptr, "file1\0file2\0", 12) == 0
-      || memcmp(readdir_req.ptr, "file2\0file1\0", 12) == 0);
+  while (UV_EOF != uv_fs_readdir_next(&readdir_req, &dent)) {
+    ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
+    ASSERT(dent.type == UV_DIRENT_FILE || dent.type == UV_DIRENT_UNKNOWN);
+  }
   uv_fs_req_cleanup(&readdir_req);
   ASSERT(!readdir_req.ptr);
 
@@ -1521,6 +1531,7 @@ TEST_IMPL(fs_symlink_dir) {
   uv_fs_t req;
   int r;
   char* test_dir;
+  uv_dirent_t dent;
 
   /* set-up */
   unlink("test_dir/file1");
@@ -1597,8 +1608,10 @@ TEST_IMPL(fs_symlink_dir) {
   ASSERT(r == 2);
   ASSERT(readdir_req.result == 2);
   ASSERT(readdir_req.ptr);
-  ASSERT(memcmp(readdir_req.ptr, "file1\0file2\0", 12) == 0
-      || memcmp(readdir_req.ptr, "file2\0file1\0", 12) == 0);
+  while (UV_EOF != uv_fs_readdir_next(&readdir_req, &dent)) {
+    ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
+    ASSERT(dent.type == UV_DIRENT_FILE || dent.type == UV_DIRENT_UNKNOWN);
+  }
   uv_fs_req_cleanup(&readdir_req);
   ASSERT(!readdir_req.ptr);
 
@@ -1615,8 +1628,10 @@ TEST_IMPL(fs_symlink_dir) {
   ASSERT(r == 2);
   ASSERT(readdir_req.result == 2);
   ASSERT(readdir_req.ptr);
-  ASSERT(memcmp(readdir_req.ptr, "file1\0file2\0", 12) == 0
-      || memcmp(readdir_req.ptr, "file2\0file1\0", 12) == 0);
+  while (UV_EOF != uv_fs_readdir_next(&readdir_req, &dent)) {
+    ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
+    ASSERT(dent.type == UV_DIRENT_FILE || dent.type == UV_DIRENT_UNKNOWN);
+  }
   uv_fs_req_cleanup(&readdir_req);
   ASSERT(!readdir_req.ptr);
 
@@ -1793,6 +1808,7 @@ TEST_IMPL(fs_stat_missing_path) {
 TEST_IMPL(fs_readdir_empty_dir) {
   const char* path;
   uv_fs_t req;
+  uv_dirent_t dent;
   int r;
 
   path = "./empty_dir/";
@@ -1801,10 +1817,14 @@ TEST_IMPL(fs_readdir_empty_dir) {
   uv_fs_mkdir(loop, &req, path, 0777, NULL);
   uv_fs_req_cleanup(&req);
 
+  /* Fill the req to ensure that required fields are cleaned up */
+  memset(&req, 0xdb, sizeof(req));
+
   r = uv_fs_readdir(loop, &req, path, 0, NULL);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
   ASSERT(req.ptr == NULL);
+  ASSERT(UV_EOF == uv_fs_readdir_next(&req, &dent));
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_readdir(loop, &readdir_req, path, 0, empty_readdir_cb);

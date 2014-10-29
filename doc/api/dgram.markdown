@@ -21,14 +21,9 @@ You have to change it to this:
     });
 
 
-## dgram.createSocket(type, [callback])
-## dgram.createSocket(options, [callback])
+## dgram.createSocket(type[, callback])
 
 * `type` String. Either 'udp4' or 'udp6'
-* `options` Object. Should contain a `type` property and could contain
-  `reuseAddr` property. `false` by default.
-  When `reuseAddr` is `true` - `socket.bind()` will reuse address, even if the
-  other process has already bound a socket on it.
 * `callback` Function. Attached as a listener to `message` events.
   Optional
 * Returns: Socket object
@@ -38,9 +33,28 @@ and `udp6`.
 
 Takes an optional callback which is added as a listener for `message` events.
 
-Call `socket.bind` if you want to receive datagrams. `socket.bind()` will bind
-to the "all interfaces" address on a random port (it does the right thing for
-both `udp4` and `udp6` sockets). You can then retrieve the address and port
+Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
+bind to the "all interfaces" address on a random port (it does the right thing
+for both `udp4` and `udp6` sockets). You can then retrieve the address and port
+with `socket.address().address` and `socket.address().port`.
+
+## dgram.createSocket(options[, callback])
+* `options` Object
+* `callback` Function. Attached as a listener to `message` events.
+* Returns: Socket object
+
+The `options` object should contain a `type` field of either `udp4` or `udp6`
+and an optional boolean `reuseAddr` field.
+
+When `reuseAddr` is true `socket.bind()` will reuse the address, even if
+another process has already bound a socket on it. `reuseAddr` defaults to
+`false`.
+
+Takes an optional callback which is added as a listener for `message` events.
+
+Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
+bind to the "all interfaces" address on a random port (it does the right thing
+for both `udp4` and `udp6` sockets). You can then retrieve the address and port
 with `socket.address().address` and `socket.address().port`.
 
 ## Class: dgram.Socket
@@ -77,7 +91,7 @@ on this socket.
 
 Emitted when an error occurs.
 
-### socket.send(buf, offset, length, port, address, [callback])
+### socket.send(buf, offset, length, port, address[, callback])
 
 * `buf` Buffer object or string.  Message to be sent
 * `offset` Integer. Offset in the buffer where the message starts.
@@ -142,7 +156,7 @@ a packet might travel, and that generally sending a datagram greater than
 the (receiver) `MTU` won't work (the packet gets silently dropped, without
 informing the source that the data did not reach its intended recipient).
 
-### socket.bind(port, [address], [callback])
+### socket.bind(port[, address][, callback])
 
 * `port` Integer
 * `address` String, Optional
@@ -188,7 +202,7 @@ Example of a UDP server listening on port 41234:
     // server listening 0.0.0.0:41234
 
 
-### socket.bind(options, [callback])
+### socket.bind(options[, callback])
 
 * `options` {Object} - Required. Supports the following properties:
   * `port` {Number} - Required.
@@ -262,7 +276,7 @@ systems is 1.
 Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
 packets will also be received on the local interface.
 
-### socket.addMembership(multicastAddress, [multicastInterface])
+### socket.addMembership(multicastAddress[, multicastInterface])
 
 * `multicastAddress` String
 * `multicastInterface` String, Optional
@@ -272,7 +286,7 @@ Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket optio
 If `multicastInterface` is not specified, the OS will try to add membership to all valid
 interfaces.
 
-### socket.dropMembership(multicastAddress, [multicastInterface])
+### socket.dropMembership(multicastAddress[, multicastInterface])
 
 * `multicastAddress` String
 * `multicastInterface` String, Optional

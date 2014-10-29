@@ -36,6 +36,7 @@ function EQUALS(y) {
       while (true) {
         if (IS_NUMBER(y)) return %NumberEquals(x, y);
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (IS_SYMBOL(y)) return 1;  // not equal
         if (!IS_SPEC_OBJECT(y)) {
           // String or boolean.
           return %NumberEquals(x, %ToNumber(y));
@@ -501,7 +502,7 @@ function ToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) return NAN;
+  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -512,7 +513,7 @@ function NonNumberToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) return NAN;
+  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -562,6 +563,14 @@ function ToInteger(x) {
 }
 
 
+// ES6, draft 08-24-14, section 7.1.15
+function ToLength(arg) {
+  arg = ToInteger(arg);
+  if (arg < 0) return 0;
+  return arg < $Number.MAX_SAFE_INTEGER ? arg : $Number.MAX_SAFE_INTEGER;
+}
+
+
 // ECMA-262, section 9.6, page 34.
 function ToUint32(x) {
   if (%_IsSmi(x) && x >= 0) return x;
@@ -607,35 +616,37 @@ function IsPrimitive(x) {
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
-  var valueOf = x.valueOf;
-  if (IS_SPEC_FUNCTION(valueOf)) {
-    var v = %_CallFunction(x, valueOf);
-    if (%IsPrimitive(v)) return v;
-  }
+  if (!IS_SYMBOL_WRAPPER(x)) {
+    var valueOf = x.valueOf;
+    if (IS_SPEC_FUNCTION(valueOf)) {
+      var v = %_CallFunction(x, valueOf);
+      if (%IsPrimitive(v)) return v;
+    }
 
-  var toString = x.toString;
-  if (IS_SPEC_FUNCTION(toString)) {
-    var s = %_CallFunction(x, toString);
-    if (%IsPrimitive(s)) return s;
+    var toString = x.toString;
+    if (IS_SPEC_FUNCTION(toString)) {
+      var s = %_CallFunction(x, toString);
+      if (%IsPrimitive(s)) return s;
+    }
   }
-
   throw %MakeTypeError('cannot_convert_to_primitive', []);
 }
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultString(x) {
-  var toString = x.toString;
-  if (IS_SPEC_FUNCTION(toString)) {
-    var s = %_CallFunction(x, toString);
-    if (%IsPrimitive(s)) return s;
-  }
+  if (!IS_SYMBOL_WRAPPER(x)) {
+    var toString = x.toString;
+    if (IS_SPEC_FUNCTION(toString)) {
+      var s = %_CallFunction(x, toString);
+      if (%IsPrimitive(s)) return s;
+    }
 
-  var valueOf = x.valueOf;
-  if (IS_SPEC_FUNCTION(valueOf)) {
-    var v = %_CallFunction(x, valueOf);
-    if (%IsPrimitive(v)) return v;
+    var valueOf = x.valueOf;
+    if (IS_SPEC_FUNCTION(valueOf)) {
+      var v = %_CallFunction(x, valueOf);
+      if (%IsPrimitive(v)) return v;
+    }
   }
-
   throw %MakeTypeError('cannot_convert_to_primitive', []);
 }
 

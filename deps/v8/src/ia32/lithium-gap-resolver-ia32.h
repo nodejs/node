@@ -5,9 +5,9 @@
 #ifndef V8_IA32_LITHIUM_GAP_RESOLVER_IA32_H_
 #define V8_IA32_LITHIUM_GAP_RESOLVER_IA32_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "lithium.h"
+#include "src/lithium.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ namespace internal {
 class LCodeGen;
 class LGapResolver;
 
-class LGapResolver V8_FINAL BASE_EMBEDDED {
+class LGapResolver FINAL BASE_EMBEDDED {
  public:
   explicit LGapResolver(LCodeGen* owner);
 

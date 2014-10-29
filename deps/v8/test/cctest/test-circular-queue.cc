@@ -27,15 +27,16 @@
 //
 // Tests of the circular queue.
 
-#include "v8.h"
-#include "circular-queue-inl.h"
-#include "cctest.h"
+#include "src/v8.h"
+
+#include "src/circular-queue-inl.h"
+#include "test/cctest/cctest.h"
 
 using i::SamplingCircularQueue;
 
 
 TEST(SamplingCircularQueue) {
-  typedef i::AtomicWord Record;
+  typedef v8::base::AtomicWord Record;
   const int kMaxRecordsInQueue = 4;
   SamplingCircularQueue<Record, kMaxRecordsInQueue> scq;
 
@@ -99,20 +100,18 @@ TEST(SamplingCircularQueue) {
 
 namespace {
 
-typedef i::AtomicWord Record;
+typedef v8::base::AtomicWord Record;
 typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
 
-class ProducerThread: public i::Thread {
+class ProducerThread: public v8::base::Thread {
  public:
-  ProducerThread(TestSampleQueue* scq,
-                 int records_per_chunk,
-                 Record value,
-                 i::Semaphore* finished)
-      : Thread("producer"),
+  ProducerThread(TestSampleQueue* scq, int records_per_chunk, Record value,
+                 v8::base::Semaphore* finished)
+      : Thread(Options("producer")),
         scq_(scq),
         records_per_chunk_(records_per_chunk),
         value_(value),
-        finished_(finished) { }
+        finished_(finished) {}
 
   virtual void Run() {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {
@@ -129,7 +128,7 @@ class ProducerThread: public i::Thread {
   TestSampleQueue* scq_;
   const int records_per_chunk_;
   Record value_;
-  i::Semaphore* finished_;
+  v8::base::Semaphore* finished_;
 };
 
 }  // namespace
@@ -142,7 +141,7 @@ TEST(SamplingCircularQueueMultithreading) {
 
   const int kRecordsPerChunk = 4;
   TestSampleQueue scq;
-  i::Semaphore semaphore(0);
+  v8::base::Semaphore semaphore(0);
 
   ProducerThread producer1(&scq, kRecordsPerChunk, 1, &semaphore);
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, &semaphore);

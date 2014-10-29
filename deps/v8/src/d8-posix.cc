@@ -2,23 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-#include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
+#include <unistd.h>
 
+#include "src/d8.h"
 
-#include "d8.h"
-#include "d8-debug.h"
-#include "debug.h"
-
+#if !V8_OS_NACL
+#include <sys/select.h>
+#endif
 
 namespace v8 {
 
@@ -83,7 +82,7 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
 static bool WaitOnFD(int fd,
                      int read_timeout,
                      int total_timeout,
-                     struct timeval& start_time) {
+                     const struct timeval& start_time) {
   fd_set readfds, writefds, exceptfds;
   struct timeval timeout;
   int gone = 0;
@@ -105,11 +104,16 @@ static bool WaitOnFD(int fd,
   }
   timeout.tv_usec = (read_timeout % 1000) * 1000;
   timeout.tv_sec = read_timeout / 1000;
+#if V8_OS_NACL
+  // PNaCL has no support for select.
+  int number_of_fds_ready = -1;
+#else
   int number_of_fds_ready = select(fd + 1,
                                    &readfds,
                                    &writefds,
                                    &exceptfds,
                                    read_timeout != -1 ? &timeout : NULL);
+#endif
   return number_of_fds_ready == 1;
 }
 
@@ -206,8 +210,8 @@ class ExecArgs {
     }
   }
   static const unsigned kMaxArgs = 1000;
-  char** arg_array() { return exec_args_; }
-  char* arg0() { return exec_args_[0]; }
+  char* const* arg_array() const { return exec_args_; }
+  const char* arg0() const { return exec_args_[0]; }
 
  private:
   char* exec_args_[kMaxArgs + 1];
@@ -249,7 +253,7 @@ static const int kWriteFD = 1;
 // It only returns if an error occurred.
 static void ExecSubprocess(int* exec_error_fds,
                            int* stdout_fds,
-                           ExecArgs& exec_args) {
+                           const ExecArgs& exec_args) {
   close(exec_error_fds[kReadFD]);  // Don't need this in the child.
   close(stdout_fds[kReadFD]);      // Don't need this in the child.
   close(1);                        // Close stdout.
@@ -288,7 +292,7 @@ static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
 // succeeded or false if an exception was thrown.
 static Handle<Value> GetStdout(Isolate* isolate,
                                int child_fd,
-                               struct timeval& start_time,
+                               const struct timeval& start_time,
                                int read_timeout,
                                int total_timeout) {
   Handle<String> accumulator = String::Empty(isolate);
@@ -360,8 +364,8 @@ static Handle<Value> GetStdout(Isolate* isolate,
 // Get exit status of child.
 static bool WaitForChild(Isolate* isolate,
                          int pid,
-                         ZombieProtector& child_waiter,
-                         struct timeval& start_time,
+                         ZombieProtector& child_waiter,  // NOLINT
+                         const struct timeval& start_time,
                          int read_timeout,
                          int total_timeout) {
 #ifdef HAS_WAITID
@@ -550,8 +554,12 @@ void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   if (args[0]->IsNumber()) {
-    mode_t mask = args[0]->Int32Value();
-    int previous = umask(mask);
+#if V8_OS_NACL
+    // PNaCL has no support for umask.
+    int previous = 0;
+#else
+    int previous = umask(args[0]->Int32Value());
+#endif
     args.GetReturnValue().Set(previous);
     return;
   } else {

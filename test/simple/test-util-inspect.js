@@ -235,3 +235,12 @@ assert.equal(util.inspect(bool), '{ [Boolean: true] foo: \'bar\' }');
 var num = new Number(13.37);
 num.foo = 'bar';
 assert.equal(util.inspect(num), '{ [Number: 13.37] foo: \'bar\' }');
+
+// test es6 Symbol
+if (typeof Symbol !== 'undefined') {
+  assert.equal(util.inspect(Symbol()), 'Symbol()');
+  assert.equal(util.inspect(Symbol(123)), 'Symbol(123)');
+  assert.equal(util.inspect(Symbol('hi')), 'Symbol(hi)');
+  assert.equal(util.inspect([Symbol()]), '[ Symbol() ]');
+  assert.equal(util.inspect({ foo: Symbol() }), '{ foo: Symbol() }');
+}

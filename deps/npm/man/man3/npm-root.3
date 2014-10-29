@@ -1,24 +1,19 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
-.
 .TH "NPM\-ROOT" "3" "September 2014" "" ""
-.
 .SH "NAME"
-\fBnpm-root\fR \-\- Display npm root
-.
-.SH "SYNOPSIS"
-.
-.nf
-npm\.commands\.root(args, callback)
-.
-.fi
-.
-.SH "DESCRIPTION"
-Print the effective \fBnode_modules\fR folder to standard out\.
-.
+\fBnpm-root\fR \- Display npm root
+.SH SYNOPSIS
 .P
-\'args\' is never used and callback is never called with data\.
-\'args\' must be present or things will break\.
-.
+.RS 2
+.EX
+npm\.commands\.root(args, callback)
+.EE
+.RE
+.SH DESCRIPTION
+.P
+Print the effective \fBnode_modules\fR folder to standard out\.
+.P
+\|'args' is never used and callback is never called with data\.
+\|'args' must be present or things will break\.
 .P
 This function is not useful programmatically\.
+

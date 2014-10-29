@@ -87,8 +87,6 @@ const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
 const int kNumSafepointSavedRegisters =
     kNumJSCallerSaved + kNumCalleeSaved;
 
-typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
-
 const int kUndefIndex = -1;
 // Map with indexes on stack that corresponds to codes of saved registers.
 const int kSafepointRegisterStackIndexMap[kNumRegs] = {

@@ -28,6 +28,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "queue.h"
+#include "debugger-agent.h"
 
 #include <stdint.h>
 
@@ -72,7 +73,6 @@ namespace node {
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
-  V(byte_length_string, "byteLength")                                         \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(close_string, "close")                                                    \
@@ -357,11 +357,38 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  typedef void (*HandleCleanupCb)(Environment* env,
+                                  uv_handle_t* handle,
+                                  void* arg);
+
+  class HandleCleanup {
+   private:
+    friend class Environment;
+
+    HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
+        : handle_(handle),
+          cb_(cb),
+          arg_(arg) {
+      QUEUE_INIT(&handle_cleanup_queue_);
+    }
+
+    uv_handle_t* handle_;
+    HandleCleanupCb cb_;
+    void* arg_;
+    QUEUE handle_cleanup_queue_;
+  };
+
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
+  static inline Environment* GetCurrent(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static inline Environment* GetCurrent(
+      const v8::PropertyCallbackInfo<v8::Value>& info);
 
   // See CreateEnvironment() in src/node.cc.
-  static inline Environment* New(v8::Local<v8::Context> context);
+  static inline Environment* New(v8::Local<v8::Context> context,
+                                 uv_loop_t* loop);
+  inline void CleanupHandles();
   inline void Dispose();
 
   // Defined in src/node_profiler.cc.
@@ -386,6 +413,12 @@ class Environment {
   static inline Environment* from_idle_check_handle(uv_check_t* handle);
   inline uv_check_t* idle_check_handle();
 
+  // Register clean-up cb to be called on env->Dispose()
+  inline void RegisterHandleCleanup(uv_handle_t* handle,
+                                    HandleCleanupCb cb,
+                                    void *arg);
+  inline void FinishHandleCleanup(uv_handle_t* handle);
+
   inline AsyncListener* async_listener();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
@@ -409,18 +442,35 @@ class Environment {
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
   inline void ThrowErrnoException(int errorno,
-                                  const char* syscall = NULL,
-                                  const char* message = NULL,
-                                  const char* path = NULL);
+                                  const char* syscall = nullptr,
+                                  const char* message = nullptr,
+                                  const char* path = nullptr);
   inline void ThrowUVException(int errorno,
-                               const char* syscall = NULL,
-                               const char* message = NULL,
-                               const char* path = NULL);
+                               const char* syscall = nullptr,
+                               const char* message = nullptr,
+                               const char* path = nullptr);
 
   // Convenience methods for contextify
   inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);
   inline static void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
   inline static void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);
+
+  inline v8::Local<v8::FunctionTemplate>
+      NewFunctionTemplate(v8::FunctionCallback callback,
+                          v8::Local<v8::Signature> signature =
+                              v8::Local<v8::Signature>());
+
+  // Convenience methods for NewFunctionTemplate().
+  inline void SetMethod(v8::Local<v8::Object> that,
+                        const char* name,
+                        v8::FunctionCallback callback);
+  inline void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
+                             const char* name,
+                             v8::FunctionCallback callback);
+  inline void SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback);
+
 
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.
@@ -435,12 +485,19 @@ class Environment {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
+  inline debugger::Agent* debugger_agent() {
+    return &debugger_agent_;
+  }
+
+  inline QUEUE* handle_wrap_queue() { return &handle_wrap_queue_; }
+  inline QUEUE* req_wrap_queue() { return &req_wrap_queue_; }
+
  private:
   static const int kIsolateSlot = NODE_ISOLATE_SLOT;
 
   class GCInfo;
   class IsolateData;
-  inline explicit Environment(v8::Local<v8::Context> context);
+  inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
   void AfterGarbageCollectionCallback(const GCInfo* before,
@@ -466,6 +523,14 @@ class Environment {
   bool using_domains_;
   QUEUE gc_tracker_queue_;
   bool printed_error_;
+  debugger::Agent debugger_agent_;
+
+  QUEUE handle_wrap_queue_;
+  QUEUE req_wrap_queue_;
+  QUEUE handle_cleanup_queue_;
+  int handle_cleanup_waiting_;
+
+  v8::Persistent<v8::External> external_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
@@ -495,7 +560,8 @@ class Environment {
   // Per-thread, reference-counted singleton.
   class IsolateData {
    public:
-    static inline IsolateData* GetOrCreate(v8::Isolate* isolate);
+    static inline IsolateData* GetOrCreate(v8::Isolate* isolate,
+                                           uv_loop_t* loop);
     inline void Put();
     inline uv_loop_t* event_loop() const;
 
@@ -510,7 +576,7 @@ class Environment {
 
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
-    inline explicit IsolateData(v8::Isolate* isolate);
+    inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
     inline v8::Isolate* isolate() const;
 
     // Defined in src/node_profiler.cc.

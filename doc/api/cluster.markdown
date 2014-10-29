@@ -415,7 +415,7 @@ exit, the master may choose not to respawn a worker based on this value.
     // kill worker
     worker.kill();
 
-### worker.send(message, [sendHandle])
+### worker.send(message[, sendHandle])
 
 * `message` {Object}
 * `sendHandle` {Handle object}

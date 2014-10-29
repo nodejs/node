@@ -52,16 +52,15 @@
 #define MAX_TITLE_LENGTH 8192
 
 /* The number of nanoseconds in one second. */
-#undef NANOSEC
-#define NANOSEC 1000000000
+#define UV__NANOSEC 1000000000
 
 
 /* Cached copy of the process title, plus a mutex guarding it. */
 static char *process_title;
 static CRITICAL_SECTION process_title_lock;
 
-/* Frequency (ticks per nanosecond) of the high-resolution clock. */
-static double hrtime_frequency_ = 0;
+/* Interval (in seconds) of the high-resolution clock. */
+static double hrtime_interval_ = 0;
 
 
 /*
@@ -73,11 +72,14 @@ void uv__util_init() {
   /* Initialize process title access mutex. */
   InitializeCriticalSection(&process_title_lock);
 
-  /* Retrieve high-resolution timer frequency. */
-  if (QueryPerformanceFrequency(&perf_frequency))
-    hrtime_frequency_ = (double) perf_frequency.QuadPart / (double) NANOSEC;
-  else
-    hrtime_frequency_= 0;
+  /* Retrieve high-resolution timer frequency
+   * and precompute its reciprocal. 
+   */
+  if (QueryPerformanceFrequency(&perf_frequency)) {
+    hrtime_interval_ = 1.0 / perf_frequency.QuadPart;
+  } else {
+    hrtime_interval_= 0;
+  }
 }
 
 
@@ -463,26 +465,27 @@ int uv_get_process_title(char* buffer, size_t size) {
 
 
 uint64_t uv_hrtime(void) {
+  uv__once_init();
+  return uv__hrtime(UV__NANOSEC);
+}
+
+uint64_t uv__hrtime(double scale) {
   LARGE_INTEGER counter;
 
-  uv__once_init();
-
-  /* If the performance frequency is zero, there's no support. */
-  if (hrtime_frequency_ == 0) {
-    /* uv__set_sys_error(loop, ERROR_NOT_SUPPORTED); */
+  /* If the performance interval is zero, there's no support. */
+  if (hrtime_interval_ == 0) {
     return 0;
   }
 
   if (!QueryPerformanceCounter(&counter)) {
-    /* uv__set_sys_error(loop, GetLastError()); */
     return 0;
   }
 
   /* Because we have no guarantee about the order of magnitude of the
-   * performance counter frequency, integer math could cause this computation
+   * performance counter interval, integer math could cause this computation
    * to overflow. Therefore we resort to floating point math.
    */
-  return (uint64_t) ((double) counter.QuadPart / hrtime_frequency_);
+  return (uint64_t) ((double) counter.QuadPart * hrtime_interval_ * scale);
 }
 
 

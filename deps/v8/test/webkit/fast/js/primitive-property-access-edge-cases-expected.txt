@@ -29,15 +29,15 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 PASS checkGet(1, Number) is true
 PASS checkGet('hello', String) is true
 PASS checkGet(true, Boolean) is true
-FAIL checkSet(1, Number) should be true. Was false.
-FAIL checkSet('hello', String) should be true. Was false.
-FAIL checkSet(true, Boolean) should be true. Was false.
+PASS checkSet(1, Number) is true
+PASS checkSet('hello', String) is true
+PASS checkSet(true, Boolean) is true
 PASS checkGetStrict(1, Number) is true
 PASS checkGetStrict('hello', String) is true
 PASS checkGetStrict(true, Boolean) is true
-FAIL checkSetStrict(1, Number) should be true. Was false.
-FAIL checkSetStrict('hello', String) should be true. Was false.
-FAIL checkSetStrict(true, Boolean) should be true. Was false.
+PASS checkSetStrict(1, Number) is true
+PASS checkSetStrict('hello', String) is true
+PASS checkSetStrict(true, Boolean) is true
 PASS checkRead(1, Number) is true
 PASS checkRead('hello', String) is true
 PASS checkRead(true, Boolean) is true
@@ -47,9 +47,9 @@ PASS checkWrite(true, Boolean) is true
 PASS checkReadStrict(1, Number) is true
 PASS checkReadStrict('hello', String) is true
 PASS checkReadStrict(true, Boolean) is true
-FAIL checkWriteStrict(1, Number) should throw an exception. Was true.
-FAIL checkWriteStrict('hello', String) should throw an exception. Was true.
-FAIL checkWriteStrict(true, Boolean) should throw an exception. Was true.
+PASS checkWriteStrict(1, Number) threw exception TypeError: Cannot assign to read only property 'foo' of 1.
+PASS checkWriteStrict('hello', String) threw exception TypeError: Cannot assign to read only property 'foo' of hello.
+PASS checkWriteStrict(true, Boolean) threw exception TypeError: Cannot assign to read only property 'foo' of true.
 PASS checkNumericGet(1, Number) is true
 PASS checkNumericGet('hello', String) is true
 PASS checkNumericGet(true, Boolean) is true

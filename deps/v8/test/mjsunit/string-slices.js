@@ -197,9 +197,9 @@ var a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
 var b = "23456789qwertyuiopasdfghjklzxcvbn"
 assertEquals(a.slice(1,-1), b);
 
-assertTrue(isAsciiString(a));
+assertTrue(isOneByteString(a));
 externalizeString(a, true);
-assertFalse(isAsciiString(a));
+assertFalse(isOneByteString(a));
 
 assertEquals(a.slice(1,-1), b);
 assertTrue(/3456789qwe/.test(a));

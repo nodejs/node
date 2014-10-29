@@ -1,0 +1,14 @@
+include_rules = [
+  "+src",
+  "-src/compiler",
+  "+src/compiler/pipeline.h",
+  "-src/libplatform",
+  "-include/libplatform",
+  "+testing",
+]
+
+specific_include_rules = {
+  "(mksnapshot|d8)\.cc": [
+    "+include/libplatform/libplatform.h",
+  ],
+}

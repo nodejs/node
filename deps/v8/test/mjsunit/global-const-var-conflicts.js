@@ -41,17 +41,20 @@ try { eval("var b"); } catch (e) { caught++; assertTrue(e instanceof TypeError);
 assertEquals(0, b);
 try { eval("var b = 1"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
 assertEquals(0, b);
+assertEquals(0, caught);
 
 eval("var c");
 try { eval("const c"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
 assertTrue(typeof c == 'undefined');
+assertEquals(1, caught);
 try { eval("const c = 1"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertEquals(1, c);
+assertEquals(undefined, c);
+assertEquals(2, caught);
 
 eval("var d = 0");
 try { eval("const d"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertEquals(undefined, d);
+assertEquals(0, d);
+assertEquals(3, caught);
 try { eval("const d = 1"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertEquals(1, d);
-
-assertEquals(0, caught);
+assertEquals(0, d);
+assertEquals(4, caught);

@@ -122,8 +122,7 @@ void InitPerfCounters(Environment* env, Handle<Object> target) {
 
   for (int i = 0; i < ARRAY_SIZE(tab); i++) {
     Local<String> key = OneByteString(env->isolate(), tab[i].name);
-    Local<Value> val =
-        FunctionTemplate::New(env->isolate(), tab[i].func)->GetFunction();
+    Local<Value> val = env->NewFunctionTemplate(tab[i].func)->GetFunction();
     target->Set(key, val);
   }
 

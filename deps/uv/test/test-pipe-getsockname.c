@@ -32,6 +32,8 @@
 
 #ifndef _WIN32
 # include <unistd.h>  /* close */
+#else
+# include <fcntl.h>
 #endif
 
 
@@ -120,3 +122,59 @@ TEST_IMPL(pipe_getsockname_abstract) {
 #endif
 }
 
+TEST_IMPL(pipe_getsockname_blocking) {
+#ifdef _WIN32
+  uv_pipe_t reader;
+  HANDLE readh, writeh;
+  int readfd;
+  char buf1[1024], buf2[1024];
+  size_t len1, len2;
+  int r;
+
+  r = CreatePipe(&readh, &writeh, NULL, 65536);
+  ASSERT(r != 0);
+
+  r = uv_pipe_init(uv_default_loop(), &reader, 0);
+  ASSERT(r == 0);
+  readfd = _open_osfhandle((intptr_t)readh, _O_RDONLY);
+  ASSERT(r != -1);
+  r = uv_pipe_open(&reader, readfd);
+  ASSERT(r == 0);
+  r = uv_read_start((uv_stream_t*)&reader, NULL, NULL);
+  ASSERT(r == 0);
+  Sleep(100);
+  r = uv_read_stop((uv_stream_t*)&reader);
+  ASSERT(r == 0);
+
+  len1 = sizeof buf1;
+  r = uv_pipe_getsockname(&reader, buf1, &len1);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*)&reader, NULL, NULL);
+  ASSERT(r == 0);
+  Sleep(100);
+
+  len2 = sizeof buf2;
+  r = uv_pipe_getsockname(&reader, buf2, &len2);
+  ASSERT(r == 0);
+
+  r = uv_read_stop((uv_stream_t*)&reader);
+  ASSERT(r == 0);
+
+  ASSERT(len1 == len2);
+  ASSERT(memcmp(buf1, buf2, len1) == 0);
+
+  close_cb_called = 0;
+  uv_close((uv_handle_t*)&reader, close_cb);
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT(close_cb_called == 1);
+
+  _close(readfd);
+  CloseHandle(writeh);
+#endif
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

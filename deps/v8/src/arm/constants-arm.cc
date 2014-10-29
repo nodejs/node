@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM
 
-#include "constants-arm.h"
+#include "src/arm/constants-arm.h"
 
 
 namespace v8 {
@@ -28,7 +28,7 @@ double Instruction::DoubleImmedVmov() const {
 
   uint64_t imm = high16 << 48;
   double d;
-  OS::MemCopy(&d, &imm, 8);
+  memcpy(&d, &imm, 8);
   return d;
 }
 
@@ -81,7 +81,7 @@ const char* VFPRegisters::names_[kNumVFPRegisters] = {
 
 
 const char* VFPRegisters::Name(int reg, bool is_double) {
-  ASSERT((0 <= reg) && (reg < kNumVFPRegisters));
+  DCHECK((0 <= reg) && (reg < kNumVFPRegisters));
   return names_[reg + (is_double ? kNumVFPSingleRegisters : 0)];
 }
 

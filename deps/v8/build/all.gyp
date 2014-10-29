@@ -9,7 +9,11 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
+        '../src/base/base.gyp:base-unittests',
+        '../src/compiler/compiler.gyp:compiler-unittests',
         '../src/d8.gyp:d8',
+        '../src/heap/heap.gyp:heap-unittests',
+        '../src/libplatform/libplatform.gyp:libplatform-unittests',
         '../test/cctest/cctest.gyp:*',
       ],
       'conditions': [

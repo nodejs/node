@@ -1482,22 +1482,22 @@ class Code(HeapObject):
 class V8Heap(object):
   CLASS_MAP = {
     "SYMBOL_TYPE": SeqString,
-    "ASCII_SYMBOL_TYPE": SeqString,
+    "ONE_BYTE_SYMBOL_TYPE": SeqString,
     "CONS_SYMBOL_TYPE": ConsString,
-    "CONS_ASCII_SYMBOL_TYPE": ConsString,
+    "CONS_ONE_BYTE_SYMBOL_TYPE": ConsString,
     "EXTERNAL_SYMBOL_TYPE": ExternalString,
-    "EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE": ExternalString,
-    "EXTERNAL_ASCII_SYMBOL_TYPE": ExternalString,
+    "EXTERNAL_SYMBOL_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
+    "EXTERNAL_ONE_BYTE_SYMBOL_TYPE": ExternalString,
     "SHORT_EXTERNAL_SYMBOL_TYPE": ExternalString,
-    "SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE": ExternalString,
-    "SHORT_EXTERNAL_ASCII_SYMBOL_TYPE": ExternalString,
+    "SHORT_EXTERNAL_SYMBOL_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
+    "SHORT_EXTERNAL_ONE_BYTE_SYMBOL_TYPE": ExternalString,
     "STRING_TYPE": SeqString,
-    "ASCII_STRING_TYPE": SeqString,
+    "ONE_BYTE_STRING_TYPE": SeqString,
     "CONS_STRING_TYPE": ConsString,
-    "CONS_ASCII_STRING_TYPE": ConsString,
+    "CONS_ONE_BYTE_STRING_TYPE": ConsString,
     "EXTERNAL_STRING_TYPE": ExternalString,
-    "EXTERNAL_STRING_WITH_ASCII_DATA_TYPE": ExternalString,
-    "EXTERNAL_ASCII_STRING_TYPE": ExternalString,
+    "EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
+    "EXTERNAL_ONE_BYTE_STRING_TYPE": ExternalString,
     "MAP_TYPE": Map,
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
@@ -3103,15 +3103,18 @@ def AnalyzeMinidump(options, minidump_name):
       frame_pointer = reader.ExceptionFP()
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+        ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
+                         for c in reader.ReadBytes(slot, reader.PointerSize())]
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         maybe_symbol = reader.FindSymbol(maybe_address)
         if slot == frame_pointer:
           maybe_symbol = "<---- frame pointer"
           frame_pointer = maybe_address
-        print "%s: %s %s" % (reader.FormatIntPtr(slot),
-                             reader.FormatIntPtr(maybe_address),
-                             maybe_symbol or "")
+        print "%s: %s %s %s" % (reader.FormatIntPtr(slot),
+                                reader.FormatIntPtr(maybe_address),
+                                "".join(ascii_content),
+                                maybe_symbol or "")
         if heap_object:
           heap_object.Print(Printer())
           print

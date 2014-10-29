@@ -5,7 +5,7 @@
 #ifndef V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
 #define V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,7 @@ class ExternalizeStringExtension : public v8::Extension {
       v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsAscii(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOneByte(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   static const char* const kSource;

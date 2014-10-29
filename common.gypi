@@ -1,5 +1,6 @@
 {
   'variables': {
+    'asan%': 0,
     'werror': '',                     # Turn off -Werror in V8 build.
     'visibility%': 'hidden',          # V8's visibility setting
     'target_arch%': 'ia32',           # set v8's target architecture
@@ -11,6 +12,12 @@
     'gcc_version%': 'unknown',
     'clang%': 0,
     'python%': 'python',
+
+    'node_tag%': '',
+    'uv_library%': 'static_library',
+
+    # Default to -O0 for debug builds.
+    'v8_optimized_debug%': 0,
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
@@ -26,10 +33,10 @@
       }],
       ['GENERATOR == "ninja" or OS== "mac"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
-        'V8_BASE': '<(PRODUCT_DIR)/libv8_base.<(target_arch).a',
+        'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }, {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj.target',
-        'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.<(target_arch).a',
+        'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.a',
       }],
     ],
   },
@@ -76,12 +83,6 @@
           ['OS=="solaris"', {
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
-          }],
-          ['clang == 0 and gcc_version >= 40', {
-            'cflags': [ '-fno-tree-vrp' ],  # Work around compiler bug.
-          }],
-          ['clang == 0 and gcc_version <= 44', {
-            'cflags': [ '-fno-tree-sink' ],  # Work around compiler bug.
           }],
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
@@ -153,6 +154,16 @@
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
     'conditions': [
+      ['asan != 0', {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-fsanitize=address',
+          '-w',  # http://crbug.com/162783
+        ],
+        'cflags_cc+': [ '-gline-tables-only' ],
+        'cflags!': [ '-fomit-frame-pointer' ],
+        'ldflags': [ '-fsanitize=address' ],
+      }],
       ['OS == "win"', {
         'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
         'defines': [
@@ -173,7 +184,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           ['_type=="static_library"', {
@@ -184,6 +195,10 @@
           [ 'target_arch=="ia32"', {
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
+          }],
+          [ 'target_arch=="x32"', {
+            'cflags': [ '-mx32' ],
+            'ldflags': [ '-mx32' ],
           }],
           [ 'target_arch=="x64"', {
             'cflags': [ '-m64' ],
@@ -236,6 +251,12 @@
           }],
           ['target_arch=="x64"', {
             'xcode_settings': {'ARCHS': ['x86_64']},
+          }],
+          ['clang==1', {
+            'xcode_settings': {
+              'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
+            },
           }],
         ],
       }],

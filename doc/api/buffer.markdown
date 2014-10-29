@@ -72,7 +72,13 @@ will be thrown here.
 
 Allocates a new buffer using an `array` of octets.
 
-### new Buffer(str, [encoding])
+### new Buffer(buffer)
+
+* `buffer` {Buffer}
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
+### new Buffer(str[, encoding])
 
 * `str` String - string to encode.
 * `encoding` String - encoding to use, Optional.
@@ -94,7 +100,7 @@ otherwise.
 
 Tests if `obj` is a `Buffer`.
 
-### Class Method: Buffer.byteLength(string, [encoding])
+### Class Method: Buffer.byteLength(string[, encoding])
 
 * `string` String
 * `encoding` String, Optional, Default: 'utf8'
@@ -113,7 +119,7 @@ Example:
 
     // ½ + ¼ = ¾: 9 characters, 12 bytes
 
-### Class Method: Buffer.concat(list, [totalLength])
+### Class Method: Buffer.concat(list[, totalLength])
 
 * `list` {Array} List of Buffer objects to concat
 * `totalLength` {Number} Total length of the buffers when concatenated
@@ -162,7 +168,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
     // 1234
     // 1234
 
-### buf.write(string, [offset], [length], [encoding])
+### buf.write(string[, offset][, length][, encoding])
 
 * `string` String - data to be written to buffer
 * `offset` Number, Optional, Default: 0
@@ -180,8 +186,50 @@ The method will not write partial characters.
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
+### buf.writeUIntLE(value, offset, byteLength[, noAssert])
+### buf.writeUIntBE(value, offset, byteLength[, noAssert])
+### buf.writeIntLE(value, offset, byteLength[, noAssert])
+### buf.writeIntBE(value, offset, byteLength[, noAssert])
 
-### buf.toString([encoding], [start], [end])
+* `value` {Number} Bytes to be written to buffer
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+Writes `value` to the buffer at the specified `offset` and `byteLength`.
+Supports up to 48 bits of accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUIntBE(0x1234567890ab, 0, 6);
+    // <Buffer 12 34 56 78 90 ab>
+
+Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
+to `false`.
+
+### buf.readUIntLE(offset, byteLength[, noAssert])
+### buf.readUIntBE(offset, byteLength[, noAssert])
+### buf.readIntLE(offset, byteLength[, noAssert])
+### buf.readIntBE(offset, byteLength[, noAssert])
+
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+A generalized version of all numeric read methods. Supports up to 48 bits of
+accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUint16LE(0x90ab, 0);
+    b.writeUInt32LE(0x12345678, 2);
+    b.readUIntLE(0, 6).toString(16);  // Specify 6 bytes (48 bits)
+    // output: '1234567890ab'
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+### buf.toString([encoding][, start][, end])
 
 * `encoding` String, Optional, Default: 'utf8'
 * `start` Number, Optional, Default: 0
@@ -252,7 +300,7 @@ Returns a number indicating whether `this` comes before or after or is
 the same as the `otherBuffer` in sort order.
 
 
-### buf.copy(targetBuffer, [targetStart], [sourceStart], [sourceEnd])
+### buf.copy(targetBuffer[, targetStart][, sourceStart][, sourceEnd])
 
 * `targetBuffer` Buffer object - Buffer to copy into
 * `targetStart` Number, Optional, Default: 0
@@ -283,7 +331,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     // !!!!!!!!qrst!!!!!!!!!!!!!
 
 
-### buf.slice([start], [end])
+### buf.slice([start][, end])
 
 * `start` Number, Optional, Default: 0
 * `end` Number, Optional, Default: `buffer.length`
@@ -311,7 +359,7 @@ byte from the original Buffer.
     // abc
     // !bc
 
-### buf.readUInt8(offset, [noAssert])
+### buf.readUInt8(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -340,8 +388,8 @@ Example:
     // 0x23
     // 0x42
 
-### buf.readUInt16LE(offset, [noAssert])
-### buf.readUInt16BE(offset, [noAssert])
+### buf.readUInt16LE(offset[, noAssert])
+### buf.readUInt16BE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -376,8 +424,8 @@ Example:
     // 0x2342
     // 0x4223
 
-### buf.readUInt32LE(offset, [noAssert])
-### buf.readUInt32BE(offset, [noAssert])
+### buf.readUInt32LE(offset[, noAssert])
+### buf.readUInt32BE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -404,7 +452,7 @@ Example:
     // 0x03042342
     // 0x42230403
 
-### buf.readInt8(offset, [noAssert])
+### buf.readInt8(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -418,8 +466,8 @@ may be beyond the end of the buffer. Defaults to `false`.
 Works as `buffer.readUInt8`, except buffer contents are treated as two's
 complement signed values.
 
-### buf.readInt16LE(offset, [noAssert])
-### buf.readInt16BE(offset, [noAssert])
+### buf.readInt16LE(offset[, noAssert])
+### buf.readInt16BE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -434,8 +482,8 @@ may be beyond the end of the buffer. Defaults to `false`.
 Works as `buffer.readUInt16*`, except buffer contents are treated as two's
 complement signed values.
 
-### buf.readInt32LE(offset, [noAssert])
-### buf.readInt32BE(offset, [noAssert])
+### buf.readInt32LE(offset[, noAssert])
+### buf.readInt32BE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -450,8 +498,8 @@ may be beyond the end of the buffer. Defaults to `false`.
 Works as `buffer.readUInt32*`, except buffer contents are treated as two's
 complement signed values.
 
-### buf.readFloatLE(offset, [noAssert])
-### buf.readFloatBE(offset, [noAssert])
+### buf.readFloatLE(offset[, noAssert])
+### buf.readFloatBE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -476,8 +524,8 @@ Example:
 
     // 0x01
 
-### buf.readDoubleLE(offset, [noAssert])
-### buf.readDoubleBE(offset, [noAssert])
+### buf.readDoubleLE(offset[, noAssert])
+### buf.readDoubleBE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -506,7 +554,7 @@ Example:
 
     // 0.3333333333333333
 
-### buf.writeUInt8(value, offset, [noAssert])
+### buf.writeUInt8(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -532,8 +580,8 @@ Example:
 
     // <Buffer 03 04 23 42>
 
-### buf.writeUInt16LE(value, offset, [noAssert])
-### buf.writeUInt16BE(value, offset, [noAssert])
+### buf.writeUInt16LE(value, offset[, noAssert])
+### buf.writeUInt16BE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -563,8 +611,8 @@ Example:
     // <Buffer de ad be ef>
     // <Buffer ad de ef be>
 
-### buf.writeUInt32LE(value, offset, [noAssert])
-### buf.writeUInt32BE(value, offset, [noAssert])
+### buf.writeUInt32LE(value, offset[, noAssert])
+### buf.writeUInt32BE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -592,7 +640,7 @@ Example:
     // <Buffer fe ed fa ce>
     // <Buffer ce fa ed fe>
 
-### buf.writeInt8(value, offset, [noAssert])
+### buf.writeInt8(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -609,8 +657,8 @@ should not be used unless you are certain of correctness. Defaults to `false`.
 Works as `buffer.writeUInt8`, except value is written out as a two's complement
 signed integer into `buffer`.
 
-### buf.writeInt16LE(value, offset, [noAssert])
-### buf.writeInt16BE(value, offset, [noAssert])
+### buf.writeInt16LE(value, offset[, noAssert])
+### buf.writeInt16BE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -627,8 +675,8 @@ should not be used unless you are certain of correctness. Defaults to `false`.
 Works as `buffer.writeUInt16*`, except value is written out as a two's
 complement signed integer into `buffer`.
 
-### buf.writeInt32LE(value, offset, [noAssert])
-### buf.writeInt32BE(value, offset, [noAssert])
+### buf.writeInt32LE(value, offset[, noAssert])
+### buf.writeInt32BE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -645,8 +693,8 @@ should not be used unless you are certain of correctness. Defaults to `false`.
 Works as `buffer.writeUInt32*`, except value is written out as a two's
 complement signed integer into `buffer`.
 
-### buf.writeFloatLE(value, offset, [noAssert])
-### buf.writeFloatBE(value, offset, [noAssert])
+### buf.writeFloatLE(value, offset[, noAssert])
+### buf.writeFloatBE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -674,8 +722,8 @@ Example:
     // <Buffer 4f 4a fe bb>
     // <Buffer bb fe 4a 4f>
 
-### buf.writeDoubleLE(value, offset, [noAssert])
-### buf.writeDoubleBE(value, offset, [noAssert])
+### buf.writeDoubleLE(value, offset[, noAssert])
+### buf.writeDoubleBE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -703,7 +751,7 @@ Example:
     // <Buffer 43 eb d5 b7 dd f9 5f d7>
     // <Buffer d7 5f f9 dd b7 d5 eb 43>
 
-### buf.fill(value, [offset], [end])
+### buf.fill(value[, offset][, end])
 
 * `value`
 * `offset` Number, Optional

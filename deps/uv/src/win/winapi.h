@@ -4617,6 +4617,8 @@ typedef VOID (WINAPI* sWakeAllConditionVariable)
 typedef VOID (WINAPI* sWakeConditionVariable)
              (PCONDITION_VARIABLE ConditionVariable);
 
+typedef BOOL (WINAPI* sCancelSynchronousIo)
+             (HANDLE hThread);
 
 /* Ntdll function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
@@ -4644,5 +4646,6 @@ extern sSleepConditionVariableCS pSleepConditionVariableCS;
 extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
 extern sWakeAllConditionVariable pWakeAllConditionVariable;
 extern sWakeConditionVariable pWakeConditionVariable;
+extern sCancelSynchronousIo pCancelSynchronousIo;
 
 #endif /* UV_WIN_WINAPI_H_ */

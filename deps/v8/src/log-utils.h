@@ -5,7 +5,7 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -85,7 +85,7 @@ class Log {
 
    private:
     Log* log_;
-    LockGuard<Mutex> lock_guard_;
+    base::LockGuard<base::Mutex> lock_guard_;
     int pos_;
   };
 
@@ -103,9 +103,9 @@ class Log {
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
-    ASSERT(output_handle_ != NULL);
+    DCHECK(output_handle_ != NULL);
     size_t rv = fwrite(msg, 1, length, output_handle_);
-    ASSERT(static_cast<size_t>(length) == rv);
+    DCHECK(static_cast<size_t>(length) == rv);
     USE(rv);
     fflush(output_handle_);
     return length;
@@ -120,7 +120,7 @@ class Log {
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
-  Mutex mutex_;
+  base::Mutex mutex_;
 
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.

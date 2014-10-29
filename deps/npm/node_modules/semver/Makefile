@@ -8,12 +8,12 @@ all: $(files)
 clean:
 	rm -f $(files)
 
-semver.browser.js: head.js semver.js foot.js
-	( cat head.js; \
+semver.browser.js: head.js.txt semver.js foot.js.txt
+	( cat head.js.txt; \
 		cat semver.js | \
 			egrep -v '^ *\/\* nomin \*\/' | \
 			perl -pi -e 's/debug\([^\)]+\)//g'; \
-		cat foot.js ) > semver.browser.js
+		cat foot.js.txt ) > semver.browser.js
 
 semver.min.js: semver.browser.js
 	uglifyjs -m <semver.browser.js >semver.min.js

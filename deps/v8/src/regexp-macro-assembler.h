@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "ast.h"
+#include "src/ast.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +33,7 @@ class RegExpMacroAssembler {
     kARM64Implementation,
     kMIPSImplementation,
     kX64Implementation,
+    kX87Implementation,
     kBytecodeImplementation
   };
 
@@ -47,7 +48,7 @@ class RegExpMacroAssembler {
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack() = 0;
-  virtual bool CanReadUnaligned();
+  virtual bool CanReadUnaligned() = 0;
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
   // Continues execution from the position pushed on the top of the backtrack
@@ -170,7 +171,7 @@ class RegExpMacroAssembler {
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
-  enum Mode { ASCII = 1, UC16 = 2 };
+  enum Mode { LATIN1 = 1, UC16 = 2 };
 
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching

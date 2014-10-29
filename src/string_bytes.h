@@ -68,7 +68,7 @@ class StringBytes {
                       size_t buflen,
                       v8::Handle<v8::Value> val,
                       enum encoding enc,
-                      int* chars_written = NULL);
+                      int* chars_written = nullptr);
 
   // Take the bytes in the src, and turn it into a Buffer or String.
   static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
@@ -109,7 +109,7 @@ class StringBytes {
                                              size_t buflen,
                                              v8::Handle<v8::Value> val,
                                              enum encoding enc,
-                                             int* chars_written = NULL) {
+                                             int* chars_written = nullptr) {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
     return Write(isolate, buf, buflen, val, enc, chars_written);
   })

@@ -41,7 +41,7 @@ class RegExpStack {
 
   // Gives the top of the memory used as stack.
   Address stack_base() {
-    ASSERT(thread_local_.memory_size_ != 0);
+    DCHECK(thread_local_.memory_size_ != 0);
     return thread_local_.memory_ + thread_local_.memory_size_;
   }
 

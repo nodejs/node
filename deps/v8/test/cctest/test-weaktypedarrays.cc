@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
-#include "api.h"
-#include "heap.h"
-#include "objects.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "cctest.h"
+#include "src/api.h"
+#include "src/heap/heap.h"
+#include "src/objects.h"
 
 using namespace v8::internal;
 
@@ -155,7 +155,7 @@ TEST(WeakArrayBuffersFromScript) {
       }
 
       i::ScopedVector<char> source(1024);
-      i::OS::SNPrintF(source, "ab%d = null;", i);
+      i::SNPrintF(source, "ab%d = null;", i);
       CompileRun(source.start());
       isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
@@ -165,7 +165,7 @@ TEST(WeakArrayBuffersFromScript) {
         v8::HandleScope s2(context->GetIsolate());
         for (int j = 1; j <= 3; j++) {
           if (j == i) continue;
-          i::OS::SNPrintF(source, "ab%d", j);
+          i::SNPrintF(source, "ab%d", j);
           v8::Handle<v8::ArrayBuffer> ab =
               v8::Handle<v8::ArrayBuffer>::Cast(CompileRun(source.start()));
           CHECK(HasArrayBufferInWeakList(isolate->heap(),
@@ -282,11 +282,11 @@ static void TestTypedArrayFromScript(const char* constructor) {
 
     {
       v8::HandleScope s1(context->GetIsolate());
-      i::OS::SNPrintF(source,
-                  "var ta1 = new %s(ab);"
-                  "var ta2 = new %s(ab);"
-                  "var ta3 = new %s(ab)",
-                  constructor, constructor, constructor);
+      i::SNPrintF(source,
+              "var ta1 = new %s(ab);"
+              "var ta2 = new %s(ab);"
+              "var ta3 = new %s(ab)",
+              constructor, constructor, constructor);
 
       CompileRun(source.start());
       v8::Handle<v8::ArrayBuffer> ab =
@@ -305,7 +305,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
       CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta3)));
     }
 
-    i::OS::SNPrintF(source, "ta%d = null;", i);
+    i::SNPrintF(source, "ta%d = null;", i);
     CompileRun(source.start());
     isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
@@ -319,7 +319,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
       CHECK_EQ(2, CountViews(*iab));
       for (int j = 1; j <= 3; j++) {
         if (j == i) continue;
-        i::OS::SNPrintF(source, "ta%d", j);
+        i::SNPrintF(source, "ta%d", j);
         v8::Handle<TypedArray> ta =
             v8::Handle<TypedArray>::Cast(CompileRun(source.start()));
         CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta)));

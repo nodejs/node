@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "arguments.h"
-#include "conversions.h"
-#include "elements.h"
-#include "objects.h"
-#include "utils.h"
+#include "src/arguments.h"
+#include "src/conversions.h"
+#include "src/elements.h"
+#include "src/objects.h"
+#include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -112,7 +112,7 @@ template<ElementsKind Kind> class ElementsKindTraits {
 
 #define ELEMENTS_TRAITS(Class, KindParam, Store)               \
 template<> class ElementsKindTraits<KindParam> {               \
-  public:                                                      \
+ public:   /* NOLINT */                                        \
   static const ElementsKind Kind = KindParam;                  \
   typedef Store BackingStore;                                  \
 };
@@ -120,7 +120,7 @@ ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
 
 
-ElementsAccessor** ElementsAccessor::elements_accessors_;
+ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
 
 
 static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
@@ -141,25 +141,24 @@ static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
 
 MUST_USE_RESULT
 static MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
-  return isolate->Throw<Object>(
-      isolate->factory()->NewRangeError("invalid_array_length",
-                                        HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR(isolate, NewRangeError("invalid_array_length",
+                                         HandleVector<Object>(NULL, 0)),
+                  Object);
 }
 
 
-static void CopyObjectToObjectElements(Handle<FixedArrayBase> from_base,
+static void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                        ElementsKind from_kind,
                                        uint32_t from_start,
-                                       Handle<FixedArrayBase> to_base,
-                                       ElementsKind to_kind,
-                                       uint32_t to_start,
+                                       FixedArrayBase* to_base,
+                                       ElementsKind to_kind, uint32_t to_start,
                                        int raw_copy_size) {
-  ASSERT(to_base->map() !=
+  DCHECK(to_base->map() !=
       from_base->GetIsolate()->heap()->fixed_cow_array_map());
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = Min(from_base->length() - from_start,
                     to_base->length() - to_start);
@@ -168,18 +167,18 @@ static void CopyObjectToObjectElements(Handle<FixedArrayBase> from_base,
       int length = to_base->length() - start;
       if (length > 0) {
         Heap* heap = from_base->GetHeap();
-        MemsetPointer(Handle<FixedArray>::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
                       heap->the_hole_value(), length);
       }
     }
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  Handle<FixedArray> from = Handle<FixedArray>::cast(from_base);
-  Handle<FixedArray> to = Handle<FixedArray>::cast(to_base);
-  ASSERT(IsFastSmiOrObjectElementsKind(from_kind));
-  ASSERT(IsFastSmiOrObjectElementsKind(to_kind));
+  FixedArray* from = FixedArray::cast(from_base);
+  FixedArray* to = FixedArray::cast(to_base);
+  DCHECK(IsFastSmiOrObjectElementsKind(from_kind));
+  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
   Address to_address = to->address() + FixedArray::kHeaderSize;
   Address from_address = from->address() + FixedArray::kHeaderSize;
   CopyWords(reinterpret_cast<Object**>(to_address) + to_start,
@@ -188,29 +187,25 @@ static void CopyObjectToObjectElements(Handle<FixedArrayBase> from_base,
   if (IsFastObjectElementsKind(from_kind) &&
       IsFastObjectElementsKind(to_kind)) {
     Heap* heap = from->GetHeap();
-    if (!heap->InNewSpace(*to)) {
+    if (!heap->InNewSpace(to)) {
       heap->RecordWrites(to->address(),
                          to->OffsetOfElementAt(to_start),
                          copy_size);
     }
-    heap->incremental_marking()->RecordWrites(*to);
+    heap->incremental_marking()->RecordWrites(to);
   }
 }
 
 
-static void CopyDictionaryToObjectElements(Handle<FixedArrayBase> from_base,
-                                           uint32_t from_start,
-                                           Handle<FixedArrayBase> to_base,
-                                           ElementsKind to_kind,
-                                           uint32_t to_start,
-                                           int raw_copy_size) {
-  Handle<SeededNumberDictionary> from =
-      Handle<SeededNumberDictionary>::cast(from_base);
+static void CopyDictionaryToObjectElements(
+    FixedArrayBase* from_base, uint32_t from_start, FixedArrayBase* to_base,
+    ElementsKind to_kind, uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
+  SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   Heap* heap = from->GetHeap();
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = from->max_number_key() + 1 - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
@@ -218,15 +213,15 @@ static void CopyDictionaryToObjectElements(Handle<FixedArrayBase> from_base,
       int length = to_base->length() - start;
       if (length > 0) {
         Heap* heap = from->GetHeap();
-        MemsetPointer(Handle<FixedArray>::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
                       heap->the_hole_value(), length);
       }
     }
   }
-  ASSERT(*to_base != *from_base);
-  ASSERT(IsFastSmiOrObjectElementsKind(to_kind));
+  DCHECK(to_base != from_base);
+  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
   if (copy_size == 0) return;
-  Handle<FixedArray> to = Handle<FixedArray>::cast(to_base);
+  FixedArray* to = FixedArray::cast(to_base);
   uint32_t to_length = to->length();
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
@@ -235,33 +230,36 @@ static void CopyDictionaryToObjectElements(Handle<FixedArrayBase> from_base,
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
-      ASSERT(!value->IsTheHole());
+      DCHECK(!value->IsTheHole());
       to->set(i + to_start, value, SKIP_WRITE_BARRIER);
     } else {
       to->set_the_hole(i + to_start);
     }
   }
   if (IsFastObjectElementsKind(to_kind)) {
-    if (!heap->InNewSpace(*to)) {
+    if (!heap->InNewSpace(to)) {
       heap->RecordWrites(to->address(),
                          to->OffsetOfElementAt(to_start),
                          copy_size);
     }
-    heap->incremental_marking()->RecordWrites(*to);
+    heap->incremental_marking()->RecordWrites(to);
   }
 }
 
 
-static void CopyDoubleToObjectElements(Handle<FixedArrayBase> from_base,
+// NOTE: this method violates the handlified function signature convention:
+// raw pointer parameters in the function that allocates.
+// See ElementsAccessorBase::CopyElements() for details.
+static void CopyDoubleToObjectElements(FixedArrayBase* from_base,
                                        uint32_t from_start,
-                                       Handle<FixedArrayBase> to_base,
-                                       ElementsKind to_kind,
-                                       uint32_t to_start,
+                                       FixedArrayBase* to_base,
+                                       ElementsKind to_kind, uint32_t to_start,
                                        int raw_copy_size) {
-  ASSERT(IsFastSmiOrObjectElementsKind(to_kind));
+  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DisallowHeapAllocation no_allocation;
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = Min(from_base->length() - from_start,
                     to_base->length() - to_start);
@@ -273,23 +271,26 @@ static void CopyDoubleToObjectElements(Handle<FixedArrayBase> from_base,
       int length = to_base->length() - start;
       if (length > 0) {
         Heap* heap = from_base->GetHeap();
-        MemsetPointer(Handle<FixedArray>::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
                       heap->the_hole_value(), length);
       }
     }
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
+
+  // From here on, the code below could actually allocate. Therefore the raw
+  // values are wrapped into handles.
   Isolate* isolate = from_base->GetIsolate();
-  Handle<FixedDoubleArray> from = Handle<FixedDoubleArray>::cast(from_base);
-  Handle<FixedArray> to = Handle<FixedArray>::cast(to_base);
+  Handle<FixedDoubleArray> from(FixedDoubleArray::cast(from_base), isolate);
+  Handle<FixedArray> to(FixedArray::cast(to_base), isolate);
   for (int i = 0; i < copy_size; ++i) {
     HandleScope scope(isolate);
     if (IsFastSmiElementsKind(to_kind)) {
       UNIMPLEMENTED();
     } else {
-      ASSERT(IsFastObjectElementsKind(to_kind));
+      DCHECK(IsFastObjectElementsKind(to_kind));
       Handle<Object> value = FixedDoubleArray::get(from, i + from_start);
       to->set(i + to_start, *value, UPDATE_WRITE_BARRIER);
     }
@@ -297,29 +298,28 @@ static void CopyDoubleToObjectElements(Handle<FixedArrayBase> from_base,
 }
 
 
-static void CopyDoubleToDoubleElements(Handle<FixedArrayBase> from_base,
+static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
                                        uint32_t from_start,
-                                       Handle<FixedArrayBase> to_base,
-                                       uint32_t to_start,
-                                       int raw_copy_size) {
+                                       FixedArrayBase* to_base,
+                                       uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = Min(from_base->length() - from_start,
                     to_base->length() - to_start);
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       for (int i = to_start + copy_size; i < to_base->length(); ++i) {
-        Handle<FixedDoubleArray>::cast(to_base)->set_the_hole(i);
+        FixedDoubleArray::cast(to_base)->set_the_hole(i);
       }
     }
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  Handle<FixedDoubleArray> from = Handle<FixedDoubleArray>::cast(from_base);
-  Handle<FixedDoubleArray> to = Handle<FixedDoubleArray>::cast(to_base);
+  FixedDoubleArray* from = FixedDoubleArray::cast(from_base);
+  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
   Address to_address = to->address() + FixedDoubleArray::kHeaderSize;
   Address from_address = from->address() + FixedDoubleArray::kHeaderSize;
   to_address += kDoubleSize * to_start;
@@ -331,33 +331,32 @@ static void CopyDoubleToDoubleElements(Handle<FixedArrayBase> from_base,
 }
 
 
-static void CopySmiToDoubleElements(Handle<FixedArrayBase> from_base,
+static void CopySmiToDoubleElements(FixedArrayBase* from_base,
                                     uint32_t from_start,
-                                    Handle<FixedArrayBase> to_base,
-                                    uint32_t to_start,
+                                    FixedArrayBase* to_base, uint32_t to_start,
                                     int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = from_base->length() - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       for (int i = to_start + copy_size; i < to_base->length(); ++i) {
-        Handle<FixedDoubleArray>::cast(to_base)->set_the_hole(i);
+        FixedDoubleArray::cast(to_base)->set_the_hole(i);
       }
     }
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  Handle<FixedArray> from = Handle<FixedArray>::cast(from_base);
-  Handle<FixedDoubleArray> to = Handle<FixedDoubleArray>::cast(to_base);
-  Handle<Object> the_hole = from->GetIsolate()->factory()->the_hole_value();
+  FixedArray* from = FixedArray::cast(from_base);
+  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  Object* the_hole = from->GetHeap()->the_hole_value();
   for (uint32_t from_end = from_start + static_cast<uint32_t>(copy_size);
        from_start < from_end; from_start++, to_start++) {
     Object* hole_or_smi = from->get(from_start);
-    if (hole_or_smi == *the_hole) {
+    if (hole_or_smi == the_hole) {
       to->set_the_hole(to_start);
     } else {
       to->set(to_start, Smi::cast(hole_or_smi)->value());
@@ -366,23 +365,22 @@ static void CopySmiToDoubleElements(Handle<FixedArrayBase> from_base,
 }
 
 
-static void CopyPackedSmiToDoubleElements(Handle<FixedArrayBase> from_base,
+static void CopyPackedSmiToDoubleElements(FixedArrayBase* from_base,
                                           uint32_t from_start,
-                                          Handle<FixedArrayBase> to_base,
-                                          uint32_t to_start,
-                                          int packed_size,
+                                          FixedArrayBase* to_base,
+                                          uint32_t to_start, int packed_size,
                                           int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   uint32_t to_end;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = packed_size - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       to_end = to_base->length();
       for (uint32_t i = to_start + copy_size; i < to_end; ++i) {
-        Handle<FixedDoubleArray>::cast(to_base)->set_the_hole(i);
+        FixedDoubleArray::cast(to_base)->set_the_hole(i);
       }
     } else {
       to_end = to_start + static_cast<uint32_t>(copy_size);
@@ -390,49 +388,48 @@ static void CopyPackedSmiToDoubleElements(Handle<FixedArrayBase> from_base,
   } else {
     to_end = to_start + static_cast<uint32_t>(copy_size);
   }
-  ASSERT(static_cast<int>(to_end) <= to_base->length());
-  ASSERT(packed_size >= 0 && packed_size <= copy_size);
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK(static_cast<int>(to_end) <= to_base->length());
+  DCHECK(packed_size >= 0 && packed_size <= copy_size);
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  Handle<FixedArray> from = Handle<FixedArray>::cast(from_base);
-  Handle<FixedDoubleArray> to = Handle<FixedDoubleArray>::cast(to_base);
+  FixedArray* from = FixedArray::cast(from_base);
+  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
   for (uint32_t from_end = from_start + static_cast<uint32_t>(packed_size);
        from_start < from_end; from_start++, to_start++) {
     Object* smi = from->get(from_start);
-    ASSERT(!smi->IsTheHole());
+    DCHECK(!smi->IsTheHole());
     to->set(to_start, Smi::cast(smi)->value());
   }
 }
 
 
-static void CopyObjectToDoubleElements(Handle<FixedArrayBase> from_base,
+static void CopyObjectToDoubleElements(FixedArrayBase* from_base,
                                        uint32_t from_start,
-                                       Handle<FixedArrayBase> to_base,
-                                       uint32_t to_start,
-                                       int raw_copy_size) {
+                                       FixedArrayBase* to_base,
+                                       uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = from_base->length() - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       for (int i = to_start + copy_size; i < to_base->length(); ++i) {
-        Handle<FixedDoubleArray>::cast(to_base)->set_the_hole(i);
+        FixedDoubleArray::cast(to_base)->set_the_hole(i);
       }
     }
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
+  DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  Handle<FixedArray> from = Handle<FixedArray>::cast(from_base);
-  Handle<FixedDoubleArray> to = Handle<FixedDoubleArray>::cast(to_base);
-  Handle<Object> the_hole = from->GetIsolate()->factory()->the_hole_value();
+  FixedArray* from = FixedArray::cast(from_base);
+  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  Object* the_hole = from->GetHeap()->the_hole_value();
   for (uint32_t from_end = from_start + copy_size;
        from_start < from_end; from_start++, to_start++) {
     Object* hole_or_object = from->get(from_start);
-    if (hole_or_object == *the_hole) {
+    if (hole_or_object == the_hole) {
       to->set_the_hole(to_start);
     } else {
       to->set(to_start, hole_or_object->Number());
@@ -441,27 +438,26 @@ static void CopyObjectToDoubleElements(Handle<FixedArrayBase> from_base,
 }
 
 
-static void CopyDictionaryToDoubleElements(Handle<FixedArrayBase> from_base,
+static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
                                            uint32_t from_start,
-                                           Handle<FixedArrayBase> to_base,
+                                           FixedArrayBase* to_base,
                                            uint32_t to_start,
                                            int raw_copy_size) {
-  Handle<SeededNumberDictionary> from =
-      Handle<SeededNumberDictionary>::cast(from_base);
   DisallowHeapAllocation no_allocation;
+  SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (copy_size < 0) {
-    ASSERT(copy_size == ElementsAccessor::kCopyToEnd ||
+    DCHECK(copy_size == ElementsAccessor::kCopyToEnd ||
            copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = from->max_number_key() + 1 - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       for (int i = to_start + copy_size; i < to_base->length(); ++i) {
-        Handle<FixedDoubleArray>::cast(to_base)->set_the_hole(i);
+        FixedDoubleArray::cast(to_base)->set_the_hole(i);
       }
     }
   }
   if (copy_size == 0) return;
-  Handle<FixedDoubleArray> to = Handle<FixedDoubleArray>::cast(to_base);
+  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
   uint32_t to_length = to->length();
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
@@ -564,7 +560,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
 
-  virtual ElementsKind kind() const V8_FINAL V8_OVERRIDE {
+  virtual ElementsKind kind() const FINAL OVERRIDE {
     return ElementsTraits::Kind;
   }
 
@@ -588,7 +584,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateContents(holder, length);
   }
 
-  virtual void Validate(Handle<JSObject> holder) V8_FINAL V8_OVERRIDE {
+  virtual void Validate(Handle<JSObject> holder) FINAL OVERRIDE {
     DisallowHeapAllocation no_gc;
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
@@ -605,7 +601,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+      Handle<FixedArrayBase> backing_store) FINAL OVERRIDE {
     return ElementsAccessorSubclass::HasElementImpl(
         receiver, holder, key, backing_store);
   }
@@ -614,7 +610,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+      Handle<FixedArrayBase> backing_store) FINAL OVERRIDE {
     if (!IsExternalArrayElementsKind(ElementsTraits::Kind) &&
         FLAG_trace_js_array_abuse) {
       CheckArrayAbuse(holder, "elements read", key);
@@ -645,7 +641,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+      Handle<FixedArrayBase> backing_store) FINAL OVERRIDE {
     return ElementsAccessorSubclass::GetAttributesImpl(
         receiver, holder, key, backing_store);
   }
@@ -663,33 +659,11 @@ class ElementsAccessorBase : public ElementsAccessor {
           ? ABSENT : NONE;
   }
 
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
-    return ElementsAccessorSubclass::GetTypeImpl(
-        receiver, holder, key, backing_store);
-  }
-
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
-    if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
-      return NONEXISTENT;
-    }
-    return
-        Handle<BackingStore>::cast(backing_store)->is_the_hole(key)
-          ? NONEXISTENT : FIELD;
-  }
-
   MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+      Handle<FixedArrayBase> backing_store) FINAL OVERRIDE {
     return ElementsAccessorSubclass::GetAccessorPairImpl(
         receiver, holder, key, backing_store);
   }
@@ -704,7 +678,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   MUST_USE_RESULT virtual MaybeHandle<Object> SetLength(
       Handle<JSArray> array,
-      Handle<Object> length) V8_FINAL V8_OVERRIDE {
+      Handle<Object> length) FINAL OVERRIDE {
     return ElementsAccessorSubclass::SetLengthImpl(
         array, length, handle(array->elements()));
   }
@@ -717,7 +691,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   virtual void SetCapacityAndLength(
       Handle<JSArray> array,
       int capacity,
-      int length) V8_FINAL V8_OVERRIDE {
+      int length) FINAL OVERRIDE {
     ElementsAccessorSubclass::
         SetFastElementsCapacityAndLength(array, capacity, length);
   }
@@ -732,14 +706,11 @@ class ElementsAccessorBase : public ElementsAccessor {
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) V8_OVERRIDE = 0;
+      JSReceiver::DeleteMode mode) OVERRIDE = 0;
 
-  static void CopyElementsImpl(Handle<FixedArrayBase> from,
-                               uint32_t from_start,
-                               Handle<FixedArrayBase> to,
-                               ElementsKind from_kind,
-                               uint32_t to_start,
-                               int packed_size,
+  static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
+                               FixedArrayBase* to, ElementsKind from_kind,
+                               uint32_t to_start, int packed_size,
                                int copy_size) {
     UNREACHABLE();
   }
@@ -750,11 +721,17 @@ class ElementsAccessorBase : public ElementsAccessor {
       ElementsKind from_kind,
       Handle<FixedArrayBase> to,
       uint32_t to_start,
-      int copy_size) V8_FINAL V8_OVERRIDE {
-    ASSERT(!from.is_null());
-    ElementsAccessorSubclass::CopyElementsImpl(
-        from, from_start, to, from_kind, to_start, kPackedSizeNotKnown,
-        copy_size);
+      int copy_size) FINAL OVERRIDE {
+    DCHECK(!from.is_null());
+    // NOTE: the ElementsAccessorSubclass::CopyElementsImpl() methods
+    // violate the handlified function signature convention:
+    // raw pointer parameters in the function that allocates. This is done
+    // intentionally to avoid ArrayConcat() builtin performance degradation.
+    // See the comment in another ElementsAccessorBase::CopyElements() for
+    // details.
+    ElementsAccessorSubclass::CopyElementsImpl(*from, from_start, *to,
+                                               from_kind, to_start,
+                                               kPackedSizeNotKnown, copy_size);
   }
 
   virtual void CopyElements(
@@ -763,7 +740,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       ElementsKind from_kind,
       Handle<FixedArrayBase> to,
       uint32_t to_start,
-      int copy_size) V8_FINAL V8_OVERRIDE {
+      int copy_size) FINAL OVERRIDE {
     int packed_size = kPackedSizeNotKnown;
     bool is_packed = IsFastPackedElementsKind(from_kind) &&
         from_holder->IsJSArray();
@@ -774,21 +751,30 @@ class ElementsAccessorBase : public ElementsAccessor {
         packed_size = copy_size;
       }
     }
-    Handle<FixedArrayBase> from(from_holder->elements());
+    FixedArrayBase* from = from_holder->elements();
+    // NOTE: the ElementsAccessorSubclass::CopyElementsImpl() methods
+    // violate the handlified function signature convention:
+    // raw pointer parameters in the function that allocates. This is done
+    // intentionally to avoid ArrayConcat() builtin performance degradation.
+    //
+    // Details: The idea is that allocations actually happen only in case of
+    // copying from object with fast double elements to object with object
+    // elements. In all the other cases there are no allocations performed and
+    // handle creation causes noticeable performance degradation of the builtin.
     ElementsAccessorSubclass::CopyElementsImpl(
-        from, from_start, to, from_kind, to_start, packed_size, copy_size);
+        from, from_start, *to, from_kind, to_start, packed_size, copy_size);
   }
 
   virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       Handle<FixedArray> to,
-      Handle<FixedArrayBase> from) V8_FINAL V8_OVERRIDE {
+      Handle<FixedArrayBase> from) FINAL OVERRIDE {
     int len0 = to->length();
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
       for (int i = 0; i < len0; i++) {
-        ASSERT(!to->get(i)->IsTheHole());
+        DCHECK(!to->get(i)->IsTheHole());
       }
     }
 #endif
@@ -812,7 +798,7 @@ class ElementsAccessorBase : public ElementsAccessor {
             ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
             FixedArray);
 
-        ASSERT(!value->IsTheHole());
+        DCHECK(!value->IsTheHole());
         if (!HasKey(to, value)) {
           extra++;
         }
@@ -830,7 +816,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
       for (int i = 0; i < len0; i++) {
         Object* e = to->get(i);
-        ASSERT(e->IsString() || e->IsNumber());
+        DCHECK(e->IsString() || e->IsNumber());
         result->set(i, e, mode);
       }
     }
@@ -852,7 +838,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         }
       }
     }
-    ASSERT(extra == index);
+    DCHECK(extra == index);
     return result;
   }
 
@@ -862,7 +848,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual uint32_t GetCapacity(Handle<FixedArrayBase> backing_store)
-      V8_FINAL V8_OVERRIDE {
+      FINAL OVERRIDE {
     return ElementsAccessorSubclass::GetCapacityImpl(backing_store);
   }
 
@@ -872,7 +858,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
-                                  uint32_t index) V8_FINAL V8_OVERRIDE {
+                                  uint32_t index) FINAL OVERRIDE {
     return ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, index);
   }
 
@@ -883,8 +869,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
 // Super class for all fast element arrays.
 template<typename FastElementsAccessorSubclass,
-         typename KindTraits,
-         int ElementSize>
+         typename KindTraits>
 class FastElementsAccessor
     : public ElementsAccessorBase<FastElementsAccessorSubclass, KindTraits> {
  public:
@@ -897,8 +882,7 @@ class FastElementsAccessor
 
   typedef typename KindTraits::BackingStore BackingStore;
 
-  // Adjusts the length of the fast backing store or returns the new length or
-  // undefined in case conversion to a slow backing store should be performed.
+  // Adjusts the length of the fast backing store.
   static Handle<Object> SetLengthWithoutNormalize(
       Handle<FixedArrayBase> backing_store,
       Handle<JSArray> array,
@@ -927,15 +911,8 @@ class FastElementsAccessor
         if (length == 0) {
           array->initialize_elements();
         } else {
-          int filler_size = (old_capacity - length) * ElementSize;
-          Address filler_start = backing_store->address() +
-              BackingStore::OffsetOfElementAt(length);
-          array->GetHeap()->CreateFillerObjectAt(filler_start, filler_size);
-
-          // We are storing the new length using release store after creating a
-          // filler for the left-over space to avoid races with the sweeper
-          // thread.
-          backing_store->synchronized_set_length(length);
+          isolate->heap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(
+              *backing_store, old_capacity - length);
         }
       } else {
         // Otherwise, fill the unused tail with holes.
@@ -950,21 +927,16 @@ class FastElementsAccessor
     // Check whether the backing store should be expanded.
     uint32_t min = JSObject::NewElementsCapacity(old_capacity);
     uint32_t new_capacity = length > min ? length : min;
-    if (!array->ShouldConvertToSlowElements(new_capacity)) {
-      FastElementsAccessorSubclass::
-          SetFastElementsCapacityAndLength(array, new_capacity, length);
-      JSObject::ValidateElements(array);
-      return length_object;
-    }
-
-    // Request conversion to slow elements.
-    return isolate->factory()->undefined_value();
+    FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
+        array, new_capacity, length);
+    JSObject::ValidateElements(array);
+    return length_object;
   }
 
   static Handle<Object> DeleteCommon(Handle<JSObject> obj,
                                      uint32_t key,
                                      JSReceiver::DeleteMode mode) {
-    ASSERT(obj->HasFastSmiOrObjectElements() ||
+    DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
     Isolate* isolate = obj->GetIsolate();
@@ -1023,7 +995,7 @@ class FastElementsAccessor
   virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
+      JSReceiver::DeleteMode mode) FINAL OVERRIDE {
     return DeleteCommon(obj, key, mode);
   }
 
@@ -1044,7 +1016,7 @@ class FastElementsAccessor
     HandleScope scope(isolate);
     Handle<FixedArrayBase> elements(holder->elements(), isolate);
     Map* map = elements->map();
-    ASSERT((IsFastSmiOrObjectElementsKind(KindTraits::Kind) &&
+    DCHECK((IsFastSmiOrObjectElementsKind(KindTraits::Kind) &&
             (map == isolate->heap()->fixed_array_map() ||
              map == isolate->heap()->fixed_cow_array_map())) ||
            (IsFastDoubleElementsKind(KindTraits::Kind) ==
@@ -1054,7 +1026,7 @@ class FastElementsAccessor
     for (int i = 0; i < length; i++) {
       HandleScope scope(isolate);
       Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
-      ASSERT((!IsFastSmiElementsKind(KindTraits::Kind) ||
+      DCHECK((!IsFastSmiElementsKind(KindTraits::Kind) ||
               BackingStore::get(backing_store, i)->IsSmi()) ||
              (IsFastHoleyElementsKind(KindTraits::Kind) ==
               backing_store->is_the_hole(i)));
@@ -1064,7 +1036,7 @@ class FastElementsAccessor
 };
 
 
-static inline ElementsKind ElementsKindForArray(Handle<FixedArrayBase> array) {
+static inline ElementsKind ElementsKindForArray(FixedArrayBase* array) {
   switch (array->map()->instance_type()) {
     case FIXED_ARRAY_TYPE:
       if (array->IsDictionary()) {
@@ -1094,47 +1066,48 @@ static inline ElementsKind ElementsKindForArray(Handle<FixedArrayBase> array) {
 template<typename FastElementsAccessorSubclass,
          typename KindTraits>
 class FastSmiOrObjectElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass,
-                                  KindTraits,
-                                  kPointerSize> {
+    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
  public:
   explicit FastSmiOrObjectElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits,
-                             kPointerSize>(name) {}
+                             KindTraits>(name) {}
 
-  static void CopyElementsImpl(Handle<FixedArrayBase> from,
-                               uint32_t from_start,
-                               Handle<FixedArrayBase> to,
-                               ElementsKind from_kind,
-                               uint32_t to_start,
-                               int packed_size,
+  // NOTE: this method violates the handlified function signature convention:
+  // raw pointer parameters in the function that allocates.
+  // See ElementsAccessor::CopyElements() for details.
+  // This method could actually allocate if copying from double elements to
+  // object elements.
+  static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
+                               FixedArrayBase* to, ElementsKind from_kind,
+                               uint32_t to_start, int packed_size,
                                int copy_size) {
+    DisallowHeapAllocation no_gc;
     ElementsKind to_kind = KindTraits::Kind;
     switch (from_kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
-        CopyObjectToObjectElements(
-            from, from_kind, from_start, to, to_kind, to_start, copy_size);
+        CopyObjectToObjectElements(from, from_kind, from_start, to, to_kind,
+                                   to_start, copy_size);
         break;
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS: {
+        AllowHeapAllocation allow_allocation;
         CopyDoubleToObjectElements(
             from, from_start, to, to_kind, to_start, copy_size);
         break;
+      }
       case DICTIONARY_ELEMENTS:
-        CopyDictionaryToObjectElements(
-            from, from_start, to, to_kind, to_start, copy_size);
+        CopyDictionaryToObjectElements(from, from_start, to, to_kind, to_start,
+                                       copy_size);
         break;
       case SLOPPY_ARGUMENTS_ELEMENTS: {
         // TODO(verwaest): This is a temporary hack to support extending
         // SLOPPY_ARGUMENTS_ELEMENTS in SetFastElementsCapacityAndLength.
         // This case should be UNREACHABLE().
-        Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(from);
-        Handle<FixedArrayBase> arguments(
-            FixedArrayBase::cast(parameter_map->get(1)));
+        FixedArray* parameter_map = FixedArray::cast(from);
+        FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
         ElementsKind from_kind = ElementsKindForArray(arguments);
         CopyElementsImpl(arguments, from_start, to, from_kind,
                          to_start, packed_size, copy_size);
@@ -1215,14 +1188,11 @@ class FastHoleyObjectElementsAccessor
 template<typename FastElementsAccessorSubclass,
          typename KindTraits>
 class FastDoubleElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass,
-                                  KindTraits,
-                                  kDoubleSize> {
+    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
  public:
   explicit FastDoubleElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits,
-                             kDoubleSize>(name) {}
+                             KindTraits>(name) {}
 
   static void SetFastElementsCapacityAndLength(Handle<JSObject> obj,
                                                uint32_t capacity,
@@ -1231,17 +1201,15 @@ class FastDoubleElementsAccessor
   }
 
  protected:
-  static void CopyElementsImpl(Handle<FixedArrayBase> from,
-                               uint32_t from_start,
-                               Handle<FixedArrayBase> to,
-                               ElementsKind from_kind,
-                               uint32_t to_start,
-                               int packed_size,
+  static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
+                               FixedArrayBase* to, ElementsKind from_kind,
+                               uint32_t to_start, int packed_size,
                                int copy_size) {
+    DisallowHeapAllocation no_allocation;
     switch (from_kind) {
       case FAST_SMI_ELEMENTS:
-        CopyPackedSmiToDoubleElements(
-            from, from_start, to, to_start, packed_size, copy_size);
+        CopyPackedSmiToDoubleElements(from, from_start, to, to_start,
+                                      packed_size, copy_size);
         break;
       case FAST_HOLEY_SMI_ELEMENTS:
         CopySmiToDoubleElements(from, from_start, to, to_start, copy_size);
@@ -1255,8 +1223,8 @@ class FastDoubleElementsAccessor
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case DICTIONARY_ELEMENTS:
-        CopyDictionaryToDoubleElements(
-            from, from_start, to, to_start, copy_size);
+        CopyDictionaryToDoubleElements(from, from_start, to, to_start,
+                                       copy_size);
         break;
       case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -1340,16 +1308,6 @@ class TypedElementsAccessor
           ? NONE : ABSENT;
   }
 
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
-    return
-        key < AccessorClass::GetCapacityImpl(backing_store)
-          ? FIELD : NONEXISTENT;
-  }
-
   MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
       Handle<JSObject> obj,
       Handle<Object> length,
@@ -1362,7 +1320,7 @@ class TypedElementsAccessor
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
+      JSReceiver::DeleteMode mode) FINAL OVERRIDE {
     // External arrays always ignore deletes.
     return obj->GetIsolate()->factory()->true_value();
   }
@@ -1426,7 +1384,7 @@ class DictionaryElementsAccessor
           uint32_t number = static_cast<uint32_t>(key->Number());
           if (new_length <= number && number < old_length) {
             PropertyDetails details = dict->DetailsAt(i);
-            if (details.IsDontDelete()) new_length = number + 1;
+            if (!details.IsConfigurable()) new_length = number + 1;
           }
         }
       }
@@ -1436,9 +1394,7 @@ class DictionaryElementsAccessor
     }
 
     if (new_length == 0) {
-      // If the length of a slow array is reset to zero, we clear
-      // the array and flush backing storage. This has the added
-      // benefit that the array returns to fast mode.
+      // Flush the backing store.
       JSObject::ResetElements(array);
     } else {
       DisallowHeapAllocation no_gc;
@@ -1485,10 +1441,9 @@ class DictionaryElementsAccessor
           // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
           Handle<Object> args[2] = { name, obj };
-          Handle<Object> error =
-              isolate->factory()->NewTypeError("strict_delete_property",
-                                               HandleVector(args, 2));
-          return isolate->Throw<Object>(error);
+          THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
+                                                HandleVector(args, 2)),
+                          Object);
         }
         return isolate->factory()->false_value();
       }
@@ -1504,12 +1459,9 @@ class DictionaryElementsAccessor
     return isolate->factory()->true_value();
   }
 
-  static void CopyElementsImpl(Handle<FixedArrayBase> from,
-                               uint32_t from_start,
-                               Handle<FixedArrayBase> to,
-                               ElementsKind from_kind,
-                               uint32_t to_start,
-                               int packed_size,
+  static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
+                               FixedArrayBase* to, ElementsKind from_kind,
+                               uint32_t to_start, int packed_size,
                                int copy_size) {
     UNREACHABLE();
   }
@@ -1522,7 +1474,7 @@ class DictionaryElementsAccessor
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
+      JSReceiver::DeleteMode mode) FINAL OVERRIDE {
     return DeleteCommon(obj, key, mode);
   }
 
@@ -1560,20 +1512,6 @@ class DictionaryElementsAccessor
       return dictionary->DetailsAt(entry).attributes();
     }
     return ABSENT;
-  }
-
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> store) {
-    Handle<SeededNumberDictionary> backing_store =
-        Handle<SeededNumberDictionary>::cast(store);
-    int entry = backing_store->FindEntry(key);
-    if (entry != SeededNumberDictionary::kNotFound) {
-      return backing_store->DetailsAt(entry).type();
-    }
-    return NONEXISTENT;
   }
 
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
@@ -1637,7 +1575,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       DisallowHeapAllocation no_gc;
       Context* context = Context::cast(parameter_map->get(0));
       int context_index = Handle<Smi>::cast(probe)->value();
-      ASSERT(!context->get(context_index)->IsTheHole());
+      DCHECK(!context->get(context_index)->IsTheHole());
       return handle(context->get(context_index), isolate);
     } else {
       // Object is not mapped, defer to the arguments.
@@ -1655,7 +1593,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
         AliasedArgumentsEntry* entry = AliasedArgumentsEntry::cast(*result);
         Context* context = Context::cast(parameter_map->get(0));
         int context_index = entry->aliased_context_slot();
-        ASSERT(!context->get(context_index)->IsTheHole());
+        DCHECK(!context->get(context_index)->IsTheHole());
         return handle(context->get(context_index), isolate);
       } else {
         return result;
@@ -1676,23 +1614,6 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       // If not aliased, check the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       return ElementsAccessor::ForArray(arguments)->GetAttributes(
-          receiver, obj, key, arguments);
-    }
-  }
-
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> parameters) {
-    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
-    if (!probe->IsTheHole()) {
-      return FIELD;
-    } else {
-      // If not aliased, check the arguments.
-      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ElementsAccessor::ForArray(arguments)->GetType(
           receiver, obj, key, arguments);
     }
   }
@@ -1727,7 +1648,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
+      JSReceiver::DeleteMode mode) FINAL OVERRIDE {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map(FixedArray::cast(obj->elements()));
     Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
@@ -1750,12 +1671,9 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     return isolate->factory()->true_value();
   }
 
-  static void CopyElementsImpl(Handle<FixedArrayBase> from,
-                               uint32_t from_start,
-                               Handle<FixedArrayBase> to,
-                               ElementsKind from_kind,
-                               uint32_t to_start,
-                               int packed_size,
+  static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
+                               FixedArrayBase* to, ElementsKind from_kind,
+                               uint32_t to_start, int packed_size,
                                int copy_size) {
     UNREACHABLE();
   }
@@ -1811,7 +1729,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
 
 
 ElementsAccessor* ElementsAccessor::ForArray(Handle<FixedArrayBase> array) {
-  return elements_accessors_[ElementsKindForArray(array)];
+  return elements_accessors_[ElementsKindForArray(*array)];
 }
 
 
@@ -1830,6 +1748,7 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
 
 void ElementsAccessor::TearDown() {
+  if (elements_accessors_ == NULL) return;
 #define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
   ELEMENTS_LIST(ACCESSOR_DELETE)
 #undef ACCESSOR_DELETE
@@ -1856,13 +1775,13 @@ MaybeHandle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     if (value >= 0) {
       Handle<Object> new_length = ElementsAccessorSubclass::
           SetLengthWithoutNormalize(backing_store, array, smi_length, value);
-      ASSERT(!new_length.is_null());
+      DCHECK(!new_length.is_null());
 
       // even though the proposed length was a smi, new_length could
       // still be a heap number because SetLengthWithoutNormalize doesn't
       // allow the array length property to drop below the index of
       // non-deletable elements.
-      ASSERT(new_length->IsSmi() || new_length->IsHeapNumber() ||
+      DCHECK(new_length->IsSmi() || new_length->IsHeapNumber() ||
              new_length->IsUndefined());
       if (new_length->IsSmi()) {
         array->set_length(*Handle<Smi>::cast(new_length));
@@ -1883,13 +1802,13 @@ MaybeHandle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     if (length->ToArrayIndex(&value)) {
       Handle<SeededNumberDictionary> dictionary =
           JSObject::NormalizeElements(array);
-      ASSERT(!dictionary.is_null());
+      DCHECK(!dictionary.is_null());
 
       Handle<Object> new_length = DictionaryElementsAccessor::
           SetLengthWithoutNormalize(dictionary, array, length, value);
-      ASSERT(!new_length.is_null());
+      DCHECK(!new_length.is_null());
 
-      ASSERT(new_length->IsNumber());
+      DCHECK(new_length->IsNumber());
       array->set_length(*new_length);
       return array;
     } else {

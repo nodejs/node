@@ -4,8 +4,8 @@
 
 #include <string.h>
 
-#include "v8.h"
-#include "zone-inl.h"
+#include "src/v8.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -58,7 +58,48 @@ Zone::~Zone() {
   DeleteAll();
   DeleteKeptSegment();
 
-  ASSERT(segment_bytes_allocated_ == 0);
+  DCHECK(segment_bytes_allocated_ == 0);
+}
+
+
+void* Zone::New(int size) {
+  // Round up the requested size to fit the alignment.
+  size = RoundUp(size, kAlignment);
+
+  // If the allocation size is divisible by 8 then we return an 8-byte aligned
+  // address.
+  if (kPointerSize == 4 && kAlignment == 4) {
+    position_ += ((~size) & 4) & (reinterpret_cast<intptr_t>(position_) & 4);
+  } else {
+    DCHECK(kAlignment >= kPointerSize);
+  }
+
+  // Check if the requested size is available without expanding.
+  Address result = position_;
+
+  int size_with_redzone =
+#ifdef V8_USE_ADDRESS_SANITIZER
+      size + kASanRedzoneBytes;
+#else
+      size;
+#endif
+
+  if (size_with_redzone > limit_ - position_) {
+     result = NewExpand(size_with_redzone);
+  } else {
+     position_ += size_with_redzone;
+  }
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+  Address redzone_position = result + size;
+  DCHECK(redzone_position + kASanRedzoneBytes == position_);
+  ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
+#endif
+
+  // Check that the result has the proper alignment and return it.
+  DCHECK(IsAddressAligned(result, kAlignment, 0));
+  allocation_size_ += size;
+  return reinterpret_cast<void*>(result);
 }
 
 
@@ -120,7 +161,7 @@ void Zone::DeleteKeptSegment() {
   static const unsigned char kZapDeadByte = 0xcd;
 #endif
 
-  ASSERT(segment_head_ == NULL || segment_head_->next() == NULL);
+  DCHECK(segment_head_ == NULL || segment_head_->next() == NULL);
   if (segment_head_ != NULL) {
     int size = segment_head_->size();
 #ifdef DEBUG
@@ -133,7 +174,7 @@ void Zone::DeleteKeptSegment() {
     segment_head_ = NULL;
   }
 
-  ASSERT(segment_bytes_allocated_ == 0);
+  DCHECK(segment_bytes_allocated_ == 0);
 }
 
 
@@ -160,8 +201,8 @@ void Zone::DeleteSegment(Segment* segment, int size) {
 Address Zone::NewExpand(int size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
-  ASSERT(size == RoundDown(size, kAlignment));
-  ASSERT(size > limit_ - position_);
+  DCHECK(size == RoundDown(size, kAlignment));
+  DCHECK(size > limit_ - position_);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
@@ -210,7 +251,7 @@ Address Zone::NewExpand(int size) {
     return NULL;
   }
   limit_ = segment->end();
-  ASSERT(position_ <= limit_);
+  DCHECK(position_ <= limit_);
   return result;
 }
 

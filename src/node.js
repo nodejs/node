@@ -56,7 +56,10 @@
     startup.processKillAndExit();
     startup.processSignalHandlers();
 
-    startup.processChannel();
+    // Do not initialize channel in debugger agent, it deletes env variable
+    // and the main thread won't see it.
+    if (process.argv[1] !== '--debug-agent')
+      startup.processChannel();
 
     startup.processRawDebug();
 
@@ -78,6 +81,11 @@
     } else if (process.argv[1] == 'debug') {
       // Start the debugger agent
       var d = NativeModule.require('_debugger');
+      d.start();
+
+    } else if (process.argv[1] == '--debug-agent') {
+      // Start the debugger agent
+      var d = NativeModule.require('_debugger_agent');
       d.start();
 
     } else if (process._eval != null) {
@@ -294,6 +302,10 @@
     var _runAsyncQueue = tracing._runAsyncQueue;
     var _loadAsyncQueue = tracing._loadAsyncQueue;
     var _unloadAsyncQueue = tracing._unloadAsyncQueue;
+    var microtasksScheduled = false;
+
+    // Used to run V8's micro task queue.
+    var _runMicrotasks = {};
 
     // This tickInfo thing is used so that the C++ code in src/node.cc
     // can have easy accesss to our nextTick state, and avoid unnecessary
@@ -312,7 +324,9 @@
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
 
-    process._setupNextTick(tickInfo, _tickCallback);
+    process._setupNextTick(tickInfo, _tickCallback, _runMicrotasks);
+
+    _runMicrotasks = _runMicrotasks.runMicrotasks;
 
     function tickDone() {
       if (tickInfo[kLength] !== 0) {
@@ -327,10 +341,33 @@
       tickInfo[kIndex] = 0;
     }
 
+    function scheduleMicrotasks() {
+      if (microtasksScheduled)
+        return;
+
+      nextTickQueue.push({
+        callback: runMicrotasksCallback,
+        domain: null
+      });
+
+      tickInfo[kLength]++;
+      microtasksScheduled = true;
+    }
+
+    function runMicrotasksCallback() {
+      microtasksScheduled = false;
+      _runMicrotasks();
+
+      if (tickInfo[kIndex] < tickInfo[kLength])
+        scheduleMicrotasks();
+    }
+
     // Run callbacks that have no domain.
     // Using domains will cause this to be overridden.
     function _tickCallback() {
       var callback, hasQueue, threw, tock;
+
+      scheduleMicrotasks();
 
       while (tickInfo[kIndex] < tickInfo[kLength]) {
         tock = nextTickQueue[tickInfo[kIndex]++];
@@ -357,6 +394,8 @@
 
     function _tickDomainCallback() {
       var callback, domain, hasQueue, threw, tock;
+
+      scheduleMicrotasks();
 
       while (tickInfo[kIndex] < tickInfo[kLength]) {
         tock = nextTickQueue[tickInfo[kIndex]++];

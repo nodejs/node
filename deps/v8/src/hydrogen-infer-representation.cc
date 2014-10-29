@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-infer-representation.h"
+#include "src/hydrogen-infer-representation.h"
 
 namespace v8 {
 namespace internal {

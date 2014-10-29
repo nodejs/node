@@ -56,7 +56,7 @@ class SmartPointerBase {
   }
 
   void Reset(T* new_value) {
-    ASSERT(p_ == NULL || p_ != new_value);
+    DCHECK(p_ == NULL || p_ != new_value);
     if (p_) Deallocator::Delete(p_);
     p_ = new_value;
   }
@@ -66,7 +66,7 @@ class SmartPointerBase {
   // double freeing.
   SmartPointerBase<Deallocator, T>& operator=(
       const SmartPointerBase<Deallocator, T>& rhs) {
-    ASSERT(is_empty());
+    DCHECK(is_empty());
     T* tmp = rhs.p_;  // swap to handle self-assignment
     const_cast<SmartPointerBase<Deallocator, T>&>(rhs).p_ = NULL;
     p_ = tmp;

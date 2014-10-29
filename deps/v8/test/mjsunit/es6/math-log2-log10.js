@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-maths
-
 [Math.log10, Math.log2].forEach( function(fun) {
   assertTrue(isNaN(fun(NaN)));
   assertTrue(isNaN(fun(fun)));

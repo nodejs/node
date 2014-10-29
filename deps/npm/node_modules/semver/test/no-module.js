@@ -4,9 +4,9 @@ var test = tap.test;
 test('no module system', function(t) {
   var fs = require('fs');
   var vm = require('vm');
-  var head = fs.readFileSync(require.resolve('../head.js'), 'utf8');
+  var head = fs.readFileSync(require.resolve('../head.js.txt'), 'utf8');
   var src = fs.readFileSync(require.resolve('../'), 'utf8');
-  var foot = fs.readFileSync(require.resolve('../foot.js'), 'utf8');
+  var foot = fs.readFileSync(require.resolve('../foot.js.txt'), 'utf8');
   vm.runInThisContext(head + src + foot, 'semver.js');
 
   // just some basic poking to see if it did some stuff

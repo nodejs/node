@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "runtime-profiler.h"
+#include "src/runtime-profiler.h"
 
-#include "assembler.h"
-#include "bootstrapper.h"
-#include "code-stubs.h"
-#include "compilation-cache.h"
-#include "execution.h"
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "isolate-inl.h"
-#include "mark-compact.h"
-#include "platform.h"
-#include "scopeinfo.h"
+#include "src/assembler.h"
+#include "src/base/platform/platform.h"
+#include "src/bootstrapper.h"
+#include "src/code-stubs.h"
+#include "src/compilation-cache.h"
+#include "src/execution.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/heap/mark-compact.h"
+#include "src/isolate-inl.h"
+#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {
@@ -57,35 +57,43 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-static void GetICCounts(Code* shared_code,
-                        int* ic_with_type_info_count,
-                        int* ic_total_count,
-                        int* percentage) {
+static void GetICCounts(Code* shared_code, int* ic_with_type_info_count,
+                        int* ic_generic_count, int* ic_total_count,
+                        int* type_info_percentage, int* generic_percentage) {
   *ic_total_count = 0;
+  *ic_generic_count = 0;
   *ic_with_type_info_count = 0;
   Object* raw_info = shared_code->type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
     *ic_with_type_info_count = info->ic_with_type_info_count();
+    *ic_generic_count = info->ic_generic_count();
     *ic_total_count = info->ic_total_count();
   }
-  *percentage = *ic_total_count > 0
-      ? 100 * *ic_with_type_info_count / *ic_total_count
-      : 100;
+  if (*ic_total_count > 0) {
+    *type_info_percentage = 100 * *ic_with_type_info_count / *ic_total_count;
+    *generic_percentage = 100 * *ic_generic_count / *ic_total_count;
+  } else {
+    *type_info_percentage = 100;  // Compared against lower bound.
+    *generic_percentage = 0;      // Compared against upper bound.
+  }
 }
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  ASSERT(function->IsOptimizable());
+  DCHECK(function->IsOptimizable());
 
   if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
     function->ShortPrint();
     PrintF(" for recompilation, reason: %s", reason);
     if (FLAG_type_info_threshold > 0) {
-      int typeinfo, total, percentage;
-      GetICCounts(function->shared()->code(), &typeinfo, &total, &percentage);
-      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total, percentage);
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(function->shared()->code(), &typeinfo, &generic, &total,
+                  &type_percentage, &generic_percentage);
+      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total,
+             type_percentage);
+      PrintF(", generic ICs: %d/%d (%d%%)", generic, total, generic_percentage);
     }
     PrintF("]\n");
   }
@@ -101,7 +109,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
       // recompilation race.  This goes away as soon as OSR becomes one-shot.
       return;
     }
-    ASSERT(!function->IsInOptimizationQueue());
+    DCHECK(!function->IsInOptimizationQueue());
     function->MarkForConcurrentOptimization();
   } else {
     // The next call to the function will trigger optimization.
@@ -110,7 +118,9 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
 }
 
 
-void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
+void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
+                                                int loop_nesting_levels) {
+  SharedFunctionInfo* shared = function->shared();
   // See AlwaysFullCompiler (in compiler.cc) comment on why we need
   // Debug::has_break_points().
   if (!FLAG_use_osr ||
@@ -119,7 +129,6 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     return;
   }
 
-  SharedFunctionInfo* shared = function->shared();
   // If the code is not optimizable, don't try OSR.
   if (!shared->code()->optimizable()) return;
 
@@ -137,7 +146,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     PrintF("]\n");
   }
 
-  BackEdgeTable::Patch(isolate_, shared->code());
+  for (int i = 0; i < loop_nesting_levels; i++) {
+    BackEdgeTable::Patch(isolate_, shared->code());
+  }
 }
 
 
@@ -175,14 +186,8 @@ void RuntimeProfiler::OptimizeNow() {
     if (shared_code->kind() != Code::FUNCTION) continue;
     if (function->IsInOptimizationQueue()) continue;
 
-    if (FLAG_always_osr &&
-        shared_code->allow_osr_at_loop_nesting_level() == 0) {
-      // Testing mode: always try an OSR compile for every function.
-      for (int i = 0; i < Code::kMaxLoopNestingMarker; i++) {
-        // TODO(titzer): fix AttemptOnStackReplacement to avoid this dumb loop.
-        shared_code->set_allow_osr_at_loop_nesting_level(i);
-        AttemptOnStackReplacement(function);
-      }
+    if (FLAG_always_osr) {
+      AttemptOnStackReplacement(function, Code::kMaxLoopNestingMarker);
       // Fall through and do a normal optimized compile as well.
     } else if (!frame->is_optimized() &&
         (function->IsMarkedForOptimization() ||
@@ -196,12 +201,7 @@ void RuntimeProfiler::OptimizeNow() {
       if (shared_code->CodeSize() > allowance) {
         if (ticks < 255) shared_code->set_profiler_ticks(ticks + 1);
       } else {
-        int nesting = shared_code->allow_osr_at_loop_nesting_level();
-        if (nesting < Code::kMaxLoopNestingMarker) {
-          int new_nesting = nesting + 1;
-          shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
-          AttemptOnStackReplacement(function);
-        }
+        AttemptOnStackReplacement(function);
       }
       continue;
     }
@@ -235,9 +235,11 @@ void RuntimeProfiler::OptimizeNow() {
     int ticks = shared_code->profiler_ticks();
 
     if (ticks >= kProfilerTicksBeforeOptimization) {
-      int typeinfo, total, percentage;
-      GetICCounts(shared_code, &typeinfo, &total, &percentage);
-      if (percentage >= FLAG_type_info_threshold) {
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(shared_code, &typeinfo, &generic, &total, &type_percentage,
+                  &generic_percentage);
+      if (type_percentage >= FLAG_type_info_threshold &&
+          generic_percentage <= FLAG_generic_ic_threshold) {
         // If this particular function hasn't had any ICs patched for enough
         // ticks, optimize it now.
         Optimize(function, "hot and stable");
@@ -248,15 +250,23 @@ void RuntimeProfiler::OptimizeNow() {
         if (FLAG_trace_opt_verbose) {
           PrintF("[not yet optimizing ");
           function->PrintName();
-          PrintF(", not enough type info: %d/%d (%d%%)]\n",
-                 typeinfo, total, percentage);
+          PrintF(", not enough type info: %d/%d (%d%%)]\n", typeinfo, total,
+                 type_percentage);
         }
       }
     } else if (!any_ic_changed_ &&
                shared_code->instruction_size() < kMaxSizeEarlyOpt) {
       // If no IC was patched since the last tick and this function is very
       // small, optimistically optimize it now.
-      Optimize(function, "small function");
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(shared_code, &typeinfo, &generic, &total, &type_percentage,
+                  &generic_percentage);
+      if (type_percentage >= FLAG_type_info_threshold &&
+          generic_percentage <= FLAG_generic_ic_threshold) {
+        Optimize(function, "small function");
+      } else {
+        shared_code->set_profiler_ticks(ticks + 1);
+      }
     } else {
       shared_code->set_profiler_ticks(ticks + 1);
     }

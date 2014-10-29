@@ -441,12 +441,6 @@ TickProcessor.prototype.printStatistics = function() {
 
   if (this.ticks_.total == 0) return;
 
-  // Print the unknown ticks percentage if they are not ignored.
-  if (!this.ignoreUnknown_ && this.ticks_.unaccounted > 0) {
-    this.printHeader('Unknown');
-    this.printCounter(this.ticks_.unaccounted, this.ticks_.total);
-  }
-
   var flatProfile = this.profile_.getFlatProfile();
   var flatView = this.viewBuilder_.buildView(flatProfile);
   // Sort by self time, desc, then by name, desc.
@@ -457,33 +451,39 @@ TickProcessor.prototype.printStatistics = function() {
   if (this.ignoreUnknown_) {
     totalTicks -= this.ticks_.unaccounted;
   }
-  // Our total time contains all the ticks encountered,
-  // while profile only knows about the filtered ticks.
-  flatView.head.totalTime = totalTicks;
 
   // Count library ticks
   var flatViewNodes = flatView.head.children;
   var self = this;
+
   var libraryTicks = 0;
-  this.processProfile(flatViewNodes,
+  this.printHeader('Shared libraries');
+  this.printEntries(flatViewNodes, totalTicks, null,
       function(name) { return self.isSharedLibrary(name); },
       function(rec) { libraryTicks += rec.selfTime; });
   var nonLibraryTicks = totalTicks - libraryTicks;
 
-  this.printHeader('Shared libraries');
-  this.printEntries(flatViewNodes, null,
-      function(name) { return self.isSharedLibrary(name); });
-
+  var jsTicks = 0;
   this.printHeader('JavaScript');
-  this.printEntries(flatViewNodes, nonLibraryTicks,
-      function(name) { return self.isJsCode(name); });
+  this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
+      function(name) { return self.isJsCode(name); },
+      function(rec) { jsTicks += rec.selfTime; });
 
+  var cppTicks = 0;
   this.printHeader('C++');
-  this.printEntries(flatViewNodes, nonLibraryTicks,
-      function(name) { return self.isCppCode(name); });
+  this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
+      function(name) { return self.isCppCode(name); },
+      function(rec) { cppTicks += rec.selfTime; });
 
-  this.printHeader('GC');
-  this.printCounter(this.ticks_.gc, totalTicks);
+  this.printHeader('Summary');
+  this.printLine('JavaScript', jsTicks, totalTicks, nonLibraryTicks);
+  this.printLine('C++', cppTicks, totalTicks, nonLibraryTicks);
+  this.printLine('GC', this.ticks_.gc, totalTicks, nonLibraryTicks);
+  this.printLine('Shared libraries', libraryTicks, totalTicks, null);
+  if (!this.ignoreUnknown_ && this.ticks_.unaccounted > 0) {
+    this.printLine('Unaccounted', this.ticks_.unaccounted,
+                   this.ticks_.total, null);
+  }
 
   this.printHeavyProfHeader();
   var heavyProfile = this.profile_.getBottomUpProfile();
@@ -517,6 +517,18 @@ TickProcessor.prototype.printHeader = function(headerTitle) {
 };
 
 
+TickProcessor.prototype.printLine = function(
+    entry, ticks, totalTicks, nonLibTicks) {
+  var pct = ticks * 100 / totalTicks;
+  var nonLibPct = nonLibTicks != null
+      ? padLeft((ticks * 100 / nonLibTicks).toFixed(1), 5) + '%  '
+      : '        ';
+  print('  ' + padLeft(ticks, 5) + '  ' +
+        padLeft(pct.toFixed(1), 5) + '%  ' +
+        nonLibPct +
+        entry);
+}
+
 TickProcessor.prototype.printHeavyProfHeader = function() {
   print('\n [Bottom up (heavy) profile]:');
   print('  Note: percentage shows a share of a particular caller in the ' +
@@ -526,12 +538,6 @@ TickProcessor.prototype.printHeavyProfHeader = function() {
         TickProcessor.CALL_PROFILE_CUTOFF_PCT.toFixed(1) +
         '% are not shown.\n');
   print('   ticks parent  name');
-};
-
-
-TickProcessor.prototype.printCounter = function(ticksCount, totalTicksCount) {
-  var pct = ticksCount * 100.0 / totalTicksCount;
-  print('  ' + padLeft(ticksCount, 5) + '  ' + padLeft(pct.toFixed(1), 5) + '%');
 };
 
 
@@ -580,18 +586,13 @@ TickProcessor.prototype.formatFunctionName = function(funcName) {
 };
 
 TickProcessor.prototype.printEntries = function(
-    profile, nonLibTicks, filterP) {
+    profile, totalTicks, nonLibTicks, filterP, callback) {
   var that = this;
   this.processProfile(profile, filterP, function (rec) {
     if (rec.selfTime == 0) return;
-    var nonLibPct = nonLibTicks != null ?
-        rec.selfTime * 100.0 / nonLibTicks : 0.0;
+    callback(rec);
     var funcName = that.formatFunctionName(rec.internalFuncName);
-
-    print('  ' + padLeft(rec.selfTime, 5) + '  ' +
-          padLeft(rec.selfPercent.toFixed(1), 5) + '%  ' +
-          padLeft(nonLibPct.toFixed(1), 5) + '%  ' +
-          funcName);
+    that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
   });
 };
 

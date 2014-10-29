@@ -5,9 +5,10 @@
 #ifndef V8_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
-#include "assembler.h"
-#include "frames.h"
-#include "v8globals.h"
+#include "src/assembler.h"
+#include "src/bailout-reason.h"
+#include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +30,10 @@ typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum PointersToHereCheck {
+  kPointersToHereMaybeInteresting,
+  kPointersToHereAreAlwaysInteresting
+};
 
 enum SmiOperationConstraint {
   PRESERVE_SOURCE_REGISTER,
@@ -46,7 +51,16 @@ class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
       : EnumSet<SmiOperationConstraint, byte>(bits) { }
 };
 
-bool AreAliased(Register r1, Register r2, Register r3, Register r4);
+#ifdef DEBUG
+bool AreAliased(Register reg1,
+                Register reg2,
+                Register reg3 = no_reg,
+                Register reg4 = no_reg,
+                Register reg5 = no_reg,
+                Register reg6 = no_reg,
+                Register reg7 = no_reg,
+                Register reg8 = no_reg);
+#endif
 
 // Forward declaration.
 class JumpTarget;
@@ -220,7 +234,9 @@ class MacroAssembler: public Assembler {
       Register scratch,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // As above, but the offset has the tag presubtracted.  For use with
   // Operand(reg, off).
@@ -231,14 +247,17 @@ class MacroAssembler: public Assembler {
       Register scratch,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK) {
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
                      save_fp,
                      remembered_set_action,
-                     smi_check);
+                     smi_check,
+                     pointers_to_here_check_for_value);
   }
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
@@ -253,7 +272,15 @@ class MacroAssembler: public Assembler {
       Register index,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
+
+  void RecordWriteForMap(
+      Register object,
+      Register map,
+      Register dst,
+      SaveFPRegsMode save_fp);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -266,7 +293,9 @@ class MacroAssembler: public Assembler {
       Register value,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // ---------------------------------------------------------------------------
   // Debugger Support
@@ -274,7 +303,8 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void StubPrologue();
+  void Prologue(bool code_pre_aging);
 
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
@@ -469,9 +499,17 @@ class MacroAssembler: public Assembler {
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
+  // Jump if the value can be represented by a smi.
+  void JumpIfValidSmiValue(Register src, Label* on_valid,
+                           Label::Distance near_jump = Label::kFar);
+
   // Jump if the value cannot be represented by a smi.
   void JumpIfNotValidSmiValue(Register src, Label* on_invalid,
                               Label::Distance near_jump = Label::kFar);
+
+  // Jump if the unsigned integer value can be represented by a smi.
+  void JumpIfUIntValidSmiValue(Register src, Label* on_valid,
+                               Label::Distance near_jump = Label::kFar);
 
   // Jump if the unsigned integer value cannot be represented by a smi.
   void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid,
@@ -630,7 +668,9 @@ class MacroAssembler: public Assembler {
 
   void SmiShiftLeftConstant(Register dst,
                             Register src,
-                            int shift_value);
+                            int shift_value,
+                            Label* on_not_smi_result = NULL,
+                            Label::Distance near_jump = Label::kFar);
   void SmiShiftLogicalRightConstant(Register dst,
                                     Register src,
                                     int shift_value,
@@ -644,7 +684,9 @@ class MacroAssembler: public Assembler {
   // Uses and clobbers rcx, so dst may not be rcx.
   void SmiShiftLeft(Register dst,
                     Register src1,
-                    Register src2);
+                    Register src2,
+                    Label* on_not_smi_result = NULL,
+                    Label::Distance near_jump = Label::kFar);
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
@@ -732,29 +774,22 @@ class MacroAssembler: public Assembler {
                        Label::Distance near_jump = Label::kFar);
 
 
-  void JumpIfNotBothSequentialAsciiStrings(
-      Register first_object,
-      Register second_object,
-      Register scratch1,
-      Register scratch2,
-      Label* on_not_both_flat_ascii,
+  void JumpIfNotBothSequentialOneByteStrings(
+      Register first_object, Register second_object, Register scratch1,
+      Register scratch2, Label* on_not_both_flat_one_byte,
       Label::Distance near_jump = Label::kFar);
 
-  // Check whether the instance type represents a flat ASCII string. Jump to the
-  // label if not. If the instance type can be scratched specify same register
-  // for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialAscii(
-      Register instance_type,
-      Register scratch,
-      Label*on_not_flat_ascii_string,
+  // Check whether the instance type represents a flat one-byte string. Jump
+  // to the label if not. If the instance type can be scratched specify same
+  // register for both instance type and scratch.
+  void JumpIfInstanceTypeIsNotSequentialOneByte(
+      Register instance_type, Register scratch,
+      Label* on_not_flat_one_byte_string,
       Label::Distance near_jump = Label::kFar);
 
-  void JumpIfBothInstanceTypesAreNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* on_fail,
+  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* on_fail,
       Label::Distance near_jump = Label::kFar);
 
   void EmitSeqStringSetCharCheck(Register string,
@@ -763,10 +798,10 @@ class MacroAssembler: public Assembler {
                                  uint32_t encoding_mask);
 
   // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
-  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
   // Macro instructions.
@@ -841,15 +876,15 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
     movp(dst, ptr, rmode);
   }
 
   void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
     AllowDeferredHandleDereference using_raw_address;
-    ASSERT(!RelocInfo::IsNone(rmode));
-    ASSERT(value->IsHeapObject());
-    ASSERT(!isolate()->heap()->InNewSpace(*value));
+    DCHECK(!RelocInfo::IsNone(rmode));
+    DCHECK(value->IsHeapObject());
+    DCHECK(!isolate()->heap()->InNewSpace(*value));
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
@@ -996,14 +1031,11 @@ class MacroAssembler: public Assembler {
   void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-      XMMRegister scratch, MinusZeroMode minus_zero_mode,
-      Label* conversion_failed, Label::Distance dst = Label::kFar);
+                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
+                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 Label::Distance dst = Label::kFar);
 
-  void TaggedToI(Register result_reg, Register input_reg, XMMRegister temp,
-      MinusZeroMode minus_zero_mode, Label* lost_precision,
-      Label::Distance dst = Label::kFar);
-
-  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+  void LoadUint32(XMMRegister dst, Register src);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
@@ -1011,11 +1043,32 @@ class MacroAssembler: public Assembler {
 
   template<typename Field>
   void DecodeField(Register reg) {
-    static const int shift = Field::kShift + kSmiShift;
+    static const int shift = Field::kShift;
     static const int mask = Field::kMask >> Field::kShift;
-    shrp(reg, Immediate(shift));
+    if (shift != 0) {
+      shrp(reg, Immediate(shift));
+    }
     andp(reg, Immediate(mask));
-    shlp(reg, Immediate(kSmiShift));
+  }
+
+  template<typename Field>
+  void DecodeFieldToSmi(Register reg) {
+    if (SmiValuesAre32Bits()) {
+      andp(reg, Immediate(Field::kMask));
+      shlp(reg, Immediate(kSmiShift - Field::kShift));
+    } else {
+      static const int shift = Field::kShift;
+      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+      DCHECK(SmiValuesAre31Bits());
+      DCHECK(kSmiShift == kSmiTagSize);
+      DCHECK((mask & 0x80000000u) == 0);
+      if (shift < kSmiShift) {
+        shlp(reg, Immediate(kSmiShift - shift));
+      } else if (shift > kSmiShift) {
+        sarp(reg, Immediate(shift - kSmiShift));
+      }
+      andp(reg, Immediate(mask));
+    }
   }
 
   // Abort execution if argument is not a number, enabled via --debug-code.
@@ -1063,12 +1116,6 @@ class MacroAssembler: public Assembler {
 
   // Propagate an uncatchable exception out of the current JS stack.
   void ThrowUncatchable(Register value);
-
-  // Throw a message string as an exception.
-  void Throw(BailoutReason reason);
-
-  // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cc, BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -1139,7 +1186,8 @@ class MacroAssembler: public Assembler {
   // space is full.
   void AllocateHeapNumber(Register result,
                           Register scratch,
-                          Label* gc_required);
+                          Label* gc_required,
+                          MutableMode mode = IMMUTABLE);
 
   // Allocate a sequential string. All the header fields of the string object
   // are initialized.
@@ -1149,12 +1197,9 @@ class MacroAssembler: public Assembler {
                              Register scratch2,
                              Register scratch3,
                              Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           Register length,
-                           Register scratch1,
-                           Register scratch2,
-                           Register scratch3,
-                           Label* gc_required);
+  void AllocateOneByteString(Register result, Register length,
+                             Register scratch1, Register scratch2,
+                             Register scratch3, Label* gc_required);
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
@@ -1162,10 +1207,8 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Label* gc_required);
-  void AllocateAsciiConsString(Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* gc_required);
+  void AllocateOneByteConsString(Register result, Register scratch1,
+                                 Register scratch2, Label* gc_required);
 
   // Allocate a raw sliced string object. Only the map field of the result is
   // initialized.
@@ -1173,10 +1216,8 @@ class MacroAssembler: public Assembler {
                             Register scratch1,
                             Register scratch2,
                             Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
+  void AllocateOneByteSlicedString(Register result, Register scratch1,
+                                   Register scratch2, Label* gc_required);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -1330,7 +1371,7 @@ class MacroAssembler: public Assembler {
   void Ret(int bytes_dropped, Register scratch);
 
   Handle<Object> CodeObject() {
-    ASSERT(!code_object_.is_null());
+    DCHECK(!code_object_.is_null());
     return code_object_;
   }
 
@@ -1477,6 +1518,11 @@ class MacroAssembler: public Assembler {
   void LoadAllocationTopHelper(Register result,
                                Register scratch,
                                AllocationFlags flags);
+
+  void MakeSureDoubleAlignedHelper(Register result,
+                                   Register scratch,
+                                   Label* gc_required,
+                                   AllocationFlags flags);
 
   // Update allocation top with value in result_end register.
   // If scratch is valid, it contains the address of the allocation top.

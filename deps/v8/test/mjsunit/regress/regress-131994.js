@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
+// Flags: --turbo-deoptimization
 
 // Test that a variable in the local scope that shadows a context-allocated
 // variable is correctly resolved when being evaluated in the debugger.

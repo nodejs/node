@@ -47,16 +47,15 @@ class SignalWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"));
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
+    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
+    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "start", Start);
+    env->SetProtoMethod(constructor, "stop", Stop);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"),
                 constructor->GetFunction());
@@ -67,9 +66,8 @@ class SignalWrap : public HandleWrap {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
-    assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
     new SignalWrap(env, args.This());
   }
 
@@ -79,27 +77,18 @@ class SignalWrap : public HandleWrap {
                    reinterpret_cast<uv_handle_t*>(&handle_),
                    AsyncWrap::PROVIDER_SIGNALWRAP) {
     int r = uv_signal_init(env->event_loop(), &handle_);
-    assert(r == 0);
-  }
-
-  ~SignalWrap() {
+    CHECK_EQ(r, 0);
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
-
     int signum = args[0]->Int32Value();
     int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
-
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }

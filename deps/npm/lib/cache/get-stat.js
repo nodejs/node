@@ -24,7 +24,9 @@ module.exports = function getCacheStat (cb) {
 }
 
 function makeCacheDir (cb) {
-  if (!process.getuid) return mkdir(npm.cache, cb)
+  if (!process.getuid) return mkdir(npm.cache, function (er) {
+    return cb(er, {})
+  })
 
   var uid = +process.getuid()
     , gid = +process.getgid()

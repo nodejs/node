@@ -41,10 +41,11 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 class SimpleTestCase(test.TestCase):
 
-  def __init__(self, path, file, mode, context, config, additional=[]):
-    super(SimpleTestCase, self).__init__(context, path, mode)
+  def __init__(self, path, file, arch, mode, context, config, additional=[]):
+    super(SimpleTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.config = config
+    self.arch = arch
     self.mode = mode
     self.tmpdir = join(dirname(self.config.root), 'tmp')
     self.additional_flags = additional
@@ -82,7 +83,7 @@ class SimpleTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.mode)]
+    result = [self.config.context.GetVm(self.arch, self.mode)]
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
@@ -117,14 +118,14 @@ class SimpleTestConfiguration(test.TestConfiguration):
       return name.startswith('test-') and name.endswith('.js')
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(SimpleTestCase(test, file_path, mode, self.context, self,
-          self.additional_flags))
+        result.append(SimpleTestCase(test, file_path, arch, mode, self.context,
+                                     self, self.additional_flags))
     return result
 
   def GetBuildRequirements(self):
@@ -151,7 +152,7 @@ class AddonTestConfiguration(SimpleTestConfiguration):
             result.append([subpath, f[:-3]])
     return result
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + t for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:

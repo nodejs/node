@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 
+#include "src/regexp-macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -29,6 +31,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual ~RegExpMacroAssemblerIrregexp();
   // The byte-code interpreter checks on each push anyway.
   virtual int stack_limit_slack() { return 1; }
+  virtual bool CanReadUnaligned() { return false; }
   virtual void Bind(Label* label);
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
   virtual void PopCurrentPosition();

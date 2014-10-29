@@ -4,8 +4,9 @@ var mkdir = require("mkdirp")
   , path = require("path")
   , sha = require("sha")
   , retry = require("retry")
+  , createWriteStream = require("graceful-fs").createWriteStream
   , npm = require("../npm.js")
-  , fetch = require("../utils/fetch.js")
+  , registry = npm.registry
   , inflight = require("inflight")
   , locker = require("../utils/locker.js")
   , lock = locker.lock
@@ -80,27 +81,39 @@ function addRemoteTarball_(u, tmp, shasum, cb) {
 }
 
 function fetchAndShaCheck (u, tmp, shasum, cb) {
-  fetch(u, tmp, function (er, response) {
+  registry.fetch(u, null, function (er, response) {
     if (er) {
       log.error("fetch failed", u)
       return cb(er, response)
     }
 
-    if (!shasum) {
-      // Well, we weren't given a shasum, so at least sha what we have
-      // in case we want to compare it to something else later
-      return sha.get(tmp, function (er, shasum) {
-        cb(er, response, shasum)
-      })
-    }
-
-    // validate that the url we just downloaded matches the expected shasum.
-    sha.check(tmp, shasum, function (er) {
-      if (er && er.message) {
-        // add original filename for better debuggability
-        er.message = er.message + '\n' + 'From:     ' + u
-      }
-      return cb(er, response, shasum)
+    var tarball = createWriteStream(tmp, { mode : npm.modes.file })
+    tarball.on("error", function (er) {
+      cb(er)
+      tarball.destroy()
     })
+
+    tarball.on("finish", function () {
+      if (!shasum) {
+        // Well, we weren't given a shasum, so at least sha what we have
+        // in case we want to compare it to something else later
+        return sha.get(tmp, function (er, shasum) {
+          log.silly("fetchAndShaCheck", "shasum", shasum)
+          cb(er, response, shasum)
+        })
+      }
+
+      // validate that the url we just downloaded matches the expected shasum.
+      log.silly("fetchAndShaCheck", "shasum", shasum)
+      sha.check(tmp, shasum, function (er) {
+        if (er && er.message) {
+          // add original filename for better debuggability
+          er.message = er.message + "\n" + "From:     " + u
+        }
+        return cb(er, response, shasum)
+      })
+    })
+
+    response.pipe(tarball)
   })
 }

@@ -34,6 +34,11 @@ used by Mozilla's [Rust language](http://www.rust-lang.org/),
 
  * Threading and synchronization primitives
 
+## Versioning
+
+Starting with version 1.0.0 libuv follows the [semantic versioning](http://semver.org/)
+scheme. The API change and backwards compatiblity rules are those indicated by
+SemVer. libuv will keep a stable ABI across major releases.
 
 ## Community
 
@@ -41,8 +46,34 @@ used by Mozilla's [Rust language](http://www.rust-lang.org/),
 
 ## Documentation
 
- * [include/uv.h](https://github.com/joyent/libuv/blob/master/include/uv.h)
-   &mdash; API documentation in the form of detailed header comments.
+### Official API documentation
+
+Located in the docs/ subdirectory. It uses the [Sphinx](http://sphinx-doc.org/)
+framework, which makes it possible to build the documentation in multiple
+formats.
+
+Show different supported building options:
+
+    $ make help
+
+Build documentation as HTML:
+
+    $ make html
+
+Build documentation as man pages:
+
+    $ make man
+
+Build documentation as ePub:
+
+    $ make epub
+
+NOTE: Windows users need to use make.bat instead of plain 'make'.
+
+Documentation can be browsed online [here](http://docs.libuv.org).
+
+### Other resources
+
  * [An Introduction to libuv](http://nikhilm.github.com/uvbook/)
    &mdash; An overview of libuv with tutorials.
  * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4)

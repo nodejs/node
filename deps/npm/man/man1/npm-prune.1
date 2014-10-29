@@ -1,42 +1,33 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
-.
 .TH "NPM\-PRUNE" "1" "September 2014" "" ""
-.
 .SH "NAME"
-\fBnpm-prune\fR \-\- Remove extraneous packages
-.
-.SH "SYNOPSIS"
-.
-.nf
+\fBnpm-prune\fR \- Remove extraneous packages
+.SH SYNOPSIS
+.P
+.RS 2
+.EX
 npm prune [<name> [<name \.\.\.]]
 npm prune [<name> [<name \.\.\.]] [\-\-production]
-.
-.fi
-.
-.SH "DESCRIPTION"
+.EE
+.RE
+.SH DESCRIPTION
+.P
 This command removes "extraneous" packages\.  If a package name is
 provided, then only packages matching one of the supplied names are
 removed\.
-.
 .P
 Extraneous packages are packages that are not listed on the parent
-package\'s dependencies list\.
-.
+package's dependencies list\.
 .P
 If the \fB\-\-production\fR flag is specified, this command will remove the
 packages specified in your \fBdevDependencies\fR\|\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help rm
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help ls
-.
-.IP "" 0
+
+.RE
 

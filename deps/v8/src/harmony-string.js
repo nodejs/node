@@ -120,17 +120,71 @@ function StringContains(searchString /* position */) {  // length == 1
 }
 
 
+// ES6 Draft 05-22-2014, section 21.1.3.3
+function StringCodePointAt(pos) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.codePointAt");
+
+  var string = TO_STRING_INLINE(this);
+  var size = string.length;
+  pos = TO_INTEGER(pos);
+  if (pos < 0 || pos >= size) {
+    return UNDEFINED;
+  }
+  var first = %_StringCharCodeAt(string, pos);
+  if (first < 0xD800 || first > 0xDBFF || pos + 1 == size) {
+    return first;
+  }
+  var second = %_StringCharCodeAt(string, pos + 1);
+  if (second < 0xDC00 || second > 0xDFFF) {
+    return first;
+  }
+  return (first - 0xD800) * 0x400 + second + 0x2400;
+}
+
+
+// ES6 Draft 05-22-2014, section 21.1.2.2
+function StringFromCodePoint(_) {  // length = 1
+  var code;
+  var length = %_ArgumentsLength();
+  var index;
+  var result = "";
+  for (index = 0; index < length; index++) {
+    code = %_Arguments(index);
+    if (!%_IsSmi(code)) {
+      code = ToNumber(code);
+    }
+    if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
+      throw MakeRangeError("invalid_code_point", [code]);
+    }
+    if (code <= 0xFFFF) {
+      result += %_StringCharFromCode(code);
+    } else {
+      code -= 0x10000;
+      result += %_StringCharFromCode((code >>> 10) & 0x3FF | 0xD800);
+      result += %_StringCharFromCode(code & 0x3FF | 0xDC00);
+    }
+  }
+  return result;
+}
+
+
 // -------------------------------------------------------------------
 
 function ExtendStringPrototype() {
   %CheckIsBootstrapping();
 
+  // Set up the non-enumerable functions on the String object.
+  InstallFunctions($String, DONT_ENUM, $Array(
+    "fromCodePoint", StringFromCodePoint
+  ));
+
   // Set up the non-enumerable functions on the String prototype object.
   InstallFunctions($String.prototype, DONT_ENUM, $Array(
-    "repeat", StringRepeat,
-    "startsWith", StringStartsWith,
+    "codePointAt", StringCodePointAt,
+    "contains", StringContains,
     "endsWith", StringEndsWith,
-    "contains", StringContains
+    "repeat", StringRepeat,
+    "startsWith", StringStartsWith
   ));
 }
 

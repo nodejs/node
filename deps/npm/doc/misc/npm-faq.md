@@ -75,18 +75,20 @@ npm will not help you do something that is known to be a bad idea.
 
 ## Should I check my `node_modules` folder into git?
 
-Mikeal Rogers answered this question very well:
+Usually, no. Allow npm to resolve dependencies for your packages.
 
-<http://www.futurealoof.com/posts/nodemodules-in-git.html>
+For packages you **deploy**, such as websites and apps,
+you should use npm shrinkwrap to lock down your full dependency tree:
 
-tl;dr
+https://www.npmjs.org/doc/cli/npm-shrinkwrap.html
 
-* Check `node_modules` into git for things you **deploy**, such as
-  websites and apps.
-* Do not check `node_modules` into git for libraries and modules
-  intended to be reused.
-* Use npm to manage dependencies in your dev environment, but not in
-  your deployment scripts.
+If you are paranoid about depending on the npm ecosystem,
+you should run a private npm mirror or a private cache.
+
+If you want 100% confidence in being able to reproduce the specific bytes
+included in a deployment, you should use an additional mechanism that can
+verify contents rather than versions. For example,
+Amazon machine images, DigitalOcean snapshots, Heroku slugs, or simple tarballs.
 
 ## Is it 'npm' or 'NPM' or 'Npm'?
 

@@ -2,17 +2,19 @@
 
     Stability: 1 - Experimental
 
-## smalloc.alloc(length[, receiver][, type])
-
-* `length` {Number} `<= smalloc.kMaxLength`
-* `receiver` {Object}, Optional, Default: `new Object`
-* `type` {Enum}, Optional, Default: `Uint8`
-
-Returns `receiver` with allocated external array data. If no `receiver` is
-passed then a new Object will be created and returned.
+## Class: smalloc
 
 Buffers are backed by a simple allocator that only handles the assignation of
 external raw memory. Smalloc exposes that functionality.
+
+### smalloc.alloc(length[, receiver][, type])
+
+* `length` {Number} `<= smalloc.kMaxLength`
+* `receiver` {Object} Default: `new Object`
+* `type` {Enum} Default: `Uint8`
+
+Returns `receiver` with allocated external array data. If no `receiver` is
+passed then a new Object will be created and returned.
 
 This can be used to create your own Buffer-like classes. No other properties are
 set, so the user will need to keep track of other necessary information (e.g.
@@ -46,13 +48,17 @@ possible options are listed in `smalloc.Types`. Example usage:
 
     // { '0': 0, '1': 0.1, '2': 0.2 }
 
-## smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength);
+It is not possible to freeze, seal and prevent extensions of objects with
+external data using `Object.freeze`, `Object.seal` and
+`Object.preventExtensions` respectively.
 
-* `source` Object with external array allocation
-* `sourceStart` Position to begin copying from
-* `dest` Object with external array allocation
-* `destStart` Position to begin copying onto
-* `copyLength` Length of copy
+### smalloc.copyOnto(source, sourceStart, dest, destStart, copyLength);
+
+* `source` {Object} with external array allocation
+* `sourceStart` {Number} Position to begin copying from
+* `dest` {Object} with external array allocation
+* `destStart` {Number} Position to begin copying onto
+* `copyLength` {Number} Length of copy
 
 Copy memory from one external array allocation to another. No arguments are
 optional, and any violation will throw.
@@ -75,7 +81,7 @@ optional, and any violation will throw.
 `copyOnto` automatically detects the length of the allocation internally, so no
 need to set any additional properties for this to work.
 
-## smalloc.dispose(obj)
+### smalloc.dispose(obj)
 
 * `obj` Object
 
@@ -103,21 +109,23 @@ careful. Cryptic errors may arise in applications that are difficult to trace.
     smalloc.copyOnto(b, 2, a, 0, 2);
 
     // now results in:
-    // Error: source has no external array data
+    // RangeError: copy_length > source_length
 
+After `dispose()` is called object still behaves as one with external data, for
+example `smalloc.hasExternalData()` returns `true`.
 `dispose()` does not support Buffers, and will throw if passed.
 
-## smalloc.hasExternalData(obj)
+### smalloc.hasExternalData(obj)
 
 * `obj` {Object}
 
 Returns `true` if the `obj` has externally allocated memory.
 
-## smalloc.kMaxLength
+### smalloc.kMaxLength
 
 Size of maximum allocation. This is also applicable to Buffer creation.
 
-## smalloc.Types
+### smalloc.Types
 
 Enum of possible external array types. Contains:
 

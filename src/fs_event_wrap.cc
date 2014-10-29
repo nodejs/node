@@ -54,7 +54,7 @@ class FSEventWrap: public HandleWrap {
 
  private:
   FSEventWrap(Environment* env, Handle<Object> object);
-  virtual ~FSEventWrap();
+  virtual ~FSEventWrap() override;
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);
@@ -74,7 +74,7 @@ FSEventWrap::FSEventWrap(Environment* env, Handle<Object> object)
 
 
 FSEventWrap::~FSEventWrap() {
-  assert(initialized_ == false);
+  CHECK_EQ(initialized_, false);
 }
 
 
@@ -83,28 +83,26 @@ void FSEventWrap::Initialize(Handle<Object> target,
                              Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),  New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(env->fsevent_string());
 
-  NODE_SET_PROTOTYPE_METHOD(t, "start", Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+  env->SetProtoMethod(t, "start", Start);
+  env->SetProtoMethod(t, "close", Close);
 
   target->Set(env->fsevent_string(), t->GetFunction());
 }
 
 
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall());
-  HandleScope handle_scope(args.GetIsolate());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args);
   new FSEventWrap(env, args.This());
 }
 
 
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  Environment* env = Environment::GetCurrent(args);
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
@@ -146,7 +144,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  assert(wrap->persistent().IsEmpty() == false);
+  CHECK_EQ(wrap->persistent().IsEmpty(), false);
 
   // We're in a bind here. libuv can set both UV_RENAME and UV_CHANGE but
   // the Node API only lets us pass a single event to JS land.
@@ -167,7 +165,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   } else if (events & UV_CHANGE) {
     event_string = env->change_string();
   } else {
-    assert(0 && "bad fs events flag");
+    CHECK(0 && "bad fs events flag");
     abort();
   }
 
@@ -177,7 +175,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     Null(env->isolate())
   };
 
-  if (filename != NULL) {
+  if (filename != nullptr) {
     argv[2] = OneByteString(env->isolate(), filename);
   }
 
@@ -186,12 +184,9 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
-  if (wrap == NULL || wrap->initialized_ == false)
+  if (wrap == nullptr || wrap->initialized_ == false)
     return;
   wrap->initialized_ = false;
 

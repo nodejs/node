@@ -5,7 +5,7 @@
 #ifndef V8_UTILS_INL_H_
 #define V8_UTILS_INL_H_
 
-#include "list-inl.h"
+#include "src/list-inl.h"
 
 namespace v8 {
 namespace internal {

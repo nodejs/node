@@ -25,8 +25,8 @@ class DiyFp {
   // must be bigger than the significand of other.
   // The result will not be normalized.
   void Subtract(const DiyFp& other) {
-    ASSERT(e_ == other.e_);
-    ASSERT(f_ >= other.f_);
+    DCHECK(e_ == other.e_);
+    DCHECK(f_ >= other.f_);
     f_ -= other.f_;
   }
 
@@ -51,7 +51,7 @@ class DiyFp {
   }
 
   void Normalize() {
-    ASSERT(f_ != 0);
+    DCHECK(f_ != 0);
     uint64_t f = f_;
     int e = e_;
 

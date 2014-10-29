@@ -29,14 +29,14 @@
 
 #include <limits>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "code-stubs.h"
-#include "test-code-stubs.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
+#include "src/base/platform/platform.h"
+#include "src/code-stubs.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-code-stubs.h"
 
 using namespace v8::internal;
 
@@ -62,7 +62,7 @@ int STDCALL ConvertDToICVersion(double d) {
     }
   } else {
     uint64_t big_result =
-        (BitCast<uint64_t>(d) & Double::kSignificandMask) | Double::kHiddenBit;
+        (bit_cast<uint64_t>(d) & Double::kSignificandMask) | Double::kHiddenBit;
     big_result = big_result >> (Double::kPhysicalSignificandSize - exponent);
     result = static_cast<uint32_t>(big_result);
   }
@@ -92,7 +92,7 @@ int32_t DefaultCallWrapper(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN (OS::nan_value())
+#define NaN (v8::base::OS::nan_value())
 #define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) \
     RunOneTruncationTestWithTest(callWrapper, func, p1, p2)
@@ -172,3 +172,19 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
 #undef NaN
 #undef Infinity
 #undef RunOneTruncationTest
+
+
+TEST(CodeStubMajorKeys) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+
+#define CHECK_STUB(NAME)                        \
+  {                                             \
+    HandleScope scope(isolate);                 \
+    NAME##Stub stub_impl(0xabcd, isolate);      \
+    CodeStub* stub = &stub_impl;                \
+    CHECK_EQ(stub->MajorKey(), CodeStub::NAME); \
+  }
+  CODE_STUB_LIST(CHECK_STUB);
+}

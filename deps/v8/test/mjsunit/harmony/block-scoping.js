@@ -28,7 +28,6 @@
 // Flags: --allow-natives-syntax --harmony-scoping
 // Test functionality of block scopes.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Hoisting of var declarations.
@@ -40,8 +39,10 @@ function f1() {
   assertEquals(1, x)
   assertEquals(undefined, y)
 }
+for (var j = 0; j < 5; ++j) f1();
+%OptimizeFunctionOnNextCall(f1);
 f1();
-
+assertTrue(%GetOptimizationStatus(f1) != 2);
 
 // Dynamic lookup in and through block contexts.
 function f2(one) {
@@ -59,8 +60,8 @@ function f2(one) {
     assertEquals(6, eval('v'));
   }
 }
-f2(1);
 
+f2(1);
 
 // Lookup in and through block contexts.
 function f3(one) {
@@ -76,10 +77,13 @@ function f3(one) {
     assertEquals(4, z);
     assertEquals(5, u);
     assertEquals(6, v);
-
   }
 }
+for (var j = 0; j < 5; ++j) f3(1);
+%OptimizeFunctionOnNextCall(f3);
 f3(1);
+assertTrue(%GetOptimizationStatus(f3) != 2);
+
 
 
 // Dynamic lookup from closure.

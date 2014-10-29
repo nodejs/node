@@ -1,74 +1,54 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
-.
 .TH "NPM\-TAG" "1" "September 2014" "" ""
-.
 .SH "NAME"
-\fBnpm-tag\fR \-\- Tag a published version
-.
-.SH "SYNOPSIS"
-.
-.nf
+\fBnpm-tag\fR \- Tag a published version
+.SH SYNOPSIS
+.P
+.RS 2
+.EX
 npm tag <name>@<version> [<tag>]
-.
-.fi
-.
-.SH "DESCRIPTION"
-Tags the specified version of the package with the specified tag, or the \fB\-\-tag\fR config if not specified\.
-.
+.EE
+.RE
+.SH DESCRIPTION
+.P
+Tags the specified version of the package with the specified tag, or the
+\fB\-\-tag\fR config if not specified\.
 .P
 A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:
-.
-.IP "" 4
-.
-.nf
+.P
+.RS 2
+.EX
 npm install <name>@<tag>
-.
-.fi
-.
-.IP "" 0
-.
+.EE
+.RE
 .P
 When installing dependencies, a preferred tagged version may be specified:
-.
-.IP "" 4
-.
-.nf
+.P
+.RS 2
+.EX
 npm install \-\-tag <tag>
-.
-.fi
-.
-.IP "" 0
-.
+.EE
+.RE
 .P
 This also applies to \fBnpm dedupe\fR\|\.
-.
 .P
 Publishing a package always sets the "latest" tag to the published version\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help publish
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help dedupe
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 registry
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "" 0
+
+.RE
 

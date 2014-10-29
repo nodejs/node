@@ -46,13 +46,15 @@ static void uv__getnameinfo_work(struct uv__work* w) {
   int ret = 0;
 
   req = container_of(w, uv_getnameinfo_t, work_req);
-  ret = GetNameInfoW((struct sockaddr*)&req->storage,
-                     sizeof(req->storage),
-                     host,
-                     ARRAY_SIZE(host),
-                     service,
-                     ARRAY_SIZE(service),
-                     req->flags);
+  if (GetNameInfoW((struct sockaddr*)&req->storage,
+                   sizeof(req->storage),
+                   host,
+                   ARRAY_SIZE(host),
+                   service,
+                   ARRAY_SIZE(service),
+                   req->flags)) {
+    ret = WSAGetLastError();
+  }
   req->retcode = uv__getaddrinfo_translate_error(ret);
 
   /* convert results to UTF-8 */

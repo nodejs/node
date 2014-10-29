@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "trigger-failure-extension.h"
-#include "v8.h"
+#include "src/extensions/trigger-failure-extension.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -44,13 +44,13 @@ void TriggerFailureExtension::TriggerCheckFalse(
 
 void TriggerFailureExtension::TriggerAssertFalse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ASSERT(false);
+  DCHECK(false);
 }
 
 
 void TriggerFailureExtension::TriggerSlowAssertFalse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  SLOW_ASSERT(false);
+  SLOW_DCHECK(false);
 }
 
 } }  // namespace v8::internal

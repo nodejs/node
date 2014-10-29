@@ -5,11 +5,11 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "macro-assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/macro-assembler.h"
+#include "src/zone-inl.h"
 
 
 namespace v8 {
@@ -17,19 +17,9 @@ namespace internal {
 
 
 static inline double read_double_value(Address p) {
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  return Memory::double_at(p);
-#else  // V8_HOST_CAN_READ_UNALIGNED
-  // Prevent gcc from using load-double (mips ldc1) on (possibly)
-  // non-64-bit aligned address.
-  union conversion {
-    double d;
-    uint32_t u[2];
-  } c;
-  c.u[0] = *reinterpret_cast<uint32_t*>(p);
-  c.u[1] = *reinterpret_cast<uint32_t*>(p + 4);
-  return c.d;
-#endif  // V8_HOST_CAN_READ_UNALIGNED
+  double d;
+  memcpy(&d, p, sizeof(d));
+  return d;
 }
 
 
@@ -111,16 +101,41 @@ class Deoptimizer : public Malloced {
 
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
+  struct Reason {
+    Reason(int r, const char* m, const char* d)
+        : raw_position(r), mnemonic(m), detail(d) {}
+
+    bool operator==(const Reason& other) const {
+      return raw_position == other.raw_position &&
+             CStringEquals(mnemonic, other.mnemonic) &&
+             CStringEquals(detail, other.detail);
+    }
+
+    bool operator!=(const Reason& other) const { return !(*this == other); }
+
+    int raw_position;
+    const char* mnemonic;
+    const char* detail;
+  };
+
   struct JumpTableEntry : public ZoneObject {
-    inline JumpTableEntry(Address entry,
-                          Deoptimizer::BailoutType type,
-                          bool frame)
+    inline JumpTableEntry(Address entry, const Reason& the_reason,
+                          Deoptimizer::BailoutType type, bool frame)
         : label(),
           address(entry),
+          reason(the_reason),
           bailout_type(type),
-          needs_frame(frame) { }
+          needs_frame(frame) {}
+
+    bool IsEquivalentTo(const JumpTableEntry& other) const {
+      return address == other.address && bailout_type == other.bailout_type &&
+             needs_frame == other.needs_frame &&
+             (!FLAG_trace_deopt || reason == other.reason);
+    }
+
     Label label;
     Address address;
+    Reason reason;
     Deoptimizer::BailoutType bailout_type;
     bool needs_frame;
   };
@@ -377,7 +392,7 @@ class Deoptimizer : public Malloced {
   // Fill the given output frame's registers to contain the failure handler
   // address and the number of parameters for a stub failure trampoline.
   void SetPlatformCompiledStubRegisters(FrameDescription* output_frame,
-                                        CodeStubInterfaceDescriptor* desc);
+                                        CodeStubDescriptor* desc);
 
   // Fill the given output frame's double registers with the original values
   // from the input frame's double registers.
@@ -386,10 +401,6 @@ class Deoptimizer : public Malloced {
   // Determines whether the input frame contains alignment padding by looking
   // at the dynamic alignment state slot inside the frame.
   bool HasAlignmentPadding(JSFunction* function);
-
-  // Select the version of NotifyStubFailure builtin that either saves or
-  // doesn't save the double registers depending on CPU features.
-  Code* NotifyStubFailureBuiltin();
 
   Isolate* isolate_;
   JSFunction* function_;
@@ -464,7 +475,7 @@ class FrameDescription {
   }
 
   uint32_t GetFrameSize() const {
-    ASSERT(static_cast<uint32_t>(frame_size_) == frame_size_);
+    DCHECK(static_cast<uint32_t>(frame_size_) == frame_size_);
     return static_cast<uint32_t>(frame_size_);
   }
 
@@ -493,11 +504,11 @@ class FrameDescription {
 
   intptr_t GetRegister(unsigned n) const {
 #if DEBUG
-    // This convoluted ASSERT is needed to work around a gcc problem that
+    // This convoluted DCHECK is needed to work around a gcc problem that
     // improperly detects an array bounds overflow in optimized debug builds
-    // when using a plain ASSERT.
-    if (n >= ARRAY_SIZE(registers_)) {
-      ASSERT(false);
+    // when using a plain DCHECK.
+    if (n >= arraysize(registers_)) {
+      DCHECK(false);
       return 0;
     }
 #endif
@@ -505,17 +516,17 @@ class FrameDescription {
   }
 
   double GetDoubleRegister(unsigned n) const {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < arraysize(double_registers_));
     return double_registers_[n];
   }
 
   void SetRegister(unsigned n, intptr_t value) {
-    ASSERT(n < ARRAY_SIZE(registers_));
+    DCHECK(n < arraysize(registers_));
     registers_[n] = value;
   }
 
   void SetDoubleRegister(unsigned n, double value) {
-    ASSERT(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < arraysize(double_registers_));
     double_registers_[n] = value;
   }
 
@@ -611,7 +622,7 @@ class FrameDescription {
   intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
-    ASSERT(offset < frame_size_);
+    DCHECK(offset < frame_size_);
     return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
@@ -660,7 +671,7 @@ class TranslationIterator BASE_EMBEDDED {
  public:
   TranslationIterator(ByteArray* buffer, int index)
       : buffer_(buffer), index_(index) {
-    ASSERT(index >= 0 && index < buffer->length());
+    DCHECK(index >= 0 && index < buffer->length());
   }
 
   int32_t Next();
@@ -924,6 +935,9 @@ class DeoptimizedFrameInfo : public Malloced {
     return function_;
   }
 
+  // Get the frame context.
+  Object* GetContext() { return context_; }
+
   // Check if this frame is preceded by construct stub frame.  The bottom-most
   // inlined frame might still be called by an uninlined construct stub.
   bool HasConstructStub() {
@@ -932,13 +946,13 @@ class DeoptimizedFrameInfo : public Malloced {
 
   // Get an incoming argument.
   Object* GetParameter(int index) {
-    ASSERT(0 <= index && index < parameters_count());
+    DCHECK(0 <= index && index < parameters_count());
     return parameters_[index];
   }
 
   // Get an expression from the expression stack.
   Object* GetExpression(int index) {
-    ASSERT(0 <= index && index < expression_count());
+    DCHECK(0 <= index && index < expression_count());
     return expression_stack_[index];
   }
 
@@ -949,17 +963,18 @@ class DeoptimizedFrameInfo : public Malloced {
  private:
   // Set an incoming argument.
   void SetParameter(int index, Object* obj) {
-    ASSERT(0 <= index && index < parameters_count());
+    DCHECK(0 <= index && index < parameters_count());
     parameters_[index] = obj;
   }
 
   // Set an expression on the expression stack.
   void SetExpression(int index, Object* obj) {
-    ASSERT(0 <= index && index < expression_count());
+    DCHECK(0 <= index && index < expression_count());
     expression_stack_[index] = obj;
   }
 
   JSFunction* function_;
+  Object* context_;
   bool has_construct_stub_;
   int parameters_count_;
   int expression_count_;

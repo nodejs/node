@@ -30,7 +30,7 @@
 var string = "hello world";
 var expected = "Hello " + "world";
 function Capitalize() {
-  %_OneByteSeqStringSetChar(string, 0, 0x48);
+  %_OneByteSeqStringSetChar(0, 0x48, string);
 }
 Capitalize();
 assertEquals(expected, string);
@@ -40,7 +40,7 @@ assertEquals(expected, string);
 var twobyte = "\u20ACello world";
 
 function TwoByteCapitalize() {
-  %_TwoByteSeqStringSetChar(twobyte, 0, 0x48);
+  %_TwoByteSeqStringSetChar(0, 0x48, twobyte);
 }
 TwoByteCapitalize();
 assertEquals(expected, twobyte);

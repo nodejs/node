@@ -43,7 +43,7 @@ if (!isNaN(range_start)) range_start_override = range_start;
 if (!isNaN(range_end)) range_end_override = range_end;
 
 var kResX = 1600;
-var kResY = 600;
+var kResY = 700;
 function log_error(text) {
   print(text);
   quit(1);

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-store-elimination.h"
-#include "hydrogen-instructions.h"
+#include "src/hydrogen-instructions.h"
+#include "src/hydrogen-store-elimination.h"
 
 namespace v8 {
 namespace internal {
@@ -30,8 +30,10 @@ void HStoreEliminationPhase::Run() {
   for (int i = 0; i < graph()->blocks()->length(); i++) {
     unobserved_.Rewind(0);
     HBasicBlock* block = graph()->blocks()->at(i);
+    if (!block->IsReachable()) continue;
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
+      if (instr->CheckFlag(HValue::kIsDead)) continue;
 
       // TODO(titzer): eliminate unobserved HStoreKeyed instructions too.
       switch (instr->opcode()) {
@@ -58,7 +60,7 @@ void HStoreEliminationPhase::ProcessStore(HStoreNamedField* store) {
   while (i < unobserved_.length()) {
     HStoreNamedField* prev = unobserved_.at(i);
     if (aliasing_->MustAlias(object, prev->object()->ActualValue()) &&
-        store->access().Equals(prev->access())) {
+        prev->CanBeReplacedWith(store)) {
       // This store is guaranteed to overwrite the previous store.
       prev->DeleteAndReplaceWith(NULL);
       TRACE(("++ Unobserved store S%d overwritten by S%d\n",
@@ -97,17 +99,20 @@ void HStoreEliminationPhase::ProcessInstr(HInstruction* instr,
     GVNFlagSet flags) {
   if (unobserved_.length() == 0) return;  // Nothing to do.
   if (instr->CanDeoptimize()) {
-    TRACE(("-- Observed stores at I%d (might deoptimize)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (%s might deoptimize)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }
   if (instr->CheckChangesFlag(kNewSpacePromotion)) {
-    TRACE(("-- Observed stores at I%d (might GC)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (%s might GC)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }
   if (instr->DependsOnFlags().ContainsAnyOf(flags)) {
-    TRACE(("-- Observed stores at I%d (GVN flags)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (GVN flags of %s)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }

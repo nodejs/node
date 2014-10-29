@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 
-#include "hydrogen-environment-liveness.h"
+#include "src/hydrogen-environment-liveness.h"
 
 
 namespace v8 {
@@ -22,7 +22,7 @@ HEnvironmentLivenessAnalysisPhase::HEnvironmentLivenessAnalysisPhase(
       collect_markers_(true),
       last_simulate_(NULL),
       went_live_since_last_simulate_(maximum_environment_size_, zone()) {
-  ASSERT(maximum_environment_size_ > 0);
+  DCHECK(maximum_environment_size_ > 0);
   for (int i = 0; i < block_count_; ++i) {
     live_at_block_start_.Add(
         new(zone()) BitVector(maximum_environment_size_, zone()), zone());
@@ -61,7 +61,7 @@ void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsInSuccessors(
       }
       HSimulate* simulate = first_simulate_.at(successor_id);
       if (simulate == NULL) continue;
-      ASSERT(VerifyClosures(simulate->closure(),
+      DCHECK(VerifyClosures(simulate->closure(),
           block->last_environment()->closure()));
       ZapEnvironmentSlot(i, simulate);
     }
@@ -74,7 +74,7 @@ void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsForInstruction(
   if (!marker->CheckFlag(HValue::kEndsLiveRange)) return;
   HSimulate* simulate = marker->next_simulate();
   if (simulate != NULL) {
-    ASSERT(VerifyClosures(simulate->closure(), marker->closure()));
+    DCHECK(VerifyClosures(simulate->closure(), marker->closure()));
     ZapEnvironmentSlot(marker->index(), simulate);
   }
 }
@@ -109,7 +109,7 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
       if (marker->kind() == HEnvironmentMarker::LOOKUP) {
         live->Add(index);
       } else {
-        ASSERT(marker->kind() == HEnvironmentMarker::BIND);
+        DCHECK(marker->kind() == HEnvironmentMarker::BIND);
         live->Remove(index);
         went_live_since_last_simulate_.Add(index);
       }
@@ -124,10 +124,10 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
       live->Clear();
       last_simulate_ = NULL;
 
-      // The following ASSERTs guard the assumption used in case
+      // The following DCHECKs guard the assumption used in case
       // kEnterInlined below:
-      ASSERT(instr->next()->IsSimulate());
-      ASSERT(instr->next()->next()->IsGoto());
+      DCHECK(instr->next()->IsSimulate());
+      DCHECK(instr->next()->next()->IsGoto());
 
       break;
     case HValue::kEnterInlined: {
@@ -135,7 +135,7 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
       // target block. Here we make use of the fact that the end of an
       // inline sequence always looks like this: HLeaveInlined, HSimulate,
       // HGoto (to return_target block), with no environment lookups in
-      // between (see ASSERTs above).
+      // between (see DCHECKs above).
       HEnterInlined* enter = HEnterInlined::cast(instr);
       live->Clear();
       for (int i = 0; i < enter->return_targets()->length(); ++i) {
@@ -156,7 +156,7 @@ void HEnvironmentLivenessAnalysisPhase::UpdateLivenessAtInstruction(
 
 
 void HEnvironmentLivenessAnalysisPhase::Run() {
-  ASSERT(maximum_environment_size_ > 0);
+  DCHECK(maximum_environment_size_ > 0);
 
   // Main iteration. Compute liveness of environment slots, and store it
   // for each block until it doesn't change any more. For efficiency, visit

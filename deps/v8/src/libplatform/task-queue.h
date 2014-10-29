@@ -7,15 +7,15 @@
 
 #include <queue>
 
-#include "../base/macros.h"
-#include "../platform/mutex.h"
-#include "../platform/semaphore.h"
+#include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 
 namespace v8 {
 
 class Task;
 
-namespace internal {
+namespace platform {
 
 class TaskQueue {
  public:
@@ -33,15 +33,15 @@ class TaskQueue {
   void Terminate();
 
  private:
-  Mutex lock_;
-  Semaphore process_queue_semaphore_;
+  base::Mutex lock_;
+  base::Semaphore process_queue_semaphore_;
   std::queue<Task*> task_queue_;
   bool terminated_;
 
   DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_TASK_QUEUE_H_

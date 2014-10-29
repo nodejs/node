@@ -32,36 +32,20 @@ import sys
 
 from common_includes import *
 
-ALREADY_MERGING_SENTINEL_FILE = "ALREADY_MERGING_SENTINEL_FILE"
-COMMIT_HASHES_FILE = "COMMIT_HASHES_FILE"
-TEMPORARY_PATCH_FILE = "TEMPORARY_PATCH_FILE"
-
-CONFIG = {
-  BRANCHNAME: "prepare-merge",
-  PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
-  ALREADY_MERGING_SENTINEL_FILE:
-      "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  DOT_GIT_LOCATION: ".git",
-  VERSION_FILE: "src/version.cc",
-  TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",
-  COMMITMSG_FILE: "/tmp/v8-prepare-merge-tempfile-commitmsg",
-  COMMIT_HASHES_FILE: "/tmp/v8-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
-}
-
-
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    if os.path.exists(self.Config(ALREADY_MERGING_SENTINEL_FILE)):
+    if os.path.exists(self.Config("ALREADY_MERGING_SENTINEL_FILE")):
       if self._options.force:
-        os.remove(self.Config(ALREADY_MERGING_SENTINEL_FILE))
+        os.remove(self.Config("ALREADY_MERGING_SENTINEL_FILE"))
       elif self._options.step == 0:  # pragma: no cover
         self.Die("A merge is already in progress")
-    open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
+    open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
-    self.InitialEnvironmentChecks()
+    self.InitialEnvironmentChecks(self.default_cwd)
     if self._options.revert_bleeding_edge:
+      # FIXME(machenbach): Make revert bleeding_edge obsolete?
       self["merge_to_branch"] = "bleeding_edge"
     elif self._options.branch:
       self["merge_to_branch"] = self._options.branch
@@ -76,8 +60,8 @@ class CreateBranch(Step):
   MESSAGE = "Create a fresh branch for the patch."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config(BRANCHNAME),
-                         "svn/%s" % self["merge_to_branch"])
+    self.GitCreateBranch(self.Config("BRANCHNAME"),
+                         self.vc.RemoteBranch(self["merge_to_branch"]))
 
 
 class SearchArchitecturePorts(Step):
@@ -91,9 +75,9 @@ class SearchArchitecturePorts(Step):
       # Search for commits which matches the "Port rXXX" pattern.
       git_hashes = self.GitLog(reverse=True, format="%H",
                                grep="Port r%d" % int(revision),
-                               branch="svn/bleeding_edge")
+                               branch=self.vc.RemoteMasterBranch())
       for git_hash in git_hashes.splitlines():
-        svn_revision = self.GitSVNFindSVNRev(git_hash, "svn/bleeding_edge")
+        svn_revision = self.vc.GitSvn(git_hash, self.vc.RemoteMasterBranch())
         if not svn_revision:  # pragma: no cover
           self.Die("Cannot determine svn revision for %s" % git_hash)
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
@@ -121,7 +105,7 @@ class FindGitRevisions(Step):
   def RunStep(self):
     self["patch_commit_hashes"] = []
     for revision in self["full_revision_list"]:
-      next_hash = self.GitSVNFindGitHash(revision, "svn/bleeding_edge")
+      next_hash = self.vc.SvnGit(revision, self.vc.RemoteMasterBranch())
       if not next_hash:  # pragma: no cover
         self.Die("Cannot determine git hash for r%s" % revision)
       self["patch_commit_hashes"].append(next_hash)
@@ -159,8 +143,8 @@ class ApplyPatches(Step):
       print("Applying patch for %s to %s..."
             % (commit_hash, self["merge_to_branch"]))
       patch = self.GitGetPatch(commit_hash)
-      TextToFile(patch, self.Config(TEMPORARY_PATCH_FILE))
-      self.ApplyPatch(self.Config(TEMPORARY_PATCH_FILE), self._options.revert)
+      TextToFile(patch, self.Config("TEMPORARY_PATCH_FILE"))
+      self.ApplyPatch(self.Config("TEMPORARY_PATCH_FILE"), self._options.revert)
     if self._options.patch:
       self.ApplyPatch(self._options.patch, self._options.revert)
 
@@ -185,14 +169,14 @@ class IncrementVersion(Step):
     if self.Confirm("Automatically increment PATCH_LEVEL? (Saying 'n' will "
                     "fire up your EDITOR on %s so you can make arbitrary "
                     "changes. When you're done, save the file and exit your "
-                    "EDITOR.)" % self.Config(VERSION_FILE)):
-      text = FileToText(self.Config(VERSION_FILE))
+                    "EDITOR.)" % VERSION_FILE):
+      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
       text = MSub(r"(?<=#define PATCH_LEVEL)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % new_patch,
                   text)
-      TextToFile(text, self.Config(VERSION_FILE))
+      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
     else:
-      self.Editor(self.Config(VERSION_FILE))
+      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
     self.ReadAndPersistVersion("new_")
     self["version"] = "%s.%s.%s.%s" % (self["new_major"],
                                        self["new_minor"],
@@ -215,33 +199,18 @@ class CommitLocal(Step):
       title = ("Version %s (merged %s)"
                % (self["version"], self["revision_list"]))
     self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
-    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
-    self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
+    TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
+    self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
 
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
   def RunStep(self):
-    self.GitCheckout(self.Config(BRANCHNAME))
+    self.GitCheckout(self.Config("BRANCHNAME"))
     self.WaitForLGTM()
     self.GitPresubmit()
-    self.GitDCommit()
-
-
-class PrepareSVN(Step):
-  MESSAGE = "Determine svn commit revision."
-
-  def RunStep(self):
-    if self._options.revert_bleeding_edge:
-      return
-    self.GitSVNFetch()
-    commit_hash = self.GitLog(n=1, format="%H", grep=self["new_commit_msg"],
-                              branch="svn/%s" % self["merge_to_branch"])
-    if not commit_hash:  # pragma: no cover
-      self.Die("Unable to map git commit to svn revision.")
-    self["svn_revision"] = self.GitSVNFindSVNRev(commit_hash)
-    print "subversion revision number is r%s" % self["svn_revision"]
+    self.vc.CLLand()
 
 
 class TagRevision(Step):
@@ -251,15 +220,7 @@ class TagRevision(Step):
     if self._options.revert_bleeding_edge:
       return
     print "Creating tag svn/tags/%s" % self["version"]
-    if self["merge_to_branch"] == "trunk":
-      self["to_url"] = "trunk"
-    else:
-      self["to_url"] = "branches/%s" % self["merge_to_branch"]
-    self.SVN("copy -r %s https://v8.googlecode.com/svn/%s "
-             "https://v8.googlecode.com/svn/tags/%s -m "
-             "\"Tagging version %s\""
-             % (self["svn_revision"], self["to_url"],
-                self["version"], self["version"]))
+    self.vc.Tag(self["version"])
 
 
 class CleanUp(Step):
@@ -270,8 +231,7 @@ class CleanUp(Step):
     if not self._options.revert_bleeding_edge:
       print "*** SUMMARY ***"
       print "version: %s" % self["version"]
-      print "branch: %s" % self["to_url"]
-      print "svn revision: %s" % self["svn_revision"]
+      print "branch: %s" % self["merge_to_branch"]
       if self["revision_list"]:
         print "patches: %s" % self["revision_list"]
 
@@ -309,7 +269,20 @@ class MergeToBranch(ScriptsBase):
       if not options.message:
         print "You must specify a merge comment if no patches are specified"
         return False
+    options.bypass_upload_hooks = True
+    # CC ulan to make sure that fixes are merged to Google3.
+    options.cc = "ulan@chromium.org"
     return True
+
+  def _Config(self):
+    return {
+      "BRANCHNAME": "prepare-merge",
+      "PERSISTFILE_BASENAME": "/tmp/v8-merge-to-branch-tempfile",
+      "ALREADY_MERGING_SENTINEL_FILE":
+          "/tmp/v8-merge-to-branch-tempfile-already-merging",
+      "TEMPORARY_PATCH_FILE": "/tmp/v8-prepare-merge-tempfile-temporary-patch",
+      "COMMITMSG_FILE": "/tmp/v8-prepare-merge-tempfile-commitmsg",
+    }
 
   def _Steps(self):
     return [
@@ -323,11 +296,10 @@ class MergeToBranch(ScriptsBase):
       CommitLocal,
       UploadStep,
       CommitRepository,
-      PrepareSVN,
       TagRevision,
       CleanUp,
     ]
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(MergeToBranch(CONFIG).Run())
+  sys.exit(MergeToBranch().Run())

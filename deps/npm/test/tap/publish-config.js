@@ -7,11 +7,17 @@ pkg += '/npm-test-publish-config'
 
 require('mkdirp').sync(pkg)
 
-fs.writeFileSync(pkg + '/package.json', JSON.stringify({
-  name: 'npm-test-publish-config',
-  version: '1.2.3',
+fs.writeFileSync(pkg + "/package.json", JSON.stringify({
+  name: "npm-test-publish-config",
+  version: "1.2.3",
   publishConfig: { registry: common.registry }
-}), 'utf8')
+}), "utf8")
+
+fs.writeFileSync(pkg + "/fixture_npmrc",
+  "//localhost:1337/:email = fancy@feast.net\n" +
+  "//localhost:1337/:username = fancy\n" +
+  "//localhost:1337/:_password = " + new Buffer("feast").toString("base64") + "\n" +
+  "registry = http://localhost:1337/")
 
 var spawn = require('child_process').spawn
 var npm = require.resolve('../../bin/npm-cli.js')
@@ -36,8 +42,9 @@ test(function (t) {
     // itself functions normally.
     //
     // Make sure that we don't sit around waiting for lock files
-    child = spawn(node, [npm, 'publish', '--email=fancy', '--_auth=feast'], {
+    child = spawn(node, [npm, "publish", "--userconfig=" + pkg + "/fixture_npmrc"], {
       cwd: pkg,
+      stdio: "inherit",
       env: {
         npm_config_cache_lock_stale: 1000,
         npm_config_cache_lock_wait: 1000,

@@ -27,14 +27,14 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "code-stubs.h"
-#include "test-code-stubs.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
+#include "src/base/platform/platform.h"
+#include "src/code-stubs.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-code-stubs.h"
 
 using namespace v8::internal;
 
@@ -46,9 +46,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                                               Register destination_reg) {
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                   &actual_size,
-                                                   true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size));

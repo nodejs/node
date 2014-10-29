@@ -1,8 +1,9 @@
 var readInstalled = require("../read-installed.js")
-var json = require("./fixtures/package.json")
-var known = [].concat(Object.keys(json.dependencies)
-  , Object.keys(json.optionalDependencies)
-  , Object.keys(json.devDependencies)).sort()
+var json = require("../package.json")
+var d = Object.keys(json.dependencies)
+var dd = Object.keys(json.devDependencies)
+var od = Object.keys(json.optionalDependencies)
+var known = d.concat(dd).concat(od).sort()
 var test = require("tap").test
 var path = require("path")
 
@@ -36,9 +37,7 @@ function cleanup (map) {
     default: delete map[i]
   }
   var dep = map.dependencies
-//    delete map.dependencies
   if (dep) {
-//      map.dependencies = dep
     for (var i in dep) if (typeof dep[i] === "object") {
       cleanup(dep[i])
     }

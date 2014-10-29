@@ -1,9 +1,8 @@
 beginning
 middle
-
-vm.js:*
-  return script.runInThisContext(options);
-                ^
+test.vm:1
+throw new Error("boo!")
+      ^
 Error: boo!
     at test.vm:1:7
     at Object.exports.runInThisContext (vm.js:*)

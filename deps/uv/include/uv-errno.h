@@ -57,12 +57,6 @@
 # define UV__EACCES (-4092)
 #endif
 
-#if defined(EADDRINFO) && !defined(_WIN32)
-# define UV__EADDRINFO EADDRINFO
-#else
-# define UV__EADDRINFO (-4091)
-#endif
-
 #if defined(EADDRINUSE) && !defined(_WIN32)
 # define UV__EADDRINUSE (-EADDRINUSE)
 #else

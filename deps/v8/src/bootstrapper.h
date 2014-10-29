@@ -5,17 +5,17 @@
 #ifndef V8_BOOTSTRAPPER_H_
 #define V8_BOOTSTRAPPER_H_
 
-#include "factory.h"
+#include "src/factory.h"
 
 namespace v8 {
 namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
-// (AsciiString*, JSFunction*), mapping names of native code files
+// (OneByteString*, JSFunction*), mapping names of native code files
 // (runtime.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
-class SourceCodeCache V8_FINAL BASE_EMBEDDED {
+class SourceCodeCache FINAL BASE_EMBEDDED {
  public:
   explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
@@ -24,7 +24,7 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
   }
 
   void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
+    v->VisitPointer(bit_cast<Object**, FixedArray**>(&cache_));
   }
 
   bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
@@ -49,7 +49,7 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
     cache_ = *new_array;
     Handle<String> str =
         factory->NewStringFromAscii(name, TENURED).ToHandleChecked();
-    ASSERT(!str.is_null());
+    DCHECK(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
     Script::cast(shared->script())->set_type(Smi::FromInt(type_));
@@ -64,7 +64,7 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
-class Bootstrapper V8_FINAL {
+class Bootstrapper FINAL {
  public:
   static void InitializeOncePerProcess();
   static void TearDownExtensions();
@@ -76,8 +76,8 @@ class Bootstrapper V8_FINAL {
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
   Handle<Context> CreateEnvironment(
-      Handle<Object> global_object,
-      v8::Handle<v8::ObjectTemplate> global_template,
+      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+      v8::Handle<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions);
 
   // Detach the environment from its outer global object.
@@ -134,7 +134,7 @@ class Bootstrapper V8_FINAL {
 };
 
 
-class BootstrapperActive V8_FINAL BASE_EMBEDDED {
+class BootstrapperActive FINAL BASE_EMBEDDED {
  public:
   explicit BootstrapperActive(Bootstrapper* bootstrapper)
       : bootstrapper_(bootstrapper) {
@@ -152,14 +152,14 @@ class BootstrapperActive V8_FINAL BASE_EMBEDDED {
 };
 
 
-class NativesExternalStringResource V8_FINAL
-    : public v8::String::ExternalAsciiStringResource {
+class NativesExternalStringResource FINAL
+    : public v8::String::ExternalOneByteStringResource {
  public:
   NativesExternalStringResource(Bootstrapper* bootstrapper,
                                 const char* source,
                                 size_t length);
-  virtual const char* data() const V8_OVERRIDE { return data_; }
-  virtual size_t length() const V8_OVERRIDE { return length_; }
+  virtual const char* data() const OVERRIDE { return data_; }
+  virtual size_t length() const OVERRIDE { return length_; }
 
  private:
   const char* data_;

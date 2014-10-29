@@ -8,12 +8,17 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cmath>
 
-#include "allocation.h"
-#include "checks.h"
-#include "globals.h"
-#include "platform.h"
-#include "vector.h"
+#include "include/v8.h"
+#include "src/allocation.h"
+#include "src/base/bits.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/globals.h"
+#include "src/list.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -21,19 +26,16 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-// Returns true iff x is a power of 2. Cannot be used with the maximally
-// negative value of the type T (the -1 overflows).
-template <typename T>
-inline bool IsPowerOf2(T x) {
-  return IS_POWER_OF_TWO(x);
+// Same as strcmp, but can handle NULL arguments.
+inline bool CStringEquals(const char* s1, const char* s2) {
+  return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
 }
 
 
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
-  ASSERT(IsPowerOf2(x));
+  DCHECK(base::bits::IsPowerOfTwo32(x));
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;
@@ -57,7 +59,7 @@ inline int WhichPowerOf2(uint32_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  ASSERT_EQ(1 << bits, original_x);
+  DCHECK_EQ(1 << bits, original_x);
   return bits;
   return 0;
 }
@@ -90,50 +92,6 @@ inline int ArithmeticShiftRight(int x, int s) {
 }
 
 
-// Compute the 0-relative offset of some absolute value x of type T.
-// This allows conversion of Addresses and integral types into
-// 0-relative int offsets.
-template <typename T>
-inline intptr_t OffsetFrom(T x) {
-  return x - static_cast<T>(0);
-}
-
-
-// Compute the absolute value of type T for some 0-relative offset x.
-// This allows conversion of 0-relative int offsets into Addresses and
-// integral types.
-template <typename T>
-inline T AddressFrom(intptr_t x) {
-  return static_cast<T>(static_cast<T>(0) + x);
-}
-
-
-// Return the largest multiple of m which is <= x.
-template <typename T>
-inline T RoundDown(T x, intptr_t m) {
-  ASSERT(IsPowerOf2(m));
-  return AddressFrom<T>(OffsetFrom(x) & -m);
-}
-
-
-// Return the smallest multiple of m which is >= x.
-template <typename T>
-inline T RoundUp(T x, intptr_t m) {
-  return RoundDown<T>(static_cast<T>(x + m - 1), m);
-}
-
-
-// Increment a pointer until it has the specified alignment.
-// This works like RoundUp, but it works correctly on pointer types where
-// sizeof(*pointer) might not be 1.
-template<class T>
-T AlignUp(T pointer, size_t alignment) {
-  ASSERT(sizeof(pointer) == sizeof(uintptr_t));
-  uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
-  return reinterpret_cast<T>(RoundUp(pointer_raw, alignment));
-}
-
-
 template <typename T>
 int Compare(const T& a, const T& b) {
   if (a == b)
@@ -158,29 +116,6 @@ template<typename T> class Handle;  // Forward declaration.
 template <typename T>
 int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
-}
-
-
-// Returns the smallest power of two which is >= x. If you pass in a
-// number that is already a power of two, it is returned as is.
-// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
-// figure 3-3, page 48, where the function is called clp2.
-inline uint32_t RoundUpToPowerOf2(uint32_t x) {
-  ASSERT(x <= 0x80000000u);
-  x = x - 1;
-  x = x | (x >> 1);
-  x = x | (x >> 2);
-  x = x | (x >> 4);
-  x = x | (x >> 8);
-  x = x | (x >> 16);
-  return x + 1;
-}
-
-
-inline uint32_t RoundDownToPowerOf2(uint32_t x) {
-  uint32_t rounded_up = RoundUpToPowerOf2(x);
-  if (rounded_up > x) return rounded_up >> 1;
-  return rounded_up;
 }
 
 
@@ -220,10 +155,12 @@ T Abs(T a) {
 }
 
 
-// Returns the negative absolute value of its argument.
-template <typename T>
-T NegAbs(T a) {
-  return a < 0 ? a : -a;
+// Floor(-0.0) == 0.0
+inline double Floor(double x) {
+#ifdef _MSC_VER
+  if (x == 0) return x;  // Fix for issue 3477.
+#endif
+  return std::floor(x);
 }
 
 
@@ -231,6 +168,25 @@ T NegAbs(T a) {
 inline int32_t WhichPowerOf2Abs(int32_t x) {
   return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
 }
+
+
+// Obtains the unsigned type corresponding to T
+// available in C++11 as std::make_unsigned
+template<typename T>
+struct make_unsigned {
+  typedef T type;
+};
+
+
+// Template specializations necessary to have make_unsigned work
+template<> struct make_unsigned<int32_t> {
+  typedef uint32_t type;
+};
+
+
+template<> struct make_unsigned<int64_t> {
+  typedef uint64_t type;
+};
 
 
 // ----------------------------------------------------------------------------
@@ -247,6 +203,7 @@ class BitFieldBase {
   static const U kMask = ((kOne << shift) << size) - (kOne << shift);
   static const U kShift = shift;
   static const U kSize = size;
+  static const U kNext = kShift + kSize;
 
   // Value for the field with all bits set.
   static const T kMax = static_cast<T>((1U << size) - 1);
@@ -258,7 +215,7 @@ class BitFieldBase {
 
   // Returns a type U with the bit field value encoded.
   static U encode(T value) {
-    ASSERT(is_valid(value));
+    DCHECK(is_valid(value));
     return static_cast<U>(value) << shift;
   }
 
@@ -322,6 +279,85 @@ inline uint32_t ComputePointerHash(void* ptr) {
 
 
 // ----------------------------------------------------------------------------
+// Generated memcpy/memmove
+
+// Initializes the codegen support that depends on CPU features. This is
+// called after CPU initialization.
+void init_memcopy_functions();
+
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+// Limit below which the extra overhead of the MemCopy function is likely
+// to outweigh the benefits of faster copying.
+const int kMinComplexMemCopy = 64;
+
+// Copy memory area. No restrictions.
+void MemMove(void* dest, const void* src, size_t size);
+typedef void (*MemMoveFunction)(void* dest, const void* src, size_t size);
+
+// Keep the distinction of "move" vs. "copy" for the benefit of other
+// architectures.
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+  MemMove(dest, src, size);
+}
+#elif defined(V8_HOST_ARCH_ARM)
+typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
+                                     size_t size);
+extern MemCopyUint8Function memcopy_uint8_function;
+V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
+                                   size_t chars) {
+  memcpy(dest, src, chars);
+}
+// For values < 16, the assembler function is slower than the inlined C code.
+const int kMinComplexMemCopy = 16;
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
+                            reinterpret_cast<const uint8_t*>(src), size);
+}
+V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
+
+typedef void (*MemCopyUint16Uint8Function)(uint16_t* dest, const uint8_t* src,
+                                           size_t size);
+extern MemCopyUint16Uint8Function memcopy_uint16_uint8_function;
+void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
+                               size_t chars);
+// For values < 12, the assembler function is slower than the inlined C code.
+const int kMinComplexConvertMemCopy = 12;
+V8_INLINE void MemCopyUint16Uint8(uint16_t* dest, const uint8_t* src,
+                                  size_t size) {
+  (*memcopy_uint16_uint8_function)(dest, src, size);
+}
+#elif defined(V8_HOST_ARCH_MIPS)
+typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
+                                     size_t size);
+extern MemCopyUint8Function memcopy_uint8_function;
+V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
+                                   size_t chars) {
+  memcpy(dest, src, chars);
+}
+// For values < 16, the assembler function is slower than the inlined C code.
+const int kMinComplexMemCopy = 16;
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
+                            reinterpret_cast<const uint8_t*>(src), size);
+}
+V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
+#else
+// Copy memory area to disjoint memory area.
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+  memcpy(dest, src, size);
+}
+V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
+const int kMinComplexMemCopy = 16 * kPointerSize;
+#endif  // V8_TARGET_ARCH_IA32
+
+
+// ----------------------------------------------------------------------------
 // Miscellaneous
 
 // A static resource holds a static instance that can be reserved in
@@ -346,7 +382,7 @@ class Access {
   explicit Access(StaticResource<T>* resource)
     : resource_(resource)
     , instance_(&resource->instance_) {
-    ASSERT(!resource->is_reserved_);
+    DCHECK(!resource->is_reserved_);
     resource->is_reserved_ = true;
   }
 
@@ -374,12 +410,12 @@ class SetOncePointer {
   bool is_set() const { return pointer_ != NULL; }
 
   T* get() const {
-    ASSERT(pointer_ != NULL);
+    DCHECK(pointer_ != NULL);
     return pointer_;
   }
 
   void set(T* value) {
-    ASSERT(pointer_ == NULL && value != NULL);
+    DCHECK(pointer_ == NULL && value != NULL);
     pointer_ = value;
   }
 
@@ -402,14 +438,14 @@ class EmbeddedVector : public Vector<T> {
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs)
       : Vector<T>(rhs) {
-    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
-    set_start(buffer_);
+    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    this->set_start(buffer_);
   }
 
   EmbeddedVector& operator=(const EmbeddedVector& rhs) {
     if (this == &rhs) return *this;
     Vector<T>::operator=(rhs);
-    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     this->set_start(buffer_);
     return *this;
   }
@@ -459,7 +495,7 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline Vector<T> AddBlock(int size, T initial_value) {
-    ASSERT(size > 0);
+    DCHECK(size > 0);
     if (size > current_chunk_.length() - index_) {
       Grow(size);
     }
@@ -493,7 +529,7 @@ class Collector {
 
   // Write the contents of the collector into the provided vector.
   void WriteTo(Vector<T> destination) {
-    ASSERT(size_ <= destination.length());
+    DCHECK(size_ <= destination.length());
     int position = 0;
     for (int i = 0; i < chunks_.length(); i++) {
       Vector<T> chunk = chunks_.at(i);
@@ -533,7 +569,7 @@ class Collector {
 
   // Creates a new current chunk, and stores the old chunk in the chunks_ list.
   void Grow(int min_capacity) {
-    ASSERT(growth_factor > 1);
+    DCHECK(growth_factor > 1);
     int new_capacity;
     int current_length = current_chunk_.length();
     if (current_length < kMinCapacity) {
@@ -551,7 +587,7 @@ class Collector {
       }
     }
     NewChunk(new_capacity);
-    ASSERT(index_ + min_capacity <= current_chunk_.length());
+    DCHECK(index_ + min_capacity <= current_chunk_.length());
   }
 
   // Before replacing the current chunk, give a subclass the option to move
@@ -590,12 +626,12 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
   virtual ~SequenceCollector() {}
 
   void StartSequence() {
-    ASSERT(sequence_start_ == kNoSequence);
+    DCHECK(sequence_start_ == kNoSequence);
     sequence_start_ = this->index_;
   }
 
   Vector<T> EndSequence() {
-    ASSERT(sequence_start_ != kNoSequence);
+    DCHECK(sequence_start_ != kNoSequence);
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
     if (sequence_start == this->index_) return Vector<T>();
@@ -604,7 +640,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
   // Drops the currently added sequence, and all collected elements in it.
   void DropSequence() {
-    ASSERT(sequence_start_ != kNoSequence);
+    DCHECK(sequence_start_ != kNoSequence);
     int sequence_length = this->index_ - sequence_start_;
     this->index_ = sequence_start_;
     this->size_ -= sequence_length;
@@ -629,7 +665,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     }
     int sequence_length = this->index_ - sequence_start_;
     Vector<T> new_chunk = Vector<T>::New(sequence_length + new_capacity);
-    ASSERT(sequence_length < new_chunk.length());
+    DCHECK(sequence_length < new_chunk.length());
     for (int i = 0; i < sequence_length; i++) {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];
     }
@@ -645,26 +681,17 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 };
 
 
-// Compare ASCII/16bit chars to ASCII/16bit chars.
+// Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs,
                                 const rchar* rhs,
                                 int chars) {
   const lchar* limit = lhs + chars;
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  if (sizeof(*lhs) == sizeof(*rhs)) {
-    // Number of characters in a uintptr_t.
-    static const int kStepSize = sizeof(uintptr_t) / sizeof(*lhs);  // NOLINT
-    while (lhs <= limit - kStepSize) {
-      if (*reinterpret_cast<const uintptr_t*>(lhs) !=
-          *reinterpret_cast<const uintptr_t*>(rhs)) {
-        break;
-      }
-      lhs += kStepSize;
-      rhs += kStepSize;
-    }
+  if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
+    // memcmp compares byte-by-byte, yielding wrong results for two-byte
+    // strings on little-endian systems.
+    return memcmp(lhs, rhs, chars);
   }
-#endif
   while (lhs < limit) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
@@ -676,8 +703,8 @@ inline int CompareCharsUnsigned(const lchar* lhs,
 
 template<typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
-  ASSERT(sizeof(lchar) <= 2);
-  ASSERT(sizeof(rchar) <= 2);
+  DCHECK(sizeof(lchar) <= 2);
+  DCHECK(sizeof(rchar) <= 2);
   if (sizeof(lchar) == 1) {
     if (sizeof(rchar) == 1) {
       return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
@@ -704,67 +731,11 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
 
 // Calculate 10^exponent.
 inline int TenToThe(int exponent) {
-  ASSERT(exponent <= 9);
-  ASSERT(exponent >= 1);
+  DCHECK(exponent <= 9);
+  DCHECK(exponent >= 1);
   int answer = 10;
   for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
-}
-
-
-// The type-based aliasing rule allows the compiler to assume that pointers of
-// different types (for some definition of different) never alias each other.
-// Thus the following code does not work:
-//
-// float f = foo();
-// int fbits = *(int*)(&f);
-//
-// The compiler 'knows' that the int pointer can't refer to f since the types
-// don't match, so the compiler may cache f in a register, leaving random data
-// in fbits.  Using C++ style casts makes no difference, however a pointer to
-// char data is assumed to alias any other pointer.  This is the 'memcpy
-// exception'.
-//
-// Bit_cast uses the memcpy exception to move the bits from a variable of one
-// type of a variable of another type.  Of course the end result is likely to
-// be implementation dependent.  Most compilers (gcc-4.2 and MSVC 2005)
-// will completely optimize BitCast away.
-//
-// There is an additional use for BitCast.
-// Recent gccs will warn when they see casts that may result in breakage due to
-// the type-based aliasing rule.  If you have checked that there is no breakage
-// you can use BitCast to cast one pointer type to another.  This confuses gcc
-// enough that it can no longer see that you have cast one pointer type to
-// another thus avoiding the warning.
-
-// We need different implementations of BitCast for pointer and non-pointer
-// values. We use partial specialization of auxiliary struct to work around
-// issues with template functions overloading.
-template <class Dest, class Source>
-struct BitCastHelper {
-  STATIC_ASSERT(sizeof(Dest) == sizeof(Source));
-
-  INLINE(static Dest cast(const Source& source)) {
-    Dest dest;
-    memcpy(&dest, &source, sizeof(dest));
-    return dest;
-  }
-};
-
-template <class Dest, class Source>
-struct BitCastHelper<Dest, Source*> {
-  INLINE(static Dest cast(Source* source)) {
-    return BitCastHelper<Dest, uintptr_t>::
-        cast(reinterpret_cast<uintptr_t>(source));
-  }
-};
-
-template <class Dest, class Source>
-INLINE(Dest BitCast(const Source& source));
-
-template <class Dest, class Source>
-inline Dest BitCast(const Source& source) {
-  return BitCastHelper<Dest, Source>::cast(source);
 }
 
 
@@ -775,11 +746,11 @@ class EmbeddedContainer {
 
   int length() const { return NumElements; }
   const ElementType& operator[](int i) const {
-    ASSERT(i < length());
+    DCHECK(i < length());
     return elems_[i];
   }
   ElementType& operator[](int i) {
-    ASSERT(i < length());
+    DCHECK(i < length());
     return elems_[i];
   }
 
@@ -825,7 +796,7 @@ class SimpleStringBuilder {
 
   // Get the current position in the builder.
   int position() const {
-    ASSERT(!is_finalized());
+    DCHECK(!is_finalized());
     return position_;
   }
 
@@ -836,8 +807,8 @@ class SimpleStringBuilder {
   // 0-characters; use the Finalize() method to terminate the string
   // instead.
   void AddCharacter(char c) {
-    ASSERT(c != '\0');
-    ASSERT(!is_finalized() && position_ < buffer_.length());
+    DCHECK(c != '\0');
+    DCHECK(!is_finalized() && position_ < buffer_.length());
     buffer_[position_++] = c;
   }
 
@@ -896,9 +867,9 @@ class EnumSet {
 
  private:
   T Mask(E element) const {
-    // The strange typing in ASSERT is necessary to avoid stupid warnings, see:
+    // The strange typing in DCHECK is necessary to avoid stupid warnings, see:
     // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
-    ASSERT(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
+    DCHECK(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
     return static_cast<T>(1) << element;
   }
 
@@ -925,19 +896,19 @@ inline int signed_bitextract_64(int msb, int lsb, int x) {
 
 // Check number width.
 inline bool is_intn(int64_t x, unsigned n) {
-  ASSERT((0 < n) && (n < 64));
+  DCHECK((0 < n) && (n < 64));
   int64_t limit = static_cast<int64_t>(1) << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
 inline bool is_uintn(int64_t x, unsigned n) {
-  ASSERT((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
+  DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return !(x >> n);
 }
 
 template <class T>
 inline T truncate_to_intn(T x, unsigned n) {
-  ASSERT((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
+  DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return (x & ((static_cast<T>(1) << n) - 1));
 }
 
@@ -1064,6 +1035,13 @@ void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 // Prepends the current process ID to the output.
 void PRINTF_CHECKING PrintPID(const char* format, ...);
 
+// Safe formatting print. Ensures that str is always null-terminated.
+// Returns the number of chars written, or -1 if output was truncated.
+int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
+int VSNPrintF(Vector<char> str, const char* format, va_list args);
+
+void StrNCpy(Vector<char> dest, const char* src, size_t n);
+
 // Our version of fflush.
 void Flush(FILE* out);
 
@@ -1136,11 +1114,11 @@ inline void CopyWords(T* dst, const T* src, size_t num_words) {
   // TODO(mvstanton): disabled because mac builds are bogus failing on this
   // assert. They are doing a signed comparison. Investigate in
   // the morning.
-  // ASSERT(Min(dst, const_cast<T*>(src)) + num_words <=
+  // DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
   //       Max(dst, const_cast<T*>(src)));
-  ASSERT(num_words > 0);
+  DCHECK(num_words > 0);
 
-  // Use block copying OS::MemCopy if the segment we're copying is
+  // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const size_t kBlockCopyLimit = 16;
 
@@ -1150,7 +1128,7 @@ inline void CopyWords(T* dst, const T* src, size_t num_words) {
       *dst++ = *src++;
     } while (num_words > 0);
   } else {
-    OS::MemCopy(dst, src, num_words * kPointerSize);
+    MemCopy(dst, src, num_words * kPointerSize);
   }
 }
 
@@ -1159,9 +1137,9 @@ inline void CopyWords(T* dst, const T* src, size_t num_words) {
 template <typename T>
 inline void MoveWords(T* dst, const T* src, size_t num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
-  ASSERT(num_words > 0);
+  DCHECK(num_words > 0);
 
-  // Use block copying OS::MemCopy if the segment we're copying is
+  // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const size_t kBlockCopyLimit = 16;
 
@@ -1173,7 +1151,7 @@ inline void MoveWords(T* dst, const T* src, size_t num_words) {
       *dst++ = *src++;
     } while (num_words > 0);
   } else {
-    OS::MemMove(dst, src, num_words * kPointerSize);
+    MemMove(dst, src, num_words * kPointerSize);
   }
 }
 
@@ -1182,13 +1160,13 @@ inline void MoveWords(T* dst, const T* src, size_t num_words) {
 template <typename T>
 inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   STATIC_ASSERT(sizeof(T) == 1);
-  ASSERT(Min(dst, const_cast<T*>(src)) + num_bytes <=
+  DCHECK(Min(dst, const_cast<T*>(src)) + num_bytes <=
          Max(dst, const_cast<T*>(src)));
   if (num_bytes == 0) return;
 
-  // Use block copying OS::MemCopy if the segment we're copying is
+  // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
+  static const int kBlockCopyLimit = kMinComplexMemCopy;
 
   if (num_bytes < static_cast<size_t>(kBlockCopyLimit)) {
     do {
@@ -1196,7 +1174,7 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
       *dst++ = *src++;
     } while (num_bytes > 0);
   } else {
-    OS::MemCopy(dst, src, num_bytes);
+    MemCopy(dst, src, num_bytes);
   }
 }
 
@@ -1212,7 +1190,11 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
+#if V8_HOST_ARCH_32_BIT
+#define STOS "addr32 stosl"
+#else
 #define STOS "stosq"
+#endif
 #endif
 #if defined(__native_client__)
   // This STOS sequence does not validate for x86_64 Native Client.
@@ -1244,21 +1226,6 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 }
 
 
-// Simple wrapper that allows an ExternalString to refer to a
-// Vector<const char>. Doesn't assume ownership of the data.
-class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
- public:
-  explicit AsciiStringAdapter(Vector<const char> data) : data_(data) {}
-
-  virtual const char* data() const { return data_.start(); }
-
-  virtual size_t length() const { return data_.length(); }
-
- private:
-  Vector<const char> data_;
-};
-
-
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
 // On return, *exits tells whether the file existed.
@@ -1283,14 +1250,14 @@ INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
 #endif
 
-// Copy from ASCII/16bit chars to ASCII/16bit chars.
+// Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
 INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
 
 template<typename sourcechar, typename sinkchar>
 void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
-  ASSERT(sizeof(sourcechar) <= 2);
-  ASSERT(sizeof(sinkchar) <= 2);
+  DCHECK(sizeof(sourcechar) <= 2);
+  DCHECK(sizeof(sinkchar) <= 2);
   if (sizeof(sinkchar) == 1) {
     if (sizeof(sourcechar) == 1) {
       CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
@@ -1317,25 +1284,11 @@ void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  if (sizeof(*dest) == sizeof(*src)) {
-    if (chars >= static_cast<int>(OS::kMinComplexMemCopy / sizeof(*dest))) {
-      OS::MemCopy(dest, src, chars * sizeof(*dest));
-      return;
-    }
-    // Number of characters in a uintptr_t.
-    static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
-    ASSERT(dest + kStepSize > dest);  // Check for overflow.
-    while (dest + kStepSize <= limit) {
-      *reinterpret_cast<uintptr_t*>(dest) =
-          *reinterpret_cast<const uintptr_t*>(src);
-      dest += kStepSize;
-      src += kStepSize;
-    }
-  }
-#endif
-  while (dest < limit) {
-    *dest++ = static_cast<sinkchar>(*src++);
+  if ((sizeof(*dest) == sizeof(*src)) &&
+      (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
+    MemCopy(dest, src, chars * sizeof(*dest));
+  } else {
+    while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);
   }
 }
 
@@ -1391,17 +1344,17 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
       memcpy(dest, src, 15);
       break;
     default:
-      OS::MemCopy(dest, src, chars);
+      MemCopy(dest, src, chars);
       break;
   }
 }
 
 
 void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
-  if (chars >= OS::kMinComplexConvertMemCopy) {
-    OS::MemCopyUint16Uint8(dest, src, chars);
+  if (chars >= kMinComplexConvertMemCopy) {
+    MemCopyUint16Uint8(dest, src, chars);
   } else {
-    OS::MemCopyUint16Uint8Wrapper(dest, src, chars);
+    MemCopyUint16Uint8Wrapper(dest, src, chars);
   }
 }
 
@@ -1432,7 +1385,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
       memcpy(dest, src, 14);
       break;
     default:
-      OS::MemCopy(dest, src, chars * sizeof(*dest));
+      MemCopy(dest, src, chars * sizeof(*dest));
       break;
   }
 }
@@ -1440,18 +1393,18 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
 
 #elif defined(V8_HOST_ARCH_MIPS)
 void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
-  if (chars < OS::kMinComplexMemCopy) {
+  if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars);
   } else {
-    OS::MemCopy(dest, src, chars);
+    MemCopy(dest, src, chars);
   }
 }
 
 void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
-  if (chars < OS::kMinComplexMemCopy) {
+  if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars * sizeof(*dest));
   } else {
-    OS::MemCopy(dest, src, chars * sizeof(*dest));
+    MemCopy(dest, src, chars * sizeof(*dest));
   }
 }
 #endif
@@ -1472,6 +1425,46 @@ class StringBuilder : public SimpleStringBuilder {
 };
 
 
-} }  // namespace v8::internal
+bool DoubleToBoolean(double d);
+
+template <typename Stream>
+bool StringToArrayIndex(Stream* stream, uint32_t* index) {
+  uint16_t ch = stream->GetNext();
+
+  // If the string begins with a '0' character, it must only consist
+  // of it to be a legal array index.
+  if (ch == '0') {
+    *index = 0;
+    return !stream->HasMore();
+  }
+
+  // Convert string to uint32 array index; character by character.
+  int d = ch - '0';
+  if (d < 0 || d > 9) return false;
+  uint32_t result = d;
+  while (stream->HasMore()) {
+    d = stream->GetNext() - '0';
+    if (d < 0 || d > 9) return false;
+    // Check that the new result is below the 32 bit limit.
+    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
+    result = (result * 10) + d;
+  }
+
+  *index = result;
+  return true;
+}
+
+
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
+inline uintptr_t GetCurrentStackPosition() {
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UTILS_H_

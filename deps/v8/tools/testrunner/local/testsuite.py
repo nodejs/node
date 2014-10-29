@@ -29,8 +29,10 @@
 import imp
 import os
 
+from . import commands
 from . import statusfile
 from . import utils
+from ..objects import testcase
 
 class TestSuite(object):
 
@@ -41,11 +43,13 @@ class TestSuite(object):
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module("testcfg", f, pathname, description)
-      suite = module.GetSuite(name, root)
+      return module.GetSuite(name, root)
+    except:
+      # Use default if no testcfg is present.
+      return GoogleTestSuite(name, root)
     finally:
       if f:
         f.close()
-    return suite
 
   def __init__(self, name, root):
     self.name = name  # string
@@ -190,18 +194,19 @@ class TestSuite(object):
     else:
       return execution_failed
 
-  def HasUnexpectedOutput(self, testcase):
+  def GetOutcome(self, testcase):
     if testcase.output.HasCrashed():
-      outcome = statusfile.CRASH
+      return statusfile.CRASH
     elif testcase.output.HasTimedOut():
-      outcome = statusfile.TIMEOUT
+      return statusfile.TIMEOUT
     elif self.HasFailed(testcase):
-      outcome = statusfile.FAIL
+      return statusfile.FAIL
     else:
-      outcome = statusfile.PASS
-    if not testcase.outcomes:
-      return outcome != statusfile.PASS
-    return not outcome in testcase.outcomes
+      return statusfile.PASS
+
+  def HasUnexpectedOutput(self, testcase):
+    outcome = self.GetOutcome(testcase)
+    return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):
@@ -213,3 +218,40 @@ class TestSuite(object):
     for t in self.tests:
       self.total_duration += t.duration
     return self.total_duration
+
+
+class GoogleTestSuite(TestSuite):
+  def __init__(self, name, root):
+    super(GoogleTestSuite, self).__init__(name, root)
+
+  def ListTests(self, context):
+    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+    if utils.IsWindows():
+      shell += ".exe"
+    output = commands.Execute(context.command_prefix +
+                              [shell, "--gtest_list_tests"] +
+                              context.extra_flags)
+    if output.exit_code != 0:
+      print output.stdout
+      print output.stderr
+      raise Exception("Test executable failed to list the tests.")
+    tests = []
+    test_case = ''
+    for line in output.stdout.splitlines():
+      test_desc = line.strip().split()[0]
+      if test_desc.endswith('.'):
+        test_case = test_desc
+      elif test_case and test_desc:
+        test = testcase.TestCase(self, test_case + test_desc, dependency=None)
+        tests.append(test)
+    tests.sort()
+    return tests
+
+  def GetFlagsForTestCase(self, testcase, context):
+    return (testcase.flags + ["--gtest_filter=" + testcase.path] +
+            ["--gtest_random_seed=%s" % context.random_seed] +
+            ["--gtest_print_time=0"] +
+            context.mode_flags)
+
+  def shell(self):
+    return self.name

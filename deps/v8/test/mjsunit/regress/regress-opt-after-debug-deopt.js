@@ -27,6 +27,7 @@
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --turbo-deoptimization
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

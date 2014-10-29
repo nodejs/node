@@ -5,15 +5,15 @@
 #ifndef V8_X64_LITHIUM_CODEGEN_X64_H_
 #define V8_X64_LITHIUM_CODEGEN_X64_H_
 
-#include "x64/lithium-x64.h"
+#include "src/x64/lithium-x64.h"
 
-#include "checks.h"
-#include "deoptimizer.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
-#include "x64/lithium-gap-resolver-x64.h"
+#include "src/base/logging.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
+#include "src/x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -65,6 +65,7 @@ class LCodeGen: public LCodeGenBase {
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsDehoistedKeyConstant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
@@ -83,7 +84,14 @@ class LCodeGen: public LCodeGenBase {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagU(LNumberTagU* instr);
+
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
+  void DoDeferredNumberTagIU(LInstruction* instr,
+                             LOperand* value,
+                             LOperand* temp1,
+                             LOperand* temp2,
+                             IntegerSignedness signedness);
+
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
@@ -135,8 +143,8 @@ class LCodeGen: public LCodeGenBase {
 
   // Code generation passes.  Returns true if code generation should
   // continue.
-  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
-  void GenerateBodyInstructionPost(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
+  void GenerateBodyInstructionPost(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateJumpTable();
@@ -198,10 +206,9 @@ class LCodeGen: public LCodeGenBase {
                                     int argc);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
-                    LEnvironment* environment,
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
@@ -224,9 +231,9 @@ class LCodeGen: public LCodeGenBase {
   Operand BuildFastArrayOperand(
       LOperand* elements_pointer,
       LOperand* key,
+      Representation key_representation,
       ElementsKind elements_kind,
-      uint32_t offset,
-      uint32_t additional_index = 0);
+      uint32_t base_offset);
 
   Operand BuildSeqStringOperand(Register string,
                                 LOperand* index,
@@ -245,7 +252,7 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-  void RecordAndWritePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) OVERRIDE;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -255,13 +262,8 @@ class LCodeGen: public LCodeGenBase {
   void EmitBranch(InstrType instr, Condition cc);
   template<class InstrType>
   void EmitFalseBranch(InstrType instr, Condition cc);
-  void EmitNumberUntagD(
-      Register input,
-      XMMRegister result,
-      bool allow_undefined_as_nan,
-      bool deoptimize_on_minus_zero,
-      LEnvironment* env,
-      NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
+                        XMMRegister result, NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -299,13 +301,17 @@ class LCodeGen: public LCodeGenBase {
                     int* offset,
                     AllocationSiteMode mode);
 
-  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
+  void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedArray(LLoadKeyed* instr);
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
+
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
 #ifdef _MSC_VER
   // On windows, you may not access the stack more than one page below
   // the most recently mapped page. To make the allocated area randomly
@@ -333,18 +339,18 @@ class LCodeGen: public LCodeGenBase {
 
   Safepoint::Kind expected_safepoint_kind_;
 
-  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
+  class PushSafepointRegistersScope FINAL BASE_EMBEDDED {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->info()->is_calling());
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      DCHECK(codegen_->info()->is_calling());
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->masm_->PushSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
     }
 
     ~PushSafepointRegistersScope() {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
       codegen_->masm_->PopSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }

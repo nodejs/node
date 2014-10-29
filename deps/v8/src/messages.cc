@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "execution.h"
-#include "messages.h"
-#include "spaces-inl.h"
+#include "src/api.h"
+#include "src/execution.h"
+#include "src/heap/spaces-inl.h"
+#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -130,7 +130,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Factory* factory = isolate->factory();
   Handle<String> fmt_str =
-      factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("FormatMessage"));
+      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("FormatMessage"));
   Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
           isolate->js_builtins_object(), fmt_str).ToHandleChecked());
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
@@ -138,10 +138,10 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                             Handle<Object>(message->arguments(), isolate) };
 
   MaybeHandle<Object> maybe_result = Execution::TryCall(
-      fun, isolate->js_builtins_object(), ARRAY_SIZE(argv), argv);
+      fun, isolate->js_builtins_object(), arraysize(argv), argv);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {
-    return factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("<error>"));
+    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);
   // A string that has been obtained from JS code in this way is

@@ -25,12 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "macro-assembler.h"
-#include "arm64/utils-arm64.h"
-#include "cctest.h"
-#include "test-utils-arm64.h"
+#include "src/arm64/utils-arm64.h"
+#include "src/macro-assembler.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-utils-arm64.h"
 
 using namespace v8::internal;
 
@@ -95,7 +95,7 @@ bool EqualFP64(double expected, const RegisterDump*, double result) {
 
 
 bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
-  ASSERT(reg.Is32Bits());
+  DCHECK(reg.Is32Bits());
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
@@ -112,7 +112,7 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
 bool Equal64(uint64_t expected,
              const RegisterDump* core,
              const Register& reg) {
-  ASSERT(reg.Is64Bits());
+  DCHECK(reg.Is64Bits());
   uint64_t result = core->xreg(reg.code());
   return Equal64(expected, core, result);
 }
@@ -121,7 +121,7 @@ bool Equal64(uint64_t expected,
 bool EqualFP32(float expected,
                const RegisterDump* core,
                const FPRegister& fpreg) {
-  ASSERT(fpreg.Is32Bits());
+  DCHECK(fpreg.Is32Bits());
   // Retrieve the corresponding D register so we can check that the upper part
   // was properly cleared.
   uint64_t result_64 = core->dreg_bits(fpreg.code());
@@ -138,7 +138,7 @@ bool EqualFP32(float expected,
 bool EqualFP64(double expected,
                const RegisterDump* core,
                const FPRegister& fpreg) {
-  ASSERT(fpreg.Is64Bits());
+  DCHECK(fpreg.Is64Bits());
   return EqualFP64(expected, core, core->dreg(fpreg.code()));
 }
 
@@ -146,7 +146,7 @@ bool EqualFP64(double expected,
 bool Equal64(const Register& reg0,
              const RegisterDump* core,
              const Register& reg1) {
-  ASSERT(reg0.Is64Bits() && reg1.Is64Bits());
+  DCHECK(reg0.Is64Bits() && reg1.Is64Bits());
   int64_t expected = core->xreg(reg0.code());
   int64_t result = core->xreg(reg1.code());
   return Equal64(expected, core, result);
@@ -174,8 +174,8 @@ static char FlagV(uint32_t flags) {
 
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
-  ASSERT((expected & ~NZCVFlag) == 0);
-  ASSERT((result & ~NZCVFlag) == 0);
+  DCHECK((expected & ~NZCVFlag) == 0);
+  DCHECK((result & ~NZCVFlag) == 0);
   if (result != expected) {
     printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
         FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
@@ -231,7 +231,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
     }
   }
   // Check that we got enough registers.
-  ASSERT(CountSetBits(list, kNumberOfRegisters) == reg_count);
+  DCHECK(CountSetBits(list, kNumberOfRegisters) == reg_count);
 
   return list;
 }
@@ -258,7 +258,7 @@ RegList PopulateFPRegisterArray(FPRegister* s, FPRegister* d, FPRegister* v,
     }
   }
   // Check that we got enough registers.
-  ASSERT(CountSetBits(list, kNumberOfFPRegisters) == reg_count);
+  DCHECK(CountSetBits(list, kNumberOfFPRegisters) == reg_count);
 
   return list;
 }
@@ -270,7 +270,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
     if (reg_list & (1UL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into csp here.
-      ASSERT(!xn.Is(csp));
+      DCHECK(!xn.Is(csp));
       if (!xn.IsZero()) {
         if (!first.IsValid()) {
           // This is the first register we've hit, so construct the literal.
@@ -320,7 +320,7 @@ void Clobber(MacroAssembler* masm, CPURegList reg_list) {
 
 
 void RegisterDump::Dump(MacroAssembler* masm) {
-  ASSERT(__ StackPointer().Is(csp));
+  DCHECK(__ StackPointer().Is(csp));
 
   // Ensure that we don't unintentionally clobber any registers.
   RegList old_tmp_list = masm->TmpList()->list();
@@ -396,7 +396,7 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // easily restore them.
   Register dump2_base = x10;
   Register dump2 = x11;
-  ASSERT(!AreAliased(dump_base, dump, tmp, dump2_base, dump2));
+  DCHECK(!AreAliased(dump_base, dump, tmp, dump2_base, dump2));
 
   // Don't lose the dump_ address.
   __ Mov(dump2_base, dump_base);

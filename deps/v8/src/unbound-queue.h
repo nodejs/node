@@ -5,7 +5,8 @@
 #ifndef V8_UNBOUND_QUEUE_
 #define V8_UNBOUND_QUEUE_
 
-#include "allocation.h"
+#include "src/allocation.h"
+#include "src/base/atomicops.h"
 
 namespace v8 {
 namespace internal {
@@ -34,8 +35,8 @@ class UnboundQueue BASE_EMBEDDED {
   struct Node;
 
   Node* first_;
-  AtomicWord divider_;  // Node*
-  AtomicWord last_;     // Node*
+  base::AtomicWord divider_;  // Node*
+  base::AtomicWord last_;     // Node*
 
   DISALLOW_COPY_AND_ASSIGN(UnboundQueue);
 };

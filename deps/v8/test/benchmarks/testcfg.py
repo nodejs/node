@@ -183,8 +183,10 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     os.chdir(old_cwd)
 
   def VariantFlags(self, testcase, default_flags):
-    # Both --nocrankshaft and --stressopt are very slow.
-    return [[]]
+    # Both --nocrankshaft and --stressopt are very slow. Add TF but without
+    # always opt to match the way the benchmarks are run for performance
+    # testing.
+    return [[], ["--turbo-filter=*"]]
 
 
 def GetSuite(name, root):

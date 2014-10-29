@@ -23,7 +23,7 @@ version.usage = "npm version [<newversion> | major | minor | patch | prerelease 
 function version (args, silent, cb_) {
   if (typeof cb_ !== "function") cb_ = silent, silent = false
   if (args.length > 1) return cb_(version.usage)
-  fs.readFile(path.join(process.cwd(), "package.json"), function (er, data) {
+  fs.readFile(path.join(npm.localPrefix, "package.json"), function (er, data) {
     if (!args.length) {
       var v = {}
       Object.keys(process.versions).forEach(function (k) {
@@ -63,7 +63,7 @@ function version (args, silent, cb_) {
     if (data.version === newVer) return cb_(new Error("Version not changed"))
     data.version = newVer
 
-    fs.stat(path.join(process.cwd(), ".git"), function (er, s) {
+    fs.stat(path.join(npm.localPrefix, ".git"), function (er, s) {
       function cb (er) {
         if (!er && !silent) console.log("v" + newVer)
         cb_(er)
@@ -111,7 +111,7 @@ function checkGit (data, cb) {
 }
 
 function write (data, cb) {
-  fs.writeFile( path.join(process.cwd(), "package.json")
+  fs.writeFile( path.join(npm.localPrefix, "package.json")
               , new Buffer(JSON.stringify(data, null, 2) + "\n")
               , cb )
 }

@@ -16,8 +16,13 @@ var CONFS = {}
 var DOC = {}
 
 var exceptions = [
+  path.resolve(lib, "adduser.js"),
   path.resolve(lib, "config.js"),
-  path.resolve(lib, "utils", "lifecycle.js")
+  path.resolve(lib, "publish.js"),
+  path.resolve(lib, "utils", "lifecycle.js"),
+  path.resolve(lib, "utils", "map-to-registry.js"),
+  path.resolve(nm, "npm-registry-client", "lib", "publish.js"),
+  path.resolve(nm, "npm-registry-client", "lib", "request.js")
 ]
 
 test("get files", function (t) {
@@ -46,7 +51,7 @@ test("get files", function (t) {
 
 test("get lines", function (t) {
   FILES.forEach(function (f) {
-    var lines = fs.readFileSync(f, 'utf8').split('\n')
+    var lines = fs.readFileSync(f, 'utf8').split(/\r|\n/)
     lines.forEach(function (l, i) {
       var matches = l.split(/conf(?:ig)?\.get\(/g)
       matches.shift()
@@ -71,7 +76,7 @@ test("get lines", function (t) {
 })
 
 test("get docs", function (t) {
-  var d = fs.readFileSync(doc, "utf8").split("\n")
+  var d = fs.readFileSync(doc, "utf8").split(/\r|\n/)
   // walk down until the "## Config Settings" section
   for (var i = 0; i < d.length && d[i] !== "## Config Settings"; i++);
   i++
@@ -100,7 +105,7 @@ test("check configs", function (t) {
   }
 
   for (var c in DOC) {
-    if (c !== "versions" && c !== "version") {
+    if (c !== "versions" && c !== "version" && c !== "init.version") {
       t.ok(CONFS[c], "config in doc should be used somewhere " + c)
       t.ok(types.indexOf(c) !== -1, "should be defined in npmconf " + c)
       t.ok(defaults.indexOf(c) !== -1, "should have default in npmconf " + c)

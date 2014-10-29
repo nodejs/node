@@ -13,9 +13,7 @@ var fs = require("graceful-fs")
   , lock = locker.lock
   , unlock = locker.unlock
   , getCacheStat = require("./get-stat.js")
-  , addNamed = require("./add-named.js")
   , addLocalTarball = require("./add-local-tarball.js")
-  , maybeGithub = require("./maybe-github.js")
   , sha = require("sha")
 
 module.exports = addLocal
@@ -29,16 +27,12 @@ function addLocal (p, pkgData, cb_) {
   function cb (er, data) {
     unlock(p, function () {
       if (er) {
-        // if it doesn't have a / in it, it might be a
-        // remote thing.
-        if (p.indexOf("/") === -1 && p.charAt(0) !== "."
-           && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
-          return addNamed(p, "", null, cb_)
-        }
         log.error("addLocal", "Could not install %s", p)
         return cb_(er)
       }
-      if (data && !data._fromGithub) data._from = p
+      if (data && !data._fromGithub) {
+        data._from = path.relative(npm.prefix, p) || "."
+      }
       return cb_(er, data)
     })
   }
@@ -47,14 +41,8 @@ function addLocal (p, pkgData, cb_) {
     if (er) return cb(er)
     // figure out if this is a folder or file.
     fs.stat(p, function (er, s) {
-      if (er) {
-        // might be username/project
-        // in that case, try it as a github url.
-        if (p.split("/").length === 2) {
-          return maybeGithub(p, er, cb)
-        }
-        return cb(er)
-      }
+      if (er) return cb(er)
+
       if (s.isDirectory()) addLocalDirectory(p, pkgData, null, cb)
       else addLocalTarball(p, pkgData, null, cb)
     })

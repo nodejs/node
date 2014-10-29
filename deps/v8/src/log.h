@@ -5,12 +5,19 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
-#include "allocation.h"
-#include "objects.h"
-#include "platform.h"
-#include "platform/elapsed-timer.h"
+#include <string>
+
+#include "src/allocation.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/platform.h"
+#include "src/objects.h"
 
 namespace v8 {
+
+namespace base {
+class Semaphore;
+}
+
 namespace internal {
 
 // Logger is used for collecting logging information from V8 during
@@ -55,7 +62,6 @@ class Isolate;
 class Log;
 class PositionsRecorder;
 class Profiler;
-class Semaphore;
 class Ticker;
 struct TickSample;
 
@@ -79,6 +85,7 @@ struct TickSample;
 
 #define LOG_EVENTS_AND_TAGS_LIST(V)                                     \
   V(CODE_CREATION_EVENT,            "code-creation")                    \
+  V(CODE_DISABLE_OPT_EVENT,         "code-disable-optimization")        \
   V(CODE_MOVE_EVENT,                "code-move")                        \
   V(CODE_DELETE_EVENT,              "code-delete")                      \
   V(CODE_MOVING_GC,                 "code-moving-gc")                   \
@@ -144,6 +151,8 @@ class Sampler;
 
 class Logger {
  public:
+  enum StartEnd { START = 0, END = 1 };
+
 #define DECLARE_ENUM(enum_item, ignore) enum_item,
   enum LogEventsAndTags {
     LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM)
@@ -237,6 +246,8 @@ class Logger {
                        CompilationInfo* info,
                        Name* source, int line, int column);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
+  // Emits a code deoptimization event.
+  void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(Code* code, String* source);
@@ -277,49 +288,20 @@ class Logger {
   void HeapSampleStats(const char* space, const char* kind,
                        intptr_t capacity, intptr_t used);
 
-  void SharedLibraryEvent(const char* library_path,
+  void SharedLibraryEvent(const std::string& library_path,
                           uintptr_t start,
                           uintptr_t end);
-  void SharedLibraryEvent(const wchar_t* library_path,
-                          uintptr_t start,
-                          uintptr_t end);
-
-  // ==== Events logged by --log-timer-events. ====
-  enum StartEnd { START, END };
 
   void CodeDeoptEvent(Code* code);
+  void CurrentTimeEvent();
 
   void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
 
-  static void EmptyLogInternalEvents(const char* name, int se) { }
-  static void LogInternalEvents(const char* name, int se);
-
-  class TimerEventScope {
-   public:
-    TimerEventScope(Isolate* isolate, const char* name)
-        : isolate_(isolate), name_(name) {
-      LogTimerEvent(START);
-    }
-
-    ~TimerEventScope() {
-      LogTimerEvent(END);
-    }
-
-    void LogTimerEvent(StartEnd se);
-
-    static const char* v8_recompile_synchronous;
-    static const char* v8_recompile_concurrent;
-    static const char* v8_compile_full_code;
-    static const char* v8_execute;
-    static const char* v8_external;
-
-   private:
-    Isolate* isolate_;
-    const char* name_;
-  };
+  static void EmptyTimerEventsLogger(const char* name, int se) {}
+  static void DefaultTimerEventsLogger(const char* name, int se);
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
@@ -432,9 +414,43 @@ class Logger {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
+};
+
+
+#define TIMER_EVENTS_LIST(V)    \
+  V(RecompileSynchronous, true) \
+  V(RecompileConcurrent, true)  \
+  V(CompileFullCode, true)      \
+  V(Execute, true)              \
+  V(External, true)             \
+  V(IcMiss, false)
+
+#define V(TimerName, expose)                                                  \
+  class TimerEvent##TimerName : public AllStatic {                            \
+   public:                                                                    \
+    static const char* name(void* unused = NULL) { return "V8." #TimerName; } \
+    static bool expose_to_api() { return expose; }                            \
+  };
+TIMER_EVENTS_LIST(V)
+#undef V
+
+
+template <class TimerEvent>
+class TimerEventScope {
+ public:
+  explicit TimerEventScope(Isolate* isolate) : isolate_(isolate) {
+    LogTimerEvent(Logger::START);
+  }
+
+  ~TimerEventScope() { LogTimerEvent(Logger::END); }
+
+  void LogTimerEvent(Logger::StartEnd se);
+
+ private:
+  Isolate* isolate_;
 };
 
 
@@ -470,6 +486,7 @@ class CodeEventListener {
   virtual void CodeDeleteEvent(Address from) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) = 0;
 };
 
 

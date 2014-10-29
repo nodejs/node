@@ -30,7 +30,7 @@
 #ifndef V8_TEST_CCTEST_PROFILER_EXTENSION_H_
 #define V8_TEST_CCTEST_PROFILER_EXTENSION_H_
 
-#include "../include/v8-profiler.h"
+#include "include/v8-profiler.h"
 
 namespace v8 {
 namespace internal {

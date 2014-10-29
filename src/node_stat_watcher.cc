@@ -27,7 +27,6 @@
 #include "util.h"
 #include "util-inl.h"
 
-#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -41,20 +40,18 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 
 void StatWatcher::Initialize(Environment* env, Handle<Object> target) {
   HandleScope scope(env->isolate());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    StatWatcher::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "start", StatWatcher::Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "stop", StatWatcher::Stop);
+  env->SetProtoMethod(t, "start", StatWatcher::Start);
+  env->SetProtoMethod(t, "stop", StatWatcher::Stop);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"),
               t->GetFunction());
@@ -86,7 +83,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
                            const uv_stat_t* prev,
                            const uv_stat_t* curr) {
   StatWatcher* wrap = static_cast<StatWatcher*>(handle->data);
-  assert(wrap->watcher_ == handle);
+  CHECK_EQ(wrap->watcher_, handle);
   Environment* env = wrap->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -100,17 +97,14 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
-  assert(args.IsConstructCall());
-  HandleScope handle_scope(args.GetIsolate());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args);
   new StatWatcher(env, args.This());
 }
 
 
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
-  assert(args.Length() == 3);
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  CHECK_EQ(args.Length(), 3);
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   node::Utf8Value path(args[0]);
@@ -127,9 +121,8 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
   Environment* env = wrap->env();
-  HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  wrap->MakeCallback(env->onstop_string(), 0, NULL);
+  wrap->MakeCallback(env->onstop_string(), 0, nullptr);
   wrap->Stop();
 }
 

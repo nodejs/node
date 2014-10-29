@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "dateparser.h"
+#include "src/dateparser.h"
 
 namespace v8 {
 namespace internal {
@@ -177,7 +177,7 @@ int DateParser::ReadMilliseconds(DateToken token) {
     // most significant digits.
     int factor = 1;
     do {
-      ASSERT(factor <= 100000000);  // factor won't overflow.
+      DCHECK(factor <= 100000000);  // factor won't overflow.
       factor *= 10;
       length--;
     } while (length > 3);

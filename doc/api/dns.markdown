@@ -31,7 +31,7 @@ resolves the IP addresses which are returned.
       });
     });
 
-## dns.lookup(hostname, [options], callback)
+## dns.lookup(hostname[, options], callback)
 
 Resolves a hostname (e.g. `'google.com'`) into the first found A (IPv4) or
 AAAA (IPv6) record. `options` can be an object or integer. If `options` is
@@ -79,7 +79,7 @@ The callback has arguments `(err, hostname, service)`. The `hostname` and
 On error, `err` is an `Error` object, where `err.code` is the error code.
 
 
-## dns.resolve(hostname, [rrtype], callback)
+## dns.resolve(hostname[, rrtype], callback)
 
 Resolves a hostname (e.g. `'google.com'`) into an array of the record types
 specified by rrtype.

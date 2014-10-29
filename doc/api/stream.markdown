@@ -65,7 +65,7 @@ var server = http.createServer(function (req, res) {
   // Readable streams emit 'data' events once a listener is added
   req.on('data', function (chunk) {
     body += chunk;
-  })
+  });
 
   // the end event tells you that you have entire body
   req.on('end', function () {
@@ -80,8 +80,8 @@ var server = http.createServer(function (req, res) {
     // write back something interesting to the user:
     res.write(typeof data);
     res.end();
-  })
-})
+  });
+});
 
 server.listen(1337);
 
@@ -158,7 +158,7 @@ hadn't already.
 var readable = getReadableStreamSomehow();
 readable.on('readable', function() {
   // there is some data to read now
-})
+});
 ```
 
 Once the internal buffer is drained, a `readable` event will fire
@@ -179,7 +179,7 @@ possible, this is the best way to do so.
 var readable = getReadableStreamSomehow();
 readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
-})
+});
 ```
 
 #### Event: 'end'
@@ -194,7 +194,7 @@ or by calling `read()` repeatedly until you get to the end.
 var readable = getReadableStreamSomehow();
 readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
-})
+});
 readable.on('end', function() {
   console.log('there will be no more data.');
 });
@@ -266,7 +266,7 @@ readable.setEncoding('utf8');
 readable.on('data', function(chunk) {
   assert.equal(typeof chunk, 'string');
   console.log('got %d characters of string data', chunk.length);
-})
+});
 ```
 
 #### readable.resume()
@@ -286,7 +286,7 @@ var readable = getReadableStreamSomehow();
 readable.resume();
 readable.on('end', function(chunk) {
   console.log('got to the end, but did not read anything');
-})
+});
 ```
 
 #### readable.pause()
@@ -307,7 +307,7 @@ readable.on('data', function(chunk) {
     console.log('now data will start flowing again');
     readable.resume();
   }, 1000);
-})
+});
 ```
 
 #### readable.isPaused()
@@ -328,7 +328,7 @@ readable.resume()
 readable.isPaused() // === false
 ```
 
-#### readable.pipe(destination, [options])
+#### readable.pipe(destination[, options])
 
 * `destination` {[Writable][] Stream} The destination for writing data
 * `options` {Object} Pipe options
@@ -501,7 +501,7 @@ Examples of writable streams include:
 * [child process stdin](child_process.html#child_process_child_stdin)
 * [process.stdout][], [process.stderr][]
 
-#### writable.write(chunk, [encoding], [callback])
+#### writable.write(chunk[, encoding][, callback])
 
 * `chunk` {String | Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -564,7 +564,15 @@ Buffered data will be flushed either at `.uncork()` or at `.end()` call.
 
 Flush all data, buffered since `.cork()` call.
 
-#### writable.end([chunk], [encoding], [callback])
+#### writable.setDefaultEncoding(encoding)
+
+* `encoding` {String} The new default encoding
+* Return: `Boolean`
+
+Sets the default encoding for a writable stream. Returns `true` if the encoding
+is valid and is set. Otherwise returns `false`.
+
+#### writable.end([chunk][, encoding][, callback])
 
 * `chunk` {String | Buffer} Optional data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -943,7 +951,7 @@ TLS, may ignore this argument, and simply provide data whenever it
 becomes available.  There is no need, for example to "wait" until
 `size` bytes are available before calling [`stream.push(chunk)`][].
 
-#### readable.push(chunk, [encoding])
+#### readable.push(chunk[, encoding])
 
 * `chunk` {Buffer | null | String} Chunk of data to push into the read queue
 * `encoding` {String} Encoding of String chunks.  Must be a valid

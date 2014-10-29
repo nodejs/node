@@ -192,13 +192,12 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
         jmethod.method_size = static_cast<unsigned int>(event->code_len);
         jmethod.method_name = temp_method_name;
 
-        Handle<Script> script = event->script;
+        Handle<UnboundScript> script = event->script;
 
         if (*script != NULL) {
           // Get the source file name and set it to jmethod.source_file_name
-         if ((*script->GetUnboundScript()->GetScriptName())->IsString()) {
-            Handle<String> script_name =
-                script->GetUnboundScript()->GetScriptName()->ToString();
+          if ((*script->GetScriptName())->IsString()) {
+            Handle<String> script_name = script->GetScriptName()->ToString();
             temp_file_name = new char[script_name->Utf8Length() + 1];
             script_name->WriteUtf8(temp_file_name);
             jmethod.source_file_name = temp_file_name;
@@ -225,7 +224,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
               jmethod.line_number_table[index].Offset =
                   static_cast<unsigned int>(Iter->pc_);
               jmethod.line_number_table[index++].LineNumber =
-                  script->GetUnboundScript()->GetLineNumber(Iter->pos_)+1;
+                  script->GetLineNumber(Iter->pos_) + 1;
             }
             GetEntries()->erase(event->code_start);
           }
@@ -272,13 +271,10 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
 
 }  // namespace internal
 
-void InitializeVtuneForV8() {
-  if (v8::V8::Initialize()) {
-    v8::V8::SetFlagsFromString("--nocompact_code_space",
-                              (int)strlen("--nocompact_code_space"));
-    v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
-        vTune::internal::VTUNEJITInterface::event_handler);
-  }
+void InitializeVtuneForV8(v8::Isolate::CreateParams& params) {
+  v8::V8::SetFlagsFromString("--nocompact_code_space",
+                             (int)strlen("--nocompact_code_space"));
+  params.code_event_handler = vTune::internal::VTUNEJITInterface::event_handler;
 }
 
 }  // namespace vTune

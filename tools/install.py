@@ -127,7 +127,8 @@ def subdir_files(path, dest, action):
     action(files, subdir + '/')
 
 def files(action):
-  action(['out/Release/node'], 'bin/node')
+  exeext = '.exe' if sys.platform == 'win32' else ''
+  action(['out/Release/node' + exeext], 'bin/node' + exeext)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')

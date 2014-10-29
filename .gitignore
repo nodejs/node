@@ -45,6 +45,7 @@ ipch/
 /test/addons/doc-*/
 email.md
 deps/v8-*
+deps/icu
 ./node_modules
 .svn/
 
@@ -67,3 +68,4 @@ deps/zlib/zlib.target.mk
 
 # test artifacts
 tools/faketime
+icu_config.gypi

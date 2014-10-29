@@ -32,12 +32,11 @@ from os.path import isdir
 from os.path import join
 import platform
 import re
+import urllib2
 
 
 def GetSuitePaths(test_root):
-  def IsSuite(path):
-    return isdir(path) and exists(join(path, 'testcfg.py'))
-  return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
+  return [ f for f in os.listdir(test_root) if isdir(join(test_root, f)) ]
 
 
 # Reads a file into an array of strings
@@ -113,3 +112,10 @@ def GuessWordsize():
 
 def IsWindows():
   return GuessOS() == 'windows'
+
+
+def URLRetrieve(source, destination):
+  """urllib is broken for SSL connections via a proxy therefore we
+  can't use urllib.urlretrieve()."""
+  with open(destination, 'w') as f:
+    f.write(urllib2.urlopen(source).read())

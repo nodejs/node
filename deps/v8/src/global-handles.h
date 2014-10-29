@@ -5,17 +5,16 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
-#include "../include/v8.h"
-#include "../include/v8-profiler.h"
+#include "include/v8.h"
+#include "include/v8-profiler.h"
 
-#include "handles.h"
-#include "list.h"
-#include "utils.h"
+#include "src/handles.h"
+#include "src/list.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
-class GCTracer;
 class HeapStats;
 class ObjectVisitor;
 
@@ -38,7 +37,7 @@ class ObjectVisitor;
 struct ObjectGroup {
   explicit ObjectGroup(size_t length)
       : info(NULL), length(length) {
-    ASSERT(length > 0);
+    DCHECK(length > 0);
     objects = new Object**[length];
   }
   ~ObjectGroup();
@@ -52,7 +51,7 @@ struct ObjectGroup {
 struct ImplicitRefGroup {
   ImplicitRefGroup(HeapObject** parent, size_t length)
       : parent(parent), length(length) {
-    ASSERT(length > 0);
+    DCHECK(length > 0);
     children = new Object**[length];
   }
   ~ImplicitRefGroup();
@@ -156,8 +155,7 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  int PostGarbageCollectionProcessing(GarbageCollector collector,
-                                      GCTracer* tracer);
+  int PostGarbageCollectionProcessing(GarbageCollector collector);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
@@ -216,13 +214,6 @@ class GlobalHandles {
   // once for a group. Should not be called for a group which contains no
   // handles.
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
-
-  // Add an implicit references' group.
-  // Should be only used in GC callback function before a collection.
-  // All groups are destroyed after a mark-compact collection.
-  void AddImplicitReferences(HeapObject** parent,
-                             Object*** children,
-                             size_t length);
 
   // Adds an implicit reference from a group to an object. Should be only used
   // in GC callback function before a collection. All implicit references are
@@ -337,7 +328,7 @@ class EternalHandles {
 
   // Grab the handle for an existing SingletonHandle.
   inline Handle<Object> GetSingleton(SingletonHandle singleton) {
-    ASSERT(Exists(singleton));
+    DCHECK(Exists(singleton));
     return Get(singleton_handles_[singleton]);
   }
 
@@ -369,7 +360,7 @@ class EternalHandles {
 
   // Gets the slot for an index
   inline Object** GetLocation(int index) {
-    ASSERT(index >= 0 && index < size_);
+    DCHECK(index >= 0 && index < size_);
     return &blocks_[index >> kShift][index & kMask];
   }
 

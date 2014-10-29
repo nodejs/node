@@ -60,7 +60,7 @@ inline uv_stream_t* HandleToStream(Environment* env,
     return reinterpret_cast<uv_stream_t*>(wrap->UVHandle());
   });
 
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace node

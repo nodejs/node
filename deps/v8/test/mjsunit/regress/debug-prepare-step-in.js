@@ -52,3 +52,5 @@ function g() {
 }
 
 g();
+
+Debug.setListener(null);

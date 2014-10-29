@@ -11,7 +11,7 @@ You can access this module with:
 JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
-## vm.runInThisContext(code, [options])
+## vm.runInThisContext(code[, options])
 
 `vm.runInThisContext()` compiles `code`, runs it and returns the result. Running
 code does not have access to local scope, but does have access to the current
@@ -76,7 +76,7 @@ Returns whether or not a sandbox object has been contextified by calling
 `vm.createContext` on it.
 
 
-## vm.runInContext(code, contextifiedSandbox, [options])
+## vm.runInContext(code, contextifiedSandbox[, options])
 
 `vm.runInContext` compiles `code`, then runs it in `contextifiedSandbox` and
 returns the result. Running code does not have access to local scope. The
@@ -85,7 +85,7 @@ returns the result. Running code does not have access to local scope. The
 
 `vm.runInContext` takes the same options as `vm.runInThisContext`.
 
-Example: compile and execute differnt scripts in a single existing context.
+Example: compile and execute different scripts in a single existing context.
 
     var util = require('util');
     var vm = require('vm');
@@ -105,7 +105,7 @@ Note that running untrusted code is a tricky business requiring great care.
 separate process.
 
 
-## vm.runInNewContext(code, [sandbox], [options])
+## vm.runInNewContext(code[, sandbox][, options])
 
 `vm.runInNewContext` compiles `code`, contextifies `sandbox` if passed or
 creates a new contextified sandbox if it's omitted, and then runs the code with
@@ -204,7 +204,7 @@ The options for running a script are:
   execution. If execution is terminated, an `Error` will be thrown.
 
 
-### script.runInContext(contextifiedSandbox, [options])
+### script.runInContext(contextifiedSandbox[, options])
 
 Similar to `vm.runInContext` but a method of a precompiled `Script` object.
 `script.runInContext` runs `script`'s compiled code in `contextifiedSandbox`
@@ -238,7 +238,7 @@ Note that running untrusted code is a tricky business requiring great care.
 requires a separate process.
 
 
-### script.runInNewContext([sandbox], [options])
+### script.runInNewContext([sandbox][, options])
 
 Similar to `vm.runInNewContext` but a method of a precompiled `Script` object.
 `script.runInNewContext` contextifies `sandbox` if passed or creates a new

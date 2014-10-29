@@ -5,13 +5,13 @@
 #ifndef V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 #define V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 
-#include "deoptimizer.h"
-#include "mips/lithium-gap-resolver-mips.h"
-#include "mips/lithium-mips.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/mips/lithium-gap-resolver-mips.h"
+#include "src/mips/lithium-mips.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ class LCodeGen: public LCodeGenBase {
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
-        deopt_jump_table_(4, info->zone()),
+        jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
@@ -132,8 +132,7 @@ class LCodeGen: public LCodeGenBase {
                                  int constant_key,
                                  int element_size,
                                  int shift_size,
-                                 int additional_index,
-                                 int additional_offset);
+                                 int base_offset);
 
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
@@ -170,10 +169,10 @@ class LCodeGen: public LCodeGenBase {
 
   // Code generation passes.  Returns true if code generation should
   // continue.
-  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateDeoptJumpTable();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.
@@ -229,14 +228,12 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition condition,
-                    LEnvironment* environment,
-                    Deoptimizer::BailoutType bailout_type,
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    Deoptimizer::BailoutType bailout_type, const char* detail,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void DeoptimizeIf(Condition condition,
-                    LEnvironment* environment,
-                    Register src1 = zero_reg,
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    const char* detail = NULL, Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(LEnvironment* environment,
@@ -270,11 +267,8 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
-                                              int arguments,
-                                              Safepoint::DeoptMode mode);
 
-  void RecordAndWritePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) OVERRIDE;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -301,12 +295,8 @@ class LCodeGen: public LCodeGenBase {
                         FPURegister src1,
                         FPURegister src2);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(Register input,
-                        DoubleRegister result,
-                        bool allow_undefined_as_nan,
-                        bool deoptimize_on_minus_zero,
-                        LEnvironment* env,
-                        NumberUntagDMode mode);
+  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
+                        DoubleRegister result, NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -317,8 +307,8 @@ class LCodeGen: public LCodeGenBase {
                          Label* false_label,
                          Register input,
                          Handle<String> type_name,
-                         Register& cmp1,
-                         Operand& cmp2);
+                         Register* cmp1,
+                         Operand* cmp2);
 
   // Emits optimized code for %_IsObject(x).  Preserves input register.
   // Returns the condition on which a final split to
@@ -360,7 +350,7 @@ class LCodeGen: public LCodeGenBase {
                                            LEnvironment* environment);
 
 
-  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
+  void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
   void DoLoadKeyedFixedArray(LLoadKeyed* instr);
@@ -368,8 +358,11 @@ class LCodeGen: public LCodeGenBase {
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
@@ -387,56 +380,24 @@ class LCodeGen: public LCodeGenBase {
 
   Safepoint::Kind expected_safepoint_kind_;
 
-  class PushSafepointRegistersScope V8_FINAL  BASE_EMBEDDED {
+  class PushSafepointRegistersScope FINAL BASE_EMBEDDED {
    public:
-    PushSafepointRegistersScope(LCodeGen* codegen,
-                                Safepoint::Kind kind)
+    explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->info()->is_calling());
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
-      codegen_->expected_safepoint_kind_ = kind;
+      DCHECK(codegen_->info()->is_calling());
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
 
-      switch (codegen_->expected_safepoint_kind_) {
-        case Safepoint::kWithRegisters: {
-          StoreRegistersStateStub stub1(codegen_->masm_->isolate(),
-                                        kDontSaveFPRegs);
-          codegen_->masm_->push(ra);
-          codegen_->masm_->CallStub(&stub1);
-          break;
-        }
-        case Safepoint::kWithRegistersAndDoubles: {
-          StoreRegistersStateStub stub2(codegen_->masm_->isolate(),
-                                        kSaveFPRegs);
-          codegen_->masm_->push(ra);
-          codegen_->masm_->CallStub(&stub2);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
+      StoreRegistersStateStub stub(codegen_->isolate());
+      codegen_->masm_->push(ra);
+      codegen_->masm_->CallStub(&stub);
     }
 
     ~PushSafepointRegistersScope() {
-      Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
-      ASSERT((kind & Safepoint::kWithRegisters) != 0);
-      switch (kind) {
-        case Safepoint::kWithRegisters: {
-          RestoreRegistersStateStub stub1(codegen_->masm_->isolate(),
-                                          kDontSaveFPRegs);
-          codegen_->masm_->push(ra);
-          codegen_->masm_->CallStub(&stub1);
-          break;
-        }
-        case Safepoint::kWithRegistersAndDoubles: {
-          RestoreRegistersStateStub stub2(codegen_->masm_->isolate(),
-                                          kSaveFPRegs);
-          codegen_->masm_->push(ra);
-          codegen_->masm_->CallStub(&stub2);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      RestoreRegistersStateStub stub(codegen_->isolate());
+      codegen_->masm_->push(ra);
+      codegen_->masm_->CallStub(&stub);
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }
 

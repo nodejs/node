@@ -24,8 +24,6 @@
 
 #include "util.h"
 
-#include <assert.h>
-
 namespace node {
 
 template <typename Inner, typename Outer>
@@ -102,19 +100,19 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 
 template <typename TypeName>
 void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
-  assert(!object.IsEmpty());
-  assert(object->InternalFieldCount() > 0);
+  CHECK_EQ(false, object.IsEmpty());
+  CHECK_GT(object->InternalFieldCount(), 0);
   object->SetAlignedPointerInInternalField(0, pointer);
 }
 
 void ClearWrap(v8::Local<v8::Object> object) {
-  Wrap<void>(object, NULL);
+  Wrap<void>(object, nullptr);
 }
 
 template <typename TypeName>
 TypeName* Unwrap(v8::Local<v8::Object> object) {
-  assert(!object.IsEmpty());
-  assert(object->InternalFieldCount() > 0);
+  CHECK_EQ(false, object.IsEmpty());
+  CHECK_GT(object->InternalFieldCount(), 0);
   void* pointer = object->GetAlignedPointerFromInternalField(0);
   return static_cast<TypeName*>(pointer);
 }

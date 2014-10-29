@@ -14,8 +14,8 @@ var npm = require("./npm.js")
   , archy = require("archy")
   , semver = require("semver")
   , url = require("url")
-  , isGitUrl = require("./utils/is-git-url.js")
   , color = require("ansicolors")
+  , npa = require("npm-package-arg")
 
 ls.usage = "npm ls"
 
@@ -29,9 +29,9 @@ function ls (args, silent, cb) {
   // npm ls 'foo@~1.3' bar 'baz@<2'
   if (!args) args = []
   else args = args.map(function (a) {
-    var nv = a.split("@")
-      , name = nv.shift()
-      , ver = semver.validRange(nv.join("@")) || ""
+    var p = npa(a)
+      , name = p.name
+      , ver = semver.validRange(p.rawSpec) || ""
 
     return [ name, ver ]
   })
@@ -39,6 +39,7 @@ function ls (args, silent, cb) {
   var depth = npm.config.get("depth")
   var opt = { depth: depth, log: log.warn, dev: true }
   readInstalled(dir, opt, function (er, data) {
+    pruneNestedExtraneous(data)
     var bfs = bfsify(data, args)
       , lite = getLite(bfs)
 
@@ -73,6 +74,18 @@ function ls (args, silent, cb) {
     }
     cb(er, data, lite)
   })
+}
+
+function pruneNestedExtraneous (data, visited) {
+  visited = visited || []
+  visited.push(data)
+  for (var i in data.dependencies) {
+    if (data.dependencies[i].extraneous) {
+      data.dependencies[i].dependencies = {}
+    } else if (visited.indexOf(data.dependencies[i]) === -1) {
+      pruneNestedExtraneous(data.dependencies[i], visited)
+    }
+  }
 }
 
 function alphasort (a, b) {
@@ -265,7 +278,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
 
   // add giturl to name@version
   if (data._resolved) {
-    if (isGitUrl(url.parse(data._resolved)))
+    if (npa(data._resolved).type === "git")
       out.label += " (" + data._resolved + ")"
   }
 

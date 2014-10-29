@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "scopes.h"
-#include "variables.h"
+#include "src/ast.h"
+#include "src/scopes.h"
+#include "src/variables.h"
 
 namespace v8 {
 namespace internal {
@@ -32,30 +32,26 @@ const char* Variable::Mode2String(VariableMode mode) {
 }
 
 
-Variable::Variable(Scope* scope,
-                   Handle<String> name,
-                   VariableMode mode,
-                   bool is_valid_ref,
-                   Kind kind,
+Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
+                   bool is_valid_ref, Kind kind,
                    InitializationFlag initialization_flag,
-                   Interface* interface)
-  : scope_(scope),
-    name_(name),
-    mode_(mode),
-    kind_(kind),
-    location_(UNALLOCATED),
-    index_(-1),
-    initializer_position_(RelocInfo::kNoPosition),
-    local_if_not_shadowed_(NULL),
-    is_valid_ref_(is_valid_ref),
-    force_context_allocation_(false),
-    is_used_(false),
-    initialization_flag_(initialization_flag),
-    interface_(interface) {
-  // Names must be canonicalized for fast equality checks.
-  ASSERT(name->IsInternalizedString());
+                   MaybeAssignedFlag maybe_assigned_flag, Interface* interface)
+    : scope_(scope),
+      name_(name),
+      mode_(mode),
+      kind_(kind),
+      location_(UNALLOCATED),
+      index_(-1),
+      initializer_position_(RelocInfo::kNoPosition),
+      local_if_not_shadowed_(NULL),
+      is_valid_ref_(is_valid_ref),
+      force_context_allocation_(false),
+      is_used_(false),
+      initialization_flag_(initialization_flag),
+      maybe_assigned_(maybe_assigned_flag),
+      interface_(interface) {
   // Var declared variables never need initialization.
-  ASSERT(!(mode == VAR && initialization_flag == kNeedsInitialization));
+  DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }
 
 

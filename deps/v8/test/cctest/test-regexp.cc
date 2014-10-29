@@ -28,54 +28,63 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "char-predicates-inl.h"
-#include "cctest.h"
-#include "jsregexp.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-irregexp.h"
-#include "string-stream.h"
-#include "zone-inl.h"
+#include "src/ast.h"
+#include "src/char-predicates-inl.h"
+#include "src/jsregexp.h"
+#include "src/ostreams.h"
+#include "src/parser.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-macro-assembler-irregexp.h"
+#include "src/string-stream.h"
+#include "src/zone-inl.h"
 #ifdef V8_INTERPRETED_REGEXP
-#include "interpreter-irregexp.h"
+#include "src/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
-#include "macro-assembler.h"
-#include "code.h"
+#include "src/macro-assembler.h"
 #if V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm.h"
-#include "arm/macro-assembler-arm.h"
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/arm/assembler-arm.h"  // NOLINT
+#include "src/arm/macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 #endif
 #if V8_TARGET_ARCH_ARM64
-#include "arm64/assembler-arm64.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"
 #endif
 #if V8_TARGET_ARCH_MIPS
-#include "mips/assembler-mips.h"
-#include "mips/macro-assembler-mips.h"
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/mips/assembler-mips.h"
+#include "src/mips/macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"
+#endif
+#if V8_TARGET_ARCH_MIPS64
+#include "src/mips64/assembler-mips64.h"
+#include "src/mips64/macro-assembler-mips64.h"
+#include "src/mips64/regexp-macro-assembler-mips64.h"
 #endif
 #if V8_TARGET_ARCH_X64
-#include "x64/assembler-x64.h"
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/x64/assembler-x64.h"
+#include "src/x64/macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"
 #endif
 #if V8_TARGET_ARCH_IA32
-#include "ia32/assembler-ia32.h"
-#include "ia32/macro-assembler-ia32.h"
-#include "ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/assembler-ia32.h"
+#include "src/ia32/macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"
+#endif
+#if V8_TARGET_ARCH_X87
+#include "src/x87/assembler-x87.h"
+#include "src/x87/macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"
 #endif
 #endif  // V8_INTERPRETED_REGEXP
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
 
 static bool CheckParse(const char* input) {
-  V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
@@ -85,8 +94,7 @@ static bool CheckParse(const char* input) {
 }
 
 
-static SmartArrayPointer<const char> Parse(const char* input) {
-  V8::Initialize(NULL);
+static void CheckParseEq(const char* input, const char* expected) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
@@ -95,13 +103,13 @@ static SmartArrayPointer<const char> Parse(const char* input) {
       &reader, false, &result, &zone));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  SmartArrayPointer<const char> output = result.tree->ToString(&zone);
-  return output;
+  OStringStream os;
+  result.tree->Print(os, &zone);
+  CHECK_EQ(expected, os.c_str());
 }
 
 
 static bool CheckSimple(const char* input) {
-  V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
@@ -120,7 +128,6 @@ struct MinMaxPair {
 
 
 static MinMaxPair CheckMinMaxMatch(const char* input) {
-  V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
@@ -137,7 +144,6 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 
 #define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
-#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, Parse(input).get())
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 #define CHECK_MIN_MAX(input, min, max)                                         \
   { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
@@ -146,130 +152,131 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   }
 
 TEST(Parser) {
-  V8::Initialize(NULL);
-
   CHECK_PARSE_ERROR("?");
 
-  CHECK_PARSE_EQ("abc", "'abc'");
-  CHECK_PARSE_EQ("", "%");
-  CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
-  CHECK_PARSE_EQ("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
-  CHECK_PARSE_EQ("^xxx$", "(: @^i 'xxx' @$i)");
-  CHECK_PARSE_EQ("ab\\b\\d\\bcd", "(: 'ab' @b [0-9] @b 'cd')");
-  CHECK_PARSE_EQ("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
-  CHECK_PARSE_EQ("a*", "(# 0 - g 'a')");
-  CHECK_PARSE_EQ("a*?", "(# 0 - n 'a')");
-  CHECK_PARSE_EQ("abc+", "(: 'ab' (# 1 - g 'c'))");
-  CHECK_PARSE_EQ("abc+?", "(: 'ab' (# 1 - n 'c'))");
-  CHECK_PARSE_EQ("xyz?", "(: 'xy' (# 0 1 g 'z'))");
-  CHECK_PARSE_EQ("xyz??", "(: 'xy' (# 0 1 n 'z'))");
-  CHECK_PARSE_EQ("xyz{0,1}", "(: 'xy' (# 0 1 g 'z'))");
-  CHECK_PARSE_EQ("xyz{0,1}?", "(: 'xy' (# 0 1 n 'z'))");
-  CHECK_PARSE_EQ("xyz{93}", "(: 'xy' (# 93 93 g 'z'))");
-  CHECK_PARSE_EQ("xyz{93}?", "(: 'xy' (# 93 93 n 'z'))");
-  CHECK_PARSE_EQ("xyz{1,32}", "(: 'xy' (# 1 32 g 'z'))");
-  CHECK_PARSE_EQ("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
-  CHECK_PARSE_EQ("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
-  CHECK_PARSE_EQ("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
-  CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
-  CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
-  CHECK_PARSE_EQ("(?:foo)", "'foo'");
-  CHECK_PARSE_EQ("(?: foo )", "' foo '");
-  CHECK_PARSE_EQ("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
-  CHECK_PARSE_EQ("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
-  CHECK_PARSE_EQ("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
-  CHECK_PARSE_EQ("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  CHECK_PARSE_EQ("()", "(^ %)");
-  CHECK_PARSE_EQ("(?=)", "(-> + %)");
-  CHECK_PARSE_EQ("[]", "^[\\x00-\\uffff]");   // Doesn't compile on windows
-  CHECK_PARSE_EQ("[^]", "[\\x00-\\uffff]");   // \uffff isn't in codepage 1252
-  CHECK_PARSE_EQ("[x]", "[x]");
-  CHECK_PARSE_EQ("[xyz]", "[x y z]");
-  CHECK_PARSE_EQ("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
-  CHECK_PARSE_EQ("[-123]", "[- 1 2 3]");
-  CHECK_PARSE_EQ("[^123]", "^[1 2 3]");
-  CHECK_PARSE_EQ("]", "']'");
-  CHECK_PARSE_EQ("}", "'}'");
-  CHECK_PARSE_EQ("[a-b-c]", "[a-b - c]");
-  CHECK_PARSE_EQ("[\\d]", "[0-9]");
-  CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
-  CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
-  CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
-  CHECK_PARSE_EQ("[z-\\d]", "[z - 0-9]");
+  CheckParseEq("abc", "'abc'");
+  CheckParseEq("", "%");
+  CheckParseEq("abc|def", "(| 'abc' 'def')");
+  CheckParseEq("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
+  CheckParseEq("^xxx$", "(: @^i 'xxx' @$i)");
+  CheckParseEq("ab\\b\\d\\bcd", "(: 'ab' @b [0-9] @b 'cd')");
+  CheckParseEq("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
+  CheckParseEq("a*", "(# 0 - g 'a')");
+  CheckParseEq("a*?", "(# 0 - n 'a')");
+  CheckParseEq("abc+", "(: 'ab' (# 1 - g 'c'))");
+  CheckParseEq("abc+?", "(: 'ab' (# 1 - n 'c'))");
+  CheckParseEq("xyz?", "(: 'xy' (# 0 1 g 'z'))");
+  CheckParseEq("xyz??", "(: 'xy' (# 0 1 n 'z'))");
+  CheckParseEq("xyz{0,1}", "(: 'xy' (# 0 1 g 'z'))");
+  CheckParseEq("xyz{0,1}?", "(: 'xy' (# 0 1 n 'z'))");
+  CheckParseEq("xyz{93}", "(: 'xy' (# 93 93 g 'z'))");
+  CheckParseEq("xyz{93}?", "(: 'xy' (# 93 93 n 'z'))");
+  CheckParseEq("xyz{1,32}", "(: 'xy' (# 1 32 g 'z'))");
+  CheckParseEq("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
+  CheckParseEq("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
+  CheckParseEq("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
+  CheckParseEq("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
+  CheckParseEq("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
+  CheckParseEq("(?:foo)", "'foo'");
+  CheckParseEq("(?: foo )", "' foo '");
+  CheckParseEq("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
+  CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
+  CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
+  CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
+  CheckParseEq("()", "(^ %)");
+  CheckParseEq("(?=)", "(-> + %)");
+  CheckParseEq("[]", "^[\\x00-\\uffff]");  // Doesn't compile on windows
+  CheckParseEq("[^]", "[\\x00-\\uffff]");  // \uffff isn't in codepage 1252
+  CheckParseEq("[x]", "[x]");
+  CheckParseEq("[xyz]", "[x y z]");
+  CheckParseEq("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
+  CheckParseEq("[-123]", "[- 1 2 3]");
+  CheckParseEq("[^123]", "^[1 2 3]");
+  CheckParseEq("]", "']'");
+  CheckParseEq("}", "'}'");
+  CheckParseEq("[a-b-c]", "[a-b - c]");
+  CheckParseEq("[\\d]", "[0-9]");
+  CheckParseEq("[x\\dz]", "[x 0-9 z]");
+  CheckParseEq("[\\d-z]", "[0-9 - z]");
+  CheckParseEq("[\\d-\\d]", "[0-9 - 0-9]");
+  CheckParseEq("[z-\\d]", "[z - 0-9]");
   // Control character outside character class.
-  CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
-                 "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
-  CHECK_PARSE_EQ("\\c!", "'\\c!'");
-  CHECK_PARSE_EQ("\\c_", "'\\c_'");
-  CHECK_PARSE_EQ("\\c~", "'\\c~'");
-  CHECK_PARSE_EQ("\\c1", "'\\c1'");
+  CheckParseEq("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
+  CheckParseEq("\\c!", "'\\c!'");
+  CheckParseEq("\\c_", "'\\c_'");
+  CheckParseEq("\\c~", "'\\c~'");
+  CheckParseEq("\\c1", "'\\c1'");
   // Control character inside character class.
-  CHECK_PARSE_EQ("[\\c!]", "[\\ c !]");
-  CHECK_PARSE_EQ("[\\c_]", "[\\x1f]");
-  CHECK_PARSE_EQ("[\\c~]", "[\\ c ~]");
-  CHECK_PARSE_EQ("[\\ca]", "[\\x01]");
-  CHECK_PARSE_EQ("[\\cz]", "[\\x1a]");
-  CHECK_PARSE_EQ("[\\cA]", "[\\x01]");
-  CHECK_PARSE_EQ("[\\cZ]", "[\\x1a]");
-  CHECK_PARSE_EQ("[\\c1]", "[\\x11]");
+  CheckParseEq("[\\c!]", "[\\ c !]");
+  CheckParseEq("[\\c_]", "[\\x1f]");
+  CheckParseEq("[\\c~]", "[\\ c ~]");
+  CheckParseEq("[\\ca]", "[\\x01]");
+  CheckParseEq("[\\cz]", "[\\x1a]");
+  CheckParseEq("[\\cA]", "[\\x01]");
+  CheckParseEq("[\\cZ]", "[\\x1a]");
+  CheckParseEq("[\\c1]", "[\\x11]");
 
-  CHECK_PARSE_EQ("[a\\]c]", "[a ] c]");
-  CHECK_PARSE_EQ("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
-  CHECK_PARSE_EQ("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
-  CHECK_PARSE_EQ("\\0", "'\\x00'");
-  CHECK_PARSE_EQ("\\8", "'8'");
-  CHECK_PARSE_EQ("\\9", "'9'");
-  CHECK_PARSE_EQ("\\11", "'\\x09'");
-  CHECK_PARSE_EQ("\\11a", "'\\x09a'");
-  CHECK_PARSE_EQ("\\011", "'\\x09'");
-  CHECK_PARSE_EQ("\\00011", "'\\x0011'");
-  CHECK_PARSE_EQ("\\118", "'\\x098'");
-  CHECK_PARSE_EQ("\\111", "'I'");
-  CHECK_PARSE_EQ("\\1111", "'I1'");
-  CHECK_PARSE_EQ("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\\x04')");
-  CHECK_PARSE_EQ("(x)(x)(x)\\1*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 1)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\2*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 2)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\3*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 3)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\4*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g '\\x04'))");
-  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
-              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
-              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
-  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
-              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
-              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\\x09')");
-  CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
-  CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
-  CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?=a)?a", "'a'");
-  CHECK_PARSE_EQ("(?=a){0,10}a", "'a'");
-  CHECK_PARSE_EQ("(?=a){1,10}a", "(: (-> + 'a') 'a')");
-  CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
-  CHECK_PARSE_EQ("(?!a)?a", "'a'");
-  CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
-  CHECK_PARSE_EQ("[\\0]", "[\\x00]");
-  CHECK_PARSE_EQ("[\\11]", "[\\x09]");
-  CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
-  CHECK_PARSE_EQ("[\\011]", "[\\x09]");
-  CHECK_PARSE_EQ("[\\00011]", "[\\x00 1 1]");
-  CHECK_PARSE_EQ("[\\118]", "[\\x09 8]");
-  CHECK_PARSE_EQ("[\\111]", "[I]");
-  CHECK_PARSE_EQ("[\\1111]", "[I 1]");
-  CHECK_PARSE_EQ("\\x34", "'\x34'");
-  CHECK_PARSE_EQ("\\x60", "'\x60'");
-  CHECK_PARSE_EQ("\\x3z", "'x3z'");
-  CHECK_PARSE_EQ("\\c", "'\\c'");
-  CHECK_PARSE_EQ("\\u0034", "'\x34'");
-  CHECK_PARSE_EQ("\\u003z", "'u003z'");
-  CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+  CheckParseEq("[a\\]c]", "[a ] c]");
+  CheckParseEq("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
+  CheckParseEq("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
+  CheckParseEq("\\0", "'\\x00'");
+  CheckParseEq("\\8", "'8'");
+  CheckParseEq("\\9", "'9'");
+  CheckParseEq("\\11", "'\\x09'");
+  CheckParseEq("\\11a", "'\\x09a'");
+  CheckParseEq("\\011", "'\\x09'");
+  CheckParseEq("\\00011", "'\\x0011'");
+  CheckParseEq("\\118", "'\\x098'");
+  CheckParseEq("\\111", "'I'");
+  CheckParseEq("\\1111", "'I1'");
+  CheckParseEq("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
+  CheckParseEq("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
+  CheckParseEq("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
+  CheckParseEq("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\\x04')");
+  CheckParseEq("(x)(x)(x)\\1*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 1)))");
+  CheckParseEq("(x)(x)(x)\\2*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 2)))");
+  CheckParseEq("(x)(x)(x)\\3*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 3)))");
+  CheckParseEq("(x)(x)(x)\\4*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g '\\x04'))");
+  CheckParseEq("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
+               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
+  CheckParseEq("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
+               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\\x09')");
+  CheckParseEq("(a)\\1", "(: (^ 'a') (<- 1))");
+  CheckParseEq("(a\\1)", "(^ 'a')");
+  CheckParseEq("(\\1a)", "(^ 'a')");
+  CheckParseEq("(?=a)?a", "'a'");
+  CheckParseEq("(?=a){0,10}a", "'a'");
+  CheckParseEq("(?=a){1,10}a", "(: (-> + 'a') 'a')");
+  CheckParseEq("(?=a){9,10}a", "(: (-> + 'a') 'a')");
+  CheckParseEq("(?!a)?a", "'a'");
+  CheckParseEq("\\1(a)", "(^ 'a')");
+  CheckParseEq("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
+  CheckParseEq("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
+  CheckParseEq("[\\0]", "[\\x00]");
+  CheckParseEq("[\\11]", "[\\x09]");
+  CheckParseEq("[\\11a]", "[\\x09 a]");
+  CheckParseEq("[\\011]", "[\\x09]");
+  CheckParseEq("[\\00011]", "[\\x00 1 1]");
+  CheckParseEq("[\\118]", "[\\x09 8]");
+  CheckParseEq("[\\111]", "[I]");
+  CheckParseEq("[\\1111]", "[I 1]");
+  CheckParseEq("\\x34", "'\x34'");
+  CheckParseEq("\\x60", "'\x60'");
+  CheckParseEq("\\x3z", "'x3z'");
+  CheckParseEq("\\c", "'\\c'");
+  CheckParseEq("\\u0034", "'\x34'");
+  CheckParseEq("\\u003z", "'u003z'");
+  CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
@@ -317,22 +324,22 @@ TEST(Parser) {
   CHECK_SIMPLE("(?!a)?a\\1", false);
   CHECK_SIMPLE("(?:(?=a))a\\1", false);
 
-  CHECK_PARSE_EQ("a{}", "'a{}'");
-  CHECK_PARSE_EQ("a{,}", "'a{,}'");
-  CHECK_PARSE_EQ("a{", "'a{'");
-  CHECK_PARSE_EQ("a{z}", "'a{z}'");
-  CHECK_PARSE_EQ("a{1z}", "'a{1z}'");
-  CHECK_PARSE_EQ("a{12z}", "'a{12z}'");
-  CHECK_PARSE_EQ("a{12,", "'a{12,'");
-  CHECK_PARSE_EQ("a{12,3b", "'a{12,3b'");
-  CHECK_PARSE_EQ("{}", "'{}'");
-  CHECK_PARSE_EQ("{,}", "'{,}'");
-  CHECK_PARSE_EQ("{", "'{'");
-  CHECK_PARSE_EQ("{z}", "'{z}'");
-  CHECK_PARSE_EQ("{1z}", "'{1z}'");
-  CHECK_PARSE_EQ("{12z}", "'{12z}'");
-  CHECK_PARSE_EQ("{12,", "'{12,'");
-  CHECK_PARSE_EQ("{12,3b", "'{12,3b'");
+  CheckParseEq("a{}", "'a{}'");
+  CheckParseEq("a{,}", "'a{,}'");
+  CheckParseEq("a{", "'a{'");
+  CheckParseEq("a{z}", "'a{z}'");
+  CheckParseEq("a{1z}", "'a{1z}'");
+  CheckParseEq("a{12z}", "'a{12z}'");
+  CheckParseEq("a{12,", "'a{12,'");
+  CheckParseEq("a{12,3b", "'a{12,3b'");
+  CheckParseEq("{}", "'{}'");
+  CheckParseEq("{,}", "'{,}'");
+  CheckParseEq("{", "'{'");
+  CheckParseEq("{z}", "'{z}'");
+  CheckParseEq("{1z}", "'{1z}'");
+  CheckParseEq("{12z}", "'{12z}'");
+  CheckParseEq("{12,", "'{12,'");
+  CheckParseEq("{12,3b", "'{12,3b'");
 
   CHECK_MIN_MAX("a", 1, 1);
   CHECK_MIN_MAX("abc", 3, 3);
@@ -386,15 +393,14 @@ TEST(Parser) {
 
 
 TEST(ParserRegression) {
-  CHECK_PARSE_EQ("[A-Z$-][x]", "(! [A-Z $ -] [x])");
-  CHECK_PARSE_EQ("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
-  CHECK_PARSE_EQ("{", "'{'");
-  CHECK_PARSE_EQ("a|", "(| 'a' %)");
+  CheckParseEq("[A-Z$-][x]", "(! [A-Z $ -] [x])");
+  CheckParseEq("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
+  CheckParseEq("{", "'{'");
+  CheckParseEq("a|", "(| 'a' %)");
 }
 
 static void ExpectError(const char* input,
                         const char* expected) {
-  V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
@@ -429,13 +435,11 @@ TEST(Errors) {
   // Check that we don't allow more than kMaxCapture captures
   const int kMaxCaptures = 1 << 16;  // Must match RegExpParser::kMaxCaptures.
   const char* kTooManyCaptures = "Too many captures";
-  HeapStringAllocator allocator;
-  StringStream accumulator(&allocator);
+  OStringStream os;
   for (int i = 0; i <= kMaxCaptures; i++) {
-    accumulator.Add("()");
+    os << "()";
   }
-  SmartArrayPointer<const char> many_captures(accumulator.ToCString());
-  ExpectError(many_captures.get(), kTooManyCaptures);
+  ExpectError(os.c_str(), kTooManyCaptures);
 }
 
 
@@ -483,7 +487,6 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
 
 
 TEST(CharacterClassEscapes) {
-  v8::internal::V8::Initialize(NULL);
   TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
@@ -494,11 +497,8 @@ TEST(CharacterClassEscapes) {
 }
 
 
-static RegExpNode* Compile(const char* input,
-                           bool multiline,
-                           bool is_ascii,
+static RegExpNode* Compile(const char* input, bool multiline, bool is_one_byte,
                            Zone* zone) {
-  V8::Initialize(NULL);
   Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
@@ -509,25 +509,17 @@ static RegExpNode* Compile(const char* input,
       NewStringFromUtf8(CStrVector(input)).ToHandleChecked();
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
-  RegExpEngine::Compile(&compile_data,
-                        false,
-                        false,
-                        multiline,
-                        pattern,
-                        sample_subject,
-                        is_ascii,
-                        zone);
+  RegExpEngine::Compile(&compile_data, false, false, multiline, false, pattern,
+                        sample_subject, is_one_byte, zone);
   return compile_data.node;
 }
 
 
-static void Execute(const char* input,
-                    bool multiline,
-                    bool is_ascii,
+static void Execute(const char* input, bool multiline, bool is_one_byte,
                     bool dot_output = false) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
-  RegExpNode* node = Compile(input, multiline, is_ascii, &zone);
+  RegExpNode* node = Compile(input, multiline, is_one_byte, &zone);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
@@ -563,7 +555,6 @@ static unsigned PseudoRandom(int i, int j) {
 
 
 TEST(SplayTreeSimple) {
-  v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
   Zone zone(CcTest::i_isolate());
   ZoneSplayTree<TestConfig> tree(&zone);
@@ -616,7 +607,6 @@ TEST(SplayTreeSimple) {
 
 
 TEST(DispatchTableConstruction) {
-  v8::internal::V8::Initialize(NULL);
   // Initialize test data.
   static const int kLimit = 1000;
   static const int kRangeCount = 8;
@@ -663,11 +653,11 @@ TEST(ParsePossessiveRepetition) {
   // Enable possessive quantifier syntax.
   FLAG_regexp_possessive_quantifier = true;
 
-  CHECK_PARSE_EQ("a*+", "(# 0 - p 'a')");
-  CHECK_PARSE_EQ("a++", "(# 1 - p 'a')");
-  CHECK_PARSE_EQ("a?+", "(# 0 1 p 'a')");
-  CHECK_PARSE_EQ("a{10,20}+", "(# 10 20 p 'a')");
-  CHECK_PARSE_EQ("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
+  CheckParseEq("a*+", "(# 0 - p 'a')");
+  CheckParseEq("a++", "(# 1 - p 'a')");
+  CheckParseEq("a?+", "(# 0 1 p 'a')");
+  CheckParseEq("a{10,20}+", "(# 10 20 p 'a')");
+  CheckParseEq("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
 
   // Disable possessive quantifier syntax.
   FLAG_regexp_possessive_quantifier = false;
@@ -698,6 +688,10 @@ typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 typedef RegExpMacroAssemblerARM64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_MIPS
 typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_MIPS64
+typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_X87
+typedef RegExpMacroAssemblerX87 ArchRegExpMacroAssembler;
 #endif
 
 class ContextInitializer {
@@ -741,16 +735,16 @@ TEST(MacroAssemblerNativeSuccess) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 4, &zone);
 
   m.Succeed();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("");
+  Handle<String> source = factory->NewStringFromStaticChars("");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
-  Handle<String> input = factory->NewStringFromStaticAscii("foofoo");
+  Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   const byte* start_adr =
       reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
@@ -778,7 +772,7 @@ TEST(MacroAssemblerNativeSimple) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 4, &zone);
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
@@ -799,12 +793,12 @@ TEST(MacroAssemblerNativeSimple) {
   m.Bind(&fail);
   m.Fail();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("^foo");
+  Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
-  Handle<String> input = factory->NewStringFromStaticAscii("foofoo");
+  Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -822,7 +816,7 @@ TEST(MacroAssemblerNativeSimple) {
   CHECK_EQ(-1, captures[2]);
   CHECK_EQ(-1, captures[3]);
 
-  input = factory->NewStringFromStaticAscii("barbarbar");
+  input = factory->NewStringFromStaticChars("barbarbar");
   seq_input = Handle<SeqOneByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -865,7 +859,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   m.Bind(&fail);
   m.Fail();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("^foo");
+  Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
@@ -916,7 +910,7 @@ TEST(MacroAssemblerNativeBacktrack) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 0, &zone);
 
   Label fail;
   Label backtrack;
@@ -929,11 +923,11 @@ TEST(MacroAssemblerNativeBacktrack) {
   m.Bind(&backtrack);
   m.Fail();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("..........");
+  Handle<String> source = factory->NewStringFromStaticChars("..........");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = factory->NewStringFromStaticAscii("foofoo");
+  Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -949,14 +943,14 @@ TEST(MacroAssemblerNativeBacktrack) {
 }
 
 
-TEST(MacroAssemblerNativeBackReferenceASCII) {
+TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 4, &zone);
 
   m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
@@ -973,11 +967,11 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   m.Bind(&missing_match);
   m.Fail();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("^(..)..\1");
+  Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = factory->NewStringFromStaticAscii("fooofo");
+  Handle<String> input = factory->NewStringFromStaticChars("fooofo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1022,7 +1016,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   m.Bind(&missing_match);
   m.Fail();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("^(..)..\1");
+  Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
@@ -1057,7 +1051,7 @@ TEST(MacroAssemblernativeAtStart) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 0, &zone);
 
   Label not_at_start, newline, fail;
   m.CheckNotAtStart(&not_at_start);
@@ -1080,11 +1074,11 @@ TEST(MacroAssemblernativeAtStart) {
   m.CheckNotCharacter('b', &fail);
   m.Succeed();
 
-  Handle<String> source = factory->NewStringFromStaticAscii("(^f|ob)");
+  Handle<String> source = factory->NewStringFromStaticChars("(^f|ob)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = factory->NewStringFromStaticAscii("foobar");
+  Handle<String> input = factory->NewStringFromStaticChars("foobar");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1116,7 +1110,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 4, &zone);
 
   Label fail, succ;
 
@@ -1141,12 +1135,11 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.Succeed();
 
   Handle<String> source =
-      factory->NewStringFromStaticAscii("^(abc)\1\1(?!\1)...(?!\1)");
+      factory->NewStringFromStaticChars("^(abc)\1\1(?!\1)...(?!\1)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input =
-      factory->NewStringFromStaticAscii("aBcAbCABCxYzab");
+  Handle<String> input = factory->NewStringFromStaticChars("aBcAbCABCxYzab");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1175,7 +1168,7 @@ TEST(MacroAssemblerNativeRegisters) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 6, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 6, &zone);
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
   Vector<const uc16> foo(foo_chars, 3);
@@ -1241,14 +1234,12 @@ TEST(MacroAssemblerNativeRegisters) {
   m.Bind(&fail);
   m.Fail();
 
-  Handle<String> source =
-      factory->NewStringFromStaticAscii("<loop test>");
+  Handle<String> source = factory->NewStringFromStaticChars("<loop test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
-  Handle<String> input =
-      factory->NewStringFromStaticAscii("foofoofoofoofoo");
+  Handle<String> input = factory->NewStringFromStaticChars("foofoofoofoofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1278,7 +1269,7 @@ TEST(MacroAssemblerStackOverflow) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 0, &zone);
 
   Label loop;
   m.Bind(&loop);
@@ -1286,13 +1277,12 @@ TEST(MacroAssemblerStackOverflow) {
   m.GoTo(&loop);
 
   Handle<String> source =
-      factory->NewStringFromStaticAscii("<stack overflow test>");
+      factory->NewStringFromStaticChars("<stack overflow test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
-  Handle<String> input =
-      factory->NewStringFromStaticAscii("dummy");
+  Handle<String> input = factory->NewStringFromStaticChars("dummy");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1317,7 +1307,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   Factory* factory = isolate->factory();
   Zone zone(isolate);
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 2, &zone);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::LATIN1, 2, &zone);
 
   // At least 2048, to ensure the allocated space for registers
   // span one full page.
@@ -1333,13 +1323,12 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   m.Succeed();
 
   Handle<String> source =
-      factory->NewStringFromStaticAscii("<huge register space test>");
+      factory->NewStringFromStaticChars("<huge register space test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
-  Handle<String> input =
-      factory->NewStringFromStaticAscii("sample text");
+  Handle<String> input = factory->NewStringFromStaticChars("sample text");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1362,7 +1351,6 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 #else  // V8_INTERPRETED_REGEXP
 
 TEST(MacroAssembler) {
-  V8::Initialize(NULL);
   byte codes[1024];
   Zone zone(CcTest::i_isolate());
   RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024), &zone);
@@ -1401,7 +1389,7 @@ TEST(MacroAssembler) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<String> source = factory->NewStringFromStaticAscii("^f(o)o");
+  Handle<String> source = factory->NewStringFromStaticChars("^f(o)o");
   Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode(source));
   int captures[5];
 
@@ -1428,7 +1416,6 @@ TEST(MacroAssembler) {
 
 
 TEST(AddInverseToTable) {
-  v8::internal::V8::Initialize(NULL);
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
@@ -1588,7 +1575,6 @@ static void TestSimpleRangeCaseIndependence(CharacterRange input,
 
 
 TEST(CharacterRangeCaseIndependence) {
-  v8::internal::V8::Initialize(NULL);
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('a'),
                                   CharacterRange::Singleton('A'));
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('z'),
@@ -1630,7 +1616,6 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 
 TEST(CharClassDifference) {
-  v8::internal::V8::Initialize(NULL);
   Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* base =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
@@ -1658,7 +1643,6 @@ TEST(CharClassDifference) {
 
 
 TEST(CanonicalizeCharacterSets) {
-  v8::internal::V8::Initialize(NULL);
   Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange>* list =
       new(&zone) ZoneList<CharacterRange>(4, &zone);
@@ -1668,26 +1652,26 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(30, 40), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   set.Canonicalize();
-  ASSERT_EQ(3, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(20, list->at(0).to());
-  ASSERT_EQ(30, list->at(1).from());
-  ASSERT_EQ(40, list->at(1).to());
-  ASSERT_EQ(50, list->at(2).from());
-  ASSERT_EQ(60, list->at(2).to());
+  DCHECK_EQ(3, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(20, list->at(0).to());
+  DCHECK_EQ(30, list->at(1).from());
+  DCHECK_EQ(40, list->at(1).to());
+  DCHECK_EQ(50, list->at(2).from());
+  DCHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 20), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   list->Add(CharacterRange(30, 40), &zone);
   set.Canonicalize();
-  ASSERT_EQ(3, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(20, list->at(0).to());
-  ASSERT_EQ(30, list->at(1).from());
-  ASSERT_EQ(40, list->at(1).to());
-  ASSERT_EQ(50, list->at(2).from());
-  ASSERT_EQ(60, list->at(2).to());
+  DCHECK_EQ(3, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(20, list->at(0).to());
+  DCHECK_EQ(30, list->at(1).from());
+  DCHECK_EQ(40, list->at(1).to());
+  DCHECK_EQ(50, list->at(2).from());
+  DCHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(30, 40), &zone);
@@ -1696,31 +1680,30 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(100, 100), &zone);
   list->Add(CharacterRange(1, 1), &zone);
   set.Canonicalize();
-  ASSERT_EQ(5, list->length());
-  ASSERT_EQ(1, list->at(0).from());
-  ASSERT_EQ(1, list->at(0).to());
-  ASSERT_EQ(10, list->at(1).from());
-  ASSERT_EQ(20, list->at(1).to());
-  ASSERT_EQ(25, list->at(2).from());
-  ASSERT_EQ(25, list->at(2).to());
-  ASSERT_EQ(30, list->at(3).from());
-  ASSERT_EQ(40, list->at(3).to());
-  ASSERT_EQ(100, list->at(4).from());
-  ASSERT_EQ(100, list->at(4).to());
+  DCHECK_EQ(5, list->length());
+  DCHECK_EQ(1, list->at(0).from());
+  DCHECK_EQ(1, list->at(0).to());
+  DCHECK_EQ(10, list->at(1).from());
+  DCHECK_EQ(20, list->at(1).to());
+  DCHECK_EQ(25, list->at(2).from());
+  DCHECK_EQ(25, list->at(2).to());
+  DCHECK_EQ(30, list->at(3).from());
+  DCHECK_EQ(40, list->at(3).to());
+  DCHECK_EQ(100, list->at(4).from());
+  DCHECK_EQ(100, list->at(4).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 19), &zone);
   list->Add(CharacterRange(21, 30), &zone);
   list->Add(CharacterRange(20, 20), &zone);
   set.Canonicalize();
-  ASSERT_EQ(1, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(30, list->at(0).to());
+  DCHECK_EQ(1, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(30, list->at(0).to());
 }
 
 
 TEST(CharacterRangeMerge) {
-  v8::internal::V8::Initialize(NULL);
   Zone zone(CcTest::i_isolate());
   ZoneList<CharacterRange> l1(4, &zone);
   ZoneList<CharacterRange> l2(4, &zone);
@@ -1798,8 +1781,8 @@ TEST(CharacterRangeMerge) {
     offset += 9;
   }
 
-  ASSERT(CharacterRange::IsCanonical(&l1));
-  ASSERT(CharacterRange::IsCanonical(&l2));
+  DCHECK(CharacterRange::IsCanonical(&l1));
+  DCHECK(CharacterRange::IsCanonical(&l2));
 
   ZoneList<CharacterRange> first_only(4, &zone);
   ZoneList<CharacterRange> second_only(4, &zone);
@@ -1808,6 +1791,5 @@ TEST(CharacterRangeMerge) {
 
 
 TEST(Graph) {
-  V8::Initialize(NULL);
   Execute("\\b\\w+\\b", false, true, true);
 }

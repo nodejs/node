@@ -6,11 +6,11 @@
 #ifndef V8_JSREGEXP_INL_H_
 #define V8_JSREGEXP_INL_H_
 
-#include "allocation.h"
-#include "handles.h"
-#include "heap.h"
-#include "jsregexp.h"
-#include "objects.h"
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/heap/heap.h"
+#include "src/jsregexp.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {

@@ -2,25 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
-#include "lithium.h"
-#include "scopes.h"
+#include "src/lithium.h"
+
+#include "src/v8.h"
+
+#include "src/scopes.h"
+#include "src/serialize.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/lithium-ia32.h"
-#include "ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-ia32.h"  // NOLINT
+#include "src/ia32/lithium-codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "x64/lithium-x64.h"
-#include "x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-x64.h"  // NOLINT
+#include "src/x64/lithium-codegen-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "arm/lithium-arm.h"
-#include "arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-arm.h"  // NOLINT
+#include "src/arm/lithium-codegen-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/lithium-mips.h"
-#include "mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-mips.h"  // NOLINT
+#include "src/mips/lithium-codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/lithium-arm64.h"
-#include "arm64/lithium-codegen-arm64.h"
+#include "src/arm64/lithium-arm64.h"  // NOLINT
+#include "src/arm64/lithium-codegen-arm64.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/lithium-mips64.h"  // NOLINT
+#include "src/mips64/lithium-codegen-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_X87
+#include "src/x87/lithium-x87.h"  // NOLINT
+#include "src/x87/lithium-codegen-x87.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif
@@ -47,16 +56,26 @@ void LOperand::PrintTo(StringStream* stream) {
           break;
         case LUnallocated::FIXED_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          const char* register_name =
-              Register::AllocationIndexToString(reg_index);
-          stream->Add("(=%s)", register_name);
+          if (reg_index < 0 ||
+              reg_index >= Register::kMaxNumAllocatableRegisters) {
+            stream->Add("(=invalid_reg#%d)", reg_index);
+          } else {
+            const char* register_name =
+                Register::AllocationIndexToString(reg_index);
+            stream->Add("(=%s)", register_name);
+          }
           break;
         }
         case LUnallocated::FIXED_DOUBLE_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          const char* double_register_name =
-              DoubleRegister::AllocationIndexToString(reg_index);
-          stream->Add("(=%s)", double_register_name);
+          if (reg_index < 0 ||
+              reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+            stream->Add("(=invalid_double_reg#%d)", reg_index);
+          } else {
+            const char* double_register_name =
+                DoubleRegister::AllocationIndexToString(reg_index);
+            stream->Add("(=%s)", double_register_name);
+          }
           break;
         }
         case LUnallocated::MUST_HAVE_REGISTER:
@@ -85,12 +104,26 @@ void LOperand::PrintTo(StringStream* stream) {
     case DOUBLE_STACK_SLOT:
       stream->Add("[double_stack:%d]", index());
       break;
-    case REGISTER:
-      stream->Add("[%s|R]", Register::AllocationIndexToString(index()));
+    case REGISTER: {
+      int reg_index = index();
+      if (reg_index < 0 || reg_index >= Register::kMaxNumAllocatableRegisters) {
+        stream->Add("(=invalid_reg#%d|R)", reg_index);
+      } else {
+        stream->Add("[%s|R]", Register::AllocationIndexToString(reg_index));
+      }
       break;
-    case DOUBLE_REGISTER:
-      stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
+    }
+    case DOUBLE_REGISTER: {
+      int reg_index = index();
+      if (reg_index < 0 ||
+          reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+        stream->Add("(=invalid_double_reg#%d|R)", reg_index);
+      } else {
+        stream->Add("[%s|R]",
+                    DoubleRegister::AllocationIndexToString(reg_index));
+      }
       break;
+    }
   }
 }
 
@@ -113,6 +146,7 @@ void LSubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
 template<LOperand::Kind kOperandKind, int kNumCachedOperands>
 void LSubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
   delete[] cache;
+  cache = NULL;
 }
 
 
@@ -181,7 +215,7 @@ void LEnvironment::PrintTo(StringStream* stream) {
 void LPointerMap::RecordPointer(LOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   pointer_operands_.Add(op, zone);
 }
 
@@ -189,7 +223,7 @@ void LPointerMap::RecordPointer(LOperand* op, Zone* zone) {
 void LPointerMap::RemovePointer(LOperand* op) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   for (int i = 0; i < pointer_operands_.length(); ++i) {
     if (pointer_operands_[i]->Equals(op)) {
       pointer_operands_.Remove(i);
@@ -202,7 +236,7 @@ void LPointerMap::RemovePointer(LOperand* op) {
 void LPointerMap::RecordUntagged(LOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   untagged_operands_.Add(op, zone);
 }
 
@@ -234,12 +268,11 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
       info_(info),
       graph_(graph),
-      instructions_(32, graph->zone()),
-      pointer_maps_(8, graph->zone()),
-      inlined_closures_(1, graph->zone()),
-      deprecation_dependencies_(MapLess(), MapAllocator(graph->zone())),
-      stability_dependencies_(MapLess(), MapAllocator(graph->zone())) {
-}
+      instructions_(32, info->zone()),
+      pointer_maps_(8, info->zone()),
+      inlined_closures_(1, info->zone()),
+      deprecation_dependencies_(MapLess(), MapAllocator(info->zone())),
+      stability_dependencies_(MapLess(), MapAllocator(info->zone())) {}
 
 
 LLabel* LChunk::GetLabel(int block_id) const {
@@ -259,7 +292,7 @@ int LChunk::LookupDestination(int block_id) const {
 
 Label* LChunk::GetAssemblyLabel(int block_id) const {
   LLabel* label = GetLabel(block_id);
-  ASSERT(!label->HasReplacement());
+  DCHECK(!label->HasReplacement());
   return label->label();
 }
 
@@ -300,7 +333,7 @@ void LChunk::MarkEmptyBlocks() {
 
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
-  LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
+  LInstructionGap* gap = new (zone()) LInstructionGap(block);
   gap->set_hydrogen_value(instr->hydrogen_value());
   int index = -1;
   if (instr->IsControl()) {
@@ -331,14 +364,14 @@ int LChunk::GetParameterStackSlot(int index) const {
   // spill slots.
   int result = index - info()->num_parameters() - 1;
 
-  ASSERT(result < 0);
+  DCHECK(result < 0);
   return result;
 }
 
 
 // A parameter relative to ebp in the arguments stub.
 int LChunk::ParameterAt(int index) {
-  ASSERT(-1 <= index);  // -1 is the receiver.
+  DCHECK(-1 <= index);  // -1 is the receiver.
   return (1 + info()->scope()->num_parameters() - index) *
       kPointerSize;
 }
@@ -381,16 +414,16 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
   for (MapSet::const_iterator it = deprecation_dependencies_.begin(),
        iend = deprecation_dependencies_.end(); it != iend; ++it) {
     Handle<Map> map = *it;
-    ASSERT(!map->is_deprecated());
-    ASSERT(map->CanBeDeprecated());
+    DCHECK(!map->is_deprecated());
+    DCHECK(map->CanBeDeprecated());
     Map::AddDependentCode(map, DependentCode::kTransitionGroup, code);
   }
 
   for (MapSet::const_iterator it = stability_dependencies_.begin(),
        iend = stability_dependencies_.end(); it != iend; ++it) {
     Handle<Map> map = *it;
-    ASSERT(map->is_stable());
-    ASSERT(map->CanTransition());
+    DCHECK(map->is_stable());
+    DCHECK(map->CanTransition());
     Map::AddDependentCode(map, DependentCode::kPrototypeCheckGroup, code);
   }
 
@@ -405,7 +438,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersForValues);
+    info->AbortOptimization(kNotEnoughVirtualRegistersForValues);
     return NULL;
   }
   LAllocator allocator(values, graph);
@@ -414,7 +447,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   if (chunk == NULL) return NULL;
 
   if (!allocator.Allocate(chunk)) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersRegalloc);
+    info->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return NULL;
   }
 
@@ -430,6 +463,8 @@ Handle<Code> LChunk::Codegen() {
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
                      assembler.positions_recorder()));
+  // TODO(yangguo) remove this once the code serializer handles code stubs.
+  if (info()->will_serialize()) assembler.enable_serializer();
   LCodeGen generator(this, &assembler, info());
 
   MarkEmptyBlocks();
@@ -449,6 +484,9 @@ Handle<Code> LChunk::Codegen() {
                    CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
+    DCHECK(!(info()->isolate()->serializer_enabled() &&
+             info()->GetMustNotHaveEagerFrame() &&
+             generator.NeedsEagerFrame()));
     return code;
   }
   assembler.AbortedCodeGeneration();
@@ -473,19 +511,35 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
 }
 
 
+void LChunkBuilderBase::Abort(BailoutReason reason) {
+  info()->AbortOptimization(reason);
+  status_ = ABORTED;
+}
+
+
+void LChunkBuilderBase::Retry(BailoutReason reason) {
+  info()->RetryOptimization(reason);
+  status_ = ABORTED;
+}
+
+
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
-    HEnvironment* hydrogen_env,
-    int* argument_index_accumulator,
+    HEnvironment* hydrogen_env, int* argument_index_accumulator,
     ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
-  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
-                                          argument_index_accumulator,
-                                          objects_to_materialize);
+  LEnvironment* outer =
+      CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator,
+                        objects_to_materialize);
   BailoutId ast_id = hydrogen_env->ast_id();
-  ASSERT(!ast_id.IsNone() ||
+  DCHECK(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
-  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
+
+  int omitted_count = (hydrogen_env->frame_type() == JS_FUNCTION)
+                          ? 0
+                          : hydrogen_env->specials_count();
+
+  int value_count = hydrogen_env->length() - omitted_count;
   LEnvironment* result =
       new(zone()) LEnvironment(hydrogen_env->closure(),
                                hydrogen_env->frame_type(),
@@ -501,11 +555,13 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
   // Store the environment description into the environment
   // (with holes for nested objects)
   for (int i = 0; i < hydrogen_env->length(); ++i) {
-    if (hydrogen_env->is_special_index(i)) continue;
-
+    if (hydrogen_env->is_special_index(i) &&
+        hydrogen_env->frame_type() != JS_FUNCTION) {
+      continue;
+    }
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
-    CHECK(!value->IsPushArgument());  // Do not deopt outgoing arguments
+    CHECK(!value->IsPushArguments());  // Do not deopt outgoing arguments
     if (value->IsArgumentsObject() || value->IsCapturedObject()) {
       op = LEnvironment::materialization_marker();
     } else {
@@ -586,7 +642,7 @@ void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
       // Insert a hole for nested objects
       op = LEnvironment::materialization_marker();
     } else {
-      ASSERT(!arg_value->IsPushArgument());
+      DCHECK(!arg_value->IsPushArguments());
       // For ordinary values, tell the register allocator we need the value
       // to be alive here
       op = UseAny(arg_value);
@@ -602,14 +658,6 @@ void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
       AddObjectToMaterialize(arg_value, objects_to_materialize, result);
     }
   }
-}
-
-
-LInstruction* LChunkBuilder::CheckElideControlInstruction(
-    HControlInstruction* instr) {
-  HBasicBlock* successor;
-  if (!instr->KnownSuccessorBlock(&successor)) return NULL;
-  return new(zone()) LGoto(successor);
 }
 
 

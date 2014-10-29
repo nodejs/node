@@ -33,8 +33,8 @@ import threading
 import time
 
 from . import distro
-from . import perfdata
 from ..local import execution
+from ..local import perfdata
 from ..objects import peer
 from ..objects import workpacket
 from ..server import compression
@@ -54,6 +54,8 @@ class NetworkedRunner(execution.Runner):
     self.suites = suites
     num_tests = 0
     datapath = os.path.join("out", "testrunner_data")
+    # TODO(machenbach): These fields should exist now in the superclass.
+    # But there is no super constructor call. Check if this is a problem.
     self.perf_data_manager = perfdata.PerfDataManager(datapath)
     self.perfdata = self.perf_data_manager.GetStore(context.arch, context.mode)
     for s in suites:

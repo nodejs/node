@@ -5,11 +5,11 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-#include "../include/v8.h"
-#include "allocation.h"
-#include "objects.h"
-#include "platform/elapsed-timer.h"
-#include "v8globals.h"
+#include "include/v8.h"
+#include "src/allocation.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -139,9 +139,12 @@ class StatsCounter {
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    ASSERT(loc != NULL);
+    DCHECK(loc != NULL);
     return loc;
   }
+
+  // Reset the cached internal pointer.
+  void Reset() { lookup_done_ = false; }
 
  protected:
   // Returns the cached address of this counter location.
@@ -241,11 +244,11 @@ class HistogramTimer : public Histogram {
 
   // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
 #ifdef DEBUG
-  ElapsedTimer* timer() { return &timer_; }
+  base::ElapsedTimer* timer() { return &timer_; }
 #endif
 
  private:
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -265,11 +268,12 @@ class HistogramTimerScope BASE_EMBEDDED {
     } else {
       timer_->Start();
     }
+  }
 #else
       : timer_(timer) {
     timer_->Start();
-#endif
   }
+#endif
   ~HistogramTimerScope() {
 #ifdef DEBUG
     if (!skipped_timer_start_) {
@@ -279,6 +283,7 @@ class HistogramTimerScope BASE_EMBEDDED {
     timer_->Stop();
 #endif
   }
+
  private:
   HistogramTimer* timer_;
 #ifdef DEBUG
@@ -286,20 +291,31 @@ class HistogramTimerScope BASE_EMBEDDED {
 #endif
 };
 
+#define HISTOGRAM_RANGE_LIST(HR)                                              \
+  /* Generic range histograms */                                              \
+  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
+  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
+  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000, 101)
 
-#define HISTOGRAM_TIMER_LIST(HT)                                      \
-  /* Garbage collection timers. */                                    \
-  HT(gc_compactor, V8.GCCompactor)                                    \
-  HT(gc_scavenger, V8.GCScavenger)                                    \
-  HT(gc_context, V8.GCContext) /* GC context cleanup time */          \
-  /* Parsing timers. */                                               \
-  HT(parse, V8.Parse)                                                 \
-  HT(parse_lazy, V8.ParseLazy)                                        \
-  HT(pre_parse, V8.PreParse)                                          \
-  /* Total compilation times. */                                      \
-  HT(compile, V8.Compile)                                             \
-  HT(compile_eval, V8.CompileEval)                                    \
-  HT(compile_lazy, V8.CompileLazy)
+#define HISTOGRAM_TIMER_LIST(HT)                             \
+  /* Garbage collection timers. */                           \
+  HT(gc_compactor, V8.GCCompactor)                           \
+  HT(gc_scavenger, V8.GCScavenger)                           \
+  HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
+  HT(gc_idle_notification, V8.GCIdleNotification)            \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification) \
+  /* Parsing timers. */                                      \
+  HT(parse, V8.Parse)                                        \
+  HT(parse_lazy, V8.ParseLazy)                               \
+  HT(pre_parse, V8.PreParse)                                 \
+  /* Total compilation times. */                             \
+  HT(compile, V8.Compile)                                    \
+  HT(compile_eval, V8.CompileEval)                           \
+  /* Serialization as part of compilation (code caching) */  \
+  HT(compile_serialize, V8.CompileSerialize)                 \
+  HT(compile_deserialize, V8.CompileDeserialize)
+
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
   /* Heap fragmentation. */                                           \
@@ -379,6 +395,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
   SC(call_normal_stubs, V8.CallNormalStubs)                           \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
@@ -413,136 +430,139 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 
-#define STATS_COUNTER_LIST_2(SC)                                      \
-  /* Number of code stubs. */                                         \
-  SC(code_stubs, V8.CodeStubs)                                        \
-  /* Amount of stub code. */                                          \
-  SC(total_stubs_code_size, V8.TotalStubsCodeSize)                    \
-  /* Amount of (JS) compiled code. */                                 \
-  SC(total_compiled_code_size, V8.TotalCompiledCodeSize)              \
-  SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)   \
-  SC(gc_compactor_caused_by_promoted_data,                            \
-     V8.GCCompactorCausedByPromotedData)                              \
-  SC(gc_compactor_caused_by_oldspace_exhaustion,                      \
-     V8.GCCompactorCausedByOldspaceExhaustion)                        \
-  SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                   \
-  SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
-  /* How is the generic keyed-load stub used? */                      \
-  SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
-  SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
-  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache) \
-  SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                \
-  SC(keyed_load_polymorphic_stubs, V8.KeyedLoadPolymorphicStubs)      \
-  SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)   \
-  /* How is the generic keyed-call stub used? */                      \
-  SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)         \
-  SC(keyed_call_generic_smi_dict, V8.KeyedCallGenericSmiDict)         \
-  SC(keyed_call_generic_lookup_cache, V8.KeyedCallGenericLookupCache) \
-  SC(keyed_call_generic_lookup_dict, V8.KeyedCallGenericLookupDict)   \
-  SC(keyed_call_generic_slow, V8.KeyedCallGenericSlow)                \
-  SC(keyed_call_generic_slow_load, V8.KeyedCallGenericSlowLoad)       \
-  SC(named_load_global_stub, V8.NamedLoadGlobalStub)                  \
-  SC(named_store_global_inline, V8.NamedStoreGlobalInline)            \
-  SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \
-  SC(keyed_store_polymorphic_stubs, V8.KeyedStorePolymorphicStubs)    \
-  SC(keyed_store_external_array_slow, V8.KeyedStoreExternalArraySlow) \
-  SC(store_normal_miss, V8.StoreNormalMiss)                           \
-  SC(store_normal_hit, V8.StoreNormalHit)                             \
-  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                \
-  SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)          \
-  SC(cow_arrays_converted, V8.COWArraysConverted)                     \
-  SC(call_miss, V8.CallMiss)                                          \
-  SC(keyed_call_miss, V8.KeyedCallMiss)                               \
-  SC(load_miss, V8.LoadMiss)                                          \
-  SC(keyed_load_miss, V8.KeyedLoadMiss)                               \
-  SC(call_const, V8.CallConst)                                        \
-  SC(call_const_fast_api, V8.CallConstFastApi)                        \
-  SC(call_const_interceptor, V8.CallConstInterceptor)                 \
-  SC(call_const_interceptor_fast_api, V8.CallConstInterceptorFastApi) \
-  SC(call_global_inline, V8.CallGlobalInline)                         \
-  SC(call_global_inline_miss, V8.CallGlobalInlineMiss)                \
-  SC(constructed_objects, V8.ConstructedObjects)                      \
-  SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)       \
-  SC(negative_lookups, V8.NegativeLookups)                            \
-  SC(negative_lookups_miss, V8.NegativeLookupsMiss)                   \
-  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)    \
-  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)    \
-  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)  \
-  SC(array_function_runtime, V8.ArrayFunctionRuntime)                 \
-  SC(array_function_native, V8.ArrayFunctionNative)                   \
-  SC(for_in, V8.ForIn)                                                \
-  SC(enum_cache_hits, V8.EnumCacheHits)                               \
-  SC(enum_cache_misses, V8.EnumCacheMisses)                           \
-  SC(zone_segment_bytes, V8.ZoneSegmentBytes)                         \
-  SC(fast_new_closure_total, V8.FastNewClosureTotal)                  \
-  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)   \
-  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized) \
-  SC(string_add_runtime, V8.StringAddRuntime)                         \
-  SC(string_add_native, V8.StringAddNative)                           \
-  SC(string_add_runtime_ext_to_ascii, V8.StringAddRuntimeExtToAscii)  \
-  SC(sub_string_runtime, V8.SubStringRuntime)                         \
-  SC(sub_string_native, V8.SubStringNative)                           \
-  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)               \
-  SC(string_compare_native, V8.StringCompareNative)                   \
-  SC(string_compare_runtime, V8.StringCompareRuntime)                 \
-  SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \
-  SC(regexp_entry_native, V8.RegExpEntryNative)                       \
-  SC(number_to_string_native, V8.NumberToStringNative)                \
-  SC(number_to_string_runtime, V8.NumberToStringRuntime)              \
-  SC(math_acos, V8.MathAcos)                                          \
-  SC(math_asin, V8.MathAsin)                                          \
-  SC(math_atan, V8.MathAtan)                                          \
-  SC(math_atan2, V8.MathAtan2)                                        \
-  SC(math_exp, V8.MathExp)                                            \
-  SC(math_floor, V8.MathFloor)                                        \
-  SC(math_log, V8.MathLog)                                            \
-  SC(math_pow, V8.MathPow)                                            \
-  SC(math_round, V8.MathRound)                                        \
-  SC(math_sqrt, V8.MathSqrt)                                          \
-  SC(stack_interrupts, V8.StackInterrupts)                            \
-  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                 \
-  SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)             \
-  SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                   \
-  SC(soft_deopts_requested, V8.SoftDeoptsRequested)                   \
-  SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                     \
-  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                     \
-  /* Number of write barriers in generated code. */                   \
-  SC(write_barriers_dynamic, V8.WriteBarriersDynamic)                 \
-  SC(write_barriers_static, V8.WriteBarriersStatic)                   \
-  SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
-  SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
-  SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \
-  SC(old_pointer_space_bytes_available,                               \
-     V8.MemoryOldPointerSpaceBytesAvailable)                          \
-  SC(old_pointer_space_bytes_committed,                               \
-     V8.MemoryOldPointerSpaceBytesCommitted)                          \
-  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed) \
-  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable) \
-  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted) \
-  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)       \
-  SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)    \
-  SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)    \
-  SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)              \
-  SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)      \
-  SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)      \
-  SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                \
-  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)    \
-  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)    \
-  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)              \
-  SC(property_cell_space_bytes_available,                             \
-     V8.MemoryPropertyCellSpaceBytesAvailable)                        \
-  SC(property_cell_space_bytes_committed,                             \
-     V8.MemoryPropertyCellSpaceBytesCommitted)                        \
-  SC(property_cell_space_bytes_used,                                  \
-     V8.MemoryPropertyCellSpaceBytesUsed)                             \
-  SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)        \
-  SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)        \
+#define STATS_COUNTER_LIST_2(SC)                                               \
+  /* Number of code stubs. */                                                  \
+  SC(code_stubs, V8.CodeStubs)                                                 \
+  /* Amount of stub code. */                                                   \
+  SC(total_stubs_code_size, V8.TotalStubsCodeSize)                             \
+  /* Amount of (JS) compiled code. */                                          \
+  SC(total_compiled_code_size, V8.TotalCompiledCodeSize)                       \
+  SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \
+  SC(gc_compactor_caused_by_promoted_data, V8.GCCompactorCausedByPromotedData) \
+  SC(gc_compactor_caused_by_oldspace_exhaustion,                               \
+     V8.GCCompactorCausedByOldspaceExhaustion)                                 \
+  SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
+  SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
+  /* How is the generic keyed-load stub used? */                               \
+  SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                           \
+  SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)                     \
+  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache)          \
+  SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                         \
+  SC(keyed_load_polymorphic_stubs, V8.KeyedLoadPolymorphicStubs)               \
+  SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)            \
+  /* How is the generic keyed-call stub used? */                               \
+  SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)                  \
+  SC(keyed_call_generic_smi_dict, V8.KeyedCallGenericSmiDict)                  \
+  SC(keyed_call_generic_lookup_cache, V8.KeyedCallGenericLookupCache)          \
+  SC(keyed_call_generic_lookup_dict, V8.KeyedCallGenericLookupDict)            \
+  SC(keyed_call_generic_slow, V8.KeyedCallGenericSlow)                         \
+  SC(keyed_call_generic_slow_load, V8.KeyedCallGenericSlowLoad)                \
+  SC(named_load_global_stub, V8.NamedLoadGlobalStub)                           \
+  SC(named_store_global_inline, V8.NamedStoreGlobalInline)                     \
+  SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)            \
+  SC(keyed_store_polymorphic_stubs, V8.KeyedStorePolymorphicStubs)             \
+  SC(keyed_store_external_array_slow, V8.KeyedStoreExternalArraySlow)          \
+  SC(store_normal_miss, V8.StoreNormalMiss)                                    \
+  SC(store_normal_hit, V8.StoreNormalHit)                                      \
+  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                         \
+  SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)                   \
+  SC(cow_arrays_converted, V8.COWArraysConverted)                              \
+  SC(call_miss, V8.CallMiss)                                                   \
+  SC(keyed_call_miss, V8.KeyedCallMiss)                                        \
+  SC(load_miss, V8.LoadMiss)                                                   \
+  SC(keyed_load_miss, V8.KeyedLoadMiss)                                        \
+  SC(call_const, V8.CallConst)                                                 \
+  SC(call_const_fast_api, V8.CallConstFastApi)                                 \
+  SC(call_const_interceptor, V8.CallConstInterceptor)                          \
+  SC(call_const_interceptor_fast_api, V8.CallConstInterceptorFastApi)          \
+  SC(call_global_inline, V8.CallGlobalInline)                                  \
+  SC(call_global_inline_miss, V8.CallGlobalInlineMiss)                         \
+  SC(constructed_objects, V8.ConstructedObjects)                               \
+  SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
+  SC(negative_lookups, V8.NegativeLookups)                                     \
+  SC(negative_lookups_miss, V8.NegativeLookupsMiss)                            \
+  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)             \
+  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)             \
+  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
+  SC(array_function_runtime, V8.ArrayFunctionRuntime)                          \
+  SC(array_function_native, V8.ArrayFunctionNative)                            \
+  SC(for_in, V8.ForIn)                                                         \
+  SC(enum_cache_hits, V8.EnumCacheHits)                                        \
+  SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
+  SC(zone_segment_bytes, V8.ZoneSegmentBytes)                                  \
+  SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
+  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)            \
+  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized)    \
+  SC(string_add_runtime, V8.StringAddRuntime)                                  \
+  SC(string_add_native, V8.StringAddNative)                                    \
+  SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
+  SC(sub_string_runtime, V8.SubStringRuntime)                                  \
+  SC(sub_string_native, V8.SubStringNative)                                    \
+  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)                        \
+  SC(string_compare_native, V8.StringCompareNative)                            \
+  SC(string_compare_runtime, V8.StringCompareRuntime)                          \
+  SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
+  SC(regexp_entry_native, V8.RegExpEntryNative)                                \
+  SC(number_to_string_native, V8.NumberToStringNative)                         \
+  SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
+  SC(math_acos, V8.MathAcos)                                                   \
+  SC(math_asin, V8.MathAsin)                                                   \
+  SC(math_atan, V8.MathAtan)                                                   \
+  SC(math_atan2, V8.MathAtan2)                                                 \
+  SC(math_exp, V8.MathExp)                                                     \
+  SC(math_floor, V8.MathFloor)                                                 \
+  SC(math_log, V8.MathLog)                                                     \
+  SC(math_pow, V8.MathPow)                                                     \
+  SC(math_round, V8.MathRound)                                                 \
+  SC(math_sqrt, V8.MathSqrt)                                                   \
+  SC(stack_interrupts, V8.StackInterrupts)                                     \
+  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
+  SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)                      \
+  SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                            \
+  SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \
+  SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                              \
+  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
+  /* Number of write barriers in generated code. */                            \
+  SC(write_barriers_dynamic, V8.WriteBarriersDynamic)                          \
+  SC(write_barriers_static, V8.WriteBarriersStatic)                            \
+  SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
+  SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
+  SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
+  SC(old_pointer_space_bytes_available,                                        \
+     V8.MemoryOldPointerSpaceBytesAvailable)                                   \
+  SC(old_pointer_space_bytes_committed,                                        \
+     V8.MemoryOldPointerSpaceBytesCommitted)                                   \
+  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed)          \
+  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable)      \
+  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted)      \
+  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)                \
+  SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)             \
+  SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)             \
+  SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)                       \
+  SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)               \
+  SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)               \
+  SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                         \
+  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)             \
+  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)             \
+  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)                       \
+  SC(property_cell_space_bytes_available,                                      \
+     V8.MemoryPropertyCellSpaceBytesAvailable)                                 \
+  SC(property_cell_space_bytes_committed,                                      \
+     V8.MemoryPropertyCellSpaceBytesCommitted)                                 \
+  SC(property_cell_space_bytes_used, V8.MemoryPropertyCellSpaceBytesUsed)      \
+  SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
+  SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
 
 
 // This file contains all the v8 counters that are in use.
 class Counters {
  public:
+#define HR(name, caption, min, max, num_buckets) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) \
   HistogramTimer* name() { return &name##_; }
   HISTOGRAM_TIMER_LIST(HT)
@@ -626,9 +646,14 @@ class Counters {
     stats_counter_count
   };
 
+  void ResetCounters();
   void ResetHistograms();
 
  private:
+#define HR(name, caption, min, max, num_buckets) Histogram name##_;
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) \
   HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)

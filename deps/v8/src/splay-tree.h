@@ -5,7 +5,7 @@
 #ifndef V8_SPLAY_TREE_H_
 #define V8_SPLAY_TREE_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -35,8 +35,8 @@ class SplayTree {
 
   class Locator;
 
-  SplayTree(AllocationPolicy allocator = AllocationPolicy())
-      : root_(NULL), allocator_(allocator) { }
+  explicit SplayTree(AllocationPolicy allocator = AllocationPolicy())
+      : root_(NULL), allocator_(allocator) {}
   ~SplayTree();
 
   INLINE(void* operator new(size_t size,

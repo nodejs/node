@@ -1,0 +1,13 @@
+{
+  "name": "d1",
+  "version": "1.0.0",
+  "description": "I FAIL CONSTANTLY",
+  "scripts": {
+    "preinstall": "sleep 1"
+  },
+  "dependencies": {
+    "foo": "http://localhost:8080/"
+  },
+  "author": "Forrest L Norvell <ogd@aoaioxxysz.net>",
+  "license": "ISC"
+}

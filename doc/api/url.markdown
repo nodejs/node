@@ -65,13 +65,14 @@ string will not be in the parsed object. Examples are shown for the URL
 
 The following methods are provided by the URL module:
 
-## url.parse(urlStr, [parseQueryString], [slashesDenoteHost])
+## url.parse(urlStr[, parseQueryString][, slashesDenoteHost])
 
 Take a URL string, and return an object.
 
-Pass `true` as the second argument to also parse
-the query string using the `querystring` module.
-Defaults to `false`.
+Pass `true` as the second argument to also parse the query string using the
+`querystring` module. If `true` then the `query` property will always be
+assigned an object, and the `search` property will always be a (possibly
+empty) string.  Defaults to `false`.
 
 Pass `true` as the third argument to treat `//foo/bar` as
 `{ host: 'foo', pathname: '/bar' }` rather than

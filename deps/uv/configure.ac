@@ -13,16 +13,18 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [0.11.28], [https://github.com/joyent/libuv/issues])
+AC_INIT([libuv], [1.0.0], [https://github.com/joyent/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
+m4_include([m4/libuv-check-flags.m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects] UV_EXTRA_AUTOMAKE_FLAGS)
 AC_CANONICAL_HOST
 AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
+CC_CHECK_CFLAGS_APPEND([-Wno-dollar-in-identifier-extension])
 # AM_PROG_AR is not available in automake v0.11 but it's essential in v0.12.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])

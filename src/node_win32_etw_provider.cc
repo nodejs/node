@@ -127,10 +127,13 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
 void etw_events_change_async(uv_async_t* handle) {
   if (events_enabled > 0) {
     NODE_V8SYMBOL_RESET();
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
-                               CodeAddressNotification);
+    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+        v8::kJitCodeEventEnumExisting,
+        CodeAddressNotification);
   } else {
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+        v8::kJitCodeEventDefault,
+        nullptr);
   }
 }
 
@@ -181,9 +184,9 @@ void init_etw() {
     if (event_register) {
       DWORD status = event_register(&NODE_ETW_PROVIDER,
                                     etw_events_enable_callback,
-                                    NULL,
+                                    nullptr,
                                     &node_provider);
-      assert(status == ERROR_SUCCESS);
+      CHECK_EQ(status, ERROR_SUCCESS);
     }
   }
 }
@@ -196,11 +199,13 @@ void shutdown_etw() {
   }
 
   events_enabled = 0;
-  V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+  v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+      v8::kJitCodeEventDefault,
+      nullptr);
 
   if (advapi) {
     FreeLibrary(advapi);
-    advapi = NULL;
+    advapi = nullptr;
   }
 }
 }

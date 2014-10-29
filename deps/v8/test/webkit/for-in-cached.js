@@ -84,8 +84,8 @@ function forIn5(o) {
 }
 
 shouldBe("forIn5({get foo() { return 'called getter'} })", "['foo', 'called getter']");
-shouldBe("forIn5({set foo() { } })", "['foo', undefined]");
-shouldBe("forIn5({get foo() { return 'called getter'}, set foo() { }})", "['foo', 'called getter']");
+shouldBe("forIn5({set foo(v) { } })", "['foo', undefined]");
+shouldBe("forIn5({get foo() { return 'called getter'}, set foo(v) { }})", "['foo', 'called getter']");
 
 function cacheClearing() {
     for(var j=0; j < 10; j++){

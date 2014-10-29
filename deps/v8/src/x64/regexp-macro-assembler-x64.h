@@ -5,11 +5,10 @@
 #ifndef V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
-#include "x64/assembler-x64.h"
-#include "x64/assembler-x64-inl.h"
-#include "macro-assembler.h"
-#include "code.h"
-#include "x64/macro-assembler-x64.h"
+#include "src/macro-assembler.h"
+#include "src/x64/assembler-x64-inl.h"
+#include "src/x64/assembler-x64.h"
+#include "src/x64/macro-assembler-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -255,7 +254,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
 
   ZoneList<int> code_relative_fixup_positions_;
 
-  // Which mode to generate code for (ASCII or UC16).
+  // Which mode to generate code for (LATIN1 or UC16).
   Mode mode_;
 
   // One greater than maximal register index actually used.

@@ -5,13 +5,13 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "../include/v8-testing.h"
-#include "contexts.h"
-#include "factory.h"
-#include "isolate.h"
-#include "list-inl.h"
+#include "include/v8-testing.h"
+#include "src/contexts.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
 
 namespace v8 {
 
@@ -81,13 +81,13 @@ NeanderArray::NeanderArray(v8::internal::Handle<v8::internal::Object> obj)
 
 
 v8::internal::Object* NeanderObject::get(int offset) {
-  ASSERT(value()->HasFastObjectElements());
+  DCHECK(value()->HasFastObjectElements());
   return v8::internal::FixedArray::cast(value()->elements())->get(offset);
 }
 
 
 void NeanderObject::set(int offset, v8::internal::Object* value) {
-  ASSERT(value_->HasFastObjectElements());
+  DCHECK(value_->HasFastObjectElements());
   v8::internal::FixedArray::cast(value_->elements())->set(offset, value);
 }
 
@@ -158,6 +158,7 @@ class RegisteredExtension {
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
   V(DataView, JSDataView)                      \
+  V(Name, Name)                                \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
   V(Script, JSFunction)                        \
@@ -189,6 +190,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Function> ToLocal(
       v8::internal::Handle<v8::internal::JSFunction> obj);
+  static inline Local<Name> ToLocal(
+      v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
       v8::internal::Handle<v8::internal::String> obj);
   static inline Local<Symbol> ToLocal(
@@ -264,7 +267,7 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
   template<class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    ASSERT(obj.is_null() || !obj->IsTheHole());
+    DCHECK(obj.is_null() || !obj->IsTheHole());
     return Local<To>(reinterpret_cast<To*>(obj.location()));
   }
 
@@ -325,7 +328,7 @@ inline v8::Local<T> ToApiHandle(
 #define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
   Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    ASSERT(obj->type() == kExternal##Type##Array);                          \
+    DCHECK(obj->type() == kExternal##Type##Array);                          \
     return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
   }
 
@@ -333,6 +336,7 @@ inline v8::Local<T> ToApiHandle(
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
 MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
+MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
@@ -370,8 +374,7 @@ MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
     const v8::From* that, bool allow_empty_handle) {                        \
     EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
     EXTRA_CHECK(that == NULL ||                                             \
-        (*reinterpret_cast<v8::internal::Object**>(                         \
-            const_cast<v8::From*>(that)))->Is##To());                       \
+        (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                          \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }
@@ -535,7 +538,7 @@ class HandleScopeImplementer {
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
-    ASSERT(block != NULL);
+    DCHECK(block != NULL);
     if (spare_ != NULL) DeleteArray(spare_);
     spare_ = block;
   }
@@ -551,9 +554,9 @@ class HandleScopeImplementer {
   }
 
   void Free() {
-    ASSERT(blocks_.length() == 0);
-    ASSERT(entered_contexts_.length() == 0);
-    ASSERT(saved_contexts_.length() == 0);
+    DCHECK(blocks_.length() == 0);
+    DCHECK(entered_contexts_.length() == 0);
+    DCHECK(saved_contexts_.length() == 0);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -561,7 +564,7 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = NULL;
     }
-    ASSERT(call_depth_ == 0);
+    DCHECK(call_depth_ == 0);
   }
 
   void BeginDeferredScope();
@@ -664,7 +667,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
     }
     spare_ = block_start;
   }
-  ASSERT((blocks_.is_empty() && prev_limit == NULL) ||
+  DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
 
@@ -672,9 +675,9 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 // Interceptor functions called from generated inline caches to notify
 // CPU profiler that external callbacks are invoked.
 void InvokeAccessorGetterCallback(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorGetterCallback getter);
+    v8::AccessorNameGetterCallback getter);
 
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);

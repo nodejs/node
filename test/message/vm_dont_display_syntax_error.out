@@ -1,9 +1,8 @@
 beginning
 middle
-
-vm.js:*
-  var script = new Script(code, options);
-               ^
+test.vm:1
+var 5;
+    ^
 SyntaxError: Unexpected number
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> (*test*message*vm_dont_display_syntax_error.js:*)

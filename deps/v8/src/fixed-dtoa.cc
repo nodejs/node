@@ -4,12 +4,12 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include "include/v8stdint.h"
+#include "src/base/logging.h"
+#include "src/utils.h"
 
-#include "double.h"
-#include "fixed-dtoa.h"
+#include "src/double.h"
+#include "src/fixed-dtoa.h"
 
 namespace v8 {
 namespace internal {
@@ -35,11 +35,11 @@ class UInt128 {
     accumulator >>= 32;
     accumulator = accumulator + (high_bits_ >> 32) * multiplicand;
     high_bits_ = (accumulator << 32) + part;
-    ASSERT((accumulator >> 32) == 0);
+    DCHECK((accumulator >> 32) == 0);
   }
 
   void Shift(int shift_amount) {
-    ASSERT(-64 <= shift_amount && shift_amount <= 64);
+    DCHECK(-64 <= shift_amount && shift_amount <= 64);
     if (shift_amount == 0) {
       return;
     } else if (shift_amount == -64) {
@@ -212,13 +212,13 @@ static void RoundUp(Vector<char> buffer, int* length, int* decimal_point) {
 static void FillFractionals(uint64_t fractionals, int exponent,
                             int fractional_count, Vector<char> buffer,
                             int* length, int* decimal_point) {
-  ASSERT(-128 <= exponent && exponent <= 0);
+  DCHECK(-128 <= exponent && exponent <= 0);
   // 'fractionals' is a fixed-point number, with binary point at bit
   // (-exponent). Inside the function the non-converted remainder of fractionals
   // is a fixed-point number, with binary point at bit 'point'.
   if (-exponent <= 64) {
     // One 64 bit number is sufficient.
-    ASSERT(fractionals >> 56 == 0);
+    DCHECK(fractionals >> 56 == 0);
     int point = -exponent;
     for (int i = 0; i < fractional_count; ++i) {
       if (fractionals == 0) break;
@@ -244,7 +244,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
       RoundUp(buffer, length, decimal_point);
     }
   } else {  // We need 128 bits.
-    ASSERT(64 < -exponent && -exponent <= 128);
+    DCHECK(64 < -exponent && -exponent <= 128);
     UInt128 fractionals128 = UInt128(fractionals, 0);
     fractionals128.Shift(-exponent - 64);
     int point = 128;
@@ -362,7 +362,7 @@ bool FastFixedDtoa(double v,
   } else if (exponent < -128) {
     // This configuration (with at most 20 digits) means that all digits must be
     // 0.
-    ASSERT(fractional_count <= 20);
+    DCHECK(fractional_count <= 20);
     buffer[0] = '\0';
     *length = 0;
     *decimal_point = -fractional_count;

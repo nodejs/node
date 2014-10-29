@@ -123,13 +123,13 @@ struct StringPtr {
       on_heap_ = false;
     }
 
-    str_ = NULL;
+    str_ = nullptr;
     size_ = 0;
   }
 
 
   void Update(const char* str, size_t size) {
-    if (str_ == NULL)
+    if (str_ == nullptr)
       str_ = str;
     else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
@@ -168,13 +168,13 @@ class Parser : public BaseObject {
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
       : BaseObject(env, wrap),
         current_buffer_len_(0),
-        current_buffer_data_(NULL) {
+        current_buffer_data_(nullptr) {
     Wrap(object(), this);
     Init(type);
   }
 
 
-  ~Parser() {
+  ~Parser() override {
     ClearWrap(object());
     persistent().Reset();
   }
@@ -213,8 +213,8 @@ class Parser : public BaseObject {
       fields_[num_fields_ - 1].Reset();
     }
 
-    assert(num_fields_ < static_cast<int>(ARRAY_SIZE(fields_)));
-    assert(num_fields_ == num_values_ + 1);
+    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
 
@@ -229,8 +229,8 @@ class Parser : public BaseObject {
       values_[num_values_ - 1].Reset();
     }
 
-    assert(num_values_ < static_cast<int>(ARRAY_SIZE(values_)));
-    assert(num_values_ == num_fields_);
+    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
 
@@ -338,7 +338,7 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> r = cb.As<Function>()->Call(obj, 0, NULL);
+    Local<Value> r = cb.As<Function>()->Call(obj, 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -350,17 +350,15 @@ class Parser : public BaseObject {
 
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
-    assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
+    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     new Parser(env, args.This(), type);
   }
 
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
     Parser* parser = Unwrap<Parser>(args.Holder());
     delete parser;
   }
@@ -382,14 +380,13 @@ class Parser : public BaseObject {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     Parser* parser = Unwrap<Parser>(args.Holder());
-    assert(parser->current_buffer_.IsEmpty());
-    assert(parser->current_buffer_len_ == 0);
-    assert(parser->current_buffer_data_ == NULL);
-    assert(Buffer::HasInstance(args[0]) == true);
+    CHECK(parser->current_buffer_.IsEmpty());
+    CHECK_EQ(parser->current_buffer_len_, 0);
+    CHECK_EQ(parser->current_buffer_data_, nullptr);
+    CHECK_EQ(Buffer::HasInstance(args[0]), true);
 
     Local<Object> buffer_obj = args[0].As<Object>();
     char* buffer_data = Buffer::Data(buffer_obj);
@@ -411,7 +408,7 @@ class Parser : public BaseObject {
     // Unassign the 'buffer_' variable
     parser->current_buffer_.Clear();
     parser->current_buffer_len_ = 0;
-    parser->current_buffer_data_ = NULL;
+    parser->current_buffer_data_ = nullptr;
 
     // If there was an exception in one of the callbacks
     if (parser->got_exception_)
@@ -437,15 +434,14 @@ class Parser : public BaseObject {
 
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
+    Environment* env = Environment::GetCurrent(args);
 
     Parser* parser = Unwrap<Parser>(args.Holder());
 
-    assert(parser->current_buffer_.IsEmpty());
+    CHECK(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
 
-    int rv = http_parser_execute(&(parser->parser_), &settings, NULL, 0);
+    int rv = http_parser_execute(&(parser->parser_), &settings, nullptr, 0);
 
     if (parser->got_exception_)
       return;
@@ -465,27 +461,25 @@ class Parser : public BaseObject {
 
 
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
 
-    assert(type == HTTP_REQUEST || type == HTTP_RESPONSE);
+    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
-    assert(env == parser->env());
+    CHECK_EQ(env, parser->env());
     parser->Init(type);
   }
 
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     Parser* parser = Unwrap<Parser>(args.Holder());
     // Should always be called from the same context.
-    assert(env == parser->env());
+    CHECK_EQ(env, parser->env());
     http_parser_pause(&parser->parser_, should_pause);
   }
 
@@ -575,8 +569,7 @@ void InitHttpParser(Handle<Object> target,
                     Handle<Context> context,
                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate(),
-                                                    Parser::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
@@ -600,12 +593,12 @@ void InitHttpParser(Handle<Object> target,
 #undef V
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
-  NODE_SET_PROTOTYPE_METHOD(t, "close", Parser::Close);
-  NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
-  NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
-  NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
-  NODE_SET_PROTOTYPE_METHOD(t, "pause", Parser::Pause<true>);
-  NODE_SET_PROTOTYPE_METHOD(t, "resume", Parser::Pause<false>);
+  env->SetProtoMethod(t, "close", Parser::Close);
+  env->SetProtoMethod(t, "execute", Parser::Execute);
+  env->SetProtoMethod(t, "finish", Parser::Finish);
+  env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);
+  env->SetProtoMethod(t, "pause", Parser::Pause<true>);
+  env->SetProtoMethod(t, "resume", Parser::Pause<false>);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction());

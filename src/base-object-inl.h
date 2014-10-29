@@ -27,19 +27,17 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <assert.h>
-
 namespace node {
 
 inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
     : handle_(env->isolate(), handle),
       env_(env) {
-  assert(!handle.IsEmpty());
+  CHECK_EQ(false, handle.IsEmpty());
 }
 
 
 inline BaseObject::~BaseObject() {
-  assert(handle_.IsEmpty());
+  CHECK(handle_.IsEmpty());
 }
 
 
@@ -71,7 +69,7 @@ template <typename Type>
 inline void BaseObject::MakeWeak(Type* ptr) {
   v8::HandleScope scope(env_->isolate());
   v8::Local<v8::Object> handle = object();
-  assert(handle->InternalFieldCount() > 0);
+  CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap<Type>(handle, ptr);
   handle_.MarkIndependent();
   handle_.SetWeak<Type>(ptr, WeakCallback<Type>);

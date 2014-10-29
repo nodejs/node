@@ -25,10 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-# We don't parse RegExps at scanning time, so we can't fail on octal
-# escapes (we need to parse to distinguish octal escapes from valid
-# back-references).
 [
 [ALWAYS, {
   # TODO(mstarzinger): This script parses but throws a TypeError when run.

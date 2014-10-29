@@ -34,7 +34,7 @@ class CompilationSubCache {
     return GetTable(kFirstGeneration);
   }
   void SetFirstTable(Handle<CompilationCacheTable> value) {
-    ASSERT(kFirstGeneration < generations_);
+    DCHECK(kFirstGeneration < generations_);
     tables_[kFirstGeneration] = *value;
   }
 

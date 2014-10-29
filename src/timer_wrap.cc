@@ -50,24 +50,23 @@ class TimerWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"));
     constructor->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
                      Integer::New(env->isolate(), kOnTimeout));
 
-    NODE_SET_METHOD(constructor, "now", Now);
+    env->SetTemplateMethod(constructor, "now", Now);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
+    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "setRepeat", SetRepeat);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
+    env->SetProtoMethod(constructor, "start", Start);
+    env->SetProtoMethod(constructor, "stop", Stop);
+    env->SetProtoMethod(constructor, "setRepeat", SetRepeat);
+    env->SetProtoMethod(constructor, "getRepeat", GetRepeat);
+    env->SetProtoMethod(constructor, "again", Again);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"),
                 constructor->GetFunction());
@@ -78,9 +77,8 @@ class TimerWrap : public HandleWrap {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
-    assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
     new TimerWrap(env, args.This());
   }
 
@@ -90,15 +88,10 @@ class TimerWrap : public HandleWrap {
                    reinterpret_cast<uv_handle_t*>(&handle_),
                    AsyncWrap::PROVIDER_TIMERWRAP) {
     int r = uv_timer_init(env->event_loop(), &handle_);
-    assert(r == 0);
-  }
-
-  ~TimerWrap() {
+    CHECK_EQ(r, 0);
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t timeout = args[0]->IntegerValue();
@@ -108,8 +101,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_stop(&wrap->handle_);
@@ -117,8 +108,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Again(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int err = uv_timer_again(&wrap->handle_);
@@ -126,8 +115,6 @@ class TimerWrap : public HandleWrap {
   }
 
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = args[0]->IntegerValue();
@@ -136,12 +123,13 @@ class TimerWrap : public HandleWrap {
   }
 
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
-    args.GetReturnValue().Set(static_cast<double>(repeat));
+    if (repeat <= 0xfffffff)
+      args.GetReturnValue().Set(static_cast<uint32_t>(repeat));
+    else
+      args.GetReturnValue().Set(static_cast<double>(repeat));
   }
 
   static void OnTimeout(uv_timer_t* handle) {
@@ -149,15 +137,17 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    wrap->MakeCallback(kOnTimeout, 0, NULL);
+    wrap->MakeCallback(kOnTimeout, 0, nullptr);
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
     uv_update_time(env->event_loop());
-    double now = static_cast<double>(uv_now(env->event_loop()));
-    args.GetReturnValue().Set(now);
+    uint64_t now = uv_now(env->event_loop());
+    if (now <= 0xfffffff)
+      args.GetReturnValue().Set(static_cast<uint32_t>(now));
+    else
+      args.GetReturnValue().Set(static_cast<double>(now));
   }
 
   uv_timer_t handle_;

@@ -5,10 +5,10 @@
 #ifndef V8_ELEMENTS_H_
 #define V8_ELEMENTS_H_
 
-#include "elements-kind.h"
-#include "objects.h"
-#include "heap.h"
-#include "isolate.h"
+#include "src/elements-kind.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -81,24 +81,6 @@ class ElementsAccessor {
     return GetAttributes(receiver, holder, key, handle(holder->elements()));
   }
 
-  // Returns an element's type, or NONEXISTENT if there is no such
-  // element. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) = 0;
-
-  MUST_USE_RESULT inline PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key) {
-    return GetType(receiver, holder, key, handle(holder->elements()));
-  }
-
   // Returns an element's accessors, or NULL if the element does not exist or
   // is plain. This method doesn't iterate up the prototype chain.  The caller
   // can optionally pass in the backing store to use for the check, which must
@@ -164,9 +146,10 @@ class ElementsAccessor {
       uint32_t destination_start,
       int copy_size) = 0;
 
-  // TODO(ishell): Keeping |source_holder| parameter in a non-handlified form
-  // helps avoiding ArrayConcat() builtin performance degradation.
-  // Revisit this later.
+  // NOTE: this method violates the handlified function signature convention:
+  // raw pointer parameter |source_holder| in the function that allocates.
+  // This is done intentionally to avoid ArrayConcat() builtin performance
+  // degradation.
   virtual void CopyElements(
       JSObject* source_holder,
       uint32_t source_start,
@@ -199,7 +182,7 @@ class ElementsAccessor {
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
-    ASSERT(elements_kind < kElementsKindCount);
+    DCHECK(elements_kind < kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 

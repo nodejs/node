@@ -74,10 +74,10 @@ inline Environment::IsolateData* Environment::IsolateData::Get(
 }
 
 inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
-    v8::Isolate* isolate) {
+    v8::Isolate* isolate, uv_loop_t* loop) {
   IsolateData* isolate_data = Get(isolate);
-  if (isolate_data == NULL) {
-    isolate_data = new IsolateData(isolate);
+  if (isolate_data == nullptr) {
+    isolate_data = new IsolateData(isolate, loop);
     isolate->SetData(kIsolateSlot, isolate_data);
   }
   isolate_data->ref_count_ += 1;
@@ -86,13 +86,14 @@ inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
 
 inline void Environment::IsolateData::Put() {
   if (--ref_count_ == 0) {
-    isolate()->SetData(kIsolateSlot, NULL);
+    isolate()->SetData(kIsolateSlot, nullptr);
     delete this;
   }
 }
 
-inline Environment::IsolateData::IsolateData(v8::Isolate* isolate)
-    : event_loop_(uv_default_loop()),
+inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
+                                             uv_loop_t* loop)
+    : event_loop_(loop),
       isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(isolate, FIXED_ONE_BYTE_STRING(isolate, StringValue)),
@@ -188,8 +189,9 @@ inline void Environment::TickInfo::set_last_threw(bool value) {
   last_threw_ = value;
 }
 
-inline Environment* Environment::New(v8::Local<v8::Context> context) {
-  Environment* env = new Environment(context);
+inline Environment* Environment::New(v8::Local<v8::Context> context,
+                                     uv_loop_t* loop) {
+  Environment* env = new Environment(context, loop);
   env->AssignToContext(context);
   return env;
 }
@@ -207,12 +209,26 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
 }
 
-inline Environment::Environment(v8::Local<v8::Context> context)
+inline Environment* Environment::GetCurrent(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ASSERT(info.Data()->IsExternal());
+  return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
+}
+
+inline Environment* Environment::GetCurrent(
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ASSERT(info.Data()->IsExternal());
+  return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
+}
+
+inline Environment::Environment(v8::Local<v8::Context> context,
+                                uv_loop_t* loop)
     : isolate_(context->GetIsolate()),
-      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate())),
+      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       using_smalloc_alloc_cb_(false),
       using_domains_(false),
       printed_error_(false),
+      debugger_agent_(this),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -221,16 +237,36 @@ inline Environment::Environment(v8::Local<v8::Context> context)
   set_module_load_list_array(v8::Array::New(isolate()));
   RB_INIT(&cares_task_list_);
   QUEUE_INIT(&gc_tracker_queue_);
+  QUEUE_INIT(&req_wrap_queue_);
+  QUEUE_INIT(&handle_wrap_queue_);
+  QUEUE_INIT(&handle_cleanup_queue_);
+  handle_cleanup_waiting_ = 0;
 }
 
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
-  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, NULL);
+  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
+                                             nullptr);
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
   isolate_data()->Put();
+}
+
+inline void Environment::CleanupHandles() {
+  while (!QUEUE_EMPTY(&handle_cleanup_queue_)) {
+    QUEUE* q = QUEUE_HEAD(&handle_cleanup_queue_);
+    QUEUE_REMOVE(q);
+
+    HandleCleanup* hc = ContainerOf(&HandleCleanup::handle_cleanup_queue_, q);
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
 }
 
 inline void Environment::Dispose() {
@@ -285,6 +321,17 @@ inline Environment* Environment::from_idle_check_handle(uv_check_t* handle) {
 
 inline uv_check_t* Environment::idle_check_handle() {
   return &idle_check_handle_;
+}
+
+inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
+                                               HandleCleanupCb cb,
+                                               void *arg) {
+  HandleCleanup* hc = new HandleCleanup(handle, cb, arg);
+  QUEUE_INSERT_TAIL(&handle_cleanup_queue_, &hc->handle_cleanup_queue_);
+}
+
+inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
+  handle_cleanup_waiting_--;
 }
 
 inline uv_loop_t* Environment::event_loop() const {
@@ -401,6 +448,50 @@ inline void Environment::ThrowUVException(int errorno,
                                           const char* path) {
   isolate()->ThrowException(
       UVException(isolate(), errorno, syscall, message, path));
+}
+
+inline v8::Local<v8::FunctionTemplate>
+    Environment::NewFunctionTemplate(v8::FunctionCallback callback,
+                                     v8::Local<v8::Signature> signature) {
+  v8::Local<v8::External> external;
+  if (external_.IsEmpty()) {
+    external = v8::External::New(isolate(), this);
+    external_.Reset(isolate(), external);
+  } else {
+    external = StrongPersistentToLocal(external_);
+  }
+  return v8::FunctionTemplate::New(isolate(), callback, external, signature);
+}
+
+inline void Environment::SetMethod(v8::Local<v8::Object> that,
+                                   const char* name,
+                                   v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
+                                        const char* name,
+                                        v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback, signature)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->PrototypeTemplate()->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
+                                           const char* name,
+                                           v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback)->GetFunction();
+  v8::Local<v8::String> name_string = v8::String::NewFromUtf8(isolate(), name);
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
 #define V(PropertyName, StringValue)                                          \

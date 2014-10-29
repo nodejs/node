@@ -29,9 +29,7 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
-
 #include "v8.h"
-#include <assert.h>
 
 namespace node {
 
@@ -56,9 +54,6 @@ inline AsyncWrap::AsyncWrap(Environment* env,
 }
 
 
-inline AsyncWrap::~AsyncWrap() {
-}
-
 inline uint32_t AsyncWrap::provider_type() const {
   return provider_type_;
 }
@@ -74,7 +69,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     const v8::Handle<v8::Function> cb,
     int argc,
     v8::Handle<v8::Value>* argv) {
-  assert(env()->context() == env()->isolate()->GetCurrentContext());
+  CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
 
   v8::Local<v8::Object> context = object();
   v8::Local<v8::Object> process = env()->process_object();
@@ -102,7 +97,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     v8::Local<v8::Function> enter =
       domain->Get(env()->enter_string()).As<v8::Function>();
     if (enter->IsFunction()) {
-      enter->Call(domain, 0, NULL);
+      enter->Call(domain, 0, nullptr);
       if (try_catch.HasCaught())
         return Undefined(env()->isolate());
     }
@@ -118,7 +113,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
     v8::Local<v8::Function> exit =
       domain->Get(env()->exit_string()).As<v8::Function>();
     if (exit->IsFunction()) {
-      exit->Call(domain, 0, NULL);
+      exit->Call(domain, 0, nullptr);
       if (try_catch.HasCaught())
         return Undefined(env()->isolate());
     }
@@ -139,13 +134,17 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
   }
 
   if (tick_info->length() == 0) {
+    env()->isolate()->RunMicrotasks();
+  }
+
+  if (tick_info->length() == 0) {
     tick_info->set_index(0);
     return ret;
   }
 
   tick_info->set_in_tick(true);
 
-  env()->tick_callback_function()->Call(process, 0, NULL);
+  env()->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 
@@ -165,7 +164,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   if (env()->using_domains())
     return MakeDomainCallback(cb, argc, argv);
 
-  assert(env()->context() == env()->isolate()->GetCurrentContext());
+  CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
 
   v8::Local<v8::Object> context = object();
   v8::Local<v8::Object> process = env()->process_object();
@@ -202,13 +201,17 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   }
 
   if (tick_info->length() == 0) {
+    env()->isolate()->RunMicrotasks();
+  }
+
+  if (tick_info->length() == 0) {
     tick_info->set_index(0);
     return ret;
   }
 
   tick_info->set_in_tick(true);
 
-  env()->tick_callback_function()->Call(process, 0, NULL);
+  env()->tick_callback_function()->Call(process, 0, nullptr);
 
   tick_info->set_in_tick(false);
 
@@ -227,7 +230,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(symbol);
   v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  assert(cb->IsFunction());
+  CHECK(cb->IsFunction());
 
   return MakeCallback(cb, argc, argv);
 }
@@ -239,7 +242,7 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(index);
   v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  assert(cb->IsFunction());
+  CHECK(cb->IsFunction());
 
   return MakeCallback(cb, argc, argv);
 }

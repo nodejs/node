@@ -26,6 +26,30 @@
         ],
       }],
     ],
+    'xcode_settings': {
+        'conditions': [
+          [ 'clang==1', {
+            'WARNING_CFLAGS': [
+              '-Wall',
+              '-Wextra',
+              '-Wno-unused-parameter',
+              '-Wno-dollar-in-identifier-extension'
+            ]}, {
+           'WARNING_CFLAGS': [
+             '-Wall',
+             '-Wextra',
+             '-Wno-unused-parameter'
+          ]}
+        ]
+      ],
+      'OTHER_LDFLAGS': [
+      ],
+      'OTHER_CFLAGS': [
+        '-g',
+        '--std=gnu89',
+        '-pedantic'
+      ],
+    }
   },
 
   'targets': [
@@ -53,9 +77,6 @@
           }],
         ],
       },
-      'defines': [
-        'HAVE_CONFIG_H'
-      ],
       'sources': [
         'common.gypi',
         'include/uv.h',
@@ -179,7 +200,7 @@
               'link_settings': {
                 # Must correspond with UV_VERSION_MAJOR and UV_VERSION_MINOR
                 # in src/version.c
-                'libraries': [ '-Wl,-soname,libuv.so.0.11' ],
+                'libraries': [ '-Wl,-soname,libuv.so.1.0' ],
               },
             }],
           ],
@@ -195,6 +216,7 @@
           ],
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
+            '_DARWIN_UNLIMITED_SELECT=1',
           ]
         }],
         [ 'OS!="mac"', {
@@ -312,6 +334,7 @@
         'test/test-close-order.c',
         'test/test-connection-fail.c',
         'test/test-cwd-and-chdir.c',
+        'test/test-default-loop-close.c',
         'test/test-delayed-accept.c',
         'test/test-error.c',
         'test/test-embed.c',
@@ -324,6 +347,7 @@
         'test/test-getaddrinfo.c',
         'test/test-getnameinfo.c',
         'test/test-getsockname.c',
+        'test/test-handle-fileno.c',
         'test/test-hrtime.c',
         'test/test-idle.c',
         'test/test-ip6-addr.c',
@@ -346,6 +370,7 @@
         'test/test-pipe-getsockname.c',
         'test/test-pipe-sendmsg.c',
         'test/test-pipe-server-close.c',
+        'test/test-pipe-close-stdout-read-stdin.c',
         'test/test-platform-output.c',
         'test/test-poll.c',
         'test/test-poll-close.c',
@@ -360,6 +385,7 @@
         'test/test-shutdown-twice.c',
         'test/test-signal.c',
         'test/test-signal-multiple-loops.c',
+        'test/test-socket-buffer-size.c',
         'test/test-spawn.c',
         'test/test-fs-poll.c',
         'test/test-stdio-over-pipes.c',
@@ -376,6 +402,7 @@
         'test/test-tcp-connect6-error.c',
         'test/test-tcp-open.c',
         'test/test-tcp-write-to-half-open-connection.c',
+        'test/test-tcp-write-after-connect.c',
         'test/test-tcp-writealot.c',
         'test/test-tcp-try-write.c',
         'test/test-tcp-unexpected-read.c',
@@ -398,6 +425,7 @@
         'test/test-udp-options.c',
         'test/test-udp-send-and-recv.c',
         'test/test-udp-send-immediate.c',
+        'test/test-udp-send-unreachable.c',
         'test/test-udp-multicast-join.c',
         'test/test-udp-multicast-join6.c',
         'test/test-dlerror.c',

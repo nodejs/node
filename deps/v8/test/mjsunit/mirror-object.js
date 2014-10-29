@@ -111,12 +111,14 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
 
   // Check that the serialization contains all properties.
   assertEquals(names.length, fromJSON.properties.length, 'Some properties missing in JSON');
-  for (var i = 0; i < fromJSON.properties.length; i++) {
-    var name = fromJSON.properties[i].name;
-    if (typeof name == 'undefined') name = fromJSON.properties[i].index;
+  for (var j = 0; j < names.length; j++) {
+    var name = names[j];
+    // Serialization of symbol-named properties to JSON doesn't really
+    // work currently, as they don't get a {name: ...} entry.
+    if (typeof name === 'symbol') continue;
     var found = false;
-    for (var j = 0; j < names.length; j++) {
-      if (names[j] == name) {
+    for (var i = 0; i < fromJSON.properties.length; i++) {
+      if (fromJSON.properties[i].name == name) {
         // Check that serialized handle is correct.
         assertEquals(properties[i].value().handle(), fromJSON.properties[i].ref, 'Unexpected serialized handle');
 
@@ -170,6 +172,9 @@ function Point(x,y) {
   this.y_ = y;
 }
 
+var object_with_symbol = {};
+object_with_symbol[Symbol.iterator] = 42;
+
 // Test a number of different objects.
 testObjectMirror({}, 'Object', 'Object');
 testObjectMirror({'a':1,'b':2}, 'Object', 'Object');
@@ -180,6 +185,7 @@ testObjectMirror(this.__proto__, 'Object', '');
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
 testObjectMirror(Object(17), 'Number', 'Number');
+testObjectMirror(object_with_symbol, 'Object', 'Object');
 
 // Test circular references.
 o = {};

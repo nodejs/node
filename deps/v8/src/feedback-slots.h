@@ -5,9 +5,9 @@
 #ifndef V8_FEEDBACK_SLOTS_H_
 #define V8_FEEDBACK_SLOTS_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "isolate.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

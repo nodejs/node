@@ -5,10 +5,11 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "objects.h"
+#include "src/objects.h"
+#include "src/ostreams.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -21,16 +22,16 @@ TEST(Create) {
   const int kNumSymbols = 30;
   Handle<Symbol> symbols[kNumSymbols];
 
+  OFStream os(stdout);
   for (int i = 0; i < kNumSymbols; ++i) {
     symbols[i] = isolate->factory()->NewSymbol();
     CHECK(symbols[i]->IsName());
     CHECK(symbols[i]->IsSymbol());
     CHECK(symbols[i]->HasHashCode());
     CHECK_GT(symbols[i]->Hash(), 0);
-    symbols[i]->ShortPrint();
-    PrintF("\n");
+    os << Brief(*symbols[i]) << "\n";
 #if OBJECT_PRINT
-    symbols[i]->Print();
+    symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
     symbols[i]->ObjectVerify();

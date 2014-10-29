@@ -5,9 +5,9 @@
 #ifndef V8_PROFILE_GENERATOR_H_
 #define V8_PROFILE_GENERATOR_H_
 
-#include "allocation.h"
-#include "hashmap.h"
-#include "../include/v8-profiler.h"
+#include "include/v8-profiler.h"
+#include "src/allocation.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +34,6 @@ class StringsStorage {
   static const int kMaxNameSize = 1024;
 
   static bool StringsMatch(void* key1, void* key2);
-  const char* BeautifyFunctionName(const char* name);
   const char* AddOrDisposeString(char* str, int len);
   HashMap::Entry* GetEntry(const char* str, int len);
 
@@ -176,7 +175,7 @@ class CpuProfile {
   CpuProfile(const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
-  void AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path);
+  void AddPath(base::TimeTicks timestamp, const Vector<CodeEntry*>& path);
   void CalculateTotalTicksAndSamplingRate();
 
   const char* title() const { return title_; }
@@ -184,10 +183,12 @@ class CpuProfile {
 
   int samples_count() const { return samples_.length(); }
   ProfileNode* sample(int index) const { return samples_.at(index); }
-  TimeTicks sample_timestamp(int index) const { return timestamps_.at(index); }
+  base::TimeTicks sample_timestamp(int index) const {
+    return timestamps_.at(index);
+  }
 
-  TimeTicks start_time() const { return start_time_; }
-  TimeTicks end_time() const { return end_time_; }
+  base::TimeTicks start_time() const { return start_time_; }
+  base::TimeTicks end_time() const { return end_time_; }
 
   void UpdateTicksScale();
 
@@ -196,10 +197,10 @@ class CpuProfile {
  private:
   const char* title_;
   bool record_samples_;
-  TimeTicks start_time_;
-  TimeTicks end_time_;
+  base::TimeTicks start_time_;
+  base::TimeTicks end_time_;
   List<ProfileNode*> samples_;
-  List<TimeTicks> timestamps_;
+  List<base::TimeTicks> timestamps_;
   ProfileTree top_down_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
@@ -285,7 +286,7 @@ class CpuProfilesCollection {
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(
-      TimeTicks timestamp, const Vector<CodeEntry*>& path);
+      base::TimeTicks timestamp, const Vector<CodeEntry*>& path);
 
   // Limits the number of profiles that can be simultaneously collected.
   static const int kMaxSimultaneousProfiles = 100;
@@ -297,7 +298,7 @@ class CpuProfilesCollection {
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
-  Semaphore current_profiles_semaphore_;
+  base::Semaphore current_profiles_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };
@@ -311,7 +312,6 @@ class ProfileGenerator {
 
   CodeMap* code_map() { return &code_map_; }
 
-  static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
   static const char* const kIdleEntryName;
   static const char* const kGarbageCollectorEntryName;

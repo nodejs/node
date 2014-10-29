@@ -5,3 +5,4 @@ STATUS: http://v8-status.appspot.com/status
 TRY_ON_UPLOAD: False
 TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try-v8
 TRYSERVER_ROOT: v8
+PROJECT: v8

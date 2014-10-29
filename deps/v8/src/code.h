@@ -5,9 +5,9 @@
 #ifndef V8_CODE_H_
 #define V8_CODE_H_
 
-#include "allocation.h"
-#include "handles.h"
-#include "objects.h"
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -30,11 +30,11 @@ class ParameterCount BASE_EMBEDDED {
   bool is_immediate() const { return !is_reg(); }
 
   Register reg() const {
-    ASSERT(is_reg());
+    DCHECK(is_reg());
     return reg_;
   }
   int immediate() const {
-    ASSERT(is_immediate());
+    DCHECK(is_immediate());
     return immediate_;
   }
 

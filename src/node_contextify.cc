@@ -184,7 +184,7 @@ class ContextifyContext {
               "binding:script");
           Local<Script> script = Script::Compile(code, fname);
           clone_property_method = Local<Function>::Cast(script->Run());
-          assert(clone_property_method->IsFunction());
+          CHECK(clone_property_method->IsFunction());
         }
         Local<Value> args[] = { global, key, sandbox };
         clone_property_method->Call(global, ARRAY_SIZE(args), args);
@@ -230,7 +230,7 @@ class ContextifyContext {
     object_template->SetAccessCheckCallbacks(GlobalPropertyNamedAccessCheck,
                                              GlobalPropertyIndexedAccessCheck);
 
-    Local<Context> ctx = Context::New(env->isolate(), NULL, object_template);
+    Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
     if (!ctx.IsEmpty())
       ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
@@ -246,14 +246,13 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
-    NODE_SET_METHOD(target, "runInDebugContext", RunInDebugContext);
-    NODE_SET_METHOD(target, "makeContext", MakeContext);
-    NODE_SET_METHOD(target, "isContext", IsContext);
+    env->SetMethod(target, "runInDebugContext", RunInDebugContext);
+    env->SetMethod(target, "makeContext", MakeContext);
+    env->SetMethod(target, "isContext", IsContext);
   }
 
 
   static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
-    HandleScope scope(args.GetIsolate());
     Local<String> script_source(args[0]->ToString());
     if (script_source.IsEmpty())
       return;  // Exception pending.
@@ -266,8 +265,7 @@ class ContextifyContext {
 
 
   static void MakeContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
       return env->ThrowTypeError("sandbox argument must be an object.");
@@ -278,7 +276,7 @@ class ContextifyContext {
         FIXED_ONE_BYTE_STRING(env->isolate(), "_contextifyHidden");
 
     // Don't allow contextifying a sandbox multiple times.
-    assert(sandbox->GetHiddenValue(hidden_name).IsEmpty());
+    CHECK(sandbox->GetHiddenValue(hidden_name).IsEmpty());
 
     TryCatch try_catch;
     ContextifyContext* context = new ContextifyContext(env, sandbox);
@@ -297,8 +295,7 @@ class ContextifyContext {
 
 
   static void IsContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
       env->ThrowTypeError("sandbox must be an object");
@@ -335,7 +332,7 @@ class ContextifyContext {
         FIXED_ONE_BYTE_STRING(isolate, "_contextifyHidden");
     Local<Value> context_external_v = sandbox->GetHiddenValue(hidden_name);
     if (context_external_v.IsEmpty() || !context_external_v->IsExternal()) {
-      return NULL;
+      return nullptr;
     }
     Local<External> context_external = context_external_v.As<External>();
 
@@ -456,14 +453,11 @@ class ContextifyScript : public BaseObject {
     Local<String> class_name =
         FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
 
-    Local<FunctionTemplate> script_tmpl = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
     script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
     script_tmpl->SetClassName(class_name);
-    NODE_SET_PROTOTYPE_METHOD(script_tmpl, "runInContext", RunInContext);
-    NODE_SET_PROTOTYPE_METHOD(script_tmpl,
-                              "runInThisContext",
-                              RunInThisContext);
+    env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
+    env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
     target->Set(class_name, script_tmpl->GetFunction());
     env->set_script_context_constructor_template(script_tmpl);
@@ -472,8 +466,7 @@ class ContextifyScript : public BaseObject {
 
   // args: code, [options]
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
+    Environment* env = Environment::GetCurrent(args);
 
     if (!args.IsConstructCall()) {
       return env->ThrowError("Must call vm.Script as a constructor.");
@@ -515,9 +508,6 @@ class ContextifyScript : public BaseObject {
 
   // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
-    Isolate* isolate = args.GetIsolate();
-    HandleScope handle_scope(isolate);
-
     // Assemble arguments
     TryCatch try_catch;
     uint64_t timeout = GetTimeoutArg(args, 0);
@@ -528,34 +518,39 @@ class ContextifyScript : public BaseObject {
     }
 
     // Do the eval within this context
-    Environment* env = Environment::GetCurrent(isolate);
+    Environment* env = Environment::GetCurrent(args);
     EvalMachine(env, timeout, display_errors, args, try_catch);
   }
 
   // args: sandbox, [options]
   static void RunInContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
+    Environment* env = Environment::GetCurrent(args);
+
+    int64_t timeout;
+    bool display_errors;
 
     // Assemble arguments
-    TryCatch try_catch;
     if (!args[0]->IsObject()) {
       return env->ThrowTypeError(
           "contextifiedSandbox argument must be an object.");
     }
+
     Local<Object> sandbox = args[0].As<Object>();
-    int64_t timeout = GetTimeoutArg(args, 1);
-    bool display_errors = GetDisplayErrorsArg(args, 1);
-    if (try_catch.HasCaught()) {
-      try_catch.ReThrow();
-      return;
+    {
+      TryCatch try_catch;
+      timeout = GetTimeoutArg(args, 1);
+      display_errors = GetDisplayErrorsArg(args, 1);
+      if (try_catch.HasCaught()) {
+        try_catch.ReThrow();
+        return;
+      }
     }
 
     // Get the context from the sandbox
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env->isolate(),
                                                           sandbox);
-    if (contextify_context == NULL) {
+    if (contextify_context == nullptr) {
       return env->ThrowTypeError(
           "sandbox argument must have been converted to a context.");
     }
@@ -563,14 +558,22 @@ class ContextifyScript : public BaseObject {
     if (contextify_context->context().IsEmpty())
       return;
 
-    // Do the eval within the context
-    Context::Scope context_scope(contextify_context->context());
-    if (EvalMachine(contextify_context->env(),
-                    timeout,
-                    display_errors,
-                    args,
-                    try_catch)) {
-      contextify_context->CopyProperties();
+    {
+      TryCatch try_catch;
+      // Do the eval within the context
+      Context::Scope context_scope(contextify_context->context());
+      if (EvalMachine(contextify_context->env(),
+                      timeout,
+                      display_errors,
+                      args,
+                      try_catch)) {
+        contextify_context->CopyProperties();
+      }
+
+      if (try_catch.HasCaught()) {
+        try_catch.ReThrow();
+        return;
+      }
     }
   }
 
@@ -695,7 +698,7 @@ class ContextifyScript : public BaseObject {
   }
 
 
-  ~ContextifyScript() {
+  ~ContextifyScript() override {
     script_.Reset();
   }
 };

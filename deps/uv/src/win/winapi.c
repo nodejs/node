@@ -51,6 +51,7 @@ sSleepConditionVariableCS pSleepConditionVariableCS;
 sSleepConditionVariableSRW pSleepConditionVariableSRW;
 sWakeAllConditionVariable pWakeAllConditionVariable;
 sWakeConditionVariable pWakeConditionVariable;
+sCancelSynchronousIo pCancelSynchronousIo;
 
 
 void uv_winapi_init() {
@@ -156,4 +157,7 @@ void uv_winapi_init() {
 
   pWakeConditionVariable = (sWakeConditionVariable)
     GetProcAddress(kernel32_module, "WakeConditionVariable");
+
+  pCancelSynchronousIo = (sCancelSynchronousIo)
+    GetProcAddress(kernel32_module, "CancelSynchronousIo");
 }

@@ -34,11 +34,12 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class MessageTestCase(test.TestCase):
 
-  def __init__(self, path, file, expected, mode, context, config):
-    super(MessageTestCase, self).__init__(context, path, mode)
+  def __init__(self, path, file, expected, arch, mode, context, config):
+    super(MessageTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.expected = expected
     self.config = config
+    self.arch = arch
     self.mode = mode
 
   def IgnoreLine(self, str):
@@ -92,7 +93,7 @@ class MessageTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.mode)]
+    result = [self.config.context.GetVm(self.arch, self.mode)]
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
@@ -117,7 +118,7 @@ class MessageTestConfiguration(test.TestConfiguration):
     else:
         return []
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(self.root)]
     result = []
     for test in all_tests:
@@ -128,8 +129,8 @@ class MessageTestConfiguration(test.TestConfiguration):
         if not exists(output_path):
           print "Could not find %s" % output_path
           continue
-        result.append(MessageTestCase(test, file_path, output_path, mode,
-                                      self.context, self))
+        result.append(MessageTestCase(test, file_path, output_path,
+                                      arch, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):

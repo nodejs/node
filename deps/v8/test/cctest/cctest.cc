@@ -25,13 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
-#include "cctest.h"
+#include "include/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "print-extension.h"
-#include "profiler-extension.h"
-#include "trace-extension.h"
-#include "debug.h"
+#include "include/libplatform/libplatform.h"
+#include "src/debug.h"
+#include "test/cctest/print-extension.h"
+#include "test/cctest/profiler-extension.h"
+#include "test/cctest/trace-extension.h"
+
+#if (defined(_WIN32) || defined(_WIN64))
+#include <windows.h>  // NOLINT
+#if defined(_MSC_VER)
+#include <crtdbg.h>
+#endif  // defined(_MSC_VER)
+#endif  // defined(_WIN32) || defined(_WIN64)
 
 enum InitializationState {kUnset, kUnintialized, kInitialized};
 static InitializationState initialization_state_  = kUnset;
@@ -137,10 +145,27 @@ static void SuggestTestHarness(int tests) {
 
 
 int main(int argc, char* argv[]) {
-  v8::V8::InitializeICU();
-  i::Isolate::SetCrashIfDefaultIsolateInitialized();
+#if (defined(_WIN32) || defined(_WIN64))
+  UINT new_flags =
+      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
+  UINT existing_flags = SetErrorMode(new_flags);
+  SetErrorMode(existing_flags | new_flags);
+#if defined(_MSC_VER)
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _set_error_mode(_OUT_TO_STDERR);
+#endif  // _MSC_VER
+#endif  // defined(_WIN32) || defined(_WIN64)
 
+  v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  v8::V8::Initialize();
 
   CcTestArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
@@ -200,7 +225,10 @@ int main(int argc, char* argv[]) {
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
   CcTest::TearDown();
-  if (!disable_automatic_dispose_) v8::V8::Dispose();
+  // TODO(svenpanne) See comment above.
+  // if (!disable_automatic_dispose_) v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return 0;
 }
 

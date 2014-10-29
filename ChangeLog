@@ -1,3 +1,172 @@
+2014.09.24, Version 0.11.14 (Unstable)
+
+* uv: Upgrade to v1.0.0-rc1
+
+* http_parser: Upgrade to v2.3.0
+
+* npm: Upgrade to v2.0.0
+
+* openssl: Upgrade to v1.0.1i
+
+* v8: Upgrade to 3.26.33
+
+* Add fast path for simple URL parsing (Gabriel Wicke)
+
+* Added support for options parameter in console.dir() (Xavi Magrinyà)
+
+* Cluster: fix shared handles on Windows (Alexis Campailla)
+
+* buffer: Fix incorrect Buffer.compare behavior (Feross Aboukhadijeh)
+
+* buffer: construct new buffer from buffer toJSON() output (cjihrig)
+
+* buffer: improve Buffer constructor (Kang-Hao Kenny)
+
+* build: linking CoreFoundation framework for OSX (Thorsten Lorenz)
+
+* child_process: accept uid/gid everywhere (Fedor Indutny)
+
+* child_process: add path to spawn ENOENT Error (Ryan Cole)
+
+* child_process: copy spawnSync() cwd option to proper buffer (cjihrig)
+
+* child_process: do not access stderr when stdio set to 'ignore' (cjihrig)
+
+* child_process: don't throw on EAGAIN (Charles)
+
+* child_process: don't throw on EMFILE/ENFILE (Ben Noordhuis)
+
+* child_process: use full path for cmd.exe on Win32 (Ed Morley)
+
+* cluster: allow multiple calls to setupMaster() (Ryan Graham)
+
+* cluster: centralize removal from workers list. (Julien Gilli)
+
+* cluster: enable error/message events using .worker (cjihrig)
+
+* cluster: include settings object in 'setup' event (Ryan Graham)
+
+* cluster: restore v0.10.x setupMaster() behaviour (Ryan Graham)
+
+* cluster: support options in Worker constructor (cjihrig)
+
+* cluster: test events emit on cluster.worker (Sam Roberts)
+
+* console: console.dir() accepts options object (Xavi Magrinyà)
+
+* crypto: add `honorCipherOrder` argument (Fedor Indutny)
+
+* crypto: allow padding in RSA methods (Fedor Indutny)
+
+* crypto: clarify RandomBytes() error msg (Mickael van der Beek)
+
+* crypto: never store pointer to conn in SSL_CTX (Fedor Indutny)
+
+* crypto: unsigned value can't be negative (Brian White)
+
+* dgram: remove new keyword from errnoException (Jackson Tian)
+
+* dns: always set variable family in lookup() (cjihrig)
+
+* dns: include host name in error message if available (Maciej Małecki)
+
+* dns: introduce lookupService function (Saúl Ibarra Corretgé)
+
+* dns: send lookup c-ares errors to callback (Chris Dickinson)
+
+* dns: throw if hostname is not string or falsey (cjihrig)
+
+* events: Output the event that is leaking (Arnout Kazemier)
+
+* fs: close file if fstat() fails in readFile() (cjihrig)
+
+* fs: fs.readFile should not throw uncaughtException (Jackson Tian)
+
+* http: add 308 status_code, see RFC7238 (Yazhong Liu)
+
+* http: don't default OPTIONS to chunked encoding (Nick Muerdter)
+
+* http: fix bailout for writeHead (Alex Kocharin)
+
+* http: remove unused code block (Fedor Indutny)
+
+* http: write() after end() emits an error. (Julien Gilli)
+
+* lib, src: add vm.runInDebugContext() (Ben Noordhuis)
+
+* lib: noisy deprecation of child_process customFds (Ryan Graham)
+
+* module: don't require fs several times (Robert Kowalski)
+
+* net,dgram: workers can listen on exclusive ports (cjihrig)
+
+* net,stream: add isPaused, don't read() when paused (Chris Dickinson)
+
+* net: Ensure consistent binding to IPV6 if address is absent (Raymond Feng)
+
+* net: add remoteFamily for socket (Jackson Tian)
+
+* net: don't emit listening if handle is closed (Eli Skeggs)
+
+* net: don't prefer IPv4 addresses during resolution (cjihrig)
+
+* net: don't throw on net.Server.close() (cjihrig)
+
+* net: reset `errorEmitted` on reconnect (Ed Umansky)
+
+* node: set names for prototype methods (Trevor Norris)
+
+* node: support v8 microtask queue (Vladimir Kurchatkin)
+
+* path: fix slice OOB in trim (Lucio M. Tato)
+
+* path: isAbsolute() should always return boolean (Herman Lee)
+
+* process: throw TypeError if kill pid not a number (Sam Roberts)
+
+* querystring: custom encode and decode (fengmk2)
+
+* querystring: do not add sep for empty array (cjihrig)
+
+* querystring: remove prepended ? from query field (Ezequiel Rabinovich)
+
+* readline: fix close event of readline.Interface() (Yazhong Liu)
+
+* readline: fixes scoping bug (Dan Kaplun)
+
+* readline: implements keypress buffering (Dan Kaplun)
+
+* repl: fix multi-line input (Fedor Indutny)
+
+* repl: fix overwrite for this._prompt (Yazhong Liu)
+
+* repl: proper `setPrompt()` and `multiline` support (Fedor Indutny)
+
+* stream: don't try to finish if buffer is not empty (Vladimir Kurchatkin)
+
+* stream: only end reading on null, not undefined (Jonathan Reem)
+
+* streams: set default hwm properly for Duplex (Andrew Oppenlander)
+
+* string_bytes: ucs2 support big endian (Andrew Low)
+
+* tls, crypto: add DHE support (Shigeki Ohtsu)
+
+* tls: `checkServerIdentity` option (Trevor Livingston)
+
+* tls: add DHE-RSA-AES128-SHA256 to the def ciphers (Shigeki Ohtsu)
+
+* tls: better error reporting at cert validation (Fedor Indutny)
+
+* tls: support multiple keys/certs (Fedor Indutny)
+
+* tls: throw an error, not string (Jackson Tian)
+
+* udp: make it possible to receive empty udp packets (Andrius Bentkus)
+
+* url: treat \ the same as / (isaacs)
+
+
 2014.05.01, Version 0.11.13 (Unstable), 99c9930ad626e2796af23def7cac19b65c608d18
 
 * v8: upgrade to 3.24.35.22

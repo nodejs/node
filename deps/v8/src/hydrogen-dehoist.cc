@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-dehoist.h"
+#include "src/hydrogen-dehoist.h"
+#include "src/base/safe_math.h"
 
 namespace v8 {
 namespace internal {
@@ -28,14 +29,25 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   if (!constant->HasInteger32Value()) return;
   int32_t sign = binary_operation->IsSub() ? -1 : 1;
   int32_t value = constant->Integer32Value() * sign;
-  // We limit offset values to 30 bits because we want to avoid the risk of
-  // overflows when the offset is added to the object header size.
-  if (value >= 1 << array_operation->MaxIndexOffsetBits() || value < 0) return;
+  if (value < 0) return;
+
+  // Multiply value by elements size, bailing out on overflow.
+  int32_t elements_kind_size =
+      1 << ElementsKindToShiftSize(array_operation->elements_kind());
+  v8::base::internal::CheckedNumeric<int32_t> multiply_result = value;
+  multiply_result = multiply_result * elements_kind_size;
+  if (!multiply_result.IsValid()) return;
+  value = multiply_result.ValueOrDie();
+
+  // Ensure that the array operation can add value to existing base offset
+  // without overflowing.
+  if (!array_operation->TryIncreaseBaseOffset(value)) return;
+
   array_operation->SetKey(subexpression);
   if (binary_operation->HasNoUses()) {
     binary_operation->DeleteAndReplaceWith(NULL);
   }
-  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
+
   array_operation->SetDehoisted(true);
 }
 

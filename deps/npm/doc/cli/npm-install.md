@@ -7,10 +7,10 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install <name> [--save|--save-dev|--save-optional] [--save-exact]
-    npm install <name>@<tag>
-    npm install <name>@<version>
-    npm install <name>@<version range>
+    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact]
+    npm install [@<scope>/]<name>@<tag>
+    npm install [@<scope>/]<name>@<version>
+    npm install [@<scope>/]<name>@<version range>
     npm i (with any of the previous argument usage)
 
 ## DESCRIPTION
@@ -70,7 +70,7 @@ after packing it up into a tarball (b).
 
           npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-* `npm install <name> [--save|--save-dev|--save-optional]`:
+* `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
     `npm-config(7)`.)
@@ -98,9 +98,19 @@ after packing it up into a tarball (b).
       exact version rather than using npm's default semver range
       operator.
 
+    `<scope>` is optional. The package will be downloaded from the registry
+    associated with the specified scope. If no registry is associated with
+    the given scope the default registry is assumed. See `npm-scope(7)`.
+
+    Note: if you do not include the @-symbol on your scope name, npm will
+    interpret this as a GitHub repository instead, see below. Scopes names
+    must also be followed by a slash.
+
     Examples:
 
           npm install sax --save
+          npm install githubname/reponame
+          npm install @myorg/privatepackage
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
@@ -110,7 +120,7 @@ after packing it up into a tarball (b).
     working directory, then it will try to install that, and only try to
     fetch the package by name if it is not valid.
 
-* `npm install <name>@<tag>`:
+* `npm install [@<scope>/]<name>@<tag>`:
 
     Install the version of the package that is referenced by the specified tag.
     If the tag does not exist in the registry data for that package, then this
@@ -119,17 +129,19 @@ after packing it up into a tarball (b).
     Example:
 
           npm install sax@latest
+          npm install @myorg/mypackage@latest
 
-* `npm install <name>@<version>`:
+* `npm install [@<scope>/]<name>@<version>`:
 
-    Install the specified version of the package.  This will fail if the version
-    has not been published to the registry.
+    Install the specified version of the package.  This will fail if the
+    version has not been published to the registry.
 
     Example:
 
           npm install sax@0.1.1
+          npm install @myorg/privatepackage@1.5.0
 
-* `npm install <name>@<version range>`:
+* `npm install [@<scope>/]<name>@<version range>`:
 
     Install a version of the package matching the specified version range.  This
     will follow the same rules for resolving dependencies described in `package.json(5)`.
@@ -140,6 +152,19 @@ after packing it up into a tarball (b).
     Example:
 
           npm install sax@">=0.1.0 <0.2.0"
+          npm install @myorg/privatepackage@">=0.1.0 <0.2.0"
+
+* `npm install <githubname>/<githubrepo>`:
+
+    Install the package at `https://github.com/githubname/githubrepo" by
+    attempting to clone it using `git`.
+
+    Example:
+
+          npm install mygithubuser/myproject
+
+   To reference a package in a git repo that is not on GitHub, see git
+   remote urls below.
 
 * `npm install <git remote url>`:
 

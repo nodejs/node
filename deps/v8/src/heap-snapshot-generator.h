@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
 
-#include "profile-generator-inl.h"
+#include "src/profile-generator-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -35,11 +35,11 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden);
+    DCHECK(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
-    ASSERT(type_ == kContextVariable
+    DCHECK(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
         || type_ == kShortcut
@@ -83,7 +83,8 @@ class HeapEntry BASE_EMBEDDED {
     kNative = v8::HeapGraphNode::kNative,
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
-    kSlicedString = v8::HeapGraphNode::kSlicedString
+    kSlicedString = v8::HeapGraphNode::kSlicedString,
+    kSymbol = v8::HeapGraphNode::kSymbol
   };
   static const int kNoEntry;
 
@@ -99,7 +100,7 @@ class HeapEntry BASE_EMBEDDED {
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
   void set_name(const char* name) { name_ = name; }
-  inline SnapshotObjectId id() { return id_; }
+  SnapshotObjectId id() { return id_; }
   size_t self_size() { return self_size_; }
   unsigned trace_node_id() const { return trace_node_id_; }
   INLINE(int index() const);
@@ -153,7 +154,6 @@ class HeapSnapshot {
   size_t RawSnapshotSize() const;
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
-  HeapEntry* natives_root() { return &entries_[natives_root_index_]; }
   HeapEntry* gc_subroot(int index) {
     return &entries_[gc_subroot_indexes_[index]];
   }
@@ -170,10 +170,7 @@ class HeapSnapshot {
                       SnapshotObjectId id,
                       size_t size,
                       unsigned trace_node_id);
-  HeapEntry* AddRootEntry();
-  HeapEntry* AddGcRootsEntry();
-  HeapEntry* AddGcSubrootEntry(int tag);
-  HeapEntry* AddNativesRootEntry();
+  void AddSyntheticRootEntries();
   HeapEntry* GetEntryById(SnapshotObjectId id);
   List<HeapEntry*>* GetSortedEntriesList();
   void FillChildren();
@@ -182,12 +179,15 @@ class HeapSnapshot {
   void PrintEntriesSize();
 
  private:
+  HeapEntry* AddRootEntry();
+  HeapEntry* AddGcRootsEntry();
+  HeapEntry* AddGcSubrootEntry(int tag, SnapshotObjectId id);
+
   HeapProfiler* profiler_;
   const char* title_;
   unsigned uid_;
   int root_index_;
   int gc_roots_index_;
-  int natives_root_index_;
   int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
   List<HeapEntry> entries_;
   List<HeapGraphEdge> edges_;
@@ -222,12 +222,10 @@ class HeapObjectsMap {
   size_t GetUsedMemorySize() const;
 
   SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
-  static inline SnapshotObjectId GetNthGcSubrootId(int delta);
 
   static const int kObjectIdStep = 2;
   static const SnapshotObjectId kInternalRootObjectId;
   static const SnapshotObjectId kGcRootsObjectId;
-  static const SnapshotObjectId kNativesRootObjectId;
   static const SnapshotObjectId kGcRootsFirstSubrootId;
   static const SnapshotObjectId kFirstAvailableObjectId;
 
@@ -347,8 +345,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   static String* GetConstructorName(JSObject* object);
 
-  static HeapObject* const kInternalRootObject;
-
  private:
   typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
                                                           HeapObject* object);
@@ -368,11 +364,16 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
+  void ExtractSymbolReferences(int entry, Symbol* symbol);
+  void ExtractJSCollectionReferences(int entry, JSCollection* collection);
+  void ExtractJSWeakCollectionReferences(int entry,
+                                         JSWeakCollection* collection);
   void ExtractContextReferences(int entry, Context* context);
   void ExtractMapReferences(int entry, Map* map);
   void ExtractSharedFunctionInfoReferences(int entry,
                                            SharedFunctionInfo* shared);
   void ExtractScriptReferences(int entry, Script* script);
+  void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
@@ -444,9 +445,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   HeapEntry* GetEntry(Object* obj);
 
-  static inline HeapObject* GetNthGcSubrootObject(int delta);
-  static inline int GetGcSubrootOrder(HeapObject* subroot);
-
   Heap* heap_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
@@ -459,12 +457,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet weak_containers_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
-  static HeapObject* const kGcRootsObject;
-  static HeapObject* const kFirstGcSubrootObject;
-  static HeapObject* const kLastGcSubrootObject;
-
   friend class IndexedReferencesExtractor;
-  friend class GcSubrootsEnumerator;
   friend class RootsReferencesExtractor;
 
   DISALLOW_COPY_AND_ASSIGN(V8HeapExplorer);

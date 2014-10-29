@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This test case is not compatible with optimization stress because the
-// generated profile will look vastly different when more is optimized.
-// Flags: --nostress-opt --noalways-opt
-
 // Load implementations from <project root>/tools.
 // Files: tools/splaytree.js tools/codemap.js tools/csvparser.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
@@ -311,7 +307,7 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
     name, startAddr, endAddr, symbolAdder) {
   var symbols = {
     'shell':
-        [['v8::internal::JSObject::LocalLookupRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],
+        [['v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],
          ['v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)', 0x080f8210, 0x080f8800],
          ['v8::internal::Runtime_Math_exp(v8::internal::Arguments)', 0x08123b20, 0x08123b80]],
     '/lib32/libm-2.7.so':

@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 
-#include "heap-snapshot-generator.h"
+#include "src/heap-snapshot-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -35,32 +35,13 @@ int HeapEntry::set_children_index(int index) {
 
 
 HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  SLOW_ASSERT(children_index_ < snapshot_->children().length() ||
+  DCHECK(children_index_ >= 0);
+  SLOW_DCHECK(children_index_ < snapshot_->children().length() ||
       (children_index_ == snapshot_->children().length() &&
        children_count_ == 0));
   return &snapshot_->children().first() + children_index_;
 }
 
-
-SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
-  return kGcRootsFirstSubrootId + delta * kObjectIdStep;
-}
-
-
-HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
-  return reinterpret_cast<HeapObject*>(
-      reinterpret_cast<char*>(kFirstGcSubrootObject) +
-      delta * HeapObjectsMap::kObjectIdStep);
-}
-
-
-int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return static_cast<int>(
-      (reinterpret_cast<char*>(subroot) -
-       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep);
-}
 
 } }  // namespace v8::internal
 

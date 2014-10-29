@@ -5,7 +5,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
-#include "objects.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -44,10 +44,10 @@ class MaybeHandle {
     location_ = reinterpret_cast<T**>(maybe_handle.location_);
   }
 
-  INLINE(void Assert()) { ASSERT(location_ != NULL); }
-  INLINE(void Check()) { CHECK(location_ != NULL); }
+  INLINE(void Assert() const) { DCHECK(location_ != NULL); }
+  INLINE(void Check() const) { CHECK(location_ != NULL); }
 
-  INLINE(Handle<T> ToHandleChecked()) {
+  INLINE(Handle<T> ToHandleChecked()) const {
     Check();
     return Handle<T>(location_);
   }

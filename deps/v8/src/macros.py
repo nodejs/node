@@ -126,6 +126,8 @@ macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
+macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
+macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_UNDETECTABLE(arg)      = (%_IsUndetectableObject(arg));
 macro FLOOR(arg)                = $floor(arg);
 
@@ -164,12 +166,16 @@ macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString
 macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber(arg));
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
+macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnProperty));
 
 # Private names.
-macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateSymbol(name));
-macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
+# GET_PRIVATE should only be used if the property is known to exists on obj
+# itself (it should really use %GetOwnProperty, but that would be way slower).
+macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateOwnSymbol(name));
+macro NEW_PRIVATE_OWN(name) = (%CreatePrivateOwnSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
-macro HAS_PRIVATE(obj, sym) = (sym in obj);
+macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
+macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);
@@ -281,3 +287,6 @@ const PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
 const ITERATOR_KIND_KEYS = 1;
 const ITERATOR_KIND_VALUES = 2;
 const ITERATOR_KIND_ENTRIES = 3;
+
+# Check whether debug is active.
+const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);

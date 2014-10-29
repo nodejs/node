@@ -5,7 +5,7 @@
 #ifndef V8_TRANSITIONS_INL_H_
 #define V8_TRANSITIONS_INL_H_
 
-#include "transitions.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ namespace internal {
 
 
 TransitionArray* TransitionArray::cast(Object* object) {
-  ASSERT(object->IsTransitionArray());
+  DCHECK(object->IsTransitionArray());
   return reinterpret_cast<TransitionArray*>(object);
 }
 
@@ -59,7 +59,7 @@ bool TransitionArray::HasPrototypeTransitions() {
 
 
 FixedArray* TransitionArray::GetPrototypeTransitions() {
-  ASSERT(IsFullTransitionArray());
+  DCHECK(IsFullTransitionArray());
   Object* prototype_transitions = get(kPrototypeTransitionsIndex);
   return FixedArray::cast(prototype_transitions);
 }
@@ -67,8 +67,8 @@ FixedArray* TransitionArray::GetPrototypeTransitions() {
 
 void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
                                               WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
-  ASSERT(transitions->IsFixedArray());
+  DCHECK(IsFullTransitionArray());
+  DCHECK(transitions->IsFixedArray());
   Heap* heap = GetHeap();
   WRITE_FIELD(this, kPrototypeTransitionsOffset, transitions);
   CONDITIONAL_WRITE_BARRIER(
@@ -83,8 +83,8 @@ Object** TransitionArray::GetPrototypeTransitionsSlot() {
 
 
 Object** TransitionArray::GetKeySlot(int transition_number) {
-  ASSERT(!IsSimpleTransition());
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(!IsSimpleTransition());
+  DCHECK(transition_number < number_of_transitions());
   return RawFieldOfElementAt(ToKeyIndex(transition_number));
 }
 
@@ -96,34 +96,34 @@ Name* TransitionArray::GetKey(int transition_number) {
     Name* key = target->instance_descriptors()->GetKey(descriptor);
     return key;
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   return Name::cast(get(ToKeyIndex(transition_number)));
 }
 
 
 void TransitionArray::SetKey(int transition_number, Name* key) {
-  ASSERT(!IsSimpleTransition());
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(!IsSimpleTransition());
+  DCHECK(transition_number < number_of_transitions());
   set(ToKeyIndex(transition_number), key);
 }
 
 
 Map* TransitionArray::GetTarget(int transition_number) {
   if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
+    DCHECK(transition_number == kSimpleTransitionIndex);
     return Map::cast(get(kSimpleTransitionTarget));
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   return Map::cast(get(ToTargetIndex(transition_number)));
 }
 
 
 void TransitionArray::SetTarget(int transition_number, Map* value) {
   if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
+    DCHECK(transition_number == kSimpleTransitionIndex);
     return set(kSimpleTransitionTarget, value);
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }
 

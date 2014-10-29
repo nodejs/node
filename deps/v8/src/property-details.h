@@ -5,9 +5,9 @@
 #ifndef V8_PROPERTY_DETAILS_H_
 #define V8_PROPERTY_DETAILS_H_
 
-#include "../include/v8.h"
-#include "allocation.h"
-#include "utils.h"
+#include "include/v8.h"
+#include "src/allocation.h"
+#include "src/utils.h"
 
 // Ecma-262 3rd 8.6.1
 enum PropertyAttributes {
@@ -46,16 +46,11 @@ class TypeInfo;
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
   // Only in slow mode.
-  NORMAL                    = 0,
+  NORMAL = 0,
   // Only in fast mode.
-  FIELD                     = 1,
-  CONSTANT                  = 2,
-  CALLBACKS                 = 3,
-  // Only in lookup results, not in descriptors.
-  HANDLER                   = 4,
-  INTERCEPTOR               = 5,
-  // Only used as a marker in LookupResult.
-  NONEXISTENT               = 6
+  FIELD = 1,
+  CONSTANT = 2,
+  CALLBACKS = 3
 };
 
 
@@ -112,8 +107,8 @@ class Representation {
     if (kind_ == kExternal && other.kind_ == kExternal) return false;
     if (kind_ == kNone && other.kind_ == kExternal) return false;
 
-    ASSERT(kind_ != kExternal);
-    ASSERT(other.kind_ != kExternal);
+    DCHECK(kind_ != kExternal);
+    DCHECK(other.kind_ != kExternal);
     if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
@@ -124,8 +119,6 @@ class Representation {
     return other.is_more_general_than(*this) || other.Equals(*this);
   }
 
-  bool CanContainDouble(double value);
-
   Representation generalize(Representation other) {
     if (other.fits_into(*this)) return *this;
     if (other.is_more_general_than(*this)) return other;
@@ -133,7 +126,7 @@ class Representation {
   }
 
   int size() const {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     if (IsInteger8() || IsUInteger8()) {
       return sizeof(uint8_t);
     }
@@ -197,8 +190,8 @@ class PropertyDetails BASE_EMBEDDED {
         | AttributesField::encode(attributes)
         | DictionaryStorageField::encode(index);
 
-    ASSERT(type == this->type());
-    ASSERT(attributes == this->attributes());
+    DCHECK(type == this->type());
+    DCHECK(attributes == this->attributes());
   }
 
   PropertyDetails(PropertyAttributes attributes,
@@ -247,7 +240,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   Representation representation() const {
-    ASSERT(type() != NORMAL);
+    DCHECK(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
@@ -262,28 +255,28 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
-  bool IsDontDelete() const { return (attributes() & DONT_DELETE) != 0; }
+  bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
   bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField:                public BitField<PropertyType,       0,  3> {};
-  class AttributesField:          public BitField<PropertyAttributes, 3,  3> {};
+  class TypeField : public BitField<PropertyType, 0, 2> {};
+  class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
-  class DeletedField:             public BitField<uint32_t,           6,  1> {};
-  class DictionaryStorageField:   public BitField<uint32_t,           7, 24> {};
+  class DeletedField : public BitField<uint32_t, 5, 1> {};
+  class DictionaryStorageField : public BitField<uint32_t, 6, 24> {};
 
   // Bit fields for fast objects.
-  class RepresentationField:      public BitField<uint32_t,           6,  4> {};
-  class DescriptorPointer:        public BitField<uint32_t, 10,
-      kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField:          public BitField<uint32_t,
-      10 + kDescriptorIndexBitCount,
-      kDescriptorIndexBitCount> {};  // NOLINT
+  class RepresentationField : public BitField<uint32_t, 5, 4> {};
+  class DescriptorPointer
+      : public BitField<uint32_t, 9, kDescriptorIndexBitCount> {};  // NOLINT
+  class FieldIndexField
+      : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
+                        kDescriptorIndexBitCount> {};  // NOLINT
   // All bits for fast objects must fix in a smi.
-  STATIC_ASSERT(10 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
+  STATIC_ASSERT(9 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
 
   static const int kInitialIndex = 1;
 

@@ -51,18 +51,17 @@ class ProcessWrap : public HandleWrap {
                          Handle<Value> unused,
                          Handle<Context> context) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(env->isolate(),
-                                                                New);
+    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
+    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "spawn", Spawn);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "kill", Kill);
+    env->SetProtoMethod(constructor, "spawn", Spawn);
+    env->SetProtoMethod(constructor, "kill", Kill);
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
@@ -73,9 +72,8 @@ class ProcessWrap : public HandleWrap {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a
     // normal function.
-    assert(args.IsConstructCall());
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
     new ProcessWrap(env, args.This());
   }
 
@@ -84,9 +82,6 @@ class ProcessWrap : public HandleWrap {
                    object,
                    reinterpret_cast<uv_handle_t*>(&process_),
                    AsyncWrap::PROVIDER_PROCESSWRAP) {
-  }
-
-  ~ProcessWrap() {
   }
 
   static void ParseStdioOptions(Environment* env,
@@ -117,7 +112,7 @@ class ProcessWrap : public HandleWrap {
         Local<String> handle_key = env->handle_string();
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
         uv_stream_t* stream = HandleToStream(env, handle);
-        assert(stream != NULL);
+        CHECK_NE(stream, nullptr);
 
         options->stdio[i].flags = UV_INHERIT_STREAM;
         options->stdio[i].data.stream = stream;
@@ -131,8 +126,7 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
-    HandleScope handle_scope(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Environment* env = Environment::GetCurrent(args);
 
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
 
@@ -185,13 +179,13 @@ class ProcessWrap : public HandleWrap {
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
       Local<Array> js_argv = Local<Array>::Cast(argv_v);
       int argc = js_argv->Length();
-      // Heap allocate to detect errors. +1 is for NULL.
+      // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
         node::Utf8Value arg(js_argv->Get(i));
         options.args[i] = strdup(*arg);
       }
-      options.args[argc] = NULL;
+      options.args[argc] = nullptr;
     }
 
     // options.cwd
@@ -211,7 +205,7 @@ class ProcessWrap : public HandleWrap {
         node::Utf8Value pair(env->Get(i));
         options.env[i] = strdup(*pair);
       }
-      options.env[envc] = NULL;
+      options.env[envc] = nullptr;
     }
 
     // options.stdio
@@ -233,7 +227,7 @@ class ProcessWrap : public HandleWrap {
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
 
     if (err == 0) {
-      assert(wrap->process_.data == wrap);
+      CHECK_EQ(wrap->process_.data, wrap);
       wrap->object()->Set(env->pid_string(),
                           Integer::New(env->isolate(), wrap->process_.pid));
     }
@@ -254,10 +248,7 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args.GetIsolate());
-    HandleScope scope(env->isolate());
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
-
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);
@@ -267,8 +258,8 @@ class ProcessWrap : public HandleWrap {
                      int64_t exit_status,
                      int term_signal) {
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
-    assert(wrap != NULL);
-    assert(&wrap->process_ == handle);
+    CHECK_NE(wrap, nullptr);
+    CHECK_EQ(&wrap->process_, handle);
 
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());

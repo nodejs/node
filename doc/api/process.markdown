@@ -181,7 +181,8 @@ Example: the definition of `console.log`
     };
 
 `process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.
+that they cannot be closed (`end()` will throw), they never emit the `finish`
+event and that writes are usually blocking.
 
 - They are blocking in the case that they refer to regular files or TTY file
   descriptors.
@@ -209,7 +210,8 @@ See [the tty docs](tty.html#tty_tty) for more information.
 A writable stream to stderr.
 
 `process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.
+that they cannot be closed (`end()` will throw), they never emit the `finish`
+event and that writes are usually blocking.
 
 - They are blocking in the case that they refer to regular files or TTY file
   descriptors.
@@ -539,7 +541,7 @@ An example of the possible output looks like:
          target_arch: 'x64',
          v8_use_snapshot: 'true' } }
 
-## process.kill(pid, [signal])
+## process.kill(pid[, signal])
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like

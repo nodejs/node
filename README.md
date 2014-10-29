@@ -5,8 +5,8 @@ Evented I/O for V8 javascript.
 
 Prerequisites (Unix only):
 
-    * GCC 4.2 or newer
-    * G++ 4.2 or newer
+    * `gcc` and `g++` 4.8 or newer, or
+    * `clang` and `clang++` 3.3 or newer
     * Python 2.6 or 2.7
     * GNU Make 3.81 or newer
     * libexecinfo (FreeBSD and OpenBSD only)
@@ -15,17 +15,6 @@ Unix/Macintosh:
 
 ```sh
 ./configure
-make
-make install
-```
-
-With libicu i18n support:
-
-```sh
-svn checkout --force --revision 214189 \
-   http://src.chromium.org/svn/trunk/deps/third_party/icu46 \
-   deps/v8/third_party/icu46
-./configure --with-icu-path=deps/v8/third_party/icu46/icu.gyp
 make
 make install
 ```
@@ -43,15 +32,18 @@ make install
 Prerequisites (Windows only):
 
     * Python 2.6 or 2.7
-    * Visual Studio 2010 or 2012
+    * Visual Studio 2013 for Windows Desktop, or
+    * Visual Studio Express 2013 for Windows Desktop
 
 Windows:
 
-    vcbuild nosign
+```sh
+vcbuild nosign
+```
 
 You can download pre-built binaries for various operating systems from
 [http://nodejs.org/download/](http://nodejs.org/download/).  The Windows
-and OS X installers will prompt you for the location to install to.
+and OS X installers will prompt you for the location in which to install.
 The tarballs are self-contained; you can extract them to a local directory
 with:
 
@@ -90,6 +82,35 @@ make doc
 
 ```sh
 man doc/node.1
+```
+
+### To build `Intl` (ECMA-402) support:
+
+*Note:* more docs, including how to reduce disk footprint, are on
+[the wiki](https://github.com/joyent/node/wiki/Intl).
+
+#### Use existing installed ICU (Unix/Macintosh only):
+
+```sh
+pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
+```
+
+#### Build ICU from source:
+
+First: Unpack latest ICU
+  [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
+  as `deps/icu` (You'll have: `deps/icu/source/...`)
+
+Unix/Macintosh:
+
+```sh
+./configure --with-intl=full-icu
+```
+
+Windows:
+
+```sh
+vcbuild full-icu
 ```
 
 Resources for Newcomers
