@@ -8,7 +8,8 @@ SIGN ?=
 PREFIX ?= /usr/local
 
 # Determine EXEEXT
-EXEEXT=$(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('EXE'))")
+EXEEXT := $(shell $(PYTHON) -c \
+		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE ?= ./node$(EXEEXT)
 NODE_EXE = node$(EXEEXT)

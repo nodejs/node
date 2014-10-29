@@ -11,7 +11,6 @@ import os
 import re
 import shutil
 import sys
-import sysconfig
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -128,7 +127,7 @@ def subdir_files(path, dest, action):
     action(files, subdir + '/')
 
 def files(action):
-  exeext=sysconfig.get_config_var('EXE')
+  exeext = '.exe' if sys.platform == 'win32' else ''
   action(['out/Release/node' + exeext], 'bin/node' + exeext)
 
   if 'true' == variables.get('node_use_dtrace'):
