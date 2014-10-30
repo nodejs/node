@@ -126,6 +126,7 @@ static Persistent<String> enter_symbol;
 static Persistent<String> exit_symbol;
 static Persistent<String> disposed_symbol;
 
+static Persistent<String> emitting_toplevel_domain_error_symbol;
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -904,6 +905,20 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
   return scope.Close(t->GetFunction()->NewInstance(argc, argv));
 }
 
+static bool IsDomainActive() {
+  if (domain_symbol.IsEmpty())
+    domain_symbol = NODE_PSYMBOL("domain");
+
+  Local<Value> domain_v = process->Get(domain_symbol);
+
+  return domain_v->IsObject();
+}
+
+bool ShouldAbortOnUncaughtException() {
+  Local<Value> emitting_toplevel_domain_error_v =
+    process->Get(emitting_toplevel_domain_error_symbol);
+  return !IsDomainActive() || emitting_toplevel_domain_error_v->BooleanValue();
+}
 
 Handle<Value> UsingDomains(const Arguments& args) {
   HandleScope scope;
@@ -2437,6 +2452,11 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // pre-set _events object for faster emit checks
   process->Set(String::NewSymbol("_events"), Object::New());
 
+  if (emitting_toplevel_domain_error_symbol.IsEmpty())
+    emitting_toplevel_domain_error_symbol =
+      NODE_PSYMBOL("_emittingTopLevelDomainError");
+  process->Set(emitting_toplevel_domain_error_symbol, False());
+
   return process;
 }
 
@@ -2959,6 +2979,7 @@ char** Init(int argc, char *argv[]) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   node_isolate = Isolate::GetCurrent();
+  node_isolate->SetAbortOnUncaughtException(ShouldAbortOnUncaughtException);
 
   // If the --debug flag was specified then initialize the debug thread.
   if (use_debug_agent) {
