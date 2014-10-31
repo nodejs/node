@@ -314,11 +314,15 @@ for (var i = 0; i < 5; i++)
 
 // only allow object to be passed to dispose
 assert.throws(function() {
-  alloc.dispose(null);
+  smalloc.dispose(null);
 });
 
 
 // can't dispose a Buffer
 assert.throws(function() {
-  alloc.dispose(new Buffer());
+  smalloc.dispose(new Buffer());
+});
+
+assert.throws(function() {
+  smalloc.dispose({});
 });
