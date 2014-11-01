@@ -515,9 +515,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[3]->IsFunction()) {
-    ASYNC_DEST_CALL(symlink, args[3], *dest, *dest, *path, flags)
+    ASYNC_DEST_CALL(symlink, args[3], *path, *dest, *path, flags)
   } else {
-    SYNC_DEST_CALL(symlink, *path, *dest, *dest, *path, flags)
+    SYNC_DEST_CALL(symlink, *dest, *path, *dest, *path, flags)
   }
 }
 
