@@ -16,6 +16,7 @@
     'node_v8_options%': '',
     'library_files': [
       'src/node.js',
+      'lib/_debug_agent.js',
       'lib/_debugger.js',
       'lib/_linklist.js',
       'lib/assert.js',
@@ -67,7 +68,6 @@
       'lib/util.js',
       'lib/vm.js',
       'lib/zlib.js',
-      'deps/debugger-agent/lib/_debugger_agent.js',
     ],
   },
 
@@ -78,7 +78,6 @@
 
       'dependencies': [
         'node_js2c#host',
-        'deps/debugger-agent/debugger-agent.gyp:debugger-agent',
       ],
 
       'include_dirs': [
@@ -89,6 +88,7 @@
       ],
 
       'sources': [
+        'src/debug-agent.cc',
         'src/fs_event_wrap.cc',
         'src/cares_wrap.cc',
         'src/handle_wrap.cc',
@@ -124,6 +124,7 @@
         'src/async-wrap-inl.h',
         'src/base-object.h',
         'src/base-object-inl.h',
+        'src/debug-agent.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',

@@ -19,8 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "agent.h"
-#include "debugger-agent.h"
+#include "debug-agent.h"
 
 #include "node.h"
 #include "node_internals.h"  // ARRAY_SIZE
