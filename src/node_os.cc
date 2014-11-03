@@ -231,7 +231,17 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   }
 
   for (i = 0; i < count; i++) {
-    name = OneByteString(env->isolate(), interfaces[i].name);
+    const char* const raw_name = interfaces[i].name;
+
+    // On Windows, the interface name is the UTF8-encoded friendly name and may
+    // contain non-ASCII characters.  On UNIX, it's just a binary string with
+    // no particular encoding but we treat it as a one-byte Latin-1 string.
+#ifdef _WIN32
+    name = String::NewFromUtf8(env->isolate(), raw_name);
+#else
+    name = OneByteString(env->isolate(), raw_name);
+#endif
+
     if (ret->Has(name)) {
       ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
