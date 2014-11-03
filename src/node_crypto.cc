@@ -112,7 +112,6 @@ static uv_rwlock_t* locks;
 
 const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
-  nullptr
 };
 
 X509_STORE* root_cert_store;
@@ -670,7 +669,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   if (!root_cert_store) {
     root_cert_store = X509_STORE_new();
 
-    for (int i = 0; root_certs[i]; i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(root_certs); i++) {
       BIO* bp = NodeBIO::New();
 
       if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
