@@ -55,8 +55,8 @@ Agent::Agent(Environment* env) : state_(kNone),
                                  port_(5858),
                                  wait_(false),
                                  parent_env_(env),
-                                 child_env_(NULL),
-                                 dispatch_handler_(NULL) {
+                                 child_env_(nullptr),
+                                 dispatch_handler_(nullptr) {
   int err;
 
   err = uv_sem_init(&start_sem_, 0);
@@ -117,7 +117,7 @@ bool Agent::Start(int port, bool wait) {
   return true;
 
  thread_create_failed:
-  uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), nullptr);
 
  async_init_failed:
   err = uv_loop_close(&child_loop_);
@@ -144,10 +144,10 @@ void Agent::Stop() {
     return;
   }
 
-  v8::Debug::SetMessageHandler(NULL);
+  v8::Debug::SetMessageHandler(nullptr);
 
   // Send empty message to terminate things
-  EnqueueMessage(new AgentMessage(NULL, 0));
+  EnqueueMessage(new AgentMessage(nullptr, 0));
 
   // Signal worker thread to make it stop
   err = uv_async_send(&child_signal_);
@@ -156,7 +156,7 @@ void Agent::Stop() {
   err = uv_thread_join(&thread_);
   CHECK_EQ(err, 0);
 
-  uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), NULL);
+  uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), nullptr);
   uv_run(&child_loop_, UV_RUN_NOWAIT);
 
   err = uv_loop_close(&child_loop_);
@@ -202,7 +202,7 @@ void Agent::WorkerRun() {
     env->CleanupHandles();
 
     env->Dispose();
-    env = NULL;
+    env = nullptr;
   }
   isolate->Dispose();
 }
@@ -263,7 +263,7 @@ void Agent::SendCommand(const FunctionCallbackInfo<Value>& args) {
   String::Value v(args[0]);
 
   v8::Debug::SendCommand(a->parent_env()->isolate(), *v, v.length());
-  if (a->dispatch_handler_ != NULL)
+  if (a->dispatch_handler_ != nullptr)
     a->dispatch_handler_(a->parent_env());
 }
 
@@ -286,11 +286,11 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     AgentMessage* msg = ContainerOf(&AgentMessage::member, q);
 
     // Time to close everything
-    if (msg->data() == NULL) {
+    if (msg->data() == nullptr) {
       QUEUE_REMOVE(q);
       delete msg;
 
-      MakeCallback(isolate, api, "onclose", 0, NULL);
+      MakeCallback(isolate, api, "onclose", 0, nullptr);
       break;
     }
 
@@ -331,7 +331,7 @@ void Agent::MessageHandler(const v8::Debug::Message& message) {
   Isolate* isolate = message.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
   Agent* a = env->debugger_agent();
-  CHECK_NE(a, NULL);
+  CHECK_NE(a, nullptr);
   CHECK_EQ(isolate, a->parent_env()->isolate());
 
   HandleScope scope(isolate);

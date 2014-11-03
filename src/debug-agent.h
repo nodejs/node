@@ -108,7 +108,7 @@ class Agent {
 class AgentMessage {
  public:
   AgentMessage(uint16_t* val, int length) : length_(length) {
-    if (val == NULL) {
+    if (val == nullptr) {
       data_ = val;
     } else {
       data_ = new uint16_t[length];
@@ -118,7 +118,7 @@ class AgentMessage {
 
   ~AgentMessage() {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 
   inline const uint16_t* data() const { return data_; }
