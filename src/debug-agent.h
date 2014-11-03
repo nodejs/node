@@ -19,21 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef DEPS_DEBUGGER_AGENT_INCLUDE_DEBUGGER_AGENT_H_
-#define DEPS_DEBUGGER_AGENT_INCLUDE_DEBUGGER_AGENT_H_
+#ifndef SRC_DEBUG_AGENT_H_
+#define SRC_DEBUG_AGENT_H_
 
 #include "uv.h"
 #include "v8.h"
 #include "v8-debug.h"
+#include "queue.h"
+
+#include <string.h>
+
+// Forward declaration to break recursive dependency chain with src/env.h.
+namespace node {
+class Environment;
+}  // namespace node
 
 namespace node {
-
-// Forward declaration
-class Environment;
-
 namespace debugger {
 
-// Forward declaration
 class AgentMessage;
 
 class Agent {
@@ -97,13 +100,38 @@ class Agent {
   uv_loop_t child_loop_;
   v8::Persistent<v8::Object> api_;
 
-  // QUEUE
-  void* messages_[2];
+  QUEUE messages_;
 
   DispatchHandler dispatch_handler_;
+};
+
+class AgentMessage {
+ public:
+  AgentMessage(uint16_t* val, int length) : length_(length) {
+    if (val == NULL) {
+      data_ = val;
+    } else {
+      data_ = new uint16_t[length];
+      memcpy(data_, val, length * sizeof(*data_));
+    }
+  }
+
+  ~AgentMessage() {
+    delete[] data_;
+    data_ = NULL;
+  }
+
+  inline const uint16_t* data() const { return data_; }
+  inline int length() const { return length_; }
+
+  QUEUE member;
+
+ private:
+  uint16_t* data_;
+  int length_;
 };
 
 }  // namespace debugger
 }  // namespace node
 
-#endif  // DEPS_DEBUGGER_AGENT_INCLUDE_DEBUGGER_AGENT_H_
+#endif  // SRC_DEBUG_AGENT_H_

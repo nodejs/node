@@ -23,12 +23,12 @@
 #define SRC_ENV_H_
 
 #include "ares.h"
+#include "debug-agent.h"
 #include "tree.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
 #include "queue.h"
-#include "debugger-agent.h"
 
 #include <stdint.h>
 

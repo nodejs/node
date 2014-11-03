@@ -233,7 +233,6 @@ NACL_ARCHES = nacl_ia32 nacl_x64
 GYPFILES = \
 	common.gypi \
 	deps/cares/cares.gyp \
-	deps/debugger-agent/debugger-agent.gyp \
 	deps/http_parser/http_parser.gyp \
 	deps/openssl/openssl.gyp \
 	deps/uv/uv.gyp \

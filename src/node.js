@@ -85,7 +85,7 @@
 
     } else if (process.argv[1] == '--debug-agent') {
       // Start the debugger agent
-      var d = NativeModule.require('_debugger_agent');
+      var d = NativeModule.require('_debug_agent');
       d.start();
 
     } else if (process._eval != null) {
