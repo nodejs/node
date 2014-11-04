@@ -31,16 +31,19 @@ if (!common.opensslCli) {
   process.exit(0);
 }
 
+var assert = require('assert');
+var tls = require('tls');
+var constants = require('constants');
+var fs = require('fs');
+var join = require('path').join;
+
 test({ response: false }, function() {
-  test({ response: 'hello world' });
+  test({ response: 'hello world' }, function() {
+    test({ ocsp: false });
+  });
 });
 
 function test(testOptions, cb) {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
 
   var keyFile = join(common.fixturesDir, 'keys', 'agent1-key.pem');
   var certFile = join(common.fixturesDir, 'keys', 'agent1-cert.pem');
@@ -54,6 +57,7 @@ function test(testOptions, cb) {
     ca: [ca]
   };
   var requestCount = 0;
+  var clientSecure = 0;
   var ocspCount = 0;
   var ocspResponse;
   var session;
@@ -83,9 +87,12 @@ function test(testOptions, cb) {
   server.listen(common.PORT, function() {
     var client = tls.connect({
       port: common.PORT,
-      requestOCSP: true,
+      requestOCSP: testOptions.ocsp !== false,
+      secureOptions: testOptions.ocsp === false ?
+          constants.SSL_OP_NO_TICKET : 0,
       rejectUnauthorized: false
     }, function() {
+      clientSecure++;
     });
     client.on('OCSPResponse', function(resp) {
       ocspResponse = resp;
@@ -98,12 +105,19 @@ function test(testOptions, cb) {
   });
 
   process.on('exit', function() {
+    if (testOptions.ocsp === false) {
+      assert.equal(requestCount, clientSecure);
+      assert.equal(requestCount, 1);
+      return;
+    }
+
     if (testOptions.response) {
       assert.equal(ocspResponse.toString(), testOptions.response);
     } else {
       assert.ok(ocspResponse === null);
     }
     assert.equal(requestCount, testOptions.response ? 0 : 1);
+    assert.equal(clientSecure, requestCount);
     assert.equal(ocspCount, 1);
   });
 }
