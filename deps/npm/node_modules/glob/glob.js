@@ -36,10 +36,8 @@
 
 module.exports = glob
 
-var fs
-try { fs = require("graceful-fs") } catch (e) { fs = require("fs") }
-
-var minimatch = require("minimatch")
+var fs = require("graceful-fs")
+, minimatch = require("minimatch")
 , Minimatch = minimatch.Minimatch
 , inherits = require("inherits")
 , EE = require("events").EventEmitter

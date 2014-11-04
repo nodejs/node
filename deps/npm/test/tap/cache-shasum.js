@@ -10,7 +10,7 @@ var spawn = require("child_process").spawn
 var sha = require("sha")
 var server
 
-test("mock reg", function(t) {
+test("mock reg", function (t) {
   rimraf.sync(cache)
   mkdirp.sync(cache)
   mr(common.port, function (s) {
@@ -20,7 +20,7 @@ test("mock reg", function(t) {
   })
 })
 
-test("npm cache add request", function(t) {
+test("npm cache add request", function (t) {
   var c = spawn(process.execPath, [
     npm, "cache", "add", "request@2.27.0",
     "--cache=" + cache,
@@ -29,17 +29,17 @@ test("npm cache add request", function(t) {
   ])
   c.stderr.pipe(process.stderr)
 
-  c.stdout.on("data", function(d) {
+  c.stdout.on("data", function (d) {
     t.fail("Should not get data on stdout: " + d)
   })
 
-  c.on("close", function(code) {
+  c.on("close", function (code) {
     t.notOk(code, "exit ok")
     t.end()
   })
 })
 
-test("compare", function(t) {
+test("compare", function (t) {
   var d = path.resolve(__dirname, "cache-shasum/request")
   var p = path.resolve(d, "2.27.0/package.tgz")
   var r = require("./cache-shasum/localhost_1337/request/.cache.json")
@@ -52,7 +52,7 @@ test("compare", function(t) {
   })
 })
 
-test("cleanup", function(t) {
+test("cleanup", function (t) {
   server.close()
   rimraf.sync(cache)
   t.end()

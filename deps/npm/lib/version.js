@@ -6,6 +6,7 @@ var exec = require("child_process").execFile
   , semver = require("semver")
   , path = require("path")
   , fs = require("graceful-fs")
+  , writeFileAtomic = require("write-file-atomic")
   , chain = require("slide").chain
   , log = require("npmlog")
   , which = require("which")
@@ -83,6 +84,15 @@ function checkGit (data, cb) {
 
   // check for git
   git.whichAndExec(args, options, function (er, stdout) {
+    if (er && er.code === "ENOGIT") {
+      log.warn(
+        "version",
+        "This is a Git checkout, but the git command was not found.",
+        "npm could not create a Git tag for this release!"
+      )
+      return write(data, cb)
+    }
+
     var lines = stdout.trim().split("\n").filter(function (line) {
       return line.trim() && !line.match(/^\?\? /)
     }).map(function (line) {
@@ -111,7 +121,7 @@ function checkGit (data, cb) {
 }
 
 function write (data, cb) {
-  fs.writeFile( path.join(npm.localPrefix, "package.json")
+  writeFileAtomic( path.join(npm.localPrefix, "package.json")
               , new Buffer(JSON.stringify(data, null, 2) + "\n")
               , cb )
 }

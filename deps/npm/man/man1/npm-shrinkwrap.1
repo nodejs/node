@@ -1,12 +1,12 @@
-.TH "NPM\-SHRINKWRAP" "1" "September 2014" "" ""
+.TH "NPM\-SHRINKWRAP" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-shrinkwrap\fR \- Lock down dependency versions
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm shrinkwrap
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -31,7 +31,7 @@ but that may be undesirable for other reasons\.
 As an example, consider package A:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "A",
   "version": "0\.1\.0",
@@ -39,13 +39,13 @@ As an example, consider package A:
     "B": "<0\.1\.0"
   }
 }
-.EE
+.fi
 .RE
 .P
 package B:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "B",
   "version": "0\.0\.1",
@@ -53,40 +53,40 @@ package B:
     "C": "<0\.1\.0"
   }
 }
-.EE
+.fi
 .RE
 .P
 and package C:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "C,
   "version": "0\.0\.1"
 }
-.EE
+.fi
 .RE
 .P
 If these are the only versions of A, B, and C available in the
 registry, then a normal "npm install A" will install:
 .P
 .RS 2
-.EX
+.nf
 A@0\.1\.0
 `\-\- B@0\.0\.1
     `\-\- C@0\.0\.1
-.EE
+.fi
 .RE
 .P
 However, if B@0\.0\.2 is published, then a fresh "npm install A" will
 install:
 .P
 .RS 2
-.EX
+.nf
 A@0\.1\.0
 `\-\- B@0\.0\.2
     `\-\- C@0\.0\.1
-.EE
+.fi
 .RE
 .P
 assuming the new version did not modify B's dependencies\. Of course,
@@ -100,15 +100,15 @@ when B hasn't changed at all\.
 In this case, A's author can run
 .P
 .RS 2
-.EX
+.nf
 npm shrinkwrap
-.EE
+.fi
 .RE
 .P
 This generates npm\-shrinkwrap\.json, which will look something like this:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "A",
   "version": "0\.1\.0",
@@ -123,7 +123,7 @@ This generates npm\-shrinkwrap\.json, which will look something like this:
     }
   }
 }
-.EE
+.fi
 .RE
 .P
 The shrinkwrap command has locked down the dependencies based on

@@ -1,0 +1,11 @@
+{
+  "author": "Domenic Denicola",
+  "name": "npm-test-peer-deps-toplevel",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-peer-deps": "*"
+  },
+  "peerDependencies": {
+    "mkdirp": "*"
+  }
+}

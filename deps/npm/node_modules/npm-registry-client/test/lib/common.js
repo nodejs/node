@@ -39,6 +39,10 @@ module.exports = {
           c.email = this.get(nerfed + ":email")
         }
 
+        if (this.get(nerfed + ":always-auth") !== undefined) {
+          c.alwaysAuth = this.get(nerfed + ":always-auth")
+        }
+
         if (c.username && c.password) {
           c.auth = new Buffer(c.username + ":" + c.password).toString("base64")
         }

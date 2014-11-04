@@ -30,11 +30,11 @@ test("sorting dependencies", function (t) {
     var child = spawn(node, [npm, "install", "--save", "underscore@1.3.3"], {
       cwd: pkg,
       env: {
-        npm_config_registry: common.registry,
-        npm_config_cache: cache,
-        npm_config_tmp: tmp,
-        npm_config_prefix: pkg,
-        npm_config_global: "false",
+        "npm_config_registry": common.registry,
+        "npm_config_cache": cache,
+        "npm_config_tmp": tmp,
+        "npm_config_prefix": pkg,
+        "npm_config_global": "false",
         HOME: process.env.HOME,
         Path: process.env.PATH,
         PATH: process.env.PATH
@@ -42,6 +42,7 @@ test("sorting dependencies", function (t) {
     })
 
     child.on("close", function (code) {
+      t.equal(code, 0, "npm install exited with code")
       var result = fs.readFileSync(packageJson).toString()
         , resultAsJson = JSON.parse(result)
 
@@ -83,7 +84,7 @@ function setup() {
       "underscore": "^1.3.3",
       "request": "^0.9.0"
     }
-  }, null, 2), 'utf8')
+  }, null, 2), "utf8")
 }
 
 function cleanup() {

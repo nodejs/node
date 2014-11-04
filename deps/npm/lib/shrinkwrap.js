@@ -6,6 +6,7 @@ module.exports = exports = shrinkwrap
 var npm = require("./npm.js")
   , log = require("npmlog")
   , fs = require("fs")
+  , writeFileAtomic = require("write-file-atomic")
   , path = require("path")
   , readJson = require("read-package-json")
   , sortedObject = require("sorted-object")
@@ -70,7 +71,7 @@ function save (pkginfo, silent, cb) {
 
   var file = path.resolve(npm.prefix, "npm-shrinkwrap.json")
 
-  fs.writeFile(file, swdata, function (er) {
+  writeFileAtomic(file, swdata, function (er) {
     if (er) return cb(er)
     if (silent) return cb(null, pkginfo)
     console.log("wrote npm-shrinkwrap.json")

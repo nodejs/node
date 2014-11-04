@@ -1,71 +1,54 @@
-var test = require('tap').test
-var path = require('path')
-var npm = path.resolve(__dirname, '../../cli.js')
-var pkg = __dirname + '/scripts-whitespace-windows'
-var tmp = pkg + '/tmp'
-var cache = pkg + '/cache'
-var modules = pkg + '/node_modules'
-var dep = pkg + '/dep'
+var test = require("tap").test
+var common = require("../common-tap")
+var path = require("path")
+var pkg = path.resolve(__dirname, "scripts-whitespace-windows")
+var tmp = path.resolve(pkg, "tmp")
+var cache = path.resolve(pkg, "cache")
+var modules = path.resolve(pkg, "node_modules")
+var dep = path.resolve(pkg, "dep")
 
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var node = process.execPath
-var spawn = require('child_process').spawn
+var mkdirp = require("mkdirp")
+var rimraf = require("rimraf")
 
-test('setup', function (t) {
+test("setup", function (t) {
+  cleanup()
   mkdirp.sync(cache)
   mkdirp.sync(tmp)
-  rimraf.sync(modules)
 
-  var env = {
-    npm_config_cache: cache,
-    npm_config_tmp: tmp,
-    npm_config_prefix: pkg,
-    npm_config_global: 'false'
-  }
-
-  var child = spawn(node, [npm, 'i', dep], {
+  common.npm(["i", dep], {
     cwd: pkg,
-    env: env
-  })
-
-  child.stdout.setEncoding('utf8')
-  child.stderr.on('data', function(chunk) {
-    throw new Error('got stderr data: ' + JSON.stringify('' + chunk))
-  })
-  child.on('close', function () {
+    env: {
+      "npm_config_cache": cache,
+      "npm_config_tmp": tmp,
+      "npm_config_prefix": pkg,
+      "npm_config_global": "false"
+    }
+  }, function (err, code, stdout, stderr) {
+    t.ifErr(err, "npm i " + dep + " finished without error")
+    t.equal(code, 0, "npm i " + dep + " exited ok")
+    t.notOk(stderr, "no output stderr")
     t.end()
   })
 })
 
-test('test', function (t) {
-
-  var child = spawn(node, [npm, 'run', 'foo'], {
-    cwd: pkg,
-    env: process.env
-  })
-
-  child.stdout.setEncoding('utf8')
-  child.stderr.on('data', function(chunk) {
-    throw new Error('got stderr data: ' + JSON.stringify('' + chunk))
-  })
-  child.stdout.on('data', ondata)
-  child.on('close', onend)
-  var c = ''
-  function ondata (chunk) {
-    c += chunk
-  }
-  function onend () {
-    c = c.trim()
-
-    t.ok(/npm-test-fine/.test(c))
+test("test", function (t) {
+  common.npm(["run", "foo"], { cwd: pkg }, function (err, code, stdout, stderr) {
+    t.ifErr(err, "npm run finished without error")
+    t.equal(code, 0, "npm run exited ok")
+    t.notOk(stderr, "no output stderr: ", stderr)
+    stdout = stdout.trim()
+    t.ok(/npm-test-fine/.test(stdout))
     t.end()
-  }
+  })
 })
 
-test('cleanup', function (t) {
+test("cleanup", function (t) {
+  cleanup()
+  t.end()
+})
+
+function cleanup() {
   rimraf.sync(cache)
   rimraf.sync(tmp)
   rimraf.sync(modules)
-  t.end()
-})
+}

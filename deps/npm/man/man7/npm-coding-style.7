@@ -1,4 +1,4 @@
-.TH "NPM\-CODING\-STYLE" "7" "September 2014" "" ""
+.TH "NPM\-CODING\-STYLE" "7" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-coding-style\fR \- npm's "funny" coding style
 .SH DESCRIPTION
@@ -29,18 +29,18 @@ Curly braces belong on the same line as the thing that necessitates them\.
 Bad:
 .P
 .RS 2
-.EX
+.nf
 function ()
 {
-.EE
+.fi
 .RE
 .P
 Good:
 .P
 .RS 2
-.EX
+.nf
 function () {
-.EE
+.fi
 .RE
 .P
 If a block needs to wrap to the next line, use a curly brace\.  Don't
@@ -49,22 +49,22 @@ use it if it doesn't\.
 Bad:
 .P
 .RS 2
-.EX
+.nf
 if (foo) { bar() }
 while (foo)
   bar()
-.EE
+.fi
 .RE
 .P
 Good:
 .P
 .RS 2
-.EX
+.nf
 if (foo) bar()
 while (foo) {
   bar()
 }
-.EE
+.fi
 .RE
 .SH Semicolons
 .P
@@ -87,7 +87,7 @@ as a function call or property access, respectively\.
 Some examples of good semicolon usage:
 .P
 .RS 2
-.EX
+.nf
 ;(x || y)\.doSomething()
 ;[a, b, c]\.forEach(doSomething)
 for (var i = 0; i < 10; i ++) {
@@ -98,7 +98,7 @@ for (var i = 0; i < 10; i ++) {
   }
   end()
 }
-.EE
+.fi
 .RE
 .P
 Note that starting lines with \fB\-\fR and \fB+\fR also should be prefixed
@@ -111,7 +111,7 @@ line, directly below the token that starts the list\.  Put the
 final token in the list on a line by itself\.  For example:
 .P
 .RS 2
-.EX
+.nf
 var magicWords = [ "abracadabra"
                  , "gesundheit"
                  , "ventrilo"
@@ -123,7 +123,7 @@ var magicWords = [ "abracadabra"
   , b = "abc"
   , etc
   , somethingElse
-.EE
+.fi
 .RE
 .SH Whitespace
 .P
@@ -166,7 +166,7 @@ Use appropriate log levels\.  See npm help 7 \fBnpm\-config\fR and search for
 .SH Case, naming, etc\.
 .P
 Use \fBlowerCamelCase\fR for multiword identifiers when they refer to objects,
-functions, methods, members, or anything not specified in this section\.
+functions, methods, properties, or anything not specified in this section\.
 .P
 Use \fBUpperCamelCase\fR for class names (things that you'd pass to "new")\.
 .P

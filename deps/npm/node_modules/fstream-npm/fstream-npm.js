@@ -93,6 +93,12 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
   // readme files should never be ignored.
   if (entry.match(/^readme(\.[^\.]*)$/i)) return true
 
+  // license files should never be ignored.
+  if (entry.match(/^(license|licence)(\.[^\.]*)?$/i)) return true
+
+  // changelogs should never be ignored.
+  if (entry.match(/^(changes|changelog|history)(\.[^\.]*)?$/i)) return true
+
   // special rules.  see below.
   if (entry === "node_modules" && this.packageRoot) return true
 

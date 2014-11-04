@@ -1,5 +1,6 @@
 
 module.exports = init
+module.exports.yes = yes
 
 var PZ = require('promzard').PromZard
 var path = require('path')
@@ -13,6 +14,13 @@ var read = require('read')
 // and assign default values for things.
 // readJson.extras(file, data, cb)
 var readJson = require('read-package-json')
+
+function yes (conf) {
+  return !!(
+    conf.get('yes') || conf.get('y') ||
+    conf.get('force') || conf.get('f')
+  )
+}
 
 function init (dir, input, config, cb) {
   if (typeof config === 'function')
@@ -35,7 +43,7 @@ function init (dir, input, config, cb) {
   var package = path.resolve(dir, 'package.json')
   input = path.resolve(input)
   var pkg
-  var ctx = {}
+  var ctx = { yes: yes(config) }
 
   var es = readJson.extraSet
   readJson.extraSet = es.filter(function (fn) {
@@ -91,14 +99,21 @@ function init (dir, input, config, cb) {
           delete pkg.repository
 
         var d = JSON.stringify(pkg, null, 2) + '\n'
+        function write (yes) {
+          fs.writeFile(package, d, 'utf8', function (er) {
+            if (!er && yes) console.log('Wrote to %s:\n\n%s\n', package, d)
+            return cb(er, pkg)
+          })
+        }
+        if (ctx.yes) {
+          return write(true)
+        }
         console.log('About to write to %s:\n\n%s\n', package, d)
         read({prompt:'Is this ok? ', default: 'yes'}, function (er, ok) {
           if (!ok || ok.toLowerCase().charAt(0) !== 'y') {
             console.log('Aborted.')
           } else {
-            fs.writeFile(package, d, 'utf8', function (er) {
-              return cb(er, pkg)
-            })
+            return write()
           }
         })
       })

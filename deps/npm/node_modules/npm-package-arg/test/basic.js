@@ -8,7 +8,7 @@ require("tap").test("basic", function (t) {
     "foo@1.2": {
       name: "foo",
       type: "range",
-      spec: ">=1.2.0-0 <1.3.0-0",
+      spec: ">=1.2.0 <1.3.0",
       raw: "foo@1.2",
       rawSpec: "1.2"
     },

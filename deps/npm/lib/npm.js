@@ -16,7 +16,7 @@ require('child-process-close')
 
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter()
-  , npmconf = require("npmconf")
+  , npmconf = require("./config/core.js")
   , log = require("npmlog")
   , fs = require("graceful-fs")
   , path = require("path")
@@ -99,7 +99,6 @@ var commandCache = {}
               , "update"
               , "outdated"
               , "prune"
-              , "submodule"
               , "pack"
               , "dedupe"
 
@@ -424,11 +423,7 @@ Object.defineProperty(npm, "cache",
   })
 
 var tmpFolder
-var crypto = require("crypto")
-var rand = crypto.randomBytes(6)
-                 .toString("base64")
-                 .replace(/\//g, '_')
-                 .replace(/\+/, '-')
+var rand = require("crypto").randomBytes(4).toString("hex")
 Object.defineProperty(npm, "tmp",
   { get : function () {
       if (!tmpFolder) tmpFolder = "npm-" + process.pid + "-" + rand

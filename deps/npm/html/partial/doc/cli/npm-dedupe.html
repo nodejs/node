@@ -1,0 +1,43 @@
+<h1><a href="../cli/npm-dedupe.html">npm-dedupe</a></h1> <p>Reduce duplication</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm dedupe [package names...]
+npm ddp [package names...]
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>Searches the local package tree and attempts to simplify the overall
+structure by moving dependencies further up the tree, where they can
+be more effectively shared by multiple dependent packages.</p>
+<p>For example, consider this dependency graph:</p>
+<pre><code>a
++-- b &lt;-- depends on c@1.0.x
+|   `-- c@1.0.3
+`-- d &lt;-- depends on c@~1.0.9
+    `-- c@1.0.10
+</code></pre><p>In this case, <code><a href="../cli/npm-dedupe.html">npm-dedupe(1)</a></code> will transform the tree to:</p>
+<pre><code>a
++-- b
++-- d
+`-- c@1.0.10
+</code></pre><p>Because of the hierarchical nature of node&#39;s module lookup, b and d
+will both get their dependency met by the single c package at the root
+level of the tree.</p>
+<p>If a suitable version exists at the target location in the tree
+already, then it will be left untouched, but the other duplicates will
+be deleted.</p>
+<p>If no suitable version can be found, then a warning is printed, and
+nothing is done.</p>
+<p>If any arguments are supplied, then they are filters, and only the
+named packages will be touched.</p>
+<p>Note that this operation transforms the dependency tree, and may
+result in packages getting updated versions, perhaps from the npm
+registry.</p>
+<p>This feature is experimental, and may change in future versions.</p>
+<p>The <code>--tag</code> argument will apply to all of the affected dependencies. If a
+tag with the given name exists, the tagged version is preferred over newer
+versions.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-ls.html">npm-ls(1)</a></li>
+<li><a href="../cli/npm-update.html">npm-update(1)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+</ul>
+

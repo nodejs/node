@@ -1,4 +1,5 @@
-module.exports = dezalgo
+var wrappy = require('wrappy')
+module.exports = wrappy(dezalgo)
 
 var asap = require('asap')
 

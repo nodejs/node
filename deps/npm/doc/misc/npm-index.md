@@ -161,10 +161,6 @@ Start a package
 
 Stop a package
 
-### npm-submodule(1)
-
-Add a package as a git submodule
-
 ### npm-tag(1)
 
 Tag a published version
@@ -324,10 +320,6 @@ Start a package
 ### npm-stop(3)
 
 Stop a package
-
-### npm-submodule(3)
-
-Add a package as a git submodule
 
 ### npm-tag(3)
 

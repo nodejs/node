@@ -1,13 +1,13 @@
-.TH "NPM\-LINK" "3" "September 2014" "" ""
+.TH "NPM\-LINK" "3" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.link(callback)
 npm\.commands\.link(packages, callback)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -29,11 +29,11 @@ iteratively without having to continually rebuild\.
 For example:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.link(cb)           # creates global link from the cwd
                                 # (say redis package)
 npm\.commands\.link('redis', cb)  # link\-install the package
-.EE
+.fi
 .RE
 .P
 Now, any changes to the redis package will be reflected in

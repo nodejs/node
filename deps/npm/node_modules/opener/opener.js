@@ -38,7 +38,7 @@ function opener(args, options, callback) {
         args = ["/c", "start", '""'].concat(args);
     }
 
-    childProcess.execFile(command, args, options, callback);
+    return childProcess.execFile(command, args, options, callback);
 }
 
 // Export `opener` for programmatic access.

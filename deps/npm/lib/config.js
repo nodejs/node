@@ -11,8 +11,9 @@ config.usage = "npm config set <key> <value>"
 
 var log = require("npmlog")
   , npm = require("./npm.js")
+  , npmconf = require("./config/core.js")
   , fs = require("graceful-fs")
-  , npmconf = require("npmconf")
+  , writeFileAtomic = require("write-file-atomic")
   , types = npmconf.defs.types
   , ini = require("ini")
   , editor = require("editor")
@@ -88,17 +89,16 @@ function edit (cb) {
                 if (key === "logstream") return arr
                 return arr.concat(
                   ini.stringify(obj)
-                    .replace(/\n$/m, '')
-                    .replace(/^/g, '; ')
-                    .replace(/\n/g, '\n; ')
-                    .split('\n'))
+                    .replace(/\n$/m, "")
+                    .replace(/^/g, "; ")
+                    .replace(/\n/g, "\n; ")
+                    .split("\n"))
               }, []))
               .concat([""])
               .join(os.EOL)
-      fs.writeFile
+      writeFileAtomic
         ( f
         , data
-        , "utf8"
         , function (er) {
             if (er) return cb(er)
             editor(f, { editor: e }, cb)

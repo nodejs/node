@@ -154,7 +154,7 @@ use npm itself to do.
         if (er) return commandFailed(er)
         // command succeeded, and data might have some info
       })
-      npm.on("log", function (message) { .... })
+      npm.registry.log.on("log", function (message) { .... })
     })
 
 The `load` function takes an object hash of the command-line configs.

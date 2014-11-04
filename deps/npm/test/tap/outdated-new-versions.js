@@ -3,11 +3,13 @@ var test = require("tap").test
 var npm = require("../../")
 var mkdirp = require("mkdirp")
 var rimraf = require("rimraf")
+var path = require("path")
 
 var mr = require("npm-registry-mock")
 
-var pkg = __dirname + "/outdated-new-versions"
-mkdirp.sync(pkg + "/cache")
+var pkg = path.resolve(__dirname, "outdated-new-versions")
+var cache = path.resolve(pkg, "cache")
+mkdirp.sync(cache)
 
 
 test("dicovers new versions in outdated", function (t) {
@@ -15,7 +17,7 @@ test("dicovers new versions in outdated", function (t) {
   t.plan(2)
 
   mr(common.port, function (s) {
-    npm.load({cache: pkg + "/cache", registry: common.registry}, function () {
+    npm.load({cache: cache, registry: common.registry}, function () {
       npm.outdated(function (er, d) {
         for (var i = 0; i < d.length; i++) {
           if (d[i][1] === "underscore")
@@ -31,6 +33,6 @@ test("dicovers new versions in outdated", function (t) {
 })
 
 test("cleanup", function (t) {
-  rimraf.sync(pkg + "/cache")
+  rimraf.sync(cache)
   t.end()
 })

@@ -1,12 +1,12 @@
-.TH "NPM\-INIT" "1" "September 2014" "" ""
+.TH "NPM\-INIT" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-init\fR \- Interactively create a package\.json file
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
-npm init
-.EE
+.nf
+npm init [\-f|\-\-force|\-y|\-\-yes]
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -20,6 +20,9 @@ the options in there\.
 .P
 It is strictly additive, so it does not delete options from your package\.json
 without a really good reason to do so\.
+.P
+If you invoke it with \fB\-f\fR, \fB\-\-force\fR, \fB\-y\fR, or \fB\-\-yes\fR, it will use only
+defaults and not prompt you for any options\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

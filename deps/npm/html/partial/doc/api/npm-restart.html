@@ -1,0 +1,16 @@
+<h1><a href="../api/npm-restart.html">npm-restart</a></h1> <p>Start a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.restart(packages, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This runs a package&#39;s &quot;restart&quot; script, if one was provided.
+Otherwise it runs package&#39;s &quot;stop&quot; script, if one was provided, and then
+the &quot;start&quot; script.</p>
+<p>If no version is specified, then it restarts the &quot;active&quot; version.</p>
+<p>npm can run tests on multiple packages. Just specify multiple packages
+in the <code>packages</code> parameter.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../api/npm-start.html">npm-start(3)</a></li>
+<li><a href="../api/npm-stop.html">npm-stop(3)</a></li>
+</ul>
+

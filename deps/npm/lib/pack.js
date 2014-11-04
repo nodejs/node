@@ -11,6 +11,8 @@ var npm = require("./npm.js")
   , chain = require("slide").chain
   , path = require("path")
   , cwd = process.cwd()
+  , writeStream = require('fs-write-stream-atomic')
+  , cachedPackageRoot = require("./cache/cached-package-root.js")
 
 pack.usage = "npm pack <pkg>"
 
@@ -43,17 +45,14 @@ function pack_ (pkg, cb) {
   cache.add(pkg, null, null, false, function (er, data) {
     if (er) return cb(er)
 
-    var name = data.name
     // scoped packages get special treatment
+    var name = data.name
     if (name[0] === "@") name = name.substr(1).replace(/\//g, "-")
-
     var fname = name + "-" + data.version + ".tgz"
-      , cached = path.resolve( npm.cache
-                             , data.name
-                             , data.version
-                             , "package.tgz" )
+
+    var cached = path.join(cachedPackageRoot(data), "package.tgz")
       , from = fs.createReadStream(cached)
-      , to = fs.createWriteStream(fname)
+      , to = writeStream(fname)
       , errState = null
 
     from.on("error", cb_)

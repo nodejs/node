@@ -52,7 +52,7 @@ test("ignore install if package is linked", function (t) {
     stdio: "inherit"
   }, function (er, code) {
     if (er) throw er
-    t.equal(code, 0)
+    t.equal(code, 0, "npm install exited with code")
     t.end()
   })
 })

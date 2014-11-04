@@ -1,14 +1,14 @@
-.TH "NPM\-LINK" "1" "September 2014" "" ""
+.TH "NPM\-LINK" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm link (in package folder)
 npm link [@<scope>/]<pkgname>
 npm ln (with any of the previous argument usage)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -36,12 +36,12 @@ test it iteratively without having to continually rebuild\.
 For example:
 .P
 .RS 2
-.EX
+.nf
 cd ~/projects/node\-redis    # go into the package directory
 npm link                    # creates global link
 cd ~/projects/node\-bloggy   # go into some other package directory\.
 npm link redis              # link\-install the package
-.EE
+.fi
 .RE
 .P
 Now, any changes to ~/projects/node\-redis will be reflected in
@@ -51,19 +51,19 @@ You may also shortcut the two steps in one\.  For example, to do the
 above use\-case in a shorter way:
 .P
 .RS 2
-.EX
+.nf
 cd ~/projects/node\-bloggy  # go into the dir of your main project
 npm link \.\./node\-redis     # link the dir of your dependency
-.EE
+.fi
 .RE
 .P
 The second line is the equivalent of doing:
 .P
 .RS 2
-.EX
+.nf
 (cd \.\./node\-redis; npm link)
 npm link redis
-.EE
+.fi
 .RE
 .P
 That is, it first creates a global link, and then links the global
@@ -73,9 +73,9 @@ If your linked package is scoped (see npm help 7 \fBnpm\-scope\fR) your link com
 include that scope, e\.g\.
 .P
 .RS 2
-.EX
+.nf
 npm link @myorg/privatepackage
-.EE
+.fi
 .RE
 .SH SEE ALSO
 .RS 0

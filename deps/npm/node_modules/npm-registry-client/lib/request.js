@@ -44,7 +44,8 @@ function regRequest (method, uri, options, cb_) {
     , isUserChange = where.match(adduserChange)
     , adduserNew = /^\/?-\/user\/org\.couchdb\.user:([^\/]+)$/
     , isNewUser = where.match(adduserNew)
-    , alwaysAuth = this.conf.get("always-auth")
+    , registry = url.format(parsed)
+    , alwaysAuth = this.conf.getCredentialsByURI(registry).alwaysAuth
     , isDelete = method === "DELETE"
     , isWrite = what || isDelete
 
@@ -70,9 +71,7 @@ function regRequest (method, uri, options, cb_) {
     }).join("/")
     if (q) where += "?" + q
 
-    var registry = url.format(parsed)
     this.log.verbose("request", "resolving registry", [registry, where])
-
     where = url.resolve(registry, where)
     this.log.verbose("request", "after pass 2, where is", where)
   }

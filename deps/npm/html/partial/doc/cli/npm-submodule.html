@@ -1,0 +1,22 @@
+<h1><a href="../cli/npm-submodule.html">npm-submodule</a></h1> <p>Add a package as a git submodule</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm submodule &lt;pkg&gt;
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>If the specified package has a git repository url in its package.json
+description, then this command will add it as a git submodule at
+<code>node_modules/&lt;pkg name&gt;</code>.</p>
+<p>This is a convenience only.  From then on, it&#39;s up to you to manage
+updates by using the appropriate git commands.  npm will stubbornly
+refuse to update, modify, or remove anything with a <code>.git</code> subfolder
+in it.</p>
+<p>This command also does not install missing dependencies, if the package
+does not include them in its git repository.  If <code>npm ls</code> reports that
+things are missing, you can either install, link, or submodule them yourself,
+or you can do <code>npm explore &lt;pkgname&gt; -- npm install</code> to install the
+dependencies into the submodule folder.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li>git help submodule</li>
+</ul>
+

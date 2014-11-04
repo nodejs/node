@@ -1,0 +1,37 @@
+<h1><a href="../cli/npm-rm.html">npm-rm</a></h1> <p>Remove a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm uninstall [@&lt;scope&gt;/]&lt;package&gt; [--save|--save-dev|--save-optional]
+npm rm (with any of the previous argument usage)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This uninstalls a package, completely removing everything npm installed
+on its behalf.</p>
+<p>Example:</p>
+<pre><code>npm uninstall sax
+</code></pre><p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
+it uninstalls the current package context as a global package.</p>
+<p><code>npm uninstall</code> takes 3 exclusive, optional flags which save or update
+the package version in your main package.json:</p>
+<ul>
+<li><p><code>--save</code>: Package will be removed from your <code>dependencies</code>.</p>
+</li>
+<li><p><code>--save-dev</code>: Package will be removed from your <code>devDependencies</code>.</p>
+</li>
+<li><p><code>--save-optional</code>: Package will be removed from your <code>optionalDependencies</code>.</p>
+</li>
+</ul>
+<p>Scope is optional and follows the usual rules for <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
+<p>Examples:</p>
+<pre><code>npm uninstall sax --save
+npm uninstall @myorg/privatepackage --save
+npm uninstall node-tap --save-dev
+npm uninstall dtrace-provider --save-optional
+</code></pre><h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-prune.html">npm-prune(1)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+</ul>
+
