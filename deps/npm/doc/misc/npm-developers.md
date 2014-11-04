@@ -76,7 +76,7 @@ least, you need:
 
 * scripts:
   If you have a special compilation or installation script, then you
-  should put it in the `scripts` hash.  You should definitely have at
+  should put it in the `scripts` object.  You should definitely have at
   least a basic smoke-test command as the "scripts.test" field.
   See npm-scripts(7).
 
@@ -86,8 +86,8 @@ least, you need:
   then you need to specify that in the "main" field.
 
 * directories:
-  This is a hash of folders.  The best ones to include are "lib" and
-  "doc", but if you specify a folder full of man pages in "man", then
+  This is an object mapping names to folders.  The best ones to include are
+  "lib" and "doc", but if you use "man" to specify a folder full of man pages,
   they'll get installed just like these ones.
 
 You can use `npm init` in the root of your package in order to get you

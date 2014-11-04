@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "September 2014" "" ""
+.TH "NPM\-CONFIG" "7" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -99,11 +99,11 @@ configuration parameter, then it is expanded to that configuration
 parameter\.  For example:
 .P
 .RS 2
-.EX
+.nf
 npm ls \-\-par
 # same as:
 npm ls \-\-parseable
-.EE
+.fi
 .RE
 .P
 If multiple single\-character shorthands are strung together, and the
@@ -112,11 +112,11 @@ param, then it is expanded to its various component pieces\.  For
 example:
 .P
 .RS 2
-.EX
+.nf
 npm ls \-gpld
 # same as:
 npm ls \-\-global \-\-parseable \-\-long \-\-loglevel info
-.EE
+.fi
 .RE
 .SH Per\-Package Config Settings
 .P
@@ -126,27 +126,27 @@ keys are overwritten in the environment if there is a config param of
 this:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "config" : { "port" : "8080" }
 , "scripts" : { "start" : "node server\.js" } }
-.EE
+.fi
 .RE
 .P
 and the server\.js is this:
 .P
 .RS 2
-.EX
+.nf
 http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
-.EE
+.fi
 .RE
 .P
 then the user could change the behavior by doing:
 .P
 .RS 2
-.EX
+.nf
 npm config set foo:port 80
-.EE
+.fi
 .RE
 .P
 See npm help 5 package\.json for more information\.
@@ -535,7 +535,7 @@ A module that will be loaded by the \fBnpm init\fR command\.  See the
 documentation for the
 init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
 for more information, or npm help init\.
-.SS init\.author\.name
+.SS init\-author\-name
 .RS 0
 .IP \(bu 2
 Default: ""
@@ -545,7 +545,7 @@ Type: String
 .RE
 .P
 The value \fBnpm init\fR should use by default for the package author's name\.
-.SS init\.author\.email
+.SS init\-author\-email
 .RS 0
 .IP \(bu 2
 Default: ""
@@ -555,7 +555,7 @@ Type: String
 .RE
 .P
 The value \fBnpm init\fR should use by default for the package author's email\.
-.SS init\.author\.url
+.SS init\-author\-url
 .RS 0
 .IP \(bu 2
 Default: ""
@@ -565,7 +565,7 @@ Type: String
 .RE
 .P
 The value \fBnpm init\fR should use by default for the package author's homepage\.
-.SS init\.license
+.SS init\-license
 .RS 0
 .IP \(bu 2
 Default: "ISC"
@@ -575,7 +575,7 @@ Type: String
 .RE
 .P
 The value \fBnpm init\fR should use by default for the package license\.
-.SS init\.version
+.SS init\-version
 .RS 0
 .IP \(bu 2
 Default: "0\.0\.0"
@@ -647,7 +647,7 @@ to the npm registry\.  Must be IPv4 in versions of Node prior to 0\.12\.
 .SS loglevel
 .RS 0
 .IP \(bu 2
-Default: "http"
+Default: "warn"
 .IP \(bu 2
 Type: String
 .IP \(bu 2
@@ -659,7 +659,7 @@ What level of logs to report\.  On failure, \fIall\fR logs are written to
 \fBnpm\-debug\.log\fR in the current working directory\.
 .P
 Any logs of a higher level than the setting are shown\.
-The default is "http", which shows http, warn, and error output\.
+The default is "warn", which shows warn and error output\.
 .SS logstream
 .RS 0
 .IP \(bu 2
@@ -709,7 +709,7 @@ Type: semver or false
 
 .RE
 .P
-The node version to use when checking package's "engines" hash\.
+The node version to use when checking a package's \fBengines\fR map\.
 .SS npat
 .RS 0
 .IP \(bu 2
@@ -740,7 +740,7 @@ Type: Boolean
 
 .RE
 .P
-Attempt to install packages in the \fBoptionalDependencies\fR hash\.  Note
+Attempt to install packages in the \fBoptionalDependencies\fR object\.  Note
 that if these packages fail to install, the overall installation
 process is not aborted\.
 .SS parseable
@@ -849,8 +849,8 @@ Type: Boolean
 .P
 Save installed packages to a package\.json file as dependencies\.
 .P
-When used with the \fBnpm rm\fR command, it removes it from the dependencies
-hash\.
+When used with the \fBnpm rm\fR command, it removes it from the \fBdependencies\fR
+object\.
 .P
 Only works if there is already a package\.json file present\.
 .SS save\-bundle
@@ -877,10 +877,10 @@ Type: Boolean
 
 .RE
 .P
-Save installed packages to a package\.json file as devDependencies\.
+Save installed packages to a package\.json file as \fBdevDependencies\fR\|\.
 .P
 When used with the \fBnpm rm\fR command, it removes it from the
-devDependencies hash\.
+\fBdevDependencies\fR object\.
 .P
 Only works if there is already a package\.json file present\.
 .SS save\-exact
@@ -908,7 +908,7 @@ Save installed packages to a package\.json file as
 optionalDependencies\.
 .P
 When used with the \fBnpm rm\fR command, it removes it from the
-devDependencies hash\.
+\fBdevDependencies\fR object\.
 .P
 Only works if there is already a package\.json file present\.
 .SS save\-prefix
@@ -1163,8 +1163,8 @@ Type: boolean
 
 .RE
 .P
-If true, output the npm version as well as node's \fBprocess\.versions\fR
-hash, and exit successfully\.
+If true, output the npm version as well as node's \fBprocess\.versions\fR map, and
+exit successfully\.
 .P
 Only relevant when specified explicitly on the command line\.
 .SS viewer

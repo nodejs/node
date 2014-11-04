@@ -12,8 +12,8 @@ var tmp = path.resolve(dir, "tmp")
 var pkg = path.resolve(nm, "npm-test-gitignore")
 
 var env = {
-  npm_config_cache: cache,
-  npm_config_tmp: tmp
+  "npm_config_cache": cache,
+  "npm_config_tmp": tmp
 }
 
 var conf = {
@@ -22,44 +22,7 @@ var conf = {
   stdio: [ "pipe", "pipe", 2 ]
 }
 
-test("npmignore only", function (t) {
-  setup()
-  var file = path.resolve(dir, "npmignore.tgz")
-  common.npm(["install", file], conf, function (code, stdout, stderr) {
-    verify(t, code, ["foo"])
-  })
-})
-
-test("gitignore only", function (t) {
-  setup()
-  var file = path.resolve(dir, "gitignore.tgz")
-  common.npm(["install", file], conf, function (code, stdout, stderr) {
-    verify(t, code, ["foo"])
-  })
-})
-
-test("gitignore and npmignore", function (t) {
-  setup()
-  var file = path.resolve(dir, "gitignore-and-npmignore.tgz")
-  common.npm(["install", file], conf, function (code, stdout, stderr) {
-    verify(t, code, ["foo", "bar"])
-  })
-})
-
-test("gitignore and npmignore, not gzipped", function (t) {
-  setup()
-  var file = path.resolve(dir, "gitignore-and-npmignore.tar")
-  common.npm(["install", file], conf, function (code, stdout, stderr) {
-    verify(t, code, ["foo", "bar"])
-  })
-})
-
-test("clean", function (t) {
-  clean()
-  t.end()
-})
-
-function verify (t, code, files) {
+function verify (t, files, err, code) {
   if (code) {
     t.fail("exited with failure: " + code)
     return t.end()
@@ -69,6 +32,35 @@ function verify (t, code, files) {
   t.same(actual, expect)
   t.end()
 }
+
+test("npmignore only", function (t) {
+  setup()
+  var file = path.resolve(dir, "npmignore.tgz")
+  common.npm(["install", file], conf, verify.bind(null, t, ["foo"]))
+})
+
+test("gitignore only", function (t) {
+  setup()
+  var file = path.resolve(dir, "gitignore.tgz")
+  common.npm(["install", file], conf, verify.bind(null, t, ["foo"]))
+})
+
+test("gitignore and npmignore", function (t) {
+  setup()
+  var file = path.resolve(dir, "gitignore-and-npmignore.tgz")
+  common.npm(["install", file], conf, verify.bind(null, t, ["foo", "bar"]))
+})
+
+test("gitignore and npmignore, not gzipped", function (t) {
+  setup()
+  var file = path.resolve(dir, "gitignore-and-npmignore.tar")
+  common.npm(["install", file], conf, verify.bind(null, t, ["foo", "bar"]))
+})
+
+test("clean", function (t) {
+  clean()
+  t.end()
+})
 
 function setup () {
   clean()

@@ -1,13 +1,13 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "September 2014" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm run\-script [command] [\-\- <args>]
 npm run [command] [\-\- <args>]
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -18,6 +18,20 @@ is provided, it will list the available top level scripts\.
 .P
 It is used by the test, start, restart, and stop commands, but can be
 called directly, as well\.
+.P
+As of \fBnpm@2\.0\.0\fR \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. The special option \fB\-\-\fR is used by
+getopt \fIhttp://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
+all the arguments after the \fB\-\-\fR directly to your script:
+.P
+.RS 2
+.nf
+npm run test \-\- \-\-grep="pattern"
+.fi
+.RE
+.P
+The arguments will only be passed to the script specified after \fBnpm run\fR
+and not to any pre or post script\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

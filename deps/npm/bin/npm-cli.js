@@ -21,7 +21,7 @@ log.info("it worked if it ends with", "ok")
 
 var path = require("path")
   , npm = require("../lib/npm.js")
-  , npmconf = require("npmconf")
+  , npmconf = require("../lib/config/core.js")
   , errorHandler = require("../lib/utils/error-handler.js")
 
   , configDefs = npmconf.defs

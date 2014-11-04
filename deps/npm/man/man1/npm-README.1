@@ -1,4 +1,4 @@
-.TH "NPM" "1" "September 2014" "" ""
+.TH "NPM" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm\fR \- node package manager
 .P
@@ -37,26 +37,26 @@ https://www\.npmjs\.org/install\.sh\|\.  You can download that and run it\.
 Here's an example using curl:
 .P
 .RS 2
-.EX
+.nf
 curl \-L https://npmjs\.org/install\.sh | sh
-.EE
+.fi
 .RE
 .SS Slightly Fancier
 .P
 You can set any npm configuration params with that script:
 .P
 .RS 2
-.EX
+.nf
 npm_config_prefix=/some/path sh install\.sh
-.EE
+.fi
 .RE
 .P
 Or, you can run it in uber\-debuggery mode:
 .P
 .RS 2
-.EX
+.nf
 npm_debug=1 sh install\.sh
-.EE
+.fi
 .RE
 .SS Even Fancier
 .P
@@ -102,9 +102,9 @@ If you would like to ensure that npm \fBalways\fR runs scripts as the
 set the following configuration param:
 .P
 .RS 2
-.EX
+.nf
 npm config set unsafe\-perm false
-.EE
+.fi
 .RE
 .P
 This will prevent running in unsafe mode, even as non\-root users\.
@@ -113,17 +113,17 @@ This will prevent running in unsafe mode, even as non\-root users\.
 So sad to see you go\.
 .P
 .RS 2
-.EX
+.nf
 sudo npm uninstall npm \-g
-.EE
+.fi
 .RE
 .P
 Or, if that fails,
 .P
 .RS 2
-.EX
+.nf
 sudo make uninstall
-.EE
+.fi
 .RE
 .SH More Severe Uninstalling
 .P
@@ -138,19 +138,19 @@ To remove cruft left behind by npm 0\.x, you can use the included
 \fBclean\-old\.sh\fR script file\.  You can run it conveniently like this:
 .P
 .RS 2
-.EX
+.nf
 npm explore npm \-g \-\- sh scripts/clean\-old\.sh
-.EE
+.fi
 .RE
 .P
 npm uses two configuration files, one for per\-user configs, and another
 for global (every\-user) configs\.  You can view them by doing:
 .P
 .RS 2
-.EX
+.nf
 npm config get userconfig   # defaults to ~/\.npmrc
 npm config get globalconfig # defaults to /usr/local/etc/npmrc
-.EE
+.fi
 .RE
 .P
 Uninstalling npm does not remove configuration files by default\.  You
@@ -171,7 +171,7 @@ that it depends on, but for now, there are some things that you must
 use npm itself to do\.
 .P
 .RS 2
-.EX
+.nf
 var npm = require("npm")
 npm\.load(myConfigObject, function (er) {
   if (er) return handlError(er)
@@ -179,9 +179,9 @@ npm\.load(myConfigObject, function (er) {
     if (er) return commandFailed(er)
     // command succeeded, and data might have some info
   })
-  npm\.on("log", function (message) { \.\.\.\. })
+  npm\.registry\.log\.on("log", function (message) { \.\.\.\. })
 })
-.EE
+.fi
 .RE
 .P
 The \fBload\fR function takes an object hash of the command\-line configs\.

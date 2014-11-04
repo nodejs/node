@@ -10,16 +10,20 @@ var exec = require("child_process").execFile
   , npm = require("../npm.js")
   , which = require("which")
   , git = npm.config.get("git")
+  , assert = require("assert")
+  , log = require("npmlog")
 
 function prefixGitArgs() {
   return process.platform === "win32" ? ["-c", "core.longpaths=true"] : []
 }
 
 function execGit(args, options, cb) {
+  log.info("git", args)
   return exec(git, prefixGitArgs().concat(args || []), options, cb)
 }
 
 function spawnGit(args, options, cb) {
+  log.info("git", args)
   return spawn(git, prefixGitArgs().concat(args || []), options)
 }
 
@@ -33,6 +37,7 @@ function whichGit(cb) {
 }
 
 function whichAndExec(args, options, cb) {
+  assert.equal(typeof cb, "function", "no callback provided")
   // check for git
   whichGit(function (err) {
     if (err) {

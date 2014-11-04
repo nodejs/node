@@ -3,45 +3,49 @@ var test = require("tap").test
 var npm = require("../../lib/npm.js")
 var requireInject = require("require-inject")
 
-npm.load({loglevel : "silent"}, function () {
-  var resolved = path.resolve(__dirname, "dir-with-package")
-  var resolvedPackage = path.join(resolved, "package.json")
+var realizePackageSpecifier = requireInject("realize-package-specifier", {
+  "fs": {
+    stat: function (file, cb) {
+      process.nextTick(function () {
+        switch (file) {
+        case path.resolve("named"):
+          cb(new Error("ENOENT"))
+          break
+        case path.resolve("file.tgz"):
+          cb(null, { isDirectory: function () { return false } })
+          break
+        case path.resolve("dir-no-package"):
+          cb(null, { isDirectory: function () { return true } })
+          break
+        case path.resolve("dir-no-package/package.json"):
+          cb(new Error("ENOENT"))
+          break
+        case path.resolve("dir-with-package"):
+          cb(null, { isDirectory: function () { return true } })
+          break
+        case path.resolve("dir-with-package/package.json"):
+          cb(null, {})
+          break
+        case path.resolve(__dirname, "dir-with-package"):
+          cb(null, { isDirectory: function () { return true } })
+          break
+        case path.join(__dirname, "dir-with-package", "package.json"):
+          cb(null, {})
+          break
+        case path.resolve(__dirname, "file.tgz"):
+          cb(null, { isDirectory: function () { return false } })
+          break
+        default:
+          throw new Error("Unknown test file passed to stat: " + file)
+        }
+      })
+    }
+  }
+})
 
+npm.load({loglevel : "silent"}, function () {
   var cache = requireInject("../../lib/cache.js", {
-    "graceful-fs": {
-      stat: function (file, cb) {
-        process.nextTick(function () {
-          switch (file) {
-          case "named":
-            cb(new Error("ENOENT"))
-            break
-          case "file.tgz":
-            cb(null, { isDirectory: function () { return false } })
-            break
-          case "dir-no-package":
-            cb(null, { isDirectory: function () { return true } })
-            break
-          case "dir-no-package/package.json":
-            cb(new Error("ENOENT"))
-            break
-          case "dir-with-package":
-            cb(null, { isDirectory: function () { return true } })
-            break
-          case "dir-with-package/package.json":
-            cb(null, {})
-            break
-          case resolved:
-            cb(null, { isDirectory: function () { return true } })
-            break
-          case resolvedPackage:
-            cb(null, {})
-            break
-          default:
-            throw new Error("Unknown test file passed to stat: " + file)
-          }
-        })
-      }
-    },
+    "realize-package-specifier":  realizePackageSpecifier,
     "../../lib/cache/add-named.js": function addNamed (name, version, data, cb) {
       cb(null, "addNamed")
     },
@@ -51,7 +55,7 @@ npm.load({loglevel : "silent"}, function () {
   })
 
   test("npm install localdir fallback", function (t) {
-    t.plan(10)
+    t.plan(12)
     cache.add("named", null, null, false, function (er, which) {
       t.ifError(er, "named was cached")
       t.is(which, "addNamed", "registry package name")
@@ -71,6 +75,10 @@ npm.load({loglevel : "silent"}, function () {
     cache.add("file:./dir-with-package", null, __dirname, false, function (er, which) {
       t.ifError(er, "local directory (as URI) with package was cached")
       t.is(which, "addLocal", "file: URI to local directory with package.json")
+    })
+    cache.add("file:./file.tgz", null, __dirname, false, function (er, which) {
+      t.ifError(er, "local file (as URI) with package was cached")
+      t.is(which, "addLocal", "file: URI to local file with package.json")
     })
   })
 })

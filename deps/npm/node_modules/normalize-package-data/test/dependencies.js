@@ -37,6 +37,7 @@ tap.test("warn if bundleDependencies array contains anything else but strings", 
   
   var wanted1 = safeFormat(warningMessages.nonStringBundleDependency, 123)
   var wanted2 = safeFormat(warningMessages.nonStringBundleDependency, {foo:"bar"})
+  var wanted2 = safeFormat(warningMessages.nonDependencyBundleDependency, "abc")
   t.ok(~warnings.indexOf(wanted1), wanted1)
   t.ok(~warnings.indexOf(wanted2), wanted2)
   t.end()

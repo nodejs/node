@@ -11,7 +11,7 @@
 
 <h1><a href="../misc/npm-scripts.html">npm-scripts</a></h1> <p>How npm handles the &quot;scripts&quot; field</p>
 <h2 id="description">DESCRIPTION</h2>
-<p>npm supports the &quot;scripts&quot; member of the package.json script, for the
+<p>npm supports the &quot;scripts&quot; property of the package.json script, for the
 following scripts:</p>
 <ul>
 <li>prepublish:
@@ -41,9 +41,10 @@ Run by the <code>npm start</code> command.</li>
 Run by the <code>npm restart</code> command. Note: <code>npm restart</code> will run the
 stop and start scripts if no <code>restart</code> script is provided.</li>
 </ul>
-<p>Additionally, arbitrary scripts can be executed by running `npm run-script</p>
-<p><pkg> <stage><code>. *Pre* and *post* commands with matching names will be run for
-those as well (e.g.</code>premyscript<code>,</code>myscript<code>,</code>postmyscript`).</p>
+<p>Additionally, arbitrary scripts can be executed by running <code>npm
+run-script &lt;pkg&gt; &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
+names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
+<code>postmyscript</code>).</p>
 <h2 id="note-install-scripts-are-an-antipattern">NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN</h2>
 <p><strong>tl;dr</strong> Don&#39;t use <code>install</code>.  Use a <code>.gyp</code> file for compilation, and
 <code>prepublish</code> for anything else.</p>
@@ -123,7 +124,7 @@ package.json file, then your package scripts would have the
 <p>Configuration parameters are put in the environment with the
 <code>npm_config_</code> prefix. For instance, you can view the effective <code>root</code>
 config by checking the <code>npm_config_root</code> environment variable.</p>
-<h3 id="special-package-json-config-hash">Special: package.json &quot;config&quot; hash</h3>
+<h3 id="special-package-json-config-object">Special: package.json &quot;config&quot; object</h3>
 <p>The package.json &quot;config&quot; keys are overwritten in the environment if
 there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example,
 if the package.json has this:</p>
@@ -189,7 +190,7 @@ fail, and potentially be rolled back.  If the failure is minor or
 only will prevent some optional features, then it&#39;s better to just
 print a warning and exit successfully.</li>
 <li>Try not to use scripts to do what npm can do for you.  Read through
-<code><a href="../files/package.json.html">package.json(5)</a></code> to see all the things that you can specify and enable
+<code><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></code> to see all the things that you can specify and enable
 by simply describing your package appropriately.  In general, this
 will lead to a more robust and consistent state.</li>
 <li>Inspect the env to determine where to put things.  For instance, if
@@ -202,10 +203,10 @@ the user will sudo the npm command in question.</li>
 </ul>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../cli/npm-run-script.html">npm-run-script(1)</a></li>
-<li><a href="../files/package.json.html">package.json(5)</a></li>
-<li><a href="../misc/npm-developers.html">npm-developers(7)</a></li>
-<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-run-script.html"><a href="../cli/npm-run-script.html">npm-run-script(1)</a></a></li>
+<li><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></li>
+<li><a href="../misc/npm-developers.html"><a href="../misc/npm-developers.html">npm-developers(7)</a></a></li>
+<li><a href="../cli/npm-install.html"><a href="../cli/npm-install.html">npm-install(1)</a></a></li>
 </ul>
 
 </div>
@@ -219,5 +220,5 @@ the user will sudo the npm command in question.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@2.0.0</p>
+<p id="footer">npm-scripts &mdash; npm@2.1.6</p>
 

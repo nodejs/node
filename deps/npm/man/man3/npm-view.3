@@ -1,12 +1,12 @@
-.TH "NPM\-VIEW" "3" "September 2014" "" ""
+.TH "NPM\-VIEW" "3" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(args, [silent,] callback)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -25,9 +25,9 @@ For example, to get the package registry entry for the \fBconnect\fR package,
 you can do this:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["connect"], callback)
-.EE
+.fi
 .RE
 .P
 If no version is specified, "latest" is assumed\.
@@ -37,9 +37,9 @@ For example, to show the dependencies of the \fBronn\fR package at version
 0\.3\.5, you could do the following:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["ronn@0\.3\.5", "dependencies"], callback)
-.EE
+.fi
 .RE
 .P
 You can view child field by separating them with a period\.
@@ -47,9 +47,9 @@ To view the git repository URL for the latest version of npm, you could
 do this:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["npm", "repository\.url"], callback)
-.EE
+.fi
 .RE
 .P
 For fields that are arrays, requesting a non\-numeric field will return
@@ -57,9 +57,9 @@ all of the values from the objects in the list\.  For example, to get all
 the contributor names for the "express" project, you can do this:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["express", "contributors\.email"], callback)
-.EE
+.fi
 .RE
 .P
 You may also use numeric indices in square braces to specifically select
@@ -67,9 +67,9 @@ an item in an array field\.  To just get the email address of the first
 contributor in the list, you can do this:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["express", "contributors[0]\.email"], callback)
-.EE
+.fi
 .RE
 .P
 Multiple fields may be specified, and will be printed one after another\.
@@ -77,9 +77,9 @@ For exampls, to get all the contributor names and email addresses, you
 can do this:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["express", "contributors\.name", "contributors\.email"], callback)
-.EE
+.fi
 .RE
 .P
 "Person" fields are shown as a string if they would be shown as an
@@ -87,9 +87,9 @@ object\.  So, for example, this will show the list of npm contributors in
 the shortened string format\.  (See \fBnpm help json\fR for more on this\.)
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["npm", "contributors"], callback)
-.EE
+.fi
 .RE
 .P
 If a version range is provided, then data will be printed for every
@@ -97,9 +97,9 @@ matching version of the package\.  This will show which version of jsdom
 was required by each matching version of yui3:
 .P
 .RS 2
-.EX
+.nf
 npm\.commands\.view(["yui3@'>0\.5\.4'", "dependencies\.jsdom"], callback)
-.EE
+.fi
 .RE
 .SH OUTPUT
 .P
@@ -119,12 +119,12 @@ Console output can be disabled by setting the 'silent' parameter to true\.
 The data returned will be an object in this formation:
 .P
 .RS 2
-.EX
+.nf
 { <version>:
   { <field>: <value>
   , \.\.\. }
 , \.\.\. }
-.EE
+.fi
 .RE
 .P
 corresponding to the list of fields selected\.

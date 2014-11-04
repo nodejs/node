@@ -1,14 +1,14 @@
 var common = require("../common-tap.js")
-var fs = require("fs")
 var test = require("tap").test
 var rimraf = require("rimraf")
 var npm = require("../../")
+var path = require("path")
 
 var mr = require("npm-registry-mock")
 // config
-var pkg = __dirname + '/outdated'
-
-var path = require("path")
+var pkg = path.resolve(__dirname, "outdated")
+var cache = path.resolve(pkg, "cache")
+var nodeModules = path.resolve(pkg, "node_modules")
 
 test("it should not throw", function (t) {
   cleanup()
@@ -33,13 +33,15 @@ test("it should not throw", function (t) {
   }
   mr(common.port, function (s) {
     npm.load({
-      cache: pkg + "/cache",
-      loglevel: 'silent',
+      cache: "cache",
+      loglevel: "silent",
       parseable: true,
       registry: common.registry }
     , function () {
       npm.install(".", function (err) {
+        t.ifError(err, "install success")
         npm.outdated(function (er, d) {
+          t.ifError(er, "outdated success")
           console.log = originalLog
           t.same(output, expOut)
           t.same(d, expData)
@@ -57,6 +59,6 @@ test("cleanup", function (t) {
 })
 
 function cleanup () {
-  rimraf.sync(pkg + "/node_modules")
-  rimraf.sync(pkg + "/cache")
+  rimraf.sync(nodeModules)
+  rimraf.sync(cache)
 }

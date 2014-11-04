@@ -33,7 +33,7 @@ test("npm repo underscore", function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 0, 'exit ok')
       var res = fs.readFileSync(outFile, 'ascii')
       s.close()
@@ -52,7 +52,7 @@ test('npm repo optimist - github (https://)', function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 0, 'exit ok')
       var res = fs.readFileSync(outFile, 'ascii')
       s.close()
@@ -70,7 +70,7 @@ test("npm repo npm-test-peer-deps - no repo", function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 1, 'exit not ok')
       s.close()
       t.end()
@@ -85,7 +85,7 @@ test("npm repo test-repo-url-http - non-github (http://)", function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 0, 'exit ok')
       var res = fs.readFileSync(outFile, 'ascii')
       s.close()
@@ -103,7 +103,7 @@ test("npm repo test-repo-url-https - non-github (https://)", function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 0, 'exit ok')
       var res = fs.readFileSync(outFile, 'ascii')
       s.close()
@@ -121,7 +121,7 @@ test("npm repo test-repo-url-ssh - non-github (ssh://)", function (t) {
       '--registry=' + common.registry,
       '--loglevel=silent',
       '--browser=' + __dirname + '/_script.sh'
-    ], opts, function(err, code, stdout, stderr) {
+    ], opts, function (err, code, stdout, stderr) {
       t.equal(code, 0, 'exit ok')
       var res = fs.readFileSync(outFile, 'ascii')
       s.close()

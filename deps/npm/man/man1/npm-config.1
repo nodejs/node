@@ -1,10 +1,10 @@
-.TH "NPM\-CONFIG" "1" "September 2014" "" ""
+.TH "NPM\-CONFIG" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm config set <key> <value> [\-\-global]
 npm config get <key>
 npm config delete <key>
@@ -13,7 +13,7 @@ npm config edit
 npm c [set|get|delete|list]
 npm get <key>
 npm set <key> <value> [\-\-global]
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -33,9 +33,9 @@ Config supports the following sub\-commands:
 .SS set
 .P
 .RS 2
-.EX
+.nf
 npm config set key value
-.EE
+.fi
 .RE
 .P
 Sets the config key to the value\.
@@ -44,36 +44,36 @@ If value is omitted, then it sets it to "true"\.
 .SS get
 .P
 .RS 2
-.EX
+.nf
 npm config get key
-.EE
+.fi
 .RE
 .P
 Echo the config value to stdout\.
 .SS list
 .P
 .RS 2
-.EX
+.nf
 npm config list
-.EE
+.fi
 .RE
 .P
 Show all the config settings\.
 .SS delete
 .P
 .RS 2
-.EX
+.nf
 npm config delete key
-.EE
+.fi
 .RE
 .P
 Deletes the key from all configuration files\.
 .SS edit
 .P
 .RS 2
-.EX
+.nf
 npm config edit
-.EE
+.fi
 .RE
 .P
 Opens the config file in an editor\.  Use the \fB\-\-global\fR flag to edit the

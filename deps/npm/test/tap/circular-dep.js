@@ -17,12 +17,12 @@ test("installing a package that depends on the current package", function (t) {
   setup(function () {
     npm.install("optimist", function (err) {
       if (err) return t.fail(err)
-      npm.dedupe(function(err) {
+      npm.dedupe(function (err) {
         if (err) return t.fail(err)
         t.ok(existsSync(path.resolve(pkg,
           "minimist", "node_modules", "optimist",
           "node_modules", "minimist"
-        )))
+        )), "circular dependency uncircled")
         cleanup()
         server.close()
       })
