@@ -238,24 +238,6 @@ Handle<Value> SecureContext::New(const Arguments& args) {
 }
 
 
-bool MaybeThrowSSL3() {
-  if (!SSL3_ENABLE) {
-    ThrowException(Exception::Error(String::New("SSLv3 is considered unsafe, see node --help")));
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool MaybeThrowSSL2() {
-  if (!SSL2_ENABLE) {
-    ThrowException(Exception::Error(String::New("SSLv2 is considered unsafe, see node --help")));
-    return true;
-  } else {
-    return false;
-  }
-}
-
 Handle<Value> SecureContext::Init(const Arguments& args) {
   HandleScope scope;
 
@@ -268,42 +250,36 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
-      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
-      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_server_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
 #ifndef OPENSSL_NO_SSL2
-      if (MaybeThrowSSL2()) return Undefined();
       method = SSLv2_client_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
-      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
-      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_server_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
-      if (MaybeThrowSSL3()) return Undefined();
       method = SSLv3_client_method();
 #else
       return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
