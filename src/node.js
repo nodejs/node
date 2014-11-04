@@ -582,11 +582,24 @@
         case 'PIPE':
         case 'TCP':
           var net = NativeModule.require('net');
-          stdin = new net.Socket({
-            fd: fd,
-            readable: true,
-            writable: false
-          });
+
+          // It could be that process has been started with an IPC channel
+          // sitting on fd=0, in such case the pipe for this fd is already
+          // present and creating a new one will lead to the assertion failure
+          // in libuv.
+          if (process._channel && process._channel.fd === fd) {
+            stdin = new net.Socket({
+              handle: process._channel,
+              readable: true,
+              writable: false
+            });
+          } else {
+            stdin = new net.Socket({
+              fd: fd,
+              readable: true,
+              writable: false
+            });
+          }
           break;
 
         default:
