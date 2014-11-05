@@ -1104,6 +1104,48 @@ void SSLWrap<Base>::OnClientHello(void* arg,
 }
 
 
+static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
+  // Only alt_name is escaped at the moment
+  if (OBJ_obj2nid(ext->object) != NID_subject_alt_name)
+    return false;
+
+  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
+  if (method == NULL || method->it == NULL)
+    return false;
+
+  if (method->i2v != reinterpret_cast<X509V3_EXT_I2V>(i2v_GENERAL_NAMES))
+    return false;
+
+  const unsigned char* p = ext->value->data;
+  GENERAL_NAMES* names = reinterpret_cast<GENERAL_NAMES*>(ASN1_item_d2i(
+      NULL,
+      &p,
+      ext->value->length,
+      ASN1_ITEM_ptr(method->it)));
+  if (names == NULL)
+    return false;
+
+  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+    GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
+
+    if (gen->type == GEN_DNS) {
+      ASN1_IA5STRING* name = gen->d.dNSName;
+
+      BIO_write(out, "DNS:", 4);
+      BIO_write(out, name->data, name->length);
+    } else {
+      STACK_OF(CONF_VALUE)* nval = i2v_GENERAL_NAME(
+          const_cast<X509V3_EXT_METHOD*>(method), gen, NULL);
+      if (nval == NULL)
+        return false;
+      X509V3_EXT_val_prn(out, nval, 0, 0);
+    }
+  }
+
+  return true;
+}
+
+
 static Local<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
 
@@ -1146,8 +1188,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     ext = X509_get_ext(cert, index);
     CHECK_NE(ext, nullptr);
 
-    rv = X509V3_EXT_print(bio, ext, 0, 0);
-    CHECK_EQ(rv, 1);
+    if (!SafeX509ExtPrint(bio, ext)) {
+      rv = X509V3_EXT_print(bio, ext, 0, 0);
+      CHECK_EQ(rv, 1);
+    }
 
     BIO_get_mem_ptr(bio, &mem);
     info->Set(keys[i],
