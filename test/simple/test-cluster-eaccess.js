@@ -19,15 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
-var path = require('path');
 var fs = require('fs');
 var net = require('net');
 
-var socketPath = path.join(common.fixturesDir, 'socket-path');
+var socketPath = common.PIPE;
 
 if (cluster.isMaster) {
   var worker = cluster.fork();
