@@ -358,8 +358,9 @@ class ZCtx : public AsyncWrap {
     ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
 
     // no hope of rescue.
+    if (ctx->write_in_progress_)
+      ctx->Unref();
     ctx->write_in_progress_ = false;
-    ctx->Unref();
     if (ctx->pending_close_)
       ctx->Close();
   }
