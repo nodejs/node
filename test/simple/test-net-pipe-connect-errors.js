@@ -31,7 +31,18 @@ var accessErrorFired = false;
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
 // a socket.
-var emptyTxt = path.join(common.fixturesDir, 'empty.txt');
+var emptyTxt = common.PIPE + '.txt';
+function cleanup() {
+  try {
+    fs.unlinkSync(emptyTxt);
+  } catch (e) {
+    if (e.code != 'ENOENT')
+      throw e;
+  }
+}
+process.on('exit', cleanup);
+cleanup();
+fs.writeFileSync(emptyTxt, '');
 var notSocketClient = net.createConnection(emptyTxt, function() {
   assert.ok(false);
 });
