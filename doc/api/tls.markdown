@@ -455,8 +455,6 @@ publicly trusted list of CAs as given in
 
 ## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized])
 
-    Stability: 0 - Deprecated. Use tls.TLSSocket instead.
-
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
 Generally the encrypted one is piped to/from an incoming encrypted data stream,
