@@ -1,1 +1,17 @@
 prefix simple
+
+test-crypto-domains               : PASS,FLAKY
+
+[$system==win32]
+test-timers-first-fire            : PASS,FLAKY
+
+[$system==linux]
+test-fs-readfile-error            : PASS,FLAKY
+test-net-GH-5504                  : PASS,FLAKY
+test-stdin-script-child           : PASS,FLAKY
+test-util-debug                   : PASS,FLAKY
+
+[$system==macos]
+
+[$system==solaris]
+test-debug-signal-cluster         : PASS,FLAKY
