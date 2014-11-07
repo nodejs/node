@@ -52,6 +52,8 @@ mybuffer = myTestFunction(bufstr);
 mybuffer = myTestFunction(bufstr);
 mybuffer.my_buffer = true;
 
+var OBJECT_KINDS = ['dict', 'inobject', 'numeric', 'props'];
+var NODE_VERSION = common.getNodeVersion();
 
 /*
  * Now we're going to fork ourselves to gcore
@@ -174,6 +176,24 @@ gcore.on('exit', function (code) {
     assert.ok(content.indexOf('function myTestFunction()\n') != -1);
     assert.ok(content.indexOf('return (new Buffer(bufstr));\n') != -1);
   });
+  OBJECT_KINDS.forEach(function (kind) {
+    verifiers.push(function verifyFindObjectsKind(testLines) {
+      // There should be at least one object for
+      // every kind of objects (except for the special cases
+      // below)
+      var expectedMinimumObjs = 1;
+
+      if (kind === 'props' &&
+          (NODE_VERSION.major > 0 || NODE_VERSION.minor > 10)) {
+        // On versions > 0.10.x, currently there's no object
+        // with the kind 'props'. There should be, but it's a minor
+        // issue we're or to live with for now.
+        expectedMinimumObjs = 0;
+      }
+
+      assert.ok(testLines.length >= expectedMinimumObjs);
+    });
+  });
 
   var mod = util.format('::load %s\n',
                         path.join(__dirname,
@@ -206,5 +226,9 @@ gcore.on('exit', function (code) {
   mdb.stdin.write('::jsfunctions -n myTestFunction ! ' +
       'awk \'NR == 2 {print $1}\' | head -1 > ' + tmpfile + '\n');
   mdb.stdin.write('::cat ' + tmpfile + ' | ::jssource -n 0\n');
+  OBJECT_KINDS.forEach(function (kind) {
+    mdb.stdin.write(util.format('!echo test: findjsobjects -k %s\n', kind));
+    mdb.stdin.write(util.format('::findjsobjects -k %s\n', kind));
+  });
   mdb.stdin.end();
 });

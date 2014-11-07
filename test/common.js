@@ -305,3 +305,22 @@ exports.hasMultiLocalhost = function hasMultiLocalhost() {
   t.close();
   return ret === 0;
 };
+
+exports.getNodeVersion = function getNodeVersion() {
+  assert(typeof process.version === 'string');
+
+  var matches = process.version.match(/v(\d+).(\d+).(\d+)-?(.*)/);
+  assert(Array.isArray(matches));
+
+  var major = +matches[1];
+  var minor = +matches[2];
+  var patch = +matches[3];
+  var pre = matches[4];
+
+  return {
+    major: major,
+    minor: minor,
+    patch: patch,
+    pre: pre
+  };
+}
