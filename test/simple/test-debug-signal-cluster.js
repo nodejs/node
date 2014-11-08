@@ -73,7 +73,9 @@ setTimeout(function testTimedOut() {
 }, 6000);
 
 process.on('exit', function onExit() {
-  pids.forEach(function(pid) {
+  // Kill processes in reverse order to avoid timing problems on Windows where
+  // the parent process is killed before the children.
+  pids.reverse().forEach(function(pid) {
     process.kill(pid);
   });
 });
