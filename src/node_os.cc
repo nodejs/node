@@ -48,6 +48,7 @@ namespace node {
 namespace os {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
@@ -57,13 +58,6 @@ using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
-
-
-static void GetEndianness(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  const char* rval = IsBigEndian() ? "BE" : "LE";
-  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
-}
 
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
@@ -300,7 +294,6 @@ void Initialize(Handle<Object> target,
                 Handle<Value> unused,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "getEndianness", GetEndianness);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
   env->SetMethod(target, "getUptime", GetUptime);
@@ -310,6 +303,8 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "getOSType", GetOSType);
   env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
+              Boolean::New(env->isolate(), IsBigEndian()));
 }
 
 }  // namespace os
