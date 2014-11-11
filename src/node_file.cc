@@ -174,6 +174,10 @@ static void After(uv_fs_t *req) {
         argc = 1;
         break;
 
+      case UV_FS_ACCESS:
+        argv[1] = Integer::New(env->isolate(), req->result);
+        break;
+
       case UV_FS_UTIME:
       case UV_FS_FUTIME:
         argc = 0;
@@ -306,6 +310,29 @@ struct fs_req_wrap {
 #define SYNC_REQ req_wrap.req
 
 #define SYNC_RESULT err
+
+
+static void Access(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  if (args.Length() < 2)
+    return THROW_BAD_ARGS;
+  if (!args[0]->IsString())
+    return TYPE_ERROR("path must be a string");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
+
+  node::Utf8Value path(args[0]);
+  int mode = static_cast<int>(args[1]->Int32Value());
+
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(access, args[2], *path, mode);
+  } else {
+    SYNC_CALL(access, *path, *path, mode);
+    args.GetReturnValue().Set(SYNC_RESULT);
+  }
+}
 
 
 static void Close(const FunctionCallbackInfo<Value>& args) {
@@ -1103,6 +1130,7 @@ void InitFs(Handle<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSInitialize"),
               env->NewFunctionTemplate(FSInitialize)->GetFunction());
 
+  env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "read", Read);
