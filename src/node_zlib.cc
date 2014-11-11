@@ -64,9 +64,9 @@ enum node_zlib_mode {
 };
 
 enum node_zlib_error {
-  NO_ERROR,
-  FAILED,
-  WRITE_PENDING
+  kNoError,
+  kFailed,
+  kWritePending
 };
 
 void InitZlib(v8::Handle<v8::Object> target);
@@ -208,7 +208,7 @@ class ZCtx : public AsyncWrap {
     if (!async) {
       // sync version
       Process(work_req);
-      if (CheckError(ctx) == NO_ERROR)
+      if (CheckError(ctx) == kNoError)
         AfterSync(ctx, args);
       return;
     }
@@ -305,18 +305,18 @@ class ZCtx : public AsyncWrap {
         ZCtx::Error(ctx, "Missing dictionary");
       else
         ZCtx::Error(ctx, "Bad dictionary");
-      return FAILED;
+      return kFailed;
     default:
       // something else.
       if (ctx->strm_.total_out == 0) {
         ZCtx::Error(ctx, "Zlib error");
-        return FAILED;
+        return kFailed;
       } else {
-        return WRITE_PENDING;
+        return kWritePending;
       }
     }
 
-    return NO_ERROR;
+    return kNoError;
   }
 
 
@@ -331,7 +331,7 @@ class ZCtx : public AsyncWrap {
     Context::Scope context_scope(env->context());
 
     node_zlib_error error = CheckError(ctx);
-    if (error == FAILED)
+    if (error == kFailed)
       return;
 
     Local<Integer> avail_out = Integer::New(env->isolate(),
@@ -345,7 +345,7 @@ class ZCtx : public AsyncWrap {
     Local<Value> args[2] = { avail_in, avail_out };
     ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
 
-    if (error == WRITE_PENDING) {
+    if (error == kWritePending) {
       ZCtx::Error(ctx, "Zlib error");
       return;
     }
