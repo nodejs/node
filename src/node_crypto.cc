@@ -1403,9 +1403,10 @@ void SSLWrap<Base>::GetPeerCertificate(
     info->Set(env->issuercert_string(), info);
 
   CHECK_NE(cert, nullptr);
-  X509_free(cert);
 
  done:
+  if (cert != nullptr)
+    X509_free(cert);
   if (peer_certs != nullptr)
     sk_X509_pop_free(peer_certs, X509_free);
   if (result.IsEmpty())
