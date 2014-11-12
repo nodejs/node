@@ -74,7 +74,8 @@ class StreamWrapCallbacks {
 
   virtual ~StreamWrapCallbacks() = default;
 
-  virtual const char* Error();
+  virtual const char* Error() const;
+  virtual void ClearError();
 
   virtual int TryWrite(uv_buf_t** bufs, size_t* count);
 

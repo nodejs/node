@@ -52,7 +52,8 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
-  const char* Error() override;
+  const char* Error() const override;
+  void ClearError() override;
   int TryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
@@ -124,12 +125,10 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
     }
   }
 
+  // If |msg| is not nullptr, caller is responsible for calling `delete[] *msg`.
   v8::Local<v8::Value> GetSSLError(int status, int* err, const char** msg);
-  const char* PrintErrors();
 
-  static int PrintErrorsCb(const char* str, size_t len, void* arg);
   static void OnClientHelloParseEnd(void* arg);
-
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Receive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -168,9 +167,6 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   v8::Persistent<v8::Value> sni_context_;
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-
-  static size_t error_off_;
-  static char error_buf_[1024];
 };
 
 }  // namespace node
