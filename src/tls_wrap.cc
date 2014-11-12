@@ -53,9 +53,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-size_t TLSCallbacks::error_off_;
-char TLSCallbacks::error_buf_[1024];
-
 
 TLSCallbacks::TLSCallbacks(Environment* env,
                            Kind kind,
@@ -118,6 +115,8 @@ TLSCallbacks::~TLSCallbacks() {
     WriteItem* wi = ContainerOf(&WriteItem::member_, q);
     delete wi;
   }
+
+  ClearError();
 }
 
 
@@ -378,32 +377,6 @@ void TLSCallbacks::EncOutCb(uv_write_t* req, int status) {
 }
 
 
-int TLSCallbacks::PrintErrorsCb(const char* str, size_t len, void* arg) {
-  size_t to_copy = error_off_;
-  size_t avail = sizeof(error_buf_) - error_off_ - 1;
-
-  if (avail > to_copy)
-    to_copy = avail;
-
-  memcpy(error_buf_, str, avail);
-  error_off_ += avail;
-  CHECK_LT(error_off_, sizeof(error_buf_));
-
-  // Zero-terminate
-  error_buf_[error_off_] = '\0';
-
-  return 0;
-}
-
-
-const char* TLSCallbacks::PrintErrors() {
-  error_off_ = 0;
-  ERR_print_errors_cb(PrintErrorsCb, this);
-
-  return error_buf_;
-}
-
-
 Local<Value> TLSCallbacks::GetSSLError(int status, int* err, const char** msg) {
   EscapableHandleScope scope(env()->isolate());
 
@@ -420,16 +393,24 @@ Local<Value> TLSCallbacks::GetSSLError(int status, int* err, const char** msg) {
       {
         CHECK(*err == SSL_ERROR_SSL || *err == SSL_ERROR_SYSCALL);
 
-        const char* buf = PrintErrors();
+        BIO* bio = BIO_new(BIO_s_mem());
+        ERR_print_errors(bio);
+
+        BUF_MEM* mem;
+        BIO_get_mem_ptr(bio, &mem);
 
         Local<String> message =
-            OneByteString(env()->isolate(), buf, strlen(buf));
+            OneByteString(env()->isolate(), mem->data, mem->length);
         Local<Value> exception = Exception::Error(message);
 
         if (msg != nullptr) {
           CHECK_EQ(*msg, nullptr);
+          char* const buf = new char[mem->length + 1];
+          memcpy(buf, mem->data, mem->length);
+          buf[mem->length] = '\0';
           *msg = buf;
         }
+        static_cast<void>(BIO_reset(bio));
 
         return scope.Escape(exception);
       }
@@ -523,7 +504,7 @@ bool TLSCallbacks::ClearIn() {
   if (!arg.IsEmpty()) {
     MakePending();
     if (!InvokeQueued(UV_EPROTO))
-      error_ = nullptr;
+      ClearError();
     clear_in_->Reset();
   }
 
@@ -531,10 +512,14 @@ bool TLSCallbacks::ClearIn() {
 }
 
 
-const char* TLSCallbacks::Error() {
-  const char* ret = error_;
+const char* TLSCallbacks::Error() const {
+  return error_;
+}
+
+
+void TLSCallbacks::ClearError() {
+  delete[] error_;
   error_ = nullptr;
-  return ret;
 }
 
 

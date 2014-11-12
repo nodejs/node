@@ -233,8 +233,10 @@ void StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
  done:
   const char* msg = wrap->callbacks()->Error();
-  if (msg != nullptr)
+  if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    wrap->callbacks()->ClearError();
+  }
   req_wrap_obj->Set(env->bytes_string(),
                     Integer::NewFromUnsigned(env->isolate(), length));
   args.GetReturnValue().Set(err);
@@ -364,8 +366,10 @@ void StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 
  done:
   const char* msg = wrap->callbacks()->Error();
-  if (msg != nullptr)
+  if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    wrap->callbacks()->ClearError();
+  }
   req_wrap_obj->Set(env->bytes_string(),
                     Integer::NewFromUnsigned(env->isolate(), data_size));
   args.GetReturnValue().Set(err);
@@ -472,8 +476,10 @@ void StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
   req_wrap->object()->Set(env->bytes_string(),
                           Number::New(env->isolate(), bytes));
   const char* msg = wrap->callbacks()->Error();
-  if (msg != nullptr)
+  if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    wrap->callbacks()->ClearError();
+  }
 
   if (err) {
     req_wrap->~WriteWrap();
@@ -536,8 +542,10 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   };
 
   const char* msg = wrap->callbacks()->Error();
-  if (msg != nullptr)
+  if (msg != nullptr) {
     argv[3] = OneByteString(env->isolate(), msg);
+    wrap->callbacks()->ClearError();
+  }
 
   req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
@@ -592,8 +600,12 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
 }
 
 
-const char* StreamWrapCallbacks::Error() {
+const char* StreamWrapCallbacks::Error() const {
   return nullptr;
+}
+
+
+void StreamWrapCallbacks::ClearError() {
 }
 
 
