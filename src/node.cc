@@ -909,32 +909,6 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 #endif
 
 
-void SetupAsyncListener(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-
-  assert(args[0]->IsObject());
-  assert(args[1]->IsFunction());
-  assert(args[2]->IsFunction());
-  assert(args[3]->IsFunction());
-
-  env->set_async_listener_run_function(args[1].As<Function>());
-  env->set_async_listener_load_function(args[2].As<Function>());
-  env->set_async_listener_unload_function(args[3].As<Function>());
-
-  Local<Object> async_listener_flag_obj = args[0].As<Object>();
-  Environment::AsyncListener* async_listener = env->async_listener();
-  async_listener_flag_obj->SetIndexedPropertiesToExternalArrayData(
-      async_listener->fields(),
-      kExternalUint32Array,
-      async_listener->fields_count());
-
-  // Do a little housekeeping.
-  env->process_object()->Delete(
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupAsyncListener"));
-}
-
-
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
@@ -1019,20 +993,6 @@ Handle<Value> MakeDomainCallback(Environment* env,
   TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  bool has_async_queue = false;
-
-  if (recv->IsObject()) {
-    object = recv.As<Object>();
-    // TODO(trevnorris): This is sucky for performance. Fix it.
-    has_async_queue = object->Has(env->async_queue_string());
-    if (has_async_queue) {
-      env->async_listener_load_function()->Call(process, 1, &recv);
-
-      if (try_catch.HasCaught())
-        return Undefined(env->isolate());
-    }
-  }
-
   bool has_domain = false;
 
   if (!object.IsEmpty()) {
@@ -1068,13 +1028,6 @@ Handle<Value> MakeDomainCallback(Environment* env,
       if (try_catch.HasCaught())
         return Undefined(env->isolate());
     }
-  }
-
-  if (has_async_queue) {
-    env->async_listener_unload_function()->Call(process, 1, &recv);
-
-    if (try_catch.HasCaught())
-      return Undefined(env->isolate());
   }
 
   Environment::TickInfo* tick_info = env->tick_info();
@@ -1128,26 +1081,10 @@ Handle<Value> MakeCallback(Environment* env,
   TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  // TODO(trevnorris): This is sucky for performance. Fix it.
-  bool has_async_queue =
-      recv->IsObject() && recv.As<Object>()->Has(env->async_queue_string());
-  if (has_async_queue) {
-    env->async_listener_load_function()->Call(process, 1, &recv);
-    if (try_catch.HasCaught())
-      return Undefined(env->isolate());
-  }
-
   Local<Value> ret = callback->Call(recv, argc, argv);
 
   if (try_catch.HasCaught()) {
     return Undefined(env->isolate());
-  }
-
-  if (has_async_queue) {
-    env->async_listener_unload_function()->Call(process, 1, &recv);
-
-    if (try_catch.HasCaught())
-      return Undefined(env->isolate());
   }
 
   Environment::TickInfo* tick_info = env->tick_info();
@@ -2880,7 +2817,6 @@ void SetupProcessObject(Environment* env,
   NODE_SET_METHOD(process, "binding", Binding);
   NODE_SET_METHOD(process, "_linkedBinding", LinkedBinding);
 
-  NODE_SET_METHOD(process, "_setupAsyncListener", SetupAsyncListener);
   NODE_SET_METHOD(process, "_setupNextTick", SetupNextTick);
   NODE_SET_METHOD(process, "_setupDomainUse", SetupDomainUse);
 
