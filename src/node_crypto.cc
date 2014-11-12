@@ -3679,7 +3679,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  static enum PropertyAttribute attributes =
+  const PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);

@@ -1378,7 +1378,7 @@ void AppendExceptionLine(Environment* env,
     err_obj->SetHiddenValue(env->processed_string(), True(env->isolate()));
   }
 
-  static char arrow[1024];
+  char arrow[1024];
 
   // Print (filename):(line number): (message).
   node::Utf8Value filename(message->GetScriptResourceName());
