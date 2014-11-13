@@ -255,7 +255,7 @@
 
       // if we handled an error, then make sure any ticks get processed
       } else {
-        var t = setImmediate(process._tickCallback);
+        NativeModule.require('timers').setImmediate(process._tickCallback);
       }
 
       return caught;
