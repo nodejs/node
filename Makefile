@@ -78,10 +78,12 @@ clean:
 
 distclean:
 	-rm -rf out
-	-rm -f config.gypi
+	-rm -f config.gypi icu_config.gypi
 	-rm -f config.mk
 	-rm -rf node node_g blog.html email.md
 	-rm -rf node_modules
+	-rm -rf deps/icu
+	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 
 test: all
 	$(PYTHON) tools/test.py --mode=release simple message
