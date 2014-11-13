@@ -23,7 +23,8 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      has_frame_(false) {
+      has_frame_(false),
+      has_double_zero_reg_set_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
@@ -735,6 +736,28 @@ void MacroAssembler::Mult(Register rs, const Operand& rt) {
     DCHECK(!rs.is(at));
     li(at, rt);
     mult(rs, at);
+  }
+}
+
+
+void MacroAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (!IsMipsArchVariant(kMips32r6)) {
+      multu(rs, rt.rm());
+      mfhi(rd);
+    } else {
+      muhu(rd, rs, rt.rm());
+    }
+  } else {
+    // li handles the relocation.
+    DCHECK(!rs.is(at));
+    li(at, rt);
+    if (!IsMipsArchVariant(kMips32r6)) {
+      multu(rs, at);
+      mfhi(rd);
+    } else {
+      muhu(rd, rs, at);
+    }
   }
 }
 
@@ -1530,10 +1553,9 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value_rep(imm);
   // Handle special values first.
-  bool force_load = dst.is(kDoubleRegZero);
-  if (value_rep == zero && !force_load) {
+  if (value_rep == zero && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (value_rep == minus_zero && !force_load) {
+  } else if (value_rep == minus_zero && has_double_zero_reg_set_) {
     neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;
@@ -1554,6 +1576,7 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
     } else {
       Mthc1(zero_reg, dst);
     }
+    if (dst.is(kDoubleRegZero)) has_double_zero_reg_set_ = true;
   }
 }
 
@@ -2014,18 +2037,26 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         b(offset);
         break;
       case eq:
-        // We don't want any other register but scratch clobbered.
-        DCHECK(!scratch.is(rs));
-        r2 = scratch;
-        li(r2, rt);
-        beq(rs, r2, offset);
+        if (rt.imm32_ == 0) {
+          beq(rs, zero_reg, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          DCHECK(!scratch.is(rs));
+          r2 = scratch;
+          li(r2, rt);
+          beq(rs, r2, offset);
+        }
         break;
       case ne:
-        // We don't want any other register but scratch clobbered.
-        DCHECK(!scratch.is(rs));
-        r2 = scratch;
-        li(r2, rt);
-        bne(rs, r2, offset);
+        if (rt.imm32_ == 0) {
+          bne(rs, zero_reg, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          DCHECK(!scratch.is(rs));
+          r2 = scratch;
+          li(r2, rt);
+          bne(rs, r2, offset);
+        }
         break;
       // Signed comparison.
       case greater:
@@ -2267,18 +2298,28 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
         b(offset);
         break;
       case eq:
-        DCHECK(!scratch.is(rs));
-        r2 = scratch;
-        li(r2, rt);
-        offset = shifted_branch_offset(L, false);
-        beq(rs, r2, offset);
+        if (rt.imm32_ == 0) {
+          offset = shifted_branch_offset(L, false);
+          beq(rs, zero_reg, offset);
+        } else {
+          DCHECK(!scratch.is(rs));
+          r2 = scratch;
+          li(r2, rt);
+          offset = shifted_branch_offset(L, false);
+          beq(rs, r2, offset);
+        }
         break;
       case ne:
-        DCHECK(!scratch.is(rs));
-        r2 = scratch;
-        li(r2, rt);
-        offset = shifted_branch_offset(L, false);
-        bne(rs, r2, offset);
+        if (rt.imm32_ == 0) {
+          offset = shifted_branch_offset(L, false);
+          bne(rs, zero_reg, offset);
+        } else {
+          DCHECK(!scratch.is(rs));
+          r2 = scratch;
+          li(r2, rt);
+          offset = shifted_branch_offset(L, false);
+          bne(rs, r2, offset);
+        }
         break;
       // Signed comparison.
       case greater:
@@ -5002,6 +5043,13 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
     // Adjust fp to point to caller's fp.
     Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   }
+}
+
+
+void MacroAssembler::EnterFrame(StackFrame::Type type,
+                                bool load_constant_pool_pointer_reg) {
+  // Out-of-line constant pool not implemented on mips.
+  UNREACHABLE();
 }
 
 

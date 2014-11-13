@@ -309,6 +309,28 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 }
 
 
+bool LookupIterator::IsSpecialNumericIndex() const {
+  if (GetStoreTarget()->IsJSTypedArray() && name()->IsString()) {
+    Handle<String> name_string = Handle<String>::cast(name());
+    if (name_string->length() > 0) {
+      double d =
+          StringToDouble(isolate()->unicode_cache(), name_string, NO_FLAGS);
+      if (!std::isnan(d)) {
+        if (String::Equals(isolate()->factory()->minus_zero_string(),
+                           name_string))
+          return true;
+
+        Factory* factory = isolate()->factory();
+        Handle<Object> num = factory->NewNumber(d);
+        Handle<String> roundtrip_string = factory->NumberToString(num);
+        if (String::Equals(name_string, roundtrip_string)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+
 void LookupIterator::InternalizeName() {
   if (name_->IsUniqueName()) return;
   name_ = factory()->InternalizeString(Handle<String>::cast(name_));

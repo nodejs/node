@@ -2065,6 +2065,7 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft) {
+  DCHECK(IsMipsArchVariant(kMips32r2));
   GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
 }
 

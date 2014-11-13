@@ -5,6 +5,8 @@
 #ifndef V8_SAMPLER_H_
 #define V8_SAMPLER_H_
 
+#include "include/v8.h"
+
 #include "src/base/atomicops.h"
 #include "src/frames.h"
 #include "src/globals.h"
@@ -21,15 +23,13 @@ class Isolate;
 // (if used for profiling) the program counter and stack pointer for
 // the thread that created it.
 
-struct RegisterState {
-  RegisterState() : pc(NULL), sp(NULL), fp(NULL) {}
-  Address pc;      // Instruction pointer.
-  Address sp;      // Stack pointer.
-  Address fp;      // Frame pointer.
-};
-
 // TickSample captures the information collected for each sample.
 struct TickSample {
+  // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
+  // include the runtime function we're calling. Externally exposed tick
+  // samples don't care.
+  enum RecordCEntryFrame { kIncludeCEntryFrame, kSkipCEntryFrame };
+
   TickSample()
       : state(OTHER),
         pc(NULL),
@@ -37,7 +37,12 @@ struct TickSample {
         frames_count(0),
         has_external_callback(false),
         top_frame_type(StackFrame::NONE) {}
-  void Init(Isolate* isolate, const RegisterState& state);
+  void Init(Isolate* isolate, const v8::RegisterState& state,
+            RecordCEntryFrame record_c_entry_frame);
+  static void GetStackSample(Isolate* isolate, const v8::RegisterState& state,
+                             RecordCEntryFrame record_c_entry_frame,
+                             void** frames, size_t frames_limit,
+                             v8::SampleInfo* sample_info);
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   union {
@@ -67,7 +72,7 @@ class Sampler {
   int interval() const { return interval_; }
 
   // Performs stack sampling.
-  void SampleStack(const RegisterState& regs);
+  void SampleStack(const v8::RegisterState& regs);
 
   // Start and stop sampler.
   void Start();

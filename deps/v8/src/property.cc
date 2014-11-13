@@ -20,7 +20,7 @@ void LookupResult::Iterate(ObjectVisitor* visitor) {
 }
 
 
-OStream& operator<<(OStream& os, const LookupResult& r) {
+std::ostream& operator<<(std::ostream& os, const LookupResult& r) {
   if (!r.IsFound()) return os << "Not Found\n";
 
   os << "LookupResult:\n";
@@ -31,9 +31,43 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
 }
 
 
-OStream& operator<<(OStream& os, const Descriptor& d) {
+std::ostream& operator<<(std::ostream& os,
+                         const PropertyAttributes& attributes) {
+  os << "[";
+  os << (((attributes & READ_ONLY) == 0) ? "W" : "_");    // writable
+  os << (((attributes & DONT_ENUM) == 0) ? "E" : "_");    // enumerable
+  os << (((attributes & DONT_DELETE) == 0) ? "C" : "_");  // configurable
+  os << "]";
+  return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
+  os << "(";
+  switch (details.type()) {
+    case NORMAL:
+      os << "normal: dictionary_index: " << details.dictionary_index();
+      break;
+    case CONSTANT:
+      os << "constant: p: " << details.pointer();
+      break;
+    case FIELD:
+      os << "field: " << details.representation().Mnemonic()
+         << ", field_index: " << details.field_index()
+         << ", p: " << details.pointer();
+      break;
+    case CALLBACKS:
+      os << "callbacks: p: " << details.pointer();
+      break;
+  }
+  os << ", attrs: " << details.attributes() << ")";
+  return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
   return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
-            << Brief(*d.GetValue());
+            << Brief(*d.GetValue()) << " " << d.GetDetails();
 }
 
 } }  // namespace v8::internal

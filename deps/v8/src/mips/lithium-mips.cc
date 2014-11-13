@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
@@ -323,9 +325,9 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  OStringStream os;
+  std::ostringstream os;
   os << hydrogen()->access() << " <- ";
-  stream->Add(os.c_str());
+  stream->Add(os.str().c_str());
   value()->PrintTo(stream);
 }
 
@@ -704,11 +706,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     // Shift operations can only deoptimize if we do a logical shift
     // by 0 and the result cannot be truncated to int32.
     if (op == Token::SHR && constant_value == 0) {
-      if (FLAG_opt_safe_uint32_operations) {
-        does_deopt = !instr->CheckFlag(HInstruction::kUint32);
-      } else {
-        does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
-      }
+      does_deopt = !instr->CheckFlag(HInstruction::kUint32);
     }
 
     LInstruction* result =
@@ -1519,7 +1517,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
-    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    if (IsMipsArchVariant(kMips32r2)) {
       if (instr->HasOneUse() && instr->uses().value()->IsAdd()) {
         HAdd* add = HAdd::cast(instr->uses().value());
         if (instr == add->left()) {
@@ -1592,7 +1590,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LInstruction* result = DefineAsRegister(add);
     return result;
   } else if (instr->representation().IsDouble()) {
-    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    if (IsMipsArchVariant(kMips32r2)) {
       if (instr->left()->IsMul())
         return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
 

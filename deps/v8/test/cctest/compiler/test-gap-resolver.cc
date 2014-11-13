@@ -58,13 +58,16 @@ class InterpreterState {
     return Value(op->kind(), op->index());
   }
 
-  friend OStream& operator<<(OStream& os, const InterpreterState& is) {
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const InterpreterState& is) {
     for (OperandMap::const_iterator it = is.values_.begin();
          it != is.values_.end(); ++it) {
       if (it != is.values_.begin()) os << " ";
       InstructionOperand source(it->first.first, it->first.second);
       InstructionOperand destination(it->second.first, it->second.second);
-      os << MoveOperands(&source, &destination);
+      MoveOperands mo(&source, &destination);
+      PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
+      os << pmo;
     }
     return os;
   }

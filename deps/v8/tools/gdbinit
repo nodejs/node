@@ -20,9 +20,27 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print DescriptorArray.
+define jda
+print ((v8::internal::DescriptorArray*)($arg0))->Print()
+end
+document jda
+Print a v8 DescriptorArray object
+Usage: jda tagged_ptr
+end
+
+# Print TransitionArray.
+define jta
+print ((v8::internal::TransitionArray*)($arg0))->Print()
+end
+document jta
+Print a v8 TransitionArray object
+Usage: jta tagged_ptr
+end
+
 # Print JavaScript stack trace.
 define jst
-print v8::internal::Isolate::Current()->PrintStack(stdout)
+print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout)
 end
 document jst
 Print the current JavaScript stack trace

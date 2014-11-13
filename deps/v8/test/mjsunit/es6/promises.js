@@ -25,13 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-tostring
 
 // Make sure we don't rely on functions patchable by monkeys.
 var call = Function.prototype.call.call.bind(Function.prototype.call)
 var observe = Object.observe;
-var getOwnPropertyNames = Object.getOwnPropertyNames
-var defineProperty = Object.defineProperty
+var getOwnPropertyNames = Object.getOwnPropertyNames;
+var defineProperty = Object.defineProperty;
+
+
+(function() {
+  // Test before clearing global (fails otherwise)
+  assertEquals("[object Promise]",
+      Object.prototype.toString.call(new Promise(function() {})));
+})();
+
 
 function clear(o) {
   if (o === null || (typeof o !== 'object' && typeof o !== 'function')) return

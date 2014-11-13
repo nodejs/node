@@ -27,6 +27,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       should_hurry_(false),
       marking_speed_(0),
       allocated_(0),
+      idle_marking_delay_counter_(0),
       no_marking_scope_depth_(0),
       unscanned_bytes_of_large_object_(0) {}
 
@@ -439,8 +440,8 @@ bool IncrementalMarking::WorthActivating() {
   // 3) when we are currently not serializing or deserializing the heap.
   return FLAG_incremental_marking && FLAG_incremental_marking_steps &&
          heap_->gc_state() == Heap::NOT_IN_GC &&
+         heap_->deserialization_complete() &&
          !heap_->isolate()->serializer_enabled() &&
-         heap_->isolate()->IsInitialized() &&
          heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
 
@@ -516,7 +517,6 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   DCHECK(state_ == STOPPED);
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
-  DCHECK(heap_->isolate()->IsInitialized());
 
   ResetStepCounters();
 
@@ -892,24 +892,27 @@ void IncrementalMarking::SpeedUp() {
 }
 
 
-void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
-                              bool force_marking) {
+intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
+                                  CompletionAction action,
+                                  ForceMarkingAction marking,
+                                  ForceCompletionAction completion) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
       !FLAG_incremental_marking_steps ||
       (state_ != SWEEPING && state_ != MARKING)) {
-    return;
+    return 0;
   }
 
   allocated_ += allocated_bytes;
 
-  if (!force_marking && allocated_ < kAllocatedThreshold &&
+  if (marking == DO_NOT_FORCE_MARKING && allocated_ < kAllocatedThreshold &&
       write_barriers_invoked_since_last_step_ <
           kWriteBarriersInvokedThreshold) {
-    return;
+    return 0;
   }
 
-  if (state_ == MARKING && no_marking_scope_depth_ > 0) return;
+  if (state_ == MARKING && no_marking_scope_depth_ > 0) return 0;
 
+  intptr_t bytes_processed = 0;
   {
     HistogramTimerScope incremental_marking_scope(
         heap_->isolate()->counters()->gc_incremental_marking());
@@ -930,7 +933,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
     write_barriers_invoked_since_last_step_ = 0;
 
     bytes_scanned_ += bytes_to_process;
-    intptr_t bytes_processed = 0;
 
     if (state_ == SWEEPING) {
       if (heap_->mark_compact_collector()->sweeping_in_progress() &&
@@ -943,7 +945,14 @@ void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
       }
     } else if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
-      if (marking_deque_.IsEmpty()) MarkingComplete(action);
+      if (marking_deque_.IsEmpty()) {
+        if (completion == FORCE_COMPLETION ||
+            IsIdleMarkingDelayCounterLimitReached()) {
+          MarkingComplete(action);
+        } else {
+          IncrementIdleMarkingDelayCounter();
+        }
+      }
     }
 
     steps_count_++;
@@ -959,6 +968,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
     // process the marking deque.
     heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
   }
+  return bytes_processed;
 }
 
 
@@ -977,6 +987,21 @@ void IncrementalMarking::ResetStepCounters() {
 
 int64_t IncrementalMarking::SpaceLeftInOldSpace() {
   return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSizeOfObjects();
+}
+
+
+bool IncrementalMarking::IsIdleMarkingDelayCounterLimitReached() {
+  return idle_marking_delay_counter_ > kMaxIdleMarkingDelayCounter;
+}
+
+
+void IncrementalMarking::IncrementIdleMarkingDelayCounter() {
+  idle_marking_delay_counter_++;
+}
+
+
+void IncrementalMarking::ClearIdleMarkingDelayCounter() {
+  idle_marking_delay_counter_ = 0;
 }
 }
 }  // namespace v8::internal

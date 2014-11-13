@@ -16,7 +16,7 @@ class Disassembler : public AllStatic {
   // code into os. Returns the number of bytes disassembled or 1 if no
   // instruction could be decoded.
   // the code object is used for name resolution and may be null.
-  static int Decode(Isolate* isolate, OStream* os, byte* begin, byte* end,
+  static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
                     Code* code = NULL);
 };
 

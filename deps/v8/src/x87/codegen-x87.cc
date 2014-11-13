@@ -380,6 +380,19 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ mov(FieldOperand(eax, FixedArray::kLengthOffset), ebx);
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
 
+  // Allocating heap numbers in the loop below can fail and cause a jump to
+  // gc_required. We can't leave a partly initialized FixedArray behind,
+  // so pessimistically fill it with holes now.
+  Label initialization_loop, initialization_loop_entry;
+  __ jmp(&initialization_loop_entry, Label::kNear);
+  __ bind(&initialization_loop);
+  __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize),
+         masm->isolate()->factory()->the_hole_value());
+  __ bind(&initialization_loop_entry);
+  __ sub(ebx, Immediate(Smi::FromInt(1)));
+  __ j(not_sign, &initialization_loop);
+
+  __ mov(ebx, FieldOperand(edi, FixedDoubleArray::kLengthOffset));
   __ jmp(&entry);
 
   // ebx: target map

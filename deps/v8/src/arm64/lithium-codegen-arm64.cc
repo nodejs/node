@@ -3371,13 +3371,14 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
-  Register vector = ToRegister(instr->temp_vector());
-  DCHECK(vector.is(VectorLoadICDescriptor::VectorRegister()));
-  __ Mov(vector, instr->hydrogen()->feedback_vector());
+  Register vector_register = ToRegister(instr->temp_vector());
+  DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
+  __ Mov(vector_register, vector);
   // No need to allocate this register.
   DCHECK(VectorLoadICDescriptor::SlotRegister().is(x0));
-  __ Mov(VectorLoadICDescriptor::SlotRegister(),
-         Smi::FromInt(instr->hydrogen()->slot()));
+  int index = vector->GetIndex(instr->hydrogen()->slot());
+  __ Mov(VectorLoadICDescriptor::SlotRegister(), Smi::FromInt(index));
 }
 
 
@@ -3391,7 +3392,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), mode).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3645,7 +3646,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   DCHECK(ToRegister(instr->result()).Is(x0));
@@ -3701,7 +3702,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), NOT_CONTEXTUAL).code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_CONTEXTUAL).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   DCHECK(ToRegister(instr->result()).is(x0));

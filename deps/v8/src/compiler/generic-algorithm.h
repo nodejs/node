@@ -23,16 +23,9 @@ namespace compiler {
 // by specifying custom traits.
 class GenericGraphVisit {
  public:
-  enum Control {
-    CONTINUE = 0x0,  // Continue depth-first normally
-    SKIP = 0x1,      // Skip this node and its successors
-    REENTER = 0x2,   // Allow reentering this node
-    DEFER = SKIP | REENTER
-  };
-
   // struct Visitor {
-  //   Control Pre(Traits::Node* current);
-  //   Control Post(Traits::Node* current);
+  //   void Pre(Traits::Node* current);
+  //   void Post(Traits::Node* current);
   //   void PreEdge(Traits::Node* from, int index, Traits::Node* to);
   //   void PostEdge(Traits::Node* from, int index, Traits::Node* to);
   // }
@@ -54,9 +47,8 @@ class GenericGraphVisit {
       DCHECK(id < Traits::max_id(graph));  // Must be a valid id.
       bool visit = !GetVisited(&visited, id);
       if (visit) {
-        Control control = visitor->Pre(current);
-        visit = !IsSkip(control);
-        if (!IsReenter(control)) SetVisited(&visited, id, true);
+        visitor->Pre(current);
+        SetVisited(&visited, id);
       }
       Iterator begin(visit ? Traits::begin(current) : Traits::end(current));
       Iterator end(Traits::end(current));
@@ -66,9 +58,8 @@ class GenericGraphVisit {
         NodeState top = stack.top();
         if (top.first == top.second) {
           if (visit) {
-            Control control = visitor->Post(post_order_node);
-            DCHECK(!IsSkip(control));
-            SetVisited(&visited, post_order_node->id(), !IsReenter(control));
+            visitor->Post(post_order_node);
+            SetVisited(&visited, post_order_node->id());
           }
           stack.pop();
           if (stack.empty()) {
@@ -101,23 +92,19 @@ class GenericGraphVisit {
 
   template <class B, class S>
   struct NullNodeVisitor {
-    Control Pre(GenericNode<B, S>* node) { return CONTINUE; }
-    Control Post(GenericNode<B, S>* node) { return CONTINUE; }
+    void Pre(GenericNode<B, S>* node) {}
+    void Post(GenericNode<B, S>* node) {}
     void PreEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
     void PostEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
   };
 
  private:
-  static bool IsSkip(Control c) { return c & SKIP; }
-  static bool IsReenter(Control c) { return c & REENTER; }
-
-  // TODO(turbofan): resizing could be optionally templatized away.
-  static void SetVisited(BoolVector* visited, int id, bool value) {
+  static void SetVisited(BoolVector* visited, int id) {
     if (id >= static_cast<int>(visited->size())) {
       // Resize and set all values to unvisited.
       visited->resize((3 * id) / 2, false);
     }
-    visited->at(id) = value;
+    visited->at(id) = true;
   }
 
   static bool GetVisited(BoolVector* visited, int id) {

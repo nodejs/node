@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony --expose-debug-as=debug
+// Flags: --harmony-modules --expose-debug-as=debug
 
 (function () {  // Scope for utility functions.
   escaping_function = function(object) {

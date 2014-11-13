@@ -132,7 +132,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return running_; }
+  INLINE(bool running()) { return !!base::NoBarrier_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
@@ -163,7 +163,7 @@ class ProfilerEventsProcessor : public base::Thread {
 
   ProfileGenerator* generator_;
   Sampler* sampler_;
-  bool running_;
+  base::Atomic32 running_;
   // Sampling period in microseconds.
   const base::TimeDelta period_;
   UnboundQueue<CodeEventsContainer> events_buffer_;

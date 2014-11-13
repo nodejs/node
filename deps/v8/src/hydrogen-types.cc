@@ -56,7 +56,7 @@ HType HType::FromValue(Handle<Object> value) {
 }
 
 
-OStream& operator<<(OStream& os, const HType& t) {
+std::ostream& operator<<(std::ostream& os, const HType& t) {
   // Note: The c1visualizer syntax for locals allows only a sequence of the
   // following characters: A-Za-z0-9_-|:
   switch (t.kind_) {

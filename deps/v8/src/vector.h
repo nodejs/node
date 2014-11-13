@@ -58,6 +58,10 @@ class Vector {
 
   T& last() { return start_[length_ - 1]; }
 
+  typedef T* iterator;
+  inline iterator begin() const { return &start_[0]; }
+  inline iterator end() const { return &start_[length_]; }
+
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
     T* result = NewArray<T>(length_);

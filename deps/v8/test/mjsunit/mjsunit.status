@@ -51,10 +51,6 @@
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
-  # This test relies on --noopt-safe-uint32-operations, which is broken. See
-  # issue 3487 for details.
-  'compiler/shift-shr': [SKIP],
-
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -84,6 +80,10 @@
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
+
+  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
+  # not work, but we expect it to not crash.
+  'debug-step-turbofan': [PASS, FAIL],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
@@ -196,8 +196,13 @@
 
   # Skip endain dependent test for mips due to different typed views of the same
   # array buffer.
-  'nans': [PASS, ['arch == mips', SKIP]],
+  'nans': [PASS, ],
 
+  # This test variant makes only sense on arm.
+  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
+
+  # Too slow for slow variants.
+  'asm/embenchen/*': [PASS, FAST_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -234,6 +239,15 @@
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
+  'regress/regress-417709a': [PASS, ['arch == arm64', NO_VARIANTS]],
+  'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
+  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
+  'math-floor-of-div': [PASS, NO_VARIANTS],
+  'unicodelctest': [PASS, NO_VARIANTS],
+  'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
+  # Too slow for gc stress.
+  'asm/embenchen/box2d': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -250,6 +264,8 @@
   # Pass but take too long to run. Skip.
   # Some similar tests (with fewer iterations) may be included in arm64-js
   # tests.
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
   'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
@@ -314,11 +330,16 @@
 ['arch == arm64 and mode == debug and simulator_run == True', {
 
   # Pass but take too long with the simulator in debug mode.
+  'array-iterate-backwards': [PASS, TIMEOUT],
   'array-sort': [PASS, TIMEOUT],
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
   'harmony/symbols': [SKIP],
+  'math-floor-of-div': [PASS, TIMEOUT],
+  'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
+  'unicodelctest': [PASS, TIMEOUT],
+  'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
@@ -415,6 +436,15 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
+['arch == mips', {
+  # Flaky with TF.
+  'mirror-script': [PASS, NO_VARIANTS],
+
+  # Emscripten requires little-endian, skip all tests on MIPS EB.
+  'asm/embenchen/*': [SKIP],
+}],  # 'arch == mips'
+
+##############################################################################
 ['arch == mips64el', {
 
   # Slow tests which times out in debug mode.
@@ -473,6 +503,10 @@
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
+  'osr-regress-max-locals': [PASS, ['mode == debug', SKIP]],
+  'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],

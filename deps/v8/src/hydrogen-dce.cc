@@ -39,7 +39,7 @@ void HDeadCodeEliminationPhase::PrintLive(HValue* ref, HValue* instr) {
   } else {
     os << "root ";
   }
-  os << " -> " << *instr << "]" << endl;
+  os << " -> " << *instr << "]" << std::endl;
 }
 
 

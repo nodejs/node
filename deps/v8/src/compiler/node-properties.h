@@ -40,8 +40,10 @@ class NodeProperties {
   static inline void ReplaceWithValue(Node* node, Node* value,
                                       Node* effect = NULL);
 
+  static inline bool IsTyped(Node* node);
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
+  static inline bool AllValueInputsAreTyped(Node* node);
 
   static inline int FirstValueIndex(Node* node);
   static inline int FirstContextIndex(Node* node);

@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -44,8 +46,9 @@ class OperandGenerator {
 
   InstructionOperand* DefineAsConstant(Node* node) {
     selector()->MarkAsDefined(node);
-    sequence()->AddConstant(node->id(), ToConstant(node));
-    return ConstantOperand::Create(node->id(), zone());
+    int virtual_register = selector_->GetVirtualRegister(node);
+    sequence()->AddConstant(virtual_register, ToConstant(node));
+    return ConstantOperand::Create(virtual_register, zone());
   }
 
   InstructionOperand* DefineAsLocation(Node* node, LinkageLocation location,
@@ -54,9 +57,9 @@ class OperandGenerator {
   }
 
   InstructionOperand* Use(Node* node) {
-    return Use(node,
-               new (zone()) UnallocatedOperand(
-                   UnallocatedOperand::ANY, UnallocatedOperand::USED_AT_START));
+    return Use(
+        node, new (zone()) UnallocatedOperand(
+                  UnallocatedOperand::NONE, UnallocatedOperand::USED_AT_START));
   }
 
   InstructionOperand* UseRegister(Node* node) {
@@ -68,7 +71,7 @@ class OperandGenerator {
   // Use register or operand for the node. If a register is chosen, it won't
   // alias any temporary or output registers.
   InstructionOperand* UseUnique(Node* node) {
-    return Use(node, new (zone()) UnallocatedOperand(UnallocatedOperand::ANY));
+    return Use(node, new (zone()) UnallocatedOperand(UnallocatedOperand::NONE));
   }
 
   // Use a unique register for the node that does not alias any temporary or
@@ -127,13 +130,18 @@ class OperandGenerator {
     return ImmediateOperand::Create(index, zone());
   }
 
+  InstructionOperand* TempLocation(LinkageLocation location, MachineType type) {
+    UnallocatedOperand* op = ToUnallocatedOperand(location, type);
+    op->set_virtual_register(sequence()->NextVirtualRegister());
+    return op;
+  }
+
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->id());
+    return TempImmediate(block->rpo_number());
   }
 
  protected:
-  Graph* graph() const { return selector()->graph(); }
   InstructionSelector* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Isolate* isolate() const { return zone()->isolate(); }
@@ -165,7 +173,7 @@ class OperandGenerator {
   UnallocatedOperand* Define(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(node->id());
+    operand->set_virtual_register(selector_->GetVirtualRegister(node));
     selector()->MarkAsDefined(node);
     return operand;
   }
@@ -173,7 +181,7 @@ class OperandGenerator {
   UnallocatedOperand* Use(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(node->id());
+    operand->set_virtual_register(selector_->GetVirtualRegister(node));
     selector()->MarkAsUsed(node);
     return operand;
   }

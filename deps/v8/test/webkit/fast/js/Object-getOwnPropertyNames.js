@@ -76,7 +76,7 @@ var expectedPropertyNamesSet = {
     "Function": "['arguments', 'caller', 'length', 'name', 'prototype']",
     "Function.prototype": "['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toString']",
     "Array": "['arguments', 'caller', 'isArray', 'length', 'name', 'observe', 'prototype', 'unobserve']",
-    "Array.prototype": "['concat', 'constructor', 'entries', 'every', 'filter', 'forEach', 'indexOf', 'join', 'keys', 'lastIndexOf', 'length', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'slice', 'some', 'sort', 'splice', 'toLocaleString', 'toString', 'unshift', 'values']",
+    "Array.prototype": "['concat', 'constructor', 'entries', 'every', 'filter', 'forEach', 'indexOf', 'join', 'keys', 'lastIndexOf', 'length', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'slice', 'some', 'sort', 'splice', 'toLocaleString', 'toString', 'unshift']",
     "String": "['arguments', 'caller', 'fromCharCode', 'length', 'name', 'prototype']",
     "String.prototype": "['anchor', 'big', 'blink', 'bold', 'charAt', 'charCodeAt', 'concat', 'constructor', 'fixed', 'fontcolor', 'fontsize', 'indexOf', 'italics', 'lastIndexOf', 'length', 'link', 'localeCompare', 'match', 'normalize', 'replace', 'search', 'slice', 'small', 'split', 'strike', 'sub', 'substr', 'substring', 'sup', 'toLocaleLowerCase', 'toLocaleUpperCase', 'toLowerCase', 'toString', 'toUpperCase', 'trim', 'trimLeft', 'trimRight', 'valueOf']",
     "Boolean": "['arguments', 'caller', 'length', 'name', 'prototype']",

@@ -109,6 +109,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (cpu.architecture() >= 7) {
     if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
+    if (FLAG_enable_armv8 && cpu.architecture() >= 8) {
+      supported_ |= 1u << ARMv8;
+    }
     if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
     // Use movw/movt for QUALCOMM ARMv7 cores.
     if (FLAG_enable_movw_movt && cpu.implementer() == base::CPU::QUALCOMM) {
@@ -472,7 +475,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   first_const_pool_32_use_ = -1;
   first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
-  constant_pool_available_ = !FLAG_enable_ool_constant_pool;
   ClearRecordedAstId();
 }
 
@@ -1056,7 +1058,8 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
-  if (assembler != NULL && !assembler->is_constant_pool_available()) {
+  if (FLAG_enable_ool_constant_pool && assembler != NULL &&
+      !assembler->is_ool_constant_pool_available()) {
     return true;
   } else if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
              (assembler == NULL || !assembler->predictable_code_size())) {
@@ -1137,7 +1140,7 @@ void Assembler::move_32_bit_immediate(Register rd,
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    DCHECK(is_constant_pool_available());
+    DCHECK(!FLAG_enable_ool_constant_pool || is_ool_constant_pool_available());
     ConstantPoolArray::LayoutSection section = ConstantPoolAddEntry(rinfo);
     if (section == ConstantPoolArray::EXTENDED_SECTION) {
       DCHECK(FLAG_enable_ool_constant_pool);
@@ -1571,11 +1574,27 @@ void Assembler::udiv(Register dst, Register src1, Register src2,
 }
 
 
-void Assembler::mul(Register dst, Register src1, Register src2,
-                    SBit s, Condition cond) {
+void Assembler::mul(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
   DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
   // dst goes in bits 16-19 for this instruction!
-  emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
+  emit(cond | s | dst.code() * B16 | src2.code() * B8 | B7 | B4 | src1.code());
+}
+
+
+void Assembler::smmla(Register dst, Register src1, Register src2, Register srcA,
+                      Condition cond) {
+  DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
+  emit(cond | B26 | B25 | B24 | B22 | B20 | dst.code() * B16 |
+       srcA.code() * B12 | src2.code() * B8 | B4 | src1.code());
+}
+
+
+void Assembler::smmul(Register dst, Register src1, Register src2,
+                      Condition cond) {
+  DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  emit(cond | B26 | B25 | B24 | B22 | B20 | dst.code() * B16 | 0xf * B12 |
+       src2.code() * B8 | B4 | src1.code());
 }
 
 
@@ -2492,7 +2511,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (FLAG_enable_vldr_imm && is_constant_pool_available()) {
+  } else if (FLAG_enable_vldr_imm && is_ool_constant_pool_available()) {
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
     //           generated data which also happens to be executable, a Very Bad
@@ -2526,27 +2545,20 @@ void Assembler::vmov(const DwVfpRegister dst,
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);
 
-    if (scratch.is(no_reg)) {
-      if (dst.code() < 16) {
-        const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
-        // Move the low part of the double into the lower of the corresponsing S
-        // registers of D register dst.
-        mov(ip, Operand(lo));
-        vmov(loc.low(), ip);
-
-        // Move the high part of the double into the higher of the
-        // corresponsing S registers of D register dst.
-        mov(ip, Operand(hi));
-        vmov(loc.high(), ip);
+    if (lo == hi) {
+      // Move the low and high parts of the double to a D register in one
+      // instruction.
+      mov(ip, Operand(lo));
+      vmov(dst, ip, ip);
+    } else if (scratch.is(no_reg)) {
+      mov(ip, Operand(lo));
+      vmov(dst, VmovIndexLo, ip);
+      if ((lo & 0xffff) == (hi & 0xffff)) {
+        movt(ip, hi >> 16);
       } else {
-        // D16-D31 does not have S registers, so move the low and high parts
-        // directly to the D register using vmov.32.
-        // Note: This may be slower, so we only do this when we have to.
-        mov(ip, Operand(lo));
-        vmov(dst, VmovIndexLo, ip);
         mov(ip, Operand(hi));
-        vmov(dst, VmovIndexHi, ip);
       }
+      vmov(dst, VmovIndexHi, ip);
     } else {
       // Move the low and high parts of the double to a D register in one
       // instruction.
@@ -3072,6 +3084,76 @@ void Assembler::vsqrt(const DwVfpRegister dst,
   src.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | B16 | vd*B12 | 0x5*B9 | B8 | 0x3*B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vrinta(const DwVfpRegister dst, const DwVfpRegister src) {
+  // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
+  // 10(19-18) | RM=00(17-16) |  Vd(15-12) | 101(11-9) | sz=1(8) | 01(7-6) |
+  // M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | 0x3 * B20 | B19 | vd * B12 |
+       0x5 * B9 | B8 | B6 | m * B5 | vm);
+}
+
+
+void Assembler::vrintn(const DwVfpRegister dst, const DwVfpRegister src) {
+  // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
+  // 10(19-18) | RM=01(17-16) |  Vd(15-12) | 101(11-9) | sz=1(8) | 01(7-6) |
+  // M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | 0x3 * B20 | B19 | 0x1 * B16 |
+       vd * B12 | 0x5 * B9 | B8 | B6 | m * B5 | vm);
+}
+
+
+void Assembler::vrintp(const DwVfpRegister dst, const DwVfpRegister src) {
+  // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
+  // 10(19-18) | RM=10(17-16) |  Vd(15-12) | 101(11-9) | sz=1(8) | 01(7-6) |
+  // M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | 0x3 * B20 | B19 | 0x2 * B16 |
+       vd * B12 | 0x5 * B9 | B8 | B6 | m * B5 | vm);
+}
+
+
+void Assembler::vrintm(const DwVfpRegister dst, const DwVfpRegister src) {
+  // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
+  // 10(19-18) | RM=11(17-16) |  Vd(15-12) | 101(11-9) | sz=1(8) | 01(7-6) |
+  // M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | 0x3 * B20 | B19 | 0x3 * B16 |
+       vd * B12 | 0x5 * B9 | B8 | B6 | m * B5 | vm);
+}
+
+
+void Assembler::vrintz(const DwVfpRegister dst, const DwVfpRegister src,
+                       const Condition cond) {
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 011(19-17) | 0(16) |
+  // Vd(15-12) | 101(11-9) | sz=1(8) | op=1(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | 0x3 * B17 | vd * B12 |
+       0x5 * B9 | B8 | B7 | B6 | m * B5 | vm);
 }
 
 

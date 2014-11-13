@@ -72,10 +72,10 @@ class AstTyper: public AstVisitor {
            var->IsParameter() ? parameter_index(var->index()) : kNoVar;
   }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

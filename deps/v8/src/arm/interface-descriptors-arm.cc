@@ -29,6 +29,9 @@ const Register StoreDescriptor::NameRegister() { return r2; }
 const Register StoreDescriptor::ValueRegister() { return r0; }
 
 
+const Register StoreTransitionDescriptor::MapRegister() { return r3; }
+
+
 const Register ElementTransitionAndStoreDescriptor::MapRegister() { return r3; }
 
 
@@ -146,6 +149,15 @@ void TransitionElementsKindDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {cp, r0, r1};
   data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void AllocateHeapNumberDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // cp -- context
+  Register registers[] = {cp};
+  data->Initialize(arraysize(registers), registers, nullptr);
 }
 
 

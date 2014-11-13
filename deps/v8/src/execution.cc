@@ -34,6 +34,17 @@ void StackGuard::reset_limits(const ExecutionAccess& lock) {
 }
 
 
+static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
+  if (function->code() == function->shared()->code() &&
+      function->shared()->deserialized()) {
+    PrintF("Running deserialized script ");
+    Object* script = function->shared()->script();
+    if (script->IsScript()) Script::cast(script)->name()->ShortPrint();
+    PrintF("\n");
+  }
+}
+
+
 MUST_USE_RESULT static MaybeHandle<Object> Invoke(
     bool is_construct,
     Handle<JSFunction> function,
@@ -87,6 +98,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
     JSFunction* func = *function;
     Object* recv = *receiver;
     Object*** argv = reinterpret_cast<Object***>(args);
+    if (FLAG_profile_deserialization) PrintDeserializedCodeInfo(function);
     value =
         CALL_GENERATED_CODE(stub_entry, function_entry, func, recv, argc, argv);
   }

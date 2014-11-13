@@ -182,7 +182,11 @@ void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-ia32.cc).
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0, false);
+  RegList regs = receiver.bit() | name.bit();
+  if (FLAG_vector_ics) {
+    regs |= VectorLoadICTrampolineDescriptor::SlotRegister().bit();
+  }
+  Generate_DebugBreakCallHelper(masm, regs, 0, false);
 }
 
 

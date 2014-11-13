@@ -5,6 +5,8 @@
 #ifndef V8_HYDROGEN_GVN_H_
 #define V8_HYDROGEN_GVN_H_
 
+#include <iosfwd>
+
 #include "src/compiler.h"
 #include "src/hydrogen.h"
 #include "src/hydrogen-instructions.h"
@@ -12,8 +14,6 @@
 
 namespace v8 {
 namespace internal {
-
-class OStream;
 
 // This class extends GVNFlagSet with additional "special" dynamic side effects,
 // which can be used to represent side effects that cannot be expressed using
@@ -70,7 +70,7 @@ class SideEffectsTracker FINAL BASE_EMBEDDED {
   SideEffects ComputeDependsOn(HInstruction* instr);
 
  private:
-  friend OStream& operator<<(OStream& os, const TrackedEffects& f);
+  friend std::ostream& operator<<(std::ostream& os, const TrackedEffects& f);
   bool ComputeGlobalVar(Unique<Cell> cell, int* index);
   bool ComputeInobjectField(HObjectAccess access, int* index);
 
@@ -107,7 +107,7 @@ struct TrackedEffects {
 };
 
 
-OStream& operator<<(OStream& os, const TrackedEffects& f);
+std::ostream& operator<<(std::ostream& os, const TrackedEffects& f);
 
 
 // Perform common subexpression elimination and loop-invariant code motion.

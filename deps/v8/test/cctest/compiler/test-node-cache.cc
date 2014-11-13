@@ -158,3 +158,63 @@ TEST(PtrConstant_hits) {
   }
   CHECK_LT(4, hits);
 }
+
+
+static bool Contains(NodeVector* nodes, Node* n) {
+  for (size_t i = 0; i < nodes->size(); i++) {
+    if (nodes->at(i) == n) return true;
+  }
+  return false;
+}
+
+
+TEST(NodeCache_GetCachedNodes_int32) {
+  GraphTester graph;
+  Int32NodeCache cache;
+  CommonOperatorBuilder common(graph.zone());
+
+  int32_t constants[] = {0, 311, 12,  13,  14,  555, -555, -44, -33, -22, -11,
+                         0, 311, 311, 412, 412, 11,  11,   -33, -33, -22, -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int32_t k = constants[i];
+    Node** pos = cache.Find(graph.zone(), k);
+    if (*pos != NULL) {
+      NodeVector nodes(graph.zone());
+      cache.GetCachedNodes(&nodes);
+      CHECK(Contains(&nodes, *pos));
+    } else {
+      NodeVector nodes(graph.zone());
+      Node* n = graph.NewNode(common.Int32Constant(k));
+      *pos = n;
+      cache.GetCachedNodes(&nodes);
+      CHECK(Contains(&nodes, n));
+    }
+  }
+}
+
+
+TEST(NodeCache_GetCachedNodes_int64) {
+  GraphTester graph;
+  Int64NodeCache cache;
+  CommonOperatorBuilder common(graph.zone());
+
+  int64_t constants[] = {0, 311, 12,  13,  14,  555, -555, -44, -33, -22, -11,
+                         0, 311, 311, 412, 412, 11,  11,   -33, -33, -22, -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int64_t k = constants[i];
+    Node** pos = cache.Find(graph.zone(), k);
+    if (*pos != NULL) {
+      NodeVector nodes(graph.zone());
+      cache.GetCachedNodes(&nodes);
+      CHECK(Contains(&nodes, *pos));
+    } else {
+      NodeVector nodes(graph.zone());
+      Node* n = graph.NewNode(common.Int64Constant(k));
+      *pos = n;
+      cache.GetCachedNodes(&nodes);
+      CHECK(Contains(&nodes, n));
+    }
+  }
+}

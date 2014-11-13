@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
@@ -10,16 +11,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* JSGraph::ImmovableHeapConstant(Handle<Object> object) {
-  Unique<Object> unique = Unique<Object>::CreateImmovable(object);
-  return NewNode(common()->HeapConstant(unique));
-}
-
-
-Node* JSGraph::NewNode(const Operator* op) {
-  Node* node = graph()->NewNode(op);
-  typer_->Init(node);
-  return node;
+Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
+  Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(object);
+  return graph()->NewNode(common()->HeapConstant(unique));
 }
 
 
@@ -93,13 +87,13 @@ Node* JSGraph::NaNConstant() {
 }
 
 
-Node* JSGraph::HeapConstant(Unique<Object> value) {
+Node* JSGraph::HeapConstant(Unique<HeapObject> value) {
   // TODO(turbofan): canonicalize heap constants using Unique<T>
-  return NewNode(common()->HeapConstant(value));
+  return graph()->NewNode(common()->HeapConstant(value));
 }
 
 
-Node* JSGraph::HeapConstant(Handle<Object> value) {
+Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
   // TODO(titzer): We could also match against the addresses of immortable
   // immovables here, even without access to the heap, thus always
   // canonicalizing references to them.
@@ -107,7 +101,8 @@ Node* JSGraph::HeapConstant(Handle<Object> value) {
   // TODO(turbofan): This is a work-around to make Unique::HashCode() work for
   // value numbering. We need some sane way to compute a unique hash code for
   // arbitrary handles here.
-  Unique<Object> unique(reinterpret_cast<Address>(*value.location()), value);
+  Unique<HeapObject> unique(reinterpret_cast<Address>(*value.location()),
+                            value);
   return HeapConstant(unique);
 }
 
@@ -128,7 +123,7 @@ Node* JSGraph::Constant(Handle<Object> value) {
   } else if (value->IsTheHole()) {
     return TheHoleConstant();
   } else {
-    return HeapConstant(value);
+    return HeapConstant(Handle<HeapObject>::cast(value));
   }
 }
 
@@ -150,7 +145,16 @@ Node* JSGraph::Constant(int32_t value) {
 Node* JSGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->Int32Constant(value));
+    *loc = graph()->NewNode(common()->Int32Constant(value));
+  }
+  return *loc;
+}
+
+
+Node* JSGraph::Int64Constant(int64_t value) {
+  Node** loc = cache_.FindInt64Constant(value);
+  if (*loc == NULL) {
+    *loc = graph()->NewNode(common()->Int64Constant(value));
   }
   return *loc;
 }
@@ -159,7 +163,7 @@ Node* JSGraph::Int32Constant(int32_t value) {
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->NumberConstant(value));
+    *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
 }
@@ -167,14 +171,14 @@ Node* JSGraph::NumberConstant(double value) {
 
 Node* JSGraph::Float32Constant(float value) {
   // TODO(turbofan): cache float32 constants.
-  return NewNode(common()->Float32Constant(value));
+  return graph()->NewNode(common()->Float32Constant(value));
 }
 
 
 Node* JSGraph::Float64Constant(double value) {
   Node** loc = cache_.FindFloat64Constant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->Float64Constant(value));
+    *loc = graph()->NewNode(common()->Float64Constant(value));
   }
   return *loc;
 }
@@ -183,10 +187,23 @@ Node* JSGraph::Float64Constant(double value) {
 Node* JSGraph::ExternalConstant(ExternalReference reference) {
   Node** loc = cache_.FindExternalConstant(reference);
   if (*loc == NULL) {
-    *loc = NewNode(common()->ExternalConstant(reference));
+    *loc = graph()->NewNode(common()->ExternalConstant(reference));
   }
   return *loc;
 }
+
+
+void JSGraph::GetCachedNodes(NodeVector* nodes) {
+  cache_.GetCachedNodes(nodes);
+  SetOncePointer<Node>* ptrs[] = {
+      &c_entry_stub_constant_, &undefined_constant_, &the_hole_constant_,
+      &true_constant_,         &false_constant_,     &null_constant_,
+      &zero_constant_,         &one_constant_,       &nan_constant_};
+  for (size_t i = 0; i < arraysize(ptrs); i++) {
+    if (ptrs[i]->is_set()) nodes->push_back(ptrs[i]->get());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

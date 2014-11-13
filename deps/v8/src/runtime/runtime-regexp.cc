@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/string-builder.h"
 #include "src/string-search.h"
@@ -1088,44 +1087,11 @@ RUNTIME_FUNCTION(RuntimeReference_RegExpExec) {
 }
 
 
-// Perform string match of pattern on subject, starting at start index.
-// Caller must ensure that 0 <= start_index <= sub->length(),
-// and should check that pat->length() + start_index <= sub->length().
-int Runtime::StringMatch(Isolate* isolate, Handle<String> sub,
-                         Handle<String> pat, int start_index) {
-  DCHECK(0 <= start_index);
-  DCHECK(start_index <= sub->length());
-
-  int pattern_length = pat->length();
-  if (pattern_length == 0) return start_index;
-
-  int subject_length = sub->length();
-  if (start_index + pattern_length > subject_length) return -1;
-
-  sub = String::Flatten(sub);
-  pat = String::Flatten(pat);
-
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  // Extract flattened substrings of cons strings before getting encoding.
-  String::FlatContent seq_sub = sub->GetFlatContent();
-  String::FlatContent seq_pat = pat->GetFlatContent();
-
-  // dispatch on type of strings
-  if (seq_pat.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
-    if (seq_sub.IsOneByte()) {
-      return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                          start_index);
-    }
-    return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector,
-                        start_index);
-  }
-  Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
-  if (seq_sub.IsOneByte()) {
-    return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                        start_index);
-  }
-  return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector, start_index);
+RUNTIME_FUNCTION(RuntimeReference_IsRegExp) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSRegExp());
 }
 }
 }  // namespace v8::internal

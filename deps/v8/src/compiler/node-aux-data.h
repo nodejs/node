@@ -21,7 +21,7 @@ class NodeAuxData {
   inline explicit NodeAuxData(Zone* zone);
 
   inline void Set(Node* node, const T& data);
-  inline T Get(Node* node);
+  inline T Get(Node* node) const;
 
  private:
   ZoneVector<T> aux_data_;

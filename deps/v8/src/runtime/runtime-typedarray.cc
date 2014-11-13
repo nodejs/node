@@ -44,6 +44,7 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_backing_store(data);
   array_buffer->set_flag(Smi::FromInt(0));
   array_buffer->set_is_external(is_external);
+  array_buffer->set_is_neuterable(true);
 
   Handle<Object> byte_length =
       isolate->factory()->NewNumberFromSize(allocated_length);
@@ -497,6 +498,13 @@ RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
   DCHECK_OBJECT_SIZE(FLAG_typed_array_max_size_in_heap +
                      FixedTypedArrayBase::kDataOffset);
   return Smi::FromInt(FLAG_typed_array_max_size_in_heap);
+}
+
+
+RUNTIME_FUNCTION(Runtime_IsTypedArray) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
 }
 
 

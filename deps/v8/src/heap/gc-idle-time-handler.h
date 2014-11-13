@@ -113,10 +113,6 @@ class GCIdleTimeHandler {
   // That is the maximum idle time we will have during frame rendering.
   static const size_t kMaxFrameRenderingIdleTime = 16;
 
-  // If less than that much memory is left in the new space, we consider it
-  // as almost full and force a new space collection earlier in the idle time.
-  static const size_t kNewSpaceAlmostFullTreshold = 100 * KB;
-
   // If we haven't recorded any scavenger events yet, we use a conservative
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
@@ -130,7 +126,7 @@ class GCIdleTimeHandler {
     size_t mark_compact_speed_in_bytes_per_ms;
     size_t incremental_marking_speed_in_bytes_per_ms;
     size_t scavenge_speed_in_bytes_per_ms;
-    size_t available_new_space_memory;
+    size_t used_new_space_size;
     size_t new_space_capacity;
     size_t new_space_allocation_throughput_in_bytes_per_ms;
   };
@@ -159,11 +155,13 @@ class GCIdleTimeHandler {
   static size_t EstimateMarkCompactTime(
       size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
 
-  static size_t EstimateScavengeTime(size_t new_space_size,
-                                     size_t scavenger_speed_in_bytes_per_ms);
+  static bool ShouldDoMarkCompact(size_t idle_time_in_ms,
+                                  size_t size_of_objects,
+                                  size_t mark_compact_speed_in_bytes_per_ms);
 
-  static bool ScavangeMayHappenSoon(
-      size_t available_new_space_memory,
+  static bool ShouldDoScavenge(
+      size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
+      size_t scavenger_speed_in_bytes_per_ms,
       size_t new_space_allocation_throughput_in_bytes_per_ms);
 
  private:

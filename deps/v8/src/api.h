@@ -54,7 +54,8 @@ class NeanderArray {
     return obj_.value();
   }
 
-  void add(v8::internal::Handle<v8::internal::Object> value);
+  void add(internal::Isolate* isolate,
+           v8::internal::Handle<v8::internal::Object> value);
 
   int length();
 
@@ -232,6 +233,8 @@ class Utils {
 
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<Promise> PromiseToLocal(
+      v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
@@ -355,6 +358,7 @@ MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(ToLocal, TypeSwitchInfo, TypeSwitch)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
+MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)
 MAKE_TO_LOCAL(StackFrameToLocal, JSObject, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)

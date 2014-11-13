@@ -57,6 +57,13 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 
   CacheHolderFlag flag;
   Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate, &flag);
+  if (kind == Code::KEYED_STORE_IC) {
+    // Always set the "property" bit.
+    extra_ic_state =
+        KeyedStoreIC::IcCheckTypeField::update(extra_ic_state, PROPERTY);
+    DCHECK(STANDARD_STORE ==
+           KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
+  }
 
   Handle<Code> ic;
   // There are multiple string maps that all use the same prototype. That
@@ -67,13 +74,6 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
     ic = Find(name, stub_holder, kind, extra_ic_state, flag);
     if (!ic.is_null()) return ic;
   }
-
-#ifdef DEBUG
-  if (kind == Code::KEYED_STORE_IC) {
-    DCHECK(STANDARD_STORE ==
-           KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
-  }
-#endif
 
   PropertyICCompiler ic_compiler(isolate, kind, extra_ic_state, flag);
   ic = ic_compiler.CompileMonomorphic(type, handler, name, PROPERTY);
@@ -92,10 +92,27 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
+  Handle<Code> stub = ComputeKeyedLoadMonomorphicHandler(receiver_map);
+  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
+  Handle<Code> code =
+      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
+                                  isolate->factory()->empty_string(), ELEMENT);
+
+  Map::UpdateCodeCache(receiver_map, name, code);
+  return code;
+}
+
+
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
+    Handle<Map> receiver_map) {
+  Isolate* isolate = receiver_map->GetIsolate();
   ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();
+  } else if (receiver_map->IsStringMap()) {
+    // We have a string.
+    stub = LoadIndexedStringStub(isolate).GetCode();
   } else if (receiver_map->has_sloppy_arguments_elements()) {
     stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   } else if (receiver_map->has_fast_elements() ||
@@ -107,13 +124,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
   } else {
     stub = LoadDictionaryElementStub(isolate).GetCode();
   }
-  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
-  Handle<Code> code =
-      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
-                                  isolate->factory()->empty_string(), ELEMENT);
-
-  Map::UpdateCodeCache(receiver_map, name, code);
-  return code;
+  return stub;
 }
 
 

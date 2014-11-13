@@ -69,6 +69,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
+    case WEAK_CELL_TYPE:
+      return kVisitWeakCell;
+
     case JS_SET_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
                                  JSSet::kSize);

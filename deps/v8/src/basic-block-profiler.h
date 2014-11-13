@@ -5,7 +5,9 @@
 #ifndef V8_BASIC_BLOCK_PROFILER_H_
 #define V8_BASIC_BLOCK_PROFILER_H_
 
+#include <iosfwd>
 #include <list>
+#include <string>
 
 #include "src/v8.h"
 
@@ -22,15 +24,16 @@ class BasicBlockProfiler {
     size_t n_blocks() const { return n_blocks_; }
     const uint32_t* counts() const { return &counts_[0]; }
 
-    void SetCode(OStringStream* os);
-    void SetFunctionName(OStringStream* os);
-    void SetSchedule(OStringStream* os);
-    void SetBlockId(size_t offset, int block_id);
+    void SetCode(std::ostringstream* os);
+    void SetFunctionName(std::ostringstream* os);
+    void SetSchedule(std::ostringstream* os);
+    void SetBlockId(size_t offset, size_t block_id);
     uint32_t* GetCounterAddress(size_t offset);
 
    private:
     friend class BasicBlockProfiler;
-    friend OStream& operator<<(OStream& os, const BasicBlockProfiler::Data& s);
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const BasicBlockProfiler::Data& s);
 
     explicit Data(size_t n_blocks);
     ~Data();
@@ -38,7 +41,7 @@ class BasicBlockProfiler {
     void ResetCounts();
 
     const size_t n_blocks_;
-    std::vector<int> block_ids_;
+    std::vector<size_t> block_ids_;
     std::vector<uint32_t> counts_;
     std::string function_name_;
     std::string schedule_;
@@ -57,15 +60,16 @@ class BasicBlockProfiler {
   const DataList* data_list() { return &data_list_; }
 
  private:
-  friend OStream& operator<<(OStream& os, const BasicBlockProfiler& s);
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const BasicBlockProfiler& s);
 
   DataList data_list_;
 
   DISALLOW_COPY_AND_ASSIGN(BasicBlockProfiler);
 };
 
-OStream& operator<<(OStream& os, const BasicBlockProfiler& s);
-OStream& operator<<(OStream& os, const BasicBlockProfiler::Data& s);
+std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler& s);
+std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler::Data& s);
 
 }  // namespace internal
 }  // namespace v8

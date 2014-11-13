@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/libplatform/worker-thread.h"
 
@@ -106,4 +107,9 @@ void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   main_thread_queue_[isolate].push(task);
 }
 
+
+double DefaultPlatform::MonotonicallyIncreasingTime() {
+  return base::TimeTicks::HighResolutionNow().ToInternalValue() /
+         static_cast<double>(base::Time::kMicrosecondsPerSecond);
+}
 } }  // namespace v8::platform

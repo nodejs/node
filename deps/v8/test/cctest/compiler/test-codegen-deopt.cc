@@ -16,6 +16,7 @@
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 
+#include "src/ast-numbering.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
@@ -30,6 +31,7 @@ using namespace v8::internal::compiler;
 #if V8_TURBOFAN_TARGET
 
 typedef RawMachineAssembler::Label MLabel;
+typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 
 static Handle<JSFunction> NewFunction(const char* source) {
   return v8::Utils::OpenHandle(
@@ -46,8 +48,7 @@ class DeoptCodegenTester {
         bailout_id(-1) {
     CHECK(Parser::Parse(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-    CHECK(Rewriter::Rewrite(&info));
-    CHECK(Scope::Analyze(&info));
+    CHECK(Compiler::Analyze(&info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     DCHECK(info.shared_info()->has_deoptimization_support());
@@ -64,27 +65,35 @@ class DeoptCodegenTester {
     }
 
     // Initialize the codegen and generate code.
-    Linkage* linkage = new (scope_->main_zone()) Linkage(&info);
-    code = new v8::internal::compiler::InstructionSequence(linkage, graph,
-                                                           schedule);
+    Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
+    InstructionBlocks* instruction_blocks =
+        TestInstrSeq::InstructionBlocksFor(scope_->main_zone(), schedule);
+    code = new TestInstrSeq(scope_->main_zone(), instruction_blocks);
     SourcePositionTable source_positions(graph);
-    InstructionSelector selector(code, &source_positions);
+    InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
+                                 schedule, &source_positions);
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {
+      PrintableInstructionSequence printable = {
+          RegisterConfiguration::ArchDefault(), code};
       os << "----- Instruction sequence before register allocation -----\n"
-         << *code;
+         << printable;
     }
 
-    RegisterAllocator allocator(code);
+    Frame frame;
+    RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
+                                scope_->main_zone(), &frame, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {
+      PrintableInstructionSequence printable = {
+          RegisterConfiguration::ArchDefault(), code};
       os << "----- Instruction sequence after register allocation -----\n"
-         << *code;
+         << printable;
     }
 
-    compiler::CodeGenerator generator(code);
+    compiler::CodeGenerator generator(&frame, linkage, code, &info);
     result_code = generator.GenerateCode();
 
 #ifdef OBJECT_PRINT
@@ -101,7 +110,7 @@ class DeoptCodegenTester {
   CompilationInfo info;
   BailoutId bailout_id;
   Handle<Code> result_code;
-  v8::internal::compiler::InstructionSequence* code;
+  TestInstrSeq* code;
   Graph* graph;
 };
 
@@ -129,13 +138,13 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
 
     Handle<JSFunction> deopt_function =
         NewFunction("function deopt() { %DeoptimizeFunction(foo); }; deopt");
-    Unique<Object> deopt_fun_constant =
-        Unique<Object>::CreateUninitialized(deopt_function);
+    Unique<JSFunction> deopt_fun_constant =
+        Unique<JSFunction>::CreateUninitialized(deopt_function);
     Node* deopt_fun_node = m.NewNode(common.HeapConstant(deopt_fun_constant));
 
     Handle<Context> caller_context(function->context(), CcTest::i_isolate());
-    Unique<Object> caller_context_constant =
-        Unique<Object>::CreateUninitialized(caller_context);
+    Unique<Context> caller_context_constant =
+        Unique<Context>::CreateUninitialized(caller_context);
     Node* caller_context_node =
         m.NewNode(common.HeapConstant(caller_context_constant));
 
@@ -145,12 +154,13 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     Node* stack = m.NewNode(common.StateValues(0));
 
     Node* state_node = m.NewNode(
-        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
-        locals, stack, caller_context_node, m.UndefinedConstant());
+        common.FrameState(JS_FRAME, bailout_id,
+                          OutputFrameStateCombine::Ignore()),
+        parameters, locals, stack, caller_context_node, m.UndefinedConstant());
 
     Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
-    Unique<Object> context_constant =
-        Unique<Object>::CreateUninitialized(context);
+    Unique<Context> context_constant =
+        Unique<Context>::CreateUninitialized(context);
     Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     m.CallJS0(deopt_fun_node, m.UndefinedConstant(), context_node, state_node);
@@ -244,13 +254,13 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     CSignature1<Object*, Object*> sig;
     RawMachineAssembler m(graph, &sig);
 
-    Unique<Object> this_fun_constant =
-        Unique<Object>::CreateUninitialized(function);
+    Unique<HeapObject> this_fun_constant =
+        Unique<HeapObject>::CreateUninitialized(function);
     Node* this_fun_node = m.NewNode(common.HeapConstant(this_fun_constant));
 
     Handle<Context> context(function->context(), CcTest::i_isolate());
-    Unique<Object> context_constant =
-        Unique<Object>::CreateUninitialized(context);
+    Unique<HeapObject> context_constant =
+        Unique<HeapObject>::CreateUninitialized(context);
     Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     bailout_id = GetCallBailoutId();
@@ -259,8 +269,9 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     Node* stack = m.NewNode(common.StateValues(0));
 
     Node* state_node = m.NewNode(
-        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
-        locals, stack, context_node, m.UndefinedConstant());
+        common.FrameState(JS_FRAME, bailout_id,
+                          OutputFrameStateCombine::Ignore()),
+        parameters, locals, stack, context_node, m.UndefinedConstant());
 
     m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, context_node,
                    state_node);

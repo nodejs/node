@@ -87,6 +87,17 @@
   'S15.9.3.1_A5_T5': [PASS, FAIL_OK],
   'S15.9.3.1_A5_T6': [PASS, FAIL_OK],
 
+  # ObjectKeys() no longer throws TypeError when passed a primitive value which
+  # is not null or undefined (per ES6).
+  '15.2.3.14-1-1': [FAIL_OK],
+  '15.2.3.14-1-2': [FAIL_OK],
+  '15.2.3.14-1-3': [FAIL_OK],
+
+  # Object.getOwnPropertyNames(O) no longer throws when passed a primitive value.
+  '15.2.3.4-1-4': [FAIL_OK],
+  '15.2.3.4-1-5': [FAIL_OK],
+  '15.2.3.4-1': [FAIL_OK],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run in debug mode.

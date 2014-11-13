@@ -100,7 +100,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
     return 0;
   }
 
-  virtual unsigned FillBuffer(unsigned position);
+  virtual unsigned FillBuffer(unsigned position) OVERRIDE;
 
  private:
   void HandleUtf8SplitCharacters(unsigned* data_in_buffer);

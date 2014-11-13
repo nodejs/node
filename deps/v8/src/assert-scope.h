@@ -5,7 +5,7 @@
 #ifndef V8_ASSERT_SCOPE_H_
 #define V8_ASSERT_SCOPE_H_
 
-#include "include/v8stdint.h"
+#include <stdint.h>
 #include "src/base/macros.h"
 
 namespace v8 {

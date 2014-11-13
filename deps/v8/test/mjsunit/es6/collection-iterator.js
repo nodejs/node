@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-tostring
 
 
 (function TestSetIterator() {
@@ -19,6 +19,15 @@
 
   assertEquals(new Set().values().__proto__, SetIteratorPrototype);
   assertEquals(new Set().entries().__proto__, SetIteratorPrototype);
+
+  assertEquals("[object Set Iterator]",
+      Object.prototype.toString.call(iter));
+  assertEquals("Set Iterator", SetIteratorPrototype[Symbol.toStringTag]);
+  var desc = Object.getOwnPropertyDescriptor(
+      SetIteratorPrototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.writable);
+  assertEquals("Set Iterator", desc.value);
 })();
 
 
@@ -120,6 +129,15 @@
   assertEquals(new Map().values().__proto__, MapIteratorPrototype);
   assertEquals(new Map().keys().__proto__, MapIteratorPrototype);
   assertEquals(new Map().entries().__proto__, MapIteratorPrototype);
+
+  assertEquals("[object Map Iterator]",
+      Object.prototype.toString.call(iter));
+  assertEquals("Map Iterator", MapIteratorPrototype[Symbol.toStringTag]);
+  var desc = Object.getOwnPropertyDescriptor(
+      MapIteratorPrototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.writable);
+  assertEquals("Map Iterator", desc.value);
 })();
 
 

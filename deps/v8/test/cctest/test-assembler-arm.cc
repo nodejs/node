@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <iostream>  // NOLINT(readability/streams)
+
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -34,6 +36,7 @@
 #include "src/factory.h"
 #include "src/ostreams.h"
 
+using namespace v8::base;
 using namespace v8::internal;
 
 
@@ -1439,20 +1442,18 @@ TEST(17) {
     CHECK_EQ(expected_, t.result);
 
 
-TEST(18) {
+TEST(sdiv) {
   // Test the sdiv.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-
-  typedef struct {
-    uint32_t dividend;
-    uint32_t divisor;
-    uint32_t result;
-  } T;
-  T t;
-
   Assembler assm(isolate, NULL, 0);
+
+  struct T {
+    int32_t dividend;
+    int32_t divisor;
+    int32_t result;
+  } t;
 
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(&assm, SUDIV);
@@ -1477,6 +1478,8 @@ TEST(18) {
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     Object* dummy;
+    TEST_SDIV(0, kMinInt, 0);
+    TEST_SDIV(0, 1024, 0);
     TEST_SDIV(1073741824, kMinInt, -2);
     TEST_SDIV(kMinInt, kMinInt, -1);
     TEST_SDIV(5, 10, 2);
@@ -1493,6 +1496,114 @@ TEST(18) {
 
 
 #undef TEST_SDIV
+
+
+#define TEST_UDIV(expected_, dividend_, divisor_) \
+  t.dividend = dividend_;                         \
+  t.divisor = divisor_;                           \
+  t.result = 0;                                   \
+  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0); \
+  CHECK_EQ(expected_, t.result);
+
+
+TEST(udiv) {
+  // Test the udiv.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, NULL, 0);
+
+  struct T {
+    uint32_t dividend;
+    uint32_t divisor;
+    uint32_t result;
+  } t;
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(&assm, SUDIV);
+
+    __ mov(r3, Operand(r0));
+
+    __ ldr(r0, MemOperand(r3, OFFSET_OF(T, dividend)));
+    __ ldr(r1, MemOperand(r3, OFFSET_OF(T, divisor)));
+
+    __ sdiv(r2, r0, r1);
+    __ str(r2, MemOperand(r3, OFFSET_OF(T, result)));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    Object* dummy;
+    TEST_UDIV(0, 0, 0);
+    TEST_UDIV(0, 1024, 0);
+    TEST_UDIV(5, 10, 2);
+    TEST_UDIV(3, 10, 3);
+    USE(dummy);
+  }
+}
+
+
+#undef TEST_UDIV
+
+
+TEST(smmla) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ smmla(r1, r1, r2, r3);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, z, 0);
+    CHECK_EQ(bits::SignedMulHighAndAdd32(x, y, z), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(smmul) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ smmul(r1, r1, r2);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(bits::SignedMulHigh32(x, y), r);
+    USE(dummy);
+  }
+}
 
 
 TEST(code_relative_offset) {
@@ -1565,4 +1676,100 @@ TEST(code_relative_offset) {
   CHECK_EQ(42, res);
 }
 
+
+TEST(ARMv8_vrintX) {
+  // Test the vrintX floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    double input;
+    double ar;
+    double nr;
+    double mr;
+    double pr;
+    double zr;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles and floats.
+  Assembler assm(isolate, NULL, 0);
+  Label L, C;
+
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+
+    __ mov(r4, Operand(r0));
+
+    // Test vrinta
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrinta(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, ar));
+
+    // Test vrintn
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintn(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, nr));
+
+    // Test vrintp
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintp(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, pr));
+
+    // Test vrintm
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintm(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, mr));
+
+    // Test vrintz
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintz(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, zr));
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
+  t.input = input_val;                                       \
+  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);            \
+  CHECK_EQ(ares, t.ar);                                      \
+  CHECK_EQ(nres, t.nr);                                      \
+  CHECK_EQ(mres, t.mr);                                      \
+  CHECK_EQ(pres, t.pr);                                      \
+  CHECK_EQ(zres, t.zr);
+
+    CHECK_VRINT(-0.5, -1.0, -0.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-0.6, -1.0, -1.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-1.1, -1.0, -1.0, -2.0, -1.0, -1.0)
+    CHECK_VRINT(0.5, 1.0, 0.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(0.6, 1.0, 1.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(1.1, 1.0, 1.0, 1.0, 2.0, 1.0)
+    double inf = std::numeric_limits<double>::infinity();
+    CHECK_VRINT(inf, inf, inf, inf, inf, inf)
+    CHECK_VRINT(-inf, -inf, -inf, -inf, -inf, -inf)
+    CHECK_VRINT(-0.0, -0.0, -0.0, -0.0, -0.0, -0.0)
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    CHECK_VRINT(nan, nan, nan, nan, nan, nan)
+
+#undef CHECK_VRINT
+  }
+}
 #undef __

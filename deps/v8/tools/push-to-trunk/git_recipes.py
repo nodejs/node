@@ -80,7 +80,11 @@ class GitFailedException(Exception):
 
 def Strip(f):
   def new_f(*args, **kwargs):
-    return f(*args, **kwargs).strip()
+    result = f(*args, **kwargs)
+    if result is None:
+      return result
+    else:
+      return result.strip()
   return new_f
 
 
@@ -101,9 +105,10 @@ class GitRecipesMixin(object):
   def GitBranch(self, **kwargs):
     return self.Git("branch", **kwargs)
 
-  def GitCreateBranch(self, name, branch="", **kwargs):
+  def GitCreateBranch(self, name, remote="", **kwargs):
     assert name
-    self.Git(MakeArgs(["checkout -b", name, branch]), **kwargs)
+    remote_args = ["--upstream", remote] if remote else []
+    self.Git(MakeArgs(["new-branch", name] + remote_args), **kwargs)
 
   def GitDeleteBranch(self, name, **kwargs):
     assert name
@@ -229,6 +234,10 @@ class GitRecipesMixin(object):
   def GitDCommit(self, **kwargs):
     self.Git(
         "cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
+
+  def GitCLLand(self, **kwargs):
+    self.Git(
+        "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
 
   def GitDiff(self, loc1, loc2, **kwargs):
     return self.Git(MakeArgs(["diff", loc1, loc2]), **kwargs)

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noopt-safe-uint32-operations
+// Flags: --allow-natives-syntax
 
 // Check the results of `left >>> right`. The result is always unsigned (and
 // therefore positive).

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8stdint.h"
+#include <stdint.h>
 #include "src/token.h"
 
 namespace v8 {

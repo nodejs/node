@@ -10,10 +10,10 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/ast.h"
+#include "src/bit-vector.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
-#include "src/data-flow.h"
 #include "src/globals.h"
 #include "src/objects.h"
 
@@ -40,7 +40,7 @@ class BreakableStatementChecker: public AstVisitor {
 
  private:
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -392,7 +392,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
   void DeclareModules(Handle<FixedArray> descriptions);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
@@ -429,10 +429,21 @@ class FullCodeGenerator: public AstVisitor {
 
   // Feedback slot support. The feedback vector will be cleared during gc and
   // collected by the type-feedback oracle.
-  Handle<FixedArray> FeedbackVector() {
+  Handle<TypeFeedbackVector> FeedbackVector() const {
     return info_->feedback_vector();
   }
-  void EnsureSlotContainsAllocationSite(int slot);
+  void EnsureSlotContainsAllocationSite(FeedbackVectorSlot slot);
+  void EnsureSlotContainsAllocationSite(FeedbackVectorICSlot slot);
+
+  // Returns a smi for the index into the FixedArray that backs the feedback
+  // vector
+  Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
+    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+  }
+
+  Smi* SmiFromSlot(FeedbackVectorICSlot slot) const {
+    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+  }
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -479,6 +490,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitCallWithLoadIC(Call* expr);
   void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
+  void EmitKeyedSuperCallWithLoadIC(Call* expr);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
@@ -517,17 +529,44 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot.
+  enum LhsKind {
+    VARIABLE,
+    NAMED_PROPERTY,
+    KEYED_PROPERTY,
+    NAMED_SUPER_PROPERTY,
+    KEYED_SUPER_PROPERTY
+  };
+
+  static LhsKind GetAssignType(Property* property) {
+    if (property == NULL) return VARIABLE;
+    bool super_access = property->IsSuperAccess();
+    return (property->key()->IsPropertyName())
+               ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
+               : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
+  }
+
   // Load a value from a named property.
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  // Load a value from super.named prroperty.
+  // Load a value from super.named property.
   // Expect receiver ('this' value) and home_object on the stack.
   void EmitNamedSuperPropertyLoad(Property* expr);
+
+  // Load a value from super[keyed] property.
+  // Expect receiver ('this' value), home_object and key on the stack.
+  void EmitKeyedSuperPropertyLoad(Property* expr);
 
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
+
+  // Adds the properties to the class (function) object and to its prototype.
+  // Expects the class (function) in the accumulator. The class (function) is
+  // in the accumulator after installing all the properties.
+  void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
@@ -562,7 +601,11 @@ class FullCodeGenerator: public AstVisitor {
 
   // Complete a super named property assignment. The right-hand-side value
   // is expected in accumulator.
-  void EmitNamedSuperPropertyAssignment(Assignment* expr);
+  void EmitNamedSuperPropertyStore(Property* prop);
+
+  // Complete a super named property assignment. The right-hand-side value
+  // is expected in accumulator.
+  void EmitKeyedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the
@@ -570,6 +613,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void EmitLoadHomeObject(SuperReference* expr);
+
+  void EmitLoadSuperConstructor(SuperReference* expr);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
@@ -625,7 +670,7 @@ class FullCodeGenerator: public AstVisitor {
   void PushFunctionArgumentForContextAllocation();
 
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

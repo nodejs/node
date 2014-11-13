@@ -32,6 +32,7 @@
 
 import os
 from os.path import join, dirname, abspath
+import re
 import subprocess
 import sys
 import tempfile
@@ -82,7 +83,7 @@ def GetNaClArchFromNexe(nexe):
   try:
     p = subprocess.Popen(['file', nexe], stdout=subprocess.PIPE)
     out, err = p.communicate()
-    lines = out.split('\n')
+    lines = [re.sub("\s+", " " , line) for line in out.split('\n')]
     if lines[0].find(": ELF 32-bit LSB executable, Intel 80386") > 0:
       return "x86_32"
     if lines[0].find(": ELF 64-bit LSB executable, x86-64") > 0:
@@ -116,17 +117,13 @@ def GetNaClResources(nexe):
     print("NaCl V8 ARM support is not ready yet.")
     sys.exit(1)
   else:
-    print("Invalid nexe %s" % nexe)
+    print("Invalid nexe %s with NaCl arch %s" % (nexe, nacl_arch))
     sys.exit(1)
 
   nacl_sel_ldr = os.path.join(nacl_sdk_dir, "tools", sel_ldr)
   nacl_irt = os.path.join(nacl_sdk_dir, "tools", irt)
-  nacl_ld_so = os.path.join(nacl_sdk_dir, "toolchain", toolchain,
-                            "x86_64-nacl", libdir, "runnable-ld.so")
-  nacl_lib_path = os.path.join(nacl_sdk_dir, "toolchain", toolchain,
-                               "x86_64-nacl", libdir)
 
-  return (nacl_sdk_dir, nacl_sel_ldr, nacl_irt, nacl_ld_so, nacl_lib_path)
+  return (nacl_sdk_dir, nacl_sel_ldr, nacl_irt)
 
 def Main():
   if (len(sys.argv) == 1):
@@ -135,15 +132,14 @@ def Main():
 
   args = [Escape(arg) for arg in sys.argv[1:]]
 
-  (nacl_sdk_dir, nacl_sel_ldr, nacl_irt, nacl_ld_so,
-   nacl_lib_path) = GetNaClResources(sys.argv[1])
+  (nacl_sdk_dir, nacl_sel_ldr, nacl_irt) = GetNaClResources(sys.argv[1])
 
   # sel_ldr Options:
   # -c -c: disable validation (for performance)
   # -a: allow file access
   # -B <irt>: load the IRT
-  command = ' '.join([nacl_sel_ldr, '-c', '-c', '-a', '-B', nacl_irt, '--',
-                     nacl_ld_so, '--library-path', nacl_lib_path] + args)
+  command = ' '.join([nacl_sel_ldr, '-c', '-c', '-a', '-B', nacl_irt, '--'] +
+                     args)
   error_code = Execute(command)
   return error_code
 

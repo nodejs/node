@@ -1064,6 +1064,104 @@ TEST(BoundFunctionCall) {
 }
 
 
+// This tests checks distribution of the samples through the source lines.
+TEST(TickLines) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  i::FLAG_turbo_source_positions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+
+  i::EmbeddedVector<char, 512> script;
+
+  const char* func_name = "func";
+  i::SNPrintF(script,
+              "function %s() {\n"
+              "  var n = 0;\n"
+              "  var m = 100*100;\n"
+              "  while (m > 1) {\n"
+              "    m--;\n"
+              "    n += m * m * m;\n"
+              "  }\n"
+              "}\n"
+              "%s();\n",
+              func_name, func_name);
+
+  CompileRun(script.start());
+
+  i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast((*env)->Global()->Get(v8_str(func_name))));
+  CHECK_NE(NULL, func->shared());
+  CHECK_NE(NULL, func->shared()->code());
+  i::Code* code = NULL;
+  if (func->code()->is_optimized_code()) {
+    code = func->code();
+  } else {
+    CHECK(func->shared()->code() == func->code() || !i::FLAG_crankshaft);
+    code = func->shared()->code();
+  }
+  CHECK_NE(NULL, code);
+  i::Address code_address = code->instruction_start();
+  CHECK_NE(NULL, code_address);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
+  profiles->StartProfiling("", false);
+  ProfileGenerator generator(profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100));
+  processor->Start();
+  CpuProfiler profiler(isolate, profiles, &generator, processor);
+
+  // Enqueue code creation events.
+  i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
+  int line = 1;
+  int column = 1;
+  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), NULL,
+                           *str, line, column);
+
+  // Enqueue a tick event to enable code events processing.
+  EnqueueTickSampleEvent(processor, code_address);
+
+  processor->StopSynchronously();
+
+  CpuProfile* profile = profiles->StopProfiling("");
+  CHECK_NE(NULL, profile);
+
+  // Check the state of profile generator.
+  CodeEntry* func_entry = generator.code_map()->FindEntry(code_address);
+  CHECK_NE(NULL, func_entry);
+  CHECK_EQ(func_name, func_entry->name());
+  const i::JITLineInfoTable* line_info = func_entry->line_info();
+  CHECK_NE(NULL, line_info);
+  CHECK(!line_info->empty());
+
+  // Check the hit source lines using V8 Public APIs.
+  const i::ProfileTree* tree = profile->top_down();
+  ProfileNode* root = tree->root();
+  CHECK_NE(NULL, root);
+  ProfileNode* func_node = root->FindChild(func_entry);
+  CHECK_NE(NULL, func_node);
+
+  // Add 10 faked ticks to source line #5.
+  int hit_line = 5;
+  int hit_count = 10;
+  for (int i = 0; i < hit_count; i++) func_node->IncrementLineTicks(hit_line);
+
+  unsigned int line_count = func_node->GetHitLineCount();
+  CHECK_EQ(2, line_count);  // Expect two hit source lines - #1 and #5.
+  ScopedVector<v8::CpuProfileNode::LineTick> entries(line_count);
+  CHECK(func_node->GetLineTicks(&entries[0], line_count));
+  int value = 0;
+  for (int i = 0; i < entries.length(); i++)
+    if (entries[i].line == hit_line) {
+      value = entries[i].hit_count;
+      break;
+    }
+  CHECK_EQ(hit_count, value);
+}
+
+
 static const char* call_function_test_source = "function bar(iterations) {\n"
 "}\n"
 "function start(duration) {\n"

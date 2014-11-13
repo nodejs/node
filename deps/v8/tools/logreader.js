@@ -108,6 +108,8 @@ LogReader.prototype.processStack = function(pc, func, stack) {
     // Filter out possible 'overflow' string.
     } else if (firstChar != 'o') {
       fullStack.push(parseInt(frame, 16));
+    } else {
+      print("dropping: " + frame);
     }
   }
   return fullStack;

@@ -180,9 +180,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         os << "--- Raw source ---\n";
-        ConsStringIteratorOp op;
         StringCharacterStream stream(String::cast(script->source()),
-                                     &op,
                                      function->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.

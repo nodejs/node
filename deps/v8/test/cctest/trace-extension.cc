@@ -91,7 +91,8 @@ void TraceExtension::DoTrace(Address fp) {
   // sp is only used to define stack high bound
   regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Init(CcTest::i_isolate(), regs);
+  trace_env.sample->Init(CcTest::i_isolate(), regs,
+                         TickSample::kSkipCEntryFrame);
 }
 
 

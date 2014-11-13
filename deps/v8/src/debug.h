@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/arguments.h"
 #include "src/assembler.h"
+#include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
 #include "src/execution.h"
 #include "src/factory.h"
@@ -31,13 +32,14 @@ class DebugScope;
 // Step actions. NOTE: These values are in macros.py as well.
 enum StepAction {
   StepNone = -1,  // Stepping not prepared.
-  StepOut = 0,   // Step out of the current function.
-  StepNext = 1,  // Step to the next statement in the current function.
-  StepIn = 2,    // Step into new functions invoked or the next statement
-                 // in the current function.
-  StepMin = 3,   // Perform a minimum step in the current function.
-  StepInMin = 4  // Step into new functions invoked or perform a minimum step
-                 // in the current function.
+  StepOut = 0,    // Step out of the current function.
+  StepNext = 1,   // Step to the next statement in the current function.
+  StepIn = 2,     // Step into new functions invoked or the next statement
+                  // in the current function.
+  StepMin = 3,    // Perform a minimum step in the current function.
+  StepInMin = 4,  // Step into new functions invoked or perform a minimum step
+                  // in the current function.
+  StepFrame = 5   // Step into a new frame or return to previous frame.
 };
 
 
@@ -48,10 +50,11 @@ enum ExceptionBreakType {
 };
 
 
-// Type of exception break. NOTE: These values are in macros.py as well.
+// Type of exception break.
 enum BreakLocatorType {
   ALL_BREAK_LOCATIONS = 0,
-  SOURCE_BREAK_LOCATIONS = 1
+  SOURCE_BREAK_LOCATIONS = 1,
+  CALLS_AND_RETURNS = 2
 };
 
 
@@ -384,7 +387,8 @@ class Debug {
                               BreakPositionAlignment alignment);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ClearAllBreakPoints();
-  void FloodWithOneShot(Handle<JSFunction> function);
+  void FloodWithOneShot(Handle<JSFunction> function,
+                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
   void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -400,10 +404,8 @@ class Debug {
   bool StepNextContinue(BreakLocationIterator* break_location_iterator,
                         JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<JSFunction> function,
-                    Handle<Object> holder,
-                    Address fp,
-                    bool is_constructor);
+  void HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
+                    Address fp, bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   // Purge all code objects that have no debug break slots.
@@ -454,8 +456,15 @@ class Debug {
   // Record function from which eval was called.
   static void RecordEvalCaller(Handle<Script> script);
 
+  bool CheckExecutionState(int id) {
+    return !debug_context().is_null() && break_id() != 0 && break_id() == id;
+  }
+
   // Flags and states.
-  DebugScope* debugger_entry() { return thread_local_.current_debug_scope_; }
+  DebugScope* debugger_entry() {
+    return reinterpret_cast<DebugScope*>(
+        base::NoBarrier_Load(&thread_local_.current_debug_scope_));
+  }
   inline Handle<Context> debug_context() { return debug_context_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
@@ -466,7 +475,7 @@ class Debug {
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool has_break_points() const { return has_break_points_; }
   inline bool in_debug_scope() const {
-    return thread_local_.current_debug_scope_ != NULL;
+    return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
   }
   void set_disable_break(bool v) { break_disabled_ = v; }
 
@@ -529,8 +538,8 @@ class Debug {
   // Mirror cache handling.
   void ClearMirrorCache();
 
-  // Returns a promise if the pushed try-catch handler matches the current one.
-  bool PromiseHasRejectHandler(Handle<JSObject> promise);
+  MaybeHandle<Object> PromiseHasUserDefinedRejectHandler(
+      Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,
@@ -551,8 +560,8 @@ class Debug {
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();
-  // Returns whether the compile succeeded.
-  void RemoveDebugInfo(Handle<DebugInfo> debug_info);
+  void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
+  void RemoveDebugInfo(DebugInfo** debug_info);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
@@ -595,7 +604,7 @@ class Debug {
   class ThreadLocal {
    public:
     // Top debugger entry.
-    DebugScope* current_debug_scope_;
+    base::AtomicWord current_debug_scope_;
 
     // Counter for generating next break id.
     int break_count_;
@@ -615,7 +624,7 @@ class Debug {
     // Number of steps left to perform before debug event.
     int step_count_;
 
-    // Frame pointer from last step next action.
+    // Frame pointer from last step next or step frame action.
     Address last_fp_;
 
     // Number of queued steps left to perform before debug event.

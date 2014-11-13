@@ -125,6 +125,9 @@ void HeapObject::HeapObjectVerify() {
     case PROPERTY_CELL_TYPE:
       PropertyCell::cast(this)->PropertyCellVerify();
       break;
+    case WEAK_CELL_TYPE:
+      WeakCell::cast(this)->WeakCellVerify();
+      break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
@@ -256,9 +259,17 @@ void JSObject::JSObjectVerify() {
   }
 
   if (HasFastProperties()) {
-    CHECK_EQ(map()->unused_property_fields(),
-             (map()->inobject_properties() + properties()->length() -
-              map()->NextFreePropertyIndex()));
+    int actual_unused_property_fields = map()->inobject_properties() +
+                                        properties()->length() -
+                                        map()->NextFreePropertyIndex();
+    if (map()->unused_property_fields() != actual_unused_property_fields) {
+      // This could actually happen in the middle of StoreTransitionStub
+      // when the new extended backing store is already set into the object and
+      // the allocation of the MutableHeapNumber triggers GC (in this case map
+      // is not updated yet).
+      CHECK_EQ(map()->unused_property_fields(),
+               actual_unused_property_fields - JSObject::kFieldsAdded);
+    }
     DescriptorArray* descriptors = map()->instance_descriptors();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       if (descriptors->GetDetails(i).type() == FIELD) {
@@ -624,6 +635,13 @@ void PropertyCell::PropertyCellVerify() {
   CHECK(IsPropertyCell());
   VerifyObjectField(kValueOffset);
   VerifyObjectField(kTypeOffset);
+}
+
+
+void WeakCell::WeakCellVerify() {
+  CHECK(IsWeakCell());
+  VerifyObjectField(kValueOffset);
+  VerifyObjectField(kNextOffset);
 }
 
 
@@ -1146,15 +1164,13 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      OFStream os(stdout);
-      PrintDescriptors(os);
+      Print();
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      OFStream os(stdout);
-      PrintDescriptors(os);
+      Print();
       return false;
     }
     current = hash;
@@ -1165,23 +1181,36 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK(valid_entries == -1);
-  Name* current_key = NULL;
-  uint32_t current = 0;
+  Name* prev_key = NULL;
+  bool prev_is_data_property = false;
+  PropertyAttributes prev_attributes = NONE;
+  uint32_t prev_hash = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
-    if (key == current_key) {
-      OFStream os(stdout);
-      PrintTransitions(os);
+    uint32_t hash = key->Hash();
+    bool is_data_property = false;
+    PropertyAttributes attributes = NONE;
+    if (!IsSpecialTransition(key)) {
+      Map* target = GetTarget(i);
+      PropertyDetails details = GetTargetDetails(key, target);
+      is_data_property = details.type() == FIELD || details.type() == CONSTANT;
+      attributes = details.attributes();
+    } else {
+      // Duplicate entries are not allowed for non-property transitions.
+      CHECK_NE(prev_key, key);
+    }
+
+    int cmp =
+        CompareKeys(prev_key, prev_hash, prev_is_data_property, prev_attributes,
+                    key, hash, is_data_property, attributes);
+    if (cmp >= 0) {
+      Print();
       return false;
     }
-    current_key = key;
-    uint32_t hash = GetSortedKey(i)->Hash();
-    if (hash < current) {
-      OFStream os(stdout);
-      PrintTransitions(os);
-      return false;
-    }
-    current = hash;
+    prev_key = key;
+    prev_hash = hash;
+    prev_attributes = attributes;
+    prev_is_data_property = is_data_property;
   }
   return true;
 }
@@ -1197,6 +1226,24 @@ bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
     if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
   }
   return true;
+}
+
+
+void Code::VerifyEmbeddedObjectsInFullCode() {
+  // Check that no context-specific object has been embedded.
+  Heap* heap = GetIsolate()->heap();
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    Object* obj = it.rinfo()->target_object();
+    if (obj->IsCell()) obj = Cell::cast(obj)->value();
+    if (obj->IsPropertyCell()) obj = PropertyCell::cast(obj)->value();
+    if (!obj->IsHeapObject()) continue;
+    Map* map = obj->IsMap() ? Map::cast(obj) : HeapObject::cast(obj)->map();
+    int i = 0;
+    while (map != heap->roots_array_start()[i++]) {
+      CHECK_LT(i, Heap::kStrongRootListLength);
+    }
+  }
 }
 
 

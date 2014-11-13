@@ -5,9 +5,11 @@
 #ifndef V8_HYDROGEN_UNIQUE_H_
 #define V8_HYDROGEN_UNIQUE_H_
 
+#include <ostream>  // NOLINT(readability/streams)
+
+#include "src/base/functional.h"
 #include "src/handles-inl.h"  // TODO(everyone): Fix our inl.h crap
 #include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
-#include "src/string-stream.h"
 #include "src/utils.h"
 #include "src/zone.h"
 
@@ -81,6 +83,11 @@ class Unique {
     return raw_address_ != other.raw_address_;
   }
 
+  friend inline size_t hash_value(Unique<T> const& unique) {
+    DCHECK(unique.IsInitialized());
+    return base::hash<void*>()(unique.raw_address_);
+  }
+
   inline intptr_t Hashcode() const {
     DCHECK(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
@@ -127,6 +134,11 @@ class Unique {
 
   friend class SideEffectsTracker;
 };
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, Unique<T> uniq) {
+  return os << Brief(*uniq.handle());
+}
 
 
 template <typename T>

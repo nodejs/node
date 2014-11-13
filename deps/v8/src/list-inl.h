@@ -7,6 +7,7 @@
 
 #include "src/list.h"
 
+#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -33,8 +34,10 @@ template<typename T, class P>
 void List<T, P>::AddAll(const Vector<T>& other, P alloc) {
   int result_length = length_ + other.length();
   if (capacity_ < result_length) Resize(result_length, alloc);
-  for (int i = 0; i < other.length(); i++) {
-    data_[length_ + i] = other.at(i);
+  if (base::is_fundamental<T>()) {
+    memcpy(data_ + length_, other.start(), sizeof(*data_) * other.length());
+  } else {
+    for (int i = 0; i < other.length(); i++) data_[length_ + i] = other.at(i);
   }
   length_ = result_length;
 }

@@ -92,7 +92,8 @@ class GenericNode : public B {
 
   bool OwnedBy(GenericNode* owner) const;
 
-  static S* New(GenericGraphBase* graph, int input_count, S** inputs);
+  static S* New(GenericGraphBase* graph, int input_count, S** inputs,
+                bool has_extensible_inputs);
 
  protected:
   friend class GenericGraphBase;
@@ -128,15 +129,21 @@ class GenericNode : public B {
 
   void* operator new(size_t, void* location) { return location; }
 
-  GenericNode(GenericGraphBase* graph, int input_count);
+  GenericNode(GenericGraphBase* graph, int input_count,
+              int reserved_input_count);
 
  private:
   void AssignUniqueID(GenericGraphBase* graph);
 
   typedef ZoneDeque<Input> InputDeque;
 
+  static const int kReservedInputCountBits = 2;
+  static const int kMaxReservedInputs = (1 << kReservedInputCountBits) - 1;
+  static const int kDefaultReservedInputs = kMaxReservedInputs;
+
   NodeId id_;
-  int input_count_ : 31;
+  int input_count_ : 29;
+  unsigned int reserve_input_count_ : kReservedInputCountBits;
   bool has_appendable_inputs_ : 1;
   union {
     // When a node is initially allocated, it uses a static buffer to hold its

@@ -4,13 +4,13 @@ tests from
 
   https://github.com/tc39/test262
 
-at hash 9bd6686 (2014/08/25 revision) as 'data' in this directory.  Using later
+at hash 61113db (2014/10/23 revision) as 'data' in this directory.  Using later
 version may be possible but the tests are only known to pass (and indeed run)
 with that revision.
 
   git clone https://github.com/tc39/test262 data
   cd data
-  git checkout 9bd6686
+  git checkout 61113db
 
 If you do update to a newer revision you may have to change the test
 harness adapter code since it uses internal functionality from the

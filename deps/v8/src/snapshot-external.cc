@@ -58,17 +58,16 @@ bool Snapshot::Initialize(Isolate* isolate) {
   }
   SnapshotByteSource source(snapshot_impl_->data, snapshot_impl_->size);
   Deserializer deserializer(&source);
-  deserializer.set_reservation(NEW_SPACE, snapshot_impl_->new_space_used);
-  deserializer.set_reservation(OLD_POINTER_SPACE,
-                               snapshot_impl_->pointer_space_used);
-  deserializer.set_reservation(OLD_DATA_SPACE,
-                               snapshot_impl_->data_space_used);
-  deserializer.set_reservation(CODE_SPACE, snapshot_impl_->code_space_used);
-  deserializer.set_reservation(MAP_SPACE, snapshot_impl_->map_space_used);
-  deserializer.set_reservation(CELL_SPACE, snapshot_impl_->cell_space_used);
-  deserializer.set_reservation(PROPERTY_CELL_SPACE,
-                               snapshot_impl_->property_cell_space_used);
-  deserializer.set_reservation(LO_SPACE, snapshot_impl_->lo_space_used);
+  deserializer.AddReservation(NEW_SPACE, snapshot_impl_->new_space_used);
+  deserializer.AddReservation(OLD_POINTER_SPACE,
+                              snapshot_impl_->pointer_space_used);
+  deserializer.AddReservation(OLD_DATA_SPACE, snapshot_impl_->data_space_used);
+  deserializer.AddReservation(CODE_SPACE, snapshot_impl_->code_space_used);
+  deserializer.AddReservation(MAP_SPACE, snapshot_impl_->map_space_used);
+  deserializer.AddReservation(CELL_SPACE, snapshot_impl_->cell_space_used);
+  deserializer.AddReservation(PROPERTY_CELL_SPACE,
+                              snapshot_impl_->property_cell_space_used);
+  deserializer.AddReservation(LO_SPACE, snapshot_impl_->lo_space_used);
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -85,22 +84,21 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   SnapshotByteSource source(snapshot_impl_->context_data,
                             snapshot_impl_->context_size);
   Deserializer deserializer(&source);
-  deserializer.set_reservation(NEW_SPACE,
-                               snapshot_impl_->context_new_space_used);
-  deserializer.set_reservation(OLD_POINTER_SPACE,
-                               snapshot_impl_->context_pointer_space_used);
-  deserializer.set_reservation(OLD_DATA_SPACE,
-                               snapshot_impl_->context_data_space_used);
-  deserializer.set_reservation(CODE_SPACE,
-                               snapshot_impl_->context_code_space_used);
-  deserializer.set_reservation(MAP_SPACE,
-                               snapshot_impl_->context_map_space_used);
-  deserializer.set_reservation(CELL_SPACE,
-                               snapshot_impl_->context_cell_space_used);
-  deserializer.set_reservation(PROPERTY_CELL_SPACE,
-                               snapshot_impl_->
-                                   context_property_cell_space_used);
-  deserializer.set_reservation(LO_SPACE, snapshot_impl_->context_lo_space_used);
+  deserializer.AddReservation(NEW_SPACE,
+                              snapshot_impl_->context_new_space_used);
+  deserializer.AddReservation(OLD_POINTER_SPACE,
+                              snapshot_impl_->context_pointer_space_used);
+  deserializer.AddReservation(OLD_DATA_SPACE,
+                              snapshot_impl_->context_data_space_used);
+  deserializer.AddReservation(CODE_SPACE,
+                              snapshot_impl_->context_code_space_used);
+  deserializer.AddReservation(MAP_SPACE,
+                              snapshot_impl_->context_map_space_used);
+  deserializer.AddReservation(CELL_SPACE,
+                              snapshot_impl_->context_cell_space_used);
+  deserializer.AddReservation(PROPERTY_CELL_SPACE,
+                              snapshot_impl_->context_property_cell_space_used);
+  deserializer.AddReservation(LO_SPACE, snapshot_impl_->context_lo_space_used);
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
@@ -138,6 +136,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
   snapshot_impl_->context_map_space_used = source.GetInt();
   snapshot_impl_->context_cell_space_used = source.GetInt();
   snapshot_impl_->context_property_cell_space_used = source.GetInt();
+  snapshot_impl_->context_lo_space_used = source.GetInt();
 
   DCHECK(success);
 }

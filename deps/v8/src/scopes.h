@@ -211,6 +211,12 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
 
+  // Inform the scope that the corresponding code uses "this".
+  void RecordThisUsage() { scope_uses_this_ = true; }
+
+  // Inform the scope that the corresponding code uses "arguments".
+  void RecordArgumentsUsage() { scope_uses_arguments_ = true; }
+
   // Set the strict mode flag (unless disabled by a global flag).
   void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
 
@@ -262,12 +268,15 @@ class Scope: public ZoneObject {
 
   // Specific scope types.
   bool is_eval_scope() const { return scope_type_ == EVAL_SCOPE; }
-  bool is_function_scope() const { return scope_type_ == FUNCTION_SCOPE; }
+  bool is_function_scope() const {
+    return scope_type_ == FUNCTION_SCOPE || scope_type_ == ARROW_SCOPE;
+  }
   bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
   bool is_global_scope() const { return scope_type_ == GLOBAL_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
   bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
+  bool is_arrow_scope() const { return scope_type_ == ARROW_SCOPE; }
   bool is_declaration_scope() const {
     return is_eval_scope() || is_function_scope() ||
         is_module_scope() || is_global_scope();
@@ -291,6 +300,15 @@ class Scope: public ZoneObject {
   bool inside_with() const { return scope_inside_with_; }
   // Does this scope contain a with statement.
   bool contains_with() const { return scope_contains_with_; }
+
+  // Does this scope access "this".
+  bool uses_this() const { return scope_uses_this_; }
+  // Does any inner scope access "this".
+  bool inner_uses_this() const { return inner_scope_uses_this_; }
+  // Does this scope access "arguments".
+  bool uses_arguments() const { return scope_uses_arguments_; }
+  // Does any inner scope access "arguments".
+  bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -468,6 +486,10 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
+  // This scope uses "this".
+  bool scope_uses_this_;
+  // This scope uses "arguments".
+  bool scope_uses_arguments_;
   // This scope contains an "use asm" annotation.
   bool asm_module_;
   // This scope's outer context is an asm module.
@@ -481,6 +503,8 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
+  bool inner_scope_uses_this_;
+  bool inner_scope_uses_arguments_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 

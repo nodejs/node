@@ -253,14 +253,14 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if defined(ANDROID)
+#if V8_OS_MACOSX
+  return static_cast<int>(pthread_mach_thread_np(pthread_self()));
+#elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
-#elif defined(SYS_gettid)
-  return static_cast<int>(syscall(SYS_gettid));
+#elif V8_OS_ANDROID
+  return static_cast<int>(gettid());
 #else
-  // PNaCL doesn't have a way to get an integral thread ID, but it doesn't
-  // really matter, because we only need it in PerfJitLogger::LogRecordedBuffer.
-  return 0;
+  return static_cast<int>(pthread_self());
 #endif
 }
 

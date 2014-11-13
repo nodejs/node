@@ -77,6 +77,9 @@ function SetUpArrayBuffer() {
   %AddNamedProperty(
       $ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
 
+  %AddNamedProperty($ArrayBuffer.prototype,
+      symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
+
   InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
   InstallFunctions($ArrayBuffer, DONT_ENUM, $Array(

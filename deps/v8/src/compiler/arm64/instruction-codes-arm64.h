@@ -36,6 +36,8 @@ namespace compiler {
   V(Arm64Sub32)                    \
   V(Arm64Mul)                      \
   V(Arm64Mul32)                    \
+  V(Arm64Smull)                    \
+  V(Arm64Umull)                    \
   V(Arm64Madd)                     \
   V(Arm64Madd32)                   \
   V(Arm64Msub)                     \
@@ -54,16 +56,22 @@ namespace compiler {
   V(Arm64Not32)                    \
   V(Arm64Neg)                      \
   V(Arm64Neg32)                    \
-  V(Arm64Shl)                      \
-  V(Arm64Shl32)                    \
-  V(Arm64Shr)                      \
-  V(Arm64Shr32)                    \
-  V(Arm64Sar)                      \
-  V(Arm64Sar32)                    \
+  V(Arm64Lsl)                      \
+  V(Arm64Lsl32)                    \
+  V(Arm64Lsr)                      \
+  V(Arm64Lsr32)                    \
+  V(Arm64Asr)                      \
+  V(Arm64Asr32)                    \
   V(Arm64Ror)                      \
   V(Arm64Ror32)                    \
   V(Arm64Mov32)                    \
   V(Arm64Sxtw)                     \
+  V(Arm64Ubfx)                     \
+  V(Arm64Ubfx32)                   \
+  V(Arm64Tbz)                      \
+  V(Arm64Tbz32)                    \
+  V(Arm64Tbnz)                     \
+  V(Arm64Tbnz32)                   \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \
@@ -75,6 +83,10 @@ namespace compiler {
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
   V(Arm64Float64Sqrt)              \
+  V(Arm64Float64Floor)             \
+  V(Arm64Float64Ceil)              \
+  V(Arm64Float64RoundTruncate)     \
+  V(Arm64Float64RoundTiesAway)     \
   V(Arm64Float32ToFloat64)         \
   V(Arm64Float64ToFloat32)         \
   V(Arm64Float64ToInt32)           \
@@ -111,9 +123,13 @@ namespace compiler {
 // I = immediate (handle, external, int32)
 // MRI = [register + immediate]
 // MRR = [register + register]
-#define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MRI) /* [%r0 + K] */               \
-  V(MRR) /* [%r0 + %r1] */
+#define TARGET_ADDRESSING_MODE_LIST(V)  \
+  V(MRI)              /* [%r0 + K] */   \
+  V(MRR)              /* [%r0 + %r1] */ \
+  V(Operand2_R_LSL_I) /* %r0 LSL K */   \
+  V(Operand2_R_LSR_I) /* %r0 LSR K */   \
+  V(Operand2_R_ASR_I) /* %r0 ASR K */   \
+  V(Operand2_R_ROR_I) /* %r0 ROR K */
 
 }  // namespace internal
 }  // namespace compiler

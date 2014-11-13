@@ -604,8 +604,22 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(src_elements, elements,
          Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
   __ add(dst_elements, array, Operand(FixedArray::kHeaderSize));
-  __ add(array, array, Operand(kHeapObjectTag));
   __ add(dst_end, dst_elements, Operand(length, LSL, 1));
+
+  // Allocating heap numbers in the loop below can fail and cause a jump to
+  // gc_required. We can't leave a partly initialized FixedArray behind,
+  // so pessimistically fill it with holes now.
+  Label initialization_loop, initialization_loop_entry;
+  __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+  __ b(&initialization_loop_entry);
+  __ bind(&initialization_loop);
+  __ str(scratch, MemOperand(dst_elements, kPointerSize, PostIndex));
+  __ bind(&initialization_loop_entry);
+  __ cmp(dst_elements, dst_end);
+  __ b(lt, &initialization_loop);
+
+  __ add(dst_elements, array, Operand(FixedArray::kHeaderSize));
+  __ add(array, array, Operand(kHeapObjectTag));
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses in src_elements to fully take advantage of
   // post-indexing.

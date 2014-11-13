@@ -176,7 +176,7 @@ var cf = [create_func_smi,
           create_func_double,
           create_func_fast];
 
-for(var c = 0; c < 3; c++) {
+for(var c = 0; c < cf.length; c++) {
   base_getter_test(cf[c]);
 }
 

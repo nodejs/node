@@ -22,6 +22,14 @@ typedef uint32_t SnapshotObjectId;
  */
 class V8_EXPORT CpuProfileNode {
  public:
+  struct LineTick {
+    /** The 1-based number of the source line where the function originates. */
+    int line;
+
+    /** The count of samples associated with the source line. */
+    unsigned int hit_count;
+  };
+
   /** Returns function name (empty string for anonymous functions.) */
   Handle<String> GetFunctionName() const;
 
@@ -42,6 +50,18 @@ class V8_EXPORT CpuProfileNode {
    * kNoColumnNumberInfo if no column number information is available.
    */
   int GetColumnNumber() const;
+
+  /**
+   * Returns the number of the function's source lines that collect the samples.
+   */
+  unsigned int GetHitLineCount() const;
+
+  /** Returns the set of source lines that collect the samples.
+   *  The caller allocates buffer and responsible for releasing it.
+   *  True if all available entries are copied, otherwise false.
+   *  The function copies nothing if buffer is not large enough.
+   */
+  bool GetLineTicks(LineTick* entries, unsigned int length) const;
 
   /** Returns bailout reason for the function
     * if the optimization was disabled for it.

@@ -36,6 +36,7 @@ function Profile() {
   this.codeMap_ = new CodeMap();
   this.topDownTree_ = new CallTree();
   this.bottomUpTree_ = new CallTree();
+  this.c_entries_ = {};
 };
 
 
@@ -102,7 +103,7 @@ Profile.prototype.handleUnknownCode = function(
 Profile.prototype.addLibrary = function(
     name, startAddr, endAddr) {
   var entry = new CodeMap.CodeEntry(
-      endAddr - startAddr, name);
+      endAddr - startAddr, name, 'SHARED_LIB');
   this.codeMap_.addLibrary(startAddr, entry);
   return entry;
 };
@@ -118,7 +119,7 @@ Profile.prototype.addLibrary = function(
 Profile.prototype.addStaticCode = function(
     name, startAddr, endAddr) {
   var entry = new CodeMap.CodeEntry(
-      endAddr - startAddr, name);
+      endAddr - startAddr, name, 'CPP');
   this.codeMap_.addStaticCode(startAddr, entry);
   return entry;
 };
@@ -250,10 +251,26 @@ Profile.prototype.recordTick = function(stack) {
  */
 Profile.prototype.resolveAndFilterFuncs_ = function(stack) {
   var result = [];
+  var last_seen_c_function = '';
+  var look_for_first_c_function = false;
   for (var i = 0; i < stack.length; ++i) {
     var entry = this.codeMap_.findEntry(stack[i]);
     if (entry) {
       var name = entry.getName();
+      if (i == 0 && (entry.type == 'CPP' || entry.type == 'SHARED_LIB')) {
+        look_for_first_c_function = true;
+      }
+      if (look_for_first_c_function) {
+        if (entry.type == 'CPP') {
+          last_seen_c_function = name;
+        } else if (i > 0 && last_seen_c_function != '') {
+          if (this.c_entries_[last_seen_c_function] === undefined) {
+            this.c_entries_[last_seen_c_function] = 0;
+          }
+          this.c_entries_[last_seen_c_function]++;
+          look_for_first_c_function = false;  // Found it, we're done.
+        }
+      }
       if (!this.skipThisFunction(name)) {
         result.push(name);
       }
@@ -381,6 +398,28 @@ Profile.prototype.getFlatProfile = function(opt_label) {
 };
 
 
+Profile.CEntryNode = function(name, ticks) {
+  this.name = name;
+  this.ticks = ticks;
+}
+
+
+Profile.prototype.getCEntryProfile = function() {
+  var result = [new Profile.CEntryNode("TOTAL", 0)];
+  var total_ticks = 0;
+  for (var f in this.c_entries_) {
+    var ticks = this.c_entries_[f];
+    total_ticks += ticks;
+    result.push(new Profile.CEntryNode(f, ticks));
+  }
+  result[0].ticks = total_ticks;  // Sorting will keep this at index 0.
+  result.sort(function(n1, n2) {
+    return n2.ticks - n1.ticks || (n2.name < n1.name ? -1 : 1)
+  });
+  return result;
+}
+
+
 /**
  * Cleans up function entries that are not referenced by code entries.
  */
@@ -415,8 +454,7 @@ Profile.prototype.cleanUpFuncEntries = function() {
  * @constructor
  */
 Profile.DynamicCodeEntry = function(size, type, name) {
-  CodeMap.CodeEntry.call(this, size, name);
-  this.type = type;
+  CodeMap.CodeEntry.call(this, size, name, type);
 };
 
 
@@ -456,8 +494,7 @@ Profile.DynamicCodeEntry.prototype.toString = function() {
  * @constructor
  */
 Profile.DynamicFuncCodeEntry = function(size, type, func, state) {
-  CodeMap.CodeEntry.call(this, size);
-  this.type = type;
+  CodeMap.CodeEntry.call(this, size, '', type);
   this.func = func;
   this.state = state;
 };

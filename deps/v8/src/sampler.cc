@@ -226,13 +226,13 @@ class Sampler::PlatformData : public PlatformDataCommon {
 #if defined(USE_SIMULATOR)
 class SimulatorHelper {
  public:
-  inline bool Init(Sampler* sampler, Isolate* isolate) {
+  inline bool Init(Isolate* isolate) {
     simulator_ = isolate->thread_local_top()->simulator_;
     // Check if there is active simulator.
     return simulator_ != NULL;
   }
 
-  inline void FillRegisters(RegisterState* state) {
+  inline void FillRegisters(v8::RegisterState* state) {
 #if V8_TARGET_ARCH_ARM
     state->pc = reinterpret_cast<Address>(simulator_->get_pc());
     state->sp = reinterpret_cast<Address>(simulator_->get_register(
@@ -241,22 +241,16 @@ class SimulatorHelper {
         Simulator::r11));
 #elif V8_TARGET_ARCH_ARM64
     if (simulator_->sp() == 0 || simulator_->fp() == 0) {
-      // It possible that the simulator is interrupted while it is updating
+      // It's possible that the simulator is interrupted while it is updating
       // the sp or fp register. ARM64 simulator does this in two steps:
-      // first setting it to zero and then setting it to the new value.
+      // first setting it to zero and then setting it to a new value.
       // Bailout if sp/fp doesn't contain the new value.
       return;
     }
     state->pc = reinterpret_cast<Address>(simulator_->pc());
     state->sp = reinterpret_cast<Address>(simulator_->sp());
     state->fp = reinterpret_cast<Address>(simulator_->fp());
-#elif V8_TARGET_ARCH_MIPS
-    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    state->sp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::sp));
-    state->fp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::fp));
-#elif V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
     state->pc = reinterpret_cast<Address>(simulator_->get_pc());
     state->sp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::sp));
@@ -341,7 +335,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   USE(info);
   if (signal != SIGPROF) return;
   Isolate* isolate = Isolate::UnsafeCurrent();
-  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
+  if (isolate == NULL || !isolate->IsInUse()) {
     // We require a fully initialized and entered isolate.
     return;
   }
@@ -353,11 +347,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL) return;
 
-  RegisterState state;
+  v8::RegisterState state;
 
 #if defined(USE_SIMULATOR)
   SimulatorHelper helper;
-  if (!helper.Init(sampler, isolate)) return;
+  if (!helper.Init(isolate)) return;
   helper.FillRegisters(&state);
   // It possible that the simulator is interrupted while it is updating
   // the sp or fp register. ARM64 simulator does this in two steps:
@@ -380,8 +374,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
-#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
-    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#if V8_LIBC_GLIBC && !V8_GLIBC_PREREQ(2, 4)
   // Old GLibc ARM versions used a gregs[] array to access the register
   // values from mcontext_t.
   state.pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
@@ -391,8 +384,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.arm_pc);
   state.sp = reinterpret_cast<Address>(mcontext.arm_sp);
   state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
-        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#endif  // V8_LIBC_GLIBC && !V8_GLIBC_PREREQ(2, 4)
 #elif V8_HOST_ARCH_ARM64
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.sp);
@@ -548,7 +540,6 @@ class SamplerThread : public base::Thread {
         // profiled. We must not suspend.
         for (int i = 0; i < active_samplers_.length(); ++i) {
           Sampler* sampler = active_samplers_.at(i);
-          if (!sampler->isolate()->IsInitialized()) continue;
           if (!sampler->IsProfiling()) continue;
           sampler->DoSample();
         }
@@ -577,20 +568,17 @@ SamplerThread* SamplerThread::instance_ = NULL;
 // StackTracer implementation
 //
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
-                                   const RegisterState& regs) {
-  DCHECK(isolate->IsInitialized());
+                                   const v8::RegisterState& regs,
+                                   RecordCEntryFrame record_c_entry_frame) {
   timestamp = base::TimeTicks::HighResolutionNow();
-  pc = regs.pc;
+  pc = reinterpret_cast<Address>(regs.pc);
   state = isolate->current_vm_state();
 
   // Avoid collecting traces while doing GC.
   if (state == GC) return;
 
   Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) {
-    // Not executing JS now.
-    return;
-  }
+  if (js_entry_sp == 0) return;  // Not executing JS now.
 
   ExternalCallbackScope* scope = isolate->external_callback_scope();
   Address handler = Isolate::handler(isolate->thread_local_top());
@@ -603,18 +591,44 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   } else {
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
-    tos = Memory::Address_at(regs.sp);
+    tos = Memory::Address_at(reinterpret_cast<Address>(regs.sp));
     has_external_callback = false;
   }
 
-  SafeStackFrameIterator it(isolate, regs.fp, regs.sp, js_entry_sp);
+  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
+                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
   top_frame_type = it.top_frame_type();
-  unsigned i = 0;
-  while (!it.done() && i < TickSample::kMaxFramesCount) {
-    stack[i++] = it.frame()->pc();
+
+  SampleInfo info;
+  GetStackSample(isolate, regs, record_c_entry_frame,
+                 reinterpret_cast<void**>(&stack[0]), kMaxFramesCount, &info);
+  frames_count = static_cast<unsigned>(info.frames_count);
+}
+
+
+void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
+                                RecordCEntryFrame record_c_entry_frame,
+                                void** frames, size_t frames_limit,
+                                v8::SampleInfo* sample_info) {
+  sample_info->frames_count = 0;
+  sample_info->vm_state = isolate->current_vm_state();
+  if (sample_info->vm_state == GC) return;
+
+  Address js_entry_sp = isolate->js_entry_sp();
+  if (js_entry_sp == 0) return;  // Not executing JS now.
+
+  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
+                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
+  size_t i = 0;
+  if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
+      it.top_frame_type() == StackFrame::EXIT) {
+    frames[i++] = isolate->c_function();
+  }
+  while (!it.done() && i < frames_limit) {
+    frames[i++] = it.frame()->pc();
     it.Advance();
   }
-  frames_count = i;
+  sample_info->frames_count = i;
 }
 
 
@@ -682,11 +696,11 @@ void Sampler::DecreaseProfilingDepth() {
 }
 
 
-void Sampler::SampleStack(const RegisterState& state) {
+void Sampler::SampleStack(const v8::RegisterState& state) {
   TickSample* sample = isolate_->cpu_profiler()->StartTickSample();
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
-  sample->Init(isolate_, state);
+  sample->Init(isolate_, state, TickSample::kIncludeCEntryFrame);
   if (is_counting_samples_) {
     if (sample->state == JS || sample->state == EXTERNAL) {
       ++js_and_external_sample_count_;
@@ -714,7 +728,7 @@ void Sampler::DoSample() {
 
 #if defined(USE_SIMULATOR)
   SimulatorHelper helper;
-  if (!helper.Init(this, isolate())) return;
+  if (!helper.Init(isolate())) return;
 #endif
 
   const DWORD kSuspendFailed = static_cast<DWORD>(-1);
@@ -725,7 +739,7 @@ void Sampler::DoSample() {
   memset(&context, 0, sizeof(context));
   context.ContextFlags = CONTEXT_FULL;
   if (GetThreadContext(profiled_thread, &context) != 0) {
-    RegisterState state;
+    v8::RegisterState state;
 #if defined(USE_SIMULATOR)
     helper.FillRegisters(&state);
 #else

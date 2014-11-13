@@ -2272,6 +2272,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   if (instr->op() != Token::MOD) {
     X87PrepareBinaryOp(left, right, result);
   }
+  // Set the precision control to double-precision.
+  __ X87SetFPUCW(0x027F);
   switch (instr->op()) {
     case Token::ADD:
       __ fadd_i(1);
@@ -2306,12 +2308,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
   }
 
-  // Only always explicitly storing to memory to force the round-down for double
-  // arithmetic.
-  __ lea(esp, Operand(esp, -kDoubleSize));
-  __ fstp_d(Operand(esp, 0));
-  __ fld_d(Operand(esp, 0));
-  __ lea(esp, Operand(esp, kDoubleSize));
+  // Restore the default value of control word.
+  __ X87SetFPUCW(0x037F);
 }
 
 
@@ -3126,13 +3124,15 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
-  Register vector = ToRegister(instr->temp_vector());
-  DCHECK(vector.is(VectorLoadICDescriptor::VectorRegister()));
-  __ mov(vector, instr->hydrogen()->feedback_vector());
+  Register vector_register = ToRegister(instr->temp_vector());
+  DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
+  __ mov(vector_register, vector);
   // No need to allocate this register.
   DCHECK(VectorLoadICDescriptor::SlotRegister().is(eax));
+  int index = vector->GetIndex(instr->hydrogen()->slot());
   __ mov(VectorLoadICDescriptor::SlotRegister(),
-         Immediate(Smi::FromInt(instr->hydrogen()->slot())));
+         Immediate(Smi::FromInt(index)));
 }
 
 
@@ -3147,7 +3147,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), mode).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3277,7 +3277,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   if (FLAG_vector_ics) {
     EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), NOT_CONTEXTUAL).code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_CONTEXTUAL).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3500,7 +3501,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

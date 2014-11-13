@@ -105,7 +105,7 @@ const uint32_t kHoleNanLower32Offset = 4;
   (kArchVariant == check)
 #else
 #define IsMipsArchVariant(check) \
-  (CpuFeatures::IsSupported(check))
+  (CpuFeatures::IsSupported(static_cast<CpuFeature>(check)))
 #endif
 
 

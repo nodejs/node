@@ -23,6 +23,13 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
       0    0.0%    0.0%  GC
       4   36.4%          Shared libraries
 
+ [C++ entry points]:
+   ticks    cpp   total   name
+      2   40.0%   18.2%  v8::internal::Runtime_Math_exp(v8::internal::Arguments)
+      1   20.0%    9.1%  v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)
+      1   20.0%    9.1%  v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)
+      1   20.0%    9.1%  exp
+
  [Bottom up (heavy) profile]:
   Note: percentage shows a share of a particular caller in the total
   amount of its parent calls.

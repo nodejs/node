@@ -342,13 +342,24 @@ class PerfTest(unittest.TestCase):
     test_input = dict(V8_GENERIC_JSON)
     self._WriteTestInput(test_input)
     self._MockCommand(["."], [
-      "Trace(Test1), Result(1.234), StdDev(0.23)\n"
-      "Trace(Test2), Result(10657567), StdDev(106)\n"])
+      "RESULT Infra: Constant1= 11 count\n"
+      "RESULT Infra: Constant2= [10,5,10,15] count\n"
+      "RESULT Infra: Constant3= {12,1.2} count\n"])
     self.assertEquals(0, self._CallMain())
-    self._VerifyResults("test", "ms", [
-      {"name": "Test1", "results": ["1.234"], "stddev": "0.23"},
-      {"name": "Test2", "results": ["10657567"], "stddev": "106"},
-    ])
+    self.assertEquals([
+      {"units": "count",
+       "graphs": ["test", "Infra", "Constant1"],
+       "results": ["11"],
+       "stddev": ""},
+      {"units": "count",
+       "graphs": ["test", "Infra", "Constant2"],
+       "results": ["10", "5", "10", "15"],
+       "stddev": ""},
+      {"units": "count",
+       "graphs": ["test", "Infra", "Constant3"],
+       "results": ["12"],
+       "stddev": "1.2"},
+      ], self._LoadResults()["traces"])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "cc"), "--flag", "")
 

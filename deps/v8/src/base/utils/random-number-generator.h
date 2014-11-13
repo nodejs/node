@@ -68,6 +68,13 @@ class RandomNumberGenerator FINAL {
   // (exclusive), is pseudorandomly generated and returned.
   double NextDouble() WARN_UNUSED_RESULT;
 
+  // Returns the next pseudorandom, uniformly distributed int64 value from this
+  // random number generator's sequence. The general contract of |NextInt64()|
+  // is that one 64-bit int value is pseudorandomly generated and returned.
+  // All 2^64 possible integer values are produced with (approximately) equal
+  // probability.
+  int64_t NextInt64() WARN_UNUSED_RESULT;
+
   // Fills the elements of a specified array of bytes with random numbers.
   void NextBytes(void* buffer, size_t buflen);
 

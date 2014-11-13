@@ -20,6 +20,7 @@
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/string-search.h"
+#include "src/unicode-decoder.h"
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -4386,7 +4387,7 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 class DotPrinter: public NodeVisitor {
  public:
-  DotPrinter(OStream& os, bool ignore_case)  // NOLINT
+  DotPrinter(std::ostream& os, bool ignore_case)  // NOLINT
       : os_(os),
         ignore_case_(ignore_case) {}
   void PrintNode(const char* label, RegExpNode* node);
@@ -4398,7 +4399,7 @@ class DotPrinter: public NodeVisitor {
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
  private:
-  OStream& os_;
+  std::ostream& os_;
   bool ignore_case_;
 };
 
@@ -4420,7 +4421,7 @@ void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
   }
   os_ << "\"];\n";
   Visit(node);
-  os_ << "}" << endl;
+  os_ << "}" << std::endl;
 }
 
 
@@ -4439,7 +4440,7 @@ void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
 
 class TableEntryBodyPrinter {
  public:
-  TableEntryBodyPrinter(OStream& os, ChoiceNode* choice)  // NOLINT
+  TableEntryBodyPrinter(std::ostream& os, ChoiceNode* choice)  // NOLINT
       : os_(os),
         choice_(choice) {}
   void Call(uc16 from, DispatchTable::Entry entry) {
@@ -4453,14 +4454,14 @@ class TableEntryBodyPrinter {
   }
  private:
   ChoiceNode* choice() { return choice_; }
-  OStream& os_;
+  std::ostream& os_;
   ChoiceNode* choice_;
 };
 
 
 class TableEntryHeaderPrinter {
  public:
-  explicit TableEntryHeaderPrinter(OStream& os)  // NOLINT
+  explicit TableEntryHeaderPrinter(std::ostream& os)  // NOLINT
       : first_(true),
         os_(os) {}
   void Call(uc16 from, DispatchTable::Entry entry) {
@@ -4484,13 +4485,13 @@ class TableEntryHeaderPrinter {
 
  private:
   bool first_;
-  OStream& os_;
+  std::ostream& os_;
 };
 
 
 class AttributePrinter {
  public:
-  explicit AttributePrinter(OStream& os)  // NOLINT
+  explicit AttributePrinter(std::ostream& os)  // NOLINT
       : os_(os),
         first_(true) {}
   void PrintSeparator() {
@@ -4512,7 +4513,7 @@ class AttributePrinter {
   }
 
  private:
-  OStream& os_;
+  std::ostream& os_;
   bool first_;
 };
 
@@ -4681,10 +4682,10 @@ void DotPrinter::VisitAction(ActionNode* that) {
 
 class DispatchTableDumper {
  public:
-  explicit DispatchTableDumper(OStream& os) : os_(os) {}
+  explicit DispatchTableDumper(std::ostream& os) : os_(os) {}
   void Call(uc16 key, DispatchTable::Entry entry);
  private:
-  OStream& os_;
+  std::ostream& os_;
 };
 
 

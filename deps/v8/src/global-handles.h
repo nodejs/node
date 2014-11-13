@@ -112,15 +112,24 @@ class GlobalHandles {
 
   typedef WeakCallbackData<v8::Value, void>::Callback WeakCallback;
 
+  // For a phantom weak reference, the callback does not have access to the
+  // dying object.  Phantom weak references are preferred because they allow
+  // memory to be reclaimed in one GC cycle rather than two.  However, for
+  // historical reasons the default is non-phantom.
+  enum PhantomState { Nonphantom, Phantom };
+
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
-  // handles point to an object the handles are cleared and the callback
-  // function is invoked (for each handle) with the handle and corresponding
-  // parameter as arguments.  Note: cleared means set to Smi::FromInt(0). The
-  // reason is that Smi::FromInt(0) does not change during garage collection.
-  static void MakeWeak(Object** location,
-                       void* parameter,
-                       WeakCallback weak_callback);
+  // handles point to an object the callback function is invoked (for each
+  // handle) with the handle and corresponding parameter as arguments.  By
+  // default the handle still contains a pointer to the object that is being
+  // collected.  For this reason the object is not collected until the next
+  // GC.  For a phantom weak handle the handle is cleared (set to a Smi)
+  // before the callback is invoked, but the handle can still be identified
+  // in the callback by using the location() of the handle.
+  static void MakeWeak(Object** location, void* parameter,
+                       WeakCallback weak_callback,
+                       PhantomState phantom = Nonphantom);
 
   void RecordStats(HeapStats* stats);
 

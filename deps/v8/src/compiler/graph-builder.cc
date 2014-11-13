@@ -19,38 +19,52 @@ namespace internal {
 namespace compiler {
 
 
-StructuredGraphBuilder::StructuredGraphBuilder(Graph* graph,
+StructuredGraphBuilder::StructuredGraphBuilder(Zone* local_zone, Graph* graph,
                                                CommonOperatorBuilder* common)
     : GraphBuilder(graph),
       common_(common),
       environment_(NULL),
+      local_zone_(local_zone),
+      input_buffer_size_(0),
+      input_buffer_(NULL),
       current_context_(NULL),
-      exit_control_(NULL) {}
+      exit_control_(NULL) {
+  EnsureInputBufferSize(kInputBufferSizeIncrement);
+}
+
+
+Node** StructuredGraphBuilder::EnsureInputBufferSize(int size) {
+  if (size > input_buffer_size_) {
+    size += kInputBufferSizeIncrement;
+    input_buffer_ = local_zone()->NewArray<Node*>(size);
+  }
+  return input_buffer_;
+}
 
 
 Node* StructuredGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
-                                       Node** value_inputs) {
+                                       Node** value_inputs, bool incomplete) {
   DCHECK(op->InputCount() == value_input_count);
 
   bool has_context = OperatorProperties::HasContextInput(op);
   bool has_framestate = OperatorProperties::HasFrameStateInput(op);
-  bool has_control = OperatorProperties::GetControlInputCount(op) == 1;
-  bool has_effect = OperatorProperties::GetEffectInputCount(op) == 1;
+  bool has_control = op->ControlInputCount() == 1;
+  bool has_effect = op->EffectInputCount() == 1;
 
-  DCHECK(OperatorProperties::GetControlInputCount(op) < 2);
-  DCHECK(OperatorProperties::GetEffectInputCount(op) < 2);
+  DCHECK(op->ControlInputCount() < 2);
+  DCHECK(op->EffectInputCount() < 2);
 
   Node* result = NULL;
   if (!has_context && !has_framestate && !has_control && !has_effect) {
-    result = graph()->NewNode(op, value_input_count, value_inputs);
+    result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
     if (has_framestate) ++input_count_with_deps;
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
-    Node** buffer = zone()->NewArray<Node*>(input_count_with_deps);
+    Node** buffer = EnsureInputBufferSize(input_count_with_deps);
     memcpy(buffer, value_inputs, kPointerSize * value_input_count);
     Node** current_input = buffer + value_input_count;
     if (has_context) {
@@ -68,11 +82,11 @@ Node* StructuredGraphBuilder::MakeNode(const Operator* op,
     if (has_control) {
       *current_input++ = environment_->GetControlDependency();
     }
-    result = graph()->NewNode(op, input_count_with_deps, buffer);
+    result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
     if (has_effect) {
       environment_->UpdateEffectDependency(result);
     }
-    if (OperatorProperties::HasControlOutput(result->op()) &&
+    if (result->op()->ControlOutputCount() > 0 &&
         !environment()->IsMarkedAsUnreachable()) {
       environment_->UpdateControlDependency(result);
     }
@@ -95,7 +109,7 @@ void StructuredGraphBuilder::UpdateControlDependencyToLeaveFunction(
 
 StructuredGraphBuilder::Environment* StructuredGraphBuilder::CopyEnvironment(
     Environment* env) {
-  return new (zone()) Environment(*env);
+  return new (local_zone()) Environment(*env);
 }
 
 
@@ -111,7 +125,11 @@ StructuredGraphBuilder::Environment::Environment(const Environment& copy)
     : builder_(copy.builder()),
       control_dependency_(copy.control_dependency_),
       effect_dependency_(copy.effect_dependency_),
-      values_(copy.values_) {}
+      values_(copy.zone()) {
+  const size_t kStackEstimate = 7;  // optimum from experimentation!
+  values_.reserve(copy.values_.size() + kStackEstimate);
+  values_.insert(values_.begin(), copy.values_.begin(), copy.values_.end());
+}
 
 
 void StructuredGraphBuilder::Environment::Merge(Environment* other) {
@@ -124,7 +142,9 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
   // placing a singleton merge as the new control dependency.
   if (this->IsMarkedAsUnreachable()) {
     Node* other_control = other->control_dependency_;
-    control_dependency_ = graph()->NewNode(common()->Merge(1), other_control);
+    Node* inputs[] = {other_control};
+    control_dependency_ =
+        graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
     return;
@@ -150,11 +170,22 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
 }
 
 
-void StructuredGraphBuilder::Environment::PrepareForLoop() {
+void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned) {
   Node* control = GetControlDependency();
-  for (int i = 0; i < static_cast<int>(values()->size()); ++i) {
-    Node* phi = builder_->NewPhi(1, values()->at(i), control);
-    values()->at(i) = phi;
+  int size = static_cast<int>(values()->size());
+  if (assigned == NULL) {
+    // Assume that everything is updated in the loop.
+    for (int i = 0; i < size; ++i) {
+      Node* phi = builder_->NewPhi(1, values()->at(i), control);
+      values()->at(i) = phi;
+    }
+  } else {
+    // Only build phis for those locals assigned in this loop.
+    for (int i = 0; i < size; ++i) {
+      if (i < assigned->length() && !assigned->Contains(i)) continue;
+      Node* phi = builder_->NewPhi(1, values()->at(i), control);
+      values()->at(i) = phi;
+    }
   }
   Node* effect = builder_->NewEffectPhi(1, GetEffectDependency(), control);
   UpdateEffectDependency(effect);
@@ -163,10 +194,10 @@ void StructuredGraphBuilder::Environment::PrepareForLoop() {
 
 Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
   const Operator* phi_op = common()->Phi(kMachAnyTagged, count);
-  Node** buffer = zone()->NewArray<Node*>(count + 1);
+  Node** buffer = EnsureInputBufferSize(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
-  return graph()->NewNode(phi_op, count + 1, buffer);
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
 }
 
 
@@ -174,29 +205,30 @@ Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
 Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
                                            Node* control) {
   const Operator* phi_op = common()->EffectPhi(count);
-  Node** buffer = zone()->NewArray<Node*>(count + 1);
+  Node** buffer = EnsureInputBufferSize(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
-  return graph()->NewNode(phi_op, count + 1, buffer);
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
 }
 
 
 Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op()) + 1;
+  int inputs = control->op()->ControlInputCount() + 1;
   if (control->opcode() == IrOpcode::kLoop) {
     // Control node for loop exists, add input.
     const Operator* op = common()->Loop(inputs);
-    control->AppendInput(zone(), other);
+    control->AppendInput(graph_zone(), other);
     control->set_op(op);
   } else if (control->opcode() == IrOpcode::kMerge) {
     // Control node for merge exists, add input.
     const Operator* op = common()->Merge(inputs);
-    control->AppendInput(zone(), other);
+    control->AppendInput(graph_zone(), other);
     control->set_op(op);
   } else {
     // Control node is a singleton, introduce a merge.
     const Operator* op = common()->Merge(inputs);
-    control = graph()->NewNode(op, control, other);
+    Node* inputs[] = {control, other};
+    control = graph()->NewNode(op, arraysize(inputs), inputs, true);
   }
   return control;
 }
@@ -204,12 +236,12 @@ Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
 
 Node* StructuredGraphBuilder::MergeEffect(Node* value, Node* other,
                                           Node* control) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op());
+  int inputs = control->op()->ControlInputCount();
   if (value->opcode() == IrOpcode::kEffectPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
     value->set_op(common()->EffectPhi(inputs));
-    value->InsertInput(zone(), inputs - 1, other);
+    value->InsertInput(graph_zone(), inputs - 1, other);
   } else if (value != other) {
     // Phi does not exist yet, introduce one.
     value = NewEffectPhi(inputs, value, control);
@@ -221,12 +253,12 @@ Node* StructuredGraphBuilder::MergeEffect(Node* value, Node* other,
 
 Node* StructuredGraphBuilder::MergeValue(Node* value, Node* other,
                                          Node* control) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op());
+  int inputs = control->op()->ControlInputCount();
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
     value->set_op(common()->Phi(kMachAnyTagged, inputs));
-    value->InsertInput(zone(), inputs - 1, other);
+    value->InsertInput(graph_zone(), inputs - 1, other);
   } else if (value != other) {
     // Phi does not exist yet, introduce one.
     value = NewPhi(inputs, value, control);

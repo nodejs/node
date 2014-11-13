@@ -1,0 +1,13 @@
+{
+  "name": "JSTests/Strings",
+  "path": ["."],
+  "main": "run.js",
+  "flags": ["--harmony-strings"],
+  "run_count": 5,
+  "units": "score",
+  "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+  "total": true,
+  "tests": [
+    {"name": "StringFunctions"}
+  ]
+}

@@ -371,6 +371,35 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is on the stack.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = ebx;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+  Register result = eax;
+  DCHECK(!result.is(scratch));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ ret(0);
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
   DCHECK(edx.is(ArgumentsAccessReadDescriptor::index()));
@@ -1928,6 +1957,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
                         FixedArray::kHeaderSize),
            Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ sub(FieldOperand(ebx, with_types_offset), Immediate(Smi::FromInt(1)));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ add(FieldOperand(ebx, generic_offset), Immediate(Smi::FromInt(1)));
     __ jmp(&slow_start);
   }
 
@@ -2817,8 +2853,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // ebx: instance type
   // ecx: sub string length (smi)
   // edx: from index (smi)
-  StringCharAtGenerator generator(
-      eax, edx, ecx, eax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(eax, edx, ecx, eax, &runtime, &runtime,
+                                  &runtime, STRING_INDEX_IS_NUMBER,
+                                  RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ ret(3 * kPointerSize);
   generator.SkipSlow(masm, &runtime);

@@ -888,6 +888,9 @@ class MacroAssembler: public Assembler {
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
+  void Move(XMMRegister dst, uint32_t src);
+  void Move(XMMRegister dst, uint64_t src);
+
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
@@ -1438,6 +1441,7 @@ class MacroAssembler: public Assembler {
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
   // Expects object in rax and returns map with validated enum cache

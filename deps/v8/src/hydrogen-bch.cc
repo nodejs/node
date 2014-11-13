@@ -237,14 +237,13 @@ class InductionVariableBlocksTable BASE_EMBEDDED {
     // constant limit we will use that instead of the induction limit.
     bool has_upper_constant_limit = true;
     int32_t upper_constant_limit =
-        check != NULL && check->HasUpperLimit() ? check->upper_limit() : 0;
+        check->HasUpperLimit() ? check->upper_limit() : 0;
     for (InductionVariableData::InductionVariableCheck* current_check = check;
          current_check != NULL;
          current_check = current_check->next()) {
       has_upper_constant_limit =
-          has_upper_constant_limit &&
-          check->HasUpperLimit() &&
-          check->upper_limit() == upper_constant_limit;
+          has_upper_constant_limit && current_check->HasUpperLimit() &&
+          current_check->upper_limit() == upper_constant_limit;
       counters()->bounds_checks_eliminated()->Increment();
       current_check->check()->set_skip_check();
     }

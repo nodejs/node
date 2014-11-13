@@ -28,22 +28,18 @@ class HeapGraphEdge BASE_EMBEDDED {
     kWeak = v8::HeapGraphEdge::kWeak
   };
 
-  HeapGraphEdge() { }
   HeapGraphEdge(Type type, const char* name, int from, int to);
   HeapGraphEdge(Type type, int index, int from, int to);
   void ReplaceToIndexWithEntry(HeapSnapshot* snapshot);
 
-  Type type() const { return static_cast<Type>(type_); }
+  Type type() const { return TypeField::decode(bit_field_); }
   int index() const {
-    DCHECK(type_ == kElement || type_ == kHidden);
+    DCHECK(type() == kElement || type() == kHidden);
     return index_;
   }
   const char* name() const {
-    DCHECK(type_ == kContextVariable
-        || type_ == kProperty
-        || type_ == kInternal
-        || type_ == kShortcut
-        || type_ == kWeak);
+    DCHECK(type() == kContextVariable || type() == kProperty ||
+           type() == kInternal || type() == kShortcut || type() == kWeak);
     return name_;
   }
   INLINE(HeapEntry* from() const);
@@ -51,9 +47,11 @@ class HeapGraphEdge BASE_EMBEDDED {
 
  private:
   INLINE(HeapSnapshot* snapshot() const);
+  int from_index() const { return FromIndexField::decode(bit_field_); }
 
-  unsigned type_ : 3;
-  int from_index_ : 29;
+  class TypeField : public BitField<Type, 0, 3> {};
+  class FromIndexField : public BitField<int, 3, 29> {};
+  uint32_t bit_field_;
   union {
     // During entries population |to_index_| is used for storing the index,
     // afterwards it is replaced with a pointer to the entry.
@@ -176,7 +174,6 @@ class HeapSnapshot {
   void FillChildren();
 
   void Print(int max_depth);
-  void PrintEntriesSize();
 
  private:
   HeapEntry* AddRootEntry();
@@ -332,7 +329,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   virtual ~V8HeapExplorer();
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
@@ -473,7 +469,6 @@ class NativeObjectsExplorer {
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFiller* filler);
 
@@ -506,7 +501,6 @@ class NativeObjectsExplorer {
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
-  SnapshottingProgressReportingInterface* progress_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
   // RetainedObjectInfo* -> List<HeapObject*>*

@@ -101,25 +101,6 @@ enum BindingFlags {
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun)                        \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun)          \
-  V(MATH_ABS_FUN_INDEX, JSFunction, math_abs_fun)                              \
-  V(MATH_ACOS_FUN_INDEX, JSFunction, math_acos_fun)                            \
-  V(MATH_ASIN_FUN_INDEX, JSFunction, math_asin_fun)                            \
-  V(MATH_ATAN_FUN_INDEX, JSFunction, math_atan_fun)                            \
-  V(MATH_ATAN2_FUN_INDEX, JSFunction, math_atan2_fun)                          \
-  V(MATH_CEIL_FUN_INDEX, JSFunction, math_ceil_fun)                            \
-  V(MATH_COS_FUN_INDEX, JSFunction, math_cos_fun)                              \
-  V(MATH_EXP_FUN_INDEX, JSFunction, math_exp_fun)                              \
-  V(MATH_FLOOR_FUN_INDEX, JSFunction, math_floor_fun)                          \
-  V(MATH_IMUL_FUN_INDEX, JSFunction, math_imul_fun)                            \
-  V(MATH_LOG_FUN_INDEX, JSFunction, math_log_fun)                              \
-  V(MATH_MAX_FUN_INDEX, JSFunction, math_max_fun)                              \
-  V(MATH_MIN_FUN_INDEX, JSFunction, math_min_fun)                              \
-  V(MATH_POW_FUN_INDEX, JSFunction, math_pow_fun)                              \
-  V(MATH_RANDOM_FUN_INDEX, JSFunction, math_random_fun)                        \
-  V(MATH_ROUND_FUN_INDEX, JSFunction, math_round_fun)                          \
-  V(MATH_SIN_FUN_INDEX, JSFunction, math_sin_fun)                              \
-  V(MATH_SQRT_FUN_INDEX, JSFunction, math_sqrt_fun)                            \
-  V(MATH_TAN_FUN_INDEX, JSFunction, math_tan_fun)                              \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
@@ -312,25 +293,6 @@ class Context: public FixedArray {
     GLOBAL_EVAL_FUN_INDEX,
     INSTANTIATE_FUN_INDEX,
     CONFIGURE_INSTANCE_FUN_INDEX,
-    MATH_ABS_FUN_INDEX,
-    MATH_ACOS_FUN_INDEX,
-    MATH_ASIN_FUN_INDEX,
-    MATH_ATAN_FUN_INDEX,
-    MATH_ATAN2_FUN_INDEX,
-    MATH_CEIL_FUN_INDEX,
-    MATH_COS_FUN_INDEX,
-    MATH_EXP_FUN_INDEX,
-    MATH_FLOOR_FUN_INDEX,
-    MATH_IMUL_FUN_INDEX,
-    MATH_LOG_FUN_INDEX,
-    MATH_MAX_FUN_INDEX,
-    MATH_MIN_FUN_INDEX,
-    MATH_POW_FUN_INDEX,
-    MATH_RANDOM_FUN_INDEX,
-    MATH_ROUND_FUN_INDEX,
-    MATH_SIN_FUN_INDEX,
-    MATH_SQRT_FUN_INDEX,
-    MATH_TAN_FUN_INDEX,
     ARRAY_BUFFER_FUN_INDEX,
     UINT8_ARRAY_FUN_INDEX,
     INT8_ARRAY_FUN_INDEX,

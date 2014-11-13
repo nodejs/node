@@ -34,7 +34,7 @@ TransitionArray* TransitionArray::cast(Object* object) {
 
 
 bool TransitionArray::HasElementsTransition() {
-  return Search(GetHeap()->elements_transition_symbol()) != kNotFound;
+  return SearchSpecial(GetHeap()->elements_transition_symbol()) != kNotFound;
 }
 
 
@@ -134,13 +134,87 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
-int TransitionArray::Search(Name* name) {
+Object* TransitionArray::GetTargetValue(int transition_number) {
+  Map* map = GetTarget(transition_number);
+  return map->instance_descriptors()->GetValue(map->LastAdded());
+}
+
+
+int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
   if (IsSimpleTransition()) {
     Name* key = GetKey(kSimpleTransitionIndex);
     if (key->Equals(name)) return kSimpleTransitionIndex;
+    if (out_insertion_index != NULL) {
+      *out_insertion_index = key->Hash() > name->Hash() ? 0 : 1;
+    }
     return kNotFound;
   }
-  return internal::Search<ALL_ENTRIES>(this, name);
+  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
+}
+
+
+#ifdef DEBUG
+bool TransitionArray::IsSpecialTransition(Name* name) {
+  if (!name->IsSymbol()) return false;
+  Heap* heap = name->GetHeap();
+  return name == heap->frozen_symbol() ||
+         name == heap->elements_transition_symbol() ||
+         name == heap->observed_symbol();
+}
+#endif
+
+
+int TransitionArray::CompareKeys(Name* key1, uint32_t hash1,
+                                 bool is_data_property1,
+                                 PropertyAttributes attributes1, Name* key2,
+                                 uint32_t hash2, bool is_data_property2,
+                                 PropertyAttributes attributes2) {
+  int cmp = CompareNames(key1, hash1, key2, hash2);
+  if (cmp != 0) return cmp;
+
+  return CompareDetails(is_data_property1, attributes1, is_data_property2,
+                        attributes2);
+}
+
+
+int TransitionArray::CompareNames(Name* key1, uint32_t hash1, Name* key2,
+                                  uint32_t hash2) {
+  if (key1 != key2) {
+    // In case of hash collisions key1 is always "less" than key2.
+    return hash1 <= hash2 ? -1 : 1;
+  }
+
+  return 0;
+}
+
+
+int TransitionArray::CompareDetails(bool is_data_property1,
+                                    PropertyAttributes attributes1,
+                                    bool is_data_property2,
+                                    PropertyAttributes attributes2) {
+  if (is_data_property1 != is_data_property2) {
+    return static_cast<int>(is_data_property1) <
+                   static_cast<int>(is_data_property2)
+               ? -1
+               : 1;
+  }
+
+  if (attributes1 != attributes2) {
+    return static_cast<int>(attributes1) < static_cast<int>(attributes2) ? -1
+                                                                         : 1;
+  }
+
+  return 0;
+}
+
+
+PropertyDetails TransitionArray::GetTargetDetails(Name* name, Map* target) {
+  DCHECK(!IsSpecialTransition(name));
+  int descriptor = target->LastAdded();
+  DescriptorArray* descriptors = target->instance_descriptors();
+  // Transitions are allowed only for the last added property.
+  DCHECK(descriptors->GetKey(descriptor)->Equals(name));
+  return descriptors->GetDetails(descriptor);
 }
 
 
@@ -151,6 +225,15 @@ void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
       this, ToKeyIndex(transition_number), key);
   FixedArray::NoIncrementalWriteBarrierSet(
       this, ToTargetIndex(transition_number), target);
+}
+
+
+void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
+  if (IsFullTransitionArray()) {
+    DCHECK(number_of_transitions <= number_of_transitions_storage());
+    WRITE_FIELD(this, kTransitionLengthOffset,
+                Smi::FromInt(number_of_transitions));
+  }
 }
 
 

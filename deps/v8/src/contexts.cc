@@ -122,11 +122,28 @@ Handle<Object> Context::Lookup(Handle<String> name,
     PrintF(")\n");
   }
 
+  bool visited_global_context = false;
+
   do {
     if (FLAG_trace_contexts) {
       PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
+      if (context->IsGlobalContext()) PrintF(" (global context)");
       if (context->IsNativeContext()) PrintF(" (native context)");
       PrintF("\n");
+    }
+
+    if (follow_context_chain && FLAG_harmony_scoping &&
+        !visited_global_context &&
+        (context->IsGlobalContext() || context->IsNativeContext())) {
+      // For lexical scoping, on a top level, we might resolve to the
+      // lexical bindings introduced by later scrips. Therefore we need to
+      // switch to the the last added global context during lookup here.
+      context = Handle<Context>(context->global_object()->global_context());
+      visited_global_context = true;
+      if (FLAG_trace_contexts) {
+        PrintF("   - switching to current global context %p\n",
+               reinterpret_cast<void*>(*context));
+      }
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
@@ -163,7 +180,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
     }
 
     // 2. Check the context proper if it has slots.
-    if (context->IsFunctionContext() || context->IsBlockContext()) {
+    if (context->IsFunctionContext() || context->IsBlockContext() ||
+        (FLAG_harmony_scoping && context->IsGlobalContext())) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       Handle<ScopeInfo> scope_info;

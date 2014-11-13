@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
 // Base class for all control builders. Also provides a common interface for
 // control builders to handle 'break' and 'continue' statements when they are
 // used to model breakable statements.
@@ -32,7 +31,7 @@ class ControlBuilder {
   typedef StructuredGraphBuilder Builder;
   typedef StructuredGraphBuilder::Environment Environment;
 
-  Zone* zone() const { return builder_->zone(); }
+  Zone* zone() const { return builder_->local_zone(); }
   Environment* environment() { return builder_->environment(); }
   void set_environment(Environment* env) { builder_->set_environment(env); }
 
@@ -49,7 +48,7 @@ class IfBuilder : public ControlBuilder {
         else_environment_(NULL) {}
 
   // Primitive control commands.
-  void If(Node* condition);
+  void If(Node* condition, BranchHint hint = BranchHint::kNone);
   void Then();
   void Else();
   void End();
@@ -70,7 +69,7 @@ class LoopBuilder : public ControlBuilder {
         break_environment_(NULL) {}
 
   // Primitive control commands.
-  void BeginLoop();
+  void BeginLoop(BitVector* assigned);
   void EndBody();
   void EndLoop();
 

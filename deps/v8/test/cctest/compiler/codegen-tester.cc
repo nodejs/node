@@ -15,7 +15,6 @@ using namespace v8::internal::compiler;
 TEST(CompareWrapper) {
   // Who tests the testers?
   // If CompareWrapper is broken, then test expectations will be broken.
-  RawMachineAssemblerTester<int32_t> m;
   CompareWrapper wWord32Equal(IrOpcode::kWord32Equal);
   CompareWrapper wInt32LessThan(IrOpcode::kInt32LessThan);
   CompareWrapper wInt32LessThanOrEqual(IrOpcode::kInt32LessThanOrEqual);
@@ -478,10 +477,10 @@ TEST(RunHeapConstant) {
 
 
 TEST(RunHeapNumberConstant) {
-  RawMachineAssemblerTester<Object*> m;
-  Handle<Object> number = m.isolate()->factory()->NewHeapNumber(100.5);
+  RawMachineAssemblerTester<HeapObject*> m;
+  Handle<HeapObject> number = m.isolate()->factory()->NewHeapNumber(100.5);
   m.Return(m.HeapConstant(number));
-  Object* result = m.Call();
+  HeapObject* result = m.Call();
   CHECK_EQ(result, *number);
 }
 

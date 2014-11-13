@@ -230,14 +230,13 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateStoreTransition(Handle<Map> transition, Handle<Name> name,
-                               Register receiver_reg, Register name_reg,
-                               Register value_reg, Register scratch1,
-                               Register scratch2, Register scratch3,
-                               Label* miss_label, Label* slow);
+  void GenerateRestoreNameAndMap(Handle<Name> name, Handle<Map> transition);
 
-  void GenerateStoreField(LookupIterator* lookup, Register value_reg,
-                          Label* miss_label);
+  void GenerateConstantCheck(Object* constant, Register value_reg,
+                             Label* miss_label);
+
+  void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
+                               Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {

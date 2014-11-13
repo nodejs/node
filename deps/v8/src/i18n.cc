@@ -631,6 +631,8 @@ icu::BreakIterator* CreateICUBreakIterator(
     return NULL;
   }
 
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
+
   return break_iterator;
 }
 

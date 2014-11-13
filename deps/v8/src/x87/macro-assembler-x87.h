@@ -425,6 +425,7 @@ class MacroAssembler: public Assembler {
   void FXamSign();
   void X87CheckIA();
   void X87SetRC(int rc);
+  void X87SetFPUCW(int cw);
 
   void ClampUint8(Register reg);
   void ClampTOSToUint8(Register result_reg);
@@ -457,7 +458,10 @@ class MacroAssembler: public Assembler {
     j(not_carry, is_smi);
   }
 
-  void LoadUint32NoSSE2(Register src);
+  void LoadUint32NoSSE2(Register src) {
+    LoadUint32NoSSE2(Operand(src));
+  }
+  void LoadUint32NoSSE2(const Operand& src);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value,
@@ -903,6 +907,7 @@ class MacroAssembler: public Assembler {
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
   // Expects object in eax and returns map with validated enum cache

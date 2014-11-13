@@ -117,6 +117,11 @@
   'js1_5/GC/regress-348532': [SKIP],
 
 
+  # Runs for too long: huge array with getters and setters. As it says
+  # in the test: "This test will probably run out of memory".
+  'js1_5/extensions/regress-345967': [SKIP],
+
+
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
@@ -216,7 +221,8 @@
 
   # Test that depends on timer resolution. Fails every now and then
   # if we're unlucky enough to get a context switch at a bad time.
-  'js1_5/extensions/regress-363258': [PASS, FAIL],
+  # TODO(mstarzinger): Switch off TF on windows due to timeouts.
+  'js1_5/extensions/regress-363258': [PASS, FAIL, ['system == windows', NO_VARIANTS]],
 
 
   # Test that assumes specific runtime for a regexp, flaky in debug mode.
@@ -674,7 +680,6 @@
   'js1_5/extensions/regress-311792-01': [FAIL_OK],
   'js1_5/extensions/regress-312278': [FAIL_OK],
   'js1_5/extensions/regress-313630': [FAIL_OK],
-  'js1_5/extensions/regress-313763': [FAIL_OK],
   'js1_5/extensions/regress-313803': [FAIL_OK],
   'js1_5/extensions/regress-314874': [FAIL_OK],
   'js1_5/extensions/regress-322957': [FAIL_OK],
@@ -684,8 +689,6 @@
   'js1_5/extensions/regress-336409-1': [FAIL_OK],
   'js1_5/extensions/regress-336409-2': [FAIL_OK],
   'js1_5/extensions/regress-336410-2': [FAIL_OK],
-  'js1_5/extensions/regress-341956-01': [FAIL_OK],
-  'js1_5/extensions/regress-345967': [FAIL_OK],
   'js1_5/extensions/regress-346494-01': [FAIL_OK],
   'js1_5/extensions/regress-346494': [FAIL_OK],
   'js1_5/extensions/regress-347306-02': [FAIL_OK],

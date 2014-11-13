@@ -63,7 +63,17 @@ static bool IsNonDeoptingIntToSmiChange(HChange* change) {
 void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
     HValue* value) {
   Representation r = value->representation();
-  if (r.IsNone()) return;
+  if (r.IsNone()) {
+#ifdef DEBUG
+    for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
+      HValue* use_value = it.value();
+      int use_index = it.index();
+      Representation req = use_value->RequiredInputRepresentation(use_index);
+      DCHECK(req.IsNone());
+    }
+#endif
+    return;
+  }
   if (value->HasNoUses()) {
     if (value->IsForceRepresentation()) value->DeleteAndReplaceWith(NULL);
     return;

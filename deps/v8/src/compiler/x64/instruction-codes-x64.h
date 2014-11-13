@@ -28,6 +28,8 @@ namespace compiler {
   V(X64Sub32)                      \
   V(X64Imul)                       \
   V(X64Imul32)                     \
+  V(X64ImulHigh32)                 \
+  V(X64UmulHigh32)                 \
   V(X64Idiv)                       \
   V(X64Idiv32)                     \
   V(X64Udiv)                       \
@@ -51,6 +53,9 @@ namespace compiler {
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
   V(SSEFloat64Sqrt)                \
+  V(SSEFloat64Floor)               \
+  V(SSEFloat64Ceil)                \
+  V(SSEFloat64RoundTruncate)       \
   V(SSECvtss2sd)                   \
   V(SSECvtsd2ss)                   \
   V(SSEFloat64ToInt32)             \
@@ -68,6 +73,8 @@ namespace compiler {
   V(X64Movq)                       \
   V(X64Movsd)                      \
   V(X64Movss)                      \
+  V(X64Lea32)                      \
+  V(X64Lea)                        \
   V(X64Push)                       \
   V(X64StoreWriteBarrier)
 
@@ -82,7 +89,7 @@ namespace compiler {
 // M = memory operand
 // R = base register
 // N = index register * N for N in {1, 2, 4, 8}
-// I = immediate displacement (int32_t)
+// I = immediate displacement (32-bit signed integer)
 
 #define TARGET_ADDRESSING_MODE_LIST(V) \
   V(MR)   /* [%r1            ] */      \

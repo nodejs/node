@@ -76,6 +76,47 @@ TEST(Utils1) {
 }
 
 
+TEST(BitSetComputer) {
+  typedef BitSetComputer<bool, 1, kSmiValueSize, uint32_t> BoolComputer;
+  CHECK_EQ(0, BoolComputer::word_count(0));
+  CHECK_EQ(1, BoolComputer::word_count(8));
+  CHECK_EQ(2, BoolComputer::word_count(50));
+  CHECK_EQ(0, BoolComputer::index(0, 8));
+  CHECK_EQ(100, BoolComputer::index(100, 8));
+  CHECK_EQ(1, BoolComputer::index(0, 40));
+  uint32_t data = 0;
+  data = BoolComputer::encode(data, 1, true);
+  data = BoolComputer::encode(data, 4, true);
+  CHECK_EQ(true, BoolComputer::decode(data, 1));
+  CHECK_EQ(true, BoolComputer::decode(data, 4));
+  CHECK_EQ(false, BoolComputer::decode(data, 0));
+  CHECK_EQ(false, BoolComputer::decode(data, 2));
+  CHECK_EQ(false, BoolComputer::decode(data, 3));
+
+  // Lets store 2 bits per item with 3000 items and verify the values are
+  // correct.
+  typedef BitSetComputer<unsigned char, 2, 8, unsigned char> TwoBits;
+  const int words = 750;
+  CHECK_EQ(words, TwoBits::word_count(3000));
+  const int offset = 10;
+  Vector<unsigned char> buffer = Vector<unsigned char>::New(offset + words);
+  memset(buffer.start(), 0, sizeof(unsigned char) * buffer.length());
+  for (int i = 0; i < words; i++) {
+    const int index = TwoBits::index(offset, i);
+    unsigned char data = buffer[index];
+    data = TwoBits::encode(data, i, i % 4);
+    buffer[index] = data;
+  }
+
+  for (int i = 0; i < words; i++) {
+    const int index = TwoBits::index(offset, i);
+    unsigned char data = buffer[index];
+    CHECK_EQ(i % 4, TwoBits::decode(data, i));
+  }
+  buffer.Dispose();
+}
+
+
 TEST(SNPrintF) {
   // Make sure that strings that are truncated because of too small
   // buffers are zero-terminated anyway.
@@ -222,8 +263,6 @@ TEST(SequenceCollectorRegression) {
 }
 
 
-// TODO(svenpanne) Unconditionally test this when our infrastructure is fixed.
-#if !V8_OS_NACL
 TEST(CPlusPlus11Features) {
   struct S {
     bool x;
@@ -256,4 +295,3 @@ TEST(CPlusPlus11Features) {
     j += 11;
   }
 }
-#endif

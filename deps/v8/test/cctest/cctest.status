@@ -29,6 +29,7 @@
 [ALWAYS, {
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
+  'test-serialize/Bug*': [FAIL],
 
   ##############################################################################
 
@@ -296,6 +297,16 @@
   'codegen-tester/CompareWrapper': [SKIP],
   'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
+
+##############################################################################
+['arch == mips', {
+  # Too slow with TF.
+  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
+
+  # TODO(mips-team): Currently fails on mips board.
+  'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
+  'test-parsing/TooManyArguments': [SKIP],
+}],  # 'arch == mips'
 
 ##############################################################################
 ['arch == mips64el', {

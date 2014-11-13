@@ -11,9 +11,6 @@ namespace v8 {
 namespace internal {
 
 
-enum IcCheckType { ELEMENT, PROPERTY };
-
-
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
@@ -37,6 +34,8 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                          ExtraICState extra_ic_state);
 
   // Keyed
+  static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
+      Handle<Map> receiver_map);
   static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
 
   static Handle<Code> ComputeKeyedStoreMonomorphic(

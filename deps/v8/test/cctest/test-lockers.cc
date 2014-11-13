@@ -141,6 +141,7 @@ class JoinableThread {
 
   void Join() {
     semaphore_.Wait();
+    thread_.Join();
   }
 
   virtual void Run() = 0;

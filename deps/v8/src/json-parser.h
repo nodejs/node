@@ -182,6 +182,9 @@ class JsonParser BASE_EMBEDDED {
  private:
   Zone* zone() { return &zone_; }
 
+  void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
+                               ZoneList<Handle<Object> >* properties);
+
   Handle<String> source_;
   int source_length_;
   Handle<SeqOneByteString> seq_source_;
@@ -410,13 +413,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         }
 
         // Commit the intermediate state to the object and stop transitioning.
-        JSObject::AllocateStorageForMap(json_object, map);
-        int length = properties.length();
-        for (int i = 0; i < length; i++) {
-          Handle<Object> value = properties[i];
-          FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-          json_object->FastPropertyAtPut(index, *value);
-        }
+        CommitStateToJsonObject(json_object, map, &properties);
       } else {
         key = ParseJsonInternalizedString();
         if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
@@ -434,18 +431,49 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 
     // If we transitioned until the very end, transition the map now.
     if (transitioning) {
-      JSObject::AllocateStorageForMap(json_object, map);
-      int length = properties.length();
-      for (int i = 0; i < length; i++) {
-        Handle<Object> value = properties[i];
-        FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-        json_object->FastPropertyAtPut(index, *value);
-      }
+      CommitStateToJsonObject(json_object, map, &properties);
     }
   }
   AdvanceSkipWhitespace();
   return scope.CloseAndEscape(json_object);
 }
+
+
+template <bool seq_one_byte>
+void JsonParser<seq_one_byte>::CommitStateToJsonObject(
+    Handle<JSObject> json_object, Handle<Map> map,
+    ZoneList<Handle<Object> >* properties) {
+  JSObject::AllocateStorageForMap(json_object, map);
+  DCHECK(!json_object->map()->is_dictionary_map());
+
+  DisallowHeapAllocation no_gc;
+  Factory* factory = isolate()->factory();
+  // If the |json_object|'s map is exactly the same as |map| then the
+  // |properties| values correspond to the |map| and nothing more has to be
+  // done. But if the |json_object|'s map is different then we have to
+  // iterate descriptors to ensure that properties still correspond to the
+  // map.
+  bool slow_case = json_object->map() != *map;
+  DescriptorArray* descriptors = NULL;
+
+  int length = properties->length();
+  if (slow_case) {
+    descriptors = json_object->map()->instance_descriptors();
+    DCHECK(json_object->map()->NumberOfOwnDescriptors() == length);
+  }
+  for (int i = 0; i < length; i++) {
+    Handle<Object> value = (*properties)[i];
+    if (slow_case && value->IsMutableHeapNumber() &&
+        !descriptors->GetDetails(i).representation().IsDouble()) {
+      // Turn mutable heap numbers into immutable if the field representation
+      // is not double.
+      HeapNumber::cast(*value)->set_map(*factory->heap_number_map());
+    }
+    FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
+    json_object->FastPropertyAtPut(index, *value);
+  }
+}
+
 
 // Parse a JSON array. Position must be right at '['.
 template <bool seq_one_byte>

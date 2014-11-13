@@ -350,4 +350,101 @@ TEST(InlineNonStrictIntoStrict) {
 }
 
 
+TEST(InlineIntrinsicIsSmi) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "var x = 42;"
+      "function bar(s,t) { return %_IsSmi(x); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(12), T.Val(4));
+}
+
+
+TEST(InlineIntrinsicIsNonNegativeSmi) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "var x = 42;"
+      "function bar(s,t) { return %_IsNonNegativeSmi(x); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(12), T.Val(4));
+}
+
+
+TEST(InlineIntrinsicIsArray) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "var x = [1,2,3];"
+      "function bar(s,t) { return %_IsArray(x); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(12), T.Val(4));
+
+  FunctionTester T2(
+      "(function () {"
+      "var x = 32;"
+      "function bar(s,t) { return %_IsArray(x); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  T2.CheckCall(T.false_value(), T.Val(12), T.Val(4));
+
+  FunctionTester T3(
+      "(function () {"
+      "var x = bar;"
+      "function bar(s,t) { return %_IsArray(x); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  T3.CheckCall(T.false_value(), T.Val(12), T.Val(4));
+}
+
+
+TEST(InlineWithArguments) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s,t,u) { AssertInlineCount(2); "
+      "    return foo.arguments.length == 3 && "
+      "           foo.arguments[0] == 13 && "
+      "           foo.arguments[1] == 14 && "
+      "           foo.arguments[2] == 15; "
+      "  }"
+      "  function bar() { return foo(13, 14, 15); };"
+      "  return bar;"
+      "}"
+      ")();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing |
+          CompilationInfo::kTypingEnabled);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(12), T.Val(14));
+}
+
 #endif  // V8_TURBOFAN_TARGET

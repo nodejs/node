@@ -52,6 +52,8 @@
 #ifndef V8_BASE_ONCE_H_
 #define V8_BASE_ONCE_H_
 
+#include <stddef.h>
+
 #include "src/base/atomicops.h"
 
 namespace v8 {

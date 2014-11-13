@@ -4,11 +4,12 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include <stdint.h>
+
 #include <cmath>
 
 #include "src/v8.h"
 
-#include "include/v8stdint.h"
 #include "src/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
@@ -56,20 +57,10 @@ void Scanner::Initialize(Utf16CharacterStream* source) {
 uc32 Scanner::ScanHexNumber(int expected_length) {
   DCHECK(expected_length <= 4);  // prevent overflow
 
-  uc32 digits[4] = { 0, 0, 0, 0 };
   uc32 x = 0;
   for (int i = 0; i < expected_length; i++) {
-    digits[i] = c0_;
     int d = HexValue(c0_);
     if (d < 0) {
-      // According to ECMA-262, 3rd, 7.8.4, page 18, these hex escapes
-      // should be illegal, but other JS VMs just return the
-      // non-escaped version of the original character.
-
-      // Push back digits that we have advanced past.
-      for (int j = i-1; j >= 0; j--) {
-        PushBack(digits[j]);
-      }
       return -1;
     }
     x = x * 16 + d;
@@ -254,6 +245,8 @@ bool Scanner::SkipWhiteSpace() {
 
   while (true) {
     while (true) {
+      // The unicode cache accepts unsigned inputs.
+      if (c0_ < 0) break;
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -374,7 +367,7 @@ Token::Value Scanner::SkipMultiLineComment() {
   while (c0_ >= 0) {
     uc32 ch = c0_;
     Advance();
-    if (unicode_cache_->IsLineTerminator(ch)) {
+    if (c0_ >= 0 && unicode_cache_->IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -634,14 +627,14 @@ void Scanner::Scan() {
         break;
 
       default:
-        if (unicode_cache_->IsIdentifierStart(c0_)) {
+        if (c0_ < 0) {
+          token = Token::EOS;
+        } else if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
         } else if (SkipWhiteSpace()) {
           token = Token::WHITESPACE;
-        } else if (c0_ < 0) {
-          token = Token::EOS;
         } else {
           token = Select(Token::ILLEGAL);
         }
@@ -683,7 +676,7 @@ bool Scanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (unicode_cache_->IsLineTerminator(c)) {
+  if (c0_ >= 0 && unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -880,7 +873,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_))
+  if (IsDecimalDigit(c0_) ||
+      (c0_ >= 0 && unicode_cache_->IsIdentifierStart(c0_)))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -893,9 +887,7 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return -1;
   Advance();
-  uc32 result = ScanHexNumber(4);
-  if (result < 0) PushBack('u');
-  return result;
+  return ScanHexNumber(4);
 }
 
 
@@ -1017,11 +1009,15 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 bool Scanner::IdentifierIsFutureStrictReserved(
     const AstRawString* string) const {
   // Keywords are always 1-byte strings.
-  return string->is_one_byte() &&
-         Token::FUTURE_STRICT_RESERVED_WORD ==
-             KeywordOrIdentifierToken(string->raw_data(), string->length(),
-                                      harmony_scoping_, harmony_modules_,
-                                      harmony_classes_);
+  if (!string->is_one_byte()) return false;
+  if (string->IsOneByteEqualTo("let") || string->IsOneByteEqualTo("static") ||
+      string->IsOneByteEqualTo("yield")) {
+    return true;
+  }
+  return Token::FUTURE_STRICT_RESERVED_WORD ==
+         KeywordOrIdentifierToken(string->raw_data(), string->length(),
+                                  harmony_scoping_, harmony_modules_,
+                                  harmony_classes_);
 }
 
 
@@ -1046,7 +1042,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
   AddLiteralChar(first_char);
 
   // Scan the rest of the identifier characters.
-  while (unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -1074,7 +1070,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
 
 Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
-  while (unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
@@ -1113,10 +1109,10 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
+    if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
+      if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -1144,43 +1140,31 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 
 bool Scanner::ScanLiteralUnicodeEscape() {
   DCHECK(c0_ == '\\');
-  uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
+  AddLiteralChar(c0_);
   Advance();
-  int i = 1;
+  int hex_digits_read = 0;
   if (c0_ == 'u') {
-    i++;
-    while (i < 6) {
+    AddLiteralChar(c0_);
+    while (hex_digits_read < 4) {
       Advance();
       if (!IsHexDigit(c0_)) break;
-      chars_read[i] = c0_;
-      i++;
+      AddLiteralChar(c0_);
+      ++hex_digits_read;
     }
   }
-  if (i < 6) {
-    // Incomplete escape. Undo all advances and return false.
-    while (i > 0) {
-      i--;
-      PushBack(chars_read[i]);
-    }
-    return false;
-  }
-  // Complete escape. Add all chars to current literal buffer.
-  for (int i = 0; i < 6; i++) {
-    AddLiteralChar(chars_read[i]);
-  }
-  return true;
+  return hex_digits_read == 4;
 }
 
 
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       AddLiteralCharAdvance();
     } else {
       if (!ScanLiteralUnicodeEscape()) {
-        break;
+        return false;
       }
       Advance();
     }

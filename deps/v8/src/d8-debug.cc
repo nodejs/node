@@ -124,7 +124,7 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
       printf("%s\n", *text_str);
     }
     running = response_details->Get(String::NewFromUtf8(isolate, "running"))
-                  ->ToBoolean()
+                  ->ToBoolean(isolate)
                   ->Value();
   }
 }

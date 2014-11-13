@@ -10,6 +10,11 @@
 namespace v8 {
 namespace internal {
 
+int TypeFeedbackVector::ic_metadata_length() const {
+  return FLAG_vector_ics ? VectorICComputer::word_count(ICSlots()) : 0;
+}
+
+
 Handle<Object> TypeFeedbackVector::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->uninitialized_symbol();
 }
@@ -21,7 +26,7 @@ Handle<Object> TypeFeedbackVector::MegamorphicSentinel(Isolate* isolate) {
 
 
 Handle<Object> TypeFeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->megamorphic_symbol();
+  return isolate->factory()->premonomorphic_symbol();
 }
 
 

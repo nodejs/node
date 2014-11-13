@@ -252,7 +252,7 @@ static v8::base::LazyInstance<InstructionTable>::type instruction_table =
     LAZY_INSTANCE_INITIALIZER;
 
 
-static InstructionDesc cmov_instructions[16] = {
+static const InstructionDesc cmov_instructions[16] = {
   {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
   {"cmovno", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
   {"cmovc", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
@@ -709,65 +709,62 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
 
 int DisassemblerX64::ShiftInstruction(byte* data) {
   byte op = *data & (~1);
+  int count = 1;
   if (op != 0xD0 && op != 0xD2 && op != 0xC0) {
     UnimplementedInstruction();
-    return 1;
+    return count;
   }
-  byte modrm = *(data + 1);
-  int mod, regop, rm;
-  get_modrm(modrm, &mod, &regop, &rm);
-  regop &= 0x7;  // The REX.R bit does not affect the operation.
-  int imm8 = -1;
-  int num_bytes = 2;
-  if (mod != 3) {
-    UnimplementedInstruction();
-    return num_bytes;
+  // Print mneumonic.
+  {
+    byte modrm = *(data + count);
+    int mod, regop, rm;
+    get_modrm(modrm, &mod, &regop, &rm);
+    regop &= 0x7;  // The REX.R bit does not affect the operation.
+    const char* mnem = NULL;
+    switch (regop) {
+      case 0:
+        mnem = "rol";
+        break;
+      case 1:
+        mnem = "ror";
+        break;
+      case 2:
+        mnem = "rcl";
+        break;
+      case 3:
+        mnem = "rcr";
+        break;
+      case 4:
+        mnem = "shl";
+        break;
+      case 5:
+        mnem = "shr";
+        break;
+      case 7:
+        mnem = "sar";
+        break;
+      default:
+        UnimplementedInstruction();
+        return count + 1;
+    }
+    DCHECK_NE(NULL, mnem);
+    AppendToBuffer("%s%c ", mnem, operand_size_code());
   }
-  const char* mnem = NULL;
-  switch (regop) {
-    case 0:
-      mnem = "rol";
-      break;
-    case 1:
-      mnem = "ror";
-      break;
-    case 2:
-      mnem = "rcl";
-      break;
-    case 3:
-      mnem = "rcr";
-      break;
-    case 4:
-      mnem = "shl";
-      break;
-    case 5:
-      mnem = "shr";
-      break;
-    case 7:
-      mnem = "sar";
-      break;
-    default:
-      UnimplementedInstruction();
-      return num_bytes;
-  }
-  DCHECK_NE(NULL, mnem);
-  if (op == 0xD0) {
-    imm8 = 1;
-  } else if (op == 0xC0) {
-    imm8 = *(data + 2);
-    num_bytes = 3;
-  }
-  AppendToBuffer("%s%c %s,",
-                 mnem,
-                 operand_size_code(),
-                 byte_size_operand_ ? NameOfByteCPURegister(rm)
-                                    : NameOfCPURegister(rm));
+  count += PrintRightOperand(data + count);
   if (op == 0xD2) {
-    AppendToBuffer("cl");
+    AppendToBuffer(", cl");
   } else {
-    AppendToBuffer("%d", imm8);
+    int imm8 = -1;
+    if (op == 0xD0) {
+      imm8 = 1;
+    } else {
+      DCHECK_EQ(0xC0, op);
+      imm8 = *(data + count);
+      count++;
+    }
+    AppendToBuffer(", %d", imm8);
   }
-  return num_bytes;
+  return count;
 }
 
 
@@ -1069,10 +1066,15 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x50) {
         AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x72) {
+        current += 1;
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "pslld" : "psrld",
+                       NameOfXMMRegister(rm), *current & 0x7f);
+        current += 1;
       } else if (opcode == 0x73) {
         current += 1;
-        DCHECK(regop == 6);
-        AppendToBuffer("psllq,%s,%d", NameOfXMMRegister(rm), *current & 0x7f);
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "psllq" : "psrlq",
+                       NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
         const char* mnemonic = "?";
@@ -1086,6 +1088,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
           mnemonic = "comisd";
+        } else if (opcode == 0x76) {
+          mnemonic = "pcmpeqd";
         } else {
           UnimplementedInstruction();
         }
@@ -1489,15 +1493,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0x69:  // fall through
       case 0x6B: {
-        int mod, regop, rm;
-        get_modrm(*(data + 1), &mod, &regop, &rm);
-        int32_t imm = *data == 0x6B ? *(data + 2)
-            : *reinterpret_cast<int32_t*>(data + 2);
-        AppendToBuffer("imul%c %s,%s,0x%x",
-                       operand_size_code(),
-                       NameOfCPURegister(regop),
-                       NameOfCPURegister(rm), imm);
-        data += 2 + (*data == 0x6B ? 1 : 4);
+        int count = 1;
+        count += PrintOperands("imul", REG_OPER_OP_ORDER, data + count);
+        AppendToBuffer(",0x");
+        if (*data == 0x69) {
+          count += PrintImmediate(data + count, operand_size());
+        } else {
+          count += PrintImmediate(data + count, OPERAND_BYTE_SIZE);
+        }
+        data += count;
         break;
       }
 
@@ -1811,19 +1815,19 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
 //------------------------------------------------------------------------------
 
 
-static const char* cpu_regs[16] = {
+static const char* const cpu_regs[16] = {
   "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
   "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 };
 
 
-static const char* byte_cpu_regs[16] = {
+static const char* const byte_cpu_regs[16] = {
   "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil",
   "r8l", "r9l", "r10l", "r11l", "r12l", "r13l", "r14l", "r15l"
 };
 
 
-static const char* xmm_regs[16] = {
+static const char* const xmm_regs[16] = {
   "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"
 };

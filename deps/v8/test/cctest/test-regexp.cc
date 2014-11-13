@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-#include <stdlib.h>
+#include <cstdlib>
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -103,9 +103,9 @@ static void CheckParseEq(const char* input, const char* expected) {
       &reader, false, &result, &zone));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  OStringStream os;
+  std::ostringstream os;
   result.tree->Print(os, &zone);
-  CHECK_EQ(expected, os.c_str());
+  CHECK_EQ(expected, os.str().c_str());
 }
 
 
@@ -435,11 +435,11 @@ TEST(Errors) {
   // Check that we don't allow more than kMaxCapture captures
   const int kMaxCaptures = 1 << 16;  // Must match RegExpParser::kMaxCaptures.
   const char* kTooManyCaptures = "Too many captures";
-  OStringStream os;
+  std::ostringstream os;
   for (int i = 0; i <= kMaxCaptures; i++) {
     os << "()";
   }
-  ExpectError(os.c_str(), kTooManyCaptures);
+  ExpectError(os.str().c_str(), kTooManyCaptures);
 }
 
 

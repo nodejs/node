@@ -36,7 +36,7 @@ byte* MachineCallHelper::Generate() {
   if (code_.is_null()) {
     Zone* zone = graph_->zone();
     CompilationInfo info(zone->isolate(), zone);
-    Linkage linkage(&info,
+    Linkage linkage(zone,
                     Linkage::GetSimplifiedCDescriptor(zone, machine_sig_));
     Pipeline pipeline(&info);
     code_ = pipeline.GenerateCodeForMachineGraph(&linkage, graph_);

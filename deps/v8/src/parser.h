@@ -352,6 +352,8 @@ class ParserTraits {
     // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
     typedef v8::internal::Scope* ScopePtr;
+    inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
+
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
 
@@ -374,24 +376,7 @@ class ParserTraits {
     typedef AstNodeFactory<AstConstructionVisitor> Factory;
   };
 
-  class Checkpoint;
-
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
-
-  // Custom operations executed when FunctionStates are created and destructed.
-  template <typename FunctionState>
-  static void SetUpFunctionState(FunctionState* function_state) {
-    function_state->saved_id_gen_ = *function_state->ast_node_id_gen_;
-    *function_state->ast_node_id_gen_ =
-        AstNode::IdGen(BailoutId::FirstUsable().ToInt());
-  }
-
-  template <typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {
-    if (function_state->outer_function_state_ != NULL) {
-      *function_state->ast_node_id_gen_ = function_state->saved_id_gen_;
-    }
-  }
 
   // Helper functions for recursive descent.
   bool IsEvalOrArguments(const AstRawString* identifier) const;
@@ -417,6 +402,15 @@ class ParserTraits {
 
   static bool IsArrayIndex(const AstRawString* string, uint32_t* index) {
     return string->AsArrayIndex(index);
+  }
+
+  bool IsConstructorProperty(ObjectLiteral::Property* property) {
+    return property->key()->raw_value()->EqualsString(
+        ast_value_factory()->constructor_string());
+  }
+
+  static Expression* GetPropertyValue(ObjectLiteral::Property* property) {
+    return property->value();
   }
 
   // Functions for encapsulating the differences between parsing and preparsing;
@@ -548,11 +542,11 @@ class ParserTraits {
   Expression* SuperReference(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* ClassLiteral(const AstRawString* name, Expression* extends,
-                           Expression* constructor,
-                           ZoneList<ObjectLiteral::Property*>* properties,
-                           int pos,
-                           AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ClassExpression(const AstRawString* name, Expression* extends,
+                              Expression* constructor,
+                              ZoneList<ObjectLiteral::Property*>* properties,
+                              int start_position, int end_position,
+                              AstNodeFactory<AstConstructionVisitor>* factory);
 
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
@@ -850,13 +844,16 @@ class Parser : public ParserBase<ParserTraits> {
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
   HistogramTimer* pre_parse_timer_;
+
+  // Temporary; for debugging. See Parser::SkipLazyFunctionBody. TODO(marja):
+  // remove this once done.
+  ScriptCompiler::CompileOptions debug_saved_compile_options_;
 };
 
 
 bool ParserTraits::IsFutureStrictReserved(
     const AstRawString* identifier) const {
-  return identifier->IsOneByteEqualTo("yield") ||
-         parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
+  return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
 

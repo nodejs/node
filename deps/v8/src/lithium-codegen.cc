@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/lithium-codegen.h"
+
+#include <sstream>
+
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/lithium-ia32.h"  // NOLINT
@@ -148,11 +150,11 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
-  OStringStream os;
+  std::ostringstream os;
   os << ";;; deoptimize at " << HSourcePosition(reason.raw_position) << " "
      << reason.mnemonic;
   if (reason.detail != NULL) os << ": " << reason.detail;
-  Comment("%s", os.c_str());
+  Comment("%s", os.str().c_str());
 }
 
 

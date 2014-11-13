@@ -247,6 +247,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
+    case BYTE_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case CODE_TYPE:
       return kInternal & kTaggedPtr;
@@ -274,34 +275,8 @@ TypeImpl<Config>::BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
   if (i::IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
-  if (IsUint32Double(value)) return Lub(FastD2UI(value));
-  if (IsInt32Double(value)) return Lub(FastD2I(value));
+  if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
   return kOtherNumber;
-}
-
-
-template<class Config>
-typename TypeImpl<Config>::bitset
-TypeImpl<Config>::BitsetType::Lub(int32_t value) {
-  DisallowHeapAllocation no_allocation;
-  if (value >= 0x40000000) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  if (value >= 0) return kUnsignedSmall;
-  if (value >= -0x40000000) return kOtherSignedSmall;
-  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
-}
-
-
-template<class Config>
-typename TypeImpl<Config>::bitset
-TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
-  DisallowHeapAllocation no_allocation;
-  if (value >= 0x80000000u) return kOtherUnsigned32;
-  if (value >= 0x40000000u) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  return kUnsignedSmall;
 }
 
 
@@ -334,10 +309,8 @@ TypeImpl<Config>::BitsetType::BitsetMins32[] = {
 
 template<class Config>
 typename TypeImpl<Config>::bitset
-TypeImpl<Config>::BitsetType::Lub(Limits lim) {
+TypeImpl<Config>::BitsetType::Lub(double min, double max) {
   DisallowHeapAllocation no_allocation;
-  double min = lim.min->Number();
-  double max = lim.max->Number();
   int lub = kNone;
   const BitsetMin* mins = BitsetMins();
 
@@ -372,7 +345,7 @@ double TypeImpl<Config>::BitsetType::Max(bitset bits) {
   DisallowHeapAllocation no_allocation;
   DCHECK(Is(bits, kNumber));
   const BitsetMin* mins = BitsetMins();
-  bool mz = bits & kMinusZero;
+  bool mz = SEMANTIC(bits & kMinusZero);
   if (BitsetType::Is(mins[BitsetMinsSize()-1].bits, bits)) {
     return +V8_INFINITY;
   }
@@ -464,6 +437,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
             Contains(that->AsRange(), *this->AsConstant()->Value()));
   }
   if (this->IsRange()) return false;
+
   return this->SimplyEquals(that);
 }
 
@@ -995,7 +969,7 @@ const char* TypeImpl<Config>::BitsetType::Name(bitset bits) {
 
 
 template <class Config>
-void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
+void TypeImpl<Config>::BitsetType::Print(std::ostream& os,  // NOLINT
                                          bitset bits) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bits);
@@ -1031,7 +1005,7 @@ void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
 
 
 template <class Config>
-void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
+void TypeImpl<Config>::PrintTo(std::ostream& os, PrintDimension dim) {
   DisallowHeapAllocation no_allocation;
   if (dim != REPRESENTATION_DIM) {
     if (this->IsBitset()) {
@@ -1089,13 +1063,13 @@ template <class Config>
 void TypeImpl<Config>::Print() {
   OFStream os(stdout);
   PrintTo(os);
-  os << endl;
+  os << std::endl;
 }
 template <class Config>
 void TypeImpl<Config>::BitsetType::Print(bitset bits) {
   OFStream os(stdout);
   Print(os, bits);
-  os << endl;
+  os << std::endl;
 }
 #endif
 

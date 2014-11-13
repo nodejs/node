@@ -555,7 +555,13 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
           }
           break;
         case S:
-          UNIMPLEMENTED_MIPS();
+          switch (instr->FunctionFieldRaw()) {
+            case CVT_D_S:
+              Format(instr, "cvt.d.s 'fd, 'fs");
+              break;
+            default:
+              UNIMPLEMENTED_MIPS();
+          }
           break;
         case W:
           switch (instr->FunctionFieldRaw()) {

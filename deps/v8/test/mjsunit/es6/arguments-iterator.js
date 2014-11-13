@@ -16,8 +16,8 @@ function TestDirectArgumentsIteratorProperty() {
   assertTrue(descriptor.writable);
   assertFalse(descriptor.enumerable);
   assertTrue(descriptor.configurable);
-  assertEquals(descriptor.value, [].values);
-  assertEquals(arguments[Symbol.iterator], [].values);
+  assertEquals(descriptor.value, [][Symbol.iterator]);
+  assertEquals(arguments[Symbol.iterator], [][Symbol.iterator]);
 }
 TestDirectArgumentsIteratorProperty();
 
@@ -26,7 +26,7 @@ function TestIndirectArgumentsIteratorProperty() {
   var o = arguments;
   assertTrue(o.hasOwnProperty(Symbol.iterator));
   assertFalse(o.propertyIsEnumerable(Symbol.iterator));
-  assertEquals(o[Symbol.iterator], [].values);
+  assertEquals(o[Symbol.iterator], [][Symbol.iterator]);
 }
 TestIndirectArgumentsIteratorProperty();
 
@@ -204,27 +204,27 @@ function TestArgumentsAsProto() {
   "use strict";
 
   var o = {__proto__:arguments};
-  assertSame([].values, o[Symbol.iterator]);
+  assertSame([][Symbol.iterator], o[Symbol.iterator]);
   // Make o dict-mode.
   %OptimizeObjectForAddingMultipleProperties(o, 0);
   assertFalse(o.hasOwnProperty(Symbol.iterator));
-  assertSame([].values, o[Symbol.iterator]);
+  assertSame([][Symbol.iterator], o[Symbol.iterator]);
   o[Symbol.iterator] = 10;
   assertTrue(o.hasOwnProperty(Symbol.iterator));
   assertEquals(10, o[Symbol.iterator]);
-  assertSame([].values, arguments[Symbol.iterator]);
+  assertSame([][Symbol.iterator], arguments[Symbol.iterator]);
 
   // Frozen o.
   o = Object.freeze({__proto__:arguments});
-  assertSame([].values, o[Symbol.iterator]);
+  assertSame([][Symbol.iterator], o[Symbol.iterator]);
   assertFalse(o.hasOwnProperty(Symbol.iterator));
-  assertSame([].values, o[Symbol.iterator]);
+  assertSame([][Symbol.iterator], o[Symbol.iterator]);
   // This should throw, but currently it doesn't, because
   // ExecutableAccessorInfo callbacks don't see the current strict mode.
   // See note in accessors.cc:SetPropertyOnInstanceIfInherited.
   o[Symbol.iterator] = 10;
   assertFalse(o.hasOwnProperty(Symbol.iterator));
-  assertEquals([].values, o[Symbol.iterator]);
-  assertSame([].values, arguments[Symbol.iterator]);
+  assertEquals([][Symbol.iterator], o[Symbol.iterator]);
+  assertSame([][Symbol.iterator], arguments[Symbol.iterator]);
 }
 TestArgumentsAsProto();

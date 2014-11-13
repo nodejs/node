@@ -121,6 +121,8 @@ class ValueHelper {
   static const std::vector<uint32_t> uint32_vector() {
     static const uint32_t kValues[] = {
         0x00000000, 0x00000001, 0xffffffff, 0x1b09788b, 0x04c5fce8, 0xcc0de5bf,
+        // This row is useful for testing lea optimizations on intel.
+        0x00000002, 0x00000003, 0x00000004, 0x00000005, 0x00000008, 0x00000009,
         0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
         0x0000009e, 0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
         0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,

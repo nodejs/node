@@ -1104,6 +1104,12 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
+  static int PageAreaSize(AllocationSpace space) {
+    DCHECK_NE(LO_SPACE, space);
+    return (space == CODE_SPACE) ? CodePageAreaSize()
+                                 : Page::kMaxRegularHeapObjectSize;
+  }
+
   MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
                                               Address start, size_t commit_size,
                                               size_t reserved_size);
@@ -1608,16 +1614,19 @@ class AllocationResult {
  public:
   // Implicit constructor from Object*.
   AllocationResult(Object* object)  // NOLINT
-      : object_(object),
-        retry_space_(INVALID_SPACE) {}
+      : object_(object) {
+    // AllocationResults can't return Smis, which are used to represent
+    // failure and the space to retry in.
+    CHECK(!object->IsSmi());
+  }
 
-  AllocationResult() : object_(NULL), retry_space_(INVALID_SPACE) {}
+  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
 
   static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
     return AllocationResult(space);
   }
 
-  inline bool IsRetry() { return retry_space_ != INVALID_SPACE; }
+  inline bool IsRetry() { return object_->IsSmi(); }
 
   template <typename T>
   bool To(T** obj) {
@@ -1633,16 +1642,18 @@ class AllocationResult {
 
   AllocationSpace RetrySpace() {
     DCHECK(IsRetry());
-    return retry_space_;
+    return static_cast<AllocationSpace>(Smi::cast(object_)->value());
   }
 
  private:
   explicit AllocationResult(AllocationSpace space)
-      : object_(NULL), retry_space_(space) {}
+      : object_(Smi::FromInt(static_cast<int>(space))) {}
 
   Object* object_;
-  AllocationSpace retry_space_;
 };
+
+
+STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
 
 
 class PagedSpace : public Space {
@@ -2075,7 +2086,8 @@ class SemiSpace : public Space {
         current_page_(NULL) {}
 
   // Sets up the semispace using the given chunk.
-  void SetUp(Address start, int initial_capacity, int maximum_capacity);
+  void SetUp(Address start, int initial_capacity, int target_capacity,
+             int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -2093,6 +2105,9 @@ class SemiSpace : public Space {
   // requested must be more than the amount of used memory in the
   // semispace and less than the current capacity.
   bool ShrinkTo(int new_capacity);
+
+  // Sets the total capacity. Only possible when the space is not committed.
+  bool SetTotalCapacity(int new_capacity);
 
   // Returns the start address of the first page of the space.
   Address space_start() {
@@ -2168,6 +2183,9 @@ class SemiSpace : public Space {
   // Returns the current total capacity of the semispace.
   int TotalCapacity() { return total_capacity_; }
 
+  // Returns the target for total capacity of the semispace.
+  int TargetCapacity() { return target_capacity_; }
+
   // Returns the maximum total capacity of the semispace.
   int MaximumTotalCapacity() { return maximum_total_capacity_; }
 
@@ -2196,6 +2214,7 @@ class SemiSpace : public Space {
 
   // The current and maximum total capacity of the space.
   int total_capacity_;
+  int target_capacity_;
   int maximum_total_capacity_;
   int initial_total_capacity_;
 
@@ -2340,6 +2359,9 @@ class NewSpace : public Space {
   // Grow the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.
   void Grow();
+
+  // Grow the capacity of the semispaces by one page.
+  bool GrowOnePage();
 
   // Shrink the capacity of the semispaces.
   void Shrink();

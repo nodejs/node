@@ -1,0 +1,21 @@
+{
+  "name": "JSTests/Collections",
+  "path": ["."],
+  "main": "run.js",
+  "run_count": 5,
+  "units": "score",
+  "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+  "total": true,
+  "tests": [
+    {"name": "Map-Smi"},
+    {"name": "Map-String"},
+    {"name": "Map-Object"},
+    {"name": "Map-Iteration"},
+    {"name": "Set-Smi"},
+    {"name": "Set-String"},
+    {"name": "Set-Object"},
+    {"name": "Set-Iteration"},
+    {"name": "WeakMap"},
+    {"name": "WeakSet"}
+  ]
+}

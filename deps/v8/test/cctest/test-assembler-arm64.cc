@@ -6554,6 +6554,95 @@ TEST(frintn) {
 }
 
 
+TEST(frintp) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Fmov(s16, 1.0);
+  __ Fmov(s17, 1.1);
+  __ Fmov(s18, 1.5);
+  __ Fmov(s19, 1.9);
+  __ Fmov(s20, 2.5);
+  __ Fmov(s21, -1.5);
+  __ Fmov(s22, -2.5);
+  __ Fmov(s23, kFP32PositiveInfinity);
+  __ Fmov(s24, kFP32NegativeInfinity);
+  __ Fmov(s25, 0.0);
+  __ Fmov(s26, -0.0);
+  __ Fmov(s27, -0.2);
+
+  __ Frintp(s0, s16);
+  __ Frintp(s1, s17);
+  __ Frintp(s2, s18);
+  __ Frintp(s3, s19);
+  __ Frintp(s4, s20);
+  __ Frintp(s5, s21);
+  __ Frintp(s6, s22);
+  __ Frintp(s7, s23);
+  __ Frintp(s8, s24);
+  __ Frintp(s9, s25);
+  __ Frintp(s10, s26);
+  __ Frintp(s11, s27);
+
+  __ Fmov(d16, -0.5);
+  __ Fmov(d17, -0.8);
+  __ Fmov(d18, 1.5);
+  __ Fmov(d19, 1.9);
+  __ Fmov(d20, 2.5);
+  __ Fmov(d21, -1.5);
+  __ Fmov(d22, -2.5);
+  __ Fmov(d23, kFP32PositiveInfinity);
+  __ Fmov(d24, kFP32NegativeInfinity);
+  __ Fmov(d25, 0.0);
+  __ Fmov(d26, -0.0);
+  __ Fmov(d27, -0.2);
+
+  __ Frintp(d12, d16);
+  __ Frintp(d13, d17);
+  __ Frintp(d14, d18);
+  __ Frintp(d15, d19);
+  __ Frintp(d16, d20);
+  __ Frintp(d17, d21);
+  __ Frintp(d18, d22);
+  __ Frintp(d19, d23);
+  __ Frintp(d20, d24);
+  __ Frintp(d21, d25);
+  __ Frintp(d22, d26);
+  __ Frintp(d23, d27);
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_FP32(1.0, s0);
+  CHECK_EQUAL_FP32(2.0, s1);
+  CHECK_EQUAL_FP32(2.0, s2);
+  CHECK_EQUAL_FP32(2.0, s3);
+  CHECK_EQUAL_FP32(3.0, s4);
+  CHECK_EQUAL_FP32(-1.0, s5);
+  CHECK_EQUAL_FP32(-2.0, s6);
+  CHECK_EQUAL_FP32(kFP32PositiveInfinity, s7);
+  CHECK_EQUAL_FP32(kFP32NegativeInfinity, s8);
+  CHECK_EQUAL_FP32(0.0, s9);
+  CHECK_EQUAL_FP32(-0.0, s10);
+  CHECK_EQUAL_FP32(-0.0, s11);
+  CHECK_EQUAL_FP64(-0.0, d12);
+  CHECK_EQUAL_FP64(-0.0, d13);
+  CHECK_EQUAL_FP64(2.0, d14);
+  CHECK_EQUAL_FP64(2.0, d15);
+  CHECK_EQUAL_FP64(3.0, d16);
+  CHECK_EQUAL_FP64(-1.0, d17);
+  CHECK_EQUAL_FP64(-2.0, d18);
+  CHECK_EQUAL_FP64(kFP64PositiveInfinity, d19);
+  CHECK_EQUAL_FP64(kFP64NegativeInfinity, d20);
+  CHECK_EQUAL_FP64(0.0, d21);
+  CHECK_EQUAL_FP64(-0.0, d22);
+  CHECK_EQUAL_FP64(-0.0, d23);
+
+  TEARDOWN();
+}
+
+
 TEST(frintz) {
   INIT_V8();
   SETUP();

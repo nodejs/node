@@ -13,11 +13,6 @@ namespace internal {
 
 
 // The number of generations for each sub cache.
-// The number of ScriptGenerations is carefully chosen based on histograms.
-// See issue 458: http://code.google.com/p/v8/issues/detail?id=458
-static const int kScriptGenerations = 5;
-static const int kEvalGlobalGenerations = 2;
-static const int kEvalContextualGenerations = 2;
 static const int kRegExpGenerations = 2;
 
 // Initial size of each compilation cache table allocated.
@@ -26,9 +21,9 @@ static const int kInitialCacheSize = 64;
 
 CompilationCache::CompilationCache(Isolate* isolate)
     : isolate_(isolate),
-      script_(isolate, kScriptGenerations),
-      eval_global_(isolate, kEvalGlobalGenerations),
-      eval_contextual_(isolate, kEvalContextualGenerations),
+      script_(isolate, 1),
+      eval_global_(isolate, 1),
+      eval_contextual_(isolate, 1),
       reg_exp_(isolate, kRegExpGenerations),
       enabled_(true) {
   CompilationSubCache* subcaches[kSubCacheCount] =
@@ -58,6 +53,14 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 
 
 void CompilationSubCache::Age() {
+  // Don't directly age single-generation caches.
+  if (generations_ == 1) {
+    if (tables_[0] != isolate()->heap()->undefined_value()) {
+      CompilationCacheTable::cast(tables_[0])->Age();
+    }
+    return;
+  }
+
   // Age the generations implicitly killing off the oldest.
   for (int i = generations_ - 1; i > 0; i--) {
     tables_[i] = tables_[i - 1];
@@ -102,9 +105,7 @@ void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
 
 CompilationCacheScript::CompilationCacheScript(Isolate* isolate,
                                                int generations)
-    : CompilationSubCache(isolate, generations),
-      script_histogram_(NULL),
-      script_histogram_initialized_(false) { }
+    : CompilationSubCache(isolate, generations) {}
 
 
 // We only re-use a cached function for some script source code if the
@@ -173,20 +174,6 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     }
   }
 
-  if (!script_histogram_initialized_) {
-    script_histogram_ = isolate()->stats_table()->CreateHistogram(
-        "V8.ScriptCache",
-        0,
-        kScriptGenerations,
-        kScriptGenerations + 1);
-    script_histogram_initialized_ = true;
-  }
-
-  if (script_histogram_ != NULL) {
-    // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
-    isolate()->stats_table()->AddHistogramSample(script_histogram_, generation);
-  }
-
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
@@ -221,10 +208,8 @@ void CompilationCacheScript::Put(Handle<String> source,
 
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
-    Handle<String> source,
-    Handle<Context> context,
-    StrictMode strict_mode,
-    int scope_position) {
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    StrictMode strict_mode, int scope_position) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -233,14 +218,14 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   int generation;
   for (generation = 0; generation < generations(); generation++) {
     Handle<CompilationCacheTable> table = GetTable(generation);
-    result = table->LookupEval(source, context, strict_mode, scope_position);
+    result = table->LookupEval(source, outer_info, strict_mode, scope_position);
     if (result->IsSharedFunctionInfo()) break;
   }
   if (result->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo> function_info =
         Handle<SharedFunctionInfo>::cast(result);
     if (generation != 0) {
-      Put(source, context, function_info, scope_position);
+      Put(source, outer_info, function_info, scope_position);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
     return scope.CloseAndEscape(function_info);
@@ -252,12 +237,12 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
 
 
 void CompilationCacheEval::Put(Handle<String> source,
-                               Handle<Context> context,
+                               Handle<SharedFunctionInfo> outer_info,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  table = CompilationCacheTable::PutEval(table, source, context,
+  table = CompilationCacheTable::PutEval(table, source, outer_info,
                                          function_info, scope_position);
   SetFirstTable(table);
 }
@@ -324,20 +309,18 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
 
 
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
-    Handle<String> source,
-    Handle<Context> context,
-    StrictMode strict_mode,
-    int scope_position) {
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    Handle<Context> context, StrictMode strict_mode, int scope_position) {
   if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   MaybeHandle<SharedFunctionInfo> result;
   if (context->IsNativeContext()) {
-    result = eval_global_.Lookup(
-        source, context, strict_mode, scope_position);
+    result =
+        eval_global_.Lookup(source, outer_info, strict_mode, scope_position);
   } else {
     DCHECK(scope_position != RelocInfo::kNoPosition);
-    result = eval_contextual_.Lookup(
-        source, context, strict_mode, scope_position);
+    result = eval_contextual_.Lookup(source, outer_info, strict_mode,
+                                     scope_position);
   }
   return result;
 }
@@ -361,6 +344,7 @@ void CompilationCache::PutScript(Handle<String> source,
 
 
 void CompilationCache::PutEval(Handle<String> source,
+                               Handle<SharedFunctionInfo> outer_info,
                                Handle<Context> context,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
@@ -368,10 +352,10 @@ void CompilationCache::PutEval(Handle<String> source,
 
   HandleScope scope(isolate());
   if (context->IsNativeContext()) {
-    eval_global_.Put(source, context, function_info, scope_position);
+    eval_global_.Put(source, outer_info, function_info, scope_position);
   } else {
     DCHECK(scope_position != RelocInfo::kNoPosition);
-    eval_contextual_.Put(source, context, function_info, scope_position);
+    eval_contextual_.Put(source, outer_info, function_info, scope_position);
   }
 }
 

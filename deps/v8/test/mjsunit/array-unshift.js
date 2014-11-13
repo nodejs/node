@@ -37,9 +37,7 @@
 })();
 
 
-// Check that unshift with no args has a side-effect of
-// filling the holes with elements from the prototype
-// (if present, of course)
+// Check that unshift with no args has no side-effects.
 (function() {
   var len = 3;
   var array = new Array(len);
@@ -65,15 +63,15 @@
   assertTrue(delete Array.prototype[0]);
   assertTrue(delete Array.prototype[2]);
 
-  // unshift makes array own 0 and 2...
-  assertTrue(array.hasOwnProperty(0));
+  // array still owns nothing...
+  assertFalse(array.hasOwnProperty(0));
   assertFalse(array.hasOwnProperty(1));
-  assertTrue(array.hasOwnProperty(2));
+  assertFalse(array.hasOwnProperty(2));
 
   // ... so they are not affected be delete.
-  assertEquals(array[0], at0);
+  assertEquals(array[0], undefined);
   assertEquals(array[1], undefined);
-  assertEquals(array[2], at2);
+  assertEquals(array[2], undefined);
 })();
 
 
@@ -115,9 +113,7 @@
   assertTrue(delete Array.prototype[7]);
 })();
 
-// Check that unshift with no args has a side-effect of
-// filling the holes with elements from the prototype
-// (if present, of course)
+// Check that unshift with no args has no side-effects.
 (function() {
   var len = 3;
   var array = new Array(len);
@@ -142,12 +138,12 @@
 
   assertEquals(len, array.unshift());
 
-  // unshift makes array own 0 and 2...
-  assertTrue(array.hasOwnProperty(0));
+  // array still owns nothing.
+  assertFalse(array.hasOwnProperty(0));
   assertFalse(array.hasOwnProperty(1));
-  assertTrue(array.hasOwnProperty(2));
+  assertFalse(array.hasOwnProperty(2));
 
-  // ... so they are not affected be delete.
+  // ... but still sees values from array_proto.
   assertEquals(array[0], at0);
   assertEquals(array[1], undefined);
   assertEquals(array[2], at2);

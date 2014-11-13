@@ -5,6 +5,7 @@
 #ifndef V8_PROFILE_GENERATOR_H_
 #define V8_PROFILE_GENERATOR_H_
 
+#include <map>
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/hashmap.h"
@@ -44,24 +45,45 @@ class StringsStorage {
 };
 
 
+// Provides a mapping from the offsets within generated code to
+// the source line.
+class JITLineInfoTable : public Malloced {
+ public:
+  JITLineInfoTable();
+  ~JITLineInfoTable();
+
+  void SetPosition(int pc_offset, int line);
+  int GetSourceLineNumber(int pc_offset) const;
+
+  bool empty() const { return pc_offset_map_.empty(); }
+
+ private:
+  // pc_offset -> source line
+  typedef std::map<int, int> PcOffsetMap;
+  PcOffsetMap pc_offset_map_;
+  DISALLOW_COPY_AND_ASSIGN(JITLineInfoTable);
+};
+
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
-  inline CodeEntry(Logger::LogEventsAndTags tag,
-                   const char* name,
+  inline CodeEntry(Logger::LogEventsAndTags tag, const char* name,
                    const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-                   int column_number = v8::CpuProfileNode::kNoColumnNumberInfo);
+                   int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
+                   JITLineInfoTable* line_info = NULL,
+                   Address instruction_start = NULL);
   ~CodeEntry();
 
-  bool is_js_function() const { return is_js_function_tag(tag_); }
+  bool is_js_function() const { return is_js_function_tag(tag()); }
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
   const char* resource_name() const { return resource_name_; }
   int line_number() const { return line_number_; }
   int column_number() const { return column_number_; }
+  const JITLineInfoTable* line_info() const { return line_info_; }
   void set_shared_id(int shared_id) { shared_id_ = shared_id; }
   int script_id() const { return script_id_; }
   void set_script_id(int script_id) { script_id_ = script_id; }
@@ -78,18 +100,27 @@ class CodeEntry {
   }
 
   void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const { return builtin_id_; }
+  Builtins::Name builtin_id() const {
+    return BuiltinIdField::decode(bit_field_);
+  }
 
   uint32_t GetCallUid() const;
   bool IsSameAs(CodeEntry* entry) const;
+
+  int GetSourceLine(int pc_offset) const;
+
+  Address instruction_start() const { return instruction_start_; }
 
   static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
 
  private:
-  Logger::LogEventsAndTags tag_ : 8;
-  Builtins::Name builtin_id_ : 8;
+  class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
+  class BuiltinIdField : public BitField<Builtins::Name, 8, 8> {};
+  Logger::LogEventsAndTags tag() const { return TagField::decode(bit_field_); }
+
+  uint32_t bit_field_;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
@@ -99,6 +130,8 @@ class CodeEntry {
   int script_id_;
   List<OffsetRange>* no_frame_ranges_;
   const char* bailout_reason_;
+  JITLineInfoTable* line_info_;
+  Address instruction_start_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
@@ -114,11 +147,15 @@ class ProfileNode {
   ProfileNode* FindOrAddChild(CodeEntry* entry);
   void IncrementSelfTicks() { ++self_ticks_; }
   void IncreaseSelfTicks(unsigned amount) { self_ticks_ += amount; }
+  void IncrementLineTicks(int src_line);
 
   CodeEntry* entry() const { return entry_; }
   unsigned self_ticks() const { return self_ticks_; }
   const List<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
+  unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
+  bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
+                    unsigned int length) const;
 
   void Print(int indent);
 
@@ -132,6 +169,8 @@ class ProfileNode {
     return entry->GetCallUid();
   }
 
+  static bool LineTickMatch(void* a, void* b) { return a == b; }
+
   ProfileTree* tree_;
   CodeEntry* entry_;
   unsigned self_ticks_;
@@ -139,6 +178,7 @@ class ProfileNode {
   HashMap children_;
   List<ProfileNode*> children_list_;
   unsigned id_;
+  HashMap line_ticks_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
@@ -149,8 +189,11 @@ class ProfileTree {
   ProfileTree();
   ~ProfileTree();
 
-  ProfileNode* AddPathFromEnd(const Vector<CodeEntry*>& path);
-  void AddPathFromStart(const Vector<CodeEntry*>& path);
+  ProfileNode* AddPathFromEnd(
+      const Vector<CodeEntry*>& path,
+      int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
+  void AddPathFromStart(const Vector<CodeEntry*>& path,
+                        int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
 
@@ -175,7 +218,8 @@ class CpuProfile {
   CpuProfile(const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
-  void AddPath(base::TimeTicks timestamp, const Vector<CodeEntry*>& path);
+  void AddPath(base::TimeTicks timestamp, const Vector<CodeEntry*>& path,
+               int src_line);
   void CalculateTotalTicksAndSamplingRate();
 
   const char* title() const { return title_; }
@@ -277,16 +321,16 @@ class CpuProfilesCollection {
   void RemoveProfile(CpuProfile* profile);
 
   CodeEntry* NewCodeEntry(
-      Logger::LogEventsAndTags tag,
-      const char* name,
+      Logger::LogEventsAndTags tag, const char* name,
       const char* name_prefix = CodeEntry::kEmptyNamePrefix,
       const char* resource_name = CodeEntry::kEmptyResourceName,
       int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo);
+      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
+      JITLineInfoTable* line_info = NULL, Address instruction_start = NULL);
 
   // Called from profile generator thread.
-  void AddPathToCurrentProfiles(
-      base::TimeTicks timestamp, const Vector<CodeEntry*>& path);
+  void AddPathToCurrentProfiles(base::TimeTicks timestamp,
+                                const Vector<CodeEntry*>& path, int src_line);
 
   // Limits the number of profiles that can be simultaneously collected.
   static const int kMaxSimultaneousProfiles = 100;

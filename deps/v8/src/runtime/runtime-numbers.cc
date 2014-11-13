@@ -5,9 +5,9 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/base/bits.h"
+#include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/misc-intrinsics.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
 
@@ -193,7 +193,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   }
 
   return *isolate->factory()->NewNumber(
-      StringToDouble(isolate->unicode_cache(), *subject, flags));
+      StringToDouble(isolate->unicode_cache(), subject, flags));
 }
 
 
@@ -229,8 +229,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  subject = String::Flatten(subject);
-  double value = StringToDouble(isolate->unicode_cache(), *subject,
+  double value = StringToDouble(isolate->unicode_cache(), subject,
                                 ALLOW_TRAILING_JUNK, base::OS::nan_value());
 
   return *isolate->factory()->NewNumber(value);
@@ -525,11 +524,11 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   // integer comes first in the lexicographic order.
 
   // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
-  int x_log2 = IntegerLog2(x_scaled);
+  int x_log2 = 31 - base::bits::CountLeadingZeros32(x_scaled);
   int x_log10 = ((x_log2 + 1) * 1233) >> 12;
   x_log10 -= x_scaled < kPowersOf10[x_log10];
 
-  int y_log2 = IntegerLog2(y_scaled);
+  int y_log2 = 31 - base::bits::CountLeadingZeros32(y_scaled);
   int y_log10 = ((y_log2 + 1) * 1233) >> 12;
   y_log10 -= y_scaled < kPowersOf10[y_log10];
 
@@ -557,9 +556,41 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetRootNaN) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->nan_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_MaxSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(Smi::kMaxValue);
+}
+
+
 RUNTIME_FUNCTION(RuntimeReference_NumberToString) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_NumberToStringRT(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsNonNegativeSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi() &&
+                                    Smi::cast(obj)->value() >= 0);
 }
 }
 }  // namespace v8::internal

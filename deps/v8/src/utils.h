@@ -61,7 +61,6 @@ inline int WhichPowerOf2(uint32_t x) {
   }
   DCHECK_EQ(1 << bits, original_x);
   return bits;
-  return 0;
 }
 
 
@@ -157,7 +156,7 @@ T Abs(T a) {
 
 // Floor(-0.0) == 0.0
 inline double Floor(double x) {
-#ifdef _MSC_VER
+#if V8_CC_MSVC
   if (x == 0) return x;  // Fix for issue 3477.
 #endif
   return std::floor(x);
@@ -231,12 +230,60 @@ class BitFieldBase {
 };
 
 
+template <class T, int shift, int size>
+class BitField8 : public BitFieldBase<T, shift, size, uint8_t> {};
+
+
+template <class T, int shift, int size>
+class BitField16 : public BitFieldBase<T, shift, size, uint16_t> {};
+
+
 template<class T, int shift, int size>
 class BitField : public BitFieldBase<T, shift, size, uint32_t> { };
 
 
 template<class T, int shift, int size>
 class BitField64 : public BitFieldBase<T, shift, size, uint64_t> { };
+
+
+// ----------------------------------------------------------------------------
+// BitSetComputer is a help template for encoding and decoding information for
+// a variable number of items in an array.
+//
+// To encode boolean data in a smi array you would use:
+// typedef BitSetComputer<bool, 1, kSmiValueSize, uint32_t> BoolComputer;
+//
+template <class T, int kBitsPerItem, int kBitsPerWord, class U>
+class BitSetComputer {
+ public:
+  static const int kItemsPerWord = kBitsPerWord / kBitsPerItem;
+  static const int kMask = (1 << kBitsPerItem) - 1;
+
+  // The number of array elements required to embed T information for each item.
+  static int word_count(int items) {
+    if (items == 0) return 0;
+    return (items - 1) / kItemsPerWord + 1;
+  }
+
+  // The array index to look at for item.
+  static int index(int base_index, int item) {
+    return base_index + item / kItemsPerWord;
+  }
+
+  // Extract T data for a given item from data.
+  static T decode(U data, int item) {
+    return static_cast<T>((data >> shift(item)) & kMask);
+  }
+
+  // Return the encoding for a store of value for item in previous.
+  static U encode(U previous, int item, T value) {
+    int shift_value = shift(item);
+    int set_bits = (static_cast<int>(value) << shift_value);
+    return (previous & ~(kMask << shift_value)) | set_bits;
+  }
+
+  static int shift(int item) { return (item % kItemsPerWord) * kBitsPerItem; }
+};
 
 
 // ----------------------------------------------------------------------------
@@ -952,6 +999,33 @@ class TypeFeedbackId {
 };
 
 
+template <int dummy_parameter>
+class VectorSlot {
+ public:
+  explicit VectorSlot(int id) : id_(id) {}
+  int ToInt() const { return id_; }
+
+  static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
+  bool IsInvalid() const { return id_ == kInvalidSlot; }
+
+  VectorSlot next() const {
+    DCHECK(id_ != kInvalidSlot);
+    return VectorSlot(id_ + 1);
+  }
+
+  bool operator==(const VectorSlot& other) const { return id_ == other.id_; }
+
+ private:
+  static const int kInvalidSlot = -1;
+
+  int id_;
+};
+
+
+typedef VectorSlot<0> FeedbackVectorSlot;
+typedef VectorSlot<1> FeedbackVectorICSlot;
+
+
 class BailoutId {
  public:
   explicit BailoutId(int id) : id_(id) { }
@@ -966,6 +1040,8 @@ class BailoutId {
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
   bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
+  friend size_t hash_value(BailoutId);
+  friend std::ostream& operator<<(std::ostream&, BailoutId);
 
  private:
   static const int kNoneId = -1;

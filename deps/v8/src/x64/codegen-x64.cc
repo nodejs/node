@@ -397,6 +397,20 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
+
+  // Allocating heap numbers in the loop below can fail and cause a jump to
+  // gc_required. We can't leave a partly initialized FixedArray behind,
+  // so pessimistically fill it with holes now.
+  Label initialization_loop, initialization_loop_entry;
+  __ jmp(&initialization_loop_entry, Label::kNear);
+  __ bind(&initialization_loop);
+  __ movp(FieldOperand(r11, r9, times_pointer_size, FixedArray::kHeaderSize),
+          rdi);
+  __ bind(&initialization_loop_entry);
+  __ decp(r9);
+  __ j(not_sign, &initialization_loop);
+
+  __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   __ jmp(&entry);
 
   // Call into runtime if GC is required.

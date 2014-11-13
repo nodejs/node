@@ -2743,6 +2743,57 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 }
 
 
+void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
+  if (src == 0) {
+    xorps(dst, dst);
+  } else {
+    unsigned cnt = base::bits::CountPopulation32(src);
+    unsigned nlz = base::bits::CountLeadingZeros32(src);
+    unsigned ntz = base::bits::CountTrailingZeros32(src);
+    if (nlz + cnt + ntz == 32) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrld(dst, 32 - cnt);
+      } else {
+        pslld(dst, 32 - cnt);
+        if (nlz != 0) psrld(dst, nlz);
+      }
+    } else {
+      movl(kScratchRegister, Immediate(src));
+      movq(dst, kScratchRegister);
+    }
+  }
+}
+
+
+void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
+  uint32_t lower = static_cast<uint32_t>(src);
+  uint32_t upper = static_cast<uint32_t>(src >> 32);
+  if (upper == 0) {
+    Move(dst, lower);
+  } else {
+    unsigned cnt = base::bits::CountPopulation64(src);
+    unsigned nlz = base::bits::CountLeadingZeros64(src);
+    unsigned ntz = base::bits::CountTrailingZeros64(src);
+    if (nlz + cnt + ntz == 64) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrlq(dst, 64 - cnt);
+      } else {
+        psllq(dst, 64 - cnt);
+        if (nlz != 0) psrlq(dst, nlz);
+      }
+    } else if (lower == 0) {
+      Move(dst, upper);
+      psllq(dst, 32);
+    } else {
+      movq(kScratchRegister, src);
+      movq(dst, kScratchRegister);
+    }
+  }
+}
+
+
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
@@ -3984,6 +4035,13 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 }
 
 
+void MacroAssembler::EnterFrame(StackFrame::Type type,
+                                bool load_constant_pool_pointer_reg) {
+  // Out-of-line constant pool not implemented on x64.
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   pushq(rbp);
   movp(rbp, rsp);
@@ -4035,6 +4093,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
 
   Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
   Store(ExternalReference(Isolate::kContextAddress, isolate()), rsi);
+  Store(ExternalReference(Isolate::kCFunctionAddress, isolate()), rbx);
 }
 
 

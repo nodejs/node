@@ -89,9 +89,6 @@ class CompilationCacheScript : public CompilationSubCache {
                  int column_offset,
                  bool is_shared_cross_origin);
 
-  void* script_histogram_;
-  bool script_histogram_initialized_;
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
 
@@ -114,14 +111,12 @@ class CompilationCacheEval: public CompilationSubCache {
       : CompilationSubCache(isolate, generations) { }
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         Handle<Context> context,
+                                         Handle<SharedFunctionInfo> outer_info,
                                          StrictMode strict_mode,
                                          int scope_position);
 
-  void Put(Handle<String> source,
-           Handle<Context> context,
-           Handle<SharedFunctionInfo> function_info,
-           int scope_position);
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+           Handle<SharedFunctionInfo> function_info, int scope_position);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
@@ -161,8 +156,8 @@ class CompilationCache {
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
   MaybeHandle<SharedFunctionInfo> LookupEval(
-      Handle<String> source, Handle<Context> context, StrictMode strict_mode,
-      int scope_position);
+      Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+      Handle<Context> context, StrictMode strict_mode, int scope_position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -177,10 +172,9 @@ class CompilationCache {
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
-  void PutEval(Handle<String> source,
+  void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
                Handle<Context> context,
-               Handle<SharedFunctionInfo> function_info,
-               int scope_position);
+               Handle<SharedFunctionInfo> function_info, int scope_position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

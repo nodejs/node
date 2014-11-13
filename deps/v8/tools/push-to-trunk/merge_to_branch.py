@@ -32,6 +32,9 @@ import sys
 
 from common_includes import *
 
+def IsSvnNumber(rev):
+  return rev.isdigit() and len(rev) < 8
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -72,24 +75,21 @@ class SearchArchitecturePorts(Step):
         self._options.revisions))
     port_revision_list = []
     for revision in self["full_revision_list"]:
-      # Search for commits which matches the "Port rXXX" pattern.
+      # Search for commits which matches the "Port XXX" pattern.
       git_hashes = self.GitLog(reverse=True, format="%H",
-                               grep="Port r%d" % int(revision),
+                               grep="Port %s" % revision,
                                branch=self.vc.RemoteMasterBranch())
       for git_hash in git_hashes.splitlines():
-        svn_revision = self.vc.GitSvn(git_hash, self.vc.RemoteMasterBranch())
-        if not svn_revision:  # pragma: no cover
-          self.Die("Cannot determine svn revision for %s" % git_hash)
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
 
         # Is this revision included in the original revision list?
-        if svn_revision in self["full_revision_list"]:
-          print("Found port of r%s -> r%s (already included): %s"
-                % (revision, svn_revision, revision_title))
+        if git_hash in self["full_revision_list"]:
+          print("Found port of %s -> %s (already included): %s"
+                % (revision, git_hash, revision_title))
         else:
-          print("Found port of r%s -> r%s: %s"
-                % (revision, svn_revision, revision_title))
-          port_revision_list.append(svn_revision)
+          print("Found port of %s -> %s: %s"
+                % (revision, git_hash, revision_title))
+          port_revision_list.append(git_hash)
 
     # Do we find any port?
     if len(port_revision_list) > 0:
@@ -99,16 +99,10 @@ class SearchArchitecturePorts(Step):
         self["full_revision_list"].extend(port_revision_list)
 
 
-class FindGitRevisions(Step):
-  MESSAGE = "Find the git revisions associated with the patches."
+class CreateCommitMessage(Step):
+  MESSAGE = "Create commit message."
 
   def RunStep(self):
-    self["patch_commit_hashes"] = []
-    for revision in self["full_revision_list"]:
-      next_hash = self.vc.SvnGit(revision, self.vc.RemoteMasterBranch())
-      if not next_hash:  # pragma: no cover
-        self.Die("Cannot determine git hash for r%s" % revision)
-      self["patch_commit_hashes"].append(next_hash)
 
     # Stringify: [123, 234] -> "r123, r234"
     self["revision_list"] = ", ".join(map(lambda s: "r%s" % s,
@@ -117,29 +111,38 @@ class FindGitRevisions(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    # The commit message title is added below after the version is specified.
-    self["new_commit_msg"] = ""
+    if self._options.revert and not self._options.revert_bleeding_edge:
+      action_text = "Rollback of %s"
+    else:
+      action_text = "Merged %s"
 
-    for commit_hash in self["patch_commit_hashes"]:
+    # The commit message title is added below after the version is specified.
+    msg_pieces = [
+      "\n".join(action_text % s for s in self["full_revision_list"]),
+    ]
+    msg_pieces.append("\n\n")
+
+    for commit_hash in self["full_revision_list"]:
       patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
-      self["new_commit_msg"] += "%s\n\n" % patch_merge_desc
+      msg_pieces.append("%s\n\n" % patch_merge_desc)
 
     bugs = []
-    for commit_hash in self["patch_commit_hashes"]:
+    for commit_hash in self["full_revision_list"]:
       msg = self.GitLog(n=1, git_hash=commit_hash)
-      for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg,
-                            re.M):
-        bugs.extend(map(lambda s: s.strip(), bug.split(",")))
+      for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg, re.M):
+        bugs.extend(s.strip() for s in bug.split(","))
     bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
     if bug_aggregate:
-      self["new_commit_msg"] += "BUG=%s\nLOG=N\n" % bug_aggregate
+      msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
+
+    self["new_commit_msg"] = "".join(msg_pieces)
 
 
 class ApplyPatches(Step):
   MESSAGE = "Apply patches for selected revisions."
 
   def RunStep(self):
-    for commit_hash in self["patch_commit_hashes"]:
+    for commit_hash in self["full_revision_list"]:
       print("Applying patch for %s to %s..."
             % (commit_hash, self["merge_to_branch"]))
       patch = self.GitGetPatch(commit_hash)
@@ -189,16 +192,14 @@ class CommitLocal(Step):
 
   def RunStep(self):
     # Add a commit message title.
-    if self._options.revert:
-      if not self._options.revert_bleeding_edge:
-        title = ("Version %s (rollback of %s)"
-                 % (self["version"], self["revision_list"]))
-      else:
-        title = "Revert %s." % self["revision_list"]
+    if self._options.revert and self._options.revert_bleeding_edge:
+      # TODO(machenbach): Find a better convention if multiple patches are
+      # reverted in one CL.
+      self["commit_title"] = "Revert on master"
     else:
-      title = ("Version %s (merged %s)"
-               % (self["version"], self["revision_list"]))
-    self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
+      self["commit_title"] = "Version %s (cherry-pick)" % self["version"]
+    self["new_commit_msg"] = "%s\n\n%s" % (self["commit_title"],
+                                           self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
 
@@ -219,8 +220,10 @@ class TagRevision(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    print "Creating tag svn/tags/%s" % self["version"]
-    self.vc.Tag(self["version"])
+    print "Creating tag %s" % self["version"]
+    self.vc.Tag(self["version"],
+                self.vc.RemoteBranch(self["merge_to_branch"]),
+                self["commit_title"])
 
 
 class CleanUp(Step):
@@ -272,6 +275,17 @@ class MergeToBranch(ScriptsBase):
     options.bypass_upload_hooks = True
     # CC ulan to make sure that fixes are merged to Google3.
     options.cc = "ulan@chromium.org"
+
+    # Thd old git-svn workflow is deprecated for this script.
+    assert options.vc_interface != "git_svn"
+
+    # Make sure to use git hashes in the new workflows.
+    for revision in options.revisions:
+      if (IsSvnNumber(revision) or
+          (revision[0:1] == "r" and IsSvnNumber(revision[1:]))):
+        print "Please provide full git hashes of the patches to merge."
+        print "Got: %s" % revision
+        return False
     return True
 
   def _Config(self):
@@ -289,7 +303,7 @@ class MergeToBranch(ScriptsBase):
       Preparation,
       CreateBranch,
       SearchArchitecturePorts,
-      FindGitRevisions,
+      CreateCommitMessage,
       ApplyPatches,
       PrepareVersion,
       IncrementVersion,

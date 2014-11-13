@@ -20,9 +20,31 @@ Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
 
 
 // static
+Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate,
+                                            ContextualMode mode) {
+  if (FLAG_vector_ics) {
+    return Callable(LoadIC::initialize_stub_in_optimized_code(
+                        isolate, LoadICState(mode).GetExtraICState()),
+                    VectorLoadICDescriptor(isolate));
+  }
+  return CodeFactory::LoadIC(isolate, mode);
+}
+
+
+// static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  return Callable(isolate->builtins()->KeyedLoadIC_Initialize(),
+  return Callable(KeyedLoadIC::initialize_stub(isolate),
                   LoadDescriptor(isolate));
+}
+
+
+// static
+Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
+  if (FLAG_vector_ics) {
+    return Callable(KeyedLoadIC::initialize_stub_in_optimized_code(isolate),
+                    VectorLoadICDescriptor(isolate));
+  }
+  return CodeFactory::KeyedLoadIC(isolate);
 }
 
 
@@ -77,6 +99,13 @@ Callable CodeFactory::ToNumber(Isolate* isolate) {
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
+  AllocateHeapNumberStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

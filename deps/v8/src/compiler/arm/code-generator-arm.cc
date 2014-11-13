@@ -193,7 +193,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ b(code_->GetLabel(i.InputBlock(0)));
+      __ b(GetLabel(i.InputRpo(0)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchNop:
@@ -202,6 +202,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchRet:
       AssembleReturn();
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchStackPointer:
+      __ mov(i.OutputRegister(), sp);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchTruncateDoubleToI:
@@ -235,6 +239,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmSmmul:
+      __ smmul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmSmmla:
+      __ smmla(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputRegister(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmUmull:
+      __ umull(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+               i.InputRegister(1), i.OutputSBit());
+      break;
     case kArmSdiv: {
       CpuFeatureScope scope(masm(), SUDIV);
       __ sdiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
@@ -349,6 +366,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArmVsqrtF64:
       __ vsqrt(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVfloorF64:
+      __ vrintm(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVceilF64:
+      __ vrintp(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVroundTruncateF64:
+      __ vrintz(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVroundTiesAwayF64:
+      __ vrinta(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
     case kArmVnegF64:
       __ vneg(i.OutputFloat64Register(), i.InputFloat64Register(0));
@@ -481,11 +510,13 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
 
   // Emit a branch. The true and false targets are always the last two inputs
   // to the instruction.
-  BasicBlock* tblock = i.InputBlock(instr->InputCount() - 2);
-  BasicBlock* fblock = i.InputBlock(instr->InputCount() - 1);
+  BasicBlock::RpoNumber tblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
+  BasicBlock::RpoNumber fblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = code()->GetLabel(tblock);
-  Label* flabel = fallthru ? &done : code()->GetLabel(fblock);
+  Label* tlabel = GetLabel(tblock);
+  Label* flabel = fallthru ? &done : GetLabel(fblock);
   switch (condition) {
     case kUnorderedEqual:
       __ b(vs, flabel);
@@ -667,7 +698,7 @@ void CodeGenerator::AssemblePrologue() {
       __ stm(db_w, sp, saves);
     }
   } else if (descriptor->IsJSFunctionCall()) {
-    CompilationInfo* info = linkage()->info();
+    CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -899,7 +930,7 @@ void CodeGenerator::AddNopForSmiCodeInlining() {
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
   int space_needed = Deoptimizer::patch_size();
-  if (!linkage()->info()->IsStub()) {
+  if (!info()->IsStub()) {
     // Ensure that we have enough space after the previous lazy-bailout
     // instruction for patching the code here.
     int current_pc = masm()->pc_offset();

@@ -17,16 +17,19 @@ function StringRepeat(count) {
 
   var s = TO_STRING_INLINE(this);
   var n = ToInteger(count);
-  if (n < 0 || !NUMBER_IS_FINITE(n)) {
+  // The maximum string length is stored in a smi, so a longer repeat
+  // must result in a range error.
+  if (n < 0 || n > %_MaxSmi()) {
     throw MakeRangeError("invalid_count_value", []);
   }
 
-  var elements = new InternalArray(n);
-  for (var i = 0; i < n; i++) {
-    elements[i] = s;
+  var r = "";
+  while (true) {
+    if (n & 1) r += s;
+    n >>= 1;
+    if (n === 0) return r;
+    s += s;
   }
-
-  return %StringBuilderConcat(elements, n, "");
 }
 
 

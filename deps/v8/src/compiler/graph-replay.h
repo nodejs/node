@@ -25,7 +25,7 @@ class GraphReplayPrinter FINAL : public NullNodeVisitor {
   static void PrintReplay(Graph* graph) {}
 #endif
 
-  GenericGraphVisit::Control Pre(Node* node);
+  void Pre(Node* node);
   void PostEdge(Node* from, int index, Node* to);
 
  private:

@@ -12,7 +12,17 @@ function test(array) {
   array.shift();
   return array;
 }
-assertEquals(["element 1",2], test(["0",,2]));
-assertEquals(["element 1",{}], test([{},,{}]));
+
+var result = test(["0",,2]);
+assertEquals(["element 1","element 1"], result);
+assertTrue(result.hasOwnProperty("0"));
+assertFalse(result.hasOwnProperty("1"));
+result = test([{},,{}]);
+assertEquals(["element 1","element 1"], result);
+assertTrue(result.hasOwnProperty("0"));
+assertFalse(result.hasOwnProperty("1"));
 %OptimizeFunctionOnNextCall(test);
-assertEquals(["element 1",0], test([{},,0]));
+result = test([{},,0]);
+assertEquals(["element 1","element 1"], result);
+assertTrue(result.hasOwnProperty("0"));
+assertFalse(result.hasOwnProperty("1"));

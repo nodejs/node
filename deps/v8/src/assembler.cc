@@ -37,6 +37,7 @@
 #include <cmath>
 #include "src/api.h"
 #include "src/base/cpu.h"
+#include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/builtins.h"
@@ -130,7 +131,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       // We may use the assembler without an isolate.
-      serializer_enabled_(isolate && isolate->serializer_enabled()) {
+      serializer_enabled_(isolate && isolate->serializer_enabled()),
+      ool_constant_pool_available_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
@@ -794,8 +796,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print(Isolate* isolate, OStream& os) {  // NOLINT
-  os << pc_ << "  " << RelocModeName(rmode_);
+void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
+  os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
@@ -803,11 +805,11 @@ void RelocInfo::Print(Isolate* isolate, OStream& os) {  // NOLINT
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
     os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
-       << target_reference() << ")";
+       << static_cast<const void*>(target_reference()) << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
-    os << " (" << Code::Kind2String(code->kind()) << ")  (" << target_address()
-       << ")";
+    os << " (" << Code::Kind2String(code->kind()) << ")  ("
+       << static_cast<const void*>(target_address()) << ")";
     if (rmode_ == CODE_TARGET_WITH_ID) {
       os << " (id=" << static_cast<int>(data_) << ")";
     }
@@ -1518,6 +1520,29 @@ ExternalReference ExternalReference::debug_break(Isolate* isolate) {
 ExternalReference ExternalReference::debug_step_in_fp_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->step_in_fp_addr());
+}
+
+
+bool operator==(ExternalReference lhs, ExternalReference rhs) {
+  return lhs.address() == rhs.address();
+}
+
+
+bool operator!=(ExternalReference lhs, ExternalReference rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(ExternalReference reference) {
+  return base::hash<Address>()(reference.address());
+}
+
+
+std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
+  os << static_cast<const void*>(reference.address());
+  const Runtime::Function* fn = Runtime::FunctionForEntry(reference.address());
+  if (fn) os << "<" << fn->name << ".entry>";
+  return os;
 }
 
 

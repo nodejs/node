@@ -227,6 +227,8 @@ assertEquals(-two_32, Math.tan(-two_32));
 assertEquals(0.8211418015898941, Math.tan(11/16));
 assertEquals(-0.8211418015898941, Math.tan(-11/16));
 assertEquals(0.41421356237309503, Math.tan(Math.PI / 8));
+// crbug/427468
+assertEquals(0.7993357819992383, Math.tan(0.6743358));
 
 // Tests for Math.sin.
 assertEquals(0.479425538604203, Math.sin(0.5));

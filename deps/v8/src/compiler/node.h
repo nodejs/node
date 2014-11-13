@@ -31,14 +31,13 @@ class NodeData {
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
 
-  Bounds bounds() { return bounds_; }
-
  protected:
   const Operator* op_;
   Bounds bounds_;
-  explicit NodeData(Zone* zone) : bounds_(Bounds(Type::None(zone))) {}
+  explicit NodeData(Zone* zone) {}
 
   friend class NodeProperties;
+  Bounds bounds() { return bounds_; }
   void set_bounds(Bounds b) { bounds_ = b; }
 };
 
@@ -49,8 +48,8 @@ class NodeData {
 // out-of-line indexed by the Node's id.
 class Node FINAL : public GenericNode<NodeData, Node> {
  public:
-  Node(GenericGraphBase* graph, int input_count)
-      : GenericNode<NodeData, Node>(graph, input_count) {}
+  Node(GenericGraphBase* graph, int input_count, int reserve_input_count)
+      : GenericNode<NodeData, Node>(graph, input_count, reserve_input_count) {}
 
   void Initialize(const Operator* op) { set_op(op); }
 
@@ -61,7 +60,7 @@ class Node FINAL : public GenericNode<NodeData, Node> {
   Node* FindProjection(size_t projection_index);
 };
 
-OStream& operator<<(OStream& os, const Node& n);
+std::ostream& operator<<(std::ostream& os, const Node& n);
 
 typedef GenericGraphVisit::NullNodeVisitor<NodeData, Node> NullNodeVisitor;
 

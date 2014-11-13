@@ -271,10 +271,10 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
 
 }  // namespace internal
 
-void InitializeVtuneForV8(v8::Isolate::CreateParams& params) {
+v8::JitCodeEventHandler GetVtuneCodeEventHandler() {
   v8::V8::SetFlagsFromString("--nocompact_code_space",
                              (int)strlen("--nocompact_code_space"));
-  params.code_event_handler = vTune::internal::VTUNEJITInterface::event_handler;
+  return vTune::internal::VTUNEJITInterface::event_handler;
 }
 
 }  // namespace vTune

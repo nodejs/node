@@ -35,6 +35,7 @@ TIMEOUT = "TIMEOUT"
 CRASH = "CRASH"
 SLOW = "SLOW"
 FLAKY = "FLAKY"
+FAST_VARIANTS = "FAST_VARIANTS"
 NO_VARIANTS = "NO_VARIANTS"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
@@ -44,7 +45,7 @@ ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
 for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FLAKY, FAIL_OK,
-            NO_VARIANTS, PASS_OR_FAIL, ALWAYS]:
+            FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, ALWAYS]:
   KEYWORDS[key] = key
 
 DEFS = {FAIL_OK: [FAIL, OKAY],
@@ -68,6 +69,10 @@ def IsSlow(outcomes):
 
 def OnlyStandardVariant(outcomes):
   return NO_VARIANTS in outcomes
+
+
+def OnlyFastVariants(outcomes):
+  return FAST_VARIANTS in outcomes
 
 
 def IsFlaky(outcomes):
