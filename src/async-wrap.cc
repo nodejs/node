@@ -37,99 +37,51 @@ using v8::Value;
 
 namespace node {
 
-Handle<Value> AsyncWrap::MakeDomainCallback(const Handle<Function> cb,
-                                            int argc,
-                                            Handle<Value>* argv) {
-  CHECK(env()->context() == env()->isolate()->GetCurrentContext());
-
-  Local<Object> context = object();
-  Local<Object> process = env()->process_object();
-  Local<Value> domain_v = context->Get(env()->domain_string());
-  Local<Object> domain;
-
-  TryCatch try_catch;
-  try_catch.SetVerbose(true);
-
-  bool has_domain = domain_v->IsObject();
-  if (has_domain) {
-    domain = domain_v.As<Object>();
-
-    if (domain->Get(env()->disposed_string())->IsTrue())
-      return Undefined(env()->isolate());
-
-    Local<Function> enter =
-      domain->Get(env()->enter_string()).As<Function>();
-    if (enter->IsFunction()) {
-      enter->Call(domain, 0, NULL);
-      if (try_catch.HasCaught())
-        return Undefined(env()->isolate());
-    }
-  }
-
-  Local<Value> ret = cb->Call(context, argc, argv);
-
-  if (try_catch.HasCaught()) {
-    return Undefined(env()->isolate());
-  }
-
-  if (has_domain) {
-    Local<Function> exit =
-      domain->Get(env()->exit_string()).As<Function>();
-    if (exit->IsFunction()) {
-      exit->Call(domain, 0, NULL);
-      if (try_catch.HasCaught())
-        return Undefined(env()->isolate());
-    }
-  }
-
-  Environment::TickInfo* tick_info = env()->tick_info();
-
-  if (tick_info->in_tick()) {
-    return ret;
-  }
-
-  if (tick_info->length() == 0) {
-    env()->isolate()->RunMicrotasks();
-  }
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  tick_info->set_in_tick(true);
-
-  env()->tick_callback_function()->Call(process, 0, NULL);
-
-  tick_info->set_in_tick(false);
-
-  if (try_catch.HasCaught()) {
-    tick_info->set_last_threw(true);
-    return Undefined(env()->isolate());
-  }
-
-  return ret;
-}
-
-
 Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
                                       int argc,
                                       Handle<Value>* argv) {
-  if (env()->using_domains())
-    return MakeDomainCallback(cb, argc, argv);
-
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Object> context = object();
   Local<Object> process = env()->process_object();
+  Local<Object> domain;
+  bool has_domain = false;
+
+  if (env()->using_domains()) {
+    Local<Value> domain_v = context->Get(env()->domain_string());
+    has_domain = domain_v->IsObject();
+    if (has_domain) {
+      domain = domain_v.As<Object>();
+      if (domain->Get(env()->disposed_string())->IsTrue())
+        return Undefined(env()->isolate());
+    }
+  }
 
   TryCatch try_catch;
   try_catch.SetVerbose(true);
+
+  if (has_domain) {
+    Local<Value> enter_v = domain->Get(env()->enter_string());
+    if (enter_v->IsFunction()) {
+      enter_v.As<Function>()->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env()->isolate());
+    }
+  }
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
   if (try_catch.HasCaught()) {
     return Undefined(env()->isolate());
+  }
+
+  if (has_domain) {
+    Local<Value> exit_v = domain->Get(env()->exit_string());
+    if (exit_v->IsFunction()) {
+      exit_v.As<Function>()->Call(domain, 0, NULL);
+      if (try_catch.HasCaught())
+        return Undefined(env()->isolate());
+    }
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
