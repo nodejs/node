@@ -258,36 +258,40 @@ console.log('All OK');
 assert.ok(gotError);
 
 
-// #217
+var circular = {y: 1};
+circular.x = circular;
+
 function testAssertionMessage(actual, expected) {
   try {
     assert.equal(actual, '');
   } catch (e) {
     assert.equal(e.toString(),
-        ['AssertionError:', expected, '==', '""'].join(' '));
+        ['AssertionError:', expected, '==', '\'\''].join(' '));
     assert.ok(e.generatedMessage, "Message not marked as generated");
   }
 }
-testAssertionMessage(undefined, '"undefined"');
+testAssertionMessage(undefined, 'undefined');
 testAssertionMessage(null, 'null');
 testAssertionMessage(true, 'true');
 testAssertionMessage(false, 'false');
 testAssertionMessage(0, '0');
 testAssertionMessage(100, '100');
-testAssertionMessage(NaN, '"NaN"');
-testAssertionMessage(Infinity, '"Infinity"');
-testAssertionMessage(-Infinity, '"-Infinity"');
+testAssertionMessage(NaN, 'NaN');
+testAssertionMessage(Infinity, 'Infinity');
+testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage('', '""');
-testAssertionMessage('foo', '"foo"');
+testAssertionMessage('foo', '\'foo\'');
 testAssertionMessage([], '[]');
-testAssertionMessage([1, 2, 3], '[1,2,3]');
-testAssertionMessage(/a/, '"/a/"');
-testAssertionMessage(/abc/gim, '"/abc/gim"');
-testAssertionMessage(function f() {}, '"function f() {}"');
+testAssertionMessage([1, 2, 3], '[ 1, 2, 3 ]');
+testAssertionMessage(/a/, '/a/');
+testAssertionMessage(/abc/gim, '/abc/gim');
+testAssertionMessage(function f() {}, '[Function: f]');
+testAssertionMessage(function () {}, '[Function]');
 testAssertionMessage({}, '{}');
-testAssertionMessage({a: undefined, b: null}, '{"a":"undefined","b":null}');
+testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
+testAssertionMessage({a: undefined, b: null}, '{ a: undefined, b: null }');
 testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
-    '{"a":"NaN","b":"Infinity","c":"-Infinity"}');
+    '{ a: NaN, b: Infinity, c: -Infinity }');
 
 // #2893
 try {
