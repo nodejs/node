@@ -7,9 +7,8 @@
 #include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/codegen.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
-#include "third_party/fdlibm/fdlibm.h"
+#include "src/third_party/fdlibm/fdlibm.h"
 
 
 namespace v8 {
@@ -65,7 +64,7 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
   DCHECK(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   Factory* factory = isolate->factory();
-  double y[2];
+  double y[2] = {0.0, 0.0};
   int n = fdlibm::rempio2(x, y);
   Handle<FixedArray> array = factory->NewFixedArray(3);
   Handle<HeapNumber> y0 = factory->NewHeapNumber(y[0]);

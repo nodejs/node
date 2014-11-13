@@ -20,17 +20,16 @@ namespace internal {
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(
-    ProfileGenerator* generator,
-    Sampler* sampler,
-    base::TimeDelta period)
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
+                                                 Sampler* sampler,
+                                                 base::TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       sampler_(sampler),
-      running_(true),
+      running_(1),
       period_(period),
-      last_code_event_id_(0), last_processed_code_event_id_(0) {
-}
+      last_code_event_id_(0),
+      last_processed_code_event_id_(0) {}
 
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
@@ -49,14 +48,13 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
     regs.fp = frame->fp();
     regs.pc = frame->pc();
   }
-  record.sample.Init(isolate, regs);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
 
 void ProfilerEventsProcessor::StopSynchronously() {
-  if (!running_) return;
-  running_ = false;
+  if (!base::NoBarrier_AtomicExchange(&running_, 0)) return;
   Join();
 }
 
@@ -107,7 +105,7 @@ ProfilerEventsProcessor::SampleProcessingResult
 
 
 void ProfilerEventsProcessor::Run() {
-  while (running_) {
+  while (!!base::NoBarrier_Load(&running_)) {
     base::ElapsedTimer timer;
     timer.Start();
     // Keep processing existing events until we need to do next sample.
@@ -201,7 +199,10 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
   rec->shared = NULL;
   processor_->Enqueue(evt_rec);
@@ -215,7 +216,10 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
   rec->shared = NULL;
   processor_->Enqueue(evt_rec);
@@ -231,7 +235,9 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
       tag, profiles_->GetFunctionName(shared->DebugName()),
-      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name));
+      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name),
+      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
+      NULL, code->instruction_start());
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
@@ -256,15 +262,29 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
+  Script* script = Script::cast(shared->script());
+  JITLineInfoTable* line_table = NULL;
+  if (script) {
+    line_table = new JITLineInfoTable();
+    for (RelocIterator it(code); !it.done(); it.next()) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      if (RelocInfo::IsPosition(mode)) {
+        int position = static_cast<int>(it.rinfo()->data());
+        if (position >= 0) {
+          int pc_offset = static_cast<int>(it.rinfo()->pc() - code->address());
+          int line_number = script->GetLineNumber(position) + 1;
+          line_table->SetPosition(pc_offset, line_number);
+        }
+      }
+    }
+  }
   rec->entry = profiles_->NewCodeEntry(
       tag, profiles_->GetFunctionName(shared->DebugName()),
       CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name), line,
-      column);
+      column, line_table, code->instruction_start());
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
-  DCHECK(Script::cast(shared->script()));
-  Script* script = Script::cast(shared->script());
   rec->entry->set_script_id(script->id()->value());
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
@@ -282,9 +302,9 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
-      tag,
-      profiles_->GetName(args_count),
-      "args_count: ");
+      tag, profiles_->GetName(args_count), "args_count: ",
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
   rec->shared = NULL;
   processor_->Enqueue(evt_rec);
@@ -344,9 +364,9 @@ void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
-      Logger::REG_EXP_TAG,
-      profiles_->GetName(source),
-      "RegExp: ");
+      Logger::REG_EXP_TAG, profiles_->GetName(source), "RegExp: ",
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
 }

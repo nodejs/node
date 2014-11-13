@@ -64,7 +64,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        FieldIndex index);
   void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
-                            Representation representation);
+                            Representation representation,
+                            bool transition_to_field);
 
   enum ArgumentClass {
     NONE,
@@ -232,6 +233,8 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
+    // TODO(yangguo): remove this once we can serialize IC stubs.
+    masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);
     GenerateLightweightMiss(&masm, miss);
   }
@@ -270,46 +273,13 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   }
   CodeStubGraphBuilder<Stub> builder(isolate, stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  // TODO(yangguo) remove this once the code serializer handles code stubs.
-  if (FLAG_serialize_toplevel) chunk->info()->PrepareForSerializing();
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     OFStream os(stdout);
     os << "[Lazy compilation of " << stub << " took "
-       << timer.Elapsed().InMillisecondsF() << " ms]" << endl;
+       << timer.Elapsed().InMillisecondsF() << " ms]" << std::endl;
   }
   return code;
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
-  HValue* value = GetParameter(0);
-
-  // Check if the parameter is already a SMI or heap number.
-  IfBuilder if_number(this);
-  if_number.If<HIsSmiAndBranch>(value);
-  if_number.OrIf<HCompareMap>(value, isolate()->factory()->heap_number_map());
-  if_number.Then();
-
-  // Return the number.
-  Push(value);
-
-  if_number.Else();
-
-  // Convert the parameter to number using the builtin.
-  HValue* function = AddLoadJSBuiltin(Builtins::TO_NUMBER);
-  Add<HPushArguments>(value);
-  Push(Add<HInvokeFunction>(function, 1));
-
-  if_number.End();
-
-  return Pop();
-}
-
-
-Handle<Code> ToNumberStub::GenerateCode() {
-  return DoGenerateCode(this);
 }
 
 
@@ -415,7 +385,12 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HInstruction* boilerplate = Add<HLoadNamedField>(
       allocation_site, static_cast<HValue*>(NULL), access);
 
-  int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
+  int length = casted_stub()->length();
+  if (length == 0) {
+    // Empty objects have some slack added to them.
+    length = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
+  }
+  int size = JSObject::kHeaderSize + length * kPointerSize;
   int object_size = size;
   if (FLAG_allocation_site_pretenuring) {
     size += AllocationMemento::kSize;
@@ -721,7 +696,7 @@ Handle<Code> KeyedLoadSloppyArgumentsStub::GenerateCode() {
 
 void CodeStubGraphBuilderBase::BuildStoreNamedField(
     HValue* object, HValue* value, FieldIndex index,
-    Representation representation) {
+    Representation representation, bool transition_to_field) {
   DCHECK(!index.is_double() || representation.IsDouble());
   int offset = index.offset();
   HObjectAccess access =
@@ -730,12 +705,31 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
           : HObjectAccess::ForBackingStoreOffset(offset, representation);
 
   if (representation.IsDouble()) {
-    // Load the heap number.
-    object = Add<HLoadNamedField>(
-        object, static_cast<HValue*>(NULL),
-        access.WithRepresentation(Representation::Tagged()));
-    // Store the double value into it.
-    access = HObjectAccess::ForHeapNumberValue();
+    HObjectAccess heap_number_access =
+        access.WithRepresentation(Representation::Tagged());
+    if (transition_to_field) {
+      // The store requires a mutable HeapNumber to be allocated.
+      NoObservableSideEffectsScope no_side_effects(this);
+      HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
+
+      // TODO(hpayer): Allocation site pretenuring support.
+      HInstruction* heap_number =
+          Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
+                         MUTABLE_HEAP_NUMBER_TYPE);
+      AddStoreMapConstant(heap_number,
+                          isolate()->factory()->mutable_heap_number_map());
+      Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
+                            value);
+      // Store the new mutable heap number into the object.
+      access = heap_number_access;
+      value = heap_number;
+    } else {
+      // Load the heap number.
+      object = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                    heap_number_access);
+      // Store the double value into it.
+      access = HObjectAccess::ForHeapNumberValue();
+    }
   } else if (representation.IsHeapObject()) {
     BuildCheckHeapObject(value);
   }
@@ -747,12 +741,65 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 template <>
 HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
   BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
-                       casted_stub()->representation());
+                       casted_stub()->representation(), false);
   return GetParameter(2);
 }
 
 
 Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
+  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+
+  switch (casted_stub()->store_mode()) {
+    case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
+      HValue* properties =
+          Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                               HObjectAccess::ForPropertiesPointer());
+      HValue* length = AddLoadFixedArrayLength(properties);
+      HValue* delta =
+          Add<HConstant>(static_cast<int32_t>(JSObject::kFieldsAdded));
+      HValue* new_capacity = AddUncasted<HAdd>(length, delta);
+
+      // Grow properties array.
+      ElementsKind kind = FAST_ELEMENTS;
+      Add<HBoundsCheck>(new_capacity,
+                        Add<HConstant>((Page::kMaxRegularHeapObjectSize -
+                                        FixedArray::kHeaderSize) >>
+                                       ElementsKindToShiftSize(kind)));
+
+      // Reuse this code for properties backing store allocation.
+      HValue* new_properties =
+          BuildAllocateAndInitializeArray(kind, new_capacity);
+
+      BuildCopyProperties(properties, new_properties, length, new_capacity);
+
+      Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
+                            new_properties);
+    }
+    // Fall through.
+    case StoreTransitionStub::StoreMapAndValue:
+      // Store the new value into the "extended" object.
+      BuildStoreNamedField(
+          object, GetParameter(StoreTransitionDescriptor::kValueIndex),
+          casted_stub()->index(), casted_stub()->representation(), true);
+    // Fall through.
+
+    case StoreTransitionStub::StoreMapOnly:
+      // And finally update the map.
+      Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
+                            GetParameter(StoreTransitionDescriptor::kMapIndex));
+      break;
+  }
+  return GetParameter(StoreTransitionDescriptor::kValueIndex);
+}
+
+
+Handle<Code> StoreTransitionStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
 
 
 template <>
@@ -804,6 +851,22 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
+
+
+template <>
+HValue* CodeStubGraphBuilder<AllocateHeapNumberStub>::BuildCodeStub() {
+  HValue* result =
+      Add<HAllocate>(Add<HConstant>(HeapNumber::kSize), HType::HeapNumber(),
+                     NOT_TENURED, HEAP_NUMBER_TYPE);
+  AddStoreMapConstant(result, isolate()->factory()->heap_number_map());
+  return result;
+}
+
+
+Handle<Code> AllocateHeapNumberStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     ElementsKind kind,

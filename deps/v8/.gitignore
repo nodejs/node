@@ -61,6 +61,9 @@ shell_g
 /test/test262/data
 /test/test262/data.old
 /test/test262/tc39-test262-*
+/test/test262-es6/data
+/test/test262-es6/data.old
+/test/test262-es6/tc39-test262-*
 /testing/gmock
 /testing/gtest
 /third_party/icu
@@ -80,5 +83,6 @@ GRTAGS
 GSYMS
 GPATH
 gtags.files
+turbo*.cfg
 turbo*.dot
 turbo*.json

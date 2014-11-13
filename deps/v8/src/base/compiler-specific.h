@@ -7,15 +7,13 @@
 
 #include "include/v8config.h"
 
-// Annotate a variable indicating it's ok if the variable is not used.
-// (Typically used to silence a compiler warning when the assignment
-// is important for some other reason.)
+// Annotate a typedef or function indicating it's ok if it's not used.
 // Use like:
-//   int x ALLOW_UNUSED = ...;
+//   typedef Foo Bar ALLOW_UNUSED_TYPE;
 #if V8_HAS_ATTRIBUTE_UNUSED
-#define ALLOW_UNUSED __attribute__((unused))
+#define ALLOW_UNUSED_TYPE __attribute__((unused))
 #else
-#define ALLOW_UNUSED
+#define ALLOW_UNUSED_TYPE
 #endif
 
 
@@ -39,8 +37,6 @@
 #define FINAL final
 #elif V8_HAS___FINAL
 #define FINAL __final
-#elif V8_HAS_SEALED
-#define FINAL sealed
 #else
 #define FINAL /* NOT SUPPORTED */
 #endif

@@ -9,12 +9,9 @@
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/full-codegen.h"
-#include "src/isolate.h"
 #include "src/isolate-inl.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
-#include "src/vm-state.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -372,16 +369,18 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
   ParseRestriction restriction = function_literal_only
                                      ? ONLY_SINGLE_FUNCTION_LITERAL
                                      : NO_PARSE_RESTRICTION;
+  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   Handle<JSFunction> fun;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fun,
-      Compiler::GetFunctionFromEval(source, context, SLOPPY, restriction,
-                                    RelocInfo::kNoPosition));
+      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
+                                    restriction, RelocInfo::kNoPosition));
   return *fun;
 }
 
 
 static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
+                                    Handle<SharedFunctionInfo> outer_info,
                                     Handle<Object> receiver,
                                     StrictMode strict_mode,
                                     int scope_position) {
@@ -407,8 +406,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source, context, strict_mode, restriction,
-                                    scope_position),
+      Compiler::GetFunctionFromEval(source, outer_info, context, strict_mode,
+                                    restriction, scope_position),
       MakePair(isolate->heap()->exception(), NULL));
   return MakePair(*compiled, *receiver);
 }
@@ -416,7 +415,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 6);
 
   Handle<Object> callee = args.at<Object>(0);
 
@@ -430,12 +429,14 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
     return MakePair(*callee, isolate->heap()->undefined_value());
   }
 
-  DCHECK(args[3]->IsSmi());
-  DCHECK(args.smi_at(3) == SLOPPY || args.smi_at(3) == STRICT);
-  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(3));
   DCHECK(args[4]->IsSmi());
-  return CompileGlobalEval(isolate, args.at<String>(1), args.at<Object>(2),
-                           strict_mode, args.smi_at(4));
+  DCHECK(args.smi_at(4) == SLOPPY || args.smi_at(4) == STRICT);
+  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(4));
+  DCHECK(args[5]->IsSmi());
+  Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
+                                        isolate);
+  return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
+                           args.at<Object>(3), strict_mode, args.smi_at(5));
 }
 }
 }  // namespace v8::internal

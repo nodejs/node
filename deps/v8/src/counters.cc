@@ -7,6 +7,7 @@
 #include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/isolate.h"
+#include "src/log-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +40,7 @@ void HistogramTimer::Start() {
   if (Enabled()) {
     timer_.Start();
   }
-  isolate()->event_logger()(name(), Logger::START);
+  Logger::CallEventLogger(isolate(), name(), Logger::START, true);
 }
 
 
@@ -50,7 +51,7 @@ void HistogramTimer::Stop() {
     AddSample(static_cast<int>(timer_.Elapsed().InMilliseconds()));
     timer_.Stop();
   }
-  isolate()->event_logger()(name(), Logger::END);
+  Logger::CallEventLogger(isolate(), name(), Logger::END, true);
 }
 
 

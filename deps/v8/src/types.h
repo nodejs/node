@@ -219,8 +219,9 @@ namespace internal {
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
-  V(NonNumber,           kBoolean | kName | kNull | kReceiver | \
-                         kUndefined | kInternal) \
+  V(Unique,              kBoolean | kUniqueName | kNull | kUndefined | \
+                         kReceiver) \
+  V(NonNumber,           kUnique | kString | kInternal) \
   V(Any,                 0xfffffffeu)
 
 /*
@@ -242,6 +243,9 @@ namespace internal {
  *
  * E.g., OtherUnsigned32 (OU32) covers all integers from 2^31 to 2^32-1.
  *
+ * NOTE: OtherSigned32 (OS32) and OU31 (OtherUnsigned31) are empty if Smis are
+ *       32-bit wide.  They should thus never be used directly, only indirectly
+ *       via e.g. Number.
  */
 
 #define PROPER_BITSET_TYPE_LIST(V) \
@@ -262,6 +266,7 @@ namespace internal {
 //   typedef Struct;
 //   typedef Region;
 //   template<class> struct Handle { typedef type; }  // No template typedefs...
+//   template<class T> static Handle<T>::type null_handle();
 //   template<class T> static Handle<T>::type handle(T* t);  // !is_bitset(t)
 //   template<class T> static Handle<T>::type cast(Handle<Type>::type);
 //   static bool is_bitset(Type*);
@@ -372,6 +377,12 @@ class TypeImpl : public Config::Base {
 
   static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
   static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
+  static TypeImpl* Union(TypeImpl* type1, TypeImpl* type2) {
+    return BitsetType::New(type1->AsBitset() | type2->AsBitset());
+  }
+  static TypeImpl* Intersect(TypeImpl* type1, TypeImpl* type2) {
+    return BitsetType::New(type1->AsBitset() & type2->AsBitset());
+  }
 
   static TypeHandle Of(double value, Region* region) {
     return Config::from_bitset(BitsetType::Lub(value), region);
@@ -478,7 +489,7 @@ class TypeImpl : public Config::Base {
 
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
 
-  void PrintTo(OStream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
+  void PrintTo(std::ostream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
 
 #ifdef DEBUG
   void Print();
@@ -598,15 +609,13 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   static bitset Glb(TypeImpl* type);  // greatest lower bound that's a bitset
   static bitset Lub(TypeImpl* type);  // least upper bound that's a bitset
+  static bitset Lub(i::Map* map);
   static bitset Lub(i::Object* value);
   static bitset Lub(double value);
-  static bitset Lub(int32_t value);
-  static bitset Lub(uint32_t value);
-  static bitset Lub(i::Map* map);
-  static bitset Lub(Limits lim);
+  static bitset Lub(double min, double max);
 
   static const char* Name(bitset);
-  static void Print(OStream& os, bitset);  // NOLINT
+  static void Print(std::ostream& os, bitset);  // NOLINT
 #ifdef DEBUG
   static void Print(bitset);
 #endif
@@ -778,10 +787,12 @@ class TypeImpl<Config>::RangeType : public StructuralType {
 
   static RangeHandle New(
       i::Handle<i::Object> min, i::Handle<i::Object> max, Region* region) {
+    DCHECK(IsInteger(min->Number()) && IsInteger(max->Number()));
     DCHECK(min->Number() <= max->Number());
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
-    type->Set(0, BitsetType::New(BitsetType::Lub(Limits(min, max)), region));
+    type->Set(0, BitsetType::New(
+        BitsetType::Lub(min->Number(), max->Number()), region));
     type->SetValue(1, min);
     type->SetValue(2, max);
     return type;
@@ -910,6 +921,7 @@ struct ZoneTypeConfig {
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
+  template<class T> static inline T* null_handle();
   template<class T> static inline T* handle(T* type);
   template<class T> static inline T* cast(Type* type);
 
@@ -952,6 +964,7 @@ struct HeapTypeConfig {
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
 
+  template<class T> static inline i::Handle<T> null_handle();
   template<class T> static inline i::Handle<T> handle(T* type);
   template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);
 
@@ -1000,7 +1013,9 @@ struct BoundsImpl {
   TypeHandle lower;
   TypeHandle upper;
 
-  BoundsImpl() {}
+  BoundsImpl() :  // Make sure accessing uninitialized bounds crashes big-time.
+    lower(Config::template null_handle<Type>()),
+    upper(Config::template null_handle<Type>()) {}
   explicit BoundsImpl(TypeHandle t) : lower(t), upper(t) {}
   BoundsImpl(TypeHandle l, TypeHandle u) : lower(l), upper(u) {
     DCHECK(lower->Is(upper));

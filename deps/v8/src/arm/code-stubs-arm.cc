@@ -1441,7 +1441,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ b(ne, &slow);
 
   // Null is not instance of anything.
-  __ cmp(scratch, Operand(isolate()->factory()->null_value()));
+  __ cmp(object, Operand(isolate()->factory()->null_value()));
   __ b(ne, &object_not_null);
   if (ReturnTrueFalseObject()) {
     __ Move(r0, factory->false_value());
@@ -1500,6 +1500,34 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
+}
+
+
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is in lr.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = r3;
+  Register result = r0;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
 }
 
 
@@ -2376,13 +2404,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ CompareRoot(r4, Heap::kUninitializedSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
   __ b(eq, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-  __ LoadRoot(ip, Heap::kMegamorphicSymbolRootIndex);
+  __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
   __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
   __ jmp(&done);
 
@@ -2698,9 +2726,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label miss;
 
-  __ CompareRoot(r4, Heap::kMegamorphicSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kmegamorphic_symbolRootIndex);
   __ b(eq, &slow_start);
-  __ CompareRoot(r4, Heap::kUninitializedSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
   __ b(eq, &miss);
 
   if (!FLAG_trace_ic) {
@@ -2710,8 +2738,19 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ CompareObjectType(r4, r5, r5, JS_FUNCTION_TYPE);
     __ b(ne, &miss);
     __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-    __ LoadRoot(ip, Heap::kMegamorphicSymbolRootIndex);
+    __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
     __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ ldr(r4, FieldMemOperand(r2, with_types_offset));
+    __ sub(r4, r4, Operand(Smi::FromInt(1)));
+    __ str(r4, FieldMemOperand(r2, with_types_offset));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ ldr(r4, FieldMemOperand(r2, generic_offset));
+    __ add(r4, r4, Operand(Smi::FromInt(1)));
+    __ str(r4, FieldMemOperand(r2, generic_offset));
     __ jmp(&slow_start);
   }
 
@@ -2759,14 +2798,16 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 // StringCharCodeAtGenerator
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ tst(result_, Operand(kIsNotStringMask));
-  __ b(ne, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+    __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ tst(result_, Operand(kIsNotStringMask));
+    __ b(ne, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
@@ -3137,12 +3178,30 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: length
   // r3: from index (untagged)
   __ SmiTag(r3, r3);
-  StringCharAtGenerator generator(
-      r0, r3, r2, r0, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(r0, r3, r2, r0, &runtime, &runtime, &runtime,
+                                  STRING_INDEX_IS_NUMBER, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ Drop(3);
   __ Ret();
   generator.SkipSlow(masm, &runtime);
+}
+
+
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in r0.
+  Label check_heap_number, call_builtin;
+  __ JumpIfNotSmi(r0, &check_heap_number);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ CompareRoot(r1, Heap::kHeapNumberMapRootIndex);
+  __ b(ne, &call_builtin);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ push(r0);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
 

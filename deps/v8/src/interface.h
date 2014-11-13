@@ -41,15 +41,9 @@ class Interface : public ZoneObject {
     return new(zone) Interface(NONE);
   }
 
-  static Interface* NewValue() {
-    static Interface value_interface(VALUE + FROZEN);  // Cached.
-    return &value_interface;
-  }
+  static Interface* NewValue();
 
-  static Interface* NewConst() {
-    static Interface value_interface(VALUE + CONST + FROZEN);  // Cached.
-    return &value_interface;
-  }
+  static Interface* NewConst();
 
   static Interface* NewModule(Zone* zone) {
     return new(zone) Interface(MODULE);
@@ -178,6 +172,8 @@ class Interface : public ZoneObject {
   // ---------------------------------------------------------------------------
   // Implementation.
  private:
+  struct Cache;
+
   enum Flags {    // All flags are monotonic
     NONE = 0,
     VALUE = 1,    // This type describes a value

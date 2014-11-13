@@ -87,6 +87,8 @@ function SetUpStringIterator() {
   %FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
   %AddNamedProperty(StringIterator.prototype, symbolIterator,
                     StringIteratorIterator, DONT_ENUM);
+  %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
+                    "String Iterator", READ_ONLY | DONT_ENUM);
 }
 SetUpStringIterator();
 

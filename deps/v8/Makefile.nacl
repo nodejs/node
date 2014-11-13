@@ -36,39 +36,27 @@ NACL_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(NACL_ARCHES)))
 
 HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
-ifeq ($(HOST_OS), linux)
-  TOOLCHAIN_DIR = linux_x86_glibc
-else
-  ifeq ($(HOST_OS), mac)
-    TOOLCHAIN_DIR = mac_x86_glibc
-  else
-    $(error Host platform "${HOST_OS}" is not supported)
-  endif
-endif
-
 TOOLCHAIN_PATH = $(realpath ${NACL_SDK_ROOT}/toolchain)
-NACL_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
-
-ifeq ($(ARCH), nacl_ia32)
-  GYPENV = nacl_target_arch=nacl_ia32 v8_target_arch=arm v8_host_arch=ia32
-  TOOLCHAIN_ARCH = x86-4.4
-  NACL_CC = "$(NACL_TOOLCHAIN)/bin/i686-nacl-gcc"
-  NACL_CXX = "$(NACL_TOOLCHAIN)/bin/i686-nacl-g++"
-  NACL_LINK = "$(NACL_TOOLCHAIN)/bin/i686-nacl-g++"
-else
-  ifeq ($(ARCH), nacl_x64)
-    GYPENV = nacl_target_arch=nacl_x64 v8_target_arch=arm v8_host_arch=ia32
-    TOOLCHAIN_ARCH = x86-4.4
-    NACL_CC = "$(NACL_TOOLCHAIN)/bin/x86_64-nacl-gcc"
-    NACL_CXX = "$(NACL_TOOLCHAIN)/bin/x86_64-nacl-g++"
-    NACL_LINK = "$(NACL_TOOLCHAIN)/bin/x86_64-nacl-g++"
-  else
-    $(error Target architecture "${ARCH}" is not supported)
-  endif
-endif
+NACL_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/linux_pnacl
 
 ifeq ($(wildcard $(NACL_TOOLCHAIN)),)
   $(error Cannot find Native Client toolchain in "${NACL_TOOLCHAIN}")
+endif
+
+ifeq ($(ARCH), nacl_ia32)
+  GYPENV = nacl_target_arch=nacl_ia32 v8_target_arch=arm v8_host_arch=ia32
+  NACL_CC = "$(NACL_TOOLCHAIN)/bin/pnacl-clang"
+  NACL_CXX = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++"
+  NACL_LINK = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++ --pnacl-allow-native -arch x86-32"
+else
+  ifeq ($(ARCH), nacl_x64)
+    GYPENV = nacl_target_arch=nacl_x64 v8_target_arch=arm v8_host_arch=ia32
+    NACL_CC = "$(NACL_TOOLCHAIN)/bin/pnacl-clang"
+    NACL_CXX = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++"
+    NACL_LINK = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++ --pnacl-allow-native -arch x86-64"
+  else
+    $(error Target architecture "${ARCH}" is not supported)
+  endif
 endif
 
 # For mksnapshot host generation.
@@ -85,7 +73,11 @@ NACL_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(NACL_BUILDS))
 # For some reason the $$(basename $$@) expansion didn't work here...
 $(NACL_BUILDS): $(NACL_MAKEFILES)
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
+	            CC=${NACL_CC} \
 	            CXX=${NACL_CXX} \
+	            AR="$(NACL_TOOLCHAIN)/bin/pnacl-ar" \
+	            RANLIB="$(NACL_TOOLCHAIN)/bin/pnacl-ranlib" \
+	            LD="$(NACL_TOOLCHAIN)/bin/pnacl-ld" \
 	            LINK=${NACL_LINK} \
 	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                        python -c "print raw_input().capitalize()") \
@@ -97,6 +89,7 @@ $(NACL_MAKEFILES):
 	GYP_DEFINES="${GYPENV}" \
 	CC=${NACL_CC} \
 	CXX=${NACL_CXX} \
+	LINK=${NACL_LINK} \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \

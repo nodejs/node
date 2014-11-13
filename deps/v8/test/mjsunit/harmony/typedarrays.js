@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --harmony-tostring
+
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -52,6 +54,8 @@ function TestArrayBufferCreation() {
 
   var ab = new ArrayBuffer();
   assertSame(0, ab.byteLength);
+  assertEquals("[object ArrayBuffer]",
+      Object.prototype.toString.call(ab));
 }
 
 TestArrayBufferCreation();
@@ -123,6 +127,9 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   var ab = new ArrayBuffer(256*elementSize);
 
   var a0 = new constr(30);
+  assertEquals("[object " + constr.name + "]",
+      Object.prototype.toString.call(a0));
+
   assertTrue(ArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);
@@ -258,6 +265,17 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(0, aNoParam.length);
   assertSame(0, aNoParam.byteLength);
   assertSame(0, aNoParam.byteOffset);
+
+  var a = new constr(ab, 64*elementSize, 128);
+  assertEquals("[object " + constr.name + "]",
+      Object.prototype.toString.call(a));
+  var desc = Object.getOwnPropertyDescriptor(
+      constr.prototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.enumerable);
+  assertFalse(!!desc.writable);
+  assertFalse(!!desc.set);
+  assertEquals("function", typeof desc.get);
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);
@@ -361,14 +379,18 @@ var typedArrayConstructors = [
   Float64Array];
 
 function TestPropertyTypeChecks(constructor) {
-  var a = new constructor();
   function CheckProperty(name) {
     var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
-    var o = {}
+    var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
-    d.get.call(a); // shouldn't throw
-    for (var i = 0 ; i < typedArrayConstructors.length; i++) {
-      d.get.call(new typedArrayConstructors[i](10));
+    for (var i = 0; i < typedArrayConstructors.length; i++) {
+      var ctor = typedArrayConstructors[i];
+      var a = new ctor(10);
+      if (ctor === constructor) {
+        d.get.call(a); // shouldn't throw
+      } else {
+        assertThrows(function() {d.get.call(a);}, TypeError);
+      }
     }
   }
 
@@ -378,7 +400,7 @@ function TestPropertyTypeChecks(constructor) {
   CheckProperty("length");
 }
 
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
+for(i = 0; i < typedArrayConstructors.length; i++) {
   TestPropertyTypeChecks(typedArrayConstructors[i]);
 }
 
@@ -477,6 +499,103 @@ function TestTypedArraySet() {
 
 TestTypedArraySet();
 
+function TestTypedArraysWithIllegalIndices() {
+  var a = new Int32Array(100);
+
+  a[-10] = 10;
+  assertEquals(undefined, a[-10]);
+  a["-10"] = 10;
+  assertEquals(undefined, a["-10"]);
+
+  var s = "    -10";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+  var s1 = "    -10   ";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+
+  a["-1e2"] = 10;
+  assertEquals(10, a["-1e2"]);
+  assertEquals(undefined, a[-1e2]);
+
+  a["-0"] = 256;
+  var s2 = "     -0";
+  a[s2] = 255;
+  assertEquals(undefined, a["-0"]);
+  assertEquals(255, a[s2]);
+  assertEquals(0, a[-0]);
+
+  /* Chromium bug: 424619
+   * a[-Infinity] = 50;
+   * assertEquals(undefined, a[-Infinity]);
+   */
+  a[1.5] = 10;
+  assertEquals(undefined, a[1.5]);
+  var nan = Math.sqrt(-1);
+  a[nan] = 5;
+  assertEquals(5, a[nan]);
+
+  var x = 0;
+  var y = -0;
+  assertEquals(Infinity, 1/x);
+  assertEquals(-Infinity, 1/y);
+  a[x] = 5;
+  a[y] = 27;
+  assertEquals(27, a[x]);
+  assertEquals(27, a[y]);
+}
+
+TestTypedArraysWithIllegalIndices();
+
+function TestTypedArraysWithIllegalIndicesStrict() {
+  'use strict';
+  var a = new Int32Array(100);
+
+  a[-10] = 10;
+  assertEquals(undefined, a[-10]);
+  a["-10"] = 10;
+  assertEquals(undefined, a["-10"]);
+
+  var s = "    -10";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+  var s1 = "    -10   ";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+
+  a["-1e2"] = 10;
+  assertEquals(10, a["-1e2"]);
+  assertEquals(undefined, a[-1e2]);
+
+  a["-0"] = 256;
+  var s2 = "     -0";
+  a[s2] = 255;
+  assertEquals(undefined, a["-0"]);
+  assertEquals(255, a[s2]);
+  assertEquals(0, a[-0]);
+
+  /* Chromium bug: 424619
+   * a[-Infinity] = 50;
+   * assertEquals(undefined, a[-Infinity]);
+   */
+  a[1.5] = 10;
+  assertEquals(undefined, a[1.5]);
+  var nan = Math.sqrt(-1);
+  a[nan] = 5;
+  assertEquals(5, a[nan]);
+
+  var x = 0;
+  var y = -0;
+  assertEquals(Infinity, 1/x);
+  assertEquals(-Infinity, 1/y);
+  a[x] = 5;
+  a[y] = 27;
+  assertEquals(27, a[x]);
+  assertEquals(27, a[y]);
+}
+
+TestTypedArraysWithIllegalIndicesStrict();
+
 // DataView
 function TestDataViewConstructor() {
   var ab = new ArrayBuffer(256);
@@ -546,6 +665,19 @@ function TestDataViewPropertyTypeChecks() {
 
 TestDataViewPropertyTypeChecks();
 
+
+function TestDataViewToStringTag() {
+  var a = new DataView(new ArrayBuffer(10));
+  assertEquals("[object DataView]", Object.prototype.toString.call(a));
+  var desc = Object.getOwnPropertyDescriptor(
+      DataView.prototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.enumerable);
+  assertFalse(desc.writable);
+  assertEquals("DataView", desc.value);
+}
+
+
 // General tests for properties
 
 // Test property attribute [[Enumerable]]
@@ -561,7 +693,7 @@ function TestEnumerable(func, obj) {
     assertArrayEquals([], props(obj));
 }
 TestEnumerable(ArrayBuffer, new ArrayBuffer());
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
+for(i = 0; i < typedArrayConstructors.length; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
 TestEnumerable(DataView, new DataView(new ArrayBuffer()));
@@ -573,13 +705,13 @@ function TestArbitrary(m) {
     assertEquals(value, map[property]);
   }
   for (var i = 0; i < 20; i++) {
-    TestProperty(m, i, 'val' + i);
+    TestProperty(m, 'key' + i, 'val' + i);
     TestProperty(m, 'foo' + i, 'bar' + i);
   }
 }
 TestArbitrary(new ArrayBuffer(256));
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
-  TestArbitary(new typedArrayConstructors[i](10));
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestArbitrary(new typedArrayConstructors[i](10));
 }
 TestArbitrary(new DataView(new ArrayBuffer(256)));
 

@@ -80,7 +80,9 @@ class List {
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
 
-  Vector<const T> ToConstVector() { return Vector<const T>(data_, length_); }
+  Vector<const T> ToConstVector() const {
+    return Vector<const T>(data_, length_);
+  }
 
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.

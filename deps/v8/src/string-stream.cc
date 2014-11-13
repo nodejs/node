@@ -295,8 +295,7 @@ bool StringStream::Put(String* str) {
 
 
 bool StringStream::Put(String* str, int start, int end) {
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(str, &op, start);
+  StringCharacterStream stream(str, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
     uint16_t c = stream.GetNext();
     if (c >= 127 || c < 32) {

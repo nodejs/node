@@ -26,16 +26,18 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
     thisArg = %_Arguments(1);
   }
 
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(thisArg)) {
     thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else if (!IS_SPEC_OBJECT(thisArg) && %IsSloppyModeFunction(predicate)) {
-    thisArg = ToObject(thisArg);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
   }
 
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
-      if (%_CallFunction(thisArg, element, i, array, predicate)) {
+      var newThisArg = needs_wrapper ? ToObject(thisArg) : thisArg;
+      if (%_CallFunction(newThisArg, element, i, array, predicate)) {
         return element;
       }
     }
@@ -61,16 +63,18 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
     thisArg = %_Arguments(1);
   }
 
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(thisArg)) {
     thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else if (!IS_SPEC_OBJECT(thisArg) && %IsSloppyModeFunction(predicate)) {
-    thisArg = ToObject(thisArg);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
   }
 
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
-      if (%_CallFunction(thisArg, element, i, array, predicate)) {
+      var newThisArg = needs_wrapper ? ToObject(thisArg) : thisArg;
+      if (%_CallFunction(newThisArg, element, i, array, predicate)) {
         return i;
       }
     }

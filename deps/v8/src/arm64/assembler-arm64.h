@@ -1663,6 +1663,9 @@ class Assembler : public AssemblerBase {
   // FP round to integer (nearest with ties to even).
   void frintn(const FPRegister& fd, const FPRegister& fn);
 
+  // FP round to integer (towards plus infinity).
+  void frintp(const FPRegister& fd, const FPRegister& fn);
+
   // FP round to integer (towards zero.)
   void frintz(const FPRegister& fd, const FPRegister& fn);
 

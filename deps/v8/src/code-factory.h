@@ -33,7 +33,9 @@ class CodeFactory FINAL {
  public:
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate, ContextualMode mode);
+  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode);
   static Callable KeyedLoadIC(Isolate* isolate);
+  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable StoreIC(Isolate* isolate, StrictMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, StrictMode mode);
 
@@ -53,9 +55,13 @@ class CodeFactory FINAL {
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
 
+  static Callable AllocateHeapNumber(Isolate* isolate);
+
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
 };
-}
-}
+
+}  // namespace internal
+}  // namespace v8
+
 #endif  // V8_CODE_FACTORY_H_

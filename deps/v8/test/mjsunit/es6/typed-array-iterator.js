@@ -21,9 +21,9 @@ function TestTypedArrayPrototype(constructor) {
   assertFalse(constructor.prototype.propertyIsEnumerable(Symbol.iterator));
 
   assertEquals(Array.prototype.entries, constructor.prototype.entries);
-  assertEquals(Array.prototype.values, constructor.prototype.values);
+  assertEquals(Array.prototype[Symbol.iterator], constructor.prototype.values);
   assertEquals(Array.prototype.keys, constructor.prototype.keys);
-  assertEquals(Array.prototype.values, constructor.prototype[Symbol.iterator]);
+  assertEquals(Array.prototype[Symbol.iterator], constructor.prototype[Symbol.iterator]);
 }
 constructors.forEach(TestTypedArrayPrototype);
 

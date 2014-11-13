@@ -1375,6 +1375,98 @@ TEST(TestCodeFlushingIncrementalAbort) {
 }
 
 
+TEST(CompilationCacheCachingBehavior) {
+  // If we do not flush code, or have the compilation cache turned off, this
+  // test is invalid.
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally ||
+      !FLAG_compilation_cache) {
+    return;
+  }
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
+
+  v8::HandleScope scope(CcTest::isolate());
+  const char* raw_source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  Handle<String> source = factory->InternalizeUtf8String(raw_source);
+  Handle<Context> native_context = isolate->native_context();
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
+  MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
+      source, Handle<Object>(), 0, 0, true, native_context);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On second compilation, the hash is replaced by a real cache entry mapping
+  // the source to the shared function info containing the code.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(!info.is_null());
+
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // On second compilation, the hash is replaced by a real cache entry mapping
+  // the source to the shared function info containing the code.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(!info.is_null());
+
+  while (!info.ToHandleChecked()->code()->IsOld()) {
+    info.ToHandleChecked()->code()->MakeOlder(NO_MARKING_PARITY);
+  }
+
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  // Ensure code aging cleared the entry from the cache.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+
+  for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
+    compilation_cache->MarkCompactPrologue();
+  }
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // If we aged the cache before caching the script, ensure that we didn't cache
+  // on next compilation.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+}
+
+
 // Count the number of native contexts in the weak list of native contexts.
 int CountNativeContexts() {
   int count = 0;
@@ -2183,6 +2275,48 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 }
 
 
+TEST(IdleNotificationFinishMarking) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  marking->Abort();
+  marking->Start();
+
+  CHECK_EQ(CcTest::heap()->gc_count(), 0);
+
+  // TODO(hpayer): We cannot write proper unit test right now for heap.
+  // The ideal test would call kMaxIdleMarkingDelayCounter to test the
+  // marking delay counter.
+
+  // Perform a huge incremental marking step but don't complete marking.
+  intptr_t bytes_processed = 0;
+  do {
+    bytes_processed =
+        marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                      IncrementalMarking::FORCE_MARKING,
+                      IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+    CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
+  } while (bytes_processed);
+
+  // The next invocations of incremental marking are not going to complete
+  // marking
+  // since the completion threshold is not reached
+  for (size_t i = 0; i < IncrementalMarking::kMaxIdleMarkingDelayCounter - 2;
+       i++) {
+    marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  IncrementalMarking::FORCE_MARKING,
+                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+    CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
+  }
+
+  // The next idle notification has to finish incremental marking.
+  const int kLongIdleTime = 1000000;
+  CcTest::isolate()->IdleNotification(kLongIdleTime);
+  CHECK_EQ(CcTest::heap()->gc_count(), 1);
+}
+
+
 // Test that HAllocateObject will always return an object in new-space.
 TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::FLAG_allow_natives_syntax = true;
@@ -2806,6 +2940,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
              "root = new F");
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
+  CcTest::heap()->CollectGarbage(NEW_SPACE);
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -2832,6 +2967,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
 
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
+  CcTest::heap()->CollectGarbage(NEW_SPACE);
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3076,7 +3212,7 @@ TEST(PrintSharedFunctionInfo) {
 
   OFStream os(stdout);
   g->shared()->Print(os);
-  os << endl;
+  os << std::endl;
 }
 #endif  // OBJECT_PRINT
 
@@ -3147,20 +3283,18 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
-  int expected_length = FLAG_vector_ics ? 4 : 2;
-  CHECK_EQ(expected_length, feedback_vector->length());
-  for (int i = 0; i < expected_length; i++) {
-    if ((i % 2) == 1) {
-      CHECK(feedback_vector->get(i)->IsJSFunction());
-    }
+  int expected_slots = 2;
+  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  for (int i = 0; i < expected_slots; i++) {
+    CHECK(feedback_vector->Get(FeedbackVectorICSlot(i))->IsJSFunction());
   }
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(expected_length, feedback_vector->length());
-  for (int i = 0; i < expected_length; i++) {
-    CHECK_EQ(feedback_vector->get(i),
+  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  for (int i = 0; i < expected_slots; i++) {
+    CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(i)),
              *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
   }
 }
@@ -4241,6 +4375,72 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
 }
 
 
+TEST(WeakCell) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  v8::internal::Factory* factory = isolate->factory();
+
+  HandleScope outer_scope(isolate);
+  Handle<WeakCell> weak_cell1;
+  {
+    HandleScope inner_scope(isolate);
+    Handle<HeapObject> value = factory->NewFixedArray(1, NOT_TENURED);
+    weak_cell1 = inner_scope.CloseAndEscape(factory->NewWeakCell(value));
+  }
+
+  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
+  Handle<WeakCell> weak_cell2;
+  {
+    HandleScope inner_scope(isolate);
+    weak_cell2 = inner_scope.CloseAndEscape(factory->NewWeakCell(survivor));
+  }
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectGarbage(NEW_SPACE);
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectGarbage(NEW_SPACE);
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectAllAvailableGarbage();
+  CHECK(weak_cell1->cleared());
+  CHECK_EQ(*survivor, weak_cell2->value());
+}
+
+
+TEST(WeakCellsWithIncrementalMarking) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  v8::internal::Factory* factory = isolate->factory();
+
+  const int N = 16;
+  HandleScope outer_scope(isolate);
+  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
+  Handle<WeakCell> weak_cells[N];
+
+  for (int i = 0; i < N; i++) {
+    HandleScope inner_scope(isolate);
+    Handle<HeapObject> value =
+        i == 0 ? survivor : factory->NewFixedArray(1, NOT_TENURED);
+    Handle<WeakCell> weak_cell = factory->NewWeakCell(value);
+    CHECK(weak_cell->value()->IsFixedArray());
+    IncrementalMarking* marking = heap->incremental_marking();
+    if (marking->IsStopped()) marking->Start();
+    marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    heap->CollectGarbage(NEW_SPACE);
+    CHECK(weak_cell->value()->IsFixedArray());
+    weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
+  }
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK_EQ(*survivor, weak_cells[0]->value());
+  for (int i = 1; i < N; i++) {
+    CHECK(weak_cells[i]->cleared());
+  }
+}
+
+
 #ifdef DEBUG
 TEST(AddInstructionChangesNewSpacePromotion) {
   i::FLAG_allow_natives_syntax = true;
@@ -4499,6 +4699,46 @@ TEST(Regress388880) {
   // Now everything is set up for crashing in JSObject::MigrateFastToFast()
   // when it calls heap->AdjustLiveBytes(...).
   JSObject::MigrateToMap(o, map2);
+}
+
+
+TEST(Regress3631) {
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  v8::Local<v8::Value> result = CompileRun(
+      "var weak_map = new WeakMap();"
+      "var future_keys = [];"
+      "for (var i = 0; i < 50; i++) {"
+      "  var key = {'k' : i + 0.1};"
+      "  weak_map.set(key, 1);"
+      "  future_keys.push({'x' : i + 0.2});"
+      "}"
+      "weak_map");
+  if (marking->IsStopped()) {
+    marking->Start();
+  }
+  // Incrementally mark the backing store.
+  Handle<JSObject> obj =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+  Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
+  while (!Marking::IsBlack(
+             Marking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
+         !marking->IsStopped()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  // Stash the backing store in a handle.
+  Handle<Object> save(weak_map->table(), isolate);
+  // The following line will update the backing store.
+  CompileRun(
+      "for (var i = 0; i < 50; i++) {"
+      "  weak_map.set(future_keys[i], i);"
+      "}");
+  heap->incremental_marking()->set_should_hurry(true);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 }
 
 

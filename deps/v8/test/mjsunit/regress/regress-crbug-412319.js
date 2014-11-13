@@ -15,5 +15,5 @@ __f_6();
 %OptimizeFunctionOnNextCall(__f_6);
 __f_6();
 function __f_7(__v_7) {
-  __v_7.push(Infinity);
+  __v_7.pop();
 }

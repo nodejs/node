@@ -29,6 +29,10 @@
 #define V8_HOST_ARCH_64_BIT 1
 #endif
 #endif  // __native_client__
+#elif defined(__pnacl__)
+// PNaCl is also ILP-32.
+#define V8_HOST_ARCH_IA32 1
+#define V8_HOST_ARCH_32_BIT 1
 #elif defined(_M_IX86) || defined(__i386__)
 #define V8_HOST_ARCH_IA32 1
 #define V8_HOST_ARCH_32_BIT 1

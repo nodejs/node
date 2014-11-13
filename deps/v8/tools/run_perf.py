@@ -91,6 +91,7 @@ Full example (suite with several runners):
 Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 """
 
+from collections import OrderedDict
 import json
 import math
 import optparse
@@ -114,8 +115,10 @@ SUPPORTED_ARCHS = ["android_arm",
                    "x64",
                    "arm64"]
 
-GENERIC_RESULTS_RE = re.compile(
-    r"^Trace\(([^\)]+)\), Result\(([^\)]+)\), StdDev\(([^\)]+)\)$")
+GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
+RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
+RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
+
 
 
 def GeometricMean(values):
@@ -334,21 +337,33 @@ class RunnableGeneric(Runnable):
 
   def Run(self, runner):
     """Iterates over several runs and handles the output."""
-    traces = {}
+    traces = OrderedDict()
     for stdout in runner():
       for line in stdout.strip().splitlines():
         match = GENERIC_RESULTS_RE.match(line)
         if match:
-          trace = match.group(1)
-          result = match.group(2)
-          stddev = match.group(3)
+          stddev = ""
+          graph = match.group(1)
+          trace = match.group(2)
+          body = match.group(3)
+          units = match.group(4)
+          match_stddev = RESULT_STDDEV_RE.match(body)
+          match_list = RESULT_LIST_RE.match(body)
+          if match_stddev:
+            result, stddev = map(str.strip, match_stddev.group(1).split(","))
+            results = [result]
+          elif match_list:
+            results = map(str.strip, match_list.group(1).split(","))
+          else:
+            results = [body.strip()]
+
           trace_result = traces.setdefault(trace, Results([{
-            "graphs": self.graphs + [trace],
-            "units": self.units,
+            "graphs": self.graphs + [graph, trace],
+            "units": (units or self.units).strip(),
             "results": [],
             "stddev": "",
           }], []))
-          trace_result.traces[0]["results"].append(result)
+          trace_result.traces[0]["results"].extend(results)
           trace_result.traces[0]["stddev"] = stddev
 
     return reduce(lambda r, t: r + t, traces.itervalues(), Results())

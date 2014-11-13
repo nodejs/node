@@ -19,13 +19,14 @@ class ValueNumberingReducer FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
+  enum { kInitialCapacity = 256u, kCapacityToSizeRatio = 2u };
+
+  void Grow();
   Zone* zone() const { return zone_; }
 
-  // TODO(turbofan): We currently use separate chaining with linked lists here,
-  // we may want to replace that with a more sophisticated data structure at
-  // some point in the future.
-  class Entry;
-  Entry* buckets_[117u];
+  Node** entries_;
+  size_t capacity_;
+  size_t size_;
   Zone* zone_;
 };
 

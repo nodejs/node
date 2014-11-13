@@ -6,6 +6,7 @@
 #define V8_LOG_INL_H_
 
 #include "src/log.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -26,6 +27,16 @@ Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
 }
 
 
+void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
+                             bool expose_to_api) {
+  if (isolate->event_logger() != NULL) {
+    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
+      LOG(isolate, TimerEvent(se, name));
+    } else if (expose_to_api) {
+      isolate->event_logger()(name, se);
+    }
+  }
+}
 } }  // namespace v8::internal
 
 #endif  // V8_LOG_INL_H_

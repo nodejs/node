@@ -167,6 +167,7 @@ macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnProperty));
+macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(functionName));
 
 # Private names.
 # GET_PRIVATE should only be used if the property is known to exists on obj
@@ -254,7 +255,7 @@ macro OVERRIDE_SUBJECT(override) = ((override)[(override).length - 1]);
 macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
 # PropertyDescriptor return value indices - must match
-# PropertyDescriptorIndices in runtime.cc.
+# PropertyDescriptorIndices in runtime-object.cc.
 const IS_ACCESSOR_INDEX = 0;
 const VALUE_INDEX = 1;
 const GETTER_INDEX = 2;

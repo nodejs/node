@@ -1936,6 +1936,12 @@ void Assembler::frintn(const FPRegister& fd,
 }
 
 
+void Assembler::frintp(const FPRegister& fd, const FPRegister& fn) {
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
+  FPDataProcessing1Source(fd, fn, FRINTP);
+}
+
+
 void Assembler::frintz(const FPRegister& fd,
                        const FPRegister& fn) {
   DCHECK(fd.SizeInBits() == fn.SizeInBits());

@@ -7,11 +7,17 @@
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
-#if V8_OS_POSIX
-#include <unistd.h>  // sysconf()
+#if V8_OS_LINUX
+#include <linux/auxvec.h>  // AT_HWCAP
+#endif
+#if V8_GLIBC_PREREQ(2, 16)
+#include <sys/auxv.h>  // getauxval()
 #endif
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
+#endif
+#if V8_OS_POSIX
+#include <unistd.h>  // sysconf()
 #endif
 
 #include <ctype.h>
@@ -29,7 +35,9 @@
 namespace v8 {
 namespace base {
 
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if defined(__pnacl__)
+// Portable host shouldn't do feature detection.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 // Define __cpuid() for non-MSVC libraries.
 #if !V8_LIBC_MSVCRT
@@ -90,11 +98,12 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #define HWCAP_IDIV  (HWCAP_IDIVA | HWCAP_IDIVT)
 #define HWCAP_LPAE  (1 << 20)
 
-#define AT_HWCAP 16
-
-// Read the ELF HWCAP flags by parsing /proc/self/auxv.
 static uint32_t ReadELFHWCaps() {
   uint32_t result = 0;
+#if V8_GLIBC_PREREQ(2, 16)
+  result = static_cast<uint32_t>(getauxval(AT_HWCAP));
+#else
+  // Read the ELF HWCAP flags by parsing /proc/self/auxv.
   FILE* fp = fopen("/proc/self/auxv", "r");
   if (fp != NULL) {
     struct { uint32_t tag; uint32_t value; } entry;
@@ -110,6 +119,7 @@ static uint32_t ReadELFHWCaps() {
     }
     fclose(fp);
   }
+#endif
   return result;
 }
 
@@ -119,13 +129,18 @@ static uint32_t ReadELFHWCaps() {
 int __detect_fp64_mode(void) {
   double result = 0;
   // Bit representation of (double)1 is 0x3FF0000000000000.
-  asm(
-    "lui $t0, 0x3FF0\n\t"
-    "ldc1 $f0, %0\n\t"
-    "mtc1 $t0, $f1\n\t"
-    "sdc1 $f0, %0\n\t"
-    : "+m" (result)
-    : : "t0", "$f0", "$f1", "memory");
+  __asm__ volatile(
+      ".set push\n\t"
+      ".set noreorder\n\t"
+      ".set oddspreg\n\t"
+      "lui $t0, 0x3FF0\n\t"
+      "ldc1 $f0, %0\n\t"
+      "mtc1 $t0, $f1\n\t"
+      "sdc1 $f0, %0\n\t"
+      ".set pop\n\t"
+      : "+m"(result)
+      :
+      : "t0", "$f0", "$f1", "memory");
 
   return !(result == 1);
 }
@@ -133,9 +148,22 @@ int __detect_fp64_mode(void) {
 
 int __detect_mips_arch_revision(void) {
   // TODO(dusmil): Do the specific syscall as soon as it is implemented in mips
-  // kernel. Currently fail-back to the least common denominator which is
-  // mips32 revision 1.
-  return 1;
+  // kernel.
+  uint32_t result = 0;
+  __asm__ volatile(
+      "move $v0, $zero\n\t"
+      // Encoding for "addi $v0, $v0, 1" on non-r6,
+      // which is encoding for "bovc $v0, %v0, 1" on r6.
+      // Use machine code directly to avoid compilation errors with different
+      // toolchains and maintain compatibility.
+      ".word 0x20420001\n\t"
+      "sw $v0, %0\n\t"
+      : "=m"(result)
+      :
+      : "v0", "memory");
+  // Result is 0 on r6 architectures, 1 on other architecture revisions.
+  // Fall-back to the least common denominator which is mips32 revision 1.
+  return result ? 1 : 6;
 }
 #endif
 
@@ -290,7 +318,11 @@ CPU::CPU() : stepping_(0),
              has_vfp3_d32_(false),
              is_fp64_mode_(false) {
   memcpy(vendor_, "Unknown", 8);
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if V8_OS_NACL
+// Portable host shouldn't do feature detection.
+// TODO(jfb): Remove the hardcoded ARM simulator flags in the build, and
+// hardcode them here instead.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
 
   // __cpuid with an InfoType argument of 0 returns the number of

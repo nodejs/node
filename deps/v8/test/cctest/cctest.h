@@ -117,7 +117,7 @@ class CcTest {
 
   static v8::Isolate* isolate() {
     CHECK(isolate_ != NULL);
-    isolate_used_ = true;
+    v8::base::NoBarrier_Store(&isolate_used_, 1);
     return isolate_;
   }
 
@@ -149,7 +149,7 @@ class CcTest {
   // TODO(dcarney): Remove.
   // This must be called first in a test.
   static void InitializeVM() {
-    CHECK(!isolate_used_);
+    CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
     CHECK(!initialize_called_);
     initialize_called_ = true;
     v8::HandleScope handle_scope(CcTest::isolate());
@@ -181,7 +181,7 @@ class CcTest {
   static CcTest* last_;
   static v8::Isolate* isolate_;
   static bool initialize_called_;
-  static bool isolate_used_;
+  static v8::base::Atomic32 isolate_used_;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -481,15 +481,31 @@ static inline void ExpectUndefined(const char* code) {
 
 
 // Helper function that simulates a full new-space in the heap.
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  int new_linear_size = static_cast<int>(
-      *space->allocation_limit_address() - *space->allocation_top_address());
-  if (new_linear_size == 0) return;
+static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
   v8::internal::AllocationResult allocation =
-      space->AllocateRaw(new_linear_size);
+      space->AllocateRaw(v8::internal::Page::kMaxRegularHeapObjectSize);
+  if (allocation.IsRetry()) return false;
   v8::internal::FreeListNode* node =
       v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-  node->set_size(space->heap(), new_linear_size);
+  node->set_size(space->heap(), v8::internal::Page::kMaxRegularHeapObjectSize);
+  return true;
+}
+
+
+static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
+  int new_linear_size = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
+  if (new_linear_size > 0) {
+    // Fill up the current page.
+    v8::internal::AllocationResult allocation =
+        space->AllocateRaw(new_linear_size);
+    v8::internal::FreeListNode* node =
+        v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
+    node->set_size(space->heap(), new_linear_size);
+  }
+  // Fill up all remaining pages.
+  while (FillUpOnePage(space))
+    ;
 }
 
 

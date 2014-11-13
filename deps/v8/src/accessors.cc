@@ -56,17 +56,6 @@ Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
 }
 
 
-template <class C>
-static C* FindInstanceOf(Isolate* isolate, Object* obj) {
-  for (PrototypeIterator iter(isolate, obj,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (Is<C>(iter.GetCurrent())) return C::cast(iter.GetCurrent());
-  }
-  return NULL;
-}
-
-
 static V8_INLINE bool CheckForName(Handle<Name> name,
                                    Handle<String> property_name,
                                    int offset,
@@ -183,7 +172,10 @@ void Accessors::ArgumentsIteratorSetter(
   LookupIterator it(object, Utils::OpenHandle(*name));
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   DCHECK(it.HolderIsReceiverOrHiddenPrototype());
-  Object::SetDataProperty(&it, value);
+
+  if (Object::SetDataProperty(&it, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
 }
 
 
@@ -258,7 +250,7 @@ void Accessors::ArrayLengthSetter(
 
   if (uint32_v->Number() == number_v->Number()) {
     maybe = JSArray::SetElementsLength(array_handle, uint32_v);
-    maybe.Check();
+    if (maybe.is_null()) isolate->OptionalRescheduleException(false);
     return;
   }
 
@@ -892,9 +884,8 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 }
 
 
-static Handle<Object> SetFunctionPrototype(Isolate* isolate,
-                                           Handle<JSFunction> function,
-                                           Handle<Object> value) {
+MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
+    Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
   Handle<Object> old_value;
   bool is_observed = function->map()->is_observed();
   if (is_observed) {
@@ -908,21 +899,17 @@ static Handle<Object> SetFunctionPrototype(Isolate* isolate,
   DCHECK(function->prototype() == *value);
 
   if (is_observed && !old_value->SameValue(*value)) {
-    JSObject::EnqueueChangeRecord(
+    MaybeHandle<Object> result = JSObject::EnqueueChangeRecord(
         function, "update", isolate->factory()->prototype_string(), old_value);
+    if (result.is_null()) return MaybeHandle<Object>();
   }
 
   return function;
 }
 
 
-Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
-  return GetFunctionPrototype(function->GetIsolate(), function);
-}
-
-
-Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
-                                               Handle<Object> prototype) {
+MaybeHandle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
+                                                    Handle<Object> prototype) {
   DCHECK(function->should_have_prototype());
   Isolate* isolate = function->GetIsolate();
   return SetFunctionPrototype(isolate, function, prototype);
@@ -953,7 +940,9 @@ void Accessors::FunctionPrototypeSetter(
   }
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  SetFunctionPrototype(isolate, object, value);
+  if (SetFunctionPrototype(isolate, object, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
 }
 
 

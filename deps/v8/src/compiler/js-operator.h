@@ -5,28 +5,77 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
-#include "src/compiler/linkage.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
+#include "src/runtime/runtime.h"
 #include "src/unique.h"
-#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class Operator;
+struct JSOperatorGlobalCache;
+
+
+// Defines the arity and the call flags for a JavaScript function call. This is
+// used as a parameter by JSCallFunction operators.
+class CallFunctionParameters FINAL {
+ public:
+  CallFunctionParameters(size_t arity, CallFunctionFlags flags)
+      : arity_(arity), flags_(flags) {}
+
+  size_t arity() const { return arity_; }
+  CallFunctionFlags flags() const { return flags_; }
+
+ private:
+  const size_t arity_;
+  const CallFunctionFlags flags_;
+};
+
+bool operator==(CallFunctionParameters const&, CallFunctionParameters const&);
+bool operator!=(CallFunctionParameters const&, CallFunctionParameters const&);
+
+size_t hash_value(CallFunctionParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
+
+const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
+
+
+// Defines the arity and the ID for a runtime function call. This is used as a
+// parameter by JSCallRuntime operators.
+class CallRuntimeParameters FINAL {
+ public:
+  CallRuntimeParameters(Runtime::FunctionId id, size_t arity)
+      : id_(id), arity_(arity) {}
+
+  Runtime::FunctionId id() const { return id_; }
+  size_t arity() const { return arity_; }
+
+ private:
+  const Runtime::FunctionId id_;
+  const size_t arity_;
+};
+
+bool operator==(CallRuntimeParameters const&, CallRuntimeParameters const&);
+bool operator!=(CallRuntimeParameters const&, CallRuntimeParameters const&);
+
+size_t hash_value(CallRuntimeParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallRuntimeParameters const&);
+
+const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op);
+
+
 // Defines the location of a context slot relative to a specific scope. This is
 // used as a parameter by JSLoadContext and JSStoreContext operators and allows
 // accessing a context-allocated variable without keeping track of the scope.
-class ContextAccess {
+class ContextAccess FINAL {
  public:
-  ContextAccess(int depth, int index, bool immutable)
-      : immutable_(immutable), depth_(depth), index_(index) {
-    DCHECK(0 <= depth && depth <= kMaxUInt16);
-    DCHECK(0 <= index && static_cast<uint32_t>(index) <= kMaxUInt32);
-  }
-  int depth() const { return depth_; }
-  int index() const { return index_; }
+  ContextAccess(size_t depth, size_t index, bool immutable);
+
+  size_t depth() const { return depth_; }
+  size_t index() const { return index_; }
   bool immutable() const { return immutable_; }
 
  private:
@@ -37,193 +86,188 @@ class ContextAccess {
   const uint32_t index_;
 };
 
-// Defines the property being loaded from an object by a named load. This is
-// used as a parameter by JSLoadNamed operators.
-struct LoadNamedParameters {
-  Unique<Name> name;
-  ContextualMode contextual_mode;
+bool operator==(ContextAccess const&, ContextAccess const&);
+bool operator!=(ContextAccess const&, ContextAccess const&);
+
+size_t hash_value(ContextAccess const&);
+
+std::ostream& operator<<(std::ostream&, ContextAccess const&);
+
+ContextAccess const& ContextAccessOf(Operator const*);
+
+
+class VectorSlotPair {
+ public:
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : vector_(vector), slot_(slot) {}
+
+  Handle<TypeFeedbackVector> vector() const { return vector_; }
+  FeedbackVectorICSlot slot() const { return slot_; }
+
+  int index() const { return vector_->GetIndex(slot_); }
+
+ private:
+  const Handle<TypeFeedbackVector> vector_;
+  const FeedbackVectorICSlot slot_;
 };
 
-// Defines the arity and the call flags for a JavaScript function call. This is
-// used as a parameter by JSCall operators.
-struct CallParameters {
-  int arity;
-  CallFunctionFlags flags;
+
+bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs);
+
+
+// Defines the property being loaded from an object by a named load. This is
+// used as a parameter by JSLoadNamed operators.
+class LoadNamedParameters FINAL {
+ public:
+  LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+                      ContextualMode contextual_mode)
+      : name_(name), contextual_mode_(contextual_mode), feedback_(feedback) {}
+
+  const Unique<Name>& name() const { return name_; }
+  ContextualMode contextual_mode() const { return contextual_mode_; }
+
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  const Unique<Name> name_;
+  const ContextualMode contextual_mode_;
+  const VectorSlotPair feedback_;
 };
+
+bool operator==(LoadNamedParameters const&, LoadNamedParameters const&);
+bool operator!=(LoadNamedParameters const&, LoadNamedParameters const&);
+
+size_t hash_value(LoadNamedParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
+
+const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
+
+
+// Defines the property being loaded from an object. This is
+// used as a parameter by JSLoadProperty operators.
+class LoadPropertyParameters FINAL {
+ public:
+  explicit LoadPropertyParameters(const VectorSlotPair& feedback)
+      : feedback_(feedback) {}
+
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  const VectorSlotPair feedback_;
+};
+
+bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
+bool operator!=(LoadPropertyParameters const&, LoadPropertyParameters const&);
+
+size_t hash_value(LoadPropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadPropertyParameters const&);
+
+const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
+
 
 // Defines the property being stored to an object by a named store. This is
 // used as a parameter by JSStoreNamed operators.
-struct StoreNamedParameters {
-  StrictMode strict_mode;
-  Unique<Name> name;
+class StoreNamedParameters FINAL {
+ public:
+  StoreNamedParameters(StrictMode strict_mode, const Unique<Name>& name)
+      : strict_mode_(strict_mode), name_(name) {}
+
+  StrictMode strict_mode() const { return strict_mode_; }
+  const Unique<Name>& name() const { return name_; }
+
+ private:
+  const StrictMode strict_mode_;
+  const Unique<Name> name_;
 };
+
+bool operator==(StoreNamedParameters const&, StoreNamedParameters const&);
+bool operator!=(StoreNamedParameters const&, StoreNamedParameters const&);
+
+size_t hash_value(StoreNamedParameters const&);
+
+std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
+
+const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
+
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
-class JSOperatorBuilder {
+class JSOperatorBuilder FINAL : public ZoneObject {
  public:
-  explicit JSOperatorBuilder(Zone* zone) : zone_(zone) {}
+  explicit JSOperatorBuilder(Zone* zone);
 
-#define SIMPLE(name, properties, inputs, outputs) \
-  return new (zone_)                              \
-      SimpleOperator(IrOpcode::k##name, properties, inputs, outputs, #name);
+  const Operator* Equal();
+  const Operator* NotEqual();
+  const Operator* StrictEqual();
+  const Operator* StrictNotEqual();
+  const Operator* LessThan();
+  const Operator* GreaterThan();
+  const Operator* LessThanOrEqual();
+  const Operator* GreaterThanOrEqual();
+  const Operator* BitwiseOr();
+  const Operator* BitwiseXor();
+  const Operator* BitwiseAnd();
+  const Operator* ShiftLeft();
+  const Operator* ShiftRight();
+  const Operator* ShiftRightLogical();
+  const Operator* Add();
+  const Operator* Subtract();
+  const Operator* Multiply();
+  const Operator* Divide();
+  const Operator* Modulus();
 
-#define NOPROPS(name, inputs, outputs) \
-  SIMPLE(name, Operator::kNoProperties, inputs, outputs)
+  const Operator* UnaryNot();
+  const Operator* ToBoolean();
+  const Operator* ToNumber();
+  const Operator* ToString();
+  const Operator* ToName();
+  const Operator* ToObject();
+  const Operator* Yield();
 
-#define OP1(name, ptype, pname, properties, inputs, outputs)                 \
-  return new (zone_) Operator1<ptype>(IrOpcode::k##name, properties, inputs, \
-                                      outputs, #name, pname)
+  const Operator* Create();
 
-#define BINOP(name) NOPROPS(name, 2, 1)
-#define UNOP(name) NOPROPS(name, 1, 1)
+  const Operator* CallFunction(size_t arity, CallFunctionFlags flags);
+  const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
 
-#define PURE_BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
+  const Operator* CallConstruct(int arguments);
 
-  const Operator* Equal() { BINOP(JSEqual); }
-  const Operator* NotEqual() { BINOP(JSNotEqual); }
-  const Operator* StrictEqual() { PURE_BINOP(JSStrictEqual); }
-  const Operator* StrictNotEqual() { PURE_BINOP(JSStrictNotEqual); }
-  const Operator* LessThan() { BINOP(JSLessThan); }
-  const Operator* GreaterThan() { BINOP(JSGreaterThan); }
-  const Operator* LessThanOrEqual() { BINOP(JSLessThanOrEqual); }
-  const Operator* GreaterThanOrEqual() { BINOP(JSGreaterThanOrEqual); }
-  const Operator* BitwiseOr() { BINOP(JSBitwiseOr); }
-  const Operator* BitwiseXor() { BINOP(JSBitwiseXor); }
-  const Operator* BitwiseAnd() { BINOP(JSBitwiseAnd); }
-  const Operator* ShiftLeft() { BINOP(JSShiftLeft); }
-  const Operator* ShiftRight() { BINOP(JSShiftRight); }
-  const Operator* ShiftRightLogical() { BINOP(JSShiftRightLogical); }
-  const Operator* Add() { BINOP(JSAdd); }
-  const Operator* Subtract() { BINOP(JSSubtract); }
-  const Operator* Multiply() { BINOP(JSMultiply); }
-  const Operator* Divide() { BINOP(JSDivide); }
-  const Operator* Modulus() { BINOP(JSModulus); }
+  const Operator* LoadProperty(const VectorSlotPair& feedback);
+  const Operator* LoadNamed(const Unique<Name>& name,
+                            const VectorSlotPair& feedback,
+                            ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
-  const Operator* UnaryNot() { UNOP(JSUnaryNot); }
-  const Operator* ToBoolean() { UNOP(JSToBoolean); }
-  const Operator* ToNumber() { UNOP(JSToNumber); }
-  const Operator* ToString() { UNOP(JSToString); }
-  const Operator* ToName() { UNOP(JSToName); }
-  const Operator* ToObject() { UNOP(JSToObject); }
-  const Operator* Yield() { UNOP(JSYield); }
+  const Operator* StoreProperty(StrictMode strict_mode);
+  const Operator* StoreNamed(StrictMode strict_mode, const Unique<Name>& name);
 
-  const Operator* Create() { SIMPLE(JSCreate, Operator::kEliminatable, 0, 1); }
+  const Operator* DeleteProperty(StrictMode strict_mode);
 
-  const Operator* Call(int arguments, CallFunctionFlags flags) {
-    CallParameters parameters = {arguments, flags};
-    OP1(JSCallFunction, CallParameters, parameters, Operator::kNoProperties,
-        arguments, 1);
-  }
+  const Operator* HasProperty();
 
-  const Operator* CallNew(int arguments) {
-    return new (zone_)
-        Operator1<int>(IrOpcode::kJSCallConstruct, Operator::kNoProperties,
-                       arguments, 1, "JSCallConstruct", arguments);
-  }
+  const Operator* LoadContext(size_t depth, size_t index, bool immutable);
+  const Operator* StoreContext(size_t depth, size_t index);
 
-  const Operator* LoadProperty() { BINOP(JSLoadProperty); }
-  const Operator* LoadNamed(Unique<Name> name,
-                            ContextualMode contextual_mode = NOT_CONTEXTUAL) {
-    LoadNamedParameters parameters = {name, contextual_mode};
-    OP1(JSLoadNamed, LoadNamedParameters, parameters, Operator::kNoProperties,
-        1, 1);
-  }
-
-  const Operator* StoreProperty(StrictMode strict_mode) {
-    OP1(JSStoreProperty, StrictMode, strict_mode, Operator::kNoProperties, 3,
-        0);
-  }
-
-  const Operator* StoreNamed(StrictMode strict_mode, Unique<Name> name) {
-    StoreNamedParameters parameters = {strict_mode, name};
-    OP1(JSStoreNamed, StoreNamedParameters, parameters, Operator::kNoProperties,
-        2, 0);
-  }
-
-  const Operator* DeleteProperty(StrictMode strict_mode) {
-    OP1(JSDeleteProperty, StrictMode, strict_mode, Operator::kNoProperties, 2,
-        1);
-  }
-
-  const Operator* HasProperty() { NOPROPS(JSHasProperty, 2, 1); }
-
-  const Operator* LoadContext(uint16_t depth, uint32_t index, bool immutable) {
-    ContextAccess access(depth, index, immutable);
-    OP1(JSLoadContext, ContextAccess, access,
-        Operator::kEliminatable | Operator::kNoWrite, 1, 1);
-  }
-  const Operator* StoreContext(uint16_t depth, uint32_t index) {
-    ContextAccess access(depth, index, false);
-    OP1(JSStoreContext, ContextAccess, access, Operator::kNoProperties, 2, 0);
-  }
-
-  const Operator* TypeOf() { SIMPLE(JSTypeOf, Operator::kPure, 1, 1); }
-  const Operator* InstanceOf() { NOPROPS(JSInstanceOf, 2, 1); }
-  const Operator* Debugger() { NOPROPS(JSDebugger, 0, 0); }
+  const Operator* TypeOf();
+  const Operator* InstanceOf();
+  const Operator* Debugger();
 
   // TODO(titzer): nail down the static parts of each of these context flavors.
-  const Operator* CreateFunctionContext() {
-    NOPROPS(JSCreateFunctionContext, 1, 1);
-  }
-  const Operator* CreateCatchContext(Unique<String> name) {
-    OP1(JSCreateCatchContext, Unique<String>, name, Operator::kNoProperties, 1,
-        1);
-  }
-  const Operator* CreateWithContext() { NOPROPS(JSCreateWithContext, 2, 1); }
-  const Operator* CreateBlockContext() { NOPROPS(JSCreateBlockContext, 2, 1); }
-  const Operator* CreateModuleContext() {
-    NOPROPS(JSCreateModuleContext, 2, 1);
-  }
-  const Operator* CreateGlobalContext() {
-    NOPROPS(JSCreateGlobalContext, 2, 1);
-  }
-
-  const Operator* Runtime(Runtime::FunctionId function, int arguments) {
-    const Runtime::Function* f = Runtime::FunctionForId(function);
-    DCHECK(f->nargs == -1 || f->nargs == arguments);
-    OP1(JSCallRuntime, Runtime::FunctionId, function, Operator::kNoProperties,
-        arguments, f->result_size);
-  }
-
-#undef SIMPLE
-#undef NOPROPS
-#undef OP1
-#undef BINOP
-#undef UNOP
+  const Operator* CreateFunctionContext();
+  const Operator* CreateCatchContext(const Unique<String>& name);
+  const Operator* CreateWithContext();
+  const Operator* CreateBlockContext();
+  const Operator* CreateModuleContext();
+  const Operator* CreateGlobalContext();
 
  private:
-  Zone* zone_;
-};
+  Zone* zone() const { return zone_; }
 
-// Specialization for static parameters of type {ContextAccess}.
-template <>
-struct StaticParameterTraits<ContextAccess> {
-  static OStream& PrintTo(OStream& os, ContextAccess val) {  // NOLINT
-    return os << val.depth() << "," << val.index()
-              << (val.immutable() ? ",imm" : "");
-  }
-  static int HashCode(ContextAccess val) {
-    return (val.depth() << 16) | (val.index() & 0xffff);
-  }
-  static bool Equals(ContextAccess a, ContextAccess b) {
-    return a.immutable() == b.immutable() && a.depth() == b.depth() &&
-           a.index() == b.index();
-  }
-};
+  const JSOperatorGlobalCache& cache_;
+  Zone* const zone_;
 
-// Specialization for static parameters of type {Runtime::FunctionId}.
-template <>
-struct StaticParameterTraits<Runtime::FunctionId> {
-  static OStream& PrintTo(OStream& os, Runtime::FunctionId val) {  // NOLINT
-    const Runtime::Function* f = Runtime::FunctionForId(val);
-    return os << (f->name ? f->name : "?Runtime?");
-  }
-  static int HashCode(Runtime::FunctionId val) { return static_cast<int>(val); }
-  static bool Equals(Runtime::FunctionId a, Runtime::FunctionId b) {
-    return a == b;
-  }
+  DISALLOW_COPY_AND_ASSIGN(JSOperatorBuilder);
 };
 
 }  // namespace compiler

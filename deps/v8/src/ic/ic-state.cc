@@ -10,10 +10,24 @@
 namespace v8 {
 namespace internal {
 
+// static
 void ICUtility::Clear(Isolate* isolate, Address address,
                       ConstantPoolArray* constant_pool) {
   IC::Clear(isolate, address, constant_pool);
 }
+
+
+// static
+template <class Nexus>
+void ICUtility::Clear(Isolate* isolate, Code::Kind kind, Code* host,
+                      Nexus* nexus) {
+  IC::Clear<Nexus>(isolate, kind, host, nexus);
+}
+
+
+// Force instantiation of template instances for vector-based IC clearing.
+template void ICUtility::Clear<CallICNexus>(Isolate*, Code::Kind, Code*,
+                                            CallICNexus*);
 
 
 CallICState::CallICState(ExtraICState extra_ic_state)
@@ -28,7 +42,7 @@ ExtraICState CallICState::GetExtraICState() const {
 }
 
 
-OStream& operator<<(OStream& os, const CallICState& s) {
+std::ostream& operator<<(std::ostream& os, const CallICState& s) {
   return os << "(args(" << s.arg_count() << "), "
             << (s.call_type() == CallICState::METHOD ? "METHOD" : "FUNCTION")
             << ", ";
@@ -308,7 +322,7 @@ Type* BinaryOpICState::GetResultType(Zone* zone) const {
 }
 
 
-OStream& operator<<(OStream& os, const BinaryOpICState& s) {
+std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s) {
   os << "(" << Token::Name(s.op_);
   if (s.mode_ == OVERWRITE_LEFT)
     os << "_ReuseLeft";

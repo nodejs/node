@@ -156,7 +156,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ Cbz(argc, &no_arguments);
   // First args = sp[(argc - 1) * 8].
   __ Sub(argc, argc, 1);
-  __ Claim(argc, kXRegSize);
+  __ Drop(argc, kXRegSize);
   // jssp now point to args[0], load and drop args[0] + receiver.
   Register arg = argc;
   __ Ldr(arg, MemOperand(jssp, 2 * kPointerSize, PostIndex));

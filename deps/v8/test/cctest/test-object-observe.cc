@@ -130,6 +130,59 @@ TEST(DeliveryOrdering) {
 }
 
 
+TEST(DeliveryCallbackThrows) {
+  HandleScope scope(CcTest::isolate());
+  LocalContext context(CcTest::isolate());
+  CompileRun(
+      "var obj = {};"
+      "var ordering = [];"
+      "function observer1() { ordering.push(1); };"
+      "function observer2() { ordering.push(2); };"
+      "function observer_throws() {"
+      "  ordering.push(0);"
+      "  throw new Error();"
+      "  ordering.push(-1);"
+      "};"
+      "Object.observe(obj, observer_throws.bind());"
+      "Object.observe(obj, observer1);"
+      "Object.observe(obj, observer_throws.bind());"
+      "Object.observe(obj, observer2);"
+      "Object.observe(obj, observer_throws.bind());"
+      "obj.foo = 'bar';");
+  CHECK_EQ(5, CompileRun("ordering.length")->Int32Value());
+  CHECK_EQ(0, CompileRun("ordering[0]")->Int32Value());
+  CHECK_EQ(1, CompileRun("ordering[1]")->Int32Value());
+  CHECK_EQ(0, CompileRun("ordering[2]")->Int32Value());
+  CHECK_EQ(2, CompileRun("ordering[3]")->Int32Value());
+  CHECK_EQ(0, CompileRun("ordering[4]")->Int32Value());
+}
+
+
+TEST(DeliveryChangesMutationInCallback) {
+  HandleScope scope(CcTest::isolate());
+  LocalContext context(CcTest::isolate());
+  CompileRun(
+      "var obj = {};"
+      "var ordering = [];"
+      "function observer1(records) {"
+      "  ordering.push(100 + records.length);"
+      "  records.push(11);"
+      "  records.push(22);"
+      "};"
+      "function observer2(records) {"
+      "  ordering.push(200 + records.length);"
+      "  records.push(33);"
+      "  records.push(44);"
+      "};"
+      "Object.observe(obj, observer1);"
+      "Object.observe(obj, observer2);"
+      "obj.foo = 'bar';");
+  CHECK_EQ(2, CompileRun("ordering.length")->Int32Value());
+  CHECK_EQ(101, CompileRun("ordering[0]")->Int32Value());
+  CHECK_EQ(201, CompileRun("ordering[1]")->Int32Value());
+}
+
+
 TEST(DeliveryOrderingReentrant) {
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());

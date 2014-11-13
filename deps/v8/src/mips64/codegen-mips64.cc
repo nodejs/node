@@ -786,9 +786,23 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Daddu(src_elements, src_elements,
       Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
   __ Daddu(dst_elements, array, Operand(FixedArray::kHeaderSize));
-  __ Daddu(array, array, Operand(kHeapObjectTag));
   __ SmiScale(dst_end, dst_end, kPointerSizeLog2);
   __ Daddu(dst_end, dst_elements, dst_end);
+
+  // Allocating heap numbers in the loop below can fail and cause a jump to
+  // gc_required. We can't leave a partly initialized FixedArray behind,
+  // so pessimistically fill it with holes now.
+  Label initialization_loop, initialization_loop_entry;
+  __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+  __ Branch(&initialization_loop_entry);
+  __ bind(&initialization_loop);
+  __ sd(scratch, MemOperand(dst_elements));
+  __ Daddu(dst_elements, dst_elements, Operand(kPointerSize));
+  __ bind(&initialization_loop_entry);
+  __ Branch(&initialization_loop, lt, dst_elements, Operand(dst_end));
+
+  __ Daddu(dst_elements, array, Operand(FixedArray::kHeaderSize));
+  __ Daddu(array, array, Operand(kHeapObjectTag));
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses.
   // dst_elements: begin of destination FixedArray element fields, not tagged

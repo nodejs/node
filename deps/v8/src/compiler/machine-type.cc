@@ -17,7 +17,7 @@ namespace compiler {
   }
 
 
-OStream& operator<<(OStream& os, const MachineType& type) {
+std::ostream& operator<<(std::ostream& os, const MachineType& type) {
   bool before = false;
   PRINT(kRepBit);
   PRINT(kRepWord8);

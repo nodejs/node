@@ -837,7 +837,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   heap->set_last_script_id(Smi::FromInt(id));
 
   // Create and initialize script object.
-  Handle<Foreign> wrapper = NewForeign(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
@@ -846,7 +845,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_column_offset(Smi::FromInt(0));
   script->set_context_data(heap->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
-  script->set_wrapper(*wrapper);
+  script->set_wrapper(heap->undefined_value());
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
   script->set_eval_from_instructions_offset(Smi::FromInt(0));
@@ -928,6 +927,13 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
   Handle<PropertyCell> cell = NewPropertyCellWithHole();
   PropertyCell::SetValueInferType(cell, value);
   return cell;
+}
+
+
+Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateWeakCell(*value),
+                     WeakCell);
 }
 
 
@@ -1716,8 +1722,51 @@ Handle<JSDataView> Factory::NewJSDataView() {
 }
 
 
-static JSFunction* GetTypedArrayFun(ExternalArrayType type,
-                                    Isolate* isolate) {
+Handle<JSMapIterator> Factory::NewJSMapIterator() {
+  Handle<Map> map(isolate()->native_context()->map_iterator_map());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSObjectFromMap(*map),
+                     JSMapIterator);
+}
+
+
+Handle<JSSetIterator> Factory::NewJSSetIterator() {
+  Handle<Map> map(isolate()->native_context()->set_iterator_map());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSObjectFromMap(*map),
+                     JSSetIterator);
+}
+
+
+namespace {
+
+ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return EXTERNAL_##TYPE##_ELEMENTS;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  }
+  UNREACHABLE();
+  return FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+#undef TYPED_ARRAY_CASE
+}
+
+
+size_t GetExternalArrayElementSize(ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return size;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  }
+  UNREACHABLE();
+  return 0;
+#undef TYPED_ARRAY_CASE
+}
+
+
+JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size)                        \
@@ -1734,6 +1783,31 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
 }
 
 
+void SetupArrayBufferView(i::Isolate* isolate,
+                          i::Handle<i::JSArrayBufferView> obj,
+                          i::Handle<i::JSArrayBuffer> buffer,
+                          size_t byte_offset, size_t byte_length) {
+  DCHECK(byte_offset + byte_length <=
+         static_cast<size_t>(buffer->byte_length()->Number()));
+
+  obj->set_buffer(*buffer);
+
+  obj->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*obj);
+
+  i::Handle<i::Object> byte_offset_object =
+      isolate->factory()->NewNumberFromSize(byte_offset);
+  obj->set_byte_offset(*byte_offset_object);
+
+  i::Handle<i::Object> byte_length_object =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  obj->set_byte_length(*byte_length_object);
+}
+
+
+}  // namespace
+
+
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
   Handle<JSFunction> typed_array_fun_handle(GetTypedArrayFun(type, isolate()));
 
@@ -1741,6 +1815,43 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
       isolate(),
       isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
       JSTypedArray);
+}
+
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              Handle<JSArrayBuffer> buffer,
+                                              size_t byte_offset,
+                                              size_t length) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(type);
+
+  size_t element_size = GetExternalArrayElementSize(type);
+  ElementsKind elements_kind = GetExternalArrayElementsKind(type);
+
+  CHECK(byte_offset % element_size == 0);
+
+  CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
+  CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
+  size_t byte_length = length * element_size;
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+
+  Handle<Object> length_object = NewNumberFromSize(length);
+  obj->set_length(*length_object);
+
+  Handle<ExternalArray> elements = NewExternalArray(
+      static_cast<int>(length), type,
+      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+  Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
+  JSObject::SetMapAndElements(obj, map, elements);
+  return obj;
+}
+
+
+Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
+                                          size_t byte_offset,
+                                          size_t byte_length) {
+  Handle<JSDataView> obj = NewJSDataView();
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+  return obj;
 }
 
 
@@ -1887,20 +1998,9 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 }
 
 
-Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
-  // Ensure we can skip the write barrier
-  DCHECK_EQ(isolate()->heap()->uninitialized_symbol(),
-            *TypeFeedbackVector::UninitializedSentinel(isolate()));
-
-  if (slot_count == 0) {
-    return Handle<TypeFeedbackVector>::cast(empty_fixed_array());
-  }
-
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFixedArrayWithFiller(
-                         slot_count, TENURED,
-                         *TypeFeedbackVector::UninitializedSentinel(isolate())),
-                     TypeFeedbackVector);
+Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count,
+                                                          int ic_slot_count) {
+  return TypeFeedbackVector::Allocate(isolate(), slot_count, ic_slot_count);
 }
 
 
@@ -1975,7 +2075,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0);
+  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0, 0);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);

@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdarg.h>
+#include "src/log.h"
+
+#include <cstdarg>
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -13,7 +16,7 @@
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
-#include "src/log.h"
+#include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
@@ -605,7 +608,7 @@ class Profiler: public base::Thread {
     if (paused_)
       return;
 
-    if (Succ(head_) == tail_) {
+    if (Succ(head_) == static_cast<int>(base::NoBarrier_Load(&tail_))) {
       overflow_ = true;
     } else {
       buffer_[head_] = *sample;
@@ -624,9 +627,10 @@ class Profiler: public base::Thread {
   // Waits for a signal and removes profiling data.
   bool Remove(TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
-    *sample = buffer_[tail_];
+    *sample = buffer_[base::NoBarrier_Load(&tail_)];
     bool result = overflow_;
-    tail_ = Succ(tail_);
+    base::NoBarrier_Store(&tail_, static_cast<base::Atomic32>(
+                                      Succ(base::NoBarrier_Load(&tail_))));
     overflow_ = false;
     return result;
   }
@@ -640,7 +644,7 @@ class Profiler: public base::Thread {
   static const int kBufferSize = 128;
   TickSample buffer_[kBufferSize];  // Buffer storage.
   int head_;  // Index to the buffer head.
-  int tail_;  // Index to the buffer tail.
+  base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Sempahore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
@@ -649,7 +653,7 @@ class Profiler: public base::Thread {
   bool engaged_;
 
   // Tells whether worker thread should continue running.
-  bool running_;
+  base::Atomic32 running_;
 
   // Tells whether we are currently recording tick samples.
   bool paused_;
@@ -697,12 +701,13 @@ Profiler::Profiler(Isolate* isolate)
     : base::Thread(Options("v8:Profiler")),
       isolate_(isolate),
       head_(0),
-      tail_(0),
       overflow_(false),
       buffer_semaphore_(0),
       engaged_(false),
-      running_(false),
-      paused_(false) {}
+      paused_(false) {
+  base::NoBarrier_Store(&tail_, 0);
+  base::NoBarrier_Store(&running_, 0);
+}
 
 
 void Profiler::Engage() {
@@ -717,7 +722,7 @@ void Profiler::Engage() {
   }
 
   // Start thread processing the profiler buffer.
-  running_ = true;
+  base::NoBarrier_Store(&running_, 1);
   Start();
 
   // Register to get ticks.
@@ -737,7 +742,7 @@ void Profiler::Disengage() {
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
-  running_ = false;
+  base::NoBarrier_Store(&running_, 0);
   TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
   resume();
@@ -751,7 +756,7 @@ void Profiler::Disengage() {
 void Profiler::Run() {
   TickSample sample;
   bool overflow = Remove(&sample);
-  while (running_) {
+  while (base::NoBarrier_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
@@ -950,18 +955,10 @@ void Logger::LeaveExternal(Isolate* isolate) {
 }
 
 
-void Logger::DefaultTimerEventsLogger(const char* name, int se) {
-  Isolate* isolate = Isolate::Current();
-  LOG(isolate, TimerEvent(static_cast<StartEnd>(se), name));
-}
-
-
 template <class TimerEvent>
 void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
-  if (TimerEvent::expose_to_api() ||
-      isolate_->event_logger() == Logger::DefaultTimerEventsLogger) {
-    isolate_->event_logger()(TimerEvent::name(), se);
-  }
+  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
+                          TimerEvent::expose_to_api());
 }
 
 
@@ -1785,13 +1782,13 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-static void AddIsolateIdIfNeeded(OStream& os,  // NOLINT
+static void AddIsolateIdIfNeeded(std::ostream& os,  // NOLINT
                                  Isolate* isolate) {
   if (FLAG_logfile_per_isolate) os << "isolate-" << isolate << "-";
 }
 
 
-static void PrepareLogFileName(OStream& os,  // NOLINT
+static void PrepareLogFileName(std::ostream& os,  // NOLINT
                                Isolate* isolate, const char* file_name) {
   AddIsolateIdIfNeeded(os, isolate);
   for (const char* p = file_name; *p; p++) {
@@ -1836,9 +1833,9 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_log_snapshot_positions = true;
   }
 
-  OStringStream log_file_name;
+  std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
-  log_->Initialize(log_file_name.c_str());
+  log_->Initialize(log_file_name.str().c_str());
 
 
   if (FLAG_perf_basic_prof) {
@@ -1852,7 +1849,7 @@ bool Logger::SetUp(Isolate* isolate) {
   }
 
   if (FLAG_ll_prof) {
-    ll_logger_ = new LowLevelLogger(log_file_name.c_str());
+    ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
     addCodeEventListener(ll_logger_);
   }
 
@@ -1862,13 +1859,13 @@ bool Logger::SetUp(Isolate* isolate) {
     is_logging_ = true;
   }
 
+  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
+
   if (FLAG_prof) {
     profiler_ = new Profiler(isolate);
     is_logging_ = true;
     profiler_->Engage();
   }
-
-  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
 
   return true;
 }

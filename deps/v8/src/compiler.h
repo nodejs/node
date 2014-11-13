@@ -85,8 +85,7 @@ class CompilationInfo {
     kInliningEnabled = 1 << 17,
     kTypingEnabled = 1 << 18,
     kDisableFutureOptimization = 1 << 19,
-    kAbortedDueToDependency = 1 << 20,
-    kToplevel = 1 << 21
+    kToplevel = 1 << 20
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -371,12 +370,12 @@ class CompilationInfo {
 
   void AbortDueToDependencyChange() {
     DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    SetFlag(kAbortedDueToDependency);
+    aborted_due_to_dependency_change_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() const {
     DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    return GetFlag(kAbortedDueToDependency);
+    return aborted_due_to_dependency_change_;
   }
 
   bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
@@ -391,8 +390,6 @@ class CompilationInfo {
     ast_value_factory_ = ast_value_factory;
     ast_value_factory_owned_ = owned;
   }
-
-  AstNode::IdGen* ast_node_id_gen() { return &ast_node_id_gen_; }
 
  protected:
   CompilationInfo(Handle<Script> script,
@@ -513,7 +510,10 @@ class CompilationInfo {
 
   AstValueFactory* ast_value_factory_;
   bool ast_value_factory_owned_;
-  AstNode::IdGen ast_node_id_gen_;
+
+  // This flag is used by the main thread to track whether this compilation
+  // should be abandoned due to dependency change.
+  bool aborted_due_to_dependency_change_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -675,20 +675,23 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
       Handle<JSFunction> function);
 
+  // Parser::Parse, then Compiler::Analyze.
+  static bool ParseAndAnalyze(CompilationInfo* info);
+  // Rewrite, analyze scopes, and renumber.
+  static bool Analyze(CompilationInfo* info);
+  // Adds deoptimization support, requires ParseAndAnalyze.
+  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
+
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-
-  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
 
   static void CompileForLiveEdit(Handle<Script> script);
 
   // Compile a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
-      Handle<String> source,
-      Handle<Context> context,
-      StrictMode strict_mode,
-      ParseRestriction restriction,
-      int scope_position);
+      Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+      Handle<Context> context, StrictMode strict_mode,
+      ParseRestriction restriction, int scope_position);
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(

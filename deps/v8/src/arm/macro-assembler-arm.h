@@ -1401,7 +1401,8 @@ class MacroAssembler: public Assembler {
   }
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type, bool load_constant_pool = false);
+  void EnterFrame(StackFrame::Type type,
+                  bool load_constant_pool_pointer_reg = false);
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type);
 
@@ -1527,71 +1528,6 @@ class CodePatcher {
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
   FlushICache flush_cache_;  // Whether to flush the I cache after patching.
-};
-
-
-class FrameAndConstantPoolScope {
- public:
-  FrameAndConstantPoolScope(MacroAssembler* masm, StackFrame::Type type)
-      : masm_(masm),
-        type_(type),
-        old_has_frame_(masm->has_frame()),
-        old_constant_pool_available_(masm->is_constant_pool_available())  {
-    // We only want to enable constant pool access for non-manual frame scopes
-    // to ensure the constant pool pointer is valid throughout the scope.
-    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
-    masm->set_has_frame(true);
-    masm->set_constant_pool_available(true);
-    masm->EnterFrame(type, !old_constant_pool_available_);
-  }
-
-  ~FrameAndConstantPoolScope() {
-    masm_->LeaveFrame(type_);
-    masm_->set_has_frame(old_has_frame_);
-    masm_->set_constant_pool_available(old_constant_pool_available_);
-  }
-
-  // Normally we generate the leave-frame code when this object goes
-  // out of scope.  Sometimes we may need to generate the code somewhere else
-  // in addition.  Calling this will achieve that, but the object stays in
-  // scope, the MacroAssembler is still marked as being in a frame scope, and
-  // the code will be generated again when it goes out of scope.
-  void GenerateLeaveFrame() {
-    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
-    masm_->LeaveFrame(type_);
-  }
-
- private:
-  MacroAssembler* masm_;
-  StackFrame::Type type_;
-  bool old_has_frame_;
-  bool old_constant_pool_available_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameAndConstantPoolScope);
-};
-
-
-// Class for scoping the the unavailability of constant pool access.
-class ConstantPoolUnavailableScope {
- public:
-  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
-     : masm_(masm),
-       old_constant_pool_available_(masm->is_constant_pool_available()) {
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_constant_pool_available(false);
-    }
-  }
-  ~ConstantPoolUnavailableScope() {
-    if (FLAG_enable_ool_constant_pool) {
-     masm_->set_constant_pool_available(old_constant_pool_available_);
-    }
-  }
-
- private:
-  MacroAssembler* masm_;
-  int old_constant_pool_available_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
 };
 
 

@@ -33,7 +33,8 @@ Debug.StepAction = { StepOut: 0,
                      StepNext: 1,
                      StepIn: 2,
                      StepMin: 3,
-                     StepInMin: 4 };
+                     StepInMin: 4,
+                     StepFrame: 5 };
 
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,

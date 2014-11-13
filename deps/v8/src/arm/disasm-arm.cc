@@ -148,7 +148,7 @@ void Decoder::Print(const char* str) {
 
 // These condition names are defined in a way to match the native disassembler
 // formatting. See for example the command "objdump -d <binary file>".
-static const char* cond_names[kNumberOfConditions] = {
+static const char* const cond_names[kNumberOfConditions] = {
   "eq", "ne", "cs" , "cc" , "mi" , "pl" , "vs" , "vc" ,
   "hi", "ls", "ge", "lt", "gt", "le", "", "invalid",
 };
@@ -1096,6 +1096,17 @@ void Decoder::DecodeType3(Instruction* instr) {
       break;
     }
     case db_x: {
+      if (instr->Bits(22, 20) == 0x5) {
+        if (instr->Bits(7, 4) == 0x1) {
+          if (instr->Bits(15, 12) == 0xF) {
+            Format(instr, "smmul'cond 'rn, 'rm, 'rs");
+          } else {
+            // SMMLA (in V8 notation matching ARM ISA format)
+            Format(instr, "smmla'cond 'rn, 'rm, 'rs, 'rd");
+          }
+          break;
+        }
+      }
       if (FLAG_enable_sudiv) {
         if (instr->Bits(5, 4) == 0x1) {
           if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
@@ -1263,6 +1274,14 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       } else if (instr->Opc3Value() == 0x0) {
         if (instr->SzValue() == 0x1) {
           Format(instr, "vmov'cond.f64 'Dd, 'd");
+        } else {
+          Unknown(instr);  // Not used by V8.
+        }
+      } else if (((instr->Opc2Value() == 0x6)) && instr->Opc3Value() == 0x3) {
+        bool dp_operation = (instr->SzValue() == 1);
+        // vrintz - round towards zero (truncate)
+        if (dp_operation) {
+          Format(instr, "vrintz'cond.f64.f64 'Dd, 'Dm");
         } else {
           Unknown(instr);  // Not used by V8.
         }
@@ -1611,6 +1630,50 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         } else {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                       "pld [r%d, #+%d]", Rn, offset);
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 0x1D:
+      if (instr->Opc1Value() == 0x7 && instr->Bits(19, 18) == 0x2 &&
+          instr->Bits(11, 9) == 0x5 && instr->Bits(7, 6) == 0x1 &&
+          instr->Bit(4) == 0x0) {
+        // VRINTA, VRINTN, VRINTP, VRINTM (floating-point)
+        bool dp_operation = (instr->SzValue() == 1);
+        int rounding_mode = instr->Bits(17, 16);
+        switch (rounding_mode) {
+          case 0x0:
+            if (dp_operation) {
+              Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x1:
+            if (dp_operation) {
+              Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x2:
+            if (dp_operation) {
+              Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x3:
+            if (dp_operation) {
+              Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
         }
       } else {
         Unknown(instr);

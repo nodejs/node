@@ -1422,6 +1422,34 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is in lr.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register result = x0;
+  Register scratch = x3;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ Bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
   // jssp[0]: function.
@@ -1569,7 +1597,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Mov(result, res_false);
 
   // Null is not instance of anything.
-  __ Cmp(object_type, Operand(isolate()->factory()->null_value()));
+  __ Cmp(object, Operand(isolate()->factory()->null_value()));
   __ B(ne, &object_not_null);
   __ Ret();
 
@@ -2683,13 +2711,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ JumpIfRoot(scratch1, Heap::kUninitializedSymbolRootIndex, &initialize);
+  __ JumpIfRoot(scratch1, Heap::kuninitialized_symbolRootIndex, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ Bind(&megamorphic);
   __ Add(scratch1, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ LoadRoot(scratch2, Heap::kMegamorphicSymbolRootIndex);
+  __ LoadRoot(scratch2, Heap::kmegamorphic_symbolRootIndex);
   __ Str(scratch2, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
   __ B(&done);
 
@@ -3038,8 +3066,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label miss;
 
-  __ JumpIfRoot(x4, Heap::kMegamorphicSymbolRootIndex, &slow_start);
-  __ JumpIfRoot(x4, Heap::kUninitializedSymbolRootIndex, &miss);
+  __ JumpIfRoot(x4, Heap::kmegamorphic_symbolRootIndex, &slow_start);
+  __ JumpIfRoot(x4, Heap::kuninitialized_symbolRootIndex, &miss);
 
   if (!FLAG_trace_ic) {
     // We are going megamorphic. If the feedback is a JSFunction, it is fine
@@ -3048,8 +3076,19 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotObjectType(x4, x5, x5, JS_FUNCTION_TYPE, &miss);
     __ Add(x4, feedback_vector,
            Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-    __ LoadRoot(x5, Heap::kMegamorphicSymbolRootIndex);
+    __ LoadRoot(x5, Heap::kmegamorphic_symbolRootIndex);
     __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
+    __ Subs(x4, x4, Operand(Smi::FromInt(1)));
+    __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ Ldr(x4, FieldMemOperand(feedback_vector, generic_offset));
+    __ Adds(x4, x4, Operand(Smi::FromInt(1)));
+    __ Str(x4, FieldMemOperand(feedback_vector, generic_offset));
     __ B(&slow_start);
   }
 
@@ -3097,14 +3136,16 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ Ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ Ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
+    // Fetch the instance type of the receiver into result register.
+    __ Ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+    __ Ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
 
-  // If the receiver is not a string trigger the non-string case.
-  __ TestAndBranchIfAnySet(result_, kIsNotStringMask, receiver_not_string_);
+    // If the receiver is not a string trigger the non-string case.
+    __ TestAndBranchIfAnySet(result_, kIsNotStringMask, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
@@ -3782,13 +3823,29 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // x12: input_type
   // x15: from (untagged)
   __ SmiTag(from);
-  StringCharAtGenerator generator(
-      input_string, from, result_length, x0,
-      &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(input_string, from, result_length, x0,
+                                  &runtime, &runtime, &runtime,
+                                  STRING_INDEX_IS_NUMBER, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ Drop(3);
   __ Ret();
   generator.SkipSlow(masm, &runtime);
+}
+
+
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in x0.
+  Label check_heap_number, call_builtin;
+  __ JumpIfNotSmi(x0, &check_heap_number);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ JumpIfNotHeapNumber(x0, &call_builtin);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ push(x0);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
 

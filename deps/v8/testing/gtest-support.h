@@ -5,7 +5,7 @@
 #ifndef V8_TESTING_GTEST_SUPPORT_H_
 #define V8_TESTING_GTEST_SUPPORT_H_
 
-#include "include/v8stdint.h"
+#include <stddef.h>
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace testing {
@@ -16,14 +16,17 @@ namespace internal {
   inline std::string GetTypeName<type>() { \
     return #type;                          \
   }
-GET_TYPE_NAME(int8_t)
-GET_TYPE_NAME(uint8_t)
-GET_TYPE_NAME(int16_t)
-GET_TYPE_NAME(uint16_t)
-GET_TYPE_NAME(int32_t)
-GET_TYPE_NAME(uint32_t)
-GET_TYPE_NAME(int64_t)
-GET_TYPE_NAME(uint64_t)
+GET_TYPE_NAME(bool)
+GET_TYPE_NAME(signed char)
+GET_TYPE_NAME(unsigned char)
+GET_TYPE_NAME(short)
+GET_TYPE_NAME(unsigned short)
+GET_TYPE_NAME(int)
+GET_TYPE_NAME(unsigned int)
+GET_TYPE_NAME(long)
+GET_TYPE_NAME(unsigned long)
+GET_TYPE_NAME(long long)
+GET_TYPE_NAME(unsigned long long)
 GET_TYPE_NAME(float)
 GET_TYPE_NAME(double)
 #undef GET_TYPE_NAME

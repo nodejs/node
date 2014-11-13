@@ -26,15 +26,24 @@ CONFIG = {
 }
 
 # Expression for retrieving the bleeding edge revision from a commit message.
-PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+PUSH_MSG_SVN_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+PUSH_MSG_GIT_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
 # Expression for retrieving the merged patches from a merge commit message
 # (old and new format).
 MERGE_MESSAGE_RE = re.compile(r"^.*[M|m]erged (.+)(\)| into).*$", re.M)
 
+CHERRY_PICK_TITLE_GIT_RE = re.compile(r"^.* \(cherry\-pick\)\.?$")
+
+# New git message for cherry-picked CLs. One message per line.
+MERGE_MESSAGE_GIT_RE = re.compile(r"^Merged ([a-fA-F0-9]+)\.?$")
+
 # Expression for retrieving reverted patches from a commit message (old and
 # new format).
 ROLLBACK_MESSAGE_RE = re.compile(r"^.*[R|r]ollback of (.+)(\)| in).*$", re.M)
+
+# New git message for reverted CLs. One message per line.
+ROLLBACK_MESSAGE_GIT_RE = re.compile(r"^Rollback of ([a-fA-F0-9]+)\.?$")
 
 # Expression for retrieving the code review link.
 REVIEW_LINK_RE = re.compile(r"^Review URL: (.+)$", re.M)
@@ -128,7 +137,10 @@ class RetrieveV8Releases(Step):
             and len(releases) > self._options.max_releases)
 
   def GetBleedingEdgeFromPush(self, title):
-    return MatchSafe(PUSH_MESSAGE_RE.match(title))
+    return MatchSafe(PUSH_MSG_SVN_RE.match(title))
+
+  def GetBleedingEdgeGitFromPush(self, title):
+    return MatchSafe(PUSH_MSG_GIT_RE.match(title))
 
   def GetMergedPatches(self, body):
     patches = MatchSafe(MERGE_MESSAGE_RE.search(body))
@@ -139,14 +151,31 @@ class RetrieveV8Releases(Step):
         patches = "-%s" % patches
     return patches
 
+  def GetMergedPatchesGit(self, body):
+    patches = []
+    for line in body.splitlines():
+      patch = MatchSafe(MERGE_MESSAGE_GIT_RE.match(line))
+      if patch:
+        patches.append(patch)
+      patch = MatchSafe(ROLLBACK_MESSAGE_GIT_RE.match(line))
+      if patch:
+        patches.append("-%s" % patch)
+    return ", ".join(patches)
+
+
   def GetReleaseDict(
-      self, git_hash, bleeding_edge_rev, branch, version, patches, cl_body):
+      self, git_hash, bleeding_edge_rev, bleeding_edge_git, branch, version,
+      patches, cl_body):
     revision = self.vc.GitSvn(git_hash)
     return {
       # The SVN revision on the branch.
       "revision": revision,
+      # The git revision on the branch.
+      "revision_git": git_hash,
       # The SVN revision on bleeding edge (only for newer trunk pushes).
       "bleeding_edge": bleeding_edge_rev,
+      # The same for git.
+      "bleeding_edge_git": bleeding_edge_git,
       # The branch name.
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.
@@ -176,14 +205,24 @@ class RetrieveV8Releases(Step):
     patches = ""
     if self["patch"] != "0":
       version += ".%s" % self["patch"]
-      patches = self.GetMergedPatches(body)
+      if CHERRY_PICK_TITLE_GIT_RE.match(body.splitlines()[0]):
+        patches = self.GetMergedPatchesGit(body)
+      else:
+        patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
+    bleeding_edge_revision = self.GetBleedingEdgeFromPush(title)
+    bleeding_edge_git = ""
+    if bleeding_edge_revision:
+      bleeding_edge_git = self.vc.SvnGit(bleeding_edge_revision,
+                                         self.vc.RemoteMasterBranch())
+    else:
+      bleeding_edge_git = self.GetBleedingEdgeGitFromPush(title)
     return self.GetReleaseDict(
-        git_hash, self.GetBleedingEdgeFromPush(title), branch, version,
+        git_hash, bleeding_edge_revision, bleeding_edge_git, branch, version,
         patches, body), self["patch"]
 
-  def GetReleasesFromBleedingEdge(self):
+  def GetReleasesFromMaster(self):
     tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v --limit 20")
     releases = []
     for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
@@ -192,14 +231,13 @@ class RetrieveV8Releases(Step):
       # Add bleeding edge release. It does not contain patches or a code
       # review link, as tags are not uploaded.
       releases.append(self.GetReleaseDict(
-        git_hash, revision, "bleeding_edge", tag, "", ""))
+        git_hash, revision, git_hash, self.vc.MasterBranch(), tag, "", ""))
     return releases
 
   def GetReleasesFromBranch(self, branch):
     self.GitReset(self.vc.RemoteBranch(branch))
-    # TODO(machenbach): Rename this when switching to the git mirror.
-    if branch == 'bleeding_edge':
-      return self.GetReleasesFromBleedingEdge()
+    if branch == self.vc.MasterBranch():
+      return self.GetReleasesFromMaster()
 
     releases = []
     try:
@@ -218,7 +256,7 @@ class RetrieveV8Releases(Step):
         # TODO(machenbach): This omits patches if the version file wasn't
         # manipulated correctly. Find a better way to detect the point where
         # the parent of the branch head leads to the trunk branch.
-        if branch != "trunk" and patch_level == "0":
+        if branch != self.vc.CandidateBranch() and patch_level == "0":
           break
 
     # Allow Ctrl-C interrupt.
@@ -240,17 +278,18 @@ class RetrieveV8Releases(Step):
       beta, stable = SortBranches(branches)[0:2]
       releases += self.GetReleasesFromBranch(stable)
       releases += self.GetReleasesFromBranch(beta)
-      releases += self.GetReleasesFromBranch("trunk")
-      releases += self.GetReleasesFromBranch("bleeding_edge")
+      releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
+      releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
     elif self._options.branch == 'all':  # pragma: no cover
       # Retrieve the full release history.
       for branch in branches:
         releases += self.GetReleasesFromBranch(branch)
-      releases += self.GetReleasesFromBranch("trunk")
-      releases += self.GetReleasesFromBranch("bleeding_edge")
+      releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
+      releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
     else:  # pragma: no cover
       # Retrieve history for a specified branch.
-      assert self._options.branch in branches + ["trunk", "bleeding_edge"]
+      assert self._options.branch in (branches +
+          [self.vc.CandidateBranch(), self.vc.MasterBranch()])
       releases += self.GetReleasesFromBranch(self._options.branch)
 
     self["releases"] = sorted(releases,
@@ -295,7 +334,9 @@ class RetrieveChromiumV8Releases(Step):
   def RunStep(self):
     cwd = self._options.chromium
     releases = filter(
-        lambda r: r["branch"] in ["trunk", "bleeding_edge"], self["releases"])
+        lambda r: r["branch"] in [self.vc.CandidateBranch(),
+                                  self.vc.MasterBranch()],
+        self["releases"])
     if not releases:  # pragma: no cover
       print "No releases detected. Skipping chromium history."
       return True
@@ -347,7 +388,8 @@ class RietrieveChromiumBranches(Step):
 
   def RunStep(self):
     cwd = self._options.chromium
-    trunk_releases = filter(lambda r: r["branch"] == "trunk", self["releases"])
+    trunk_releases = filter(lambda r: r["branch"] == self.vc.CandidateBranch(),
+                            self["releases"])
     if not trunk_releases:  # pragma: no cover
       print "No trunk releases detected. Skipping chromium history."
       return True

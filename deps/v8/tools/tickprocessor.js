@@ -485,6 +485,15 @@ TickProcessor.prototype.printStatistics = function() {
                    this.ticks_.total, null);
   }
 
+  print('\n [C++ entry points]:');
+  print('   ticks    cpp   total   name');
+  var c_entry_functions = this.profile_.getCEntryProfile();
+  var total_c_entry = c_entry_functions[0].ticks;
+  for (var i = 1; i < c_entry_functions.length; i++) {
+    c = c_entry_functions[i];
+    this.printLine(c.name, c.ticks, total_c_entry, totalTicks);
+  }
+
   this.printHeavyProfHeader();
   var heavyProfile = this.profile_.getBottomUpProfile();
   var heavyView = this.viewBuilder_.buildView(heavyProfile);

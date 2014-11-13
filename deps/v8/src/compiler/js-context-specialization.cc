@@ -20,7 +20,7 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
   explicit ContextSpecializationVisitor(JSContextSpecializer* spec)
       : spec_(spec) {}
 
-  GenericGraphVisit::Control Post(Node* node) {
+  void Post(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kJSLoadContext: {
         Reduction r = spec_->ReduceJSLoadContext(node);
@@ -41,7 +41,6 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
       default:
         break;
     }
-    return GenericGraphVisit::CONTINUE;
   }
 
  private:
@@ -67,11 +66,11 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
     return Reducer::NoChange();
   }
 
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  const ContextAccess& access = ContextAccessOf(node->op());
 
   // Find the right parent context.
   Context* context = *m.Value().handle();
-  for (int i = access.depth(); i > 0; --i) {
+  for (size_t i = access.depth(); i > 0; --i) {
     context = context->previous();
   }
 
@@ -88,8 +87,8 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
     node->ReplaceInput(0, jsgraph_->Constant(context_handle));
     return Reducer::Changed(node);
   }
-  Handle<Object> value =
-      Handle<Object>(context->get(access.index()), info_->isolate());
+  Handle<Object> value = Handle<Object>(
+      context->get(static_cast<int>(access.index())), info_->isolate());
 
   // Even though the context slot is immutable, the context might have escaped
   // before the function to which it belongs has initialized the slot.
@@ -115,7 +114,7 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
     return Reducer::NoChange();
   }
 
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  const ContextAccess& access = ContextAccessOf(node->op());
 
   // The access does not have to look up a parent, nothing to fold.
   if (access.depth() == 0) {
@@ -124,7 +123,7 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
 
   // Find the right parent context.
   Context* context = *m.Value().handle();
-  for (int i = access.depth(); i > 0; --i) {
+  for (size_t i = access.depth(); i > 0; --i) {
     context = context->previous();
   }
 

@@ -1386,6 +1386,15 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0x72) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            DCHECK(regop == esi || regop == edx);
+            AppendToBuffer("%s %s,%d", (regop == esi) ? "pslld" : "psrld",
+                           NameOfXMMRegister(rm), static_cast<int>(imm8));
+            data += 2;
           } else if (*data == 0x73) {
             data++;
             int mod, regop, rm;
@@ -1681,17 +1690,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 //------------------------------------------------------------------------------
 
 
-static const char* cpu_regs[8] = {
+static const char* const cpu_regs[8] = {
   "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"
 };
 
 
-static const char* byte_cpu_regs[8] = {
+static const char* const byte_cpu_regs[8] = {
   "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"
 };
 
 
-static const char* xmm_regs[8] = {
+static const char* const xmm_regs[8] = {
   "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"
 };
 

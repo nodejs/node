@@ -79,6 +79,16 @@ class AssemblerBase: public Malloced {
     return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
 
+  bool is_ool_constant_pool_available() const {
+    if (FLAG_enable_ool_constant_pool) {
+      return ool_constant_pool_available_;
+    } else {
+      // Out-of-line constant pool not supported on this architecture.
+      UNREACHABLE();
+      return false;
+    }
+  }
+
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
@@ -98,6 +108,15 @@ class AssemblerBase: public Malloced {
   int buffer_size_;
   bool own_buffer_;
 
+  void set_ool_constant_pool_available(bool available) {
+    if (FLAG_enable_ool_constant_pool) {
+      ool_constant_pool_available_ = available;
+    } else {
+      // Out-of-line constant pool not supported on this architecture.
+      UNREACHABLE();
+    }
+  }
+
   // The program counter, which points into the buffer above and moves forward.
   byte* pc_;
 
@@ -108,6 +127,14 @@ class AssemblerBase: public Malloced {
   bool emit_debug_code_;
   bool predictable_code_size_;
   bool serializer_enabled_;
+
+  // Indicates whether the constant pool can be accessed, which is only possible
+  // if the pp register points to the current code object's constant pool.
+  bool ool_constant_pool_available_;
+
+  // Constant pool.
+  friend class FrameAndConstantPoolScope;
+  friend class ConstantPoolUnavailableScope;
 };
 
 
@@ -216,7 +243,7 @@ class CpuFeatures : public AllStatic {
 // unknown pc location. Assembler::bind() is used to bind a label to the
 // current pc. A label can be bound only once.
 
-class Label BASE_EMBEDDED {
+class Label {
  public:
   enum Distance {
     kNear, kFar
@@ -578,7 +605,7 @@ class RelocInfo {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);
-  void Print(Isolate* isolate, OStream& os);  // NOLINT
+  void Print(Isolate* isolate, std::ostream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate);
@@ -959,14 +986,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference stress_deopt_count(Isolate* isolate);
 
-  bool operator==(const ExternalReference& other) const {
-    return address_ == other.address_;
-  }
-
-  bool operator!=(const ExternalReference& other) const {
-    return !(*this == other);
-  }
-
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}
@@ -986,6 +1005,13 @@ class ExternalReference BASE_EMBEDDED {
 
   void* address_;
 };
+
+bool operator==(ExternalReference, ExternalReference);
+bool operator!=(ExternalReference, ExternalReference);
+
+size_t hash_value(ExternalReference);
+
+std::ostream& operator<<(std::ostream&, ExternalReference);
 
 
 // -----------------------------------------------------------------------------

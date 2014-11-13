@@ -72,3 +72,10 @@ assertEquals('foo', o.p || false);
 assertEquals('foo', o.p || (o.p == 0));
 assertEquals('foo', o.p || (o.p == null));
 assertEquals('foo', o.p || (o.p == o.p));
+
+// JSToBoolean(x:string)
+function f(x) { return !!("" + x); }
+assertEquals(false, f(""));
+assertEquals(true, f("narf"));
+assertEquals(true, f(12345678));
+assertEquals(true, f(undefined));

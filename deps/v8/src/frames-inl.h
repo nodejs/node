@@ -76,13 +76,13 @@ inline bool StackHandler::is_finally() const {
 
 
 inline StackHandler::Kind StackHandler::kind() const {
-  const int offset = StackHandlerConstants::kStateOffset;
+  const int offset = StackHandlerConstants::kStateIntOffset;
   return KindField::decode(Memory::unsigned_at(address() + offset));
 }
 
 
 inline unsigned StackHandler::index() const {
-  const int offset = StackHandlerConstants::kStateOffset;
+  const int offset = StackHandlerConstants::kStateIntOffset;
   return IndexField::decode(Memory::unsigned_at(address() + offset));
 }
 

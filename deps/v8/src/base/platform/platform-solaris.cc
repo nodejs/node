@@ -31,26 +31,6 @@
 #include "src/base/platform/platform.h"
 
 
-// It seems there is a bug in some Solaris distributions (experienced in
-// SunOS 5.10 Generic_141445-09) which make it difficult or impossible to
-// access signbit() despite the availability of other C99 math functions.
-#ifndef signbit
-namespace std {
-// Test sign - usually defined in math.h
-int signbit(double x) {
-  // We need to take care of the special case of both positive and negative
-  // versions of zero.
-  if (x == 0) {
-    return fpclass(x) & FP_NZERO;
-  } else {
-    // This won't detect negative NaN but that should be okay since we don't
-    // assume that behavior.
-    return x < 0;
-  }
-}
-}  // namespace std
-#endif  // signbit
-
 namespace v8 {
 namespace base {
 

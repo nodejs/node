@@ -19,6 +19,7 @@ var PromiseChain;
 var PromiseCatch;
 var PromiseThen;
 var PromiseHasRejectHandler;
+var PromiseHasUserDefinedRejectHandler;
 
 // mirror-debugger.js currently uses builtins.promiseStatus. It would be nice
 // if we could move these property names into the closure below.
@@ -30,8 +31,9 @@ var promiseValue = GLOBAL_PRIVATE("Promise#value");
 var promiseOnResolve = GLOBAL_PRIVATE("Promise#onResolve");
 var promiseOnReject = GLOBAL_PRIVATE("Promise#onReject");
 var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
-var promiseDebug = GLOBAL_PRIVATE("Promise#debug");
+var promiseHasHandler = %PromiseHasHandlerSymbol();
 var lastMicrotaskId = 0;
+
 
 (function() {
 
@@ -159,11 +161,12 @@ var lastMicrotaskId = 0;
 
   PromiseReject = function PromiseReject(promise, r) {
     // Check promise status to confirm that this reject has an effect.
-    // Check promiseDebug property to avoid duplicate event.
-    if (DEBUG_IS_ACTIVE &&
-        GET_PRIVATE(promise, promiseStatus) == 0 &&
-        !HAS_DEFINED_PRIVATE(promise, promiseDebug)) {
-      %DebugPromiseRejectEvent(promise, r);
+    // Call runtime for callbacks to the debugger or for unhandled reject.
+    if (GET_PRIVATE(promise, promiseStatus) == 0) {
+      var debug_is_active = DEBUG_IS_ACTIVE;
+      if (debug_is_active || !HAS_DEFINED_PRIVATE(promise, promiseHasHandler)) {
+        %PromiseRejectEvent(promise, r, debug_is_active);
+      }
     }
     PromiseDone(promise, -1, r, promiseOnReject)
   }
@@ -199,12 +202,17 @@ var lastMicrotaskId = 0;
   }
 
   function PromiseRejected(r) {
+    var promise;
     if (this === $Promise) {
       // Optimized case, avoid extra closure.
-      return PromiseSet(new $Promise(promiseRaw), -1, r);
+      promise = PromiseSet(new $Promise(promiseRaw), -1, r);
+      // The debug event for this would always be an uncaught promise reject,
+      // which is usually simply noise. Do not trigger that debug event.
+      %PromiseRejectEvent(promise, r, false);
     } else {
-      return new this(function(resolve, reject) { reject(r) });
+      promise = new this(function(resolve, reject) { reject(r) });
     }
+    return promise;
   }
 
   // Simple chaining.
@@ -227,11 +235,18 @@ var lastMicrotaskId = 0;
                        +1);
         break;
       case -1:  // Rejected
+        if (!HAS_DEFINED_PRIVATE(this, promiseHasHandler)) {
+          // Promise has already been rejected, but had no handler.
+          // Revoke previously triggered reject event.
+          %PromiseRevokeReject(this);
+        }
         PromiseEnqueue(GET_PRIVATE(this, promiseValue),
                        [onReject, deferred],
                        -1);
         break;
     }
+    // Mark this promise as having handler.
+    SET_PRIVATE(this, promiseHasHandler, true);
     if (DEBUG_IS_ACTIVE) {
       %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
     }
@@ -325,22 +340,24 @@ var lastMicrotaskId = 0;
 
   // Utility for debugger
 
-  function PromiseHasRejectHandlerRecursive(promise) {
+  function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
     var queue = GET_PRIVATE(promise, promiseOnReject);
     if (IS_UNDEFINED(queue)) return false;
-    // Do a depth first search for a reject handler that's not
-    // the default PromiseIdRejectHandler.
     for (var i = 0; i < queue.length; i += 2) {
       if (queue[i] != PromiseIdRejectHandler) return true;
-      if (PromiseHasRejectHandlerRecursive(queue[i + 1].promise)) return true;
+      if (PromiseHasUserDefinedRejectHandlerRecursive(queue[i + 1].promise)) {
+        return true;
+      }
     }
     return false;
   }
 
-  PromiseHasRejectHandler = function PromiseHasRejectHandler() {
-    // Mark promise as already having triggered a reject event.
-    SET_PRIVATE(this, promiseDebug, true);
-    return PromiseHasRejectHandlerRecursive(this);
+  // Return whether the promise will be handled by a user-defined reject
+  // handler somewhere down the promise chain. For this, we do a depth-first
+  // search for a reject handler that's not the default PromiseIdRejectHandler.
+  PromiseHasUserDefinedRejectHandler =
+      function PromiseHasUserDefinedRejectHandler() {
+    return PromiseHasUserDefinedRejectHandlerRecursive(this);
   };
 
   // -------------------------------------------------------------------
@@ -348,6 +365,8 @@ var lastMicrotaskId = 0;
 
   %CheckIsBootstrapping();
   %AddNamedProperty(global, 'Promise', $Promise, DONT_ENUM);
+  %AddNamedProperty(
+      $Promise.prototype, symbolToStringTag, "Promise", DONT_ENUM | READ_ONLY);
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
     "accept", PromiseResolved,

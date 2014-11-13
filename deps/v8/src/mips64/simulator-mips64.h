@@ -436,9 +436,12 @@ class Simulator {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-    reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
-      FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4)                    \
+  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
+      FUNCTION_ADDR(entry), 5, reinterpret_cast<int64_t*>(p0),            \
+      reinterpret_cast<int64_t*>(p1), reinterpret_cast<int64_t*>(p2),     \
+      reinterpret_cast<int64_t*>(p3), reinterpret_cast<int64_t*>(p4)))
+
 
 #ifdef MIPS_ABI_N64
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \

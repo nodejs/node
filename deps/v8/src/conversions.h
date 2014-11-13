@@ -198,10 +198,8 @@ inline uint32_t NumberToUint32(Object* number) {
 }
 
 
-double StringToDouble(UnicodeCache* unicode_cache,
-                      String* string,
-                      int flags,
-                      double empty_string_val = 0.0);
+double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
+                      int flags, double empty_string_val = 0.0);
 
 
 inline bool TryNumberToSize(Isolate* isolate,

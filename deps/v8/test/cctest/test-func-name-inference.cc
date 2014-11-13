@@ -30,7 +30,7 @@
 
 #include "src/api.h"
 #include "src/debug.h"
-#include "src/runtime/runtime.h"
+#include "src/string-search.h"
 #include "test/cctest/cctest.h"
 
 
@@ -46,13 +46,13 @@ using ::v8::internal::Script;
 using ::v8::internal::SmartArrayPointer;
 using ::v8::internal::SharedFunctionInfo;
 using ::v8::internal::String;
+using ::v8::internal::Vector;
 
 
 static void CheckFunctionName(v8::Handle<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
   Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
 
   // Get script source.
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
@@ -69,12 +69,14 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   Handle<String> script_src(String::cast(i_script->source()));
 
   // Find the position of a given func source substring in the source.
-  Handle<String> func_pos_str =
-      factory->NewStringFromAsciiChecked(func_pos_src);
-  int func_pos = Runtime::StringMatch(isolate,
-                                      script_src,
-                                      func_pos_str,
-                                      0);
+  int func_pos;
+  {
+    i::DisallowHeapAllocation no_gc;
+    Vector<const uint8_t> func_pos_str = i::OneByteVector(func_pos_src);
+    String::FlatContent script_content = script_src->GetFlatContent();
+    func_pos = SearchString(isolate, script_content.ToOneByteVector(),
+                            func_pos_str, 0);
+  }
   CHECK_NE(0, func_pos);
 
   // Obtain SharedFunctionInfo for the function.

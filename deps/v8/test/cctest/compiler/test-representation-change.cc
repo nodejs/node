@@ -11,7 +11,6 @@
 
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/representation-change.h"
-#include "src/compiler/typer.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -25,16 +24,13 @@ class RepresentationChangerTester : public HandleAndZoneScope,
  public:
   explicit RepresentationChangerTester(int num_parameters = 0)
       : GraphAndBuilders(main_zone()),
-        typer_(main_zone()),
         javascript_(main_zone()),
-        jsgraph_(main_graph_, &main_common_, &javascript_, &typer_,
-                 &main_machine_),
+        jsgraph_(main_graph_, &main_common_, &javascript_, &main_machine_),
         changer_(&jsgraph_, &main_simplified_, main_isolate()) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }
 
-  Typer typer_;
   JSOperatorBuilder javascript_;
   JSGraph jsgraph_;
   RepresentationChanger changer_;
@@ -428,6 +424,8 @@ TEST(SingleChanges) {
               kRepWord32);
   CheckChange(IrOpcode::kChangeFloat64ToUint32, kRepFloat64 | kTypeUint32,
               kRepWord32);
+
+  CheckChange(IrOpcode::kTruncateFloat64ToFloat32, kRepFloat64, kRepFloat32);
 
   // Int32,Uint32 <-> Float32 require two changes.
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,

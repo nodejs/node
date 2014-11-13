@@ -41,14 +41,14 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   __ LoadAddress(kScratchRegister, key_offset);
 
   // Check that the key in the entry matches the name.
-  // Multiply entry offset by 16 to get the entry address. Since the
-  // offset register already holds the entry offset times four, multiply
-  // by a further four.
-  __ cmpl(name, Operand(kScratchRegister, offset, scale_factor, 0));
+  __ cmpp(name, Operand(kScratchRegister, offset, scale_factor, 0));
   __ j(not_equal, &miss);
 
   // Get the map entry from the cache.
   // Use key_offset + kPointerSize * 2, rather than loading map_offset.
+  DCHECK(isolate->stub_cache()->map_reference(table).address() -
+             isolate->stub_cache()->key_reference(table).address() ==
+         kPointerSize * 2);
   __ movp(kScratchRegister,
           Operand(kScratchRegister, offset, scale_factor, kPointerSize * 2));
   __ cmpp(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));

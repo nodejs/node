@@ -521,3 +521,13 @@ testReduce("reduce", "ArrayManipulationExtender", 10,
             [3, 3, 2, [1, 2, 3, 4, 4, 5], 6],
             [6, 4, 3, [1, 2, 3, 4, 4, 5, 6], 10],
            ], arr, extender, 0);
+
+var arr = [];
+Object.defineProperty(arr, "0", { get: function() { delete this[0] },
+  configurable: true });
+assertEquals(undefined, arr.reduce(function(val) { return val }));
+
+var arr = [];
+Object.defineProperty(arr, "0", { get: function() { delete this[0] },
+  configurable: true});
+assertEquals(undefined, arr.reduceRight(function(val) { return val }));

@@ -12,6 +12,20 @@
 namespace v8 {
 namespace base {
 
+#define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
+
+inline void MemoryBarrier() { OSMemoryBarrier(); }
+
+inline void AcquireMemoryBarrier() {
+// On x86 processors, loads already have acquire semantics, so
+// there is no need to put a full barrier here.
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+  ATOMICOPS_COMPILER_BARRIER();
+#else
+  MemoryBarrier();
+#endif
+}
+
 inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 old_value,
                                          Atomic32 new_value) {
@@ -44,10 +58,6 @@ inline Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr,
 inline Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
   return OSAtomicAdd32Barrier(increment, const_cast<Atomic32*>(ptr));
-}
-
-inline void MemoryBarrier() {
-  OSMemoryBarrier();
 }
 
 inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
@@ -98,7 +108,7 @@ inline Atomic32 NoBarrier_Load(volatile const Atomic32* ptr) {
 
 inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
   Atomic32 value = *ptr;
-  MemoryBarrier();
+  AcquireMemoryBarrier();
   return value;
 }
 
@@ -188,7 +198,7 @@ inline Atomic64 NoBarrier_Load(volatile const Atomic64* ptr) {
 
 inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
   Atomic64 value = *ptr;
-  MemoryBarrier();
+  AcquireMemoryBarrier();
   return value;
 }
 
@@ -199,6 +209,7 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
 
 #endif  // defined(__LP64__)
 
+#undef ATOMICOPS_COMPILER_BARRIER
 } }  // namespace v8::base
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_MAC_H_

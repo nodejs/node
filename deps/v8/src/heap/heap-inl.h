@@ -458,8 +458,6 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
     case PROPERTY_CELL_SPACE:
     case LO_SPACE:
       return false;
-    case INVALID_SPACE:
-      break;
   }
   UNREACHABLE();
   return false;
@@ -699,7 +697,7 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
 
 
 void Heap::ClearInstanceofCache() {
-  set_instanceof_cache_function(the_hole_value());
+  set_instanceof_cache_function(Smi::FromInt(0));
 }
 
 
@@ -709,8 +707,8 @@ Object* Heap::ToBoolean(bool condition) {
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(the_hole_value());
-  set_instanceof_cache_function(the_hole_value());
+  set_instanceof_cache_map(Smi::FromInt(0));
+  set_instanceof_cache_function(Smi::FromInt(0));
 }
 
 

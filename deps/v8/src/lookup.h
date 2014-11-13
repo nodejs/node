@@ -138,6 +138,10 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
 
+  // Checks whether the receiver is an indexed exotic object
+  // and name is a special numeric index.
+  bool IsSpecialNumericIndex() const;
+
   void InternalizeName();
 
  private:

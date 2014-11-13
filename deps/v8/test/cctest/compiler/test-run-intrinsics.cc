@@ -8,10 +8,12 @@
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
-
+uint32_t flags = CompilationInfo::kInliningEnabled;
 
 TEST(IsSmi) {
-  FunctionTester T("(function(a) { return %_IsSmi(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsSmi(a); })", flags);
 
   T.CheckTrue(T.Val(1));
   T.CheckFalse(T.Val(1.1));
@@ -23,7 +25,9 @@ TEST(IsSmi) {
 
 
 TEST(IsNonNegativeSmi) {
-  FunctionTester T("(function(a) { return %_IsNonNegativeSmi(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsNonNegativeSmi(a); })", flags);
 
   T.CheckTrue(T.Val(1));
   T.CheckFalse(T.Val(1.1));
@@ -35,7 +39,9 @@ TEST(IsNonNegativeSmi) {
 
 
 TEST(IsMinusZero) {
-  FunctionTester T("(function(a) { return %_IsMinusZero(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
 
   T.CheckFalse(T.Val(1));
   T.CheckFalse(T.Val(1.1));
@@ -47,7 +53,9 @@ TEST(IsMinusZero) {
 
 
 TEST(IsArray) {
-  FunctionTester T("(function(a) { return %_IsArray(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsArray(a); })", flags);
 
   T.CheckFalse(T.NewObject("(function() {})"));
   T.CheckTrue(T.NewObject("([1])"));
@@ -61,7 +69,9 @@ TEST(IsArray) {
 
 
 TEST(IsObject) {
-  FunctionTester T("(function(a) { return %_IsObject(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsObject(a); })", flags);
 
   T.CheckFalse(T.NewObject("(function() {})"));
   T.CheckTrue(T.NewObject("([1])"));
@@ -75,7 +85,9 @@ TEST(IsObject) {
 
 
 TEST(IsFunction) {
-  FunctionTester T("(function(a) { return %_IsFunction(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsFunction(a); })", flags);
 
   T.CheckTrue(T.NewObject("(function() {})"));
   T.CheckFalse(T.NewObject("([1])"));
@@ -89,7 +101,9 @@ TEST(IsFunction) {
 
 
 TEST(IsRegExp) {
-  FunctionTester T("(function(a) { return %_IsRegExp(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
   T.CheckFalse(T.NewObject("(function() {})"));
   T.CheckFalse(T.NewObject("([1])"));
@@ -103,7 +117,9 @@ TEST(IsRegExp) {
 
 
 TEST(ClassOf) {
-  FunctionTester T("(function(a) { return %_ClassOf(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_ClassOf(a); })", flags);
 
   T.CheckCall(T.Val("Function"), T.NewObject("(function() {})"));
   T.CheckCall(T.Val("Array"), T.NewObject("([1])"));
@@ -117,7 +133,9 @@ TEST(ClassOf) {
 
 
 TEST(ObjectEquals) {
-  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
   CompileRun("var o = {}");
 
   T.CheckTrue(T.NewObject("(o)"), T.NewObject("(o)"));
@@ -130,7 +148,9 @@ TEST(ObjectEquals) {
 
 
 TEST(ValueOf) {
-  FunctionTester T("(function(a) { return %_ValueOf(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_ValueOf(a); })", flags);
 
   T.CheckCall(T.Val("a"), T.Val("a"));
   T.CheckCall(T.Val("b"), T.NewObject("(new String('b'))"));
@@ -140,7 +160,9 @@ TEST(ValueOf) {
 
 
 TEST(SetValueOf) {
-  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
 
   T.CheckCall(T.Val("a"), T.NewObject("(new String)"), T.Val("a"));
   T.CheckCall(T.Val(123), T.NewObject("(new Number)"), T.Val(123));
@@ -149,7 +171,9 @@ TEST(SetValueOf) {
 
 
 TEST(StringCharFromCode) {
-  FunctionTester T("(function(a) { return %_StringCharFromCode(a); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a) { return %_StringCharFromCode(a); })", flags);
 
   T.CheckCall(T.Val("a"), T.Val(97));
   T.CheckCall(T.Val("\xE2\x9D\x8A"), T.Val(0x274A));
@@ -158,7 +182,9 @@ TEST(StringCharFromCode) {
 
 
 TEST(StringCharAt) {
-  FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })", flags);
 
   T.CheckCall(T.Val("e"), T.Val("huge fan!"), T.Val(3));
   T.CheckCall(T.Val("f"), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
@@ -167,7 +193,10 @@ TEST(StringCharAt) {
 
 
 TEST(StringCharCodeAt) {
-  FunctionTester T("(function(a,b) { return %_StringCharCodeAt(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_StringCharCodeAt(a,b); })",
+                   flags);
 
   T.CheckCall(T.Val('e'), T.Val("huge fan!"), T.Val(3));
   T.CheckCall(T.Val('f'), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
@@ -176,7 +205,9 @@ TEST(StringCharCodeAt) {
 
 
 TEST(StringAdd) {
-  FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })", flags);
 
   T.CheckCall(T.Val("aaabbb"), T.Val("aaa"), T.Val("bbb"));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(""));
@@ -185,7 +216,9 @@ TEST(StringAdd) {
 
 
 TEST(StringSubString) {
-  FunctionTester T("(function(a,b) { return %_SubString(a,b,b+3); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_SubString(a,b,b+3); })", flags);
 
   T.CheckCall(T.Val("aaa"), T.Val("aaabbb"), T.Val(0.0));
   T.CheckCall(T.Val("abb"), T.Val("aaabbb"), T.Val(2));
@@ -194,7 +227,9 @@ TEST(StringSubString) {
 
 
 TEST(StringCompare) {
-  FunctionTester T("(function(a,b) { return %_StringCompare(a,b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_StringCompare(a,b); })", flags);
 
   T.CheckCall(T.Val(-1), T.Val("aaa"), T.Val("bbb"));
   T.CheckCall(T.Val(0.0), T.Val("bbb"), T.Val("bbb"));
@@ -203,7 +238,10 @@ TEST(StringCompare) {
 
 
 TEST(CallFunction) {
-  FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })");
+  FLAG_turbo_inlining_intrinsics = true;
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })",
+                   flags);
   CompileRun("function f(a,b,c) { return a + b + c + this.d; }");
 
   T.CheckCall(T.Val(129), T.NewObject("({d:123})"), T.NewObject("f"));

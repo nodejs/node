@@ -11,6 +11,7 @@
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator-properties-inl.h"
 
@@ -21,13 +22,21 @@ namespace compiler {
 Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
 
 
-Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs) {
-  DCHECK_LE(op->InputCount(), input_count);
-  Node* result = Node::New(this, input_count, inputs);
-  result->Initialize(op);
+void Graph::Decorate(Node* node) {
   for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
        i != decorators_.end(); ++i) {
-    (*i)->Decorate(result);
+    (*i)->Decorate(node);
+  }
+}
+
+
+Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
+                     bool incomplete) {
+  DCHECK_LE(op->InputCount(), input_count);
+  Node* result = Node::New(this, input_count, inputs, incomplete);
+  result->Initialize(op);
+  if (!incomplete) {
+    Decorate(result);
   }
   return result;
 }

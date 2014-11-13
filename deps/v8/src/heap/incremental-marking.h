@@ -20,6 +20,10 @@ class IncrementalMarking {
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
+  enum ForceMarkingAction { FORCE_MARKING, DO_NOT_FORCE_MARKING };
+
+  enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
+
   explicit IncrementalMarking(Heap* heap);
 
   static void Initialize();
@@ -83,10 +87,15 @@ class IncrementalMarking {
   static const intptr_t kMarkingSpeedAccelleration = 2;
   static const intptr_t kMaxMarkingSpeed = 1000;
 
+  // This is the upper bound for how many times we allow finalization of
+  // incremental marking to be postponed.
+  static const size_t kMaxIdleMarkingDelayCounter = 3;
+
   void OldSpaceStep(intptr_t allocated);
 
-  void Step(intptr_t allocated, CompletionAction action,
-            bool force_marking = false);
+  intptr_t Step(intptr_t allocated, CompletionAction action,
+                ForceMarkingAction marking = DO_NOT_FORCE_MARKING,
+                ForceCompletionAction completion = FORCE_COMPLETION);
 
   inline void RestartIfNotMarking() {
     if (state_ == COMPLETE) {
@@ -165,6 +174,10 @@ class IncrementalMarking {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
   }
 
+  void ClearIdleMarkingDelayCounter();
+
+  bool IsIdleMarkingDelayCounterLimitReached();
+
  private:
   int64_t SpaceLeftInOldSpace();
 
@@ -195,6 +208,8 @@ class IncrementalMarking {
 
   INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
 
+  void IncrementIdleMarkingDelayCounter();
+
   Heap* heap_;
 
   State state_;
@@ -213,6 +228,7 @@ class IncrementalMarking {
   intptr_t bytes_scanned_;
   intptr_t allocated_;
   intptr_t write_barriers_invoked_since_last_step_;
+  size_t idle_marking_delay_counter_;
 
   int no_marking_scope_depth_;
 

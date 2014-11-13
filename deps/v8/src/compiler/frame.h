@@ -7,7 +7,7 @@
 
 #include "src/v8.h"
 
-#include "src/data-flow.h"
+#include "src/bit-vector.h"
 
 namespace v8 {
 namespace internal {

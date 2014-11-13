@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/utils.h"
@@ -74,6 +75,17 @@ char* SimpleStringBuilder::Finalize() {
   position_ = -1;
   DCHECK(is_finalized());
   return buffer_.start();
+}
+
+
+size_t hash_value(BailoutId id) {
+  base::hash<int> h;
+  return h(id.id_);
+}
+
+
+std::ostream& operator<<(std::ostream& os, BailoutId id) {
+  return os << id.id_;
 }
 
 

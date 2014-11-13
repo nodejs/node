@@ -56,7 +56,7 @@ void AstTyper::Run(CompilationInfo* info) {
     var->name()->Print(os);
     os << " : " << Brief(value) << " -> ";
     type->PrintTo(os);
-    os << endl;
+    os << std::endl;
   }
 #endif  // OBJECT_PRINT
 
@@ -444,9 +444,11 @@ void AstTyper::VisitAssignment(Assignment* expr) {
         oracle()->AssignmentReceiverTypes(id, name, expr->GetReceiverTypes());
       } else {
         KeyedAccessStoreMode store_mode;
-        oracle()->KeyedAssignmentReceiverTypes(
-            id, expr->GetReceiverTypes(), &store_mode);
+        IcCheckType key_type;
+        oracle()->KeyedAssignmentReceiverTypes(id, expr->GetReceiverTypes(),
+                                               &store_mode, &key_type);
         expr->set_store_mode(store_mode);
+        expr->set_key_type(key_type);
       }
     }
   }
@@ -587,7 +589,11 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
   TypeFeedbackId store_id = expr->CountStoreFeedbackId();
-  expr->set_store_mode(oracle()->GetStoreMode(store_id));
+  KeyedAccessStoreMode store_mode;
+  IcCheckType key_type;
+  oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
+  expr->set_store_mode(store_mode);
+  expr->set_key_type(key_type);
   oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
   expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
   // TODO(rossberg): merge the count type with the generic expression type.

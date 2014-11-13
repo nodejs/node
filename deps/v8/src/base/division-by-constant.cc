@@ -52,7 +52,7 @@ MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
     delta = ad - r2;
   } while (q1 < delta || (q1 == delta && r1 == 0));
   T mul = q2 + 1;
-  return {neg ? (0 - mul) : mul, p - bits, false};
+  return MagicNumbersForDivision<T>(neg ? (0 - mul) : mul, p - bits, false);
 }
 
 
@@ -93,7 +93,7 @@ MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
     }
     delta = d - 1 - r2;
   } while (p < bits * 2 && (q1 < delta || (q1 == delta && r1 == 0)));
-  return {q2 + 1, p - bits, a};
+  return MagicNumbersForDivision<T>(q2 + 1, p - bits, a);
 }
 
 

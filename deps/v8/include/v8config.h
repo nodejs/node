@@ -120,7 +120,6 @@
 //  V8_LIBC_BIONIC  - Bionic libc
 //  V8_LIBC_BSD     - BSD libc derivate
 //  V8_LIBC_GLIBC   - GNU C library
-//  V8_LIBC_UCLIBC  - uClibc
 //
 // Note that testing for libc must be done using #if not #ifdef. For example,
 // to test for the GNU C library, use:
@@ -133,8 +132,6 @@
 #elif defined(__BIONIC__)
 # define V8_LIBC_BIONIC 1
 # define V8_LIBC_BSD 1
-#elif defined(__UCLIBC__)
-# define V8_LIBC_UCLIBC 1
 #elif defined(__GLIBC__) || defined(__GNU_LIBRARY__)
 # define V8_LIBC_GLIBC 1
 #else
@@ -178,6 +175,7 @@
 //  V8_HAS_BUILTIN_CLZ                  - __builtin_clz() supported
 //  V8_HAS_BUILTIN_CTZ                  - __builtin_ctz() supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
+//  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
 //  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
@@ -186,7 +184,6 @@
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS___FINAL                      - __final supported in non-C++11 mode
 //  V8_HAS___FORCEINLINE                - __forceinline supported
-//  V8_HAS_SEALED                       - MSVC style sealed marker supported
 //
 // Note that testing for compilers and/or features must be done using #if
 // not #ifdef. For example, to test for Intel C++ Compiler, use:
@@ -214,6 +211,7 @@
 # define V8_HAS_BUILTIN_CLZ (__has_builtin(__builtin_clz))
 # define V8_HAS_BUILTIN_CTZ (__has_builtin(__builtin_ctz))
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
+# define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
 # define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
@@ -251,6 +249,7 @@
 # define V8_HAS_BUILTIN_CLZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_CTZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
+# define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
 
 // g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
@@ -277,14 +276,11 @@
 
 # define V8_HAS___ALIGNOF 1
 
-// Override control was added with Visual Studio 2005, but
-// Visual Studio 2010 and earlier spell "final" as "sealed".
-# define V8_HAS_CXX11_FINAL (_MSC_VER >= 1700)
-# define V8_HAS_CXX11_OVERRIDE (_MSC_VER >= 1400)
-# define V8_HAS_SEALED (_MSC_VER >= 1400)
+# define V8_HAS_CXX11_FINAL 1
+# define V8_HAS_CXX11_OVERRIDE 1
 
 # define V8_HAS_DECLSPEC_ALIGN 1
-# define V8_HAS_DECLSPEC_DEPRECATED (_MSC_VER >= 1300)
+# define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 
 # define V8_HAS___FORCEINLINE 1

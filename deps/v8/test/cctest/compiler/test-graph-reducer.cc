@@ -21,15 +21,15 @@ const uint8_t OPCODE_C0 = 30;
 const uint8_t OPCODE_C1 = 31;
 const uint8_t OPCODE_C2 = 32;
 
-static SimpleOperator OPA0(OPCODE_A0, Operator::kNoWrite, 0, 0, "opa0");
-static SimpleOperator OPA1(OPCODE_A1, Operator::kNoWrite, 1, 0, "opa1");
-static SimpleOperator OPA2(OPCODE_A2, Operator::kNoWrite, 2, 0, "opa2");
-static SimpleOperator OPB0(OPCODE_B0, Operator::kNoWrite, 0, 0, "opa0");
-static SimpleOperator OPB1(OPCODE_B1, Operator::kNoWrite, 1, 0, "opa1");
-static SimpleOperator OPB2(OPCODE_B2, Operator::kNoWrite, 2, 0, "opa2");
-static SimpleOperator OPC0(OPCODE_C0, Operator::kNoWrite, 0, 0, "opc0");
-static SimpleOperator OPC1(OPCODE_C1, Operator::kNoWrite, 1, 0, "opc1");
-static SimpleOperator OPC2(OPCODE_C2, Operator::kNoWrite, 2, 0, "opc2");
+static Operator OPA0(OPCODE_A0, Operator::kNoWrite, "opa0", 0, 0, 0, 0, 0, 0);
+static Operator OPA1(OPCODE_A1, Operator::kNoWrite, "opa1", 1, 0, 0, 0, 0, 0);
+static Operator OPA2(OPCODE_A2, Operator::kNoWrite, "opa2", 2, 0, 0, 0, 0, 0);
+static Operator OPB0(OPCODE_B0, Operator::kNoWrite, "opa0", 0, 0, 0, 0, 0, 0);
+static Operator OPB1(OPCODE_B1, Operator::kNoWrite, "opa1", 1, 0, 0, 0, 0, 0);
+static Operator OPB2(OPCODE_B2, Operator::kNoWrite, "opa2", 2, 0, 0, 0, 0, 0);
+static Operator OPC0(OPCODE_C0, Operator::kNoWrite, "opc0", 0, 0, 0, 0, 0, 0);
+static Operator OPC1(OPCODE_C1, Operator::kNoWrite, "opc1", 1, 0, 0, 0, 0, 0);
+static Operator OPC2(OPCODE_C2, Operator::kNoWrite, "opc2", 2, 0, 0, 0, 0, 0);
 
 
 // Replaces all "A" operators with "B" operators without creating new nodes.

@@ -37,6 +37,7 @@ class DefaultPlatform : public Platform {
       Task* task, ExpectedRuntime expected_runtime) OVERRIDE;
   virtual void CallOnForegroundThread(v8::Isolate* isolate,
                                       Task* task) OVERRIDE;
+  virtual double MonotonicallyIncreasingTime() OVERRIDE;
 
  private:
   static const int kMaxThreadPoolSize;

@@ -220,6 +220,8 @@ function JSONStringify(value, replacer, space) {
 function SetUpJSON() {
   %CheckIsBootstrapping();
 
+  %AddNamedProperty($JSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
+
   // Set up non-enumerable properties of the JSON object.
   InstallFunctions($JSON, DONT_ENUM, $Array(
     "parse", JSONParse,

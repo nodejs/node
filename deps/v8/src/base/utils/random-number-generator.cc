@@ -102,6 +102,13 @@ double RandomNumberGenerator::NextDouble() {
 }
 
 
+int64_t RandomNumberGenerator::NextInt64() {
+  uint64_t lo = bit_cast<unsigned>(Next(32));
+  uint64_t hi = bit_cast<unsigned>(Next(32));
+  return lo | (hi << 32);
+}
+
+
 void RandomNumberGenerator::NextBytes(void* buffer, size_t buflen) {
   for (size_t n = 0; n < buflen; ++n) {
     static_cast<uint8_t*>(buffer)[n] = static_cast<uint8_t>(Next(8));

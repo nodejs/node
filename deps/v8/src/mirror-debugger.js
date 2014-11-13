@@ -85,6 +85,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new MapMirror(value);
   } else if (IS_SET(value) || IS_WEAKSET(value)) {
     mirror = new SetMirror(value);
+  } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
+    mirror = new IteratorMirror(value);
   } else if (ObjectIsPromise(value)) {
     mirror = new PromiseMirror(value);
   } else if (IS_GENERATOR(value)) {
@@ -163,6 +165,7 @@ var SCOPE_TYPE = 'scope';
 var PROMISE_TYPE = 'promise';
 var MAP_TYPE = 'map';
 var SET_TYPE = 'set';
+var ITERATOR_TYPE = 'iterator';
 var GENERATOR_TYPE = 'generator';
 
 // Maximum length when sending strings through the JSON protocol.
@@ -217,6 +220,7 @@ var ScopeType = { Global: 0,
 //         - PromiseMirror
 //         - MapMirror
 //         - SetMirror
+//         - IteratorMirror
 //         - GeneratorMirror
 //     - PropertyMirror
 //     - InternalPropertyMirror
@@ -452,6 +456,15 @@ Mirror.prototype.isMap = function() {
  */
 Mirror.prototype.isSet = function() {
   return this instanceof SetMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects an iterator.
+ * @returns {boolean} True if the mirror reflects an iterator
+ */
+Mirror.prototype.isIterator = function() {
+  return this instanceof IteratorMirror;
 };
 
 
@@ -1343,6 +1356,16 @@ function SetMirror(value) {
 inherits(SetMirror, ObjectMirror);
 
 
+function IteratorGetValues_(iter, next_function) {
+  var result = [];
+  var next;
+  while (!(next = %_CallFunction(iter, next_function)).done) {
+    result.push(next.value);
+  }
+  return result;
+}
+
+
 /**
  * Returns an array of elements of a set.
  * This will keep elements alive for WeakSets.
@@ -1354,13 +1377,31 @@ SetMirror.prototype.values = function() {
     return %GetWeakSetValues(this.value_);
   }
 
-  var result = [];
   var iter = %_CallFunction(this.value_, builtins.SetValues);
-  var next;
-  while (!(next = iter.next()).done) {
-    result.push(next.value);
+  return IteratorGetValues_(iter, builtins.SetIteratorNextJS);
+};
+
+
+function IteratorMirror(value) {
+  %_CallFunction(this, value, ITERATOR_TYPE, ObjectMirror);
+}
+inherits(IteratorMirror, ObjectMirror);
+
+
+/**
+ * Returns a preview of elements of an iterator.
+ * Does not change the backing iterator state.
+ *
+ * @returns {Array.<Object>} Array of elements of an iterator.
+ */
+IteratorMirror.prototype.preview = function() {
+  if (IS_MAP_ITERATOR(this.value_)) {
+    return IteratorGetValues_(%MapIteratorClone(this.value_),
+                              builtins.MapIteratorNextJS);
+  } else if (IS_SET_ITERATOR(this.value_)) {
+    return IteratorGetValues_(%SetIteratorClone(this.value_),
+                              builtins.SetIteratorNextJS);
   }
-  return result;
 };
 
 

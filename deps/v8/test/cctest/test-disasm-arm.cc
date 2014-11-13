@@ -420,6 +420,12 @@ TEST(Type3) {
             "e6cf3474       uxtb16 r3, r4, ror #8");
   }
 
+  COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");
+  COMPARE(smmla(r10, r9, r8, r7), "e75a7819       smmla r10, r9, r8, r7");
+
+  COMPARE(smmul(r0, r1, r2), "e750f211       smmul r0, r1, r2");
+  COMPARE(smmul(r8, r9, r10), "e758fa19       smmul r8, r9, r10");
+
   VERIFY_RUN();
 }
 
@@ -674,6 +680,30 @@ TEST(Vfp) {
       COMPARE(vcvt_f64_u32(d16, s1),
               "eef80b60       vcvt.f64.u32 d16, s1");
     }
+  }
+
+  VERIFY_RUN();
+}
+
+
+TEST(ARMv8_vrintX_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    COMPARE(vrinta(d0, d0), "feb80b40       vrinta.f64.f64 d0, d0");
+    COMPARE(vrinta(d2, d3), "feb82b43       vrinta.f64.f64 d2, d3");
+
+    COMPARE(vrintp(d0, d0), "feba0b40       vrintp.f64.f64 d0, d0");
+    COMPARE(vrintp(d2, d3), "feba2b43       vrintp.f64.f64 d2, d3");
+
+    COMPARE(vrintn(d0, d0), "feb90b40       vrintn.f64.f64 d0, d0");
+    COMPARE(vrintn(d2, d3), "feb92b43       vrintn.f64.f64 d2, d3");
+
+    COMPARE(vrintm(d0, d0), "febb0b40       vrintm.f64.f64 d0, d0");
+    COMPARE(vrintm(d2, d3), "febb2b43       vrintm.f64.f64 d2, d3");
+
+    COMPARE(vrintz(d0, d0), "eeb60bc0       vrintz.f64.f64 d0, d0");
+    COMPARE(vrintz(d2, d3, ne), "1eb62bc3       vrintzne.f64.f64 d2, d3");
   }
 
   VERIFY_RUN();

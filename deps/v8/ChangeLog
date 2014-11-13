@@ -1,3 +1,287 @@
+2014-11-05: Version 3.30.33
+
+        `1..isPrototypeOf.call(null)` should return false, not throw TypeError
+        (issue 3483).
+
+        Refactor ObjectGetOwnPropertyKeys to accept bitmask rather than boolean
+        (issue 3549).
+
+        Add debug mirror support for ES6 Map/Set iterators (Chromium issue
+        427868).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-04: Version 3.30.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-02: Version 3.30.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-02: Version 3.30.26
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-01: Version 3.30.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-01: Version 3.30.24
+
+        Ensure we don't try to inline raw access to indexed interceptor
+        receivers (Chromium issue 419220).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-31: Version 3.30.23
+
+        Introduce v8::Exception::GetMessage to find location of an error object
+        (Chromium issue 427954).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-30: Version 3.30.22
+
+        MIPS: Classes: Add super support in methods and accessors (issue 3330).
+
+        Classes: Add super support in methods and accessors (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-29: Version 3.30.21
+
+        MIPS: Classes: Add basic support for properties (issue 3330).
+
+        Classes: Add more tests for prototype edge cases (Chromium issue 3655).
+
+        Classes: Add test for method prototype (issue 3330).
+
+        Get stack trace for uncaught exceptions/promise rejections from the
+        simple stack when available.
+
+        Classes: Add basic support for properties (issue 3330).
+
+        Allow duplicate property names in classes (issue 3570).
+
+        Windows: use SystemTimeToTzSpecificLocalTime instead of localtime_s
+        (Chromium issue 417640).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-28: Version 3.30.20
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-27: Version 3.30.19
+
+        Check string literals with escapes in PreParserTraits::GetSymbol()
+        (issue 3606).
+
+        only define ARRAYSIZE_UNSAFE for NaCl builds (Chromium issue 405225).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-24: Version 3.30.18
+
+        Narrow cases where Sparse/Smart versions of Array methods are used
+        (issues 2615, 3612, 3621).
+
+        Shrink new space in idle notification (Chromium issue 424423).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-23: Version 3.30.17
+
+        ARM64: Fix stack manipulation (Chromium issue 425585).
+
+        Speed up creation of Objects whose prototype has dictionary elements
+        (Chromium issue 422754).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-22: Version 3.30.16
+
+        Remove v8stdint.h, it doesn't serve a purpose anymore.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-21: Version 3.30.15
+
+        Avoid the Marsaglia effect in 3D (Chromium issue 423311).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-20: Version 3.30.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-17: Version 3.30.13
+
+        Don't expose Array.prototype.values as it breaks webcompat (Chromium
+        issue 409858).
+
+        Fix break location calculation (Chromium issue 419663).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-17: Version 3.30.12
+
+        Implement .forEach() on typed arrays (issue 3578).
+
+        Introduce v8::Exception::GetStackTrace API method.
+
+        Remove SmartMove, bringing Array methods further into spec compliance
+        (issue 2615).
+
+        Convert argument toObject() in Object.getOwnPropertyNames/Descriptors
+        (issue 3443).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-15: Version 3.30.11
+
+        Array.prototype.{every, filter, find, findIndex, forEach, map, some}:
+        Use fresh primitive wrapper for calls (issue 3536).
+
+        Correctly expand literal buffer for surrogate pairs (Chromium issue
+        423212).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-15: Version 3.30.10
+
+        Squeeze the layout of various AST node types (Chromium issue 417697).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-14: Version 3.30.9
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-13: Version 3.30.8
+
+        AST nodes have at most one bailout/typefeedback ID now, saving lots of
+        memory (Chromium issue 417697).
+
+        Allow identifier code points from supplementary multilingual planes
+        (issue 3617).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-10: Version 3.30.7
+
+        Fix computation of UTC time from local time at DST change points (issue
+        3116, Chromium issues 415424, 417640).
+
+        Convert `obj` ToObject in Object.keys() (issue 3587).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-09: Version 3.30.6
+
+        Update unicode to 7.0.0 (issue 2892).
+
+        Classes: Add support for toString (issue 3330).
+
+        Don't enable WPO on Win64 and require Server 2003 / x64 for win64
+        (Chromium issue 421363).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-08: Version 3.30.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-08: Version 3.30.4
+
+        This uses a runtime function to set up the the constructor and its
+        prototype (issue 3330).
+
+        Remove PersistentBase::ClearAndLeak.
+
+        Squeeze the layout of variable proxy nodes (Chromium issue 417697).
+
+        Add MonotonicallyIncreasingTime to V8 Platform (Chromium issue 417668).
+
+        Fix representation of HLoadRoot (Chromium issue 419036).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-03: Version 3.30.3
+
+        Removed the Isolate* field from literal nodes (Chromium issue 417697).
+
+        Squeeze the layout of expression nodes a bit (Chromium issue 417697).
+
+        Merged FeedbackSlotInterface into AstNode, removing the need for a 2nd
+        vtable (Chromium issue 417697).
+
+        Extend CPU profiler with mapping ticks to source lines.
+
+        Remove support for parallel sweeping.
+
+        Introduce v8::Object::GetIsolate().
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-02: Version 3.30.2
+
+        Fix Hydrogen's BuildStore() (Chromium issue 417508).
+
+        Move unit tests to test/unittests (issue 3489).
+
+        Changes to ALLOW_UNUSED to match upcoming changes to the Chromium trunk:
+        * Eliminate usage of ALLOW_UNUSED to define COMPILE_ASSERT and just use
+        static_assert() in all cases now that all platforms build with C++11. *
+        Convert remaining uses of ALLOW_UNUSED to ALLOW_UNUSED_TYPE to match how
+        Chromium will be splitting this functionality.  (In Chromium we'll have
+        both   ALLOW_UNUSED_TYPE and ALLOW_UNUSED_LOCAL, which have different
+        syntax to   enable us to use these with MSVC.) (Chromium issue 81439).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-01: Version 3.30.1
+
+        Introduce PromiseRejectCallback (issue 3093).
+
+        ES6: Implement object literal property shorthand (issue 3584).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-30: Version 3.29.93
 
         Add a getter for the address and size of the code range to the pulic API

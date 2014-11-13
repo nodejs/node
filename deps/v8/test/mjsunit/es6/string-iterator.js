@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-tostring
 
 function TestStringPrototypeIterator() {
   assertTrue(String.prototype.hasOwnProperty(Symbol.iterator));
@@ -59,6 +60,12 @@ function TestStringIteratorPrototype() {
   assertArrayEquals(['next'],
       Object.getOwnPropertyNames(StringIteratorPrototype));
   assertEquals('[object String Iterator]', "" + iterator);
+  assertEquals("String Iterator", StringIteratorPrototype[Symbol.toStringTag]);
+  var desc = Object.getOwnPropertyDescriptor(
+      StringIteratorPrototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.writable);
+  assertEquals("String Iterator", desc.value);
 }
 TestStringIteratorPrototype();
 

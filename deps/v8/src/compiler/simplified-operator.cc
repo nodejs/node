@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OStream& operator<<(OStream& os, BaseTaggedness base_taggedness) {
+std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
   switch (base_taggedness) {
     case kUntaggedBase:
       return os << "untagged base";
@@ -25,9 +25,53 @@ OStream& operator<<(OStream& os, BaseTaggedness base_taggedness) {
 }
 
 
+bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
+  return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
+         lhs.machine_type == rhs.machine_type;
+}
+
+
+bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(FieldAccess const& access) {
+  return base::hash_combine(access.base_is_tagged, access.offset,
+                            access.machine_type);
+}
+
+
+std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
+  os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
+#ifdef OBJECT_PRINT
+  Handle<Name> name;
+  if (access.name.ToHandle(&name)) {
+    name->Print(os);
+    os << ", ";
+  }
+#endif
+  access.type->PrintTo(os);
+  os << ", " << access.machine_type << "]";
+  return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, BoundsCheckMode bounds_check_mode) {
+  switch (bounds_check_mode) {
+    case kNoBoundsCheck:
+      return os << "no bounds check";
+    case kTypedArrayBoundsCheck:
+      return os << "ignore out of bounds";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged &&
-         lhs.header_size == rhs.header_size && lhs.type == rhs.type &&
+         lhs.header_size == rhs.header_size &&
          lhs.machine_type == rhs.machine_type;
 }
 
@@ -37,10 +81,16 @@ bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
 }
 
 
-OStream& operator<<(OStream& os, ElementAccess const& access) {
-  os << "[" << access.base_is_tagged << ", " << access.header_size << ", ";
+size_t hash_value(ElementAccess const& access) {
+  return base::hash_combine(access.base_is_tagged, access.header_size,
+                            access.machine_type);
+}
+
+
+std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
+  os << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
-  os << ", " << access.machine_type << "]";
+  os << ", " << access.machine_type << ", " << access.bounds_check;
   return os;
 }
 
@@ -59,40 +109,6 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
          op->opcode() == IrOpcode::kStoreElement);
   return OpParameter<ElementAccess>(op);
 }
-
-
-// Specialization for static parameters of type {FieldAccess}.
-template <>
-struct StaticParameterTraits<FieldAccess> {
-  static OStream& PrintTo(OStream& os, const FieldAccess& val) {
-    return os << val.offset;
-  }
-  static int HashCode(const FieldAccess& val) {
-    return (val.offset < 16) | (val.machine_type & 0xffff);
-  }
-  static bool Equals(const FieldAccess& lhs, const FieldAccess& rhs) {
-    return lhs.base_is_tagged == rhs.base_is_tagged &&
-           lhs.offset == rhs.offset && lhs.machine_type == rhs.machine_type &&
-           lhs.type->Is(rhs.type);
-  }
-};
-
-
-// Specialization for static parameters of type {ElementAccess}.
-template <>
-struct StaticParameterTraits<ElementAccess> {
-  static OStream& PrintTo(OStream& os, const ElementAccess& access) {
-    return os << access;
-  }
-  static int HashCode(const ElementAccess& access) {
-    return (access.header_size < 16) | (access.machine_type & 0xffff);
-  }
-  static bool Equals(const ElementAccess& lhs, const ElementAccess& rhs) {
-    return lhs.base_is_tagged == rhs.base_is_tagged &&
-           lhs.header_size == rhs.header_size &&
-           lhs.machine_type == rhs.machine_type && lhs.type->Is(rhs.type);
-  }
-};
 
 
 #define PURE_OP_LIST(V)                                \
@@ -119,56 +135,60 @@ struct StaticParameterTraits<ElementAccess> {
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1)  \
   V(ChangeFloat64ToTagged, Operator::kNoProperties, 1) \
   V(ChangeBoolToBit, Operator::kNoProperties, 1)       \
-  V(ChangeBitToBool, Operator::kNoProperties, 1)
+  V(ChangeBitToBool, Operator::kNoProperties, 1)       \
+  V(ObjectIsSmi, Operator::kNoProperties, 1)           \
+  V(ObjectIsNonNegativeSmi, Operator::kNoProperties, 1)
 
 
-#define ACCESS_OP_LIST(V)                                 \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1)     \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 0)
-
-
-struct SimplifiedOperatorBuilderImpl FINAL {
-#define PURE(Name, properties, input_count)                               \
-  struct Name##Operator FINAL : public SimpleOperator {                   \
-    Name##Operator()                                                      \
-        : SimpleOperator(IrOpcode::k##Name, Operator::kPure | properties, \
-                         input_count, 1, #Name) {}                        \
-  };                                                                      \
+struct SimplifiedOperatorGlobalCache FINAL {
+#define PURE(Name, properties, input_count)                                \
+  struct Name##Operator FINAL : public Operator {                          \
+    Name##Operator()                                                       \
+        : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name, \
+                   input_count, 0, 0, 1, 0, 0) {}                          \
+  };                                                                       \
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
 };
 
 
-static base::LazyInstance<SimplifiedOperatorBuilderImpl>::type kImpl =
+static base::LazyInstance<SimplifiedOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
-    : impl_(kImpl.Get()), zone_(zone) {}
+    : cache_(kCache.Get()), zone_(zone) {}
 
 
 #define PURE(Name, properties, input_count) \
-  const Operator* SimplifiedOperatorBuilder::Name() { return &impl_.k##Name; }
+  const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(PURE)
 #undef PURE
 
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   // TODO(titzer): What about the type parameter?
-  return new (zone()) SimpleOperator(IrOpcode::kReferenceEqual,
-                                     Operator::kCommutative | Operator::kPure,
-                                     2, 1, "ReferenceEqual");
+  return new (zone()) Operator(IrOpcode::kReferenceEqual,
+                               Operator::kCommutative | Operator::kPure,
+                               "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
 
-#define ACCESS(Name, Type, properties, input_count, output_count)           \
-  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) {     \
-    return new (zone())                                                     \
-        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties, \
-                        input_count, output_count, #Name, access);          \
+#define ACCESS_OP_LIST(V)                                    \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)     \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 0, 1) \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 1, 0)
+
+
+#define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
+               output_count)                                                   \
+  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) {        \
+    return new (zone())                                                        \
+        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties,    \
+                        #Name, value_input_count, 1, control_input_count,      \
+                        output_count, 1, 0, access);                           \
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS

@@ -6,6 +6,7 @@
 #define V8_TOKEN_H_
 
 #include "src/base/logging.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -185,6 +186,24 @@ class Token {
   // Predicates
   static bool IsKeyword(Value tok) {
     return token_type[tok] == 'K';
+  }
+
+  static bool IsIdentifier(Value tok, StrictMode strict_mode,
+                           bool is_generator) {
+    switch (tok) {
+      case IDENTIFIER:
+        return true;
+      case FUTURE_STRICT_RESERVED_WORD:
+      case LET:
+      case STATIC:
+        return strict_mode == SLOPPY;
+      case YIELD:
+        return !is_generator && strict_mode == SLOPPY;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+    return false;
   }
 
   static bool IsAssignmentOp(Value tok) {

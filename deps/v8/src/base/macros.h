@@ -5,9 +5,11 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <cstring>
 
-#include "include/v8stdint.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
@@ -22,6 +24,8 @@
 #define OFFSET_OF(type, field)                                          \
   (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
 
+
+#if V8_OS_NACL
 
 // ARRAYSIZE_UNSAFE performs essentially the same calculation as arraysize,
 // but can be used on anonymous types or types defined inside
@@ -62,9 +66,6 @@
 #define ARRAYSIZE_UNSAFE(a)     \
   ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))  // NOLINT
-
-
-#if V8_OS_NACL
 
 // TODO(bmeurer): For some reason, the NaCl toolchain cannot handle the correct
 // definition of arraysize() below, so we have to use the unsafe version for
@@ -130,7 +131,7 @@ struct CompileAssert {};
 
 #define COMPILE_ASSERT(expr, msg)                \
   typedef CompileAssert<static_cast<bool>(expr)> \
-      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED
+      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED_TYPE
 
 // Implementation details of COMPILE_ASSERT:
 //
@@ -150,23 +151,11 @@ struct CompileAssert {};
 //     COMPILE_ASSERT(foo, msg); // not supposed to compile as foo is
 //                               // not a compile-time constant.
 //
-// - By using the type CompileAssert<(bool(expr))>, we ensures that
+// - By using the type CompileAssert<static_cast<bool>(expr)>, we ensure that
 //   expr is a compile-time constant.  (Template arguments must be
 //   determined at compile-time.)
 //
-// - The outer parentheses in CompileAssert<(bool(expr))> are necessary
-//   to work around a bug in gcc 3.4.4 and 4.0.1.  If we had written
-//
-//     CompileAssert<bool(expr)>
-//
-//   instead, these compilers will refuse to compile
-//
-//     COMPILE_ASSERT(5 > 0, some_message);
-//
-//   (They seem to think the ">" in "5 > 0" marks the end of the
-//   template argument list.)
-//
-// - The array size is (bool(expr) ? 1 : -1), instead of simply
+// - The array size is (static_cast<bool>(expr) ? 1 : -1), instead of simply
 //
 //     ((expr) ? 1 : -1).
 //
@@ -308,10 +297,10 @@ template <> class StaticAssertion<true> { };
 // actually causes each use to introduce a new defined type with a
 // name depending on the source line.
 template <int> class StaticAssertionHelper { };
-#define STATIC_ASSERT(test)                                                    \
-  typedef                                                                     \
-    StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
-    SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED
+#define STATIC_ASSERT(test)                               \
+  typedef StaticAssertionHelper<                          \
+      sizeof(StaticAssertion<static_cast<bool>((test))>)> \
+      SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED_TYPE
 
 #endif
 
@@ -407,5 +396,23 @@ template <typename T>
 inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
+
+
+namespace v8 {
+namespace base {
+
+// TODO(yangguo): This is a poor man's replacement for std::is_fundamental,
+// which requires C++11. Switch to std::is_fundamental once possible.
+template <typename T>
+inline bool is_fundamental() {
+  return false;
+}
+
+template <>
+inline bool is_fundamental<uint8_t>() {
+  return true;
+}
+}
+}  // namespace v8::base
 
 #endif   // V8_BASE_MACROS_H_

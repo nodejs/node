@@ -10,7 +10,8 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/select-lowering.h"
+#include "src/compiler/simplified-lowering.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
 #include "src/globals.h"
@@ -19,6 +20,7 @@
 #include "src/scopes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -30,13 +32,10 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
-        typer(this->zone()),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, &typer,
-                this->machine()),
+        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
         function(Handle<JSFunction>::null()) {}
 
-  Typer typer;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Handle<JSFunction> function;
@@ -45,29 +44,10 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   template <typename T>
   T* CallWithPotentialGC() {
-    // TODO(titzer): we need to wrap the code in a JSFunction and call it via
-    // Execution::Call() so that the GC knows about the frame, can walk it,
-    // relocate the code object if necessary, etc.
-    // This is pretty ugly and at the least should be moved up to helpers.
+    // TODO(titzer): we wrap the code in a JSFunction here to reuse the
+    // JSEntryStub; that could be done with a special prologue or other stub.
     if (function.is_null()) {
-      function =
-          v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(CompileRun(
-              "(function() { 'use strict'; return 2.7123; })")));
-      CompilationInfoWithZone info(function);
-      CHECK(Parser::Parse(&info));
-      info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-      CHECK(Rewriter::Rewrite(&info));
-      CHECK(Scope::Analyze(&info));
-      CHECK_NE(NULL, info.scope());
-      Handle<ScopeInfo> scope_info =
-          ScopeInfo::Create(info.scope(), info.zone());
-      info.shared_info()->set_scope_info(*scope_info);
-      Pipeline pipeline(&info);
-      Linkage linkage(&info);
-      Handle<Code> code =
-          pipeline.GenerateCodeForMachineGraph(&linkage, this->graph());
-      CHECK(!code.is_null());
-      function->ReplaceCode(*code);
+      function = FunctionTester::ForMachineGraph(this->graph());
     }
     Handle<Object>* args = NULL;
     MaybeHandle<Object> result =
@@ -132,9 +112,9 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
                          void* location) {
     // We build a graph by hand here, because the raw machine assembler
     // does not add the correct control and effect nodes.
-    Node* load =
-        this->graph()->NewNode(load_op, this->PointerConstant(location),
-                               this->Int32Constant(0), this->start());
+    Node* load = this->graph()->NewNode(
+        load_op, this->PointerConstant(location), this->Int32Constant(0),
+        this->start(), this->start());
     Node* change = this->graph()->NewNode(op, load);
     Node* ret = this->graph()->NewNode(this->common()->Return(), change,
                                        this->start(), this->start());
@@ -146,12 +126,14 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
   void LowerChange(Node* change) {
     // Run the graph reducer with changes lowering on a single node.
     CompilationInfo info(this->isolate(), this->zone());
-    Linkage linkage(&info);
-    ChangeLowering lowering(&jsgraph, &linkage);
+    Linkage linkage(this->zone(), &info);
+    ChangeLowering change_lowering(&jsgraph, &linkage);
+    SelectLowering select_lowering(this->graph(), this->common());
     GraphReducer reducer(this->graph());
-    reducer.AddReducer(&lowering);
+    reducer.AddReducer(&change_lowering);
+    reducer.AddReducer(&select_lowering);
     reducer.ReduceNode(change);
-    Verifier::Run(this->graph());
+    Verifier::Run(this->graph(), Verifier::UNTYPED);
   }
 
   Factory* factory() { return this->isolate()->factory(); }

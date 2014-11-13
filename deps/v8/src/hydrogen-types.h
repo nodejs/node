@@ -6,6 +6,7 @@
 #define HYDROGEN_TYPES_H_
 
 #include <climits>
+#include <iosfwd>
 
 #include "src/base/macros.h"
 
@@ -15,7 +16,6 @@ namespace internal {
 // Forward declarations.
 template <typename T> class Handle;
 class Object;
-class OStream;
 
 #define HTYPE_LIST(V)                                 \
   V(Any, 0x0)              /* 0000 0000 0000 0000 */  \
@@ -65,7 +65,7 @@ class HType FINAL {
   static HType FromType(typename T::TypeHandle type) WARN_UNUSED_RESULT;
   static HType FromValue(Handle<Object> value) WARN_UNUSED_RESULT;
 
-  friend OStream& operator<<(OStream& os, const HType& t);
+  friend std::ostream& operator<<(std::ostream& os, const HType& t);
 
  private:
   enum Kind {
@@ -84,7 +84,7 @@ class HType FINAL {
 };
 
 
-OStream& operator<<(OStream& os, const HType& t);
+std::ostream& operator<<(std::ostream& os, const HType& t);
 } }  // namespace v8::internal
 
 #endif  // HYDROGEN_TYPES_H_

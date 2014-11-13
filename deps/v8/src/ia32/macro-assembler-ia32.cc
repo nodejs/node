@@ -345,12 +345,10 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 }
 
 
-void MacroAssembler::LoadUint32(XMMRegister dst,
-                                Register src) {
+void MacroAssembler::LoadUint32(XMMRegister dst, const Operand& src) {
   Label done;
   cmp(src, Immediate(0));
-  ExternalReference uint32_bias =
-        ExternalReference::address_of_uint32_bias();
+  ExternalReference uint32_bias = ExternalReference::address_of_uint32_bias();
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, Operand::StaticVariable(uint32_bias));
@@ -898,6 +896,13 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 }
 
 
+void MacroAssembler::EnterFrame(StackFrame::Type type,
+                                bool load_constant_pool_pointer_reg) {
+  // Out-of-line constant pool not implemented on ia32.
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
@@ -937,8 +942,10 @@ void MacroAssembler::EnterExitFramePrologue() {
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
   ExternalReference context_address(Isolate::kContextAddress, isolate());
+  ExternalReference c_function_address(Isolate::kCFunctionAddress, isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
+  mov(Operand::StaticVariable(c_function_address), ebx);
 }
 
 
@@ -2618,18 +2625,65 @@ void MacroAssembler::Move(const Operand& dst, const Immediate& x) {
 }
 
 
-void MacroAssembler::Move(XMMRegister dst, double val) {
-  // TODO(titzer): recognize double constants with ExternalReferences.
-  uint64_t int_val = bit_cast<uint64_t, double>(val);
-  if (int_val == 0) {
-    xorps(dst, dst);
+void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
+  if (src == 0) {
+    pxor(dst, dst);
   } else {
-    int32_t lower = static_cast<int32_t>(int_val);
-    int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
-    push(Immediate(upper));
-    push(Immediate(lower));
-    movsd(dst, Operand(esp, 0));
-    add(esp, Immediate(kDoubleSize));
+    unsigned cnt = base::bits::CountPopulation32(src);
+    unsigned nlz = base::bits::CountLeadingZeros32(src);
+    unsigned ntz = base::bits::CountTrailingZeros32(src);
+    if (nlz + cnt + ntz == 32) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrld(dst, 32 - cnt);
+      } else {
+        pslld(dst, 32 - cnt);
+        if (nlz != 0) psrld(dst, nlz);
+      }
+    } else {
+      push(eax);
+      mov(eax, Immediate(src));
+      movd(dst, Operand(eax));
+      pop(eax);
+    }
+  }
+}
+
+
+void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
+  uint32_t lower = static_cast<uint32_t>(src);
+  uint32_t upper = static_cast<uint32_t>(src >> 32);
+  if (upper == 0) {
+    Move(dst, lower);
+  } else {
+    unsigned cnt = base::bits::CountPopulation64(src);
+    unsigned nlz = base::bits::CountLeadingZeros64(src);
+    unsigned ntz = base::bits::CountTrailingZeros64(src);
+    if (nlz + cnt + ntz == 64) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrlq(dst, 64 - cnt);
+      } else {
+        psllq(dst, 64 - cnt);
+        if (nlz != 0) psrlq(dst, nlz);
+      }
+    } else if (lower == 0) {
+      Move(dst, upper);
+      psllq(dst, 32);
+    } else if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope scope(this, SSE4_1);
+      push(eax);
+      Move(eax, Immediate(lower));
+      movd(dst, Operand(eax));
+      Move(eax, Immediate(upper));
+      pinsrd(dst, Operand(eax), 1);
+      pop(eax);
+    } else {
+      push(Immediate(upper));
+      push(Immediate(lower));
+      movsd(dst, Operand(esp, 0));
+      add(esp, Immediate(kDoubleSize));
+    }
   }
 }
 

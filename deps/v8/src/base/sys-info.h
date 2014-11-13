@@ -5,7 +5,7 @@
 #ifndef V8_BASE_SYS_INFO_H_
 #define V8_BASE_SYS_INFO_H_
 
-#include "include/v8stdint.h"
+#include <stdint.h>
 #include "src/base/compiler-specific.h"
 
 namespace v8 {

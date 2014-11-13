@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LINKAGE_IMPL_H_
 #define V8_COMPILER_LINKAGE_IMPL_H_
 
+#include "src/code-stubs.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -26,8 +28,8 @@ class LinkageHelper {
   }
 
   // TODO(turbofan): cache call descriptors for JSFunction calls.
-  static CallDescriptor* GetJSCallDescriptor(Zone* zone,
-                                             int js_parameter_count) {
+  static CallDescriptor* GetJSCallDescriptor(Zone* zone, int js_parameter_count,
+                                             CallDescriptor::Flags flags) {
     const size_t return_count = 1;
     const size_t context_count = 1;
     const size_t parameter_count = js_parameter_count + context_count;
@@ -54,16 +56,17 @@ class LinkageHelper {
     // The target for JS function calls is the JSFunction object.
     MachineType target_type = kMachAnyTagged;
     LinkageLocation target_loc = regloc(LinkageTraits::JSCallFunctionReg());
-    return new (zone) CallDescriptor(CallDescriptor::kCallJSFunction,  // kind
-                                     target_type,         // target MachineType
-                                     target_loc,          // target location
-                                     types.Build(),       // machine_sig
-                                     locations.Build(),   // location_sig
-                                     js_parameter_count,  // js_parameter_count
-                                     Operator::kNoProperties,  // properties
-                                     kNoCalleeSaved,           // callee-saved
-                                     CallDescriptor::kNeedsFrameState,  // flags
-                                     "js-call");
+    return new (zone) CallDescriptor(     // --
+        CallDescriptor::kCallJSFunction,  // kind
+        target_type,                      // target MachineType
+        target_loc,                       // target location
+        types.Build(),                    // machine_sig
+        locations.Build(),                // location_sig
+        js_parameter_count,               // js_parameter_count
+        Operator::kNoProperties,          // properties
+        kNoCalleeSaved,                   // callee-saved
+        flags,                            // flags
+        "js-call");
   }
 
 
@@ -114,23 +117,24 @@ class LinkageHelper {
     // The target for runtime calls is a code object.
     MachineType target_type = kMachAnyTagged;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                                     target_type,         // target MachineType
-                                     target_loc,          // target location
-                                     types.Build(),       // machine_sig
-                                     locations.Build(),   // location_sig
-                                     js_parameter_count,  // js_parameter_count
-                                     properties,          // properties
-                                     kNoCalleeSaved,      // callee-saved
-                                     flags,               // flags
-                                     function->name);     // debug name
+    return new (zone) CallDescriptor(     // --
+        CallDescriptor::kCallCodeObject,  // kind
+        target_type,                      // target MachineType
+        target_loc,                       // target location
+        types.Build(),                    // machine_sig
+        locations.Build(),                // location_sig
+        js_parameter_count,               // js_parameter_count
+        properties,                       // properties
+        kNoCalleeSaved,                   // callee-saved
+        flags,                            // flags
+        function->name);                  // debug name
   }
 
 
   // TODO(turbofan): cache call descriptors for code stub calls.
   static CallDescriptor* GetStubCallDescriptor(
-      Zone* zone, CallInterfaceDescriptor descriptor, int stack_parameter_count,
-      CallDescriptor::Flags flags) {
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
+      int stack_parameter_count, CallDescriptor::Flags flags) {
     const int register_parameter_count =
         descriptor.GetEnvironmentParameterCount();
     const int js_parameter_count =
@@ -167,16 +171,17 @@ class LinkageHelper {
     // The target for stub calls is a code object.
     MachineType target_type = kMachAnyTagged;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                                     target_type,         // target MachineType
-                                     target_loc,          // target location
-                                     types.Build(),       // machine_sig
-                                     locations.Build(),   // location_sig
-                                     js_parameter_count,  // js_parameter_count
-                                     Operator::kNoProperties,  // properties
-                                     kNoCalleeSaved,  // callee-saved registers
-                                     flags,           // flags
-                                     descriptor.DebugName(zone->isolate()));
+    return new (zone) CallDescriptor(     // --
+        CallDescriptor::kCallCodeObject,  // kind
+        target_type,                      // target MachineType
+        target_loc,                       // target location
+        types.Build(),                    // machine_sig
+        locations.Build(),                // location_sig
+        js_parameter_count,               // js_parameter_count
+        Operator::kNoProperties,          // properties
+        kNoCalleeSaved,                   // callee-saved registers
+        flags,                            // flags
+        descriptor.DebugName(zone->isolate()));
   }
 
   static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,
@@ -199,15 +204,16 @@ class LinkageHelper {
     // The target for C calls is always an address (i.e. machine pointer).
     MachineType target_type = kMachPtr;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(CallDescriptor::kCallAddress,  // kind
-                                     target_type,        // target MachineType
-                                     target_loc,         // target location
-                                     msig,               // machine_sig
-                                     locations.Build(),  // location_sig
-                                     0,                  // js_parameter_count
-                                     Operator::kNoProperties,  // properties
-                                     LinkageTraits::CCalleeSaveRegisters(),
-                                     CallDescriptor::kNoFlags, "c-call");
+    return new (zone) CallDescriptor(  // --
+        CallDescriptor::kCallAddress,  // kind
+        target_type,                   // target MachineType
+        target_loc,                    // target location
+        msig,                          // machine_sig
+        locations.Build(),             // location_sig
+        0,                             // js_parameter_count
+        Operator::kNoProperties,       // properties
+        LinkageTraits::CCalleeSaveRegisters(), CallDescriptor::kNoFlags,
+        "c-call");
   }
 
   static LinkageLocation regloc(Register reg) {

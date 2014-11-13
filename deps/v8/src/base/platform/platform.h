@@ -21,7 +21,7 @@
 #ifndef V8_BASE_PLATFORM_PLATFORM_H_
 #define V8_BASE_PLATFORM_PLATFORM_H_
 
-#include <stdarg.h>
+#include <cstdarg>
 #include <string>
 #include <vector>
 
@@ -29,47 +29,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 
-#ifdef __sun
-# ifndef signbit
-namespace std {
-int signbit(double x);
-}
-# endif
-#endif
-
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
 #endif
-
-// Microsoft Visual C++ specific stuff.
-#if V8_LIBC_MSVCRT
-
-#include "src/base/win32-headers.h"
-#include "src/base/win32-math.h"
-
-int strncasecmp(const char* s1, const char* s2, int n);
-
-// Visual C++ 2013 and higher implement this function.
-#if (_MSC_VER < 1800)
-inline int lrint(double flt) {
-  int intgr;
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  __asm {
-    fld flt
-    fistp intgr
-  };
-#else
-  intgr = static_cast<int>(flt + 0.5);
-  if ((intgr & 1) != 0 && intgr - flt == 0.5) {
-    // If the number is halfway between two integers, round to the even one.
-    intgr--;
-  }
-#endif
-  return intgr;
-}
-#endif  // _MSC_VER < 1800
-
-#endif  // V8_LIBC_MSVCRT
 
 namespace v8 {
 namespace base {
@@ -79,7 +41,7 @@ namespace base {
 
 #ifndef V8_NO_FAST_TLS
 
-#if defined(_MSC_VER) && (V8_HOST_ARCH_IA32)
+#if V8_CC_MSVC && V8_HOST_ARCH_IA32
 
 #define V8_FAST_TLS_SUPPORTED 1
 

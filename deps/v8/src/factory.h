@@ -296,6 +296,8 @@ class Factory FINAL {
 
   Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
+  Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
+
   // Allocate a tenured AllocationSite. It's payload is null.
   Handle<AllocationSite> NewAllocationSite();
 
@@ -434,7 +436,18 @@ class Factory FINAL {
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
 
+  // Creates a new JSTypedArray with the specified buffer.
+  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
+                                       Handle<JSArrayBuffer> buffer,
+                                       size_t byte_offset, size_t length);
+
   Handle<JSDataView> NewJSDataView();
+  Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
+                                   size_t byte_offset, size_t byte_length);
+
+  // TODO(aandrey): Maybe these should take table, index and kind arguments.
+  Handle<JSMapIterator> NewJSMapIterator();
+  Handle<JSSetIterator> NewJSSetIterator();
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
@@ -588,6 +601,14 @@ class Factory FINAL {
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
 
+#define SYMBOL_ACCESSOR(name)                                   \
+  inline Handle<Symbol> name() {                                \
+    return Handle<Symbol>(bit_cast<Symbol**>(                   \
+        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
+  }
+  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
   inline void set_string_table(Handle<StringTable> table) {
     isolate()->heap()->set_string_table(*table);
   }
@@ -605,7 +626,8 @@ class Factory FINAL {
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count);
+  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count,
+                                                   int ic_slot_count);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

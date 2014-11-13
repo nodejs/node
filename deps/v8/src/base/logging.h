@@ -5,9 +5,9 @@
 #ifndef V8_BASE_LOGGING_H_
 #define V8_BASE_LOGGING_H_
 
+#include <stdint.h>
 #include <string.h>
 
-#include "include/v8stdint.h"
 #include "src/base/build_config.h"
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);

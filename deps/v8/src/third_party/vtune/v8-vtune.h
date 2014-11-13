@@ -62,7 +62,7 @@
 
 namespace vTune {
 
-void InitializeVtuneForV8(v8::Isolate::CreateParams& params);
+v8::JitCodeEventHandler GetVtuneCodeEventHandler();
 
 }  // namespace vTune
 

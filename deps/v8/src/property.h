@@ -5,6 +5,8 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
+#include <iosfwd>
+
 #include "src/factory.h"
 #include "src/field-index.h"
 #include "src/field-index-inl.h"
@@ -13,8 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-class OStream;
 
 // Abstraction for elements in instance-descriptor arrays.
 //
@@ -70,7 +70,7 @@ class Descriptor BASE_EMBEDDED {
 };
 
 
-OStream& operator<<(OStream& os, const Descriptor& d);
+std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 
 
 class FieldDescriptor FINAL : public Descriptor {
@@ -249,7 +249,7 @@ class LookupResult FINAL BASE_EMBEDDED {
 };
 
 
-OStream& operator<<(OStream& os, const LookupResult& r);
+std::ostream& operator<<(std::ostream& os, const LookupResult& r);
 } }  // namespace v8::internal
 
 #endif  // V8_PROPERTY_H_

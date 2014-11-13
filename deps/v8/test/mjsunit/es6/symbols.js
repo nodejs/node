@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax --harmony-tostring
 
 var symbols = []
 
@@ -501,3 +501,11 @@ function TestRegistry() {
   assertSame("x3", Symbol.keyFor(symbol3))
 }
 TestRegistry()
+
+
+function TestGetOwnPropertySymbolsOnPrimitives() {
+  assertEquals(Object.getOwnPropertySymbols(true), []);
+  assertEquals(Object.getOwnPropertySymbols(5000), []);
+  assertEquals(Object.getOwnPropertySymbols("OK"), []);
+}
+TestGetOwnPropertySymbolsOnPrimitives();

@@ -291,6 +291,13 @@ function TypedArraySet(obj, offset) {
   }
 }
 
+function TypedArrayGetToStringTag() {
+  if (!%IsTypedArray(this)) return;
+  var name = %_ClassOf(this);
+  if (IS_UNDEFINED(name)) return;
+  return name;
+}
+
 // -------------------------------------------------------------------
 
 function SetupTypedArrays() {
@@ -310,7 +317,8 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset);
   InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength);
   InstallGetter(global.NAME.prototype, "length", NAME_GetLength);
-
+  InstallGetter(global.NAME.prototype, symbolToStringTag,
+                TypedArrayGetToStringTag);
   InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
         "subarray", NAMESubArray,
         "set", TypedArraySet
@@ -437,6 +445,8 @@ function SetupDataView() {
 
   // Set up constructor property on the DataView prototype.
   %AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
+  %AddNamedProperty(
+      $DataView.prototype, symbolToStringTag, "DataView", READ_ONLY|DONT_ENUM);
 
   InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
   InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);

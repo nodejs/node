@@ -1,0 +1,13 @@
+{
+  "name": "JSTests/Classes",
+  "path": ["."],
+  "main": "run.js",
+  "flags": ["--harmony-classes"],
+  "run_count": 5,
+  "units": "score",
+  "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
+  "total": true,
+  "tests": [
+    {"name": "Super"}
+  ]
+}

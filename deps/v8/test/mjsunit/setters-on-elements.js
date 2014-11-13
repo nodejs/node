@@ -191,8 +191,8 @@ var cf = [create_func_smi,
 
 var values = [3, 3.5, true];
 
-for(var c = 0; c < 3; c++) {
-  for(var s = 0; s < 3; s++) {
+for(var c = 0; c < cf.length; c++) {
+  for(var s = 0; s < values.length; s++) {
     base_setter_test(cf[c], 0, values[s]);
     base_setter_test(cf[c], 1, values[s]);
   }

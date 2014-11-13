@@ -2463,6 +2463,12 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
         set_sreg(fd, FPRoundInt(sreg(fn), FPNegativeInfinity)); break;
     case FRINTM_d:
         set_dreg(fd, FPRoundInt(dreg(fn), FPNegativeInfinity)); break;
+    case FRINTP_s:
+      set_sreg(fd, FPRoundInt(sreg(fn), FPPositiveInfinity));
+      break;
+    case FRINTP_d:
+      set_dreg(fd, FPRoundInt(dreg(fn), FPPositiveInfinity));
+      break;
     case FRINTN_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieEven)); break;
     case FRINTN_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieEven)); break;
     case FRINTZ_s: set_sreg(fd, FPRoundInt(sreg(fn), FPZero)); break;
@@ -2765,6 +2771,10 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
     }
     case FPNegativeInfinity: {
       // We always use floor(value).
+      break;
+    }
+    case FPPositiveInfinity: {
+      int_result = ceil(value);
       break;
     }
     default: UNIMPLEMENTED();

@@ -53,7 +53,8 @@ void StatisticsExtension::GetCounters(
   Heap* heap = isolate->heap();
 
   if (args.Length() > 0) {  // GC if first argument evaluates to true.
-    if (args[0]->IsBoolean() && args[0]->ToBoolean()->Value()) {
+    if (args[0]->IsBoolean() &&
+        args[0]->ToBoolean(args.GetIsolate())->Value()) {
       heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
     }
   }

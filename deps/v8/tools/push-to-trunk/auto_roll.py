@@ -42,6 +42,7 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of the last push to trunk."
 
   def RunStep(self):
+    self.vc.Fetch()
     push_hash = self.FindLastTrunkPush(
         branch="origin/candidates", include_patches=True)
     self["last_push"] = self.GetCommitPositionNumber(push_hash)
@@ -99,6 +100,8 @@ class RollChromium(Step):
             "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
       if self._options.dry_run:
         args.extend(["--dry-run"])
+      if self._options.work_dir:
+        args.extend(["--work-dir", self._options.work_dir])
       self._side_effect_handler.Call(chromium_roll.ChromiumRoll().Run, args)
 
 

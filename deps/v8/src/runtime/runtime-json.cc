@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

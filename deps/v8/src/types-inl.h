@@ -56,6 +56,13 @@ bool TypeImpl<Config>::NowContains(i::Object* value) {
 
 // static
 template<class T>
+T* ZoneTypeConfig::null_handle() {
+  return NULL;
+}
+
+
+// static
+template<class T>
 T* ZoneTypeConfig::handle(T* type) {
   return type;
 }
@@ -196,6 +203,13 @@ void ZoneTypeConfig::struct_set_value(
 
 // -----------------------------------------------------------------------------
 // HeapTypeConfig
+
+// static
+template<class T>
+i::Handle<T> HeapTypeConfig::null_handle() {
+  return i::Handle<T>();
+}
+
 
 // static
 template<class T>

@@ -1002,17 +1002,21 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&loop);
     __ mov(receiver, Operand(ebp, kArgumentsOffset));  // load arguments
 
-    // Use inline caching to speed up access to arguments.
     if (FLAG_vector_ics) {
-      __ mov(VectorLoadICDescriptor::SlotRegister(),
-             Immediate(Smi::FromInt(0)));
+      // TODO(mvstanton): Vector-based ics need additional infrastructure to
+      // be embedded here. For now, just call the runtime.
+      __ push(receiver);
+      __ push(key);
+      __ CallRuntime(Runtime::kGetProperty, 2);
+    } else {
+      // Use inline caching to speed up access to arguments.
+      Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // It is important that we do not have a test instruction after the
+      // call.  A test instruction after the call is used to indicate that
+      // we have generated an inline version of the keyed load.  In this
+      // case, we know that we are not generating a test instruction next.
     }
-    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // It is important that we do not have a test instruction after the
-    // call.  A test instruction after the call is used to indicate that
-    // we have generated an inline version of the keyed load.  In this
-    // case, we know that we are not generating a test instruction next.
 
     // Push the nth argument.
     __ push(eax);

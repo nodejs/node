@@ -78,11 +78,9 @@ class SnapshotWriter {
                              const i::Serializer& serializer,
                              const i::List<i::byte>& context_snapshot_data,
                              const i::Serializer& context_serializer) const {
-    if (!startup_blob_file_)
-      return;
+    if (!startup_blob_file_) return;
 
-    i::List<i::byte> startup_blob;
-    i::ListSnapshotSink sink(&startup_blob);
+    i::SnapshotByteSink sink;
 
     int spaces[] = {i::NEW_SPACE,           i::OLD_POINTER_SPACE,
                     i::OLD_DATA_SPACE,      i::CODE_SPACE,
@@ -91,18 +89,30 @@ class SnapshotWriter {
 
     i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
-    for (size_t i = 0; i < arraysize(spaces); ++i)
-      sink.PutInt(serializer.CurrentAllocationAddress(spaces[i]), "spaces");
+    for (size_t i = 0; i < arraysize(spaces); ++i) {
+      i::Vector<const uint32_t> chunks =
+          serializer.FinalAllocationChunks(spaces[i]);
+      // For the start-up snapshot, none of the reservations has more than
+      // one chunk (reservation for each space fits onto a single page).
+      CHECK_EQ(1, chunks.length());
+      sink.PutInt(chunks[0], "spaces");
+    }
 
     i::byte* context_bytes = context_snapshot_data.begin();
     sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
-    for (size_t i = 0; i < arraysize(spaces); ++i)
-      sink.PutInt(context_serializer.CurrentAllocationAddress(spaces[i]),
-                  "spaces");
+    for (size_t i = 0; i < arraysize(spaces); ++i) {
+      i::Vector<const uint32_t> chunks =
+          context_serializer.FinalAllocationChunks(spaces[i]);
+      // For the context snapshot, none of the reservations has more than
+      // one chunk (reservation for each space fits onto a single page).
+      CHECK_EQ(1, chunks.length());
+      sink.PutInt(chunks[0], "spaces");
+    }
 
+    const i::List<i::byte>& startup_blob = sink.data();
     size_t written = fwrite(startup_blob.begin(), 1, startup_blob.length(),
                             startup_blob_file_);
-    if (written != (size_t)startup_blob.length()) {
+    if (written != static_cast<size_t>(startup_blob.length())) {
       i::PrintF("Writing snapshot file failed.. Aborting.\n");
       exit(1);
     }
@@ -203,8 +213,12 @@ class SnapshotWriter {
 
   void WriteSizeVar(const i::Serializer& ser, const char* prefix,
                     const char* name, int space) const {
-    fprintf(fp_, "const int Snapshot::%s%s_space_used_ = %d;\n",
-            prefix, name, ser.CurrentAllocationAddress(space));
+    i::Vector<const uint32_t> chunks = ser.FinalAllocationChunks(space);
+    // For the start-up snapshot, none of the reservations has more than
+    // one chunk (total reservation fits into a single page).
+    CHECK_EQ(1, chunks.length());
+    fprintf(fp_, "const int Snapshot::%s%s_space_used_ = %d;\n", prefix, name,
+            chunks[0]);
   }
 
   void WriteSnapshotData(const i::List<i::byte>* data) const {
@@ -399,23 +413,23 @@ int main(int argc, char** argv) {
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of the context.
-    internal_isolate->heap()->CollectAllGarbage(
-        i::Heap::kNoGCFlags, "mksnapshot");
+    internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
     i::Object* raw_context = *v8::Utils::OpenPersistent(context);
     context.Reset();
 
     // This results in a somewhat smaller snapshot, probably because it gets
     // rid of some things that are cached between garbage collections.
-    i::List<i::byte> snapshot_data;
-    i::ListSnapshotSink snapshot_sink(&snapshot_data);
+    i::SnapshotByteSink snapshot_sink;
     i::StartupSerializer ser(internal_isolate, &snapshot_sink);
     ser.SerializeStrongReferences();
 
-    i::List<i::byte> context_data;
-    i::ListSnapshotSink contex_sink(&context_data);
-    i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
+    i::SnapshotByteSink context_sink;
+    i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
     context_ser.Serialize(&raw_context);
     ser.SerializeWeakReferences();
+
+    context_ser.FinalizeAllocation();
+    ser.FinalizeAllocation();
 
     {
       SnapshotWriter writer(argv[1]);
@@ -427,7 +441,8 @@ int main(int argc, char** argv) {
       BZip2Compressor bzip2;
       writer.SetCompressor(&bzip2);
   #endif
-      writer.WriteSnapshot(snapshot_data, ser, context_data, context_ser);
+      writer.WriteSnapshot(snapshot_sink.data(), ser, context_sink.data(),
+                           context_ser);
     }
   }
 

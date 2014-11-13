@@ -44,4 +44,5 @@ assertTrue(%HaveSameMap(o, o2));
 
 Object.defineProperty(o, "foo", { set: setter, configurable: true });
 Object.defineProperty(o2, "foo", { set: setter, configurable: true });
-assertTrue(%HaveSameMap(o, o2));
+// TODO(ishell): this should eventually become assertTrue().
+assertFalse(%HaveSameMap(o, o2));

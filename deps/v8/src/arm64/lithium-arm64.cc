@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/v8.h"
 
 #include "src/arm64/lithium-codegen-arm64.h"
@@ -282,9 +284,9 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  OStringStream os;
+  std::ostringstream os;
   os << hydrogen()->access();
-  stream->Add(os.c_str());
+  stream->Add(os.str().c_str());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }
@@ -2234,11 +2236,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
                            (JSShiftAmountFromHConstant(instr->right()) == 0);
   bool can_deopt = false;
   if ((op == Token::SHR) && right_can_be_zero) {
-    if (FLAG_opt_safe_uint32_operations) {
-      can_deopt = !instr->CheckFlag(HInstruction::kUint32);
-    } else {
-      can_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
-    }
+    can_deopt = !instr->CheckFlag(HInstruction::kUint32);
   }
 
   LInstruction* result;

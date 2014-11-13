@@ -74,6 +74,8 @@ function SetUpGenerators() {
       GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %AddNamedProperty(GeneratorObjectPrototype, "constructor",
       GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %AddNamedProperty(GeneratorObjectPrototype,
+      symbolToStringTag, "Generator", DONT_ENUM | READ_ONLY);
   %InternalSetPrototype(GeneratorFunctionPrototype, $Function.prototype);
   %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
   %AddNamedProperty(GeneratorFunctionPrototype, "constructor",

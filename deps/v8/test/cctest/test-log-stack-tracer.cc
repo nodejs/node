@@ -235,9 +235,9 @@ TEST(PureJSStackTrace) {
 
 static void CFuncDoTrace(byte dummy_parameter) {
   Address fp;
-#ifdef __GNUC__
+#if V8_HAS_BUILTIN_FRAME_ADDRESS
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
-#elif defined _MSC_VER
+#elif V8_CC_MSVC
   // Approximate a frame pointer address. We compile without base pointers,
   // so we can't trust ebp/rbp.
   fp = &dummy_parameter - 2 * sizeof(void*);  // NOLINT

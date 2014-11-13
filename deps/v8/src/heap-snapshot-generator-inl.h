@@ -12,7 +12,7 @@ namespace internal {
 
 
 HeapEntry* HeapGraphEdge::from() const {
-  return &snapshot()->entries()[from_index_];
+  return &snapshot()->entries()[from_index()];
 }
 
 

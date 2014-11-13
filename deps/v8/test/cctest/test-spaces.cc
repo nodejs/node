@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/base/platform/platform.h"
 #include "src/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -212,7 +213,12 @@ TEST(Regress3540) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
   const size_t code_range_size = 4 * MB;
-  if (!code_range->SetUp(code_range_size)) return;
+  if (!code_range->SetUp(
+          code_range_size +
+          RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
+                  MemoryChunk::kAlignment))) {
+    return;
+  }
   Address address;
   size_t size;
   address = code_range->AllocateRawMemory(code_range_size - MB,
@@ -449,4 +455,56 @@ TEST(SizeOfFirstPageIsLargeEnough) {
 
   // No large objects required to perform the above steps.
   CHECK(isolate->heap()->lo_space()->IsEmpty());
+}
+
+
+static inline void FillCurrentPage(v8::internal::NewSpace* space) {
+  int new_linear_size = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
+  if (new_linear_size == 0) return;
+  v8::internal::AllocationResult allocation =
+      space->AllocateRaw(new_linear_size);
+  v8::internal::FreeListNode* node =
+      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
+  node->set_size(space->heap(), new_linear_size);
+}
+
+
+UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
+  FLAG_target_semi_space_size = 2;
+  if (FLAG_optimize_for_size) return;
+
+  v8::Isolate* isolate = v8::Isolate::New();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+    NewSpace* new_space = i_isolate->heap()->new_space();
+
+    // This test doesn't work if we start with a non-default new space
+    // configuration.
+    if (new_space->InitialTotalCapacity() == Page::kPageSize) {
+      CHECK(new_space->CommittedMemory() == new_space->InitialTotalCapacity());
+
+      // Fill up the first (and only) page of the semi space.
+      FillCurrentPage(new_space);
+
+      // Try to allocate out of the new space. A new page should be added and
+      // the
+      // allocation should succeed.
+      v8::internal::AllocationResult allocation = new_space->AllocateRaw(80);
+      CHECK(!allocation.IsRetry());
+      CHECK(new_space->CommittedMemory() == 2 * Page::kPageSize);
+
+      // Turn the allocation into a proper object so isolate teardown won't
+      // crash.
+      v8::internal::FreeListNode* node =
+          v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
+      node->set_size(new_space->heap(), 80);
+    }
+  }
+  isolate->Dispose();
 }

@@ -105,6 +105,12 @@ function SetForEach(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [f]);
   }
+  var needs_wrapper = false;
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
+  }
 
   var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
   var key;
@@ -113,7 +119,8 @@ function SetForEach(f, receiver) {
   while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
-    %_CallFunction(receiver, key, key, this, f);
+    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    %_CallFunction(new_receiver, key, key, this, f);
   }
 }
 
@@ -126,6 +133,8 @@ function SetUpSet() {
   %SetCode($Set, SetConstructor);
   %FunctionSetPrototype($Set, new $Object());
   %AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
+  %AddNamedProperty(
+      $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
 
   %FunctionSetLength(SetForEach, 1);
 
@@ -249,13 +258,20 @@ function MapForEach(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [f]);
   }
+  var needs_wrapper = false;
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
+  }
 
   var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    %_CallFunction(receiver, value_array[1], value_array[0], this, f);
+    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    %_CallFunction(new_receiver, value_array[1], value_array[0], this, f);
   }
 }
 
@@ -268,6 +284,8 @@ function SetUpMap() {
   %SetCode($Map, MapConstructor);
   %FunctionSetPrototype($Map, new $Object());
   %AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+  %AddNamedProperty(
+      $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
 
   %FunctionSetLength(MapForEach, 1);
 

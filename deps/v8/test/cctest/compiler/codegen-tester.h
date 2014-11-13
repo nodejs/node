@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/compiler/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/simulator.h"
@@ -23,7 +24,9 @@ class MachineAssemblerTester : public HandleAndZoneScope,
  public:
   MachineAssemblerTester(MachineType return_type, MachineType p0,
                          MachineType p1, MachineType p2, MachineType p3,
-                         MachineType p4)
+                         MachineType p4,
+                         MachineOperatorBuilder::Flags flags =
+                             MachineOperatorBuilder::Flag::kNoFlags)
       : HandleAndZoneScope(),
         CallHelper(
             main_isolate(),
@@ -31,7 +34,7 @@ class MachineAssemblerTester : public HandleAndZoneScope,
         MachineAssembler(
             new (main_zone()) Graph(main_zone()),
             MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4),
-            kMachPtr) {}
+            kMachPtr, flags) {}
 
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return this->Load(rep, this->PointerConstant(address),
@@ -66,7 +69,7 @@ class MachineAssemblerTester : public HandleAndZoneScope,
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       CompilationInfo info(graph->zone()->isolate(), graph->zone());
-      Linkage linkage(&info, call_descriptor);
+      Linkage linkage(graph->zone(), call_descriptor);
       Pipeline pipeline(&info);
       code_ = pipeline.GenerateCodeForMachineGraph(&linkage, graph, schedule);
     }
@@ -89,8 +92,8 @@ class RawMachineAssemblerTester
                             MachineType p3 = kMachNone,
                             MachineType p4 = kMachNone)
       : MachineAssemblerTester<RawMachineAssembler>(
-            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
-            p4) {}
+            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3, p4,
+            InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   template <typename Ci, typename Fn>
   void Run(const Ci& ci, const Fn& fn) {

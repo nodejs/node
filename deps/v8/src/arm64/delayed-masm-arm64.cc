@@ -16,8 +16,8 @@ namespace internal {
 
 
 void DelayedMasm::StackSlotMove(LOperand* src, LOperand* dst) {
-  DCHECK(src->IsStackSlot());
-  DCHECK(dst->IsStackSlot());
+  DCHECK((src->IsStackSlot() && dst->IsStackSlot()) ||
+         (src->IsDoubleStackSlot() && dst->IsDoubleStackSlot()));
   MemOperand src_operand = cgen_->ToMemOperand(src);
   MemOperand dst_operand = cgen_->ToMemOperand(dst);
   if (pending_ == kStackSlotMove) {

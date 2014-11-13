@@ -782,11 +782,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // a3: argc
     // s0: argv, i.e. points to first arg
     Label loop, entry;
-    // TODO(plind): At least on simulator, argc in a3 is an int32_t with junk
-    //    in upper bits. Should fix the root cause, rather than use below
-    //    workaround to clear upper bits.
-    __ dsll32(a3, a3, 0);  // int32_t -> int64_t.
-    __ dsrl32(a3, a3, 0);
     __ dsll(a4, a3, kPointerSizeLog2);
     __ daddu(a6, s0, a4);
     __ b(&entry);
@@ -1044,7 +1039,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ Uld(a1, MemOperand(v0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ ld(a1, MemOperand(v0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]

@@ -30,8 +30,9 @@ namespace internal {
 // The full format is:
 // [0] Undefined or back pointer map
 // [1] Smi(0) or fixed array of prototype transitions
-// [2] First transition
-// [length() - kTransitionSize] Last transition
+// [2] Number of transitions
+// [3] First transition
+// [3 + number of transitions * kTransitionSize]: start of slack
 class TransitionArray: public FixedArray {
  public:
   // Accessors for fetching instance transition at transition number.
@@ -48,6 +49,7 @@ class TransitionArray: public FixedArray {
   inline void SetTarget(int transition_number, Map* target);
 
   inline PropertyDetails GetTargetDetails(int transition_number);
+  inline Object* GetTargetValue(int transition_number);
 
   inline bool HasElementsTransition();
 
@@ -66,10 +68,21 @@ class TransitionArray: public FixedArray {
   // Returns the number of transitions in the array.
   int number_of_transitions() {
     if (IsSimpleTransition()) return 1;
-    int len = length();
-    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kTransitionSize;
+    if (length() <= kFirstIndex) return 0;
+    return Smi::cast(get(kTransitionLengthIndex))->value();
   }
 
+  int number_of_transitions_storage() {
+    if (IsSimpleTransition()) return 1;
+    if (length() <= kFirstIndex) return 0;
+    return (length() - kFirstIndex) / kTransitionSize;
+  }
+
+  int NumberOfSlackTransitions() {
+    return number_of_transitions_storage() - number_of_transitions();
+  }
+
+  inline void SetNumberOfTransitions(int number_of_transitions);
   inline int number_of_entries() { return number_of_transitions(); }
 
   // Creates a FullTransitionArray from a SimpleTransitionArray in
@@ -77,21 +90,30 @@ class TransitionArray: public FixedArray {
   static Handle<TransitionArray> ExtendToFullTransitionArray(
       Handle<Map> containing_map);
 
-  // Create a transition array, copying from the owning map if it already has
-  // one, otherwise creating a new one according to flag.
+  // Return a transition array, using the array from the owning map if it
+  // already has one (copying into a larger array if necessary), otherwise
+  // creating a new one according to flag.
   // TODO(verwaest): This should not cause an existing transition to be
   // overwritten.
-  static Handle<TransitionArray> CopyInsert(Handle<Map> map,
-                                            Handle<Name> name,
-                                            Handle<Map> target,
-                                            SimpleTransitionFlag flag);
+  static Handle<TransitionArray> Insert(Handle<Map> map, Handle<Name> name,
+                                        Handle<Map> target,
+                                        SimpleTransitionFlag flag);
+  // Search a  transition for a given type, property name and attributes.
+  int Search(PropertyType type, Name* name, PropertyAttributes attributes,
+             int* out_insertion_index = NULL);
 
-  // Search a transition for a given property name.
-  inline int Search(Name* name);
+  // Search a non-property transition (like elements kind, observe or frozen
+  // transitions).
+  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = NULL) {
+    return SearchName(symbol, out_insertion_index);
+  }
+
+  static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
   // Allocates a TransitionArray.
-  static Handle<TransitionArray> Allocate(
-      Isolate* isolate, int number_of_transitions);
+  static Handle<TransitionArray> Allocate(Isolate* isolate,
+                                          int number_of_transitions,
+                                          int slack = 0);
 
   bool IsSimpleTransition() {
     return length() == kSimpleTransitionSize &&
@@ -119,7 +141,8 @@ class TransitionArray: public FixedArray {
 
   // Layout for full transition arrays.
   static const int kPrototypeTransitionsIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kTransitionLengthIndex = 2;
+  static const int kFirstIndex = 3;
 
   // Layout for simple transition arrays.
   static const int kSimpleTransitionTarget = 1;
@@ -132,6 +155,8 @@ class TransitionArray: public FixedArray {
   // Layout for the full transition array header.
   static const int kPrototypeTransitionsOffset = kBackPointerStorageOffset +
                                                  kPointerSize;
+  static const int kTransitionLengthOffset =
+      kPrototypeTransitionsOffset + kPointerSize;
 
   // Layout of map transition entries in full transition arrays.
   static const int kTransitionKey = 0;
@@ -139,19 +164,32 @@ class TransitionArray: public FixedArray {
   static const int kTransitionSize = 2;
 
 #ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   // Print all the transitions.
-  void PrintTransitions(OStream& os);  // NOLINT
+  void PrintTransitions(std::ostream& os, bool print_header = true);  // NOLINT
 #endif
 
 #ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
   bool IsConsistentWithBackPointers(Map* current_map);
   bool IsEqualTo(TransitionArray* other);
+
+  // Returns true for a non-property transitions like elements kind, observed
+  // or frozen transitions.
+  static inline bool IsSpecialTransition(Name* name);
 #endif
 
   // The maximum number of transitions we want in a transition array (should
   // fit in a page).
   static const int kMaxNumberOfTransitions = 1024 + 512;
+
+  // Returns the fixed array length required to hold number_of_transitions
+  // transitions.
+  static int LengthFor(int number_of_transitions) {
+    return ToKeyIndex(number_of_transitions);
+  }
 
  private:
   // Conversion from transition number to array indices.
@@ -175,6 +213,31 @@ class TransitionArray: public FixedArray {
                                          Handle<Name> name,
                                          Handle<Map> target,
                                          SimpleTransitionFlag flag);
+
+  // Search a first transition for a given property name.
+  inline int SearchName(Name* name, int* out_insertion_index = NULL);
+  int SearchDetails(int transition, PropertyType type,
+                    PropertyAttributes attributes, int* out_insertion_index);
+
+  // Compares two tuples <key, is_data_property, attributes>, returns -1 if
+  // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
+  static inline int CompareKeys(Name* key1, uint32_t hash1,
+                                bool is_data_property1,
+                                PropertyAttributes attributes1, Name* key2,
+                                uint32_t hash2, bool is_data_property2,
+                                PropertyAttributes attributes2);
+
+  // Compares keys, returns -1 if key1 is "less" than key2,
+  // 0 if key1 equal to key2 and 1 otherwise.
+  static inline int CompareNames(Name* key1, uint32_t hash1, Name* key2,
+                                 uint32_t hash2);
+
+  // Compares two details, returns -1 if details1 is "less" than details2,
+  // 0 if details1 equal to details2 and 1 otherwise.
+  static inline int CompareDetails(bool is_data_property1,
+                                   PropertyAttributes attributes1,
+                                   bool is_data_property2,
+                                   PropertyAttributes attributes2);
 
   inline void NoIncrementalWriteBarrierSet(int transition_number,
                                            Name* key,

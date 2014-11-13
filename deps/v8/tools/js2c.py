@@ -498,9 +498,16 @@ def CompressMaybe(sources, compression_type):
 
 
 def PutInt(blob_file, value):
-  assert(value >= 0 and value < (1 << 20))
-  size = 1 if (value < 1 << 6) else (2 if (value < 1 << 14) else 3)
-  value_with_length = (value << 2) | size
+  assert(value >= 0 and value < (1 << 28))
+  if (value < 1 << 6):
+    size = 1
+  elif (value < 1 << 14):
+    size = 2
+  elif (value < 1 << 22):
+    size = 3
+  else:
+    size = 4
+  value_with_length = (value << 2) | (size - 1)
 
   byte_sequence = bytearray()
   for i in xrange(size):

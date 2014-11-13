@@ -24,6 +24,12 @@ class ZoneVector : public std::vector<T, zone_allocator<T> > {
       : std::vector<T, zone_allocator<T> >(zone_allocator<T>(zone)) {}
 
   // Constructs a new vector and fills it with {size} elements, each
+  // constructed via the default constructor.
+  ZoneVector(int size, Zone* zone)
+      : std::vector<T, zone_allocator<T> >(size, T(), zone_allocator<T>(zone)) {
+  }
+
+  // Constructs a new vector and fills it with {size} elements, each
   // having the value {def}.
   ZoneVector(int size, T def, Zone* zone)
       : std::vector<T, zone_allocator<T> >(size, def, zone_allocator<T>(zone)) {

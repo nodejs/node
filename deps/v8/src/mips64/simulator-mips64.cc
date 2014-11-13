@@ -2085,8 +2085,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           // regs.
           // TODO(plind) - make the 32-bit MULT ops conform to spec regarding
           //   checking of 32-bit input values, and un-define operations of HW.
-          *i64hilo = static_cast<int64_t>((int32_t)rs) *
-              static_cast<int64_t>((int32_t)rt);
+          *i64hilo = rs * rt;
           break;
         case MULTU:
           *u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);

@@ -150,6 +150,7 @@ void Zone::DeleteAll() {
     position_ = limit_ = 0;
   }
 
+  allocation_size_ = 0;
   // Update the head segment to be the kept segment (if any).
   segment_head_ = keep;
 }

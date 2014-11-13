@@ -18,6 +18,9 @@ Statistical profiling result from v8.log, (3 ticks, 0 unaccounted, 0 excluded).
       0    0.0%    0.0%  GC
       0    0.0%          Shared libraries
 
+ [C++ entry points]:
+   ticks    cpp   total   name
+
  [Bottom up (heavy) profile]:
   Note: percentage shows a share of a particular caller in the total
   amount of its parent calls.

@@ -34,8 +34,8 @@ class GenericGraph : public GenericGraphBase {
   explicit GenericGraph(Zone* zone)
       : GenericGraphBase(zone), start_(NULL), end_(NULL) {}
 
-  V* start() { return start_; }
-  V* end() { return end_; }
+  V* start() const { return start_; }
+  V* end() const { return end_; }
 
   void SetStart(V* start) { start_ = start; }
   void SetEnd(V* end) { end_ = end; }

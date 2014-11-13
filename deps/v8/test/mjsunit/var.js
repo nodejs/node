@@ -35,3 +35,22 @@ assertEquals(87, y);
 assertTrue(!z && typeof z == 'undefined');
 if (false) { var z; }
 assertTrue(!z && typeof z == 'undefined');
+
+assertThrows("var \u2E2F;", SyntaxError);
+assertThrows("var \\u2E2F;", SyntaxError);
+
+assertDoesNotThrow("var \u2118;");
+assertDoesNotThrow("var \\u2118;");
+assertDoesNotThrow("var \u212E;");
+assertDoesNotThrow("var \\u212E;");
+assertDoesNotThrow("var \u309B;");
+assertDoesNotThrow("var \\u309B;");
+assertDoesNotThrow("var \u309C;");
+assertDoesNotThrow("var \\u309C;");
+
+assertDoesNotThrow("var $\u00B7;");
+assertDoesNotThrow("var $\u0387;");
+assertDoesNotThrow("var $\u1369;");
+assertDoesNotThrow("var $\u1370;");
+assertDoesNotThrow("var $\u1371;");
+assertDoesNotThrow("var $\u19DA;");

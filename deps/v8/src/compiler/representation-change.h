@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_REPRESENTATION_CHANGE_H_
 #define V8_COMPILER_REPRESENTATION_CHANGE_H_
 
+#include <sstream>
+
 #include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -155,7 +157,7 @@ class RepresentationChanger {
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     } else if (output_type & kRepFloat64) {
-      op = machine()->ChangeFloat32ToFloat64();
+      op = machine()->TruncateFloat64ToFloat32();
     } else {
       return TypeError(node, output_type, kRepFloat32);
     }
@@ -212,6 +214,37 @@ class RepresentationChanger {
       int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
       return jsgraph()->Int32Constant(iv);
     }
+  }
+
+  Node* GetTruncatedWord32For(Node* node, MachineTypeUnion output_type) {
+    // Eagerly fold truncations for constants.
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return node;  // No change necessary.
+      case IrOpcode::kFloat32Constant:
+        return jsgraph()->Int32Constant(
+            DoubleToInt32(OpParameter<float>(node)));
+      case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat64Constant:
+        return jsgraph()->Int32Constant(
+            DoubleToInt32(OpParameter<double>(node)));
+      default:
+        break;
+    }
+    // Select the correct X -> Word32 truncation operator.
+    const Operator* op = NULL;
+    if (output_type & kRepFloat64) {
+      op = machine()->TruncateFloat64ToInt32();
+    } else if (output_type & kRepFloat32) {
+      node = InsertChangeFloat32ToFloat64(node);
+      op = machine()->TruncateFloat64ToInt32();
+    } else if (output_type & kRepTagged) {
+      node = InsertChangeTaggedToFloat64(node);
+      op = machine()->TruncateFloat64ToInt32();
+    } else {
+      return TypeError(node, output_type, kRepWord32);
+    }
+    return jsgraph()->graph()->NewNode(op, node);
   }
 
   Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type,
@@ -328,9 +361,9 @@ class RepresentationChanger {
       case IrOpcode::kNumberMultiply:
         return machine()->Int32Mul();
       case IrOpcode::kNumberDivide:
-        return machine()->Int32UDiv();
+        return machine()->Uint32Div();
       case IrOpcode::kNumberModulus:
-        return machine()->Int32UMod();
+        return machine()->Uint32Mod();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:
@@ -399,23 +432,28 @@ class RepresentationChanger {
                   MachineTypeUnion use) {
     type_error_ = true;
     if (!testing_type_errors_) {
-      OStringStream out_str;
+      std::ostringstream out_str;
       out_str << static_cast<MachineType>(output_type);
 
-      OStringStream use_str;
+      std::ostringstream use_str;
       use_str << static_cast<MachineType>(use);
 
       V8_Fatal(__FILE__, __LINE__,
                "RepresentationChangerError: node #%d:%s of "
                "%s cannot be changed to %s",
-               node->id(), node->op()->mnemonic(), out_str.c_str(),
-               use_str.c_str());
+               node->id(), node->op()->mnemonic(), out_str.str().c_str(),
+               use_str.str().c_str());
     }
     return node;
   }
 
   Node* InsertChangeFloat32ToFloat64(Node* node) {
     return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
+                                       node);
+  }
+
+  Node* InsertChangeTaggedToFloat64(Node* node) {
+    return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                                        node);
   }
 

@@ -117,6 +117,26 @@ TEST(DisasmX64) {
   __ imulq(rdx, rcx);
   __ shld(rdx, rcx);
   __ shrd(rdx, rcx);
+  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(1));
+  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(6));
+  __ shlq(Operand(r15, 0), Immediate(1));
+  __ shlq(Operand(r15, 0), Immediate(6));
+  __ shlq_cl(Operand(r15, 0));
+  __ shlq_cl(Operand(r15, 0));
+  __ shlq_cl(Operand(rdi, rax, times_4, 100));
+  __ shlq_cl(Operand(rdi, rax, times_4, 100));
+  __ shlq(rdx, Immediate(1));
+  __ shlq(rdx, Immediate(6));
+  __ shll(Operand(rdi, rax, times_4, 100), Immediate(1));
+  __ shll(Operand(rdi, rax, times_4, 100), Immediate(6));
+  __ shll(Operand(r15, 0), Immediate(1));
+  __ shll(Operand(r15, 0), Immediate(6));
+  __ shll_cl(Operand(r15, 0));
+  __ shll_cl(Operand(r15, 0));
+  __ shll_cl(Operand(rdi, rax, times_4, 100));
+  __ shll_cl(Operand(rdi, rax, times_4, 100));
+  __ shll(rdx, Immediate(1));
+  __ shll(rdx, Immediate(6));
   __ bts(Operand(rdx, 0), rcx);
   __ bts(Operand(rbx, rcx, times_4, 0), rcx);
   __ nop();
@@ -159,15 +179,22 @@ TEST(DisasmX64) {
 
   __ nop();
   __ idivq(rdx);
-  __ mul(rdx);
+  __ mull(rdx);
+  __ mulq(rdx);
   __ negq(rdx);
   __ notq(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ imulq(rdx, rcx, Immediate(12));
   __ imulq(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(12));
   __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
+  __ imull(r15, rcx, Immediate(12));
+  __ imull(r15, rcx, Immediate(1000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(12));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));
@@ -354,6 +381,8 @@ TEST(DisasmX64) {
     // Move operation
     __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
     __ cvttss2si(rdx, xmm1);
+    __ cvtsd2ss(xmm0, xmm1);
+    __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
 
     // logic operation
@@ -380,6 +409,8 @@ TEST(DisasmX64) {
     __ cvttsd2si(rdx, xmm1);
     __ cvttsd2siq(rdx, xmm1);
     __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
+    __ cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ cvtqsi2sd(xmm1, rdx);
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.
@@ -387,12 +418,23 @@ TEST(DisasmX64) {
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
     __ addsd(xmm1, xmm0);
+    __ addsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ mulsd(xmm1, xmm0);
+    __ mulsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ subsd(xmm1, xmm0);
+    __ subsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divsd(xmm1, xmm0);
+    __ divsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+
+    __ pslld(xmm0, 6);
+    __ psrld(xmm0, 6);
+    __ psllq(xmm0, 6);
+    __ psrlq(xmm0, 6);
+
+    __ pcmpeqd(xmm1, xmm0);
   }
 
   // cmov.

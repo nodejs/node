@@ -9,6 +9,7 @@
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/unique.h"
 
@@ -19,7 +20,7 @@ namespace compiler {
 JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph)
     : info_(info),
       jsgraph_(jsgraph),
-      linkage_(new (jsgraph->zone()) Linkage(info)) {}
+      linkage_(new (jsgraph->zone()) Linkage(jsgraph->zone(), info)) {}
 
 
 void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {
@@ -198,8 +199,8 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                int nargs) {
   Callable callable =
       CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(callable.descriptor(), nargs);
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
+      callable.descriptor(), nargs, FlagsForNode(node));
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
   Handle<JSFunction> function(
@@ -222,10 +223,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
       linkage()->GetRuntimeCallDescriptor(f, nargs, properties);
   Node* ref = ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = Int32Constant(nargs);
-  if (!centrystub_constant_.is_set()) {
-    centrystub_constant_.set(CodeConstant(CEntryStub(isolate(), 1).GetCode()));
-  }
-  PatchInsertInput(node, 0, centrystub_constant_.get());
+  PatchInsertInput(node, 0, jsgraph()->CEntryStubConstant());
   PatchInsertInput(node, nargs + 1, ref);
   PatchInsertInput(node, nargs + 2, arity);
   PatchOperator(node, common()->Call(desc));
@@ -260,7 +258,7 @@ void JSGenericLowering::LowerJSToBoolean(Node* node) {
 
 void JSGenericLowering::LowerJSToNumber(Node* node) {
   Callable callable = CodeFactory::ToNumber(isolate());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags);
+  ReplaceWithStubCall(node, callable, FlagsForNode(node));
 }
 
 
@@ -275,15 +273,25 @@ void JSGenericLowering::LowerJSToObject(Node* node) {
 
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
-  Callable callable = CodeFactory::KeyedLoadIC(isolate());
+  const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
+  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  if (FLAG_vector_ics) {
+    PatchInsertInput(node, 2, jsgraph()->SmiConstant(p.feedback().index()));
+    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+  }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
-  LoadNamedParameters p = OpParameter<LoadNamedParameters>(node);
-  Callable callable = CodeFactory::LoadIC(isolate(), p.contextual_mode);
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
+  const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
+  Callable callable =
+      CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode());
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
+  if (FLAG_vector_ics) {
+    PatchInsertInput(node, 2, jsgraph()->SmiConstant(p.feedback().index()));
+    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+  }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
@@ -296,9 +304,9 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  StoreNamedParameters params = OpParameter<StoreNamedParameters>(node);
-  Callable callable = CodeFactory::StoreIC(isolate(), params.strict_mode);
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(params.name));
+  const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
+  Callable callable = CodeFactory::StoreIC(isolate(), p.strict_mode());
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
@@ -321,7 +329,8 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
       InstanceofStub::kArgsInRegisters);
   InstanceofStub stub(isolate(), flags);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, 0);
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(d, 0, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -329,36 +338,35 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
 
 
 void JSGenericLowering::LowerJSLoadContext(Node* node) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
-  // TODO(mstarzinger): Use simplified operators instead of machine operators
-  // here so that load/store optimization can be applied afterwards.
-  for (int i = 0; i < access.depth(); ++i) {
+  const ContextAccess& access = ContextAccessOf(node->op());
+  for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
                machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetEffectInput(node)));
+               NodeProperties::GetEffectInput(node), graph()->start()));
   }
-  node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
+  node->ReplaceInput(
+      1, Int32Constant(Context::SlotOffset(static_cast<int>(access.index()))));
+  node->AppendInput(zone(), graph()->start());
   PatchOperator(node, machine()->Load(kMachAnyTagged));
 }
 
 
 void JSGenericLowering::LowerJSStoreContext(Node* node) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
-  // TODO(mstarzinger): Use simplified operators instead of machine operators
-  // here so that load/store optimization can be applied afterwards.
-  for (int i = 0; i < access.depth(); ++i) {
+  const ContextAccess& access = ContextAccessOf(node->op());
+  for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
                machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetEffectInput(node)));
+               NodeProperties::GetEffectInput(node), graph()->start()));
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
-  node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
+  node->ReplaceInput(
+      1, Int32Constant(Context::SlotOffset(static_cast<int>(access.index()))));
   PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
                                                            kFullWriteBarrier)));
 }
@@ -380,12 +388,54 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
 }
 
 
+bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
+  // Lower to a direct call to a constant JSFunction if legal.
+  const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  int arg_count = static_cast<int>(p.arity() - 2);
+
+  // Check the function is a constant and is really a JSFunction.
+  HeapObjectMatcher<Object> function_const(node->InputAt(0));
+  if (!function_const.HasValue()) return false;  // not a constant.
+  Handle<Object> func = function_const.Value().handle();
+  if (!func->IsJSFunction()) return false;  // not a function.
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func);
+  if (arg_count != function->shared()->formal_parameter_count()) return false;
+
+  // Check the receiver doesn't need to be wrapped.
+  Node* receiver = node->InputAt(1);
+  if (!NodeProperties::IsTyped(receiver)) return false;
+  Type* ok_receiver = Type::Union(Type::Undefined(), Type::Receiver(), zone());
+  if (!NodeProperties::GetBounds(receiver).upper->Is(ok_receiver)) return false;
+
+  int index = NodeProperties::FirstContextIndex(node);
+
+  // TODO(titzer): total hack to share function context constants.
+  // Remove this when the JSGraph canonicalizes heap constants.
+  Node* context = node->InputAt(index);
+  HeapObjectMatcher<Context> context_const(context);
+  if (!context_const.HasValue() ||
+      *(context_const.Value().handle()) != function->context()) {
+    context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
+  }
+  node->ReplaceInput(index, context);
+  CallDescriptor* desc = linkage()->GetJSCallDescriptor(
+      1 + arg_count, jsgraph()->zone(), FlagsForNode(node));
+  PatchOperator(node, common()->Call(desc));
+  return true;
+}
+
+
 void JSGenericLowering::LowerJSCallFunction(Node* node) {
-  CallParameters p = OpParameter<CallParameters>(node);
-  CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
+  // Fast case: call function directly.
+  if (TryLowerDirectJSCall(node)) return;
+
+  // General case: CallFunctionStub.
+  const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  int arg_count = static_cast<int>(p.arity() - 2);
+  CallFunctionStub stub(isolate(), arg_count, p.flags());
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, p.arity - 1, FlagsForNode(node));
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
+      d, static_cast<int>(p.arity() - 1), FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -393,9 +443,8 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
 
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {
-  Runtime::FunctionId function = OpParameter<Runtime::FunctionId>(node);
-  int arity = OperatorProperties::GetValueInputCount(node->op());
-  ReplaceWithRuntimeCall(node, function, arity);
+  const CallRuntimeParameters& p = CallRuntimeParametersOf(node->op());
+  ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
 }  // namespace compiler

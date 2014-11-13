@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/frames.h"
+
+#include <sstream>
+
 #include "src/v8.h"
 
 #include "src/ast.h"
@@ -1288,12 +1292,12 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
   // Print details about the function.
   if (FLAG_max_stack_trace_source_length != 0 && code != NULL) {
-    OStringStream os;
+    std::ostringstream os;
     SharedFunctionInfo* shared = function->shared();
     os << "--------- s o u r c e   c o d e ---------\n"
        << SourceCodeOf(shared, FLAG_max_stack_trace_source_length)
        << "\n-----------------------------------------\n";
-    accumulator->Add(os.c_str());
+    accumulator->Add(os.str().c_str());
   }
 
   accumulator->Add("}\n\n");

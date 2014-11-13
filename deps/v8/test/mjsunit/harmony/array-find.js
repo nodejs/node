@@ -237,6 +237,24 @@ assertEquals(22, a.find(function(val) { return 22 === val; }), undefined);
     return this.elementAt(key) === val;
   }, thisArg);
   assertEquals("b", found);
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  a = [];
+  [1, 2].find(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  [1, 2].find(function() { a.push(this) }, {});
+  assertEquals(a[0], a[1]);
+
+  // In strict mode primitive values should not be coerced to an object.
+  a = [];
+  [1, 2].find(function() { 'use strict'; a.push(this); }, "");
+  assertEquals("", a[0]);
+  assertEquals(a[0], a[1]);
+
 })();
 
 // Test exceptions

@@ -463,8 +463,8 @@ Handle<Code> LChunk::Codegen() {
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
                      assembler.positions_recorder()));
-  // TODO(yangguo) remove this once the code serializer handles code stubs.
-  if (info()->will_serialize()) assembler.enable_serializer();
+  // Code serializer only takes unoptimized code.
+  DCHECK(!info()->will_serialize());
   LCodeGen generator(this, &assembler, info());
 
   MarkEmptyBlocks();

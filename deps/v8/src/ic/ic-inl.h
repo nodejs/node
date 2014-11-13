@@ -208,20 +208,11 @@ Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
 }
 
 
-IC::State CallIC::FeedbackToState(Handle<TypeFeedbackVector> vector,
-                                  Handle<Smi> slot) const {
-  IC::State state = UNINITIALIZED;
-  Object* feedback = vector->get(slot->value());
-
-  if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate())) {
-    state = GENERIC;
-  } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
-    state = MONOMORPHIC;
-  } else {
-    CHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()));
-  }
-
-  return state;
+inline Code* IC::get_host() {
+  return isolate()
+      ->inner_pointer_to_code_cache()
+      ->GetCacheEntry(address())
+      ->code;
 }
 }
 }  // namespace v8::internal

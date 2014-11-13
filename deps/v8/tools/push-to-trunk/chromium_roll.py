@@ -24,7 +24,6 @@ class DetectLastPush(Step):
   def RunStep(self):
     self["last_push"] = self._options.last_push or self.FindLastTrunkPush(
         branch="origin/candidates", include_patches=True)
-    self["trunk_revision"] = self.GetCommitPositionNumber(self["last_push"])
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
 
@@ -56,7 +55,7 @@ class UpdateChromiumCheckout(Step):
     # Update v8 remotes.
     self.GitFetchOrigin()
 
-    self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"],
+    self.GitCreateBranch("v8-roll-%s" % self["last_push"],
                          cwd=self._options.chromium)
 
 
@@ -66,9 +65,9 @@ class UploadCL(Step):
   def RunStep(self):
     # Patch DEPS file.
     if self.Command(
-        "roll-dep", "v8 %s" % self["trunk_revision"],
+        "roll-dep", "v8 %s" % self["last_push"],
         cwd=self._options.chromium) is None:
-      self.Die("Failed to create deps for %s" % self["trunk_revision"])
+      self.Die("Failed to create deps for %s" % self["last_push"])
 
     commit_title = "Update V8 to %s." % self["push_title"].lower()
     sheriff = ""
@@ -87,7 +86,7 @@ class UploadCL(Step):
       print "CL uploaded."
     else:
       self.GitCheckout("master", cwd=self._options.chromium)
-      self.GitDeleteBranch("v8-roll-%s" % self["trunk_revision"],
+      self.GitDeleteBranch("v8-roll-%s" % self["last_push"],
                            cwd=self._options.chromium)
       print "Dry run - don't upload."
 
@@ -105,9 +104,9 @@ class CleanUp(Step):
   MESSAGE = "Done!"
 
   def RunStep(self):
-    print("Congratulations, you have successfully rolled the push r%s it into "
+    print("Congratulations, you have successfully rolled %s into "
           "Chromium. Please don't forget to update the v8rel spreadsheet."
-          % self["trunk_revision"])
+          % self["last_push"])
 
     # Clean up all temporary files.
     Command("rm", "-f %s*" % self._config["PERSISTFILE_BASENAME"])

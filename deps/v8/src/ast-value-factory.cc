@@ -117,14 +117,15 @@ bool AstRawString::IsOneByteEqualTo(const char* data) const {
 
 
 bool AstRawString::Compare(void* a, void* b) {
-  AstRawString* string1 = reinterpret_cast<AstRawString*>(a);
-  AstRawString* string2 = reinterpret_cast<AstRawString*>(b);
-  if (string1->is_one_byte_ != string2->is_one_byte_) return false;
-  if (string1->hash_ != string2->hash_) return false;
-  int length = string1->literal_bytes_.length();
-  if (string2->literal_bytes_.length() != length) return false;
-  return memcmp(string1->literal_bytes_.start(),
-                string2->literal_bytes_.start(), length) == 0;
+  return *static_cast<AstRawString*>(a) == *static_cast<AstRawString*>(b);
+}
+
+bool AstRawString::operator==(const AstRawString& rhs) const {
+  if (is_one_byte_ != rhs.is_one_byte_) return false;
+  if (hash_ != rhs.hash_) return false;
+  int len = literal_bytes_.length();
+  if (rhs.literal_bytes_.length() != len) return false;
+  return memcmp(literal_bytes_.start(), rhs.literal_bytes_.start(), len) == 0;
 }
 
 
@@ -158,9 +159,6 @@ bool AstValue::BooleanValue() const {
       return DoubleToBoolean(number_);
     case SMI:
       return smi_ != 0;
-    case STRING_ARRAY:
-      UNREACHABLE();
-      break;
     case BOOLEAN:
       return bool_;
     case NULL_TYPE:
@@ -201,22 +199,6 @@ void AstValue::Internalize(Isolate* isolate) {
         value_ = isolate->factory()->false_value();
       }
       break;
-    case STRING_ARRAY: {
-      DCHECK(strings_ != NULL);
-      Factory* factory = isolate->factory();
-      int len = strings_->length();
-      Handle<FixedArray> elements = factory->NewFixedArray(len, TENURED);
-      for (int i = 0; i < len; i++) {
-        const AstRawString* string = (*strings_)[i];
-        Handle<Object> element = string->string();
-        // Strings are already internalized.
-        DCHECK(!element.is_null());
-        elements->set(i, *element);
-      }
-      value_ =
-          factory->NewJSArrayWithElements(elements, FAST_ELEMENTS, TENURED);
-      break;
-    }
     case NULL_TYPE:
       value_ = isolate->factory()->null_value();
       break;
@@ -230,7 +212,7 @@ void AstValue::Internalize(Isolate* isolate) {
 }
 
 
-const AstRawString* AstValueFactory::GetOneByteString(
+AstRawString* AstValueFactory::GetOneByteStringInternal(
     Vector<const uint8_t> literal) {
   uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
       literal.start(), literal.length(), hash_seed_);
@@ -238,7 +220,7 @@ const AstRawString* AstValueFactory::GetOneByteString(
 }
 
 
-const AstRawString* AstValueFactory::GetTwoByteString(
+AstRawString* AstValueFactory::GetTwoByteStringInternal(
     Vector<const uint16_t> literal) {
   uint32_t hash = StringHasher::HashSequentialString<uint16_t>(
       literal.start(), literal.length(), hash_seed_);
@@ -247,13 +229,24 @@ const AstRawString* AstValueFactory::GetTwoByteString(
 
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
-  DisallowHeapAllocation no_gc;
-  String::FlatContent content = literal->GetFlatContent();
-  if (content.IsOneByte()) {
-    return GetOneByteString(content.ToOneByteVector());
+  // For the FlatContent to stay valid, we shouldn't do any heap
+  // allocation. Make sure we won't try to internalize the string in GetString.
+  AstRawString* result = NULL;
+  Isolate* saved_isolate = isolate_;
+  isolate_ = NULL;
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent content = literal->GetFlatContent();
+    if (content.IsOneByte()) {
+      result = GetOneByteStringInternal(content.ToOneByteVector());
+    } else {
+      DCHECK(content.IsTwoByte());
+      result = GetTwoByteStringInternal(content.ToUC16Vector());
+    }
   }
-  DCHECK(content.IsTwoByte());
-  return GetTwoByteString(content.ToUC16Vector());
+  isolate_ = saved_isolate;
+  if (isolate_) result->Internalize(isolate_);
+  return result;
 }
 
 
@@ -329,59 +322,45 @@ const AstValue* AstValueFactory::NewSmi(int number) {
 }
 
 
+#define GENERATE_VALUE_GETTER(value, initializer) \
+  if (!value) {                                   \
+    value = new (zone_) AstValue(initializer);    \
+    if (isolate_) {                               \
+      value->Internalize(isolate_);               \
+    }                                             \
+    values_.Add(value);                           \
+  }                                               \
+  return value;
+
+
 const AstValue* AstValueFactory::NewBoolean(bool b) {
-  AstValue* value = new (zone_) AstValue(b);
-  if (isolate_) {
-    value->Internalize(isolate_);
+  if (b) {
+    GENERATE_VALUE_GETTER(true_value_, true);
+  } else {
+    GENERATE_VALUE_GETTER(false_value_, false);
   }
-  values_.Add(value);
-  return value;
-}
-
-
-const AstValue* AstValueFactory::NewStringList(
-    ZoneList<const AstRawString*>* strings) {
-  AstValue* value = new (zone_) AstValue(strings);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
 }
 
 
 const AstValue* AstValueFactory::NewNull() {
-  AstValue* value = new (zone_) AstValue(AstValue::NULL_TYPE);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(null_value_, AstValue::NULL_TYPE);
 }
 
 
 const AstValue* AstValueFactory::NewUndefined() {
-  AstValue* value = new (zone_) AstValue(AstValue::UNDEFINED);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(undefined_value_, AstValue::UNDEFINED);
 }
 
 
 const AstValue* AstValueFactory::NewTheHole() {
-  AstValue* value = new (zone_) AstValue(AstValue::THE_HOLE);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(the_hole_value_, AstValue::THE_HOLE);
 }
 
 
-const AstRawString* AstValueFactory::GetString(
-    uint32_t hash, bool is_one_byte, Vector<const byte> literal_bytes) {
+#undef GENERATE_VALUE_GETTER
+
+AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
+                                         Vector<const byte> literal_bytes) {
   // literal_bytes here points to whatever the user passed, and this is OK
   // because we use vector_compare (which checks the contents) to compare
   // against the AstRawStrings which are in the string_table_. We should not

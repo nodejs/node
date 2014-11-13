@@ -915,24 +915,24 @@ void Assembler::rcr(Register dst, uint8_t imm8) {
 }
 
 
-void Assembler::ror(Register dst, uint8_t imm8) {
+void Assembler::ror(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint5(imm8));  // illegal shift count
   if (imm8 == 1) {
     EMIT(0xD1);
-    EMIT(0xC8 | dst.code());
+    emit_operand(ecx, dst);
   } else {
     EMIT(0xC1);
-    EMIT(0xC8 | dst.code());
+    emit_operand(ecx, dst);
     EMIT(imm8);
   }
 }
 
 
-void Assembler::ror_cl(Register dst) {
+void Assembler::ror_cl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   EMIT(0xD3);
-  EMIT(0xC8 | dst.code());
+  emit_operand(ecx, dst);
 }
 
 

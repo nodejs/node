@@ -15,14 +15,14 @@ namespace v8 {
 namespace internal {
 
 void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
-  deserializer->set_reservation(NEW_SPACE, new_space_used_);
-  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_space_used_);
-  deserializer->set_reservation(OLD_DATA_SPACE, data_space_used_);
-  deserializer->set_reservation(CODE_SPACE, code_space_used_);
-  deserializer->set_reservation(MAP_SPACE, map_space_used_);
-  deserializer->set_reservation(CELL_SPACE, cell_space_used_);
-  deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_space_used_);
-  deserializer->set_reservation(LO_SPACE, lo_space_used_);
+  deserializer->AddReservation(NEW_SPACE, new_space_used_);
+  deserializer->AddReservation(OLD_POINTER_SPACE, pointer_space_used_);
+  deserializer->AddReservation(OLD_DATA_SPACE, data_space_used_);
+  deserializer->AddReservation(CODE_SPACE, code_space_used_);
+  deserializer->AddReservation(MAP_SPACE, map_space_used_);
+  deserializer->AddReservation(CELL_SPACE, cell_space_used_);
+  deserializer->AddReservation(PROPERTY_CELL_SPACE, property_cell_space_used_);
+  deserializer->AddReservation(LO_SPACE, lo_space_used_);
 }
 
 
@@ -59,15 +59,15 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
                             context_raw_size_);
   Deserializer deserializer(&source);
   Object* root;
-  deserializer.set_reservation(NEW_SPACE, context_new_space_used_);
-  deserializer.set_reservation(OLD_POINTER_SPACE, context_pointer_space_used_);
-  deserializer.set_reservation(OLD_DATA_SPACE, context_data_space_used_);
-  deserializer.set_reservation(CODE_SPACE, context_code_space_used_);
-  deserializer.set_reservation(MAP_SPACE, context_map_space_used_);
-  deserializer.set_reservation(CELL_SPACE, context_cell_space_used_);
-  deserializer.set_reservation(PROPERTY_CELL_SPACE,
-                               context_property_cell_space_used_);
-  deserializer.set_reservation(LO_SPACE, context_lo_space_used_);
+  deserializer.AddReservation(NEW_SPACE, context_new_space_used_);
+  deserializer.AddReservation(OLD_POINTER_SPACE, context_pointer_space_used_);
+  deserializer.AddReservation(OLD_DATA_SPACE, context_data_space_used_);
+  deserializer.AddReservation(CODE_SPACE, context_code_space_used_);
+  deserializer.AddReservation(MAP_SPACE, context_map_space_used_);
+  deserializer.AddReservation(CELL_SPACE, context_cell_space_used_);
+  deserializer.AddReservation(PROPERTY_CELL_SPACE,
+                              context_property_cell_space_used_);
+  deserializer.AddReservation(LO_SPACE, context_lo_space_used_);
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
   return Handle<Context>(Context::cast(root));

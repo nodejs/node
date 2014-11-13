@@ -132,6 +132,31 @@ HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
 }
 
 
+JITLineInfoTable::JITLineInfoTable() {}
+
+
+JITLineInfoTable::~JITLineInfoTable() {}
+
+
+void JITLineInfoTable::SetPosition(int pc_offset, int line) {
+  DCHECK(pc_offset >= 0);
+  DCHECK(line > 0);  // The 1-based number of the source line.
+  if (GetSourceLineNumber(pc_offset) != line) {
+    pc_offset_map_.insert(std::make_pair(pc_offset, line));
+  }
+}
+
+
+int JITLineInfoTable::GetSourceLineNumber(int pc_offset) const {
+  PcOffsetMap::const_iterator it = pc_offset_map_.lower_bound(pc_offset);
+  if (it == pc_offset_map_.end()) {
+    if (pc_offset_map_.empty()) return v8::CpuProfileNode::kNoLineNumberInfo;
+    return (--pc_offset_map_.end())->second;
+  }
+  return it->second;
+}
+
+
 const char* const CodeEntry::kEmptyNamePrefix = "";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
@@ -139,11 +164,12 @@ const char* const CodeEntry::kEmptyBailoutReason = "";
 
 CodeEntry::~CodeEntry() {
   delete no_frame_ranges_;
+  delete line_info_;
 }
 
 
 uint32_t CodeEntry::GetCallUid() const {
-  uint32_t hash = ComputeIntegerHash(tag_, v8::internal::kZeroHashSeed);
+  uint32_t hash = ComputeIntegerHash(tag(), v8::internal::kZeroHashSeed);
   if (shared_id_ != 0) {
     hash ^= ComputeIntegerHash(static_cast<uint32_t>(shared_id_),
                                v8::internal::kZeroHashSeed);
@@ -164,20 +190,26 @@ uint32_t CodeEntry::GetCallUid() const {
 
 
 bool CodeEntry::IsSameAs(CodeEntry* entry) const {
-  return this == entry
-      || (tag_ == entry->tag_
-          && shared_id_ == entry->shared_id_
-          && (shared_id_ != 0
-              || (name_prefix_ == entry->name_prefix_
-                  && name_ == entry->name_
-                  && resource_name_ == entry->resource_name_
-                  && line_number_ == entry->line_number_)));
+  return this == entry ||
+         (tag() == entry->tag() && shared_id_ == entry->shared_id_ &&
+          (shared_id_ != 0 ||
+           (name_prefix_ == entry->name_prefix_ && name_ == entry->name_ &&
+            resource_name_ == entry->resource_name_ &&
+            line_number_ == entry->line_number_)));
 }
 
 
 void CodeEntry::SetBuiltinId(Builtins::Name id) {
-  tag_ = Logger::BUILTIN_TAG;
-  builtin_id_ = id;
+  bit_field_ = TagField::update(bit_field_, Logger::BUILTIN_TAG);
+  bit_field_ = BuiltinIdField::update(bit_field_, id);
+}
+
+
+int CodeEntry::GetSourceLine(int pc_offset) const {
+  if (line_info_ && !line_info_->empty()) {
+    return line_info_->GetSourceLineNumber(pc_offset);
+  }
+  return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 
 
@@ -199,6 +231,40 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
     children_list_.Add(new_node);
   }
   return reinterpret_cast<ProfileNode*>(map_entry->value);
+}
+
+
+void ProfileNode::IncrementLineTicks(int src_line) {
+  if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) return;
+  // Increment a hit counter of a certain source line.
+  // Add a new source line if not found.
+  HashMap::Entry* e =
+      line_ticks_.Lookup(reinterpret_cast<void*>(src_line), src_line, true);
+  DCHECK(e);
+  e->value = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(e->value) + 1);
+}
+
+
+bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
+                               unsigned int length) const {
+  if (entries == NULL || length == 0) return false;
+
+  unsigned line_count = line_ticks_.occupancy();
+
+  if (line_count == 0) return true;
+  if (length < line_count) return false;
+
+  v8::CpuProfileNode::LineTick* entry = entries;
+
+  for (HashMap::Entry* p = line_ticks_.Start(); p != NULL;
+       p = line_ticks_.Next(p), entry++) {
+    entry->line =
+        static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->key));
+    entry->hit_count =
+        static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->value));
+  }
+
+  return true;
 }
 
 
@@ -242,7 +308,8 @@ ProfileTree::~ProfileTree() {
 }
 
 
-ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path) {
+ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path,
+                                         int src_line) {
   ProfileNode* node = root_;
   for (CodeEntry** entry = path.start() + path.length() - 1;
        entry != path.start() - 1;
@@ -252,11 +319,15 @@ ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path) {
     }
   }
   node->IncrementSelfTicks();
+  if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
+    node->IncrementLineTicks(src_line);
+  }
   return node;
 }
 
 
-void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path) {
+void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path,
+                                   int src_line) {
   ProfileNode* node = root_;
   for (CodeEntry** entry = path.start();
        entry != path.start() + path.length();
@@ -266,6 +337,9 @@ void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path) {
     }
   }
   node->IncrementSelfTicks();
+  if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
+    node->IncrementLineTicks(src_line);
+  }
 }
 
 
@@ -327,8 +401,8 @@ CpuProfile::CpuProfile(const char* title, bool record_samples)
 
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
-                         const Vector<CodeEntry*>& path) {
-  ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
+                         const Vector<CodeEntry*>& path, int src_line) {
+  ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path, src_line);
   if (record_samples_) {
     timestamps_.Add(timestamp);
     samples_.Add(top_frame_node);
@@ -517,31 +591,25 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
 
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    base::TimeTicks timestamp, const Vector<CodeEntry*>& path) {
+    base::TimeTicks timestamp, const Vector<CodeEntry*>& path, int src_line) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   for (int i = 0; i < current_profiles_.length(); ++i) {
-    current_profiles_[i]->AddPath(timestamp, path);
+    current_profiles_[i]->AddPath(timestamp, path, src_line);
   }
   current_profiles_semaphore_.Signal();
 }
 
 
 CodeEntry* CpuProfilesCollection::NewCodeEntry(
-      Logger::LogEventsAndTags tag,
-      const char* name,
-      const char* name_prefix,
-      const char* resource_name,
-      int line_number,
-      int column_number) {
-  CodeEntry* code_entry = new CodeEntry(tag,
-                                        name,
-                                        name_prefix,
-                                        resource_name,
-                                        line_number,
-                                        column_number);
+    Logger::LogEventsAndTags tag, const char* name, const char* name_prefix,
+    const char* resource_name, int line_number, int column_number,
+    JITLineInfoTable* line_info, Address instruction_start) {
+  CodeEntry* code_entry =
+      new CodeEntry(tag, name, name_prefix, resource_name, line_number,
+                    column_number, line_info, instruction_start);
   code_entries_.Add(code_entry);
   return code_entry;
 }
@@ -579,6 +647,15 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   // entries vector with NULL values.
   CodeEntry** entry = entries.start();
   memset(entry, 0, entries.length() * sizeof(*entry));
+
+  // The ProfileNode knows nothing about all versions of generated code for
+  // the same JS function. The line number information associated with
+  // the latest version of generated code is used to find a source line number
+  // for a JS function. Then, the detected source line is passed to
+  // ProfileNode to increase the tick count for this source line.
+  int src_line = v8::CpuProfileNode::kNoLineNumberInfo;
+  bool src_line_not_found = true;
+
   if (sample.pc != NULL) {
     if (sample.has_external_callback && sample.state == EXTERNAL &&
         sample.top_frame_type == StackFrame::EXIT) {
@@ -595,10 +672,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // frame. Check for this case and just skip such samples.
       if (pc_entry) {
         List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
+        int pc_offset =
+            static_cast<int>(sample.pc - pc_entry->instruction_start());
         if (ranges) {
-          Code* code = Code::cast(HeapObject::FromAddress(start));
-          int pc_offset = static_cast<int>(
-              sample.pc - code->instruction_start());
           for (int i = 0; i < ranges->length(); i++) {
             OffsetRange& range = ranges->at(i);
             if (range.from <= pc_offset && pc_offset < range.to) {
@@ -606,6 +682,11 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
             }
           }
         }
+        src_line = pc_entry->GetSourceLine(pc_offset);
+        if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
+          src_line = pc_entry->line_number();
+        }
+        src_line_not_found = false;
         *entry++ = pc_entry;
 
         if (pc_entry->builtin_id() == Builtins::kFunctionCall ||
@@ -626,7 +707,22 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
            *stack_end = stack_pos + sample.frames_count;
          stack_pos != stack_end;
          ++stack_pos) {
-      *entry++ = code_map_.FindEntry(*stack_pos);
+      Address start = NULL;
+      *entry = code_map_.FindEntry(*stack_pos, &start);
+
+      // Skip unresolved frames (e.g. internal frame) and get source line of
+      // the first JS caller.
+      if (src_line_not_found && *entry) {
+        int pc_offset =
+            static_cast<int>(*stack_pos - (*entry)->instruction_start());
+        src_line = (*entry)->GetSourceLine(pc_offset);
+        if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
+          src_line = (*entry)->line_number();
+        }
+        src_line_not_found = false;
+      }
+
+      entry++;
     }
   }
 
@@ -644,7 +740,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     }
   }
 
-  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries);
+  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries, src_line);
 }
 
 

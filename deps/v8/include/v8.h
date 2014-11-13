@@ -15,7 +15,11 @@
 #ifndef V8_H_
 #define V8_H_
 
-#include "v8stdint.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "v8config.h"
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
@@ -85,6 +89,7 @@ class ObjectOperationDescriptor;
 class ObjectTemplate;
 class Platform;
 class Primitive;
+class Promise;
 class RawOperationDescriptor;
 class Script;
 class Signature;
@@ -511,6 +516,18 @@ template <class T> class PersistentBase {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
+  // Phantom persistents work like weak persistents, except that the pointer to
+  // the object being collected is not available in the finalization callback.
+  // This enables the garbage collector to collect the object and any objects
+  // it references transitively in one GC cycle.
+  template <typename P>
+  V8_INLINE void SetPhantom(P* parameter,
+                            typename WeakCallbackData<T, P>::Callback callback);
+
+  template <typename S, typename P>
+  V8_INLINE void SetPhantom(P* parameter,
+                            typename WeakCallbackData<S, P>::Callback callback);
+
   template<typename P>
   V8_INLINE P* ClearWeak();
 
@@ -695,9 +712,6 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
   template <class S> V8_INLINE Persistent<S>& As() { // NOLINT
     return Persistent<S>::Cast(*this);
   }
-
-  // This will be removed.
-  V8_INLINE T* ClearAndLeak();
 
  private:
   friend class Isolate;
@@ -1415,6 +1429,27 @@ class V8_EXPORT StackFrame {
 };
 
 
+// A StateTag represents a possible state of the VM.
+enum StateTag { JS, GC, COMPILER, OTHER, EXTERNAL, IDLE };
+
+
+// A RegisterState represents the current state of registers used
+// by the sampling profiler API.
+struct RegisterState {
+  RegisterState() : pc(NULL), sp(NULL), fp(NULL) {}
+  void* pc;  // Instruction pointer.
+  void* sp;  // Stack pointer.
+  void* fp;  // Frame pointer.
+};
+
+
+// The output structure filled up by GetStackSample API function.
+struct SampleInfo {
+  size_t frames_count;
+  StateTag vm_state;
+};
+
+
 /**
  * A JSON Parser.
  */
@@ -1591,6 +1626,18 @@ class V8_EXPORT Value : public Data {
   bool IsSet() const;
 
   /**
+   * Returns true if this value is a Map Iterator.
+   * This is an experimental feature.
+   */
+  bool IsMapIterator() const;
+
+  /**
+   * Returns true if this value is a Set Iterator.
+   * This is an experimental feature.
+   */
+  bool IsSetIterator() const;
+
+  /**
    * Returns true if this value is a WeakMap.
    * This is an experimental feature.
    */
@@ -1680,14 +1727,24 @@ class V8_EXPORT Value : public Data {
    */
   bool IsDataView() const;
 
-  Local<Boolean> ToBoolean() const;
-  Local<Number> ToNumber() const;
-  Local<String> ToString() const;
-  Local<String> ToDetailString() const;
-  Local<Object> ToObject() const;
-  Local<Integer> ToInteger() const;
-  Local<Uint32> ToUint32() const;
-  Local<Int32> ToInt32() const;
+  Local<Boolean> ToBoolean(Isolate* isolate) const;
+  Local<Number> ToNumber(Isolate* isolate) const;
+  Local<String> ToString(Isolate* isolate) const;
+  Local<String> ToDetailString(Isolate* isolate) const;
+  Local<Object> ToObject(Isolate* isolate) const;
+  Local<Integer> ToInteger(Isolate* isolate) const;
+  Local<Uint32> ToUint32(Isolate* isolate) const;
+  Local<Int32> ToInt32(Isolate* isolate) const;
+
+  // TODO(dcarney): deprecate all these.
+  inline Local<Boolean> ToBoolean() const;
+  inline Local<Number> ToNumber() const;
+  inline Local<String> ToString() const;
+  inline Local<String> ToDetailString() const;
+  inline Local<Object> ToObject() const;
+  inline Local<Integer> ToInteger() const;
+  inline Local<Uint32> ToUint32() const;
+  inline Local<Int32> ToInt32() const;
 
   /**
    * Attempts to convert a string to an array index.
@@ -1754,7 +1811,6 @@ class V8_EXPORT String : public Name {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ASCII_ENCODING = 0x4,  // TODO(yangguo): deprecate this.
     ONE_BYTE_ENCODING = 0x4
   };
   /**
@@ -1810,7 +1866,6 @@ class V8_EXPORT String : public Name {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
     NO_NULL_TERMINATION = 2,
-    PRESERVE_ASCII_NULL = 4,  // TODO(yangguo): deprecate this.
     PRESERVE_ONE_BYTE_NULL = 4,
     // Used by WriteUtf8 to replace orphan surrogate code units with the
     // unicode replacement character. Needs to be set to guarantee valid UTF-8
@@ -1848,9 +1903,6 @@ class V8_EXPORT String : public Name {
    * Returns true if the string is both external and one-byte.
    */
   bool IsExternalOneByte() const;
-
-  // TODO(yangguo): deprecate this.
-  bool IsExternalAscii() const { return IsExternalOneByte(); }
 
   class V8_EXPORT ExternalStringResourceBase {  // NOLINT
    public:
@@ -1930,8 +1982,6 @@ class V8_EXPORT String : public Name {
     ExternalOneByteStringResource() {}
   };
 
-  typedef ExternalOneByteStringResource ExternalAsciiStringResource;
-
   /**
    * If the string is an external string, return the ExternalStringResourceBase
    * regardless of the encoding, otherwise return NULL.  The encoding of the
@@ -1951,11 +2001,6 @@ class V8_EXPORT String : public Name {
    * Returns NULL if IsExternalOneByte() doesn't return true.
    */
   const ExternalOneByteStringResource* GetExternalOneByteStringResource() const;
-
-  // TODO(yangguo): deprecate this.
-  const ExternalAsciiStringResource* GetExternalAsciiStringResource() const {
-    return GetExternalOneByteStringResource();
-  }
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
@@ -2119,6 +2164,7 @@ class V8_EXPORT Symbol : public Name {
   // Well-known symbols
   static Local<Symbol> GetIterator(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetToStringTag(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
 
@@ -2496,15 +2542,6 @@ class V8_EXPORT Object : public Value {
   bool DeleteHiddenValue(Handle<String> key);
 
   /**
-   * Returns true if this is an instance of an api function (one
-   * created from a function created from a function template) and has
-   * been modified since it was created.  Note that this method is
-   * conservative and may return true for objects that haven't actually
-   * been modified.
-   */
-  bool IsDirty();
-
-  /**
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
    */
@@ -2563,6 +2600,11 @@ class V8_EXPORT Object : public Value {
    * Note: This method behaves like the Function::NewInstance method.
    */
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
+
+  /**
+   * Return the isolate to which the Object belongs to.
+   */
+  Isolate* GetIsolate();
 
   static Local<Object> New(Isolate* isolate);
 
@@ -2830,6 +2872,12 @@ class V8_EXPORT Promise : public Object {
   Local<Promise> Catch(Handle<Function> handler);
   Local<Promise> Then(Handle<Function> handler);
 
+  /**
+   * Returns true if the promise has at least one derived promise, and
+   * therefore resolve/reject handlers (including default handler).
+   */
+  bool HasHandler();
+
   V8_INLINE static Promise* Cast(Value* obj);
 
  private:
@@ -2932,10 +2980,15 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsExternal() const;
 
   /**
+   * Returns true if this ArrayBuffer may be neutered.
+   */
+  bool IsNeuterable() const;
+
+  /**
    * Neuters this ArrayBuffer and all its views (typed arrays).
    * Neutering sets the byte length of the buffer and all typed arrays to zero,
    * preventing JavaScript from ever accessing underlying backing store.
-   * ArrayBuffer should have been externalized.
+   * ArrayBuffer should have been externalized and must be neuterable.
    */
   void Neuter();
 
@@ -4134,6 +4187,11 @@ class V8_EXPORT Exception {
   static Local<Value> SyntaxError(Handle<String> message);
   static Local<Value> TypeError(Handle<String> message);
   static Local<Value> Error(Handle<String> message);
+
+  static Local<Message> GetMessage(Handle<Value> exception);
+
+  // DEPRECATED. Use GetMessage()->GetStackTrace()
+  static Local<StackTrace> GetStackTrace(Handle<Value> exception);
 };
 
 
@@ -4174,6 +4232,37 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
 
 // --- Leave Script Callback ---
 typedef void (*CallCompletedCallback)();
+
+// --- Promise Reject Callback ---
+enum PromiseRejectEvent {
+  kPromiseRejectWithNoHandler = 0,
+  kPromiseHandlerAddedAfterReject = 1
+};
+
+class PromiseRejectMessage {
+ public:
+  PromiseRejectMessage(Handle<Promise> promise, PromiseRejectEvent event,
+                       Handle<Value> value, Handle<StackTrace> stack_trace)
+      : promise_(promise),
+        event_(event),
+        value_(value),
+        stack_trace_(stack_trace) {}
+
+  V8_INLINE Handle<Promise> GetPromise() const { return promise_; }
+  V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
+  V8_INLINE Handle<Value> GetValue() const { return value_; }
+
+  // DEPRECATED. Use v8::Exception::GetMessage(GetValue())->GetStackTrace()
+  V8_INLINE Handle<StackTrace> GetStackTrace() const { return stack_trace_; }
+
+ private:
+  Handle<Promise> promise_;
+  PromiseRejectEvent event_;
+  Handle<Value> value_;
+  Handle<StackTrace> stack_trace_;
+};
+
+typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtask Callback ---
 typedef void (*MicrotaskCallback)(void* data);
@@ -4346,6 +4435,27 @@ typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
 
 /**
+ * Interface for iterating through all external resources in the heap.
+ */
+class V8_EXPORT ExternalResourceVisitor {  // NOLINT
+ public:
+  virtual ~ExternalResourceVisitor() {}
+  virtual void VisitExternalString(Handle<String> string) {}
+};
+
+
+/**
+ * Interface for iterating through all the persistent handles in the heap.
+ */
+class V8_EXPORT PersistentHandleVisitor {  // NOLINT
+ public:
+  virtual ~PersistentHandleVisitor() {}
+  virtual void VisitPersistentHandle(Persistent<Value>* value,
+                                     uint16_t class_id) {}
+};
+
+
+/**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
  * completely separate states.  Objects from one isolate must not be used in
  * other isolates.  The embedder can create multiple isolates and use them in
@@ -4485,6 +4595,7 @@ class V8_EXPORT Isolate {
    */
   enum UseCounterFeature {
     kUseAsm = 0,
+    kBreakIterator = 1,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
@@ -4558,6 +4669,21 @@ class V8_EXPORT Isolate {
    * Get statistics about the heap memory usage.
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
+
+  /**
+   * Get a call stack sample from the isolate.
+   * \param state Execution state.
+   * \param frames Caller allocated buffer to store stack frames.
+   * \param frames_limit Maximum number of frames to capture. The buffer must
+   *                     be large enough to hold the number of frames.
+   * \param sample_info The sample info is filled up by the function
+   *                    provides number of actual captured stack frames and
+   *                    the current VM state.
+   * \note GetStackSample should only be called when the JS thread is paused or
+   *       interrupted. Otherwise the behavior is undefined.
+   */
+  void GetStackSample(const RegisterState& state, void** frames,
+                      size_t frames_limit, SampleInfo* sample_info);
 
   /**
    * Adjusts the amount of registered external memory. Used to give V8 an
@@ -4688,6 +4814,42 @@ class V8_EXPORT Isolate {
    */
   void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
 
+
+  /**
+   * Forcefully terminate the current thread of JavaScript execution
+   * in the given isolate.
+   *
+   * This method can be used by any thread even if that thread has not
+   * acquired the V8 lock with a Locker object.
+   */
+  void TerminateExecution();
+
+  /**
+   * Is V8 terminating JavaScript execution.
+   *
+   * Returns true if JavaScript execution is currently terminating
+   * because of a call to TerminateExecution.  In that case there are
+   * still JavaScript frames on the stack and the termination
+   * exception is still active.
+   */
+  bool IsExecutionTerminating();
+
+  /**
+   * Resume execution capability in the given isolate, whose execution
+   * was previously forcefully terminated using TerminateExecution().
+   *
+   * When execution is forcefully terminated using TerminateExecution(),
+   * the isolate can not resume execution until all JavaScript frames
+   * have propagated the uncatchable exception which is generated.  This
+   * method allows the program embedding the engine to handle the
+   * termination event and resume execution capability, even if
+   * JavaScript frames remain on the stack.
+   *
+   * This method can be used by any thread even if that thread has not
+   * acquired the V8 lock with a Locker object.
+   */
+  void CancelTerminateExecution();
+
   /**
    * Request V8 to interrupt long running JavaScript code and invoke
    * the given |callback| passing the given |data| to it. After |callback|
@@ -4734,6 +4896,13 @@ class V8_EXPORT Isolate {
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
+
+
+  /**
+   * Set callback to notify about promise reject with no handler, or
+   * revocation of such a previous notification once the handler is added.
+   */
+  void SetPromiseRejectCallback(PromiseRejectCallback callback);
 
   /**
    * Experimental: Runs the Microtask Work Queue until empty
@@ -4853,11 +5022,92 @@ class V8_EXPORT Isolate {
    * On Win64, embedders are advised to install function table callbacks for
    * these ranges, as default SEH won't be able to unwind through jitted code.
    *
+   * The first page of the code range is reserved for the embedder and is
+   * committed, writable, and executable.
+   *
    * Might be empty on other platforms.
    *
    * https://code.google.com/p/v8/issues/detail?id=3598
    */
   void GetCodeRange(void** start, size_t* length_in_bytes);
+
+  /** Set the callback to invoke in case of fatal errors. */
+  void SetFatalErrorHandler(FatalErrorCallback that);
+
+  /**
+   * Set the callback to invoke to check if code generation from
+   * strings should be allowed.
+   */
+  void SetAllowCodeGenerationFromStringsCallback(
+      AllowCodeGenerationFromStringsCallback callback);
+
+  /**
+  * Check if V8 is dead and therefore unusable.  This is the case after
+  * fatal errors such as out-of-memory situations.
+  */
+  bool IsDead();
+
+  /**
+   * Adds a message listener.
+   *
+   * The same message listener can be added more than once and in that
+   * case it will be called more than once for each message.
+   *
+   * If data is specified, it will be passed to the callback when it is called.
+   * Otherwise, the exception object will be passed to the callback instead.
+   */
+  bool AddMessageListener(MessageCallback that,
+                          Handle<Value> data = Handle<Value>());
+
+  /**
+   * Remove all message listeners from the specified callback function.
+   */
+  void RemoveMessageListeners(MessageCallback that);
+
+  /** Callback function for reporting failed access checks.*/
+  void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
+
+  /**
+   * Tells V8 to capture current stack trace when uncaught exception occurs
+   * and report it to the message listeners. The option is off by default.
+   */
+  void SetCaptureStackTraceForUncaughtExceptions(
+      bool capture, int frame_limit = 10,
+      StackTrace::StackTraceOptions options = StackTrace::kOverview);
+
+  /**
+   * Enables the host application to provide a mechanism to be notified
+   * and perform custom logging when V8 Allocates Executable Memory.
+   */
+  void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                   ObjectSpace space, AllocationAction action);
+
+  /**
+   * Removes callback that was installed by AddMemoryAllocationCallback.
+   */
+  void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
+
+  /**
+   * Iterates through all external resources referenced from current isolate
+   * heap.  GC is not invoked prior to iterating, therefore there is no
+   * guarantee that visited objects are still alive.
+   */
+  void VisitExternalResources(ExternalResourceVisitor* visitor);
+
+  /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids.
+   */
+  void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
+
+  /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids and are candidates to be marked as partially dependent
+   * handles. This will visit handles to young objects created since the last
+   * garbage collection but is free to visit an arbitrary superset of these
+   * objects.
+   */
+  void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor);
 
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
@@ -4938,39 +5188,20 @@ typedef uintptr_t (*ReturnAddressLocationResolver)(
 
 
 /**
- * Interface for iterating through all external resources in the heap.
- */
-class V8_EXPORT ExternalResourceVisitor {  // NOLINT
- public:
-  virtual ~ExternalResourceVisitor() {}
-  virtual void VisitExternalString(Handle<String> string) {}
-};
-
-
-/**
- * Interface for iterating through all the persistent handles in the heap.
- */
-class V8_EXPORT PersistentHandleVisitor {  // NOLINT
- public:
-  virtual ~PersistentHandleVisitor() {}
-  virtual void VisitPersistentHandle(Persistent<Value>* value,
-                                     uint16_t class_id) {}
-};
-
-
-/**
  * Container class for static utility functions.
  */
 class V8_EXPORT V8 {
  public:
   /** Set the callback to invoke in case of fatal errors. */
-  static void SetFatalErrorHandler(FatalErrorCallback that);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void SetFatalErrorHandler(FatalErrorCallback that);
 
   /**
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */
-  static void SetAllowCodeGenerationFromStringsCallback(
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback that);
 
   /**
@@ -4982,10 +5213,11 @@ class V8_EXPORT V8 {
   static void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator);
 
   /**
-   * Check if V8 is dead and therefore unusable.  This is the case after
-   * fatal errors such as out-of-memory situations.
-   */
-  static bool IsDead();
+  * Check if V8 is dead and therefore unusable.  This is the case after
+  * fatal errors such as out-of-memory situations.
+  */
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static bool IsDead();
 
   /**
    * The following 4 functions are to be used when V8 is built with
@@ -5038,21 +5270,23 @@ class V8_EXPORT V8 {
    * If data is specified, it will be passed to the callback when it is called.
    * Otherwise, the exception object will be passed to the callback instead.
    */
-  static bool AddMessageListener(MessageCallback that,
-                                 Handle<Value> data = Handle<Value>());
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static bool AddMessageListener(
+      MessageCallback that, Handle<Value> data = Handle<Value>());
 
   /**
    * Remove all message listeners from the specified callback function.
    */
-  static void RemoveMessageListeners(MessageCallback that);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void RemoveMessageListeners(MessageCallback that);
 
   /**
    * Tells V8 to capture current stack trace when uncaught exception occurs
    * and report it to the message listeners. The option is off by default.
    */
-  static void SetCaptureStackTraceForUncaughtExceptions(
-      bool capture,
-      int frame_limit = 10,
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void SetCaptureStackTraceForUncaughtExceptions(
+      bool capture, int frame_limit = 10,
       StackTrace::StackTraceOptions options = StackTrace::kOverview);
 
   /**
@@ -5071,7 +5305,9 @@ class V8_EXPORT V8 {
   static const char* GetVersion();
 
   /** Callback function for reporting failed access checks.*/
-  static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void SetFailedAccessCheckCallbackFunction(
+      FailedAccessCheckCallback);
 
   /**
    * Enables the host application to receive a notification before a
@@ -5083,6 +5319,7 @@ class V8_EXPORT V8 {
    * register the same callback function two times with different
    * GCType filters.
    */
+  // TODO(dcarney): deprecate this.
   static void AddGCPrologueCallback(
       GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
 
@@ -5090,7 +5327,8 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  static void RemoveGCPrologueCallback(GCPrologueCallback callback);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void RemoveGCPrologueCallback(GCPrologueCallback callback);
 
   /**
    * Enables the host application to receive a notification after a
@@ -5102,6 +5340,7 @@ class V8_EXPORT V8 {
    * register the same callback function two times with different
    * GCType filters.
    */
+  // TODO(dcarney): deprecate this.
   static void AddGCEpilogueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
 
@@ -5109,20 +5348,24 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
 
   /**
    * Enables the host application to provide a mechanism to be notified
    * and perform custom logging when V8 Allocates Executable Memory.
    */
-  static void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
-                                          ObjectSpace space,
-                                          AllocationAction action);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void AddMemoryAllocationCallback(
+      MemoryAllocationCallback callback, ObjectSpace space,
+      AllocationAction action);
 
   /**
    * Removes callback that was installed by AddMemoryAllocationCallback.
    */
-  static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void RemoveMemoryAllocationCallback(
+      MemoryAllocationCallback callback);
 
   /**
    * Initializes V8. This function needs to be called before the first Isolate
@@ -5152,7 +5395,8 @@ class V8_EXPORT V8 {
    *
    * \param isolate The isolate in which to terminate the current JS execution.
    */
-  static void TerminateExecution(Isolate* isolate);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void TerminateExecution(Isolate* isolate);
 
   /**
    * Is V8 terminating JavaScript execution.
@@ -5164,7 +5408,8 @@ class V8_EXPORT V8 {
    *
    * \param isolate The isolate in which to check.
    */
-  static bool IsExecutionTerminating(Isolate* isolate = NULL);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
    * Resume execution capability in the given isolate, whose execution
@@ -5182,7 +5427,8 @@ class V8_EXPORT V8 {
    *
    * \param isolate The isolate in which to resume execution capability.
    */
-  static void CancelTerminateExecution(Isolate* isolate);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void CancelTerminateExecution(Isolate* isolate);
 
   /**
    * Releases any resources used by v8 and stops any utility threads
@@ -5200,13 +5446,25 @@ class V8_EXPORT V8 {
    * heap.  GC is not invoked prior to iterating, therefore there is no
    * guarantee that visited objects are still alive.
    */
-  static void VisitExternalResources(ExternalResourceVisitor* visitor);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void VisitExternalResources(
+      ExternalResourceVisitor* visitor);
 
   /**
    * Iterates through all the persistent handles in the current isolate's heap
    * that have class_ids.
    */
-  static void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void VisitHandlesWithClassIds(
+      PersistentHandleVisitor* visitor);
+
+  /**
+   * Iterates through all the persistent handles in isolate's heap that have
+   * class_ids.
+   */
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void VisitHandlesWithClassIds(
+      Isolate* isolate, PersistentHandleVisitor* visitor);
 
   /**
    * Iterates through all the persistent handles in the current isolate's heap
@@ -5215,7 +5473,8 @@ class V8_EXPORT V8 {
    * garbage collection but is free to visit an arbitrary superset of these
    * objects.
    */
-  static void VisitHandlesForPartialDependence(
+  // TODO(dcarney): deprecate this.
+  V8_INLINE static void VisitHandlesForPartialDependence(
       Isolate* isolate, PersistentHandleVisitor* visitor);
 
   /**
@@ -5242,14 +5501,15 @@ class V8_EXPORT V8 {
  private:
   V8();
 
+  enum WeakHandleType { PhantomHandle, NonphantomHandle };
+
   static internal::Object** GlobalizeReference(internal::Isolate* isolate,
                                                internal::Object** handle);
   static internal::Object** CopyPersistent(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
-  static void MakeWeak(internal::Object** global_handle,
-                       void* data,
-                       WeakCallback weak_callback);
+  static void MakeWeak(internal::Object** global_handle, void* data,
+                       WeakCallback weak_callback, WeakHandleType phantom);
   static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
@@ -5275,7 +5535,15 @@ class V8_EXPORT TryCatch {
    * all TryCatch blocks should be stack allocated because the memory
    * location itself is compared against JavaScript try/catch blocks.
    */
+  // TODO(dcarney): deprecate.
   TryCatch();
+
+  /**
+   * Creates a new try/catch block and registers it with v8.  Note that
+   * all TryCatch blocks should be stack allocated because the memory
+   * location itself is compared against JavaScript try/catch blocks.
+   */
+  TryCatch(Isolate* isolate);
 
   /**
    * Unregisters and deletes this try/catch block.
@@ -5716,8 +5984,6 @@ class V8_EXPORT Locker {
   bool top_level_;
   internal::Isolate* isolate_;
 
-  static bool active_;
-
   // Disallow copying and assigning.
   Locker(const Locker&);
   void operator=(const Locker&);
@@ -5826,7 +6092,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 95;
+  static const int kContextEmbedderDataIndex = 76;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -5844,7 +6110,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 164;
+  static const int kEmptyStringRootIndex = 154;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.
@@ -5859,7 +6125,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xbc;
+  static const int kJSObjectType = 0xbd;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x88;
@@ -6114,9 +6380,8 @@ void PersistentBase<T>::SetWeak(
     typename WeakCallbackData<S, P>::Callback callback) {
   TYPE_CHECK(S, T);
   typedef typename WeakCallbackData<Value, void>::Callback Callback;
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
-               parameter,
-               reinterpret_cast<Callback>(callback));
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               reinterpret_cast<Callback>(callback), V8::NonphantomHandle);
 }
 
 
@@ -6130,7 +6395,26 @@ void PersistentBase<T>::SetWeak(
 
 
 template <class T>
-template<typename P>
+template <typename S, typename P>
+void PersistentBase<T>::SetPhantom(
+    P* parameter, typename WeakCallbackData<S, P>::Callback callback) {
+  TYPE_CHECK(S, T);
+  typedef typename WeakCallbackData<Value, void>::Callback Callback;
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               reinterpret_cast<Callback>(callback), V8::PhantomHandle);
+}
+
+
+template <class T>
+template <typename P>
+void PersistentBase<T>::SetPhantom(
+    P* parameter, typename WeakCallbackData<T, P>::Callback callback) {
+  SetPhantom<T, P>(parameter, callback);
+}
+
+
+template <class T>
+template <typename P>
 P* PersistentBase<T>::ClearWeak() {
   return reinterpret_cast<P*>(
     V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
@@ -6154,15 +6438,6 @@ void PersistentBase<T>::MarkPartiallyDependent() {
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsPartiallyDependentShift);
-}
-
-
-template <class T, class M>
-T* Persistent<T, M>::ClearAndLeak() {
-  T* old;
-  old = this->val_;
-  this->val_ = NULL;
-  return old;
 }
 
 
@@ -6571,6 +6846,44 @@ template <class T> Value* Value::Cast(T* value) {
 }
 
 
+Local<Boolean> Value::ToBoolean() const {
+  return ToBoolean(Isolate::GetCurrent());
+}
+
+
+Local<Number> Value::ToNumber() const {
+  return ToNumber(Isolate::GetCurrent());
+}
+
+
+Local<String> Value::ToString() const {
+  return ToString(Isolate::GetCurrent());
+}
+
+
+Local<String> Value::ToDetailString() const {
+  return ToDetailString(Isolate::GetCurrent());
+}
+
+
+Local<Object> Value::ToObject() const {
+  return ToObject(Isolate::GetCurrent());
+}
+
+
+Local<Integer> Value::ToInteger() const {
+  return ToInteger(Isolate::GetCurrent());
+}
+
+
+Local<Uint32> Value::ToUint32() const {
+  return ToUint32(Isolate::GetCurrent());
+}
+
+
+Local<Int32> Value::ToInt32() const { return ToInt32(Isolate::GetCurrent()); }
+
+
 Name* Name::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -6960,6 +7273,119 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #endif
 }
 
+
+void V8::SetAllowCodeGenerationFromStringsCallback(
+    AllowCodeGenerationFromStringsCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetAllowCodeGenerationFromStringsCallback(callback);
+}
+
+
+bool V8::IsDead() {
+  Isolate* isolate = Isolate::GetCurrent();
+  return isolate->IsDead();
+}
+
+
+bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
+  Isolate* isolate = Isolate::GetCurrent();
+  return isolate->AddMessageListener(that, data);
+}
+
+
+void V8::RemoveMessageListeners(MessageCallback that) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->RemoveMessageListeners(that);
+}
+
+
+void V8::SetFailedAccessCheckCallbackFunction(
+    FailedAccessCheckCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetFailedAccessCheckCallbackFunction(callback);
+}
+
+
+void V8::SetCaptureStackTraceForUncaughtExceptions(
+    bool capture, int frame_limit, StackTrace::StackTraceOptions options) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(capture, frame_limit,
+                                                     options);
+}
+
+
+void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetFatalErrorHandler(callback);
+}
+
+
+void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->RemoveGCPrologueCallback(
+      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback));
+}
+
+
+void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->RemoveGCEpilogueCallback(
+      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback));
+}
+
+
+void V8::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                     ObjectSpace space,
+                                     AllocationAction action) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->AddMemoryAllocationCallback(callback, space, action);
+}
+
+
+void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->RemoveMemoryAllocationCallback(callback);
+}
+
+
+void V8::TerminateExecution(Isolate* isolate) { isolate->TerminateExecution(); }
+
+
+bool V8::IsExecutionTerminating(Isolate* isolate) {
+  if (isolate == NULL) {
+    isolate = Isolate::GetCurrent();
+  }
+  return isolate->IsExecutionTerminating();
+}
+
+
+void V8::CancelTerminateExecution(Isolate* isolate) {
+  isolate->CancelTerminateExecution();
+}
+
+
+void V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->VisitExternalResources(visitor);
+}
+
+
+void V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->VisitHandlesWithClassIds(visitor);
+}
+
+
+void V8::VisitHandlesWithClassIds(Isolate* isolate,
+                                  PersistentHandleVisitor* visitor) {
+  isolate->VisitHandlesWithClassIds(visitor);
+}
+
+
+void V8::VisitHandlesForPartialDependence(Isolate* isolate,
+                                          PersistentHandleVisitor* visitor) {
+  isolate->VisitHandlesForPartialDependence(visitor);
+}
 
 /**
  * \example shell.cc

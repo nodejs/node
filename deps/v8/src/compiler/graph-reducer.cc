@@ -72,10 +72,7 @@ void GraphReducer::ReduceNode(Node* node) {
 // A helper class to reuse the node traversal algorithm.
 struct GraphReducerVisitor FINAL : public NullNodeVisitor {
   explicit GraphReducerVisitor(GraphReducer* reducer) : reducer_(reducer) {}
-  GenericGraphVisit::Control Post(Node* node) {
-    reducer_->ReduceNode(node);
-    return GenericGraphVisit::CONTINUE;
-  }
+  void Post(Node* node) { reducer_->ReduceNode(node); }
   GraphReducer* reducer_;
 };
 

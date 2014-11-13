@@ -114,9 +114,9 @@ for (key in x) {
   assertTrue(key == 'a');
   break;
 }
-assertFalse(%HasFastProperties(x));
+assertTrue(%HasFastProperties(x));
 x.d = 4;
-assertFalse(%HasFastProperties(x));
+assertTrue(%HasFastProperties(x));
 for (key in x) {
   assertTrue(key == 'a');
   break;

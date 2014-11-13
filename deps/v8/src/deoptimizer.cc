@@ -693,8 +693,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
   DeoptimizerData* data = isolate->deoptimizer_data();
   MemoryChunk* base = data->deopt_entry_code_[type];
   Address start = base->area_start();
-  if (base == NULL ||
-      addr < start ||
+  if (addr < start ||
       addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
@@ -719,7 +718,7 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
   OFStream os(stderr);
   os << "[couldn't find pc offset for node=" << id.ToInt() << "]\n"
      << "[method: " << shared->DebugName()->ToCString().get() << "]\n"
-     << "[source:\n" << SourceCodeOf(shared) << "\n]" << endl;
+     << "[source:\n" << SourceCodeOf(shared) << "\n]" << std::endl;
 
   FATAL("unable to find pc offset during deoptimization");
   return -1;

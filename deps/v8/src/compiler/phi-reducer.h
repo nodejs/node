@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_PHI_REDUCER_H_
 #define V8_COMPILER_PHI_REDUCER_H_
 
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {

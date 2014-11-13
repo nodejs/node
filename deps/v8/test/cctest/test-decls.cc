@@ -713,3 +713,37 @@ TEST(CrossScriptConflicts) {
     }
   }
 }
+
+
+TEST(CrossScriptDynamicLookup) {
+  i::FLAG_harmony_scoping = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    Local<String> undefined_string = String::NewFromUtf8(
+        CcTest::isolate(), "undefined", String::kInternalizedString);
+    Local<String> number_string = String::NewFromUtf8(
+        CcTest::isolate(), "number", String::kInternalizedString);
+
+    context.Check(
+        "function f(o) { with(o) { return x; } }"
+        "function g(o) { with(o) { x = 15; } }"
+        "function h(o) { with(o) { return typeof x; } }",
+        EXPECT_RESULT, Undefined(CcTest::isolate()));
+    context.Check("h({})", EXPECT_RESULT, undefined_string);
+    context.Check(
+        "'use strict';"
+        "let x = 1;"
+        "f({})",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    context.Check(
+        "'use strict';"
+        "g({});"
+        "x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check("f({})", EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check("h({})", EXPECT_RESULT, number_string);
+  }
+}

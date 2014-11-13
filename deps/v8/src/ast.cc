@@ -59,59 +59,56 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
-                             IdGen* id_gen)
-    : Expression(zone, position, id_gen),
-      name_(var->raw_name()),
-      var_(NULL),  // Will be set by the call to BindTo.
-      is_this_(var->is_this()),
-      is_assigned_(false),
-      interface_(var->interface()),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
+    : Expression(zone, position),
+      bit_field_(IsThisField::encode(var->is_this()) |
+                 IsAssignedField::encode(false) |
+                 IsResolvedField::encode(false)),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
+      raw_name_(var->raw_name()),
+      interface_(var->interface()) {
   BindTo(var);
 }
 
 
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                             Interface* interface, int position, IdGen* id_gen)
-    : Expression(zone, position, id_gen),
-      name_(name),
-      var_(NULL),
-      is_this_(is_this),
-      is_assigned_(false),
-      interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {}
+                             Interface* interface, int position)
+    : Expression(zone, position),
+      bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
+                 IsResolvedField::encode(false)),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
+      raw_name_(name),
+      interface_(interface) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK(var_ == NULL);  // must be bound only once
-  DCHECK(var != NULL);  // must bind
   DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
-  DCHECK((is_this() && var->is_this()) || name_ == var->raw_name());
+  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
   // Ideally CONST-ness should match. However, this is very hard to achieve
   // because we don't know the exact semantics of conflicting (const and
   // non-const) multiple variable declarations, const vars introduced via
   // eval() etc.  Const-ness and variable declarations are a complete mess
   // in JS. Sigh...
-  var_ = var;
+  set_var(var);
+  set_is_resolved();
   var->set_is_used();
 }
 
 
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
-                       Expression* value, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
-      op_(op),
+                       Expression* value, int pos)
+    : Expression(zone, pos),
+      bit_field_(IsUninitializedField::encode(false) |
+                 KeyTypeField::encode(ELEMENT) |
+                 StoreModeField::encode(STANDARD_STORE) |
+                 TokenField::encode(op)),
       target_(target),
       value_(value),
-      binary_operation_(NULL),
-      assignment_id_(id_gen->GetNextId()),
-      is_uninitialized_(false),
-      store_mode_(STANDARD_STORE) {}
+      binary_operation_(NULL) {}
 
 
 Token::Value Assignment::binary_op() const {
-  switch (op_) {
+  switch (op()) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
     case Token::ASSIGN_BIT_XOR: return Token::BIT_XOR;
     case Token::ASSIGN_BIT_AND: return Token::BIT_AND;
@@ -436,7 +433,7 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 bool BinaryOperation::ResultOverwriteAllowed() const {
-  switch (op_) {
+  switch (op()) {
     case Token::COMMA:
     case Token::OR:
     case Token::AND:
@@ -560,7 +557,7 @@ bool FunctionDeclaration::IsInlineable() const {
 // once we use the common type field in the AST consistently.
 
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
-  to_boolean_types_ = oracle->ToBooleanTypes(test_id());
+  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
 }
 
 
@@ -581,6 +578,8 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
       return LOOKUP_SLOT_CALL;
     }
   }
+
+  if (expression()->AsSuperReference() != NULL) return SUPER_CALL;
 
   Property* property = expression()->AsProperty();
   return property != NULL ? PROPERTY_CALL : OTHER_CALL;
@@ -607,9 +606,9 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  int allocation_site_feedback_slot = FLAG_pretenuring_call_new
-      ? AllocationSiteFeedbackSlot()
-      : CallNewFeedbackSlot();
+  FeedbackVectorSlot allocation_site_feedback_slot =
+      FLAG_pretenuring_call_new ? AllocationSiteFeedbackSlot()
+                                : CallNewFeedbackSlot();
   allocation_site_ =
       oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
@@ -794,14 +793,14 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // output formats are alike.
 class RegExpUnparser FINAL : public RegExpVisitor {
  public:
-  RegExpUnparser(OStream& os, Zone* zone) : os_(os), zone_(zone) {}
+  RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
                                                   void* data) OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
-  OStream& os_;
+  std::ostream& os_;
   Zone* zone_;
 };
 
@@ -944,7 +943,7 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
 }
 
 
-OStream& RegExpTree::Print(OStream& os, Zone* zone) {  // NOLINT
+std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
   RegExpUnparser unparser(os, zone);
   Accept(&unparser, NULL);
   return os;
@@ -989,58 +988,55 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
-                       ZoneList<Statement*>* statements, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
+                       ZoneList<Statement*>* statements, int pos)
+    : Expression(zone, pos),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(zone)),
-      compare_id_(id_gen->GetNextId()),
-      entry_id_(id_gen->GetNextId()) {}
+      compare_type_(Type::None(zone)) {}
 
 
 #define REGULAR_NODE(NodeType)                                   \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
   }
 #define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType)               \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
   }
 #define DONT_OPTIMIZE_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_TURBOFAN_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
+    set_dont_crankshaft_reason(k##NodeType);                     \
+    set_dont_turbofan_reason(k##NodeType);                       \
+    add_flag(kDontSelfOptimize);                                 \
+  }
+#define DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    add_slot_node(node);                                         \
     set_dont_crankshaft_reason(k##NodeType);                     \
     set_dont_turbofan_reason(k##NodeType);                       \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)     \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_CACHE_NODE(NodeType)                                \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
     add_flag(kDontCache);                                        \
@@ -1091,16 +1087,18 @@ DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(ClassLiteral)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
-DONT_OPTIMIZE_NODE(SuperReference)
 
 DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
 
 // TODO(turbofan): Remove the dont_turbofan_reason once this list is empty.
+// This list must be kept in sync with Pipeline::GenerateCode.
 DONT_TURBOFAN_NODE(ForOfStatement)
 DONT_TURBOFAN_NODE(TryCatchStatement)
 DONT_TURBOFAN_NODE(TryFinallyStatement)
+DONT_TURBOFAN_NODE(ClassLiteral)
+
+DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(SuperReference)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
@@ -1112,7 +1110,6 @@ DONT_CACHE_NODE(ModuleLiteral)
 
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
-  increase_node_count();
   add_slot_node(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
@@ -1126,20 +1123,19 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 #undef DONT_CACHE_NODE
 
 
-Handle<String> Literal::ToString() {
-  if (value_->IsString()) return value_->AsString()->string();
-  DCHECK(value_->IsNumber());
-  char arr[100];
-  Vector<char> buffer(arr, arraysize(arr));
-  const char* str;
-  if (value()->IsSmi()) {
-    // Optimization only, the heap number case would subsume this.
-    SNPrintF(buffer, "%d", Smi::cast(*value())->value());
-    str = arr;
-  } else {
-    str = DoubleToCString(value()->Number(), buffer);
-  }
-  return isolate_->factory()->NewStringFromAsciiChecked(str);
+uint32_t Literal::Hash() {
+  return raw_value()->IsString()
+             ? raw_value()->AsString()->hash()
+             : ComputeLongHash(double_to_uint64(raw_value()->AsNumber()));
+}
+
+
+// static
+bool Literal::Match(void* literal1, void* literal2) {
+  const AstValue* x = static_cast<Literal*>(literal1)->raw_value();
+  const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
+  return (x->IsString() && y->IsString() && *x->AsString() == *y->AsString()) ||
+         (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }
 
 

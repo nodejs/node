@@ -27,6 +27,11 @@
 
 // Flags: --allow-natives-syntax
 
+// Helper to determine endian - returns true on little endian platforms
+function isLittleEndian() {
+  return ((new Uint32Array((new Uint8Array([4,3,2,1])).buffer))[0])
+           == 0x01020304;
+}
 
 // Test that both kinds of NaNs (signaling or quiet) do not signal
 
@@ -41,7 +46,11 @@ function TestAllModes(f) {
 function TestDoubleSignalingNan() {
   // NaN with signal bit set
   function f() {
-    var bytes = new Uint32Array([1, 0x7FF00000]);
+    if(isLittleEndian()) {
+      var bytes = new Uint32Array([1, 0x7FF00000]);
+    } else {
+      var bytes = new Uint32Array([0x7FF00000, 1]);
+    }
     var doubles = new Float64Array(bytes.buffer);
     assertTrue(isNaN(doubles[0]));
     assertTrue(isNaN(doubles[0]*2.0));
@@ -56,7 +65,11 @@ TestDoubleSignalingNan();
 function TestDoubleQuietNan() {
   // NaN with signal bit cleared
   function f() {
-    var bytes = new Uint32Array([0, 0x7FF80000]);
+    if(isLittleEndian()) {
+      var bytes = new Uint32Array([0, 0x7FF80000]);
+    } else {
+      var bytes = new Uint32Array([0x7FF80000, 0]);
+    }
     var doubles = new Float64Array(bytes.buffer);
     assertTrue(isNaN(doubles[0]));
     assertTrue(isNaN(doubles[0]*2.0));

@@ -215,7 +215,7 @@ class HBasicBlock FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HBasicBlock& b);
+std::ostream& operator<<(std::ostream& os, const HBasicBlock& b);
 
 
 class HPredecessorIterator FINAL BASE_EMBEDDED {
@@ -315,7 +315,6 @@ class HGraph FINAL : public ZoneObject {
   HEnvironment* start_environment() const { return start_environment_; }
 
   void FinalizeUniqueness();
-  bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
   void RestoreActualValues();
@@ -479,8 +478,6 @@ class HGraph FINAL : public ZoneObject {
     phase.Run();
   }
 
-  void EliminateRedundantBoundsChecksUsingInductionVariables();
-
   Isolate* isolate_;
   int next_block_id_;
   HBasicBlock* entry_block_;
@@ -527,8 +524,8 @@ class HGraph FINAL : public ZoneObject {
     int start_position_;
   };
 
-  int next_inline_id_;
   ZoneList<InlinedFunctionInfo> inlined_functions_;
+  ZoneList<int> inlining_id_to_function_id_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -645,6 +642,7 @@ class HEnvironment FINAL : public ZoneObject {
   }
 
   void SetExpressionStackAt(int index_from_top, HValue* value);
+  HValue* RemoveExpressionStackAt(int index_from_top);
 
   HEnvironment* Copy() const;
   HEnvironment* CopyWithoutHistory() const;
@@ -743,7 +741,7 @@ class HEnvironment FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HEnvironment& env);
+std::ostream& operator<<(std::ostream& os, const HEnvironment& env);
 
 
 class HOptimizedGraphBuilder;
@@ -1805,8 +1803,9 @@ class HGraphBuilder {
                                      ElementsKind kind,
                                      HValue* capacity);
 
-  HValue* BuildAllocateElementsAndInitializeElementsHeader(ElementsKind kind,
-                                                           HValue* capacity);
+  // Build allocation and header initialization code for respective successor
+  // of FixedArrayBase.
+  HValue* BuildAllocateAndInitializeArray(ElementsKind kind, HValue* capacity);
 
   // |array| must have been allocated with enough room for
   // 1) the JSArray and 2) an AllocationMemento if mode requires it.
@@ -1837,6 +1836,9 @@ class HGraphBuilder {
                                  ElementsKind elements_kind,
                                  HValue* from,
                                  HValue* to);
+
+  void BuildCopyProperties(HValue* from_properties, HValue* to_properties,
+                           HValue* length, HValue* capacity);
 
   void BuildCopyElements(HValue* from_elements,
                          ElementsKind from_elements_kind,
@@ -2200,7 +2202,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
 
-  bool PreProcessOsrEntry(IterationStatement* statement);
   void VisitLoopBody(IterationStatement* stmt,
                      HBasicBlock* loop_entry);
 
@@ -2311,8 +2312,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
 
-  // Try to optimize fun.apply(receiver, arguments) pattern.
-  bool TryCallApply(Call* expr);
+  // Shared code for .call and .apply optimizations.
+  void HandleIndirectCall(Call* expr, HValue* function, int arguments_count);
+  // Try to optimize indirect calls such as fun.apply(receiver, arguments)
+  // or fun.call(...).
+  bool TryIndirectCall(Call* expr);
+  void BuildFunctionApply(Call* expr);
+  void BuildFunctionCall(Call* expr);
 
   bool TryHandleArrayCall(Call* expr, HValue* function);
   bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
@@ -2348,12 +2354,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        BailoutId id,
                        BailoutId assignment_id,
                        HValue* implicit_return_value);
-  bool TryInlineApply(Handle<JSFunction> function,
-                      Call* expr,
-                      int arguments_count);
-  bool TryInlineBuiltinMethodCall(Call* expr,
-                                  HValue* receiver,
-                                  Handle<Map> receiver_map);
+  bool TryInlineIndirectCall(Handle<JSFunction> function, Call* expr,
+                             int arguments_count);
+  bool TryInlineBuiltinMethodCall(Call* expr, Handle<JSFunction> function,
+                                  Handle<Map> receiver_map,
+                                  int args_count_no_receiver);
   bool TryInlineBuiltinFunctionCall(Call* expr);
   enum ApiCallType {
     kCallApiFunction,
@@ -2755,7 +2760,7 @@ class HStatistics FINAL: public Malloced {
         source_size_(0) { }
 
   void Initialize(CompilationInfo* info);
-  void Print(const char* stats_name);
+  void Print();
   void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
 
   void IncrementFullCodeGen(base::TimeDelta full_code_gen) {

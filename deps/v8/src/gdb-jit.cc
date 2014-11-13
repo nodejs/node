@@ -1842,7 +1842,7 @@ extern "C" {
   void __gdb_print_v8_object(Object* object) {
     OFStream os(stdout);
     object->Print(os);
-    os << flush;
+    os << std::flush;
   }
 #endif
 }

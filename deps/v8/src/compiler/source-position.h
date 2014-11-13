@@ -79,7 +79,7 @@ class SourcePositionTable FINAL {
   void AddDecorator();
   void RemoveDecorator();
 
-  SourcePosition GetSourcePosition(Node* node);
+  SourcePosition GetSourcePosition(Node* node) const;
 
  private:
   class Decorator;

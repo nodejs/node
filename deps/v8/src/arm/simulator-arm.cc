@@ -2710,6 +2710,27 @@ void Simulator::DecodeType3(Instruction* instr) {
       break;
     }
     case db_x: {
+      if (instr->Bits(22, 20) == 0x5) {
+        if (instr->Bits(7, 4) == 0x1) {
+          int rm = instr->RmValue();
+          int32_t rm_val = get_register(rm);
+          int rs = instr->RsValue();
+          int32_t rs_val = get_register(rs);
+          if (instr->Bits(15, 12) == 0xF) {
+            // SMMUL (in V8 notation matching ARM ISA format)
+            // Format(instr, "smmul'cond 'rn, 'rm, 'rs");
+            rn_val = base::bits::SignedMulHigh32(rm_val, rs_val);
+          } else {
+            // SMMLA (in V8 notation matching ARM ISA format)
+            // Format(instr, "smmla'cond 'rn, 'rm, 'rs, 'rd");
+            int rd = instr->RdValue();
+            int32_t rd_val = get_register(rd);
+            rn_val = base::bits::SignedMulHighAndAdd32(rm_val, rs_val, rd_val);
+          }
+          set_register(rn, rn_val);
+          return;
+        }
+      }
       if (FLAG_enable_sudiv) {
         if (instr->Bits(5, 4) == 0x1) {
           if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
@@ -2720,15 +2741,12 @@ void Simulator::DecodeType3(Instruction* instr) {
             int rs = instr->RsValue();
             int32_t rs_val = get_register(rs);
             int32_t ret_val = 0;
-            DCHECK(rs_val != 0);
             // udiv
             if (instr->Bit(21) == 0x1) {
-              ret_val = static_cast<int32_t>(static_cast<uint32_t>(rm_val) /
-                                             static_cast<uint32_t>(rs_val));
-            } else if ((rm_val == kMinInt) && (rs_val == -1)) {
-              ret_val = kMinInt;
+              ret_val = bit_cast<int32_t>(base::bits::UnsignedDiv32(
+                  bit_cast<uint32_t>(rm_val), bit_cast<uint32_t>(rs_val)));
             } else {
-              ret_val = rm_val / rs_val;
+              ret_val = base::bits::SignedDiv32(rm_val, rs_val);
             }
             set_register(rn, ret_val);
             return;
@@ -2939,6 +2957,12 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         } else {
           UNREACHABLE();  // Not used by v8.
         }
+      } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
+        // vrintz - truncate
+        double dm_value = get_double_from_d_register(vm);
+        double dd_value = trunc(dm_value);
+        dd_value = canonicalizeNaN(dd_value);
+        set_d_register_from_double(vd, dd_value);
       } else {
         UNREACHABLE();  // Not used by V8.
       }
@@ -3585,6 +3609,50 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     case 0xB:
       if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
         // pld: ignore instruction.
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case 0x1D:
+      if (instr->Opc1Value() == 0x7 && instr->Opc3Value() == 0x1 &&
+          instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2 &&
+          instr->Bit(8) == 0x1) {
+        int vm = instr->VFPMRegValue(kDoublePrecision);
+        int vd = instr->VFPDRegValue(kDoublePrecision);
+        double dm_value = get_double_from_d_register(vm);
+        double dd_value = 0.0;
+        int rounding_mode = instr->Bits(17, 16);
+        switch (rounding_mode) {
+          case 0x0:  // vrinta - round with ties to away from zero
+            dd_value = round(dm_value);
+            break;
+          case 0x1: {  // vrintn - round with ties to even
+            dd_value = std::floor(dm_value);
+            double error = dm_value - dd_value;
+            // Take care of correctly handling the range [-0.5, -0.0], which
+            // must yield -0.0.
+            if ((-0.5 <= dm_value) && (dm_value < 0.0)) {
+              dd_value = -0.0;
+              // If the error is greater than 0.5, or is equal to 0.5 and the
+              // integer result is odd, round up.
+            } else if ((error > 0.5) ||
+                       ((error == 0.5) && (fmod(dd_value, 2) != 0))) {
+              dd_value++;
+            }
+            break;
+          }
+          case 0x2:  // vrintp - ceil
+            dd_value = std::ceil(dm_value);
+            break;
+          case 0x3:  // vrintm - floor
+            dd_value = std::floor(dm_value);
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
+        }
+        dd_value = canonicalizeNaN(dd_value);
+        set_d_register_from_double(vd, dd_value);
       } else {
         UNIMPLEMENTED();
       }

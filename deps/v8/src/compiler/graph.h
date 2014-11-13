@@ -25,7 +25,8 @@ class Graph : public GenericGraph<Node> {
   explicit Graph(Zone* zone);
 
   // Base implementation used by all factory methods.
-  Node* NewNode(const Operator* op, int input_count, Node** inputs);
+  Node* NewNode(const Operator* op, int input_count, Node** inputs,
+                bool incomplete = false);
 
   // Factories for nodes with static input counts.
   Node* NewNode(const Operator* op) {
@@ -54,6 +55,11 @@ class Graph : public GenericGraph<Node> {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6};
     return NewNode(op, arraysize(nodes), nodes);
   }
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6, Node* n7) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7};
+    return NewNode(op, arraysize(nodes), nodes);
+  }
 
   template <class Visitor>
   void VisitNodeUsesFrom(Node* node, Visitor* visitor);
@@ -63,6 +69,8 @@ class Graph : public GenericGraph<Node> {
 
   template <class Visitor>
   void VisitNodeInputsFromEnd(Visitor* visitor);
+
+  void Decorate(Node* node);
 
   void AddDecorator(GraphDecorator* decorator) {
     decorators_.push_back(decorator);

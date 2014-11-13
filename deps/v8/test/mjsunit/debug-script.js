@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --expose-gc --send-idle-notification
+// Flags: --allow-natives-syntax
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
@@ -59,7 +60,7 @@ for (i = 0; i < scripts.length; i++) {
 }
 
 // This has to be updated if the number of native scripts change.
-assertTrue(named_native_count == 26 || named_native_count == 27);
+assertEquals(%NativeScriptsCount(), named_native_count);
 // Only the 'gc' extension is loaded.
 assertEquals(1, extension_count);
 // This script and mjsunit.js has been loaded.  If using d8, d8 loads
