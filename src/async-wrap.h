@@ -74,13 +74,6 @@ class AsyncWrap : public BaseObject {
  private:
   inline AsyncWrap();
 
-  // TODO(trevnorris): BURN IN FIRE! Remove this as soon as a suitable
-  // replacement is committed.
-  v8::Handle<v8::Value> MakeDomainCallback(
-      const v8::Handle<v8::Function> cb,
-      int argc,
-      v8::Handle<v8::Value>* argv);
-
   uint32_t provider_type_;
 };
 
