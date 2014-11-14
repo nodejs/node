@@ -78,7 +78,7 @@ TLSCallbacks::TLSCallbacks(Environment* env,
       error_(NULL),
       cycle_depth_(0),
       eof_(false) {
-  node::Wrap<TLSCallbacks>(object(), this);
+  node::Wrap(object(), this);
   MakeWeak(this);
 
   // Initialize queue for clearIn writes
