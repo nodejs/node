@@ -58,6 +58,21 @@ Returns an object with the following properties
 }
 ```
 
+### setFlagsFromString()
+
+Set additional V8 command line flags.  Use with care; changing settings
+after the VM has started may result in unpredictable behavior, including
+crashes and data loss.  Or it may simply do nothing.
+
+Usage:
+
+```
+// Print GC events to stdout for one minute.
+var v8 = require('tracing').v8;
+v8.setFlagsFromString('--trace_gc');
+setTimeout(function() { v8.setFlagsFromString('--notrace_gc'); }, 60e3);
+```
+
 
 # Async Listeners
 
