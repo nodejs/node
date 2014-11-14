@@ -151,7 +151,6 @@ static intptr_t	V8_FIELDINDEX_SHIFT;
 static intptr_t	V8_PROP_IDX_CONTENT;
 static intptr_t	V8_PROP_IDX_FIRST;
 static intptr_t	V8_PROP_TYPE_FIELD;
-static intptr_t	V8_PROP_FIRST_PHANTOM;
 static intptr_t	V8_PROP_TYPE_MASK;
 static intptr_t	V8_PROP_DESC_KEY;
 static intptr_t	V8_PROP_DESC_DETAILS;
@@ -220,6 +219,7 @@ static ssize_t V8_OFF_STRING_LENGTH;
 
 #define	V8_CONSTANT_OPTIONAL		1
 #define	V8_CONSTANT_HASFALLBACK		2
+#define	V8_CONSTANT_REMOVED		4
 
 #define	V8_CONSTANT_MAJORSHIFT		3
 #define	V8_CONSTANT_MAJORMASK		((1 << 4) - 1)
@@ -233,6 +233,10 @@ static ssize_t V8_OFF_STRING_LENGTH;
 
 #define	V8_CONSTANT_FALLBACK(maj, min) \
 	(V8_CONSTANT_OPTIONAL | V8_CONSTANT_HASFALLBACK | \
+	((maj) << V8_CONSTANT_MAJORSHIFT) | ((min) << V8_CONSTANT_MINORSHIFT))
+
+#define V8_CONSTANT_REMOVED_SINCE(maj, min) \
+	(V8_CONSTANT_REMOVED | \
 	((maj) << V8_CONSTANT_MAJORSHIFT) | ((min) << V8_CONSTANT_MINORSHIFT))
 
 /*
@@ -264,8 +268,10 @@ static v8_constant_t v8_constants[] = {
 	{ &V8_SlicedStringTag,		"v8dbg_SlicedStringTag",
 	    V8_CONSTANT_FALLBACK(0, 0), 0x3 },
 	{ &V8_ExternalStringTag,	"v8dbg_ExternalStringTag"	},
-	{ &V8_FailureTag,		"v8dbg_FailureTag"		},
-	{ &V8_FailureTagMask,		"v8dbg_FailureTagMask"		},
+	{ &V8_FailureTag,		"v8dbg_FailureTag",
+		V8_CONSTANT_REMOVED_SINCE(3, 28) },
+	{ &V8_FailureTagMask,		"v8dbg_FailureTagMask",
+		V8_CONSTANT_REMOVED_SINCE(3, 28) },
 	{ &V8_HeapObjectTag,		"v8dbg_HeapObjectTag"		},
 	{ &V8_HeapObjectTagMask,	"v8dbg_HeapObjectTagMask"	},
 	{ &V8_SmiTag,			"v8dbg_SmiTag"			},
@@ -294,8 +300,7 @@ static v8_constant_t v8_constants[] = {
 	{ &V8_ISSHARED_SHIFT,		"v8dbg_isshared_shift",
 	    V8_CONSTANT_FALLBACK(3, 11), 0 },
 	{ &V8_PROP_IDX_FIRST,		"v8dbg_prop_idx_first"		},
-	{ &V8_PROP_TYPE_FIELD,		"v8dbg_prop_type_field"		},
-	{ &V8_PROP_FIRST_PHANTOM,	"v8dbg_prop_type_first_phantom"	},
+	{ &V8_PROP_TYPE_FIELD,		"v8dbg_prop_type_field"     	},
 	{ &V8_PROP_TYPE_MASK,		"v8dbg_prop_type_mask"		},
 	{ &V8_PROP_IDX_CONTENT,		"v8dbg_prop_idx_content",
 	    V8_CONSTANT_OPTIONAL },
@@ -486,6 +491,18 @@ static int jsobj_print_jsfunction(uintptr_t, jsobj_print_t *);
 static int jsobj_print_jsdate(uintptr_t, jsobj_print_t *);
 
 /*
+ * Returns 1 if the V8 version v8_major.v8.minor is strictly older than
+ * the V8 version represented by "flags".
+ * Returns 0 otherwise.
+ */
+static int
+v8_version_older(uintptr_t v8_major, uintptr_t v8_minor, uint32_t flags) {
+	return 	v8_major < V8_CONSTANT_MAJOR(flags) ||
+	        (v8_major == V8_CONSTANT_MAJOR(flags) &&
+	         v8_minor < V8_CONSTANT_MINOR(flags));
+}
+
+/*
  * Invoked when this dmod is initially loaded to load the set of classes, enums,
  * and other constants from the metadata in the target binary.
  */
@@ -531,7 +548,9 @@ autoconfigure(v8_cfg_t *cfgp)
 			continue;
 		}
 
-		if (!(cnp->v8c_flags & V8_CONSTANT_OPTIONAL)) {
+		if (!(cnp->v8c_flags & V8_CONSTANT_OPTIONAL) &&
+		    (!(cnp->v8c_flags & V8_CONSTANT_REMOVED) ||
+		     v8_version_older(v8_major, v8_minor, cnp->v8c_flags))) {
 			mdb_warn("failed to read \"%s\"", cnp->v8c_symbol);
 			failed++;
 			continue;
