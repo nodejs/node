@@ -2846,29 +2846,33 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   //
   // We rewrite a for statement of the form
   //
-  //  for (let x = i; cond; next) body
+  //  labels: for (let x = i; cond; next) body
   //
   // into
   //
   //  {
-  //     let x = i;
-  //     temp_x = x;
-  //     flag = 1;
-  //     for (;;) {
-  //        let x = temp_x;
-  //        if (flag == 1) {
-  //          flag = 0;
-  //        } else {
-  //          next;
-  //        }
+  //    let x = i;
+  //    temp_x = x;
+  //    first = 1;
+  //    outer: for (;;) {
+  //      let x = temp_x;
+  //      if (first == 1) {
+  //        first = 0;
+  //      } else {
+  //        next;
+  //      }
+  //      flag = 1;
+  //      labels: for (; flag == 1; flag = 0, temp_x = x) {
   //        if (cond) {
-  //          <empty>
+  //          body
   //        } else {
-  //          break;
+  //          break outer;
   //        }
-  //        b
-  //        temp_x = x;
-  //     }
+  //      }
+  //      if (flag == 1) {
+  //        break;
+  //      }
+  //    }
   //  }
 
   DCHECK(names->length() > 0);
@@ -2896,24 +2900,33 @@ Statement* Parser::DesugarLetBindingsInForStatement(
     temps.Add(temp, zone());
   }
 
-  Variable* flag = scope_->DeclarationScope()->NewTemporary(temp_name);
-  // Make statement: flag = 1.
-  {
-    VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
+  Variable* first = NULL;
+  // Make statement: first = 1.
+  if (next) {
+    first = scope_->DeclarationScope()->NewTemporary(temp_name);
+    VariableProxy* first_proxy = factory()->NewVariableProxy(first);
     Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
     Assignment* assignment = factory()->NewAssignment(
-        Token::ASSIGN, flag_proxy, const1, RelocInfo::kNoPosition);
-    Statement* assignment_statement = factory()->NewExpressionStatement(
-        assignment, RelocInfo::kNoPosition);
+        Token::ASSIGN, first_proxy, const1, RelocInfo::kNoPosition);
+    Statement* assignment_statement =
+        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     outer_block->AddStatement(assignment_statement, zone());
   }
 
-  outer_block->AddStatement(loop, zone());
+  // Make statement: outer: for (;;)
+  // Note that we don't actually create the label, or set this loop up as an
+  // explicit break target, instead handing it directly to those nodes that
+  // need to know about it. This should be safe because we don't run any code
+  // in this function that looks up break targets.
+  ForStatement* outer_loop =
+      factory()->NewForStatement(NULL, RelocInfo::kNoPosition);
+  outer_block->AddStatement(outer_loop, zone());
+
   outer_block->set_scope(for_scope);
   scope_ = inner_scope;
 
-  Block* inner_block = factory()->NewBlock(NULL, 2 * names->length() + 3,
-                                           false, RelocInfo::kNoPosition);
+  Block* inner_block = factory()->NewBlock(NULL, names->length() + 4, false,
+                                           RelocInfo::kNoPosition);
   int pos = scanner()->location().beg_pos;
   ZoneList<Variable*> inner_vars(names->length(), zone());
 
@@ -2935,61 +2948,118 @@ Statement* Parser::DesugarLetBindingsInForStatement(
     inner_block->AddStatement(assignment_statement, zone());
   }
 
-  // Make statement: if (flag == 1) { flag = 0; } else { next; }.
+  // Make statement: if (first == 1) { first = 0; } else { next; }
   if (next) {
+    DCHECK(first);
+    Expression* compare = NULL;
+    // Make compare expression: first == 1.
+    {
+      Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
+      VariableProxy* first_proxy = factory()->NewVariableProxy(first);
+      compare =
+          factory()->NewCompareOperation(Token::EQ, first_proxy, const1, pos);
+    }
+    Statement* clear_first = NULL;
+    // Make statement: first = 0.
+    {
+      VariableProxy* first_proxy = factory()->NewVariableProxy(first);
+      Expression* const0 = factory()->NewSmiLiteral(0, RelocInfo::kNoPosition);
+      Assignment* assignment = factory()->NewAssignment(
+          Token::ASSIGN, first_proxy, const0, RelocInfo::kNoPosition);
+      clear_first =
+          factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
+    }
+    Statement* clear_first_or_next = factory()->NewIfStatement(
+        compare, clear_first, next, RelocInfo::kNoPosition);
+    inner_block->AddStatement(clear_first_or_next, zone());
+  }
+
+  Variable* flag = scope_->DeclarationScope()->NewTemporary(temp_name);
+  // Make statement: flag = 1.
+  {
+    VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
+    Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
+    Assignment* assignment = factory()->NewAssignment(
+        Token::ASSIGN, flag_proxy, const1, RelocInfo::kNoPosition);
+    Statement* assignment_statement =
+        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
+    inner_block->AddStatement(assignment_statement, zone());
+  }
+
+  // Make cond expression for main loop: flag == 1.
+  Expression* flag_cond = NULL;
+  {
+    Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
+    VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
+    flag_cond =
+        factory()->NewCompareOperation(Token::EQ, flag_proxy, const1, pos);
+  }
+
+  // Create chain of expressions "flag = 0, temp_x = x, ..."
+  Statement* compound_next_statement = NULL;
+  {
+    Expression* compound_next = NULL;
+    // Make expression: flag = 0.
+    {
+      VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
+      Expression* const0 = factory()->NewSmiLiteral(0, RelocInfo::kNoPosition);
+      compound_next = factory()->NewAssignment(Token::ASSIGN, flag_proxy,
+                                               const0, RelocInfo::kNoPosition);
+    }
+
+    // Make the comma-separated list of temp_x = x assignments.
+    for (int i = 0; i < names->length(); i++) {
+      VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
+      VariableProxy* proxy = factory()->NewVariableProxy(inner_vars.at(i), pos);
+      Assignment* assignment = factory()->NewAssignment(
+          Token::ASSIGN, temp_proxy, proxy, RelocInfo::kNoPosition);
+      compound_next = factory()->NewBinaryOperation(
+          Token::COMMA, compound_next, assignment, RelocInfo::kNoPosition);
+    }
+
+    compound_next_statement = factory()->NewExpressionStatement(
+        compound_next, RelocInfo::kNoPosition);
+  }
+
+  // Make statement: if (cond) { body; } else { break outer; }
+  Statement* body_or_stop = body;
+  if (cond) {
+    Statement* stop =
+        factory()->NewBreakStatement(outer_loop, RelocInfo::kNoPosition);
+    body_or_stop =
+        factory()->NewIfStatement(cond, body, stop, cond->position());
+  }
+
+  // Make statement: labels: for (; flag == 1; flag = 0, temp_x = x)
+  // Note that we re-use the original loop node, which retains it labels
+  // and ensures that any break or continue statements in body point to
+  // the right place.
+  loop->Initialize(NULL, flag_cond, compound_next_statement, body_or_stop);
+  inner_block->AddStatement(loop, zone());
+
+  // Make statement: if (flag == 1) { break; }
+  {
     Expression* compare = NULL;
     // Make compare expresion: flag == 1.
     {
       Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
-      compare = factory()->NewCompareOperation(
-          Token::EQ, flag_proxy, const1, pos);
+      compare =
+          factory()->NewCompareOperation(Token::EQ, flag_proxy, const1, pos);
     }
-    Statement* clear_flag = NULL;
-    // Make statement: flag = 0.
-    {
-      VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
-      Expression* const0 = factory()->NewSmiLiteral(0, RelocInfo::kNoPosition);
-      Assignment* assignment = factory()->NewAssignment(
-          Token::ASSIGN, flag_proxy, const0, RelocInfo::kNoPosition);
-      clear_flag = factory()->NewExpressionStatement(assignment, pos);
-    }
-    Statement* clear_flag_or_next = factory()->NewIfStatement(
-        compare, clear_flag, next, RelocInfo::kNoPosition);
-    inner_block->AddStatement(clear_flag_or_next, zone());
-  }
-
-
-  // Make statement: if (cond) { } else { break; }.
-  if (cond) {
+    Statement* stop =
+        factory()->NewBreakStatement(outer_loop, RelocInfo::kNoPosition);
     Statement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
-    BreakableStatement* t = LookupBreakTarget(NULL, CHECK_OK);
-    Statement* stop = factory()->NewBreakStatement(t, RelocInfo::kNoPosition);
-    Statement* if_not_cond_break = factory()->NewIfStatement(
-        cond, empty, stop, cond->position());
-    inner_block->AddStatement(if_not_cond_break, zone());
-  }
-
-  inner_block->AddStatement(body, zone());
-
-  // For each let variable x:
-  //   make statement: temp_x = x;
-  for (int i = 0; i < names->length(); i++) {
-    VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
-    int pos = scanner()->location().end_pos;
-    VariableProxy* proxy = factory()->NewVariableProxy(inner_vars.at(i), pos);
-    Assignment* assignment = factory()->NewAssignment(
-        Token::ASSIGN, temp_proxy, proxy, RelocInfo::kNoPosition);
-    Statement* assignment_statement = factory()->NewExpressionStatement(
-        assignment, RelocInfo::kNoPosition);
-    inner_block->AddStatement(assignment_statement, zone());
+    Statement* if_flag_break =
+        factory()->NewIfStatement(compare, stop, empty, RelocInfo::kNoPosition);
+    inner_block->AddStatement(if_flag_break, zone());
   }
 
   inner_scope->set_end_position(scanner()->location().end_pos);
   inner_block->set_scope(inner_scope);
   scope_ = for_scope;
 
-  loop->Initialize(NULL, NULL, NULL, inner_block);
+  outer_loop->Initialize(NULL, NULL, NULL, inner_block);
   return outer_block;
 }
 
