@@ -55,6 +55,7 @@ class Platform : public v8::Platform {
   void CallOnBackgroundThread(v8::Task* task,
                               ExpectedRuntime expected_runtime);
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task);
+  double MonotonicallyIncreasingTime();
 
  protected:
   static void WorkerBody(void* arg);
