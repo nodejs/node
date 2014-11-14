@@ -89,7 +89,7 @@ HandleWrap::HandleWrap(Environment* env,
       handle__(handle) {
   handle__->data = this;
   HandleScope scope(env->isolate());
-  Wrap<HandleWrap>(object, this);
+  Wrap(object, this);
   QUEUE_INSERT_TAIL(env->handle_wrap_queue(), &handle_wrap_queue_);
 }
 

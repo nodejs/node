@@ -205,7 +205,7 @@ class ContextifyContext {
     if (wrapper.IsEmpty())
       return scope.Escape(Local<Value>::New(env->isolate(), Handle<Value>()));
 
-    Wrap<ContextifyContext>(wrapper, this);
+    Wrap(wrapper, this);
     return scope.Escape(wrapper);
   }
 
