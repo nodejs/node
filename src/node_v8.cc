@@ -41,7 +41,9 @@ using v8::Local;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::String;
 using v8::Uint32;
+using v8::V8;
 using v8::Value;
 using v8::kGCTypeAll;
 using v8::kGCTypeMarkSweepCompact;
@@ -204,6 +206,12 @@ void StopGarbageCollectionTracking(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
+  String::Utf8Value flags(args[0]);
+  V8::SetFlagsFromString(*flags, flags.length());
+}
+
+
 void InitializeV8Bindings(Handle<Object> target,
                           Handle<Value> unused,
                           Handle<Context> context) {
@@ -215,6 +223,7 @@ void InitializeV8Bindings(Handle<Object> target,
                  "stopGarbageCollectionTracking",
                  StopGarbageCollectionTracking);
   env->SetMethod(target, "getHeapStatistics", GetHeapStatistics);
+  env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
 }
 
 }  // namespace node
