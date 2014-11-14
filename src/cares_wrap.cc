@@ -73,7 +73,7 @@ class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP) {
-  Wrap<GetAddrInfoReqWrap>(req_wrap_obj, this);
+  Wrap(req_wrap_obj, this);
 }
 
 
@@ -90,7 +90,7 @@ class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
-  Wrap<GetNameInfoReqWrap>(req_wrap_obj, this);
+  Wrap(req_wrap_obj, this);
 }
 
 
