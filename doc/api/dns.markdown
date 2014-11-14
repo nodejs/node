@@ -2,10 +2,13 @@
 
     Stability: 3 - Stable
 
-Use `require('dns')` to access this module. All methods in the dns module
-use C-Ares except for `dns.lookup` which uses `getaddrinfo(3)` in a thread
-pool. C-Ares is much faster than `getaddrinfo` but the system resolver is
-more consistent with how other programs operate. When a user does
+Use `require('dns')` to access this module. All methods in the dns module use
+C-Ares except for `dns.lookup` which uses `getaddrinfo(3)` in a thread pool.
+C-Ares is much faster than `getaddrinfo(3)` but, due to the way it is
+configured by node, it doesn't use the same set of system configuration files.
+For instance, _C- Ares will not use the configuration from `/etc/hosts`_. As a
+result, __only `dns.lookup` should be expected to behave like other programs
+running on the same system regarding name resolution.__ When a user does
 `net.connect(80, 'google.com')` or `http.get({ host: 'google.com' })` the
 `dns.lookup` method is used. Users who need to do a large number of lookups
 quickly should use the methods that go through C-Ares.
