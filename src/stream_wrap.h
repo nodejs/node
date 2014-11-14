@@ -37,7 +37,7 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
  public:
   ShutdownWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj)
       : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-    Wrap<ShutdownWrap>(req_wrap_obj, this);
+    Wrap(req_wrap_obj, this);
   }
 
   static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -52,7 +52,7 @@ class WriteWrap: public ReqWrap<uv_write_t> {
   WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
       : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
         wrap_(wrap) {
-    Wrap<WriteWrap>(obj, this);
+    Wrap(obj, this);
   }
 
   void* operator new(size_t size, char* storage) { return storage; }
