@@ -106,7 +106,7 @@ class ExternString: public ResourceType {
 };
 
 
-typedef ExternString<String::ExternalAsciiStringResource,
+typedef ExternString<String::ExternalOneByteStringResource,
                      char> ExternOneByteString;
 typedef ExternString<String::ExternalStringResource,
                      uint16_t> ExternTwoByteString;
@@ -270,9 +270,9 @@ bool StringBytes::GetExternalParts(Isolate* isolate,
 
   Local<String> str = val.As<String>();
 
-  if (str->IsExternalAscii()) {
-    const String::ExternalAsciiStringResource* ext;
-    ext = str->GetExternalAsciiStringResource();
+  if (str->IsExternalOneByte()) {
+    const String::ExternalOneByteStringResource* ext;
+    ext = str->GetExternalOneByteStringResource();
     *data = ext->data();
     *len = ext->length();
     return true;

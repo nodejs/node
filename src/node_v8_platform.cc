@@ -81,6 +81,17 @@ void Platform::CallOnForegroundThread(Isolate* isolate, Task* task) {
 }
 
 
+double Platform::MonotonicallyIncreasingTime() {
+  // uv_hrtime() returns a uint64_t but doubles can only represent integrals up
+  // to 2^53 accurately.  Take steps to prevent loss of precision on overflow.
+  const uint64_t timestamp = uv_hrtime();
+  const uint64_t billion = 1000 * 1000 * 1000;
+  const uint64_t seconds = timestamp / billion;
+  const uint64_t nanoseconds = timestamp % billion;
+  return seconds + 1.0 / nanoseconds;
+}
+
+
 void Platform::WorkerBody(void* arg) {
   Platform* p = static_cast<Platform*>(arg);
 
