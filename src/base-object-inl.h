@@ -72,7 +72,7 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   v8::HandleScope scope(env_->isolate());
   v8::Local<v8::Object> handle = object();
   assert(handle->InternalFieldCount() > 0);
-  Wrap<Type>(handle, ptr);
+  Wrap(handle, ptr);
   handle_.MarkIndependent();
   handle_.SetWeak<Type>(ptr, WeakCallback<Type>);
 }

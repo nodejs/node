@@ -64,7 +64,7 @@ SendWrap::SendWrap(Environment* env,
                    bool have_callback)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
       have_callback_(have_callback) {
-  Wrap<SendWrap>(req_wrap_obj, this);
+  Wrap(req_wrap_obj, this);
 }
 
 

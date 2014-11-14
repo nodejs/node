@@ -79,7 +79,7 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
       syscall_(syscall),
       data_(data),
       dest_len_(0) {
-    Wrap<FSReqWrap>(object(), this);
+    Wrap(object(), this);
   }
 
   void ReleaseEarly() {
