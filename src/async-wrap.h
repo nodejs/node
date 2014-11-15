@@ -28,31 +28,37 @@
 
 namespace node {
 
+#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
+  V(NONE)                                                                     \
+  V(CARES)                                                                    \
+  V(CONNECTWRAP)                                                              \
+  V(CRYPTO)                                                                   \
+  V(FSEVENTWRAP)                                                              \
+  V(FSREQWRAP)                                                                \
+  V(GETADDRINFOREQWRAP)                                                       \
+  V(GETNAMEINFOREQWRAP)                                                       \
+  V(PIPEWRAP)                                                                 \
+  V(PROCESSWRAP)                                                              \
+  V(QUERYWRAP)                                                                \
+  V(REQWRAP)                                                                  \
+  V(SHUTDOWNWRAP)                                                             \
+  V(SIGNALWRAP)                                                               \
+  V(STATWATCHER)                                                              \
+  V(TCPWRAP)                                                                  \
+  V(TIMERWRAP)                                                                \
+  V(TLSWRAP)                                                                  \
+  V(TTYWRAP)                                                                  \
+  V(UDPWRAP)                                                                  \
+  V(WRITEWRAP)                                                                \
+  V(ZLIB)
+
 class AsyncWrap : public BaseObject {
  public:
   enum ProviderType {
-    PROVIDER_NONE,
-    PROVIDER_CARES,
-    PROVIDER_CONNECTWRAP,
-    PROVIDER_CRYPTO,
-    PROVIDER_FSEVENTWRAP,
-    PROVIDER_FSREQWRAP,
-    PROVIDER_GETADDRINFOREQWRAP,
-    PROVIDER_GETNAMEINFOREQWRAP,
-    PROVIDER_PIPEWRAP,
-    PROVIDER_PROCESSWRAP,
-    PROVIDER_QUERYWRAP,
-    PROVIDER_REQWRAP,
-    PROVIDER_SHUTDOWNWRAP,
-    PROVIDER_SIGNALWRAP,
-    PROVIDER_STATWATCHER,
-    PROVIDER_TCPWRAP,
-    PROVIDER_TIMERWRAP,
-    PROVIDER_TLSWRAP,
-    PROVIDER_TTYWRAP,
-    PROVIDER_UDPWRAP,
-    PROVIDER_WRITEWRAP,
-    PROVIDER_ZLIB
+#define V(PROVIDER)                                                           \
+    PROVIDER_ ## PROVIDER,
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
   };
 
   inline AsyncWrap(Environment* env,

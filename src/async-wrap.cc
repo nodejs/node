@@ -28,14 +28,35 @@
 
 #include "v8.h"
 
+using v8::Context;
 using v8::Function;
 using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::TryCatch;
 using v8::Value;
 
 namespace node {
+
+static void Initialize(Handle<Object> target,
+                Handle<Value> unused,
+                Handle<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+
+  Local<Object> async_providers = Object::New(isolate);
+#define V(PROVIDER)                                                           \
+  async_providers->Set(FIXED_ONE_BYTE_STRING(isolate, #PROVIDER),             \
+      Integer::New(isolate, AsyncWrap::PROVIDER_ ## PROVIDER));
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+  target->Set(FIXED_ONE_BYTE_STRING(isolate, "Providers"), async_providers);
+}
+
 
 Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
                                       int argc,
@@ -114,3 +135,5 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
 }
 
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::Initialize)
