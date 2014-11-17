@@ -38,6 +38,7 @@ namespace node {
 
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -70,12 +71,13 @@ static void NewTCPConnectWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-Local<Object> TCPWrap::Instantiate(Environment* env) {
+Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope handle_scope(env->isolate());
   assert(env->tcp_constructor_template().IsEmpty() == false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   assert(constructor.IsEmpty() == false);
-  Local<Object> instance = constructor->NewInstance();
+  Local<Value> ptr = External::New(env->isolate(), parent);
+  Local<Object> instance = constructor->NewInstance(1, &ptr);
   assert(instance.IsEmpty() == false);
   return handle_scope.Escape(instance);
 }
@@ -171,18 +173,26 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   assert(args.IsConstructCall());
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  TCPWrap* wrap = new TCPWrap(env, args.This());
+  TCPWrap* wrap;
+  if (args.Length() == 0) {
+    wrap = new TCPWrap(env, args.This(), NULL);
+  } else if (args[0]->IsExternal()) {
+    void* ptr = args[0].As<External>()->Value();
+    wrap = new TCPWrap(env, args.This(), static_cast<AsyncWrap*>(ptr));
+  } else {
+    UNREACHABLE();
+  }
   assert(wrap);
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Handle<Object> object)
+TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_TCPWRAP) {
+                 AsyncWrap::PROVIDER_TCPWRAP,
+                 parent) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   assert(r == 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
@@ -365,7 +375,8 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
   if (status == 0) {
     // Instantiate the client javascript object and handle.
-    Local<Object> client_obj = Instantiate(env);
+    Local<Object> client_obj =
+        Instantiate(env, static_cast<AsyncWrap*>(tcp_wrap));
 
     // Unwrap the client javascript object.
     TCPWrap* wrap = Unwrap<TCPWrap>(client_obj);

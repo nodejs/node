@@ -22,6 +22,7 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
+#include "async-wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
 #include "req_wrap.h"
@@ -53,11 +54,11 @@ class UDPWrap: public HandleWrap {
   static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Local<v8::Object> Instantiate(Environment* env);
+  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   uv_udp_t* UVHandle();
 
  private:
-  UDPWrap(Environment* env, v8::Handle<v8::Object> object);
+  UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
   virtual ~UDPWrap();
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,

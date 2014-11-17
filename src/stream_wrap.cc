@@ -81,8 +81,13 @@ void StreamWrap::Initialize(Handle<Object> target,
 StreamWrap::StreamWrap(Environment* env,
                        Local<Object> object,
                        uv_stream_t* stream,
-                       AsyncWrap::ProviderType provider)
-    : HandleWrap(env, object, reinterpret_cast<uv_handle_t*>(stream), provider),
+                       AsyncWrap::ProviderType provider,
+                       AsyncWrap* parent)
+    : HandleWrap(env,
+                 object,
+                 reinterpret_cast<uv_handle_t*>(stream),
+                 provider,
+                 parent),
       stream_(stream),
       default_callbacks_(this),
       callbacks_(&default_callbacks_),
@@ -145,12 +150,14 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 template <class WrapType, class UVType>
-static Local<Object> AcceptHandle(Environment* env, uv_stream_t* pipe) {
+static Local<Object> AcceptHandle(Environment* env,
+                                  uv_stream_t* pipe,
+                                  AsyncWrap* parent) {
   EscapableHandleScope scope(env->isolate());
   Local<Object> wrap_obj;
   UVType* handle;
 
-  wrap_obj = WrapType::Instantiate(env);
+  wrap_obj = WrapType::Instantiate(env, parent);
   if (wrap_obj.IsEmpty())
     return Local<Object>();
 
@@ -743,11 +750,11 @@ void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
 
   Local<Object> pending_obj;
   if (pending == UV_TCP) {
-    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, handle);
+    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, handle, wrap());
   } else if (pending == UV_NAMED_PIPE) {
-    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env, handle);
+    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env, handle, wrap());
   } else if (pending == UV_UDP) {
-    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env, handle);
+    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env, handle, wrap());
   } else {
     assert(pending == UV_UNKNOWN_HANDLE);
   }
