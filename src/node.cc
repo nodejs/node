@@ -82,7 +82,6 @@ typedef int mode_t;
 #include "node_script.h"
 #include "v8_typed_array.h"
 
-#include "node_crypto.h"
 #include "util.h"
 
 using namespace v8;
@@ -2564,8 +2563,10 @@ static void PrintHelp() {
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
+#if HAVE_OPENSSL
          "  --enable-ssl2        enable ssl2\n"
          "  --enable-ssl3        enable ssl3\n"
+#endif
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -2599,12 +2600,14 @@ static void ParseArgs(int argc, char **argv) {
       p = 1 + strchr(arg, '=');
       max_stack_size = atoi(p);
       argv[i] = const_cast<char*>("");
+#if HAVE_OPENSSL
     } else if (strcmp(arg, "--enable-ssl2") == 0) {
       SSL2_ENABLE = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--enable-ssl3") == 0) {
       SSL3_ENABLE = true;
       argv[i] = const_cast<char*>("");
+#endif
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
