@@ -425,8 +425,6 @@ jslint:
 	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
 CPPLINT_EXCLUDE ?=
-CPPLINT_EXCLUDE += src/node_dtrace.cc
-CPPLINT_EXCLUDE += src/node_dtrace.cc
 CPPLINT_EXCLUDE += src/node_root_certs.h
 CPPLINT_EXCLUDE += src/node_win32_perfctr_provider.cc
 CPPLINT_EXCLUDE += src/queue.h
