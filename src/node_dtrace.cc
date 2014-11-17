@@ -1,12 +1,8 @@
-#include "util.h"
+#include "node_dtrace.h"
 
 #ifdef HAVE_DTRACE
-#include "node_dtrace.h"
 #include "node_provider.h"
-#include <string.h>
 #elif HAVE_ETW
-#include "node_dtrace.h"
-#include <string.h>
 #include "node_win32_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
 #else
@@ -28,6 +24,10 @@
 
 #include "env.h"
 #include "env-inl.h"
+
+#include "util.h"
+
+#include <string.h>
 
 namespace node {
 
