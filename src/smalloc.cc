@@ -440,6 +440,9 @@ bool HasExternalData(Environment* env, Local<Object> obj) {
   return obj->HasIndexedPropertiesInExternalArrayData();
 }
 
+void IsTypedArray(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(args[0]->IsTypedArray());
+}
 
 void AllocTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -540,6 +543,7 @@ void Initialize(Handle<Object> exports,
   env->SetMethod(exports, "truncate", AllocTruncate);
 
   env->SetMethod(exports, "hasExternalData", HasExternalData);
+  env->SetMethod(exports, "isTypedArray", IsTypedArray);
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
                Uint32::NewFromUnsigned(env->isolate(), kMaxLength));
