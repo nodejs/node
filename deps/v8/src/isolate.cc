@@ -1152,18 +1152,26 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         thread_local_top()->pending_message_end_pos_ = location->end_pos();
       }
 
-      // If the abort-on-uncaught-exception flag is specified, abort on any
-      // exception not caught by JavaScript, even when an external handler is
-      // present.  This flag is intended for use by JavaScript developers, so
-      // print a user-friendly stack trace (not an internal one).
+      // If the abort-on-uncaught-exception flag is specified, and if the
+      // exception is not caught by JavaScript (even when an external handler is
+      // present).
       if (fatal_exception_depth == 0 &&
           FLAG_abort_on_uncaught_exception &&
           (report_exception || can_be_caught_externally)) {
-        fatal_exception_depth++;
-        fprintf(stderr, "%s\n\nFROM\n",
-          *MessageHandler::GetLocalizedMessage(message_obj));
-        PrintCurrentStackTrace(stderr);
-        OS::Abort();
+        // If the embedder didn't specify a custom uncaught exception callback,
+        // or if the custom callback determined that V8 should abort, then
+        // abort
+        bool should_abort = !abort_on_uncaught_exception_callback_ ||
+                             abort_on_uncaught_exception_callback_();
+        if (should_abort) {
+          fatal_exception_depth++;
+          // This flag is intended for use by JavaScript developers, so
+          // print a user-friendly stack trace (not an internal one).
+          fprintf(stderr, "%s\n\nFROM\n",
+            *MessageHandler::GetLocalizedMessage(message_obj));
+          PrintCurrentStackTrace(stderr);
+          OS::Abort();
+        }
       }
     } else if (location != NULL && !location->script().is_null()) {
       // We are bootstrapping and caught an error where the location is set
@@ -1339,6 +1347,10 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   stack_trace_for_uncaught_exceptions_options_ = options;
 }
 
+void Isolate::SetAbortOnUncaughtException(
+      v8::Isolate::abort_on_uncaught_exception_t callback) {
+  abort_on_uncaught_exception_callback_ = callback;
+}
 
 bool Isolate::is_out_of_memory() {
   if (has_pending_exception()) {
@@ -1534,7 +1546,8 @@ Isolate::Isolate()
       date_cache_(NULL),
       context_exit_happened_(false),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(this) {
+      optimizing_compiler_thread_(this),
+      abort_on_uncaught_exception_callback_(NULL) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,

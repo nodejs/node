@@ -692,6 +692,9 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  typedef bool (*abort_on_uncaught_exception_t)();
+  void SetAbortOnUncaughtException(abort_on_uncaught_exception_t callback);
+
   // Tells whether the current context has experienced an out of memory
   // exception.
   bool is_out_of_memory();
@@ -1291,6 +1294,8 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread optimizing_compiler_thread_;
+
+  abort_on_uncaught_exception_t abort_on_uncaught_exception_callback_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
