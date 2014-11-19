@@ -31,7 +31,19 @@ var accessErrorFired = false;
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
 // a socket.
-var emptyTxt = common.PIPE + '.txt';
+
+var emptyTxt;
+
+if (process.platform === 'win32') {
+  // on Win, common.PIPE will be a named pipe, so we use an existing empty
+  // file instead
+  emptyTxt = path.join(common.fixturesDir, 'empty.txt');
+} else {
+  // use common.PIPE to ensure we stay within POSIX socket path length
+  // restrictions, even on CI
+  emptyTxt = common.PIPE + '.txt';
+}
+
 function cleanup() {
   try {
     fs.unlinkSync(emptyTxt);
