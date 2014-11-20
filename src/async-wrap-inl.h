@@ -27,6 +27,7 @@
 #include "base-object-inl.h"
 #include "env.h"
 #include "env-inl.h"
+#include "node_internals.h"
 #include "util.h"
 #include "util-inl.h"
 
@@ -39,7 +40,42 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             ProviderType provider,
                             AsyncWrap* parent)
     : BaseObject(env, object),
+      has_async_queue_(false),
       provider_type_(provider) {
+  // Check user controlled flag to see if the init callback should run.
+  if (!env->call_async_init_hook())
+    return;
+
+  // TODO(trevnorris): Until it's verified all passed object's are not weak,
+  // add a HandleScope to make sure there's no leak.
+  v8::HandleScope scope(env->isolate());
+
+  v8::Local<v8::Object> parent_obj;
+
+  v8::TryCatch try_catch;
+
+  // If a parent value was sent then call its pre/post functions to let it know
+  // a conceptual "child" is being instantiated (e.g. that a server has
+  // received a connection).
+  if (parent != NULL) {
+    parent_obj = parent->object();
+    env->async_hooks_pre_function()->Call(parent_obj, 0, NULL);
+    if (try_catch.HasCaught())
+      FatalError("node::AsyncWrap::AsyncWrap", "parent pre hook threw");
+  }
+
+  env->async_hooks_init_function()->Call(object, 0, NULL);
+
+  if (try_catch.HasCaught())
+    FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
+
+  has_async_queue_ = true;
+
+  if (parent != NULL) {
+    env->async_hooks_post_function()->Call(parent_obj, 0, NULL);
+    if (try_catch.HasCaught())
+      FatalError("node::AsyncWrap::AsyncWrap", "parent post hook threw");
+  }
 }
 
 

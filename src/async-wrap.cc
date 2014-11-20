@@ -30,6 +30,7 @@
 
 using v8::Context;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
@@ -38,8 +39,38 @@ using v8::Local;
 using v8::Object;
 using v8::TryCatch;
 using v8::Value;
+using v8::kExternalUint32Array;
 
 namespace node {
+
+static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsFunction());
+  CHECK(args[3]->IsFunction());
+
+  // Attach Fields enum from Environment::AsyncHooks.
+  // Flags attached to this object are:
+  // - kCallInitHook (0): Tells the AsyncWrap constructor whether it should
+  //   make a call to the init JS callback. This is disabled by default, so
+  //   even after setting the callbacks the flag will have to be set to
+  //   non-zero to have those callbacks called. This only affects the init
+  //   callback. If the init callback was called, then the pre/post callbacks
+  //   will automatically be called.
+  Local<Object> async_hooks_obj = args[0].As<Object>();
+  Environment::AsyncHooks* async_hooks = env->async_hooks();
+  async_hooks_obj->SetIndexedPropertiesToExternalArrayData(
+      async_hooks->fields(),
+      kExternalUint32Array,
+      async_hooks->fields_count());
+
+  env->set_async_hooks_init_function(args[1].As<Function>());
+  env->set_async_hooks_pre_function(args[2].As<Function>());
+  env->set_async_hooks_post_function(args[3].As<Function>());
+}
+
 
 static void Initialize(Handle<Object> target,
                 Handle<Value> unused,
@@ -47,6 +78,8 @@ static void Initialize(Handle<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
+
+  NODE_SET_METHOD(target, "setupHooks", SetupHooks);
 
   Local<Object> async_providers = Object::New(isolate);
 #define V(PROVIDER)                                                           \
@@ -90,10 +123,26 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     }
   }
 
+  if (has_async_queue_) {
+    try_catch.SetVerbose(false);
+    env()->async_hooks_pre_function()->Call(context, 0, NULL);
+    if (try_catch.HasCaught())
+      FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
+    try_catch.SetVerbose(true);
+  }
+
   Local<Value> ret = cb->Call(context, argc, argv);
 
   if (try_catch.HasCaught()) {
     return Undefined(env()->isolate());
+  }
+
+  if (has_async_queue_) {
+    try_catch.SetVerbose(false);
+    env()->async_hooks_post_function()->Call(context, 0, NULL);
+    if (try_catch.HasCaught())
+      FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
+    try_catch.SetVerbose(true);
   }
 
   if (has_domain) {

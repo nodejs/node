@@ -111,6 +111,22 @@ inline v8::Isolate* Environment::IsolateData::isolate() const {
   return isolate_;
 }
 
+inline Environment::AsyncHooks::AsyncHooks() {
+  for (int i = 0; i < kFieldsCount; i++) fields_[i] = 0;
+}
+
+inline uint32_t* Environment::AsyncHooks::fields() {
+  return fields_;
+}
+
+inline int Environment::AsyncHooks::fields_count() const {
+  return kFieldsCount;
+}
+
+inline bool Environment::AsyncHooks::call_init_hook() {
+  return fields_[kCallInitHook] != 0;
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -243,6 +259,11 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
+inline bool Environment::call_async_init_hook() const {
+  // The const_cast is okay, it doesn't violate conceptual const-ness.
+  return const_cast<Environment*>(this)->async_hooks()->call_init_hook();
+}
+
 inline bool Environment::in_domain() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
   return using_domains() &&
@@ -292,6 +313,10 @@ inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
 
 inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
+}
+
+inline Environment::AsyncHooks* Environment::async_hooks() {
+  return &async_hooks_;
 }
 
 inline Environment::DomainFlag* Environment::domain_flag() {
