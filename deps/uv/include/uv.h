@@ -1138,7 +1138,7 @@ UV_EXTERN int uv_fs_sendfile(uv_loop_t* loop,
 UV_EXTERN int uv_fs_access(uv_loop_t* loop,
                            uv_fs_t* req,
                            const char* path,
-                           int flags,
+                           int mode,
                            uv_fs_cb cb);
 UV_EXTERN int uv_fs_chmod(uv_loop_t* loop,
                           uv_fs_t* req,
@@ -1369,8 +1369,9 @@ UV_EXTERN void uv_key_set(uv_key_t* key, void* value);
 typedef void (*uv_thread_cb)(void* arg);
 
 UV_EXTERN int uv_thread_create(uv_thread_t* tid, uv_thread_cb entry, void* arg);
-UV_EXTERN unsigned long uv_thread_self(void);
+UV_EXTERN uv_thread_t uv_thread_self(void);
 UV_EXTERN int uv_thread_join(uv_thread_t *tid);
+UV_EXTERN int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2);
 
 /* The presence of these unions force similar struct layout. */
 #define XX(_, name) uv_ ## name ## _t name;

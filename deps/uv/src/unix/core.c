@@ -310,8 +310,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     uv__update_time(loop);
 
   while (r != 0 && loop->stop_flag == 0) {
-    UV_TICK_START(loop, mode);
-
     uv__update_time(loop);
     uv__run_timers(loop);
     uv__run_pending(loop);
@@ -340,7 +338,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     }
 
     r = uv__loop_alive(loop);
-    UV_TICK_STOP(loop, mode);
 
     if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
       break;
