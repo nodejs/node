@@ -171,7 +171,7 @@ API
 
 .. c:function:: void uv_loadavg(double avg[3])
 
-    Gets the load average. See: http://en.wikipedia.org/wiki/Load_(computing)
+    Gets the load average. See: `<http://en.wikipedia.org/wiki/Load_(computing)>`_
 
     .. note::
         Returns [0,0,0] on Windows (i.e., it's not implemented).

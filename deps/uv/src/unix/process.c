@@ -85,9 +85,14 @@ static void uv__chld(uv_signal_t* handle, int signum) {
     QUEUE_INSERT_TAIL(&pending, &process->queue);
   }
 
-  QUEUE_FOREACH(q, &pending) {
+  h = &pending;
+  q = QUEUE_HEAD(h);
+  while (q != h) {
     process = QUEUE_DATA(q, uv_process_t, queue);
-    QUEUE_REMOVE(q);
+    q = QUEUE_NEXT(q);
+
+    QUEUE_REMOVE(&process->queue);
+    QUEUE_INIT(&process->queue);
     uv__handle_stop(process);
 
     if (process->exit_cb == NULL)
