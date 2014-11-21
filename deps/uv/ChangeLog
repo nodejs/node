@@ -1,3 +1,35 @@
+2014.11.21, Version 1.0.0 (Stable)
+
+Changes since version 1.0.0-rc2:
+
+* doc: fix git/svn url for gyp repo in README (Emmanuel Odeke)
+
+* windows: fix fs_read with nbufs > 1 and offset (Unknown W. Brackets)
+
+* win: add missing IP_ADAPTER_UNICAST_ADDRESS_LH definition for MinGW
+  (huxingyi)
+
+* doc: mention homebrew in README (Mikhail Mukovnikov)
+
+* doc: add learnuv workshop to README (Thorsten Lorenz)
+
+* doc: fix parameter name in uv_fs_access (Saúl Ibarra Corretgé)
+
+* unix: use cfmakeraw() for setting raw TTY mode (Yuri D'Elia)
+
+* win: fix uv_thread_self() (Alexis Campailla)
+
+* build: add x32 support to gyp build (Ben Noordhuis)
+
+* build: remove dtrace probes (Ben Noordhuis)
+
+* doc: fix link in misc.rst (Manos Nikolaidis)
+
+* mailmap: remove duplicated entries (Saúl Ibarra Corretgé)
+
+* gyp: fix comment regarding version info location (Saúl Ibarra Corretgé)
+
+
 2014.10.21, Version 1.0.0-rc2 (Pre-release)
 
 Changes since version 1.0.0-rc1:

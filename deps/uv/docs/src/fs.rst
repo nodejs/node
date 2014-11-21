@@ -229,7 +229,7 @@ API
 
     Limited equivalent to ``sendfile(2)``.
 
-.. c:function:: int uv_fs_access(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb)
+.. c:function:: int uv_fs_access(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
     Equivalent to ``access(2)`` on Unix. Windows uses ``GetFileAttributesW()``.
 

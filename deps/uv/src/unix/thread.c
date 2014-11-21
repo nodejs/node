@@ -31,8 +31,58 @@
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
 
+
+struct thread_ctx {
+  void (*entry)(void* arg);
+  void* arg;
+};
+
+
+static void* uv__thread_start(void *arg)
+{
+  struct thread_ctx *ctx_p;
+  struct thread_ctx ctx;
+
+  ctx_p = arg;
+  ctx = *ctx_p;
+  free(ctx_p);
+  ctx.entry(ctx.arg);
+
+  return 0;
+}
+
+
+int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  struct thread_ctx* ctx;
+  int err;
+
+  ctx = malloc(sizeof(*ctx));
+  if (ctx == NULL)
+    return UV_ENOMEM;
+
+  ctx->entry = entry;
+  ctx->arg = arg;
+
+  err = pthread_create(tid, NULL, uv__thread_start, ctx);
+
+  if (err)
+    free(ctx);
+
+  return err ? -1 : 0;
+}
+
+
+uv_thread_t uv_thread_self(void) {
+  return pthread_self();
+}
+
 int uv_thread_join(uv_thread_t *tid) {
   return -pthread_join(*tid, NULL);
+}
+
+
+int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
+  return pthread_equal(*t1, *t2);
 }
 
 
