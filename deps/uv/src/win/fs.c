@@ -283,7 +283,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
            (w_target[4] >= L'a' && w_target[4] <= L'z')) &&
           w_target[5] == L':' &&
           (w_target_len == 6 || w_target[6] == L'\\')) {
-        /* \??\«drive»:\ */
+        /* \??\<drive>:\ */
         w_target += 4;
         w_target_len -= 4;
 
@@ -292,8 +292,8 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
                  (w_target[5] == L'N' || w_target[5] == L'n') &&
                  (w_target[6] == L'C' || w_target[6] == L'c') &&
                  w_target[7] == L'\\') {
-        /* \??\UNC\«server»\«share»\ - make sure the final path looks like */
-        /* \\«server»\«share»\ */
+        /* \??\UNC\<server>\<share>\ - make sure the final path looks like */
+        /* \\<server>\<share>\ */
         w_target += 6;
         w_target[0] = L'\\';
         w_target_len -= 6;
@@ -308,8 +308,8 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     w_target_len = reparse_data->MountPointReparseBuffer.SubstituteNameLength /
         sizeof(WCHAR);
 
-    /* Only treat junctions that look like \??\«drive»:\ as symlink. */
-    /* Junctions can also be used as mount points, like \??\Volume{«guid»}, */
+    /* Only treat junctions that look like \??\<drive>:\ as symlink. */
+    /* Junctions can also be used as mount points, like \??\Volume{<guid>}, */
     /* but that's confusing for programs since they wouldn't be able to */
     /* actually understand such a path when returned by uv_readlink(). */
     /* UNC paths are never valid for junctions so we don't care about them. */
@@ -557,11 +557,6 @@ void fs__read(uv_fs_t* req) {
 
   if (offset != -1) {
     memset(&overlapped, 0, sizeof overlapped);
-
-    offset_.QuadPart = offset;
-    overlapped.Offset = offset_.LowPart;
-    overlapped.OffsetHigh = offset_.HighPart;
-
     overlapped_ptr = &overlapped;
   } else {
     overlapped_ptr = NULL;
@@ -571,6 +566,13 @@ void fs__read(uv_fs_t* req) {
   bytes = 0;
   do {
     DWORD incremental_bytes;
+
+    if (offset != -1) {
+      offset_.QuadPart = offset + bytes;
+      overlapped.Offset = offset_.LowPart;
+      overlapped.OffsetHigh = offset_.HighPart;
+    }
+
     result = ReadFile(handle,
                       req->bufs[index].base,
                       req->bufs[index].len,
@@ -623,7 +625,6 @@ void fs__write(uv_fs_t* req) {
   do {
     DWORD incremental_bytes;
 
-    /* WriteFile() does not advance overlapped as ReadFile() does. */
     if (offset != -1) {
       offset_.QuadPart = offset + bytes;
       overlapped.Offset = offset_.LowPart;

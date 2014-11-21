@@ -109,6 +109,7 @@ static uv_fs_t utime_req;
 static uv_fs_t futime_req;
 
 static char buf[32];
+static char buf2[32];
 static char test_buf[] = "test-buffer\n";
 static char test_buf2[] = "second-buffer\n";
 static uv_buf_t iov;
@@ -2200,12 +2201,15 @@ TEST_IMPL(fs_write_multiple_bufs) {
   uv_fs_req_cleanup(&open_req1);
 
   memset(buf, 0, sizeof(buf));
-  iov = uv_buf_init(buf, sizeof(buf));
-  r = uv_fs_read(loop, &read_req, open_req1.result, &iov, 1, -1, NULL);
+  memset(buf2, 0, sizeof(buf2));
+  /* Read the strings back to separate buffers. */
+  iovs[0] = uv_buf_init(buf, sizeof(test_buf));
+  iovs[1] = uv_buf_init(buf2, sizeof(test_buf2));
+  r = uv_fs_read(loop, &read_req, open_req1.result, iovs, 2, 0, NULL);
   ASSERT(r >= 0);
   ASSERT(read_req.result >= 0);
-  ASSERT(memcmp(buf, test_buf, sizeof(test_buf)) == 0);
-  ASSERT(strcmp(buf + sizeof(test_buf), test_buf2) == 0);
+  ASSERT(strcmp(buf, test_buf) == 0);
+  ASSERT(strcmp(buf2, test_buf2) == 0);
   uv_fs_req_cleanup(&read_req);
 
   iov = uv_buf_init(buf, sizeof(buf));

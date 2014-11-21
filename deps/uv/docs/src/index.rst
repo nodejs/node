@@ -6,19 +6,18 @@ Overview
 --------
 
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
-was primarily developed for use by `Node.js`_, but it's also used by Mozilla's
-`Rust language`_, `Luvit`_, `Julia`_, `pyuv`_, and `others`_.
+was primarily developed for use by `Node.js`_, but it's also used by `Luvit`_,
+`Julia`_, `pyuv`_, and `others`_.
 
 .. note::
     In case you find errors in this documentation you can help by sending
-    `pull requests <https://github.com/joyent/libuv>`_!
+    `pull requests <https://github.com/libuv/libuv>`_!
 
 .. _Node.js: http://nodejs.org
-.. _Rust language: http://www.rust-lang.org
 .. _Luvit: http://luvit.io
 .. _Julia: http://julialang.org
 .. _pyuv: https://github.com/saghul/pyuv
-.. _others: https://github.com/joyent/libuv/wiki/Projects-that-use-libuv
+.. _others: https://github.com/libuv/libuv/wiki/Projects-that-use-libuv
 
 
 Features
@@ -47,7 +46,7 @@ libuv can be downloaded from `here <http://dist.libuv.org/dist/>`_.
 Installation
 ------------
 
-Installation instructions can be found on `the README <https://github.com/joyent/libuv/blob/master/README.md>`_.
+Installation instructions can be found on `the README <https://github.com/libuv/libuv/blob/master/README.md>`_.
 
 
 Upgrading

@@ -1037,7 +1037,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
 
       /* XP has no OnLinkPrefixLength field. */
       if (is_vista_or_greater) {
-        prefix_len = unicast_address->OnLinkPrefixLength;
+        prefix_len =
+          ((IP_ADAPTER_UNICAST_ADDRESS_LH*) unicast_address)->OnLinkPrefixLength;
       } else {
         /* Prior to Windows Vista the FirstPrefix pointed to the list with
          * single prefix for each IP address assigned to the adapter.
