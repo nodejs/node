@@ -306,12 +306,4 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
   return s + 1;
 }
 
-
-#ifdef HAVE_DTRACE
-#include "uv-dtrace.h"
-#else
-#define UV_TICK_START(arg0, arg1)
-#define UV_TICK_STOP(arg0, arg1)
-#endif
-
 #endif /* UV_UNIX_INTERNAL_H_ */

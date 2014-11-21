@@ -117,6 +117,68 @@ void uv_once(uv_once_t* guard, void (*callback)(void)) {
   uv__once_inner(guard, callback);
 }
 
+static UV_THREAD_LOCAL uv_thread_t uv__current_thread = NULL;
+
+struct thread_ctx {
+  void (*entry)(void* arg);
+  void* arg;
+  uv_thread_t self;
+};
+
+
+static UINT __stdcall uv__thread_start(void* arg)
+{
+  struct thread_ctx *ctx_p;
+  struct thread_ctx ctx;
+
+  ctx_p = arg;
+  ctx = *ctx_p;
+  free(ctx_p);
+
+  uv__current_thread = ctx.self;
+  ctx.entry(ctx.arg);
+
+  return 0;
+}
+
+
+int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  struct thread_ctx* ctx;
+  int err;
+  HANDLE thread;
+
+  ctx = malloc(sizeof(*ctx));
+  if (ctx == NULL)
+    return UV_ENOMEM;
+
+  ctx->entry = entry;
+  ctx->arg = arg;
+
+  /* Create the thread in suspended state so we have a chance to pass
+   * its own creation handle to it */
+  thread = (HANDLE) _beginthreadex(NULL,
+                                   0,
+                                   uv__thread_start,
+                                   ctx,
+                                   CREATE_SUSPENDED,
+                                   NULL);
+  if (thread == NULL) {
+    err = errno;
+    free(ctx);
+  } else {
+    err = 0;
+    *tid = thread;
+    ctx->self = thread;
+    ResumeThread(thread);
+  }
+
+  return err;
+}
+
+
+uv_thread_t uv_thread_self(void) {
+  return uv__current_thread;
+}
 
 int uv_thread_join(uv_thread_t *tid) {
   if (WaitForSingleObject(*tid, INFINITE))
@@ -126,6 +188,11 @@ int uv_thread_join(uv_thread_t *tid) {
     *tid = 0;
     return 0;
   }
+}
+
+
+int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
+  return *t1 == *t2;
 }
 
 
