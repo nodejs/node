@@ -212,4 +212,14 @@ API
     setgid specified, or not having enough memory to allocate for the new
     process.
 
+.. c:function:: int uv_process_kill(uv_process_t* handle, int signum)
+
+    Sends the specified signal to the given process handle. Check the documentation
+    on :c:ref:`signal` for signal support, specially on Windows.
+
+.. c:function:: int uv_kill(int pid, int signum)
+
+    Sends the specified signal to the given PID. Check the documentation
+    on :c:ref:`signal` for signal support, specially on Windows.
+
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

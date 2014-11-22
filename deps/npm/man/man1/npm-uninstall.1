@@ -1,13 +1,13 @@
-.TH "NPM\-RM" "1" "September 2014" "" ""
+.TH "NPM\-RM" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-rm\fR \- Remove a package
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm uninstall [@<scope>/]<package> [\-\-save|\-\-save\-dev|\-\-save\-optional]
 npm rm (with any of the previous argument usage)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -17,9 +17,9 @@ on its behalf\.
 Example:
 .P
 .RS 2
-.EX
+.nf
 npm uninstall sax
-.EE
+.fi
 .RE
 .P
 In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
@@ -42,12 +42,12 @@ Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fR\|\
 Examples:
 .P
 .RS 2
-.EX
+.nf
 npm uninstall sax \-\-save
 npm uninstall @myorg/privatepackage \-\-save
 npm uninstall node\-tap \-\-save\-dev
 npm uninstall dtrace\-provider \-\-save\-optional
-.EE
+.fi
 .RE
 .SH SEE ALSO
 .RS 0

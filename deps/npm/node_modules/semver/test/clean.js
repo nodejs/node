@@ -14,7 +14,11 @@ test('\nclean tests', function(t) {
 		['  =v1.2.3   ', '1.2.3'],
 		['v1.2.3', '1.2.3'],
 		[' v1.2.3 ', '1.2.3'],
-		['\t1.2.3', '1.2.3']
+		['\t1.2.3', '1.2.3'],
+		['>1.2.3', null],
+		['~1.2.3', null],
+		['<=1.2.3', null],
+		['1.2.x', null]
 	].forEach(function(tuple) {
 			var range = tuple[0];
 			var version = tuple[1];

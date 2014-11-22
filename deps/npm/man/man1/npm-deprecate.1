@@ -1,12 +1,12 @@
-.TH "NPM\-DEPRECATE" "1" "September 2014" "" ""
+.TH "NPM\-DEPRECATE" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-deprecate\fR \- Deprecate a version of a package
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm deprecate <name>[@<version>] <message>
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -17,9 +17,9 @@ It works on version ranges as well as specific versions, so you can do
 something like this:
 .P
 .RS 2
-.EX
+.nf
 npm deprecate my\-thing@"< 0\.2\.3" "critical bug fixed in v0\.2\.3"
-.EE
+.fi
 .RE
 .P
 Note that you must be the package owner to deprecate something\.  See the

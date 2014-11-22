@@ -147,7 +147,7 @@ Use appropriate log levels.  See `npm-config(7)` and search for
 ## Case, naming, etc.
 
 Use `lowerCamelCase` for multiword identifiers when they refer to objects,
-functions, methods, members, or anything not specified in this section.
+functions, methods, properties, or anything not specified in this section.
 
 Use `UpperCamelCase` for class names (things that you'd pass to "new").
 

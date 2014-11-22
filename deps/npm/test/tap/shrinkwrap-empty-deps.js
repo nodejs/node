@@ -6,7 +6,8 @@ var test = require("tap").test
   , fs = require("fs")
   , osenv = require("osenv")
   , rimraf = require("rimraf")
-  , pkg = __dirname + "/shrinkwrap-empty-deps"
+  , pkg = path.resolve(__dirname, "shrinkwrap-empty-deps")
+  , cache = path.resolve(pkg, "cache")
 
 test("returns a list of removed items", function (t) {
   var desiredResultsPath = path.resolve(pkg, "npm-shrinkwrap.json")
@@ -36,7 +37,7 @@ test("returns a list of removed items", function (t) {
 function setup (cb) {
   cleanup()
   process.chdir(pkg)
-  npm.load({cache: pkg + "/cache", registry: common.registry}, function () {
+  npm.load({cache: cache, registry: common.registry}, function () {
     cb()
   })
 }

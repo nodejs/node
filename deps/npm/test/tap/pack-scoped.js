@@ -1,10 +1,10 @@
 // verify that prepublish runs on pack and publish
 var test = require("tap").test
+var common = require("../common-tap")
 var fs = require("graceful-fs")
 var join = require("path").join
 var mkdirp = require("mkdirp")
 var rimraf = require("rimraf")
-var path = require("path")
 
 var pkg      = join(__dirname, "scoped_package")
 var manifest = join(pkg, "package.json")
@@ -19,6 +19,8 @@ var data = {
 test("setup", function (t) {
   var n = 0
 
+  rimraf.sync(pkg)
+
   mkdirp(pkg,   then())
   mkdirp(cache, then())
   mkdirp(tmp,   then())
@@ -26,7 +28,7 @@ test("setup", function (t) {
   function then () {
     n++
     return function (er) {
-      if (er) throw er
+      t.ifError(er)
       if (--n === 0) next()
     }
   }
@@ -36,7 +38,7 @@ test("setup", function (t) {
   }
 
   function done (er) {
-    if (er) throw er
+    t.ifError(er)
 
     t.pass("setup done")
     t.end()
@@ -44,9 +46,6 @@ test("setup", function (t) {
 })
 
 test("test", function (t) {
-  var spawn = require("child_process").spawn
-  var node = process.execPath
-  var npm = path.resolve(__dirname, "../../cli.js")
   var env = {
     "npm_config_cache"  : cache,
     "npm_config_tmp"    : tmp,
@@ -58,34 +57,25 @@ test("test", function (t) {
     if (!/^npm_config_/.test(i)) env[i] = process.env[i]
   }
 
-  var child = spawn(node, [npm, "pack"], {cwd : pkg, env : env})
-
-  child.stdout.setEncoding("utf8")
-  child.stderr.on("data", onerr)
-  child.stdout.on("data", ondata)
-  child.on("close", onend)
-
-  var c = "", e = ""
-  function ondata (chunk) { c += chunk }
-  function onerr  (chunk) { e += chunk }
-
-  function onend () {
-    if (e) {
-      throw new Error("got stderr data: " + JSON.stringify("" + e))
-    }
-    c = c.trim()
+  common.npm([
+    "pack",
+    "--loglevel", "warn"
+  ], {
+    cwd: pkg,
+    env: env
+  }, function(err, code, stdout, stderr) {
+    t.ifErr(err, "npm pack finished without error")
+    t.equal(code, 0, "npm pack exited ok")
+    t.notOk(stderr, "got stderr data: " + JSON.stringify("" + stderr))
+    stdout = stdout.trim()
     var regex = new RegExp("scope-generic-package-90000.100001.5.tgz", "ig")
-
-    t.ok(c.match(regex), "found package")
+    t.ok(stdout.match(regex), "found package")
     t.end()
-  }
+  })
 })
 
 test("cleanup", function (t) {
-  rimraf(pkg, function (er) {
-    if (er) throw er
-
-    t.pass("cleaned up")
-    t.end()
-  })
+  rimraf.sync(pkg)
+  t.pass("cleaned up")
+  t.end()
 })

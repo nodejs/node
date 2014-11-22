@@ -2,7 +2,6 @@ var test = require("tap").test
 var common = require("../common-tap.js")
 var path = require("path")
 var rimraf = require("rimraf")
-var mkdirp = require("mkdirp")
 var pkg = path.resolve(__dirname, "lifecycle-path")
 var fs = require("fs")
 var link = path.resolve(pkg, "node-bin")
@@ -28,7 +27,7 @@ test("make sure the path is correct", function (t) {
       PATH: PATH,
       stdio: [ 0, "pipe", 2 ]
     }
-  }, function (er, code, stdout, stderr) {
+  }, function (er, code, stdout) {
     if (er) throw er
     t.equal(code, 0, "exit code")
     // remove the banner, we just care about the last line
@@ -58,4 +57,3 @@ test("clean", function (t) {
   rimraf.sync(link)
   t.end()
 })
-

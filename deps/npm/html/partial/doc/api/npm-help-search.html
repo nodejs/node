@@ -1,0 +1,24 @@
+<h1><a href="../api/npm-help-search.html">npm-help-search</a></h1> <p>Search the help pages</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.helpSearch(args, [silent,] callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command is rarely useful, but it exists in the rare case that it is.</p>
+<p>This command takes an array of search terms and returns the help pages that
+match in order of best match.</p>
+<p>If there is only one match, then npm displays that help section. If there
+are multiple results, the results are printed to the screen formatted and the
+array of results is returned. Each result is an object with these properties:</p>
+<ul>
+<li>hits:
+A map of args to number of hits on that arg. For example, {&quot;npm&quot;: 3}</li>
+<li>found:
+Total number of unique args that matched.</li>
+<li>totalHits:
+Total number of hits.</li>
+<li>lines:
+An array of all matching lines (and some adjacent lines).</li>
+<li>file:
+Name of the file that matched</li>
+</ul>
+<p>The silent parameter is not necessary not used, but it may in the future.</p>
+

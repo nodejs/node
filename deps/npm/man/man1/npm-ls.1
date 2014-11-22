@@ -1,15 +1,15 @@
-.TH "NPM\-LS" "1" "September 2014" "" ""
+.TH "NPM\-LS" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm list [[@<scope>/]<pkg> \.\.\.]
 npm ls [[@<scope>/]<pkg> \.\.\.]
 npm la [[@<scope>/]<pkg> \.\.\.]
 npm ll [[@<scope>/]<pkg> \.\.\.]
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -22,11 +22,11 @@ nested packages will \fIalso\fR show the paths to the specified packages\.
 For example, running \fBnpm ls promzard\fR in npm's source tree will show:
 .P
 .RS 2
-.EX
-npm@2.0.0 /path/to/npm
+.nf
+npm@2.1.6 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
-.EE
+.fi
 .RE
 .P
 It will print out extraneous, missing, and invalid packages\.

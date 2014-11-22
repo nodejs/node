@@ -161,6 +161,20 @@ if (os.endianness() === 'LE') {
 copyOnto(c, 0, b, 0, 2);
 assert.equal(b[0], 0.1);
 
+var b = alloc(1, Types.Uint16);
+var c = alloc(2, Types.Uint8);
+c[0] = c[1] = 0xff;
+copyOnto(c, 0, b, 0, 2);
+assert.equal(b[0], 0xffff);
+
+var b = alloc(2, Types.Uint8);
+var c = alloc(1, Types.Uint16);
+c[0] = 0xffff;
+copyOnto(c, 0, b, 0, 1);
+assert.equal(b[0], 0xff);
+assert.equal(b[1], 0xff);
+
+
 
 // verify checking external if has external memory
 
@@ -300,11 +314,15 @@ for (var i = 0; i < 5; i++)
 
 // only allow object to be passed to dispose
 assert.throws(function() {
-  alloc.dispose(null);
+  smalloc.dispose(null);
 });
 
 
 // can't dispose a Buffer
 assert.throws(function() {
-  alloc.dispose(new Buffer());
+  smalloc.dispose(new Buffer());
+});
+
+assert.throws(function() {
+  smalloc.dispose({});
 });

@@ -218,7 +218,7 @@ function addColorMarker (str, arg, i) {
 
   if (arg.charAt(0) === "/") {
     //arg = arg.replace(/\/$/, "")
-    return str.replace( new RegExp(arg.substr(1, arg.length - 1), "gi")
+    return str.replace( new RegExp(arg.substr(1, arg.length - 2), "gi")
                       , function (bit) { return markStart + bit + markEnd } )
 
   }

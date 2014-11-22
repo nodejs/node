@@ -3,7 +3,7 @@ npm-init(1) -- Interactively create a package.json file
 
 ## SYNOPSIS
 
-    npm init
+    npm init [-f|--force|-y|--yes]
 
 ## DESCRIPTION
 
@@ -17,6 +17,9 @@ the options in there.
 
 It is strictly additive, so it does not delete options from your package.json
 without a really good reason to do so.
+
+If you invoke it with `-f`, `--force`, `-y`, or `--yes`, it will use only
+defaults and not prompt you for any options.
 
 ## SEE ALSO
 

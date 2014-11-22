@@ -135,7 +135,7 @@ Arguments are greps.  `npm search jsdom` shows jsdom packages.
 
 ## How do I update npm?
 
-    npm update npm -g
+    npm install npm -g
 
 You can also update all outdated local packages by doing `npm update` without
 any arguments, or global packages by doing `npm update -g`.

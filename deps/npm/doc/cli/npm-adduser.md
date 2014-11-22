@@ -3,7 +3,7 @@ npm-adduser(1) -- Add a registry user account
 
 ## SYNOPSIS
 
-    npm adduser [--registry=url] [--scope=@orgname]
+    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
 
 ## DESCRIPTION
 
@@ -44,6 +44,21 @@ e.g.
 
 This will set a registry for the given scope and login or create a user for
 that registry at the same time.
+
+### always-auth
+
+Default: false
+
+If specified, save configuration indicating that all requests to the given
+registry should include authorization information. Useful for private
+registries. Can be used with `--registry` and / or `--scope`, e.g.
+
+    npm adduser --registry=http://private-registry.example.com --always-auth
+
+This will ensure that all requests to that registry (including for tarballs)
+include an authorization header. See `always-auth` in `npm-config(7)` for more
+details on always-auth. Registry-specific configuaration of `always-auth` takes
+precedence over any global configuration.
 
 ## SEE ALSO
 

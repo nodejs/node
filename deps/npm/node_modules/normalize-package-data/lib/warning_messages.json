@@ -8,6 +8,7 @@
   ,"invalidFilename": "Invalid filename in 'files' list: %s"
   ,"nonArrayBundleDependencies": "Invalid 'bundleDependencies' list. Must be array of package names"
   ,"nonStringBundleDependency": "Invalid bundleDependencies member: %s"
+  ,"nonDependencyBundleDependency": "Non-dependency in bundleDependencies: %s"
   ,"nonObjectDependencies": "%s field must be an object"
   ,"nonStringDependency": "Invalid dependency: %s %s"
   ,"deprecatedArrayDependencies": "specifying %s as array is deprecated"

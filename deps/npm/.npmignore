@@ -25,3 +25,5 @@ html/*.png
 /npm-*.tgz
 
 *.pyc
+
+/test/tap/builtin-config

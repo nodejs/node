@@ -1,4 +1,4 @@
-.TH "NPM\-FOLDERS" "5" "September 2014" "" ""
+.TH "NPM\-FOLDERS" "5" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-folders\fR \- Folder Structures Used by npm
 .SH DESCRIPTION
@@ -142,7 +142,7 @@ highest level possible, below the localized "target" folder\.
 Consider this dependency graph:
 .P
 .RS 2
-.EX
+.nf
 foo
 +\-\- blerg@1\.2\.5
 +\-\- bar@1\.2\.3
@@ -154,13 +154,13 @@ foo
 `\-\- baz@1\.2\.3
     `\-\- quux@3\.x
         `\-\- bar
-.EE
+.fi
 .RE
 .P
 In this case, we might expect a folder structure like this:
 .P
 .RS 2
-.EX
+.nf
 foo
 +\-\- node_modules
     +\-\- blerg (1\.2\.5) <\-\-\-[A]
@@ -173,7 +173,7 @@ foo
     `\-\- baz (1\.2\.3) <\-\-\-[D]
         `\-\- node_modules
             `\-\- quux (3\.2\.0) <\-\-\-[E]
-.EE
+.fi
 .RE
 .P
 Since foo depends directly on \fBbar@1\.2\.3\fR and \fBbaz@1\.2\.3\fR, those are

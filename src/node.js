@@ -657,8 +657,8 @@
     process.kill = function(pid, sig) {
       var err;
 
-      if (typeof pid !== 'number' || !isFinite(pid)) {
-        throw new TypeError('pid must be a number');
+      if (pid != (pid | 0)) {
+        throw new TypeError('invalid pid');
       }
 
       // preserve null signal

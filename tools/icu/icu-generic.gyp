@@ -26,6 +26,9 @@
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
           'U_ENABLE_DYLOAD=0',
           'U_STATIC_IMPLEMENTATION=1',
+          # Don't need std::string in API.
+          # Also, problematic: <http://bugs.icu-project.org/trac/ticket/11333>
+          'U_HAVE_STD_STRING=0',
           # TODO(srl295): reenable following pending
           # https://code.google.com/p/v8/issues/detail?id=3345
           # (saves some space)
@@ -90,7 +93,7 @@
     {
       'target_name': 'icui18n',
       'type': '<(library)',
-      'toolsets': [ 'host', 'target' ],
+      'toolsets': [ 'target' ],
       'sources': [
         '<@(icu_src_i18n)'
       ],
@@ -107,28 +110,6 @@
         ],
       },
       'export_dependent_settings': [ 'icuucx' ],
-    },
-    # this library is only built for derb..
-    {
-      'target_name': 'icuio',
-      'type': '<(library)',
-      'toolsets': [ 'host' ],
-      'sources': [
-        '<@(icu_src_io)'
-      ],
-      'include_dirs': [
-        '../../deps/icu/source/io',
-      ],
-      'defines': [
-        'U_IO_IMPLEMENTATION=1',
-      ],
-      'dependencies': [ 'icuucx', 'icui18n', 'icu_implementation', 'icu_uconfig' ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '../../deps/icu/source/io',
-        ],
-      },
-      'export_dependent_settings': [ 'icuucx', 'icui18n' ],
     },
     # This exports actual ICU data
     {
@@ -288,7 +269,7 @@
     {
       'target_name': 'icustubdata',
       'type': '<(library)',
-      'toolsets': [ 'host', 'target' ],
+      'toolsets': [ 'target' ],
       'dependencies': [ 'icu_implementation' ],
       'sources': [
         '<@(icu_src_stubdata)'
@@ -313,7 +294,7 @@
       'target_name': 'icuucx',
       'type': '<(library)',
       'dependencies': [ 'icu_implementation', 'icu_uconfig' ],
-      'toolsets': [ 'host', 'target' ],
+      'toolsets': [ 'target' ],
       'sources': [
         '<@(icu_src_common)'
       ],
@@ -342,23 +323,43 @@
       'target_name': 'icutools',
       'type': '<(library)',
       'toolsets': [ 'host' ],
-      'dependencies': [ 'icuucx', 'icui18n', 'icustubdata' ],
+      'dependencies': [ 'icu_implementation', 'icu_uconfig' ],
       'sources': [
-        '<@(icu_src_tools)'
+        '<@(icu_src_tools)',
+        '<@(icu_src_common)',
+        '<@(icu_src_i18n)',
+        '<@(icu_src_io)',
+        '<@(icu_src_stubdata)',
       ],
       'include_dirs': [
+        '../../deps/icu/source/common',
+        '../../deps/icu/source/i18n',
+        '../../deps/icu/source/io',
         '../../deps/icu/source/tools/toolutil',
       ],
       'defines': [
+        'U_COMMON_IMPLEMENTATION=1',
+        'U_I18N_IMPLEMENTATION=1',
+        'U_IO_IMPLEMENTATION=1',
         'U_TOOLUTIL_IMPLEMENTATION=1',
         #'DEBUG=0', # http://bugs.icu-project.org/trac/ticket/10977
       ],
       'direct_dependent_settings': {
         'include_dirs': [
+          '../../deps/icu/source/common',
+          '../../deps/icu/source/i18n',
+          '../../deps/icu/source/io',
           '../../deps/icu/source/tools/toolutil',
         ],
+        'conditions': [
+          [ 'OS=="win"', {
+            'link_settings': {
+              'libraries': [ '-lAdvAPI32.Lib', '-lUser32.lib' ],
+            },
+          }],
+        ],
       },
-      'export_dependent_settings': [ 'icuucx', 'icui18n', 'icustubdata' ],
+      'export_dependent_settings': [ 'icu_implementation', 'icu_uconfig' ],
     },
     # This tool is needed to rebuild .res files from .txt,
     # or to build index (res_index.txt) files for small-icu
@@ -366,7 +367,7 @@
       'target_name': 'genrb',
       'type': 'executable',
       'toolsets': [ 'host' ],
-      'dependencies': [ 'icutools', 'icuucx', 'icui18n' ],
+      'dependencies': [ 'icutools' ],
       'sources': [
         '<@(icu_src_genrb)'
       ],
@@ -382,7 +383,7 @@
       'target_name': 'iculslocs',
       'toolsets': [ 'host' ],
       'type': 'executable',
-      'dependencies': [ 'icutools', 'icuucx', 'icui18n', 'icuio' ],
+      'dependencies': [ 'icutools' ],
       'sources': [
         'iculslocs.cc',
         'no-op.cc',
@@ -394,7 +395,7 @@
       'target_name': 'icupkg',
       'toolsets': [ 'host' ],
       'type': 'executable',
-      'dependencies': [ 'icutools', 'icuucx', 'icui18n' ],
+      'dependencies': [ 'icutools' ],
       'sources': [
         '<@(icu_src_icupkg)',
         'no-op.cc',
@@ -405,7 +406,7 @@
       'target_name': 'genccode',
       'toolsets': [ 'host' ],
       'type': 'executable',
-      'dependencies': [ 'icutools', 'icuucx', 'icui18n' ],
+      'dependencies': [ 'icutools' ],
       'sources': [
         '<@(icu_src_genccode)',
         'no-op.cc',

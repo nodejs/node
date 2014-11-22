@@ -33,7 +33,7 @@ same.</p>
 <li>global config file ($PREFIX/npmrc)</li>
 <li>npm builtin config file (/path/to/npm/npmrc)</li>
 </ul>
-<p>See <a href="../files/npmrc.html">npmrc(5)</a> for more details.</p>
+<p>See <a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a> for more details.</p>
 <h3 id="default-configs">Default Configs</h3>
 <p>A set of configuration parameters that are internal to npm, and are
 defaults if nothing else is specified.</p>
@@ -79,7 +79,7 @@ example:</p>
 # same as:
 npm ls --global --parseable --long --loglevel info
 </code></pre><h2 id="per-package-config-settings">Per-Package Config Settings</h2>
-<p>When running scripts (see <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code>) the package.json &quot;config&quot;
+<p>When running scripts (see <code><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></code>) the package.json &quot;config&quot;
 keys are overwritten in the environment if there is a config param of
 <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if the package.json has
 this:</p>
@@ -90,7 +90,7 @@ this:</p>
 <pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
 </code></pre><p>then the user could change the behavior by doing:</p>
 <pre><code>npm config set foo:port 80
-</code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
+</code></pre><p>See <a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
 <h3 id="always-auth">always-auth</h3>
 <ul>
@@ -138,7 +138,7 @@ well as for the CA information to be stored in a file on disk.</p>
 <li>Default: Windows: <code>%AppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: path</li>
 </ul>
-<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html">npm-cache(1)</a></code></p>
+<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html"><a href="../cli/npm-cache.html">npm-cache(1)</a></a></code></p>
 <h3 id="cache-lock-stale">cache-lock-stale</h3>
 <ul>
 <li>Default: 60000 (1 minute)</li>
@@ -285,7 +285,7 @@ the git binary.</p>
 </ul>
 <p>Operates in &quot;global&quot; mode, so that packages are installed into the
 <code>prefix</code> folder instead of the current working directory.  See
-<code><a href="../files/npm-folders.html">npm-folders(5)</a></code> for more on the differences in behavior.</p>
+<code><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></code> for more on the differences in behavior.</p>
 <ul>
 <li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead of the
 current working directory.</li>
@@ -332,32 +332,32 @@ user.</p>
 <p>A module that will be loaded by the <code>npm init</code> command.  See the
 documentation for the
 <a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
-for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
-<h3 id="init-author-name">init.author.name</h3>
+for more information, or <a href="../cli/npm-init.html"><a href="../cli/npm-init.html">npm-init(1)</a></a>.</p>
+<h3 id="init-author-name">init-author-name</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author&#39;s name.</p>
-<h3 id="init-author-email">init.author.email</h3>
+<h3 id="init-author-email">init-author-email</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author&#39;s email.</p>
-<h3 id="init-author-url">init.author.url</h3>
+<h3 id="init-author-url">init-author-url</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author&#39;s homepage.</p>
-<h3 id="init-license">init.license</h3>
+<h3 id="init-license">init-license</h3>
 <ul>
 <li>Default: &quot;ISC&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package license.</p>
-<h3 id="init-version">init.version</h3>
+<h3 id="init-version">init-version</h3>
 <ul>
 <li>Default: &quot;0.0.0&quot;</li>
 <li>Type: semver</li>
@@ -403,14 +403,14 @@ being installed locally.</li>
 to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.</p>
 <h3 id="loglevel">loglevel</h3>
 <ul>
-<li>Default: &quot;http&quot;</li>
+<li>Default: &quot;warn&quot;</li>
 <li>Type: String</li>
 <li>Values: &quot;silent&quot;, &quot;error&quot;, &quot;warn&quot;, &quot;http&quot;, &quot;info&quot;, &quot;verbose&quot;, &quot;silly&quot;</li>
 </ul>
 <p>What level of logs to report.  On failure, <em>all</em> logs are written to
 <code>npm-debug.log</code> in the current working directory.</p>
 <p>Any logs of a higher level than the setting are shown.
-The default is &quot;http&quot;, which shows http, warn, and error output.</p>
+The default is &quot;warn&quot;, which shows warn and error output.</p>
 <h3 id="logstream">logstream</h3>
 <ul>
 <li>Default: process.stderr</li>
@@ -441,7 +441,7 @@ colored output if it is a TTY.</p>
 <li>Default: process.version</li>
 <li>Type: semver or false</li>
 </ul>
-<p>The node version to use when checking package&#39;s &quot;engines&quot; hash.</p>
+<p>The node version to use when checking a package&#39;s <code>engines</code> map.</p>
 <h3 id="npat">npat</h3>
 <ul>
 <li>Default: false</li>
@@ -460,7 +460,7 @@ usage.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Attempt to install packages in the <code>optionalDependencies</code> hash.  Note
+<p>Attempt to install packages in the <code>optionalDependencies</code> object.  Note
 that if these packages fail to install, the overall installation
 process is not aborted.</p>
 <h3 id="parseable">parseable</h3>
@@ -472,7 +472,7 @@ process is not aborted.</p>
 standard output.</p>
 <h3 id="prefix">prefix</h3>
 <ul>
-<li>Default: see <a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li>Default: see <a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
 <li>Type: path</li>
 </ul>
 <p>The location to install global items.  If set on the command line, then
@@ -528,8 +528,8 @@ this as true.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a package.json file as dependencies.</p>
-<p>When used with the <code>npm rm</code> command, it removes it from the dependencies
-hash.</p>
+<p>When used with the <code>npm rm</code> command, it removes it from the <code>dependencies</code>
+object.</p>
 <p>Only works if there is already a package.json file present.</p>
 <h3 id="save-bundle">save-bundle</h3>
 <ul>
@@ -546,9 +546,9 @@ bundledDependencies list.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages to a package.json file as devDependencies.</p>
+<p>Save installed packages to a package.json file as <code>devDependencies</code>.</p>
 <p>When used with the <code>npm rm</code> command, it removes it from the
-devDependencies hash.</p>
+<code>devDependencies</code> object.</p>
 <p>Only works if there is already a package.json file present.</p>
 <h3 id="save-exact">save-exact</h3>
 <ul>
@@ -566,7 +566,7 @@ using npm&#39;s default semver range operator.</p>
 <p>Save installed packages to a package.json file as
 optionalDependencies.</p>
 <p>When used with the <code>npm rm</code> command, it removes it from the
-devDependencies hash.</p>
+<code>devDependencies</code> object.</p>
 <p>Only works if there is already a package.json file present.</p>
 <h3 id="save-prefix">save-prefix</h3>
 <ul>
@@ -687,7 +687,7 @@ will fail.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Set to show short usage output (like the -H output)
-instead of complete help when doing <code><a href="../cli/npm-help.html">npm-help(1)</a></code>.</p>
+instead of complete help when doing <code><a href="../cli/npm-help.html"><a href="../cli/npm-help.html">npm-help(1)</a></a></code>.</p>
 <h3 id="user">user</h3>
 <ul>
 <li>Default: &quot;nobody&quot;</li>
@@ -728,8 +728,8 @@ this value.  Thus, the defaults are <code>0755</code> and <code>0644</code> resp
 <li>Default: false</li>
 <li>Type: boolean</li>
 </ul>
-<p>If true, output the npm version as well as node&#39;s <code>process.versions</code>
-hash, and exit successfully.</p>
+<p>If true, output the npm version as well as node&#39;s <code>process.versions</code> map, and
+exit successfully.</p>
 <p>Only relevant when specified explicitly on the command line.</p>
 <h3 id="viewer">viewer</h3>
 <ul>
@@ -740,12 +740,12 @@ hash, and exit successfully.</p>
 <p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
-<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
-<li><a href="../files/npmrc.html">npmrc(5)</a></li>
-<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
-<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
-<li><a href="../cli/npm.html">npm(1)</a></li>
+<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
+<li><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></li>
+<li><a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a></li>
+<li><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></li>
+<li><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
+<li><a href="../cli/npm.html"><a href="../cli/npm.html">npm(1)</a></a></li>
 </ul>
 
 </div>
@@ -759,5 +759,5 @@ hash, and exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@2.0.0</p>
+<p id="footer">npm-config &mdash; npm@2.1.6</p>
 

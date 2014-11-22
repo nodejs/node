@@ -1,10 +1,10 @@
-.TH "NPM\-INSTALL" "1" "September 2014" "" ""
+.TH "NPM\-INSTALL" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm install (with no args in a package dir)
 npm install <tarball file>
 npm install <tarball url>
@@ -14,7 +14,7 @@ npm install [@<scope>/]<name>@<tag>
 npm install [@<scope>/]<name>@<version>
 npm install [@<scope>/]<name>@<version range>
 npm i (with any of the previous argument usage)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -66,9 +66,9 @@ after packing it up into a tarball (b)\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install \./package\.tgz
-.EE
+.fi
 .RE
 .IP \(bu 2
 \fBnpm install <tarball url>\fR:
@@ -77,9 +77,9 @@ after packing it up into a tarball (b)\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install https://github\.com/indexzero/forever/tarball/v0\.5\.6
-.EE
+.fi
 .RE
 .IP \(bu 2
 \fBnpm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fR:
@@ -90,9 +90,9 @@ after packing it up into a tarball (b)\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install sax
-.EE
+.fi
 .RE
   \fBnpm install\fR takes 3 exclusive, optional flags which save or update
   the package version in your main package\.json:
@@ -118,14 +118,14 @@ must also be followed by a slash\.
 Examples:
 .P
 .RS 2
-.EX
+.nf
 npm install sax \-\-save
 npm install githubname/reponame
 npm install @myorg/privatepackage
 npm install node\-tap \-\-save\-dev
 npm install dtrace\-provider \-\-save\-optional
 npm install readable\-stream \-\-save \-\-save\-exact
-.EE
+.fi
 .RE
 
 .RE
@@ -133,11 +133,11 @@ npm install readable\-stream \-\-save \-\-save\-exact
 .RE
 .P
 .RS 2
-.EX
+.nf
 **Note**: If there is a file or folder named `<name>` in the current
 working directory, then it will try to install that, and only try to
 fetch the package by name if it is not valid\.
-.EE
+.fi
 .RE
 .RS 0
 .IP \(bu 2
@@ -148,10 +148,10 @@ fetch the package by name if it is not valid\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install sax@latest
     npm install @myorg/mypackage@latest
-.EE
+.fi
 .RE
 .IP \(bu 2
 \fBnpm install [@<scope>/]<name>@<version>\fR:
@@ -160,10 +160,10 @@ fetch the package by name if it is not valid\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install sax@0\.1\.1
     npm install @myorg/privatepackage@1\.5\.0
-.EE
+.fi
 .RE
 .IP \(bu 2
 \fBnpm install [@<scope>/]<name>@<version range>\fR:
@@ -174,10 +174,10 @@ fetch the package by name if it is not valid\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install sax@">=0\.1\.0 <0\.2\.0"
     npm install @myorg/privatepackage@">=0\.1\.0 <0\.2\.0"
-.EE
+.fi
 .RE
 .IP \(bu 2
 \fBnpm install <githubname>/<githubrepo>\fR:
@@ -186,9 +186,9 @@ fetch the package by name if it is not valid\.
   Example:
 .P
 .RS 2
-.EX
+.nf
     npm install mygithubuser/myproject
-.EE
+.fi
 .RE
  To reference a package in a git repo that is not on GitHub, see git
  remote urls below\.
@@ -198,9 +198,9 @@ fetch the package by name if it is not valid\.
   url is:
 .P
 .RS 2
-.EX
+.nf
     <protocol>://[<user>@]<hostname><separator><path>[#<commit\-ish>]
-.EE
+.fi
 .RE
   \fB<protocol>\fR is one of \fBgit\fR, \fBgit+ssh\fR, \fBgit+http\fR, or
   \fBgit+https\fR\|\.  If no \fB<commit\-ish>\fR is specified, then \fBmaster\fR is
@@ -208,11 +208,11 @@ fetch the package by name if it is not valid\.
   Examples:
 .P
 .RS 2
-.EX
+.nf
     git+ssh://git@github\.com:npm/npm\.git#v1\.0\.27
     git+https://isaacs@github\.com/npm/npm\.git
     git://github\.com/npm/npm\.git#v1\.0\.27
-.EE
+.fi
 .RE
 
 .RE
@@ -221,9 +221,9 @@ You may combine multiple arguments, and even multiple types of arguments\.
 For example:
 .P
 .RS 2
-.EX
+.nf
 npm install sax@">=0\.1\.0 <0\.2\.0" bench supervisor
-.EE
+.fi
 .RE
 .P
 The \fB\-\-tag\fR argument will apply to all of the specified install targets\. If a
@@ -234,9 +234,9 @@ The \fB\-\-force\fR argument will force npm to fetch remote resources even if a
 local copy exists on disk\.
 .P
 .RS 2
-.EX
+.nf
 npm install sax \-\-force
-.EE
+.fi
 .RE
 .P
 The \fB\-\-global\fR argument will cause npm to install the package globally
@@ -264,7 +264,7 @@ effect on installation, since that's most of what npm does\.
 To install a package, npm uses the following algorithm:
 .P
 .RS 2
-.EX
+.nf
 install(where, what, family, ancestors)
 fetch what, unpack to <where>/node_modules/<what>
 for each dep in what\.dependencies
@@ -274,19 +274,19 @@ for each dep@version in what\.dependencies
     and not in <family>
   add precise version deps to <family>
   install(<where>/node_modules/<what>, dep, family)
-.EE
+.fi
 .RE
 .P
 For this \fBpackage{dep}\fR structure: \fBA{B,C}, B{C}, C{D}\fR,
 this algorithm produces:
 .P
 .RS 2
-.EX
+.nf
 A
 +\-\- B
 `\-\- C
     `\-\- D
-.EE
+.fi
 .RE
 .P
 That is, the dependency from B to C is satisfied by the fact that A
@@ -301,9 +301,9 @@ cause npm to try to install a never\-ending tree of packages\.  Here is
 the simplest case:
 .P
 .RS 2
-.EX
+.nf
 A \-> B \-> A' \-> B' \-> A \-> B \-> A' \-> B' \-> A \-> \.\.\.
-.EE
+.fi
 .RE
 .P
 where \fBA\fR is some version of a package, and \fBA'\fR is a different version

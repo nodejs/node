@@ -38,7 +38,9 @@ Public members
 
 .. c:member:: void* uv_loop_t.data
 
-    Space for user-defined arbitrary data. libuv does not use this field.
+    Space for user-defined arbitrary data. libuv does not use this field. libuv does, however,
+    initialize it to NULL in :c:func:`uv_loop_init`, and it poisons the value (on debug builds)
+    on :c:func:`uv_loop_close`.
 
 
 API

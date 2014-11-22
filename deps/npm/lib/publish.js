@@ -8,9 +8,10 @@ var url = require("url")
   , readJson = require("read-package-json")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
-  , Conf = require("npmconf").Conf
+  , Conf = require("./config/core.js").Conf
   , RegClient = require("npm-registry-client")
   , mapToRegistry = require("./utils/map-to-registry.js")
+  , cachedPackageRoot = require("./cache/cached-package-root.js")
 
 publish.usage = "npm publish <tarball>"
               + "\nnpm publish <folder>"
@@ -35,14 +36,18 @@ function publish (args, isRetry, cb) {
   var arg = args[0]
   // if it's a local folder, then run the prepublish there, first.
   readJson(path.resolve(arg, "package.json"), function (er, data) {
-    er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-    // error is ok.  could be publishing a url or tarball
-    // however, that means that we will not have automatically run
-    // the prepublish script, since that gets run when adding a folder
-    // to the cache.
+
+    if (data) {
+      if (!data.name) return cb(new Error("No name provided"))
+      if (!data.version) return cb(new Error("No version provided"))
+    }
+
+    // Error is OK. Could be publishing a URL or tarball, however, that means
+    // that we will not have automatically run the prepublish script, since
+    // that gets run when adding a folder to the cache.
     if (er) return cacheAddPublish(arg, false, isRetry, cb)
-    cacheAddPublish(arg, true, isRetry, cb)
+    else cacheAddPublish(arg, true, isRetry, cb)
   })
 }
 
@@ -55,10 +60,7 @@ function cacheAddPublish (dir, didPre, isRetry, cb) {
   npm.commands.cache.add(dir, null, null, false, function (er, data) {
     if (er) return cb(er)
     log.silly("publish", data)
-    var cachedir = path.resolve( npm.cache
-                               , data.name
-                               , data.version
-                               , "package" )
+    var cachedir = path.resolve(cachedPackageRoot(data), "package")
     chain([ !didPre &&
           [lifecycle, data, "prepublish", cachedir]
         , [publish_, dir, data, isRetry, cachedir]
@@ -88,7 +90,8 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     registry = new RegClient(config)
   }
 
-  data._npmVersion = npm.version
+  data._npmVersion  = npm.version
+  data._nodeVersion = process.versions.node
 
   delete data.modules
   if (data.private) return cb(
@@ -127,10 +130,4 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       cb()
     })
   })
-}
-
-function needVersion(er, data) {
-  return er ? er
-       : (data && !data.version) ? new Error("No version provided")
-       : null
 }

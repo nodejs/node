@@ -25,7 +25,7 @@ test("go go test racer", function (t) {
     stdio: [ 0, "pipe", 2 ]
   }, function (er, code, sout) {
     if (er) throw er
-    t.equal(code, 0)
+    t.notOk(code, "npm install exited with code 0")
     t.equal(sout, "ok\nok\n")
     t.notOk(/not ok/.test(sout), "should not contain the string 'not ok'")
     t.end()

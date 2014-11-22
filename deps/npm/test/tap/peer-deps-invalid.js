@@ -1,18 +1,20 @@
-var common = require('../common-tap.js')
+var common = require("../common-tap")
 var fs = require("fs")
 var path = require("path")
 var test = require("tap").test
 var rimraf = require("rimraf")
 var npm = require("../../")
 var mr = require("npm-registry-mock")
-var pkg = __dirname + "/peer-deps-invalid"
+var pkg = path.resolve(__dirname, "peer-deps-invalid")
+var cache = path.resolve(pkg, "cache")
+var nodeModules = path.resolve(pkg, "node_modules")
 
 var okFile = fs.readFileSync(path.join(pkg, "file-ok.js"), "utf8")
 var failFile = fs.readFileSync(path.join(pkg, "file-fail.js"), "utf8")
 
 test("installing dependencies that have conflicting peerDependencies", function (t) {
-  rimraf.sync(pkg + "/node_modules")
-  rimraf.sync(pkg + "/cache")
+  rimraf.sync(nodeModules)
+  rimraf.sync(cache)
   process.chdir(pkg)
 
   var customMocks = {
@@ -23,7 +25,7 @@ test("installing dependencies that have conflicting peerDependencies", function 
   }
   mr({port: common.port, mocks: customMocks}, function (s) { // create mock registry.
     npm.load({
-      cache: pkg + "/cache",
+      cache: cache,
       registry: common.registry
     }, function () {
       npm.commands.install([], function (err) {
@@ -40,7 +42,7 @@ test("installing dependencies that have conflicting peerDependencies", function 
 })
 
 test("cleanup", function (t) {
-  rimraf.sync(pkg + "/node_modules")
-  rimraf.sync(pkg + "/cache")
+  rimraf.sync(nodeModules)
+  rimraf.sync(cache)
   t.end()
 })

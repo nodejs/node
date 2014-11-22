@@ -154,8 +154,8 @@ if(config.has_key("comment")):
     print "%s: %s" % (options.filterfile, config["comment"])
 
 ## STEP 1 - copy the data file, swapping endianness
-endian_letter = "l"
-
+## The first letter of endian_letter will be 'b' or 'l' for big or little
+endian_letter = options.endian[0]
 
 runcmd("icupkg", "-t%s %s %s""" % (endian_letter, options.datfile, outfile))
 

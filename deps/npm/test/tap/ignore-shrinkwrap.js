@@ -1,10 +1,9 @@
 var common = require("../common-tap.js")
 var test = require("tap").test
-var pkg = './ignore-shrinkwrap'
+var pkg = require("path").join(__dirname,"ignore-shrinkwrap")
 
 var mr = require("npm-registry-mock")
 
-var child
 var spawn = require("child_process").spawn
 var npm = require.resolve("../../bin/npm-cli.js")
 var node = process.execPath
@@ -18,7 +17,7 @@ var customMocks = {
 
 test("ignore-shrinkwrap: using the option", function (t) {
   mr({port: common.port, mocks: customMocks}, function (s) {
-    s._server.on("request", function (req, res) {
+    s._server.on("request", function (req) {
       switch (req.url) {
         case "/shrinkwrap.js":
           t.fail()
@@ -28,7 +27,7 @@ test("ignore-shrinkwrap: using the option", function (t) {
       }
     })
     var child = createChild(true)
-    child.on("close", function (m) {
+    child.on("close", function () {
       s.close()
       t.end()
     })
@@ -37,7 +36,7 @@ test("ignore-shrinkwrap: using the option", function (t) {
 
 test("ignore-shrinkwrap: NOT using the option", function (t) {
   mr({port: common.port, mocks: customMocks}, function (s) {
-    s._server.on("request", function (req, res) {
+    s._server.on("request", function (req) {
       switch (req.url) {
         case "/shrinkwrap.js":
           t.pass("shrinkwrap used")
@@ -47,7 +46,7 @@ test("ignore-shrinkwrap: NOT using the option", function (t) {
       }
     })
     var child = createChild(false)
-    child.on("close", function (m) {
+    child.on("close", function () {
       s.close()
       t.end()
     })
@@ -65,13 +64,12 @@ function createChild (ignoreShrinkwrap) {
   return spawn(node, args, {
     cwd: pkg,
     env: {
-      npm_config_registry: common.registry,
-      npm_config_cache_lock_stale: 1000,
-      npm_config_cache_lock_wait: 1000,
+      "npm_config_registry": common.registry,
+      "npm_config_cache_lock_stale": 1000,
+      "npm_config_cache_lock_wait": 1000,
       HOME: process.env.HOME,
       Path: process.env.PATH,
       PATH: process.env.PATH
     }
   })
-
 }

@@ -14,9 +14,9 @@ commands.forEach(function (cmd) {
   var stdout, stderr
 
   test(cmd + " in root", function (t) {
-    common.npm([cmd], {cwd: root}, function(er, code, so, se) {
+    common.npm([cmd], {cwd: root}, function (er, code, so, se) {
       if (er) throw er
-      t.equal(code, 0)
+      t.notOk(code, "npm " + cmd + " exited with code 0")
       stdout = so
       stderr = se
       t.end()
@@ -24,9 +24,9 @@ commands.forEach(function (cmd) {
   })
 
   test(cmd + " in lib", function (t) {
-    common.npm([cmd], {cwd: lib}, function(er, code, so, se) {
+    common.npm([cmd], {cwd: lib}, function (er, code, so, se) {
       if (er) throw er
-      t.equal(code, 0)
+      t.notOk(code, "npm " + cmd + " exited with code 0")
       t.equal(so, stdout)
       t.equal(se, stderr)
       t.end()

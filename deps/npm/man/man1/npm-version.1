@@ -1,12 +1,12 @@
-.TH "NPM\-VERSION" "1" "September 2014" "" ""
+.TH "NPM\-VERSION" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -27,9 +27,9 @@ use it as a commit message when creating a version commit\.  If the
 resulting version number\.  For example:
 .P
 .RS 2
-.EX
+.nf
 npm version patch \-m "Upgrade to %s for reasons"
-.EE
+.fi
 .RE
 .P
 If the \fBsign\-git\-tag\fR config is set, then the tag will be signed using
@@ -37,7 +37,7 @@ the \fB\-s\fR flag to git\.  Note that you must have a default GPG key set up
 in your git config for this to work properly\.  For example:
 .P
 .RS 2
-.EX
+.nf
 $ npm config set sign\-git\-tag true
 $ npm version patch
 
@@ -46,7 +46,7 @@ user: "isaacs (http://blog\.izs\.me/) <i@izs\.me>"
 2048\-bit RSA key, ID 6C481CF6, created 2010\-08\-31
 
 Enter passphrase:
-.EE
+.fi
 .RE
 .SH SEE ALSO
 .RS 0

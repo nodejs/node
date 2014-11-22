@@ -14,7 +14,6 @@ test("readdir reorder", function (t) {
   g.readdir("whatevers", function (er, files) {
     if (er)
       throw er
-    console.error(files)
     t.same(files, [ "a", "b", "z" ])
     t.end()
   })

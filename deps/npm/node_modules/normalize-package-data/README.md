@@ -16,7 +16,7 @@ Basic usage is really simple. You call the function that normalize-package-data 
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readfileSync("package.json")
+packageData = fs.readFileSync("package.json")
 normalizeData(packageData)
 // packageData is now normalized
 ```
@@ -27,7 +27,7 @@ You may activate strict validation by passing true as the second argument.
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readfileSync("package.json")
+packageData = fs.readFileSync("package.json")
 warnFn = function(msg) { console.error(msg) }
 normalizeData(packageData, true)
 // packageData is now normalized
@@ -41,7 +41,7 @@ Optionally, you may pass a "warning" function. It gets called whenever the `norm
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readfileSync("package.json")
+packageData = fs.readFileSync("package.json")
 warnFn = function(msg) { console.error(msg) }
 normalizeData(packageData, warnFn)
 // packageData is now normalized. Any number of warnings may have been logged.
