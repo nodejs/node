@@ -1,0 +1,13 @@
+<h1><a href="../api/npm-docs.html">npm-docs</a></h1> <p>Docs for a package in a web browser maybe</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.docs(package, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command tries to guess at the likely location of a package&#39;s
+documentation URL, and then tries to open it using the <code>--browser</code>
+config param.</p>
+<p>Like other commands, the first parameter is an array. This command only
+uses the first element, which is expected to be a package name with an
+optional version number.</p>
+<p>This command will launch a browser, so this command may not be the most
+friendly for programmatic use.</p>
+

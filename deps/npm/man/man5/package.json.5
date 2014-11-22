@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "September 2014" "" ""
+.TH "PACKAGE\.JSON" "5" "October 2014" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -76,11 +76,11 @@ with your package\.
 It should look like this:
 .P
 .RS 2
-.EX
+.nf
 { "url" : "http://github\.com/owner/project/issues"
 , "email" : "project@hostname\.com"
 }
-.EE
+.fi
 .RE
 .P
 You can specify either one or both values\. If you want to provide only a url,
@@ -97,9 +97,9 @@ or MIT, is to just specify the standard SPDX ID of the license you're using,
 like this:
 .P
 .RS 2
-.EX
+.nf
 { "license" : "BSD\-3\-Clause" }
-.EE
+.fi
 .RE
 .P
 You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\fR\|\.
@@ -114,20 +114,20 @@ The "author" is one person\.  "contributors" is an array of people\.  A "person"
 is an object with a "name" field and optionally "url" and "email", like this:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "Barney Rubble"
 , "email" : "b@rubble\.com"
 , "url" : "http://barnyrubble\.tumblr\.com/"
 }
-.EE
+.fi
 .RE
 .P
 Or you can shorten that all into a single string, and npm will parse it for you:
 .P
 .RS 2
-.EX
+.nf
 "Barney Rubble <b@rubble\.com> (http://barnyrubble\.tumblr\.com/)
-.EE
+.fi
 .RE
 .P
 Both email and url are optional either way\.
@@ -167,9 +167,9 @@ installs\.
 For example, npm has this:
 .P
 .RS 2
-.EX
+.nf
 { "bin" : { "npm" : "\./cli\.js" } }
-.EE
+.fi
 .RE
 .P
 So, when you install npm, it'll create a symlink from the \fBcli\.js\fR script to
@@ -179,21 +179,21 @@ If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string\.  For example:
 .P
 .RS 2
-.EX
+.nf
 { "name": "my\-program"
 , "version": "1\.2\.5"
 , "bin": "\./path/to/program" }
-.EE
+.fi
 .RE
 .P
 would be the same as this:
 .P
 .RS 2
-.EX
+.nf
 { "name": "my\-program"
 , "version": "1\.2\.5"
 , "bin" : { "my\-program" : "\./path/to/program" } }
-.EE
+.fi
 .RE
 .SH man
 .P
@@ -204,14 +204,14 @@ If only a single file is provided, then it's installed such that it is the
 result from \fBman <pkgname>\fR, regardless of its actual filename\.  For example:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "version" : "1\.2\.3"
 , "description" : "A packaged foo fooer for fooing foos"
 , "main" : "foo\.js"
 , "man" : "\./man/doc\.1"
 }
-.EE
+.fi
 .RE
 .P
 would link the \fB\|\./man/doc\.1\fR file in such that it is the target for \fBman foo\fR
@@ -220,14 +220,14 @@ If the filename doesn't start with the package name, then it's prefixed\.
 So, this:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "version" : "1\.2\.3"
 , "description" : "A packaged foo fooer for fooing foos"
 , "main" : "foo\.js"
 , "man" : [ "\./man/foo\.1", "\./man/bar\.1" ]
 }
-.EE
+.fi
 .RE
 .P
 will create files to do \fBman foo\fR and \fBman foo\-bar\fR\|\.
@@ -236,14 +236,14 @@ Man files must end with a number, and optionally a \fB\|\.gz\fR suffix if they a
 compressed\.  The number dictates which man section the file is installed into\.
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "version" : "1\.2\.3"
 , "description" : "A packaged foo fooer for fooing foos"
 , "main" : "foo\.js"
 , "man" : [ "\./man/foo\.1", "\./man/foo\.2" ]
 }
-.EE
+.fi
 .RE
 .P
 will create entries for \fBman foo\fR and \fBman 2 foo\fR
@@ -251,7 +251,7 @@ will create entries for \fBman foo\fR and \fBman 2 foo\fR
 .P
 The CommonJS Packages \fIhttp://wiki\.commonjs\.org/wiki/Packages/1\.0\fR spec details a
 few ways that you can indicate the structure of your package using a \fBdirectories\fR
-hash\. If you look at npm's package\.json \fIhttp://registry\.npmjs\.org/npm/latest\fR,
+object\. If you look at npm's package\.json \fIhttp://registry\.npmjs\.org/npm/latest\fR,
 you'll see that it has directories for doc, lib, and man\.
 .P
 In the future, this information may be used in other creative ways\.
@@ -261,10 +261,10 @@ Tell people where the bulk of your library is\.  Nothing special is done
 with the lib folder in any way, but it's useful meta info\.
 .SS directories\.bin
 .P
-If you specify a "bin" directory, then all the files in that folder will
-be used as the "bin" hash\.
+If you specify a \fBbin\fR directory, then all the files in that folder will
+be added as children of the \fBbin\fR path\.
 .P
-If you have a "bin" hash already, then this has no effect\.
+If you have a \fBbin\fR path already, then this has no effect\.
 .SS directories\.man
 .P
 A folder that is full of man pages\.  Sugar to generate a "man" array by
@@ -285,7 +285,7 @@ command will be able to find you\.
 Do it like this:
 .P
 .RS 2
-.EX
+.nf
 "repository" :
   { "type" : "git"
   , "url" : "http://github\.com/npm/npm\.git"
@@ -295,7 +295,7 @@ Do it like this:
   { "type" : "svn"
   , "url" : "http://v8\.googlecode\.com/svn/trunk/"
   }
-.EE
+.fi
 .RE
 .P
 The URL should be a publicly available (perhaps read\-only) url that can be handed
@@ -303,22 +303,22 @@ directly to a VCS program without any modification\.  It should not be a url to 
 html project page that you put in your browser\.  It's for computers\.
 .SH scripts
 .P
-The "scripts" member is an object hash of script commands that are run
+The "scripts" property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package\.  The key is the lifecycle
 event, and the value is the command to run at that point\.
 .P
 See npm help 7 \fBnpm\-scripts\fR to find out more about writing package scripts\.
 .SH config
 .P
-A "config" hash can be used to set configuration
-parameters used in package scripts that persist across upgrades\.  For
-instance, if a package had the following:
+A "config" object can be used to set configuration parameters used in package
+scripts that persist across upgrades\.  For instance, if a package had the
+following:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "config" : { "port" : "8080" } }
-.EE
+.fi
 .RE
 .P
 and then had a "start" command that then referenced the
@@ -329,13 +329,13 @@ See npm help 7 \fBnpm\-config\fR and npm help 7 \fBnpm\-scripts\fR for more on p
 configs\.
 .SH dependencies
 .P
-Dependencies are specified with a simple hash of package name to
+Dependencies are specified in a simple object that maps a package name to a
 version range\. The version range is a string which has one or more
-space\-separated descriptors\.  Dependencies can also be identified with
-a tarball or git URL\.
+space\-separated descriptors\.  Dependencies can also be identified with a
+tarball or git URL\.
 .P
 \fBPlease do not put test harnesses or transpilers in your
-\fBdependencies\fR hash\.\fR  See \fBdevDependencies\fR, below\.
+\fBdependencies\fR object\.\fR  See \fBdevDependencies\fR, below\.
 .P
 See npm help 7 semver for more details about specifying version ranges\.
 .RS 0
@@ -379,7 +379,7 @@ See npm help 7 semver for more details about specifying version ranges\.
 For example, these are all valid:
 .P
 .RS 2
-.EX
+.nf
 { "dependencies" :
   { "foo" : "1\.0\.0 \- 2\.9999\.9999"
   , "bar" : ">=1\.0\.2 <2\.1\.2"
@@ -392,10 +392,10 @@ For example, these are all valid:
   , "two" : "2\.x"
   , "thr" : "3\.3\.x"
   , "lat" : "latest"
-  , "dyl" : "~/projects/dyl"
+  , "dyl" : "file:\.\./dyl"
   }
 }
-.EE
+.fi
 .RE
 .SS URLs as Dependencies
 .P
@@ -408,13 +408,13 @@ install time\.
 Git urls can be of the form:
 .P
 .RS 2
-.EX
+.nf
 git://github\.com/user/project\.git#commit\-ish
 git+ssh://user@hostname:project\.git#commit\-ish
 git+ssh://user@hostname/project\.git#commit\-ish
 git+http://user@hostname/project/blah\.git#commit\-ish
 git+https://user@hostname/project/blah\.git#commit\-ish
-.EE
+.fi
 .RE
 .P
 The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
@@ -424,7 +424,7 @@ an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo": "user/foo\-project"\. For example:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "foo",
   "version": "0\.0\.0",
@@ -432,20 +432,35 @@ As of version 1\.1\.65, you can refer to GitHub urls as just "foo": "user/foo\-p
     "express": "visionmedia/express"
   }
 }
-.EE
+.fi
 .RE
 .SH Local Paths
 .P
-As of version 2\.0\.0 you can provide a path to a local directory that
-contains a package\. Local paths can be in the form:
+As of version 2\.0\.0 you can provide a path to a local directory that contains a
+package\. Local paths can be saved using \fBnpm install \-\-save\fR, using any of
+these forms:
 .P
 .RS 2
-.EX
+.nf
 \|\.\./foo/bar
 ~/foo/bar
 \|\./foo/bar
 /foo/bar
-.EE
+.fi
+.RE
+.P
+in which case they will be normalized to a relative path and added to your
+\fBpackage\.json\fR\|\. For example:
+.P
+.RS 2
+.nf
+{
+  "name": "baz",
+  "dependencies": {
+    "bar": "file:\.\./foo/bar"
+  }
+}
+.fi
 .RE
 .P
 This feature is helpful for local offline development and creating
@@ -458,8 +473,8 @@ If someone is planning on downloading and using your module in their
 program, then they probably don't want or need to download and build
 the external test or documentation framework that you use\.
 .P
-In this case, it's best to list these additional items in a
-\fBdevDependencies\fR hash\.
+In this case, it's best to map these additional items in a \fBdevDependencies\fR
+object\.
 .P
 These things will be installed when doing \fBnpm link\fR or \fBnpm install\fR
 from the root of a package, and can be managed like any other npm
@@ -472,7 +487,7 @@ script to do this, and make the required package a devDependency\.
 For example:
 .P
 .RS 2
-.EX
+.nf
 { "name": "ethopia\-waza",
   "description": "a delightfully fruity coffee varietal",
   "version": "1\.2\.3",
@@ -484,7 +499,7 @@ For example:
   },
   "main": "lib/waza\.js"
 }
-.EE
+.fi
 .RE
 .P
 The \fBprepublish\fR script will be run before publishing, so that users
@@ -501,7 +516,7 @@ a specific interface, expected and specified by the host documentation\.
 For example:
 .P
 .RS 2
-.EX
+.nf
 {
   "name": "tea\-latte",
   "version": "1\.3\.5"
@@ -509,7 +524,7 @@ For example:
     "tea": "2\.x"
   }
 }
-.EE
+.fi
 .RE
 .P
 This ensures your package \fBtea\-latte\fR can be installed \fIalong\fR with the second
@@ -518,10 +533,10 @@ installed if needed\. \fBnpm install tea\-latte\fR could possibly yield the foll
 dependency graph:
 .P
 .RS 2
-.EX
+.nf
 ├── tea\-latte@1\.3\.5
 └── tea@2\.2\.0
-.EE
+.fi
 .RE
 .P
 Trying to install another plugin with a conflicting requirement will cause an
@@ -539,17 +554,17 @@ Array of package names that will be bundled when publishing the package\.
 If this is spelled \fB"bundleDependencies"\fR, then that is also honorable\.
 .SH optionalDependencies
 .P
-If a dependency can be used, but you would like npm to proceed if it
-cannot be found or fails to install, then you may put it in the
-\fBoptionalDependencies\fR hash\.  This is a map of package name to version
-or url, just like the \fBdependencies\fR hash\.  The difference is that
-failure is tolerated\.
+If a dependency can be used, but you would like npm to proceed if it cannot be
+found or fails to install, then you may put it in the \fBoptionalDependencies\fR
+object\.  This is a map of package name to version or url, just like the
+\fBdependencies\fR object\.  The difference is that build failures do not cause
+installation to fail\.
 .P
 It is still your program's responsibility to handle the lack of the
 dependency\.  For example, something like this:
 .P
 .RS 2
-.EX
+.nf
 try {
   var foo = require('foo')
   var fooVersion = require('foo/package\.json')\.version
@@ -565,7 +580,7 @@ if ( notGoodFooVersion(fooVersion) ) {
 if (foo) {
   foo\.doFooThings()
 }
-.EE
+.fi
 .RE
 .P
 Entries in \fBoptionalDependencies\fR will override entries of the same name in
@@ -575,9 +590,9 @@ Entries in \fBoptionalDependencies\fR will override entries of the same name in
 You can specify the version of node that your stuff works on:
 .P
 .RS 2
-.EX
+.nf
 { "engines" : { "node" : ">=0\.10\.3 <0\.12" } }
-.EE
+.fi
 .RE
 .P
 And, like with dependencies, if you don't specify the version (or if you
@@ -591,9 +606,9 @@ You can also use the "engines" field to specify which versions of npm
 are capable of properly installing your program\.  For example:
 .P
 .RS 2
-.EX
+.nf
 { "engines" : { "npm" : "~1\.0\.20" } }
-.EE
+.fi
 .RE
 .P
 Note that, unless the user has set the \fBengine\-strict\fR config flag, this
@@ -601,12 +616,12 @@ field is advisory only\.
 .SH engineStrict
 .P
 If you are sure that your module will \fIdefinitely not\fR run properly on
-versions of Node/npm other than those specified in the \fBengines\fR hash,
+versions of Node/npm other than those specified in the \fBengines\fR object,
 then you can set \fB"engineStrict": true\fR in your package\.json file\.
 This will override the user's \fBengine\-strict\fR config setting\.
 .P
 Please do not do this unless you are really very very sure\.  If your
-engines hash is something overly restrictive, you can quite easily and
+engines object is something overly restrictive, you can quite easily and
 inadvertently lock yourself into obscurity and prevent your users from
 updating to new versions of Node\.  Consider this choice carefully\.  If
 people abuse it, it will be removed in a future version of npm\.
@@ -616,18 +631,18 @@ You can specify which operating systems your
 module will run on:
 .P
 .RS 2
-.EX
+.nf
 "os" : [ "darwin", "linux" ]
-.EE
+.fi
 .RE
 .P
 You can also blacklist instead of whitelist operating systems,
 just prepend the blacklisted os with a '!':
 .P
 .RS 2
-.EX
+.nf
 "os" : [ "!win32" ]
-.EE
+.fi
 .RE
 .P
 The host operating system is determined by \fBprocess\.platform\fR
@@ -640,17 +655,17 @@ If your code only runs on certain cpu architectures,
 you can specify which ones\.
 .P
 .RS 2
-.EX
+.nf
 "cpu" : [ "x64", "ia32" ]
-.EE
+.fi
 .RE
 .P
 Like the \fBos\fR option, you can also blacklist architectures:
 .P
 .RS 2
-.EX
+.nf
 "cpu" : [ "!arm", "!mips" ]
-.EE
+.fi
 .RE
 .P
 The host architecture is determined by \fBprocess\.arch\fR
@@ -667,11 +682,11 @@ does help prevent some confusion if it doesn't work as expected\.
 If you set \fB"private": true\fR in your package\.json, then npm will refuse
 to publish it\.
 .P
-This is a way to prevent accidental publication of private repositories\.
-If you would like to ensure that a given package is only ever published
-to a specific registry (for example, an internal registry),
-then use the \fBpublishConfig\fR hash described below
-to override the \fBregistry\fR config param at publish\-time\.
+This is a way to prevent accidental publication of private repositories\.  If
+you would like to ensure that a given package is only ever published to a
+specific registry (for example, an internal registry), then use the
+\fBpublishConfig\fR dictionary described below to override the \fBregistry\fR config
+param at publish\-time\.
 .SH publishConfig
 .P
 This is a set of config values that will be used at publish\-time\.  It's

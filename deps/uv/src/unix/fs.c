@@ -295,22 +295,21 @@ done:
 
 
 #if defined(__OpenBSD__) || (defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_8))
-static int uv__fs_readdir_filter(uv__dirent_t* dent) {
+static int uv__fs_scandir_filter(uv__dirent_t* dent) {
 #else
-static int uv__fs_readdir_filter(const uv__dirent_t* dent) {
+static int uv__fs_scandir_filter(const uv__dirent_t* dent) {
 #endif
   return strcmp(dent->d_name, ".") != 0 && strcmp(dent->d_name, "..") != 0;
 }
 
 
-/* This should have been called uv__fs_scandir(). */
-static ssize_t uv__fs_readdir(uv_fs_t* req) {
+static ssize_t uv__fs_scandir(uv_fs_t* req) {
   uv__dirent_t **dents;
   int saved_errno;
   int n;
 
   dents = NULL;
-  n = scandir(req->path, &dents, uv__fs_readdir_filter, alphasort);
+  n = scandir(req->path, &dents, uv__fs_scandir_filter, alphasort);
 
   /* NOTE: We will use nbufs as an index field */
   req->nbufs = 0;
@@ -764,6 +763,7 @@ static void uv__fs_work(struct uv__work* w) {
     break;
 
     switch (req->fs_type) {
+    X(ACCESS, access(req->path, req->flags));
     X(CHMOD, chmod(req->path, req->mode));
     X(CHOWN, chown(req->path, req->uid, req->gid));
     X(CLOSE, close(req->file));
@@ -779,7 +779,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDTEMP, uv__fs_mkdtemp(req));
     X(READ, uv__fs_read(req));
-    X(READDIR, uv__fs_readdir(req));
+    X(SCANDIR, uv__fs_scandir(req));
     X(READLINK, uv__fs_readlink(req));
     X(RENAME, rename(req->path, req->new_path));
     X(RMDIR, rmdir(req->path));
@@ -851,6 +851,18 @@ static void uv__fs_done(struct uv__work* w, int status) {
 
   if (req->cb != NULL)
     req->cb(req);
+}
+
+
+int uv_fs_access(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 const char* path,
+                 int flags,
+                 uv_fs_cb cb) {
+  INIT(ACCESS);
+  PATH;
+  req->flags = flags;
+  POST;
 }
 
 
@@ -1040,12 +1052,12 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
 }
 
 
-int uv_fs_readdir(uv_loop_t* loop,
+int uv_fs_scandir(uv_loop_t* loop,
                   uv_fs_t* req,
                   const char* path,
                   int flags,
                   uv_fs_cb cb) {
-  INIT(READDIR);
+  INIT(SCANDIR);
   PATH;
   req->flags = flags;
   POST;
@@ -1167,8 +1179,8 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   req->path = NULL;
   req->new_path = NULL;
 
-  if (req->fs_type == UV_FS_READDIR && req->ptr != NULL)
-    uv__fs_readdir_cleanup(req);
+  if (req->fs_type == UV_FS_SCANDIR && req->ptr != NULL)
+    uv__fs_scandir_cleanup(req);
 
   if (req->ptr != &req->statbuf)
     free(req->ptr);

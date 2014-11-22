@@ -3,7 +3,8 @@ var test = require("tap").test
   , rimraf = require("rimraf")
   , mr = require("npm-registry-mock")
   , common = require("../common-tap.js")
-  , pkg = __dirname + "/uninstall-package"
+  , path = require("path")
+  , pkg = path.join(__dirname, "uninstall-package")
 
 test("returns a list of removed items", function (t) {
   t.plan(1)

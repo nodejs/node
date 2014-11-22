@@ -437,7 +437,7 @@ int uv_fs_event_getpath(uv_fs_event_t* handle, char* buf, size_t* len) {
 }
 
 
-void uv__fs_readdir_cleanup(uv_fs_t* req) {
+void uv__fs_scandir_cleanup(uv_fs_t* req) {
   uv__dirent_t** dents;
 
   dents = req->ptr;
@@ -448,7 +448,7 @@ void uv__fs_readdir_cleanup(uv_fs_t* req) {
 }
 
 
-int uv_fs_readdir_next(uv_fs_t* req, uv_dirent_t* ent) {
+int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   uv__dirent_t** dents;
   uv__dirent_t* dent;
 

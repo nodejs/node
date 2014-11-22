@@ -201,3 +201,55 @@ An example on Windows:
     process.env.PATH.split(path.delimiter)
     // returns
     ['C:\Windows\system32', 'C:\Windows', 'C:\Program Files\nodejs\']
+
+## path.parse(pathString)
+
+Returns an object from a path string.
+
+An example on *nix:
+
+    path.parse('/home/user/dir/file.txt')
+    // returns
+    {
+        root : "/",
+        dir : "/home/user/dir",
+        base : "file.txt",
+        ext : ".txt",
+        name : "file"
+    }
+
+An example on Windows:
+
+    path.parse('C:\\path\\dir\\index.html')
+    // returns
+    {
+        root : "C:\",
+        dir : "C:\path\dir",
+        base : "index.html",
+        ext : ".html",
+        name : "index"
+    }
+
+## path.format(pathObject)
+
+Returns a path string from an object, the opposite of `path.parse` above.
+
+    path.format({
+        root : "/",
+        dir : "/home/user/dir",
+        base : "file.txt",
+        ext : ".txt",
+        name : "file"
+    })
+    // returns
+    '/home/user/dir/file.txt'
+
+## path.posix
+
+Provide access to aforementioned `path` methods but always interact in a posix
+compatible way.
+
+## path.win32
+
+Provide access to aforementioned `path` methods but always interact in a win32
+compatible way.

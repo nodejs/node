@@ -111,6 +111,13 @@ var fixer = module.exports = {
           this.warn("nonStringBundleDependency", bd)
           return false
         } else {
+          if (!data.dependencies) {
+            data.dependencies = {}
+          }
+          if (!data.dependencies.hasOwnProperty(bd)) {
+            this.warn("nonDependencyBundleDependency", bd)
+            data.dependencies[bd] = "*"
+          }
           return true
         }
       }, this)

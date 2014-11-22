@@ -1,4 +1,4 @@
-.TH "NPM\-SCOPE" "7" "September 2014" "" ""
+.TH "NPM\-SCOPE" "7" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-scope\fR \- Scoped packages
 .SH DESCRIPTION
@@ -9,9 +9,9 @@ or underscores)\. When used in package names, preceded by an @\-symbol and
 followed by a slash, e\.g\.
 .P
 .RS 2
-.EX
+.nf
 @somescope/somepackagename
-.EE
+.fi
 .RE
 .P
 Scopes are a way of grouping related packages together, and also affect a few
@@ -28,23 +28,23 @@ scoped modules will be in \fBnode_modules/@myorg/packagename\fR\|\. The scope fo
 (\fB@myorg\fR) is simply the name of the scope preceded by an @\-symbol, and can
 contain any number of scoped packages\.
 .P
-A scoped package is install by referencing it by name, preceded by an @\-symbol,
-in \fBnpm install\fR:
+A scoped package is installed by referencing it by name, preceded by an
+@\-symbol, in \fBnpm install\fR:
 .P
 .RS 2
-.EX
+.nf
 npm install @myorg/mypackage
-.EE
+.fi
 .RE
 .P
 Or in \fBpackage\.json\fR:
 .P
 .RS 2
-.EX
+.nf
 "dependencies": {
   "@myorg/mypackage": "^1\.3\.0"
 }
-.EE
+.fi
 .RE
 .P
 Note that if the @\-symbol is omitted in either case npm will instead attempt to
@@ -55,9 +55,9 @@ Because scoped packages are installed into a scope folder, you have to
 include the name of the scope when requiring them in your code, e\.g\.
 .P
 .RS 2
-.EX
+.nf
 require('@myorg/mypackage')
-.EE
+.fi
 .RE
 .P
 There is nothing special about the way Node treats scope folders, this is
@@ -77,9 +77,9 @@ private registries, such as npm Enterprise\.
 You can associate a scope with a registry at login, e\.g\.
 .P
 .RS 2
-.EX
+.nf
 npm login \-\-registry=http://reg\.example\.com \-\-scope=@myco
-.EE
+.fi
 .RE
 .P
 Scopes have a many\-to\-one relationship with registries: one registry can
@@ -88,9 +88,9 @@ host multiple scopes, but a scope only ever points to one registry\.
 You can also associate a scope with a registry using \fBnpm config\fR:
 .P
 .RS 2
-.EX
+.nf
 npm config set @myco:registry http://reg\.example\.com
-.EE
+.fi
 .RE
 .P
 Once a scope is associated with a registry, any \fBnpm install\fR for a package

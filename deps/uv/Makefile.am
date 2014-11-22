@@ -106,6 +106,9 @@ libuv_la_SOURCES += src/unix/async.c \
 
 endif  # WINNT
 
+EXTRA_DIST = test/fixtures/empty_file \
+             test/fixtures/load_error.node
+
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
 test_run_tests_CFLAGS =
@@ -266,6 +269,11 @@ libuv_la_SOURCES += src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \
                     src/unix/proctitle.c
+endif
+
+if DRAGONFLY
+include_HEADERS += include/uv-bsd.h
+libuv_la_SOURCES += src/unix/kqueue.c src/unix/freebsd.c
 endif
 
 if FREEBSD

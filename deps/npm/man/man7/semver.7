@@ -1,10 +1,10 @@
-.TH "SEMVER" "7" "September 2014" "" ""
+.TH "SEMVER" "7" "October 2014" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Usage
 .P
 .RS 2
-.EX
+.nf
 $ npm install semver
 
 semver\.valid('1\.2\.3') // '1\.2\.3'
@@ -13,13 +13,13 @@ semver\.clean('  =v1\.2\.3   ') // '1\.2\.3'
 semver\.satisfies('1\.2\.3', '1\.x || >=2\.5\.0 || 5\.0\.0 \- 7\.2\.3') // true
 semver\.gt('1\.2\.3', '9\.8\.7') // false
 semver\.lt('1\.2\.3', '9\.8\.7') // true
-.EE
+.fi
 .RE
 .P
 As a command\-line utility:
 .P
 .RS 2
-.EX
+.nf
 $ semver \-h
 
 Usage: semver <version> [<version> [\.\.\.]] [\-r <range> | \-i <inc> | \-d <dec>]
@@ -37,7 +37,7 @@ then exits failure\.
 
 Versions are printed in ascending order, so supplying
 multiple versions to the utility will just sort them\.
-.EE
+.fi
 .RE
 .SH Versions
 .P
@@ -165,7 +165,7 @@ A partial version range is treated as an X\-Range, so the special
 character is in fact optional\.
 .RS 0
 .IP \(bu 2
-\fB` (empty string) :=\fR*\fB:=\fR>=0\.0\.0`
+\fB""\fR (empty string) := \fB*\fR := \fB>=0\.0\.0\fR
 .IP \(bu 2
 \fB1\fR := \fB1\.x\.x\fR := \fB>=1\.0\.0 <2\.0\.0\fR
 .IP \(bu 2

@@ -1,16 +1,17 @@
 var test = require("tap").test
+var common = require("../common-tap")
 var fs = require("fs")
-var node = process.execPath
-var npm = require.resolve("../../bin/npm-cli.js")
 var rimraf = require("rimraf")
 var mr = require("npm-registry-mock")
-var common = require("../common-tap.js")
-var spawn = require("child_process").spawn
 var env = process.env
-process.env.npm_config_depth = "Infinity"
+var path = require("path")
 
-var pkg = __dirname + "/prune"
-var cache = pkg + "/cache"
+var pkg = path.resolve(__dirname, "prune")
+var cache = path.resolve(pkg, "cache")
+var nodeModules = path.resolve(pkg, "node_modules")
+
+var EXEC_OPTS = { cwd: pkg, env: env }
+EXEC_OPTS.env.npm_config_depth = "Infinity"
 
 var server
 
@@ -22,38 +23,43 @@ test("reg mock", function (t) {
   })
 })
 
+function cleanup () {
+  rimraf.sync(cache)
+  rimraf.sync(nodeModules)
+}
+
+test("setup", function (t) {
+  cleanup()
+  t.pass("setup")
+  t.end()
+})
 
 test("npm install", function (t) {
-  rimraf.sync(pkg + "/node_modules")
-  var c = spawn(node, [
-    npm, "install",
-    "--cache=" + cache,
-    "--registry=" + common.registry,
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
+  common.npm([
+    "install",
+    "--cache", cache,
+    "--registry", common.registry,
+    "--loglevel", "silent",
+    "--production", "false"
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, "install finished successfully")
     t.notOk(code, "exit ok")
+    t.notOk(stderr, "Should not get data on stderr: " + stderr)
     t.end()
   })
 })
 
 test("npm install test-package", function (t) {
-  var c = spawn(node, [
-    npm, "install", "test-package",
-    "--cache=" + cache,
-    "--registry=" + common.registry,
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
+  common.npm([
+    "install", "test-package",
+    "--cache", cache,
+    "--registry", common.registry,
+    "--loglevel", "silent",
+    "--production", "false"
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, "install finished successfully")
     t.notOk(code, "exit ok")
+    t.notOk(stderr, "Should not get data on stderr: " + stderr)
     t.end()
   })
 })
@@ -65,16 +71,14 @@ test("verify installs", function (t) {
 })
 
 test("npm prune", function (t) {
-  var c = spawn(node, [
-    npm, "prune",
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
+  common.npm([
+    "prune",
+    "--loglevel", "silent",
+    "--production", "false"
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, "prune finished successfully")
     t.notOk(code, "exit ok")
+    t.notOk(stderr, "Should not get data on stderr: " + stderr)
     t.end()
   })
 })
@@ -86,16 +90,14 @@ test("verify installs", function (t) {
 })
 
 test("npm prune", function (t) {
-  var c = spawn(node, [
-    npm, "prune",
-    "--loglevel=silent",
+  common.npm([
+    "prune",
+    "--loglevel", "silent",
     "--production"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
+  ], EXEC_OPTS, function (err, code, stderr) {
+    t.ifErr(err, "prune finished successfully")
     t.notOk(code, "exit ok")
+    t.equal(stderr, "unbuild mkdirp@0.3.5\n")
     t.end()
   })
 })
@@ -108,8 +110,7 @@ test("verify installs", function (t) {
 
 test("cleanup", function (t) {
   server.close()
-  rimraf.sync(pkg + "/node_modules")
-  rimraf.sync(pkg + "/cache")
+  cleanup()
   t.pass("cleaned up")
   t.end()
 })

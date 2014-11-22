@@ -229,6 +229,8 @@ class QueryWrap : public AsyncWrap {
  public:
   QueryWrap(Environment* env, Local<Object> req_wrap_obj)
       : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_CARES) {
+    if (env->in_domain())
+      req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
 
   virtual ~QueryWrap() override {

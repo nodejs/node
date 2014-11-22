@@ -124,7 +124,7 @@ punycode.toASCII('джумла@джpумлатест.bрфa');
 
 #### `punycode.ucs2.decode(string)`
 
-Creates an array containing the numeric code point values of each Unicode symbol in the string. While [JavaScript uses UCS-2 internally](http://mathiasbynens.be/notes/javascript-encoding), this function will convert a pair of surrogate halves (each of which UCS-2 exposes as separate characters) into a single code point, matching UTF-16.
+Creates an array containing the numeric code point values of each Unicode symbol in the string. While [JavaScript uses UCS-2 internally](https://mathiasbynens.be/notes/javascript-encoding), this function will convert a pair of surrogate halves (each of which UCS-2 exposes as separate characters) into a single code point, matching UTF-16.
 
 ```js
 punycode.ucs2.decode('abc');
@@ -163,7 +163,7 @@ Feel free to fork if you see possible improvements!
 
 | [![twitter/mathias](https://gravatar.com/avatar/24e08a9ea84deb17ae121074d0f17125?s=70)](https://twitter.com/mathias "Follow @mathias on Twitter") |
 |---|
-| [Mathias Bynens](http://mathiasbynens.be/) |
+| [Mathias Bynens](https://mathiasbynens.be/) |
 
 ## Contributors
 
@@ -173,4 +173,4 @@ Feel free to fork if you see possible improvements!
 
 ## License
 
-Punycode.js is available under the [MIT](http://mths.be/mit) license.
+Punycode.js is available under the [MIT](https://mths.be/mit) license.

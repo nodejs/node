@@ -12,6 +12,7 @@ var argv = process.argv.slice(2)
   , inc = null
   , version = require("../package.json").version
   , loose = false
+  , identifier = undefined
   , semver = require("../semver")
   , reverse = false
 
@@ -46,6 +47,9 @@ function main () {
             inc = "patch"
             break
         }
+        break
+      case "--preid":
+        identifier = argv.shift()
         break
       case "-r": case "--range":
         range.push(argv.shift())
@@ -88,7 +92,7 @@ function success () {
   }).map(function (v) {
     return semver.clean(v, loose)
   }).map(function (v) {
-    return inc ? semver.inc(v, inc, loose) : v
+    return inc ? semver.inc(v, inc, loose, identifier) : v
   }).forEach(function (v,i,_) { console.log(v) })
 }
 
@@ -110,6 +114,10 @@ function help () {
               ,"        be one of: major, minor, patch, premajor, preminor,"
               ,"        prepatch, or prerelease.  Default level is 'patch'."
               ,"        Only one version may be specified."
+              ,""
+              ,"--preid <identifier>"
+              ,"        Identifier to be used to prefix premajor, preminor,"
+              ,"        prepatch or prerelease version increments."
               ,""
               ,"-l --loose"
               ,"        Interpret versions and ranges loosely"

@@ -56,6 +56,10 @@ fs.link(existingFile, existingFile2, function(err) {
   assert.ok(0 <= err.message.indexOf(existingFile2));
 });
 
+fs.symlink(existingFile, existingFile2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+});
+
 fs.unlink(fn, function(err) {
   assert.ok(0 <= err.message.indexOf(fn));
 });
@@ -150,6 +154,14 @@ try {
   fs.linkSync(existingFile, existingFile2);
 } catch (err) {
   errors.push('link');
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+}
+
+try {
+  ++expected;
+  fs.symlinkSync(existingFile, existingFile2);
+} catch (err) {
+  errors.push('symlink');
   assert.ok(0 <= err.message.indexOf(existingFile2));
 }
 

@@ -140,7 +140,7 @@ numeric values in the `[major, minor, patch]` tuple.
 A partial version range is treated as an X-Range, so the special
 character is in fact optional.
 
-* `` (empty string) := `*` := `>=0.0.0`
+* `""` (empty string) := `*` := `>=0.0.0`
 * `1` := `1.x.x` := `>=1.0.0 <2.0.0`
 * `1.2` := `1.2.x` := `>=1.2.0 <1.3.0`
 

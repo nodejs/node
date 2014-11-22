@@ -530,7 +530,7 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
                  SO_PROTOCOL_INFOW,
                  (char*) &protocol_info,
                  &len) != 0) {
-    return WSAGetLastError();
+    return uv_translate_sys_error(WSAGetLastError());
   }
 
   /* Get the peer socket that is needed to enable fast poll. If the returned */

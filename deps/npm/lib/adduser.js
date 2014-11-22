@@ -166,9 +166,10 @@ function save (c, u, cb) {
     }
     else {
       npm.config.setCredentialsByURI(uri, {
-        username : u.u,
-        password : u.p,
-        email    : u.e
+        username   : u.u,
+        password   : u.p,
+        email      : u.e,
+        alwaysAuth : npm.config.get("always-auth")
       })
     }
 

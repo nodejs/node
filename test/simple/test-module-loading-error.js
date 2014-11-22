@@ -42,3 +42,15 @@ try {
 } catch (e) {
   assert.notEqual(e.toString().indexOf(dlerror_msg), -1);
 }
+
+try {
+  require();
+} catch (e) {
+  assert.notEqual(e.toString().indexOf('missing path'), -1);
+}
+
+try {
+  require({});
+} catch (e) {
+  assert.notEqual(e.toString().indexOf('path must be a string'), -1);
+}

@@ -1,12 +1,12 @@
-.TH "NPM\-EXPLORE" "1" "September 2014" "" ""
+.TH "NPM\-EXPLORE" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-explore\fR \- Browse an installed package
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm explore <name> [ \-\- <cmd>]
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
@@ -19,9 +19,9 @@ This is particularly handy in the case of git submodules in the
 \fBnode_modules\fR folder:
 .P
 .RS 2
-.EX
+.nf
 npm explore some\-dependency \-\- git pull origin master
-.EE
+.fi
 .RE
 .P
 Note that the package is \fInot\fR automatically rebuilt afterwards, so be
@@ -40,8 +40,6 @@ Type: path
 The shell to run for the \fBnpm explore\fR command\.
 .SH SEE ALSO
 .RS 0
-.IP \(bu 2
-npm help submodule
 .IP \(bu 2
 npm help 5 folders
 .IP \(bu 2

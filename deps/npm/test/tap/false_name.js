@@ -11,41 +11,45 @@ var test = require("tap").test
   , fs = require("fs")
   , path = require("path")
   , existsSync = fs.existsSync || path.existsSync
-  , spawn = require("child_process").spawn
-  , npm = require("../../")
   , rimraf = require("rimraf")
   , common = require("../common-tap.js")
   , mr = require("npm-registry-mock")
-  , pkg = __dirname + "/false_name"
+  , pkg = path.resolve(__dirname, "false_name")
+  , cache = path.resolve(pkg, "cache")
+  , nodeModules = path.resolve(pkg, "node_modules")
+
+var EXEC_OPTS = { cwd: pkg }
+
+test("setup", function(t) {
+  cleanup()
+  fs.mkdirSync(nodeModules)
+  t.end()
+})
 
 test("not every pkg.name can be required", function (t) {
-  rimraf.sync(pkg + "/cache")
-
-  t.plan(1)
+  t.plan(3)
   mr(common.port, function (s) {
-    setup(function () {
-      npm.install(".", function (err) {
-        if (err) return t.fail(err)
-        s.close()
-        t.ok(existsSync(pkg + "/node_modules/test-package-with-one-dep/" +
-          "node_modules/test-package"))
-      })
+    common.npm([
+      "install", ".",
+      "--cache", cache,
+      "--registry", common.registry
+    ], EXEC_OPTS, function (err, code) {
+      s.close()
+      t.ifErr(err, "install finished without error")
+      t.equal(code, 0, "install exited ok")
+      t.ok(existsSync(path.resolve(pkg,
+        "node_modules/test-package-with-one-dep",
+        "node_modules/test-package")))
     })
   })
 })
 
+function cleanup() {
+  rimraf.sync(cache)
+  rimraf.sync(nodeModules)
+}
+
 test("cleanup", function (t) {
-  rimraf.sync(pkg + "/cache")
-  rimraf.sync(pkg + "/node_modules")
+  cleanup()
   t.end()
 })
-
-function setup (cb) {
-  process.chdir(pkg)
-  npm.load({cache: pkg + "/cache", registry: common.registry},
-    function () {
-      rimraf.sync(pkg + "/node_modules")
-      fs.mkdirSync(pkg + "/node_modules")
-      cb()
-    })
-}

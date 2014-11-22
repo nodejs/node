@@ -16,6 +16,16 @@ is provided, it will list the available top level scripts.
 It is used by the test, start, restart, and stop commands, but can be
 called directly, as well.
 
+As of [`npm@2.0.0`](http://blog.npmjs.org/post/98131109725/npm-2-0-0), you can
+use custom arguments when executing scripts. The special option `--` is used by
+[getopt](http://goo.gl/KxMmtG) to delimit the end of the options. npm will pass
+all the arguments after the `--` directly to your script:
+
+    npm run test -- --grep="pattern"
+
+The arguments will only be passed to the script specified after ```npm run```
+and not to any pre or post script.
+
 ## SEE ALSO
 
 * npm-scripts(7)

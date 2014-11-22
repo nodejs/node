@@ -1,9 +1,9 @@
-.TH "NPM\-SCRIPTS" "7" "September 2014" "" ""
+.TH "NPM\-SCRIPTS" "7" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
 .P
-npm supports the "scripts" member of the package\.json script, for the
+npm supports the "scripts" property of the package\.json script, for the
 following scripts:
 .RS 0
 .IP \(bu 2
@@ -47,10 +47,10 @@ stop and start scripts if no \fBrestart\fR script is provided\.
 
 .RE
 .P
-Additionally, arbitrary scripts can be executed by running `npm run\-script
-.P
-<pkg> <stage>\fB\|\. *Pre* and *post* commands with matching names will be run for
-those as well (e\.g\.\fRpremyscript\fB,\fRmyscript\fB,\fRpostmyscript`)\.
+Additionally, arbitrary scripts can be executed by running \fBnpm
+run\-script <pkg> <stage>\fR\|\. \fIPre\fR and \fIpost\fR commands with matching
+names will be run for those as well (e\.g\. \fBpremyscript\fR, \fBmyscript\fR,
+\fBpostmyscript\fR)\.
 .SH NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN
 .P
 \fBtl;dr\fR Don't use \fBinstall\fR\|\.  Use a \fB\|\.gyp\fR file for compilation, and
@@ -136,11 +136,11 @@ suites, then those executables will be added to the \fBPATH\fR for
 executing the scripts\.  So, if your package\.json has this:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "dependencies" : { "bar" : "0\.1\.x" }
 , "scripts": { "start" : "bar \./test" } }
-.EE
+.fi
 .RE
 .P
 then you could run \fBnpm start\fR to execute the \fBbar\fR script, which is
@@ -157,34 +157,34 @@ package\.json file, then your package scripts would have the
 Configuration parameters are put in the environment with the
 \fBnpm_config_\fR prefix\. For instance, you can view the effective \fBroot\fR
 config by checking the \fBnpm_config_root\fR environment variable\.
-.SS Special: package\.json "config" hash
+.SS Special: package\.json "config" object
 .P
 The package\.json "config" keys are overwritten in the environment if
 there is a config param of \fB<name>[@<version>]:<key>\fR\|\.  For example,
 if the package\.json has this:
 .P
 .RS 2
-.EX
+.nf
 { "name" : "foo"
 , "config" : { "port" : "8080" }
 , "scripts" : { "start" : "node server\.js" } }
-.EE
+.fi
 .RE
 .P
 and the server\.js is this:
 .P
 .RS 2
-.EX
+.nf
 http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
-.EE
+.fi
 .RE
 .P
 then the user could change the behavior by doing:
 .P
 .RS 2
-.EX
+.nf
 npm config set foo:port 80
-.EE
+.fi
 .RE
 .SS current lifecycle event
 .P
@@ -198,23 +198,23 @@ Objects are flattened following this format, so if you had
 see this in the script:
 .P
 .RS 2
-.EX
+.nf
 process\.env\.npm_package_scripts_install === "foo\.js"
-.EE
+.fi
 .RE
 .SH EXAMPLES
 .P
 For example, if your package\.json contains this:
 .P
 .RS 2
-.EX
+.nf
 { "scripts" :
   { "install" : "scripts/install\.js"
   , "postinstall" : "scripts/install\.js"
   , "uninstall" : "scripts/uninstall\.js"
   }
 }
-.EE
+.fi
 .RE
 .P
 then the \fBscripts/install\.js\fR will be called for the install,
@@ -228,14 +228,14 @@ If you want to run a make command, you can do so\.  This works just
 fine:
 .P
 .RS 2
-.EX
+.nf
 { "scripts" :
   { "preinstall" : "\./configure"
   , "install" : "make && make install"
   , "test" : "make test"
   }
 }
-.EE
+.fi
 .RE
 .SH EXITING
 .P

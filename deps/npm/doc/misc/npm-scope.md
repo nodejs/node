@@ -25,8 +25,8 @@ scoped modules will be in `node_modules/@myorg/packagename`. The scope folder
 (`@myorg`) is simply the name of the scope preceded by an @-symbol, and can
 contain any number of scoped packages.
 
-A scoped package is install by referencing it by name, preceded by an @-symbol,
-in `npm install`:
+A scoped package is installed by referencing it by name, preceded by an
+@-symbol, in `npm install`:
 
     npm install @myorg/mypackage
 

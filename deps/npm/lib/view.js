@@ -35,11 +35,12 @@ view.completion = function (opts, cb) {
       var p = pref.concat(k).join(".")
       f.push(p)
       if (Array.isArray(d[k])) {
-        return d[k].forEach(function (val, i) {
+        d[k].forEach(function (val, i) {
           var pi = p + "[" + i + "]"
           if (val && typeof val === "object") getFields(val, f, [p])
           else f.push(pi)
         })
+        return
       }
       if (typeof d[k] === "object") getFields(d[k], f, [p])
     })
@@ -48,24 +49,54 @@ view.completion = function (opts, cb) {
 }
 
 var npm = require("./npm.js")
+  , readJson = require("read-package-json")
   , registry = npm.registry
   , log = require("npmlog")
   , util = require("util")
   , semver = require("semver")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , npa = require("npm-package-arg")
+  , path = require("path")
 
 function view (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
-  if (!args.length) return cb("Usage: "+view.usage)
+
+  if (!args.length) args = ["."]
+
   var pkg = args.shift()
     , nv = npa(pkg)
     , name = nv.name
+    , local = (name === "." || !name)
+
+  if (npm.config.get("global") && local) {
+    return cb(new Error("Cannot use view command in global mode."))
+  }
+
+  if (local) {
+    var dir = npm.prefix
+    readJson(path.resolve(dir, "package.json"), function (er, d) {
+      d = d || {}
+      if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+      if (!d.name) return cb(new Error("Invalid package.json"))
+
+      var p = d.name
+      nv = npa(p)
+      if (pkg && ~pkg.indexOf("@")) {
+        nv.rawSpec = pkg.split("@")[pkg.indexOf("@")]
+      }
+
+      fetchAndRead(nv, args, silent, cb)
+    })
+  } else {
+    fetchAndRead(nv, args, silent, cb)
+  }
+}
+
+function fetchAndRead (nv, args, silent, cb) {
+  // get the data about this package
+  var name = nv.name
     , version = nv.rawSpec || npm.config.get("tag")
 
-  if (name === ".") return cb(view.usage)
-
-  // get the data about this package
   mapToRegistry(name, npm.config, function (er, uri) {
     if (er) return cb(er)
 
@@ -184,9 +215,7 @@ function search (data, fields, version, title) {
     results = results.reduce(reducer, {})
     return results
   }
-  if (!data.hasOwnProperty(field)) {
-    return
-  }
+  if (!data.hasOwnProperty(field)) return undefined
   data = data[field]
   if (tail.length) {
     if (typeof data === "object") {
@@ -205,15 +234,15 @@ function search (data, fields, version, title) {
 function printData (data, name, cb) {
   var versions = Object.keys(data)
     , msg = ""
-    , showVersions = versions.length > 1
-    , showFields
+    , includeVersions = versions.length > 1
+    , includeFields
 
   versions.forEach(function (v) {
     var fields = Object.keys(data[v])
-    showFields = showFields || (fields.length > 1)
+    includeFields = includeFields || (fields.length > 1)
     fields.forEach(function (f) {
       var d = cleanup(data[v][f])
-      if (showVersions || showFields || typeof d !== "string") {
+      if (includeVersions || includeFields || typeof d !== "string") {
         d = cleanup(data[v][f])
         d = npm.config.get("json")
           ? JSON.stringify(d, null, 2)
@@ -221,10 +250,10 @@ function printData (data, name, cb) {
       } else if (typeof d === "string" && npm.config.get("json")) {
         d = JSON.stringify(d)
       }
-      if (f && showFields) f += " = "
+      if (f && includeFields) f += " = "
       if (d.indexOf("\n") !== -1) d = " \n" + d
-      msg += (showVersions ? name + "@" + v + " " : "")
-           + (showFields ? f : "") + d + "\n"
+      msg += (includeVersions ? name + "@" + v + " " : "")
+           + (includeFields ? f : "") + d + "\n"
     })
   })
 
@@ -268,4 +297,3 @@ function unparsePerson (d) {
        + (d.email ? " <"+d.email+">" : "")
        + (d.url ? " ("+d.url+")" : "")
 }
-

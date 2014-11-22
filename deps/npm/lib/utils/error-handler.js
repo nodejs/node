@@ -11,6 +11,7 @@ var cbCalled = false
   , exitCode = 0
   , rollbacks = npm.rollbacks
   , chain = require("slide").chain
+  , writeStream = require("fs-write-stream-atomic")
 
 
 process.on("exit", function (code) {
@@ -66,17 +67,21 @@ function exit (code, noLog) {
       if (er) {
         log.error("error rolling back", er)
         if (!code) errorHandler(er)
-        else reallyExit(er)
+        else if (noLog) rm("npm-debug.log", reallyExit.bind(null, er))
+        else writeLogFile(reallyExit.bind(this, er))
       } else {
-        rm("npm-debug.log", reallyExit)
+        if (!noLog && code) writeLogFile(reallyExit)
+        else rm("npm-debug.log", reallyExit)
       }
     })
     rollbacks.length = 0
   }
   else if (code && !noLog) writeLogFile(reallyExit)
-  else reallyExit()
+  else rm("npm-debug.log", reallyExit)
 
-  function reallyExit() {
+  function reallyExit (er) {
+    if (er && !code) code = typeof er.errno === "number" ? er.errno : 1
+
     // truncate once it's been written.
     log.record.length = 0
 
@@ -351,8 +356,7 @@ function writeLogFile (cb) {
   writingLogFile = true
   wroteLogFile = true
 
-  var fs = require("graceful-fs")
-    , fstr = fs.createWriteStream("npm-debug.log")
+  var fstr = writeStream("npm-debug.log")
     , os = require("os")
     , out = ""
 

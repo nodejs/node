@@ -66,7 +66,7 @@ test('\ngtr tests', function(t) {
     ['<1', '1.0.0beta', true],
     ['< 1', '1.0.0beta', true],
     ['=0.7.x', '0.8.2'],
-    ['<=0.7.x', '0.7.2']
+    ['<0.7.x', '0.7.2']
   ].forEach(function(tuple) {
     var range = tuple[0];
     var version = tuple[1];

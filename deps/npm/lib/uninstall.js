@@ -9,6 +9,7 @@ uninstall.usage = "npm uninstall <name>[@<version> [<name>[@<version>] ...]"
 uninstall.completion = require("./utils/completion/installed-shallow.js")
 
 var fs = require("graceful-fs")
+  , writeFileAtomic = require("write-file-atomic")
   , log = require("npmlog")
   , readJson = require("read-package-json")
   , path = require("path")
@@ -120,7 +121,7 @@ function saver (args, nm, cb_) {
         }
       }
 
-      fs.writeFile(pj, JSON.stringify(pkg, null, 2) + "\n", function (er) {
+      writeFileAtomic(pj, JSON.stringify(pkg, null, 2) + "\n", function (er) {
         return cb_(er, data)
       })
     })

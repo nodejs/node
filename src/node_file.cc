@@ -204,7 +204,7 @@ static void After(uv_fs_t *req) {
         argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
-      case UV_FS_READDIR:
+      case UV_FS_SCANDIR:
         {
           int r;
           Local<Array> names = Array::New(env->isolate(), 0);
@@ -212,7 +212,7 @@ static void After(uv_fs_t *req) {
           for (int i = 0; ; i++) {
             uv_dirent_t ent;
 
-            r = uv_fs_readdir_next(req, &ent);
+            r = uv_fs_scandir_next(req, &ent);
             if (r == UV_EOF)
               break;
             if (r != 0) {
@@ -507,9 +507,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[3]->IsFunction()) {
-    ASYNC_DEST_CALL(symlink, args[3], *dest, *dest, *path, flags)
+    ASYNC_DEST_CALL(symlink, args[3], *path, *dest, *path, flags)
   } else {
-    SYNC_DEST_CALL(symlink, *path, *dest, *dest, *path, flags)
+    SYNC_DEST_CALL(symlink, *dest, *path, *dest, *path, flags)
   }
 }
 
@@ -692,9 +692,9 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
-    ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
+    ASYNC_CALL(scandir, args[1], *path, 0 /*flags*/)
   } else {
-    SYNC_CALL(readdir, *path, *path, 0 /*flags*/)
+    SYNC_CALL(scandir, *path, *path, 0 /*flags*/)
 
     CHECK_GE(SYNC_REQ.result, 0);
     int r;
@@ -703,7 +703,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; ; i++) {
       uv_dirent_t ent;
 
-      r = uv_fs_readdir_next(&SYNC_REQ, &ent);
+      r = uv_fs_scandir_next(&SYNC_REQ, &ent);
       if (r == UV_EOF)
         break;
       if (r != 0)

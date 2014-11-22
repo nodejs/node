@@ -1,0 +1,16 @@
+<h1><a href="../api/npm-edit.html">npm-edit</a></h1> <p>Edit an installed package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.edit(package, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>Opens the package folder in the default editor (or whatever you&#39;ve
+configured as the npm <code>editor</code> config -- see <code>npm help config</code>.)</p>
+<p>After it has been edited, the package is rebuilt so as to pick up any
+changes in compiled packages.</p>
+<p>For instance, you can do <code>npm install connect</code> to install connect
+into your package, and then <code>npm.commands.edit([&quot;connect&quot;], callback)</code>
+to make a few changes to your locally installed copy.</p>
+<p>The first parameter is a string array with a single element, the package
+to open. The package can optionally have a version number attached.</p>
+<p>Since this command opens an editor in a new process, be careful about where
+and how this is used.</p>
+

@@ -1,0 +1,26 @@
+<h1><a href="../cli/npm-help-search.html">npm-help-search</a></h1> <p>Search npm help documentation</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm help-search some search terms
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command will search the npm markdown documentation files for the
+terms provided, and then list the results, sorted by relevance.</p>
+<p>If only one result is found, then it will show that help topic.</p>
+<p>If the argument to <code>npm help</code> is not a known help topic, then it will
+call <code>help-search</code>.  It is rarely if ever necessary to call this
+command directly.</p>
+<h2 id="configuration">CONFIGURATION</h2>
+<h3 id="long">long</h3>
+<ul>
+<li>Type: Boolean</li>
+<li>Default false</li>
+</ul>
+<p>If true, the &quot;long&quot; flag will cause help-search to output context around
+where the terms were found in the documentation.</p>
+<p>If false, then help-search will just list out the help topics found.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm.html">npm(1)</a></li>
+<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
+<li><a href="../cli/npm-help.html">npm-help(1)</a></li>
+</ul>
+

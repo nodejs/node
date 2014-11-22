@@ -69,7 +69,11 @@ function makeRequest (remote, headers, cb) {
   var parsed = url.parse(remote)
   this.log.http("fetch", "GET", parsed.href)
 
-  var er = this.authify(this.conf.get("always-auth"), parsed, headers)
+  var er = this.authify(
+    this.conf.getCredentialsByURI(remote).alwaysAuth,
+    parsed,
+    headers
+  )
   if (er) return cb(er)
 
   var opts = this.initialize(

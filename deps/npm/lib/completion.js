@@ -6,7 +6,7 @@ completion.usage = "npm completion >> ~/.bashrc\n"
                  + "source <(npm completion)"
 
 var npm = require("./npm.js")
-  , npmconf = require("npmconf")
+  , npmconf = require("./config/core.js")
   , configDefs = npmconf.defs
   , configTypes = configDefs.types
   , shorthands = configDefs.shorthands
@@ -229,7 +229,7 @@ function configCompl (opts, cb) {
 // expand with the valid values of various config values.
 // not yet implemented.
 function configValueCompl (opts, cb) {
-  console.error('configValue', opts)
+  console.error("configValue", opts)
   return cb(null, [])
 }
 

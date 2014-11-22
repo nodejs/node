@@ -205,7 +205,7 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   size_t dest_size = ExternalArraySize(dest_type);
 
   // optimization for Uint8 arrays (i.e. Buffers)
-  if (source_size != 1 && dest_size != 1) {
+  if (source_size != 1 || dest_size != 1) {
     if (source_size == 0)
       return env->ThrowTypeError("unknown source external array type");
     if (dest_size == 0)

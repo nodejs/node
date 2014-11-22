@@ -62,6 +62,7 @@ cache.read = read
 
 var npm = require("./npm.js")
   , fs = require("graceful-fs")
+  , writeFileAtomic = require("write-file-atomic")
   , assert = require("assert")
   , rm = require("./utils/gently-rm.js")
   , readJson = require("read-package-json")
@@ -77,8 +78,10 @@ var npm = require("./npm.js")
   , addRemoteGit = require("./cache/add-remote-git.js")
   , maybeGithub = require("./cache/maybe-github.js")
   , inflight = require("inflight")
+  , realizePackageSpecifier = require("realize-package-specifier")
   , npa = require("npm-package-arg")
   , getStat = require("./cache/get-stat.js")
+  , cachedPackageRoot = require("./cache/cached-package-root.js")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -129,8 +132,11 @@ function read (name, ver, forceBypass, cb) {
 
   if (forceBypass === undefined || forceBypass === null) forceBypass = true
 
-  var jsonFile = path.join(npm.cache, name, ver, "package", "package.json")
+  var root = cachedPackageRoot({name : name, version : ver})
   function c (er, data) {
+    log.silly("cache", "addNamed cb", name+"@"+ver)
+    if (er) log.verbose("cache", "addNamed error for", name+"@"+ver, er)
+
     if (data) deprCheck(data)
 
     return cb(er, data)
@@ -141,15 +147,16 @@ function read (name, ver, forceBypass, cb) {
     return addNamed(name, ver, null, c)
   }
 
-  readJson(jsonFile, function (er, data) {
-    er = needName(er, data)
-    er = needVersion(er, data)
+  readJson(path.join(root, "package", "package.json"), function (er, data) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+
+    if (data) {
+      if (!data.name) return cb(new Error("No name provided"))
+      if (!data.version) return cb(new Error("No version provided"))
+    }
+
     if (er) return addNamed(name, ver, null, c)
-
-    deprCheck(data)
-
-    c(er, data)
+    else c(er, data)
   })
 }
 
@@ -223,7 +230,6 @@ cache.add = function (pkg, ver, where, scrub, cb) {
       add([pkg, ver], where, cb)
     })
   }
-  log.verbose("cache add", [pkg, ver])
   return add([pkg, ver], where, cb)
 }
 
@@ -246,7 +252,8 @@ function add (args, where, cb) {
             + "    npm cache add <tarball>\n"
             + "    npm cache add <folder>\n"
     , spec
-    , p
+
+  log.silly("cache add", "args", args)
 
   if (args[1] === undefined) args[1] = null
 
@@ -257,43 +264,26 @@ function add (args, where, cb) {
     spec = args[0]
   }
 
-  log.verbose("cache add", "spec=%j args=%j", spec, args)
+  log.verbose("cache add", "spec", spec)
 
   if (!spec) return cb(usage)
 
   if (adding <= 0) {
     npm.spinner.start()
   }
-  adding ++
+  adding++
   cb = afterAdd(cb)
 
-  // package.json can have local URI ("file:") dependencies which require
-  // normalization
-  p = npa(spec)
-  if (p.type === "local" && where) spec = path.resolve(where, p.spec)
-  log.verbose("parsed spec", p)
+  realizePackageSpecifier(spec, where, function (err, p) {
+    if (err) return cb(err)
 
-  // short-circuit local installs
-  fs.stat(spec, function (er, s) {
-    if (er) return addNonLocal(spec, cb)
-    if (!s.isDirectory()) return addAndLogLocal(spec, cb)
-    fs.stat(path.join(spec, "package.json"), function (er) {
-      if (er) return addNonLocal(spec, cb)
-      addAndLogLocal(spec, cb)
-    })
-  })
-}
-
-function addAndLogLocal (spec, cb) {
-    log.verbose("cache add", "local package", path.resolve(spec))
-    return addLocal(spec, null, cb)
-}
-
-function addNonLocal (spec, cb) {
-    var p = npa(spec)
-    log.verbose("parsed spec", p)
+    log.silly("cache add", "parsed spec", p)
 
     switch (p.type) {
+      case "local":
+      case "directory":
+        addLocal(p, null, cb)
+        break
       case "remote":
         addRemoteTarball(p.spec, {name : p.name}, null, cb)
         break
@@ -308,6 +298,7 @@ function addNonLocal (spec, cb) {
 
         cb(new Error("couldn't figure out how to install " + spec))
     }
+  })
 }
 
 function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
@@ -323,7 +314,7 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
     }
     npm.commands.unbuild([unpackTarget], true, function (er) {
       if (er) return cb(er)
-      tar.unpack( path.join(npm.cache, pkg, ver, "package.tgz")
+      tar.unpack( path.join(cachedPackageRoot({name : pkg, version : ver}), "package.tgz")
                 , unpackTarget
                 , dMode, fMode
                 , uid, gid
@@ -333,50 +324,25 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
 }
 
 function afterAdd (cb) { return function (er, data) {
-  adding --
-  if (adding <= 0) {
-    npm.spinner.stop()
-  }
-  if (er || !data || !data.name || !data.version) {
-    return cb(er, data)
-  }
+  adding--
+  if (adding <= 0) npm.spinner.stop()
+
+  if (er || !data || !data.name || !data.version) return cb(er, data)
+  log.silly("cache", "afterAdd", data.name+"@"+data.version)
 
   // Save the resolved, shasum, etc. into the data so that the next
   // time we load from this cached data, we have all the same info.
-  var name = data.name
-  var ver = data.version
-  var pj = path.join(npm.cache, name, ver, "package", "package.json")
-  var tmp = pj + "." + process.pid
+  var pj = path.join(cachedPackageRoot(data), "package", "package.json")
 
   var done = inflight(pj, cb)
+  if (!done) return log.verbose("afterAdd", pj, "already in flight; not writing")
+  log.verbose("afterAdd", pj, "not in flight; writing")
 
-  if (!done) return undefined
-
-  fs.writeFile(tmp, JSON.stringify(data), "utf8", function (er) {
+  getStat(function (er, cs) {
     if (er) return done(er)
-    getStat(function (er, cs) {
-      if (er) return done(er)
-      fs.rename(tmp, pj, function (er) {
-        if (cs.uid && cs.gid) {
-          fs.chown(pj, cs.uid, cs.gid, function (er) {
-            return done(er, data)
-          })
-        } else {
-          done(er, data)
-        }
-      })
+    writeFileAtomic(pj, JSON.stringify(data), {chown : cs}, function (er) {
+      if (!er) log.verbose("afterAdd", pj, "written")
+      return done(er, data)
     })
   })
 }}
-
-function needName (er, data) {
-  return er ? er
-       : (data && !data.name) ? new Error("No name provided")
-       : null
-}
-
-function needVersion (er, data) {
-  return er ? er
-       : (data && !data.version) ? new Error("No version provided")
-       : null
-}

@@ -1,4 +1,4 @@
-.TH "NPM\-REMOVAL" "1" "September 2014" "" ""
+.TH "NPM\-REMOVAL" "1" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-removal\fR \- Cleaning the Slate
 .SH SYNOPSIS
@@ -6,17 +6,17 @@
 So sad to see you go\.
 .P
 .RS 2
-.EX
+.nf
 sudo npm uninstall npm \-g
-.EE
+.fi
 .RE
 .P
 Or, if that fails, get the npm source code, and do:
 .P
 .RS 2
-.EX
+.nf
 sudo make uninstall
-.EE
+.fi
 .RE
 .SH More Severe Uninstalling
 .P
@@ -39,9 +39,9 @@ different prefix setting, then adjust the paths accordingly, replacing
 To remove everything npm\-related manually:
 .P
 .RS 2
-.EX
+.nf
 rm \-rf /usr/local/{lib/node{,/\.npm,_modules},bin,share/man}/npm*
-.EE
+.fi
 .RE
 .P
 If you installed things \fIwith\fR npm, then your best bet is to uninstall
@@ -50,18 +50,18 @@ proper install\.  This can help find any symlinks that are lying
 around:
 .P
 .RS 2
-.EX
+.nf
 ls \-laF /usr/local/{lib/node{,/\.npm},bin,share/man} | grep npm
-.EE
+.fi
 .RE
 .P
 Prior to version 0\.3, npm used shim files for executables and node
 modules\.  To track those down, you can do the following:
 .P
 .RS 2
-.EX
+.nf
 find /usr/local/{lib/node,bin} \-exec grep \-l npm \\{\\} \\; ;
-.EE
+.fi
 .RE
 .P
 (This is also in the README file\.)

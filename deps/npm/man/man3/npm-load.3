@@ -1,21 +1,21 @@
-.TH "NPM\-LOAD" "3" "September 2014" "" ""
+.TH "NPM\-LOAD" "3" "October 2014" "" ""
 .SH "NAME"
 \fBnpm-load\fR \- Load config settings
 .SH SYNOPSIS
 .P
 .RS 2
-.EX
+.nf
 npm\.load(conf, cb)
-.EE
+.fi
 .RE
 .SH DESCRIPTION
 .P
 npm\.load() must be called before any other function call\.  Both parameters are
 optional, but the second is recommended\.
 .P
-The first parameter is an object hash of command\-line config params, and the
-second parameter is a callback that will be called when npm is loaded and
-ready to serve\.
+The first parameter is an object containing command\-line config params, and the
+second parameter is a callback that will be called when npm is loaded and ready
+to serve\.
 .P
 The first parameter should follow a similar structure as the package\.json
 config object\.
@@ -23,11 +23,11 @@ config object\.
 For example, to emulate the \-\-dev flag, pass an object that looks like this:
 .P
 .RS 2
-.EX
+.nf
 {
   "dev": true
 }
-.EE
+.fi
 .RE
 .P
 For a list of all the available command\-line configs, see \fBnpm help config\fR

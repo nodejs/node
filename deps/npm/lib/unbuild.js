@@ -24,7 +24,7 @@ function unbuild_ (silent) { return function (folder, cb_) {
   }
   folder = path.resolve(folder)
   delete build._didBuild[folder]
-  log.verbose(folder.substr(npm.prefix.length + 1), "unbuild")
+  log.verbose("unbuild", folder.substr(npm.prefix.length + 1))
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
     if (er) return gentlyRm(folder, false, cb)
@@ -53,7 +53,8 @@ function rmStuff (pkg, folder, cb) {
 
   readJson.cache.del(path.resolve(folder, "package.json"))
 
-  log.verbose([top, gnm, parent], "unbuild " + pkg._id)
+  log.verbose("unbuild rmStuff", pkg._id, "from", gnm)
+  if (!top) log.verbose("unbuild rmStuff", "in", parent)
   asyncMap([rmBins, rmMans], function (fn, cb) {
     fn(pkg, folder, parent, top, cb)
   }, cb)
