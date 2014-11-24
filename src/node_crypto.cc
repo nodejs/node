@@ -456,9 +456,16 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, err);
   }
 
-  SSL_CTX_use_PrivateKey(sc->ctx_, key);
+  int rv = SSL_CTX_use_PrivateKey(sc->ctx_, key);
   EVP_PKEY_free(key);
   BIO_free_all(bio);
+
+  if (!rv) {
+    unsigned long err = ERR_get_error();
+    if (!err)
+      return env->ThrowError("SSL_CTX_use_PrivateKey");
+    return ThrowCryptoError(env, err);
+  }
 }
 
 
