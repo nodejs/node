@@ -116,12 +116,13 @@ function test(clazz) {
   // Darwin ia32 does the other kind of NaN.
   // Compiler bug.  No one really cares.
   ASSERT(0x7F === buffer[0] || 0xFF === buffer[0]);
-  ASSERT.equal(0xc0, buffer[1]);
-  ASSERT.equal(0x00, buffer[2]);
-  ASSERT.equal(0x00, buffer[3]);
-  ASSERT.equal(0x00, buffer[4]);
-  ASSERT.equal(0x00, buffer[5]);
-  ASSERT.equal(0xc0, buffer[6]);
+  // mips processors use a slightly different NaN
+  ASSERT(0xC0 === buffer[1] || 0xBF === buffer[1]);
+  ASSERT(0x00 === buffer[2] || 0xFF === buffer[2]);
+  ASSERT(0x00 === buffer[3] || 0xFF === buffer[3]);
+  ASSERT(0x00 === buffer[4] || 0xFF === buffer[4]);
+  ASSERT(0x00 === buffer[5] || 0xFF === buffer[5]);
+  ASSERT(0xC0 === buffer[6] || 0xBF === buffer[6]);
   // Darwin ia32 does the other kind of NaN.
   // Compiler bug.  No one really cares.
   ASSERT(0x7F === buffer[7] || 0xFF === buffer[7]);
