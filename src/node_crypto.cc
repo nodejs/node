@@ -151,7 +151,7 @@ template int SSLWrap<TLSCallbacks>::TLSExtStatusCallback(SSL* s, void* arg);
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  CRYPTO_THREADID_set_numeric(tid, uv_thread_self());
+  CRYPTO_THREADID_set_numeric(tid, (unsigned long) uv_thread_self());
 }
 
 
