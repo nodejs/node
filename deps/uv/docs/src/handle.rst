@@ -6,7 +6,7 @@
 
 `uv_handle_t` is the base type for all libuv handle types.
 
-Strcutures are aligned so that any libuv handle can be cast to `uv_handle_t`.
+Structures are aligned so that any libuv handle can be cast to `uv_handle_t`.
 All API functions defined here work with any handle type.
 
 

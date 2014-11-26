@@ -6,13 +6,13 @@ through the process.
 
 ### FORK
 
-Fork the project [on GitHub](https://github.com/joyent/libuv) and check out
+Fork the project [on GitHub](https://github.com/libuv/libuv) and check out
 your copy.
 
 ```
 $ git clone https://github.com/username/libuv.git
 $ cd libuv
-$ git remote add upstream https://github.com/joyent/libuv.git
+$ git remote add upstream https://github.com/libuv/libuv.git
 ```
 
 Now decide if you want your feature or bug fix to go into the master branch
@@ -160,7 +160,7 @@ feature branch.  Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
-[issue tracker]: https://github.com/joyent/libuv/issues
+[issue tracker]: https://github.com/libuv/libuv/issues
 [libuv mailing list]: http://groups.google.com/group/libuv
 [IRC]: http://webchat.freelibuv.net/?channels=libuv
 [Google C/C++ style guide]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml

@@ -19,7 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-/* See https://github.com/joyent/libuv#documentation for documentation. */
+/* See https://github.com/libuv/libuv#documentation for documentation. */
 
 #ifndef UV_H
 #define UV_H
