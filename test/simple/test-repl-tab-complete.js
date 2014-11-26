@@ -211,3 +211,18 @@ testMe.complete(' ', function(error, data) {
 testMe.complete('toSt', function(error, data) {
   assert.deepEqual(data, [['toString'], 'toSt']);
 });
+
+// Tab complete provides built in libs for require()
+putIn.run(['.clear']);
+
+testMe.complete('require(\'', function(error, data) {
+  assert.strictEqual(error, null);
+  repl._builtinLibs.forEach(function(lib) {
+    assert.notStrictEqual(data[0].indexOf(lib), -1, lib + ' not found');
+  });
+});
+
+testMe.complete('require(\'n', function(error, data) {
+  assert.strictEqual(error, null);
+  assert.deepEqual(data, [['net'], 'n']);
+});
