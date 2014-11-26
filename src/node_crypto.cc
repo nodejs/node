@@ -508,11 +508,6 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 
   ret = SSL_CTX_use_certificate(ctx, x);
 
-  if (ERR_peek_error() != 0) {
-    // Key/certificate mismatch doesn't imply ret==0 ...
-    ret = 0;
-  }
-
   if (ret) {
     // If we could set up our certificate, now proceed to
     // the CA certificates.
