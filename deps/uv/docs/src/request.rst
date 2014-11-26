@@ -6,7 +6,7 @@
 
 `uv_req_t` is the base type for all libuv request types.
 
-Strcutures are aligned so that any libuv request can be cast to `uv_req_t`.
+Structures are aligned so that any libuv request can be cast to `uv_req_t`.
 All API functions defined here work with any request type.
 
 
