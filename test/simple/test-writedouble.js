@@ -170,20 +170,21 @@ function test(clazz) {
   // Darwin ia32 does the other kind of NaN.
   // Compiler bug.  No one really cares.
   ASSERT(0x7F === buffer[0] || 0xFF === buffer[0]);
-  ASSERT.equal(0xF8, buffer[1]);
-  ASSERT.equal(0x00, buffer[2]);
-  ASSERT.equal(0x00, buffer[3]);
-  ASSERT.equal(0x00, buffer[4]);
-  ASSERT.equal(0x00, buffer[5]);
-  ASSERT.equal(0x00, buffer[6]);
-  ASSERT.equal(0x00, buffer[7]);
-  ASSERT.equal(0x00, buffer[8]);
-  ASSERT.equal(0x00, buffer[9]);
-  ASSERT.equal(0x00, buffer[10]);
-  ASSERT.equal(0x00, buffer[11]);
-  ASSERT.equal(0x00, buffer[12]);
-  ASSERT.equal(0x00, buffer[13]);
-  ASSERT.equal(0xF8, buffer[14]);
+  // mips processors use a slightly different NaN
+  ASSERT(0xF8 === buffer[1] || 0xF7 === buffer[1]);
+  ASSERT(0x00 === buffer[2] || 0xFF === buffer[2]);
+  ASSERT(0x00 === buffer[3] || 0xFF === buffer[3]);
+  ASSERT(0x00 === buffer[4] || 0xFF === buffer[4]);
+  ASSERT(0x00 === buffer[5] || 0xFF === buffer[5]);
+  ASSERT(0x00 === buffer[6] || 0xFF === buffer[6]);
+  ASSERT(0x00 === buffer[7] || 0xFF === buffer[7]);
+  ASSERT(0x00 === buffer[8] || 0xFF === buffer[8]);
+  ASSERT(0x00 === buffer[9] || 0xFF === buffer[9]);
+  ASSERT(0x00 === buffer[10] || 0xFF === buffer[10]);
+  ASSERT(0x00 === buffer[11] || 0xFF === buffer[11]);
+  ASSERT(0x00 === buffer[12] || 0xFF === buffer[12]);
+  ASSERT(0x00 === buffer[13] || 0xFF === buffer[13]);
+  ASSERT(0xF8 === buffer[14] || 0xF7 === buffer[14]);
   // Darwin ia32 does the other kind of NaN.
   // Compiler bug.  No one really cares.
   ASSERT(0x7F === buffer[15] || 0xFF === buffer[15]);
