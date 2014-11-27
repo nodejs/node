@@ -2962,6 +2962,7 @@ char** Init(int argc, char *argv[]) {
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
 #ifdef __POSIX__
+  uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
   // Ignore SIGPIPE
   RegisterSignalHandler(SIGPIPE, SIG_IGN);
   RegisterSignalHandler(SIGINT, SignalExit);
