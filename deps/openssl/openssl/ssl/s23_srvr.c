@@ -127,9 +127,11 @@ static const SSL_METHOD *ssl23_get_server_method(int ver)
 	if (ver == SSL2_VERSION)
 		return(SSLv2_server_method());
 #endif
+#ifndef OPENSSL_NO_SSL3
 	if (ver == SSL3_VERSION)
 		return(SSLv3_server_method());
-	else if (ver == TLS1_VERSION)
+#endif
+	if (ver == TLS1_VERSION)
 		return(TLSv1_server_method());
 	else if (ver == TLS1_1_VERSION)
 		return(TLSv1_1_server_method());
@@ -421,6 +423,9 @@ int ssl23_get_client_hello(SSL *s)
 			}
 		}
 
+	/* ensure that TLS_MAX_VERSION is up-to-date */
+	OPENSSL_assert(s->version <= TLS_MAX_VERSION);
+
 #ifdef OPENSSL_FIPS
 	if (FIPS_mode() && (s->version < TLS1_VERSION))
 		{
@@ -597,6 +602,12 @@ int ssl23_get_client_hello(SSL *s)
 	if ((type == 2) || (type == 3))
 		{
 		/* we have SSLv3/TLSv1 (type 2: SSL2 style, type 3: SSL3/TLS style) */
+                s->method = ssl23_get_server_method(s->version);
+		if (s->method == NULL)
+			{
+			SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_UNSUPPORTED_PROTOCOL);
+			goto err;
+			}
 
 		if (!ssl_init_wbio_buffer(s,1)) goto err;
 
@@ -624,14 +635,6 @@ int ssl23_get_client_hello(SSL *s)
 			s->s3->rbuf.left=0;
 			s->s3->rbuf.offset=0;
 			}
-		if (s->version == TLS1_2_VERSION)
-			s->method = TLSv1_2_server_method();
-		else if (s->version == TLS1_1_VERSION)
-			s->method = TLSv1_1_server_method();
-		else if (s->version == TLS1_VERSION)
-			s->method = TLSv1_server_method();
-		else
-			s->method = SSLv3_server_method();
 #if 0 /* ssl3_get_client_hello does this */
 		s->client_version=(v[0]<<8)|v[1];
 #endif

@@ -387,27 +387,7 @@ for certain common S/MIME ciphers (RC2, DES, triple DES) in CBC mode.
 
 =head1 EXAMPLES
 
-Get the number of rounds used in RC5:
-
- int nrounds;
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GET_RC5_ROUNDS, 0, &nrounds);
-
-Get the RC2 effective key length:
-
- int key_bits;
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GET_RC2_KEY_BITS, 0, &key_bits);
-
-Set the number of rounds used in RC5:
-
- int nrounds;
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_SET_RC5_ROUNDS, nrounds, NULL);
-
-Set the effective key length used in RC2:
-
- int key_bits;
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_SET_RC2_KEY_BITS, key_bits, NULL);
-
-Encrypt a string using blowfish:
+Encrypt a string using IDEA:
 
  int do_crypt(char *outfile)
  	{
@@ -421,8 +401,9 @@ Encrypt a string using blowfish:
 	char intext[] = "Some Crypto Text";
 	EVP_CIPHER_CTX ctx;
 	FILE *out;
+
 	EVP_CIPHER_CTX_init(&ctx);
-	EVP_EncryptInit_ex(&ctx, EVP_bf_cbc(), NULL, key, iv);
+	EVP_EncryptInit_ex(&ctx, EVP_idea_cbc(), NULL, key, iv);
 
 	if(!EVP_EncryptUpdate(&ctx, outbuf, &outlen, intext, strlen(intext)))
 		{
@@ -451,28 +432,34 @@ Encrypt a string using blowfish:
 	}
 
 The ciphertext from the above example can be decrypted using the B<openssl>
-utility with the command line:
+utility with the command line (shown on two lines for clarity):
  
- S<openssl bf -in cipher.bin -K 000102030405060708090A0B0C0D0E0F -iv 0102030405060708 -d>
+ openssl idea -d <filename
+          -K 000102030405060708090A0B0C0D0E0F -iv 0102030405060708
 
-General encryption, decryption function example using FILE I/O and RC2 with an
-80 bit key:
+General encryption and decryption function example using FILE I/O and AES128
+with a 128-bit key:
 
  int do_crypt(FILE *in, FILE *out, int do_encrypt)
  	{
 	/* Allow enough space in output buffer for additional block */
-	inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
+	unsigned char inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
 	int inlen, outlen;
+	EVP_CIPHER_CTX ctx;
 	/* Bogus key and IV: we'd normally set these from
 	 * another source.
 	 */
-	unsigned char key[] = "0123456789";
-	unsigned char iv[] = "12345678";
-	/* Don't set key or IV because we will modify the parameters */
+	unsigned char key[] = "0123456789abcdeF";
+	unsigned char iv[] = "1234567887654321";
+
+	/* Don't set key or IV right away; we want to check lengths */
 	EVP_CIPHER_CTX_init(&ctx);
-	EVP_CipherInit_ex(&ctx, EVP_rc2(), NULL, NULL, NULL, do_encrypt);
-	EVP_CIPHER_CTX_set_key_length(&ctx, 10);
-	/* We finished modifying parameters so now we can set key and IV */
+	EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
+		do_encrypt);
+	OPENSSL_assert(EVP_CIPHER_CTX_key_length(&ctx) == 16);
+	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(&ctx) == 16);
+
+	/* Now we can set key and IV */
 	EVP_CipherInit_ex(&ctx, NULL, NULL, key, iv, do_encrypt);
 
 	for(;;) 
@@ -510,5 +497,8 @@ EVP_CIPHER_CTX_init(), EVP_EncryptInit_ex(), EVP_EncryptFinal_ex(),
 EVP_DecryptInit_ex(), EVP_DecryptFinal_ex(), EVP_CipherInit_ex(),
 EVP_CipherFinal_ex() and EVP_CIPHER_CTX_set_padding() appeared in
 OpenSSL 0.9.7.
+
+IDEA appeared in OpenSSL 0.9.7 but was often disabled due to
+patent concerns; the last patents expired in 2012.
 
 =cut

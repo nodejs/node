@@ -1145,6 +1145,7 @@ sub read_options
 		"dll" => \$shlib,
 		"shared" => 0,
 		"no-sctp" => 0,
+		"no-srtp" => 0,
 		"no-gmp" => 0,
 		"no-rfc3779" => 0,
 		"no-montasm" => 0,

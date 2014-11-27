@@ -80,9 +80,6 @@
 
 const EC_METHOD *EC_GF2m_simple_method(void)
 	{
-#ifdef OPENSSL_FIPS
-	return fips_ec_gf2m_simple_method();
-#else
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,
 		NID_X9_62_characteristic_two_field,
@@ -125,8 +122,12 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 		0 /* field_decode */,
 		0 /* field_set_to_one */ };
 
-	return &ret;
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode())
+		return fips_ec_gf2m_simple_method();
 #endif
+
+	return &ret;
 	}
 
 

@@ -31,6 +31,7 @@ CPUID_OBJ=mem_clr.o
 LIBS=
 
 GENERAL=Makefile README crypto-lib.com install.com
+TEST=constant_time_test.c
 
 LIB= $(TOP)/libcrypto.a
 SHARED_LIB= libcrypto$(SHLIB_EXT)
@@ -43,7 +44,8 @@ SRC= $(LIBSRC)
 
 EXHEADER= crypto.h opensslv.h opensslconf.h ebcdic.h symhacks.h \
 	ossl_typ.h
-HEADER=	cryptlib.h buildinf.h md32_common.h o_time.h o_str.h o_dir.h $(EXHEADER)
+HEADER=	cryptlib.h buildinf.h md32_common.h o_time.h o_str.h o_dir.h \
+	constant_time_locl.h $(EXHEADER)
 
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 

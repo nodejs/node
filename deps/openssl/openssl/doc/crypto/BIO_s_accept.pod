@@ -59,8 +59,8 @@ the accept socket. See L<BIO_s_fd(3)|BIO_s_fd(3)>
 BIO_set_accept_port() uses the string B<name> to set the accept
 port. The port is represented as a string of the form "host:port",
 where "host" is the interface to use and "port" is the port.
-Either or both values can be "*" which is interpreted as meaning
-any interface or port respectively. "port" has the same syntax
+The host can be can be "*" which is interpreted as meaning
+any interface; "port" has the same syntax
 as the port specified in BIO_set_conn_port() for connect BIOs,
 that is it can be a numerical port string or a string to lookup
 using getservbyname() and a string table.

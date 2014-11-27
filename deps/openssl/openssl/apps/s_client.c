@@ -178,13 +178,6 @@ typedef unsigned int u_int;
 #include <fcntl.h>
 #endif
 
-/* Use Windows API with STD_INPUT_HANDLE when checking for input?
-   Don't look at OPENSSL_SYS_MSDOS for this, since it is always defined if
-   OPENSSL_SYS_WINDOWS is defined */
-#if defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_WINCE) && defined(STD_INPUT_HANDLE)
-#define OPENSSL_USE_STD_INPUT_HANDLE
-#endif
-
 #undef PROG
 #define PROG	s_client_main
 
@@ -344,6 +337,7 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -tls1_1       - just use TLSv1.1\n");
 	BIO_printf(bio_err," -tls1         - just use TLSv1\n");
 	BIO_printf(bio_err," -dtls1        - just use DTLSv1\n");    
+	BIO_printf(bio_err," -fallback_scsv - send TLS_FALLBACK_SCSV\n");
 	BIO_printf(bio_err," -mtu          - set the link layer MTU\n");
 	BIO_printf(bio_err," -no_tls1_2/-no_tls1_1/-no_tls1/-no_ssl3/-no_ssl2 - turn off that protocol\n");
 	BIO_printf(bio_err," -bugs         - Switch on all SSL implementation bug workarounds\n");
@@ -624,6 +618,7 @@ int MAIN(int argc, char **argv)
 	char *sess_out = NULL;
 	struct sockaddr peer;
 	int peerlen = sizeof(peer);
+	int fallback_scsv = 0;
 	int enable_timeouts = 0 ;
 	long socket_mtu = 0;
 #ifndef OPENSSL_NO_JPAKE
@@ -829,6 +824,10 @@ int MAIN(int argc, char **argv)
 			{
 			meth=DTLSv1_client_method();
 			socket_type=SOCK_DGRAM;
+			}
+		else if (strcmp(*argv,"-fallback_scsv") == 0)
+			{
+			fallback_scsv = 1;
 			}
 		else if (strcmp(*argv,"-timeout") == 0)
 			enable_timeouts=1;
@@ -1242,6 +1241,10 @@ bad:
 		SSL_set_session(con, sess);
 		SSL_SESSION_free(sess);
 		}
+
+	if (fallback_scsv)
+		SSL_set_mode(con, SSL_MODE_SEND_FALLBACK_SCSV);
+
 #ifndef OPENSSL_NO_TLSEXT
 	if (servername != NULL)
 		{
@@ -1613,10 +1616,10 @@ SSL_set_tlsext_status_ids(con, ids);
 					tv.tv_usec = 0;
 					i=select(width,(void *)&readfds,(void *)&writefds,
 						 NULL,&tv);
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
-					if(!i && (!((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0))) || !read_tty) ) continue;
-#else
+#if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
 					if(!i && (!_kbhit() || !read_tty) ) continue;
+#else
+					if(!i && (!((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0))) || !read_tty) ) continue;
 #endif
 				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
 					 NULL,timeoutp);
@@ -1821,10 +1824,10 @@ printf("read=%d pending=%d peek=%d\n",k,SSL_pending(con),SSL_peek(con,zbuf,10240
 			}
 
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
-		else if ((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0)))
-#else
+#if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
 		else if (_kbhit())
+#else
+		else if ((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0)))
 #endif
 #elif defined (OPENSSL_SYS_NETWARE)
 		else if (_kbhit())

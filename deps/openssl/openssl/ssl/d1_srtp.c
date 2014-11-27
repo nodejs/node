@@ -168,25 +168,6 @@ static int find_profile_by_name(char *profile_name,
 	return 1;
 	}
 
-static int find_profile_by_num(unsigned profile_num,
-			       SRTP_PROTECTION_PROFILE **pptr)
-	{
-	SRTP_PROTECTION_PROFILE *p;
-
-	p=srtp_known_profiles;
-	while(p->name)
-		{
-		if(p->id == profile_num)
-			{
-			*pptr=p;
-			return 0;
-			}
-		p++;
-		}
-
-	return 1;
-	}
-
 static int ssl_ctx_make_profiles(const char *profiles_string,STACK_OF(SRTP_PROTECTION_PROFILE) **out)
 	{
 	STACK_OF(SRTP_PROTECTION_PROFILE) *profiles;
@@ -209,11 +190,19 @@ static int ssl_ctx_make_profiles(const char *profiles_string,STACK_OF(SRTP_PROTE
 		if(!find_profile_by_name(ptr,&p,
 					 col ? col-ptr : (int)strlen(ptr)))
 			{
+			if (sk_SRTP_PROTECTION_PROFILE_find(profiles,p) >= 0)
+				{
+				SSLerr(SSL_F_SSL_CTX_MAKE_PROFILES,SSL_R_BAD_SRTP_PROTECTION_PROFILE_LIST);
+				sk_SRTP_PROTECTION_PROFILE_free(profiles);
+				return 1;
+				}
+
 			sk_SRTP_PROTECTION_PROFILE_push(profiles,p);
 			}
 		else
 			{
 			SSLerr(SSL_F_SSL_CTX_MAKE_PROFILES,SSL_R_SRTP_UNKNOWN_PROTECTION_PROFILE);
+			sk_SRTP_PROTECTION_PROFILE_free(profiles);
 			return 1;
 			}
 
@@ -305,13 +294,12 @@ int ssl_add_clienthello_use_srtp_ext(SSL *s, unsigned char *p, int *len, int max
 
 int ssl_parse_clienthello_use_srtp_ext(SSL *s, unsigned char *d, int len,int *al)
 	{
-	SRTP_PROTECTION_PROFILE *cprof,*sprof;
-	STACK_OF(SRTP_PROTECTION_PROFILE) *clnt=0,*srvr;
+	SRTP_PROTECTION_PROFILE *sprof;
+	STACK_OF(SRTP_PROTECTION_PROFILE) *srvr;
         int ct;
         int mki_len;
-	int i,j;
-	int id;
-	int ret;
+	int i, srtp_pref;
+	unsigned int id;
 
          /* Length value + the MKI length */
         if(len < 3)
@@ -341,22 +329,32 @@ int ssl_parse_clienthello_use_srtp_ext(SSL *s, unsigned char *d, int len,int *al
 		return 1;
 		}
 
+	srvr=SSL_get_srtp_profiles(s);
+	s->srtp_profile = NULL;
+	/* Search all profiles for a match initially */
+	srtp_pref = sk_SRTP_PROTECTION_PROFILE_num(srvr);
         
-	clnt=sk_SRTP_PROTECTION_PROFILE_new_null();
-
 	while(ct)
 		{
 		n2s(d,id);
 		ct-=2;
                 len-=2;
 
-		if(!find_profile_by_num(id,&cprof))
+		/*
+		 * Only look for match in profiles of higher preference than
+		 * current match.
+		 * If no profiles have been have been configured then this
+		 * does nothing.
+		 */
+		for (i = 0; i < srtp_pref; i++)
 			{
-			sk_SRTP_PROTECTION_PROFILE_push(clnt,cprof);
-			}
-		else
-			{
-			; /* Ignore */
+			sprof = sk_SRTP_PROTECTION_PROFILE_value(srvr, i);
+			if (sprof->id == id)
+				{
+				s->srtp_profile = sprof;
+				srtp_pref = i;
+				break;
+				}
 			}
 		}
 
@@ -371,36 +369,7 @@ int ssl_parse_clienthello_use_srtp_ext(SSL *s, unsigned char *d, int len,int *al
 		return 1;
 		}
 
-	srvr=SSL_get_srtp_profiles(s);
-
-	/* Pick our most preferred profile. If no profiles have been
-	 configured then the outer loop doesn't run 
-	 (sk_SRTP_PROTECTION_PROFILE_num() = -1)
-	 and so we just return without doing anything */
-	for(i=0;i<sk_SRTP_PROTECTION_PROFILE_num(srvr);i++)
-		{
-		sprof=sk_SRTP_PROTECTION_PROFILE_value(srvr,i);
-
-		for(j=0;j<sk_SRTP_PROTECTION_PROFILE_num(clnt);j++)
-			{
-			cprof=sk_SRTP_PROTECTION_PROFILE_value(clnt,j);
-            
-			if(cprof->id==sprof->id)
-				{
-				s->srtp_profile=sprof;
-				*al=0;
-				ret=0;
-				goto done;
-				}
-			}
-		}
-
-	ret=0;
-    
-done:
-	if(clnt) sk_SRTP_PROTECTION_PROFILE_free(clnt);
-
-	return ret;
+	return 0;
 	}
 
 int ssl_add_serverhello_use_srtp_ext(SSL *s, unsigned char *p, int *len, int maxlen)
