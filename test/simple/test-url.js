@@ -177,32 +177,44 @@ var parseTests = {
     'path': '/Y'
   },
 
+  // + not an invalid host character
+  // per https://url.spec.whatwg.org/#host-parsing
+  'http://x.y.com+a/b/c' : {
+    'href': 'http://x.y.com+a/b/c',
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'x.y.com+a',
+    'hostname': 'x.y.com+a',
+    'pathname': '/b/c',
+    'path': '/b/c'
+  },
+
   // an unexpected invalid char in the hostname.
-  'HtTp://x.y.cOm*a/b/c?d=e#f g<h>i' : {
-    'href': 'http://x.y.com/*a/b/c?d=e#f%20g%3Ch%3Ei',
+  'HtTp://x.y.cOm;a/b/c?d=e#f g<h>i' : {
+    'href': 'http://x.y.com/;a/b/c?d=e#f%20g%3Ch%3Ei',
     'protocol': 'http:',
     'slashes': true,
     'host': 'x.y.com',
     'hostname': 'x.y.com',
-    'pathname': '/*a/b/c',
+    'pathname': ';a/b/c',
     'search': '?d=e',
     'query': 'd=e',
     'hash': '#f%20g%3Ch%3Ei',
-    'path': '/*a/b/c?d=e'
+    'path': ';a/b/c?d=e'
   },
 
   // make sure that we don't accidentally lcast the path parts.
-  'HtTp://x.y.cOm*A/b/c?d=e#f g<h>i' : {
-    'href': 'http://x.y.com/*A/b/c?d=e#f%20g%3Ch%3Ei',
+  'HtTp://x.y.cOm;A/b/c?d=e#f g<h>i' : {
+    'href': 'http://x.y.com/;A/b/c?d=e#f%20g%3Ch%3Ei',
     'protocol': 'http:',
     'slashes': true,
     'host': 'x.y.com',
     'hostname': 'x.y.com',
-    'pathname': '/*A/b/c',
+    'pathname': ';A/b/c',
     'search': '?d=e',
     'query': 'd=e',
     'hash': '#f%20g%3Ch%3Ei',
-    'path': '/*A/b/c?d=e'
+    'path': ';A/b/c?d=e'
   },
 
   'http://x...y...#p': {
@@ -517,17 +529,17 @@ var parseTests = {
     'path': '/'
   },
 
-  'http://www.Äffchen.cOm*A/b/c?d=e#f g<h>i' : {
-    'href': 'http://www.xn--ffchen-9ta.com/*A/b/c?d=e#f%20g%3Ch%3Ei',
+  'http://www.Äffchen.cOm;A/b/c?d=e#f g<h>i' : {
+    'href': 'http://www.xn--ffchen-9ta.com/;A/b/c?d=e#f%20g%3Ch%3Ei',
     'protocol': 'http:',
     'slashes': true,
     'host': 'www.xn--ffchen-9ta.com',
     'hostname': 'www.xn--ffchen-9ta.com',
-    'pathname': '/*A/b/c',
+    'pathname': ';A/b/c',
     'search': '?d=e',
     'query': 'd=e',
     'hash': '#f%20g%3Ch%3Ei',
-    'path': '/*A/b/c?d=e'
+    'path': ';A/b/c?d=e'
   },
 
   'http://SÉLIER.COM/' : {
