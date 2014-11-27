@@ -251,14 +251,15 @@ static void group_order_tests(EC_GROUP *group)
 		if (!EC_POINT_is_at_infinity(group, Q)) ABORT;
 
 		/* Exercise EC_POINTs_mul, including corner cases. */
+		if (EC_POINT_is_at_infinity(group, P)) ABORT;
 		scalars[0] = n1; points[0] = Q; /* => infinity */
 		scalars[1] = n2; points[1] = P; /* => -P */
 		scalars[2] = n1; points[2] = Q; /* => infinity */
 		scalars[3] = n2; points[3] = Q; /* => infinity */
 		scalars[4] = n1; points[4] = P; /* => P */
 		scalars[5] = n2; points[5] = Q; /* => infinity */
-		if (!EC_POINTs_mul(group, Q, NULL, 5, points, scalars, ctx)) ABORT;
-		if (!EC_POINT_is_at_infinity(group, Q)) ABORT;
+		if (!EC_POINTs_mul(group, P, NULL, 6, points, scalars, ctx)) ABORT;
+		if (!EC_POINT_is_at_infinity(group, P)) ABORT;
 		}
 	fprintf(stdout, "ok\n");
 

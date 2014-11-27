@@ -38,7 +38,7 @@ or a negative value for failure. In particular a return value of -2 indicates
 the operation is not supported by the public key algorithm.
 
 Unlike other functions the return value 0 from EVP_DigestVerifyFinal() only
-indicates that the signature did not not verify successfully (that is tbs did
+indicates that the signature did not verify successfully (that is tbs did
 not match the original data or the signature was of invalid form) it is not an
 indication of a more serious error.
 
@@ -59,7 +59,7 @@ For some key types and parameters the random number generator must be seeded
 or the operation will fail. 
 
 The call to EVP_DigestVerifyFinal() internally finalizes a copy of the digest
-context. This means that calls to EVP_VerifyUpdate() and EVP_VerifyFinal() can
+context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal() can
 be called later to digest and verify additional data.
 
 Since only a copy of the digest context is ever finalized the context must

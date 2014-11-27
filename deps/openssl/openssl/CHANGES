@@ -2,6 +2,57 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1i and 1.0.1j [15 Oct 2014]
+
+  *) SRTP Memory Leak.
+
+     A flaw in the DTLS SRTP extension parsing code allows an attacker, who
+     sends a carefully crafted handshake message, to cause OpenSSL to fail
+     to free up to 64k of memory causing a memory leak. This could be
+     exploited in a Denial Of Service attack. This issue affects OpenSSL
+     1.0.1 server implementations for both SSL/TLS and DTLS regardless of
+     whether SRTP is used or configured. Implementations of OpenSSL that
+     have been compiled with OPENSSL_NO_SRTP defined are not affected.
+
+     The fix was developed by the OpenSSL team.
+     (CVE-2014-3513)
+     [OpenSSL team]
+
+  *) Session Ticket Memory Leak.
+
+     When an OpenSSL SSL/TLS/DTLS server receives a session ticket the
+     integrity of that ticket is first verified. In the event of a session
+     ticket integrity check failing, OpenSSL will fail to free memory
+     causing a memory leak. By sending a large number of invalid session
+     tickets an attacker could exploit this issue in a Denial Of Service
+     attack.
+     (CVE-2014-3567)
+     [Steve Henson]
+
+  *) Build option no-ssl3 is incomplete.
+
+     When OpenSSL is configured with "no-ssl3" as a build option, servers
+     could accept and complete a SSL 3.0 handshake, and clients could be
+     configured to send them.
+     (CVE-2014-3568)
+     [Akamai and the OpenSSL team]
+
+  *) Add support for TLS_FALLBACK_SCSV.
+     Client applications doing fallback retries should call
+     SSL_set_mode(s, SSL_MODE_SEND_FALLBACK_SCSV).
+     (CVE-2014-3566)
+     [Adam Langley, Bodo Moeller]
+
+  *) Add additional DigestInfo checks.
+ 
+     Reencode DigestInto in DER and check against the original when
+     verifying RSA signature: this will reject any improperly encoded
+     DigestInfo structures.
+
+     Note: this is a precautionary measure and no attacks are currently known.
+
+     [Steve Henson]
+
  Changes between 1.0.1h and 1.0.1i [6 Aug 2014]
 
   *) Fix SRP buffer overrun vulnerability. Invalid parameters passed to the

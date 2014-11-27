@@ -7,6 +7,9 @@
 
 #include <stddef.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
 typedef void (*block128_f)(const unsigned char in[16],
 			unsigned char out[16],
 			const void *key);
@@ -133,3 +136,6 @@ typedef struct xts128_context XTS128_CONTEXT;
 
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx, const unsigned char iv[16],
 	const unsigned char *inp, unsigned char *out, size_t len, int enc);
+#ifdef  __cplusplus
+}
+#endif
