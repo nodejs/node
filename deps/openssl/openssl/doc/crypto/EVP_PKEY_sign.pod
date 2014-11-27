@@ -28,9 +28,14 @@ B<sig> and the amount of data written to B<siglen>.
 
 =head1 NOTES
 
+EVP_PKEY_sign() does not hash the data to be signed, and therefore is
+normally used to sign digests. For signing arbitrary messages, see the
+L<EVP_DigestSignInit(3)|EVP_DigestSignInit(3)> and
+L<EVP_SignInit(3)|EVP_SignInit(3)> signing interfaces instead.
+
 After the call to EVP_PKEY_sign_init() algorithm specific control
 operations can be performed to set any appropriate parameters for the
-operation.
+operation (see L<EVP_PKEY_CTX_ctrl(3)|EVP_PKEY_CTX_ctrl(3)>).
 
 The function EVP_PKEY_sign() can be called more than once on the same
 context if several operations are performed using the same parameters.
@@ -49,13 +54,17 @@ Sign data using RSA with PKCS#1 padding and SHA256 digest:
  #include <openssl/rsa.h>
 
  EVP_PKEY_CTX *ctx;
+ /* md is a SHA-256 digest in this example. */
  unsigned char *md, *sig;
- size_t mdlen, siglen; 
+ size_t mdlen = 32, siglen;
  EVP_PKEY *signing_key;
- /* NB: assumes signing_key, md and mdlen are already set up
-  * and that signing_key is an RSA private key
+
+ /*
+  * NB: assumes signing_key and md are set up before the next
+  * step. signing_key must be an RSA private key and md must
+  * point to the SHA-256 digest to be signed.
   */
- ctx = EVP_PKEY_CTX_new(signing_key);
+ ctx = EVP_PKEY_CTX_new(signing_key, NULL /* no engine */);
  if (!ctx)
 	/* Error occurred */
  if (EVP_PKEY_sign_init(ctx) <= 0)
@@ -83,6 +92,7 @@ Sign data using RSA with PKCS#1 padding and SHA256 digest:
 =head1 SEE ALSO
 
 L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_CTX_ctrl(3)|EVP_PKEY_CTX_ctrl(3)>,
 L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
 L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
 L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)>,

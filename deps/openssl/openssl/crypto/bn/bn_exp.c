@@ -874,7 +874,14 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 	bits = BN_num_bits(p);
 	if (bits == 0)
 		{
-		ret = BN_one(rr);
+		/* x**0 mod 1 is still zero. */
+		if (BN_is_one(m))
+			{
+			ret = 1;
+			BN_zero(rr);
+			}
+		else
+			ret = BN_one(rr);
 		return ret;
 		}
 	if (a == 0)

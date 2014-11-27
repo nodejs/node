@@ -73,9 +73,6 @@
 
 const EC_METHOD *EC_GFp_nist_method(void)
 	{
-#ifdef OPENSSL_FIPS
-	return fips_ec_gfp_nist_method();
-#else
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,
 		NID_X9_62_prime_field,
@@ -115,8 +112,12 @@ const EC_METHOD *EC_GFp_nist_method(void)
 		0 /* field_decode */,
 		0 /* field_set_to_one */ };
 
-	return &ret;
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode())
+		return fips_ec_gfp_nist_method();
 #endif
+
+	return &ret;
 	}
 
 int ec_GFp_nist_group_copy(EC_GROUP *dest, const EC_GROUP *src)

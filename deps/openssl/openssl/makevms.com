@@ -283,6 +283,7 @@ $ CONFIG_LOGICALS := AES,-
 		     MD4,-
 		     MD5,-
 		     MDC2,-
+		     NEXTPROTONEG,-
 		     OCSP,-
 		     PSK,-
 		     RC2,-
@@ -340,7 +341,12 @@ $ CONFIG_DISABLE_RULES := RIJNDAEL/AES;-
 			  DH/GOST;-
 			  /STATIC_ENGINE;-
 			  /KRB5;-
-			  /EC_NISTP_64_GCC_128
+			  /EC_NISTP_64_GCC_128;-
+			  /GMP;-
+			  /MD2;-
+			  /RC5;-
+			  /RFC3779;-
+			  /SCTP
 $ CONFIG_ENABLE_RULES := ZLIB_DYNAMIC/ZLIB;-
 			 /THREADS
 $
@@ -706,8 +712,8 @@ $!
 $ SDIRS := , -
    'ARCHD', -
    OBJECTS, -
-   MD2, MD4, MD5, SHA, MDC2, HMAC, RIPEMD, WHRLPOOL, -
-   DES, AES, RC2, RC4, RC5, IDEA, BF, CAST, CAMELLIA, SEED, MODES, -
+   MD4, MD5, SHA, MDC2, HMAC, RIPEMD, WHRLPOOL, -
+   DES, AES, RC2, RC4, IDEA, BF, CAST, CAMELLIA, SEED, MODES, -
    BN, EC, RSA, DSA, ECDSA, DH, ECDH, DSO, ENGINE, -
    BUFFER, BIO, STACK, LHASH, RAND, ERR, -
    EVP, ASN1, PEM, X509, X509V3, CONF, TXT_DB, PKCS7, PKCS12, -
@@ -819,8 +825,9 @@ $ @CRYPTO-LIB LIBRARY 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
 $!
 $! Build The [.xxx.EXE.CRYPTO]*.EXE Test Applications.
 $!  
-$ @CRYPTO-LIB APPS 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
-   "''ISSEVEN'" "''BUILDPART'" "''POINTER_SIZE'" "''ZLIB'"
+$!!! DISABLED, as these test programs lack any support
+$!!!$ @CRYPTO-LIB APPS 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
+$!!!   "''ISSEVEN'" "''BUILDPART'" "''POINTER_SIZE'" "''ZLIB'"
 $!
 $! Go Back To The Main Directory.
 $!

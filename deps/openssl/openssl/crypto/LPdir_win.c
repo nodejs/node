@@ -1,4 +1,3 @@
-/* $LP: LPlib/source/LPdir_win.c,v 1.10 2004/08/26 13:36:05 _cvs_levitte Exp $ */
 /*
  * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
  * All rights reserved.
@@ -63,6 +62,16 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
   errno = 0;
   if (*ctx == NULL)
     {
+      const char *extdir = directory;
+      char *extdirbuf = NULL;
+      size_t dirlen = strlen (directory);
+
+      if (dirlen == 0)
+	{
+	  errno = ENOENT;
+	  return 0;
+	}
+
       *ctx = (LP_DIR_CTX *)malloc(sizeof(LP_DIR_CTX));
       if (*ctx == NULL)
 	{
@@ -71,15 +80,35 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 	}
       memset(*ctx, '\0', sizeof(LP_DIR_CTX));
 
+      if (directory[dirlen-1] != '*')
+	{
+	  extdirbuf = (char *)malloc(dirlen + 3);
+	  if (extdirbuf == NULL)
+	    {
+	      free(*ctx);
+	      *ctx = NULL;
+	      errno = ENOMEM;
+	      return 0;
+	    }
+	  if (directory[dirlen-1] != '/' && directory[dirlen-1] != '\\')
+	    extdir = strcat(strcpy (extdirbuf,directory),"/*");
+	  else
+	    extdir = strcat(strcpy (extdirbuf,directory),"*");
+	}
+
       if (sizeof(TCHAR) != sizeof(char))
 	{
 	  TCHAR *wdir = NULL;
 	  /* len_0 denotes string length *with* trailing 0 */ 
-	  size_t index = 0,len_0 = strlen(directory) + 1;
+	  size_t index = 0,len_0 = strlen(extdir) + 1;
 
-	  wdir = (TCHAR *)malloc(len_0 * sizeof(TCHAR));
+	  wdir = (TCHAR *)calloc(len_0, sizeof(TCHAR));
 	  if (wdir == NULL)
 	    {
+	      if (extdirbuf != NULL)
+		{
+		  free (extdirbuf);
+		}
 	      free(*ctx);
 	      *ctx = NULL;
 	      errno = ENOMEM;
@@ -87,17 +116,23 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 	    }
 
 #ifdef LP_MULTIBYTE_AVAILABLE
-	  if (!MultiByteToWideChar(CP_ACP, 0, directory, len_0, (WCHAR *)wdir, len_0))
+	  if (!MultiByteToWideChar(CP_ACP, 0, extdir, len_0, (WCHAR *)wdir, len_0))
 #endif
 	    for (index = 0; index < len_0; index++)
-	      wdir[index] = (TCHAR)directory[index];
+	      wdir[index] = (TCHAR)extdir[index];
 
 	  (*ctx)->handle = FindFirstFile(wdir, &(*ctx)->ctx);
 
 	  free(wdir);
 	}
       else
-	(*ctx)->handle = FindFirstFile((TCHAR *)directory, &(*ctx)->ctx);
+	{
+	  (*ctx)->handle = FindFirstFile((TCHAR *)extdir, &(*ctx)->ctx);
+	}
+      if (extdirbuf != NULL)
+	{
+	  free (extdirbuf);
+	}
 
       if ((*ctx)->handle == INVALID_HANDLE_VALUE)
 	{
@@ -114,7 +149,6 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 	  return 0;
 	}
     }
-
   if (sizeof(TCHAR) != sizeof(char))
     {
       TCHAR *wdir = (*ctx)->ctx.cFileName;

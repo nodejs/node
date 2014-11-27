@@ -166,7 +166,7 @@ extern unsigned int OPENSSL_ia32cap_P[2];
 #define VPAES_CAPABLE	(OPENSSL_ia32cap_P[1]&(1<<(41-32)))
 #endif
 #ifdef BSAES_ASM
-#define BSAES_CAPABLE	VPAES_CAPABLE
+#define BSAES_CAPABLE	(OPENSSL_ia32cap_P[1]&(1<<(41-32)))
 #endif
 /*
  * AES-NI section

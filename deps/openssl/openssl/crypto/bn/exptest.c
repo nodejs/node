@@ -71,6 +71,43 @@
 
 static const char rnd_seed[] = "string to make the random number generator think it has entropy";
 
+/* test_exp_mod_zero tests that x**0 mod 1 == 0. It returns zero on success. */
+static int test_exp_mod_zero() {
+	BIGNUM a, p, m;
+	BIGNUM r;
+	BN_CTX *ctx = BN_CTX_new();
+	int ret = 1;
+
+	BN_init(&m);
+	BN_one(&m);
+
+	BN_init(&a);
+	BN_one(&a);
+
+	BN_init(&p);
+	BN_zero(&p);
+
+	BN_init(&r);
+	BN_mod_exp(&r, &a, &p, &m, ctx);
+	BN_CTX_free(ctx);
+
+	if (BN_is_zero(&r))
+		ret = 0;
+	else
+		{
+		printf("1**0 mod 1 = ");
+		BN_print_fp(stdout, &r);
+		printf(", should be 0\n");
+		}
+
+	BN_free(&r);
+	BN_free(&a);
+	BN_free(&p);
+	BN_free(&m);
+
+	return ret;
+}
+
 int main(int argc, char *argv[])
 	{
 	BN_CTX *ctx;
@@ -190,7 +227,13 @@ int main(int argc, char *argv[])
 	ERR_remove_thread_state(NULL);
 	CRYPTO_mem_leaks(out);
 	BIO_free(out);
-	printf(" done\n");
+	printf("\n");
+
+	if (test_exp_mod_zero() != 0)
+		goto err;
+
+	printf("done\n");
+
 	EXIT(0);
 err:
 	ERR_load_crypto_strings();

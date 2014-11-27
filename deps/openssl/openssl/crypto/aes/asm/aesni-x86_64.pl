@@ -525,6 +525,16 @@ $code.=<<___;
 .type	aesni_ecb_encrypt,\@function,5
 .align	16
 aesni_ecb_encrypt:
+___
+$code.=<<___ if ($win64);
+	lea	-0x58(%rsp),%rsp
+	movaps	%xmm6,(%rsp)
+	movaps	%xmm7,0x10(%rsp)
+	movaps	%xmm8,0x20(%rsp)
+	movaps	%xmm9,0x30(%rsp)
+.Lecb_enc_body:
+___
+$code.=<<___;
 	and	\$-16,$len
 	jz	.Lecb_ret
 
@@ -805,6 +815,16 @@ $code.=<<___;
 	movups	$inout5,0x50($out)
 
 .Lecb_ret:
+___
+$code.=<<___ if ($win64);
+	movaps	(%rsp),%xmm6
+	movaps	0x10(%rsp),%xmm7
+	movaps	0x20(%rsp),%xmm8
+	movaps	0x30(%rsp),%xmm9
+	lea	0x58(%rsp),%rsp
+.Lecb_enc_ret:
+___
+$code.=<<___;
 	ret
 .size	aesni_ecb_encrypt,.-aesni_ecb_encrypt
 ___
@@ -2730,28 +2750,9 @@ $code.=<<___;
 .extern	__imp_RtlVirtualUnwind
 ___
 $code.=<<___ if ($PREFIX eq "aesni");
-.type	ecb_se_handler,\@abi-omnipotent
+.type	ecb_ccm64_se_handler,\@abi-omnipotent
 .align	16
-ecb_se_handler:
-	push	%rsi
-	push	%rdi
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	pushfq
-	sub	\$64,%rsp
-
-	mov	152($context),%rax	# pull context->Rsp
-
-	jmp	.Lcommon_seh_tail
-.size	ecb_se_handler,.-ecb_se_handler
-
-.type	ccm64_se_handler,\@abi-omnipotent
-.align	16
-ccm64_se_handler:
+ecb_ccm64_se_handler:
 	push	%rsi
 	push	%rdi
 	push	%rbx
@@ -2788,7 +2789,7 @@ ccm64_se_handler:
 	lea	0x58(%rax),%rax		# adjust stack pointer
 
 	jmp	.Lcommon_seh_tail
-.size	ccm64_se_handler,.-ccm64_se_handler
+.size	ecb_ccm64_se_handler,.-ecb_ccm64_se_handler
 
 .type	ctr32_se_handler,\@abi-omnipotent
 .align	16
@@ -2993,14 +2994,15 @@ ___
 $code.=<<___ if ($PREFIX eq "aesni");
 .LSEH_info_ecb:
 	.byte	9,0,0,0
-	.rva	ecb_se_handler
+	.rva	ecb_ccm64_se_handler
+	.rva	.Lecb_enc_body,.Lecb_enc_ret		# HandlerData[]
 .LSEH_info_ccm64_enc:
 	.byte	9,0,0,0
-	.rva	ccm64_se_handler
+	.rva	ecb_ccm64_se_handler
 	.rva	.Lccm64_enc_body,.Lccm64_enc_ret	# HandlerData[]
 .LSEH_info_ccm64_dec:
 	.byte	9,0,0,0
-	.rva	ccm64_se_handler
+	.rva	ecb_ccm64_se_handler
 	.rva	.Lccm64_dec_body,.Lccm64_dec_ret	# HandlerData[]
 .LSEH_info_ctr32:
 	.byte	9,0,0,0

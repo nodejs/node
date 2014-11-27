@@ -454,6 +454,12 @@ $L$SEH_begin_aesni_ecb_encrypt::
 	mov	r8,QWORD PTR[40+rsp]
 
 
+	lea	rsp,QWORD PTR[((-88))+rsp]
+	movaps	XMMWORD PTR[rsp],xmm6
+	movaps	XMMWORD PTR[16+rsp],xmm7
+	movaps	XMMWORD PTR[32+rsp],xmm8
+	movaps	XMMWORD PTR[48+rsp],xmm9
+$L$ecb_enc_body::
 	and	rdx,-16
 	jz	$L$ecb_ret
 
@@ -752,6 +758,12 @@ $L$ecb_dec_six::
 	movups	XMMWORD PTR[80+rsi],xmm7
 
 $L$ecb_ret::
+	movaps	xmm6,XMMWORD PTR[rsp]
+	movaps	xmm7,XMMWORD PTR[16+rsp]
+	movaps	xmm8,XMMWORD PTR[32+rsp]
+	movaps	xmm9,XMMWORD PTR[48+rsp]
+	lea	rsp,QWORD PTR[88+rsp]
+$L$ecb_enc_ret::
 	mov	rdi,QWORD PTR[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD PTR[16+rsp]
 	DB	0F3h,0C3h		;repret
@@ -2766,26 +2778,7 @@ ALIGN	64
 EXTERN	__imp_RtlVirtualUnwind:NEAR
 
 ALIGN	16
-ecb_se_handler	PROC PRIVATE
-	push	rsi
-	push	rdi
-	push	rbx
-	push	rbp
-	push	r12
-	push	r13
-	push	r14
-	push	r15
-	pushfq
-	sub	rsp,64
-
-	mov	rax,QWORD PTR[152+r8]
-
-	jmp	$L$common_seh_tail
-ecb_se_handler	ENDP
-
-
-ALIGN	16
-ccm64_se_handler	PROC PRIVATE
+ecb_ccm64_se_handler	PROC PRIVATE
 	push	rsi
 	push	rdi
 	push	rbx
@@ -2823,7 +2816,7 @@ ccm64_se_handler	PROC PRIVATE
 	lea	rax,QWORD PTR[88+rax]
 
 	jmp	$L$common_seh_tail
-ccm64_se_handler	ENDP
+ecb_ccm64_se_handler	ENDP
 
 
 ALIGN	16
@@ -3026,15 +3019,17 @@ ALIGN	4
 ALIGN	8
 $L$SEH_info_ecb::
 DB	9,0,0,0
-	DD	imagerel ecb_se_handler
+	DD	imagerel ecb_ccm64_se_handler
+	DD	imagerel $L$ecb_enc_body,imagerel $L$ecb_enc_ret
+
 $L$SEH_info_ccm64_enc::
 DB	9,0,0,0
-	DD	imagerel ccm64_se_handler
+	DD	imagerel ecb_ccm64_se_handler
 	DD	imagerel $L$ccm64_enc_body,imagerel $L$ccm64_enc_ret
 
 $L$SEH_info_ccm64_dec::
 DB	9,0,0,0
-	DD	imagerel ccm64_se_handler
+	DD	imagerel ecb_ccm64_se_handler
 	DD	imagerel $L$ccm64_dec_body,imagerel $L$ccm64_dec_ret
 
 $L$SEH_info_ctr32::

@@ -48,12 +48,13 @@ even if he gets hold of the normal (certified) key, as this key was
 only used for signing.
 
 In order to perform a DH key exchange the server must use a DH group
-(DH parameters) and generate a DH key. The server will always generate a new
-DH key during the negotiation, when the DH parameters are supplied via
-callback and/or when the SSL_OP_SINGLE_DH_USE option of
-L<SSL_CTX_set_options(3)|SSL_CTX_set_options(3)> is set. It will
-immediately create a DH key, when DH parameters are supplied via
-SSL_CTX_set_tmp_dh() and SSL_OP_SINGLE_DH_USE is not set. In this case,
+(DH parameters) and generate a DH key.
+The server will always generate a new DH key during the negotiation
+if either the DH parameters are supplied via callback or the
+SSL_OP_SINGLE_DH_USE option of SSL_CTX_set_options(3) is set (or both).
+It will  immediately create a DH key if DH parameters are supplied via
+SSL_CTX_set_tmp_dh() and SSL_OP_SINGLE_DH_USE is not set.
+In this case,
 it may happen that a key is generated on initialization without later
 being needed, while on the other hand the computer time during the
 negotiation is being saved.
@@ -139,7 +140,7 @@ partly left out.)
       dh_tmp = dh_512;
       break;
     case 1024:
-      if (!dh_1024) 
+      if (!dh_1024)
         dh_1024 = get_dh1024();
       dh_tmp = dh_1024;
       break;

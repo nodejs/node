@@ -173,6 +173,12 @@ else
 
   echo test tls1 with SRP via BIO pair
   $ssltest -bio_pair -tls1 -cipher SRP -srpuser test -srppass abc123
+
+  echo test tls1 with SRP auth
+  $ssltest -tls1 -cipher aSRP -srpuser test -srppass abc123
+
+  echo test tls1 with SRP auth via BIO pair
+  $ssltest -bio_pair -tls1 -cipher aSRP -srpuser test -srppass abc123
 fi
 
 exit 0
