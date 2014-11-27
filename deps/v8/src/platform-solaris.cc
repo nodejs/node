@@ -527,11 +527,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 }
 
 
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
 class SolarisMutex : public Mutex {
  public:
   SolarisMutex() {

@@ -539,11 +539,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 }
 
 
-void Thread::YieldCPU() {
-  sched_yield();
-}
-
-
 class FreeBSDMutex : public Mutex {
  public:
   FreeBSDMutex() {

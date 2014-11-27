@@ -392,6 +392,12 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
+void Thread::YieldCPU() {
+  const timespec delay = { 0, 1 };
+  nanosleep(&delay, NULL);
+}
+
+
 // ----------------------------------------------------------------------------
 // POSIX socket support.
 //
