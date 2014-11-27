@@ -42,19 +42,20 @@ if (process.platform === 'win32') {
   // use common.PIPE to ensure we stay within POSIX socket path length
   // restrictions, even on CI
   emptyTxt = common.PIPE + '.txt';
+
+  function cleanup() {
+    try {
+      fs.unlinkSync(emptyTxt);
+    } catch (e) {
+      if (e.code != 'ENOENT')
+        throw e;
+    }
+  }
+  process.on('exit', cleanup);
+  cleanup();
+  fs.writeFileSync(emptyTxt, '');
 }
 
-function cleanup() {
-  try {
-    fs.unlinkSync(emptyTxt);
-  } catch (e) {
-    if (e.code != 'ENOENT')
-      throw e;
-  }
-}
-process.on('exit', cleanup);
-cleanup();
-fs.writeFileSync(emptyTxt, '');
 var notSocketClient = net.createConnection(emptyTxt, function() {
   assert.ok(false);
 });
