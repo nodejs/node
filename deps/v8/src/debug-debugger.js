@@ -442,7 +442,7 @@ ScriptBreakPoint.prototype.set = function (script) {
   if (position === null) return;
 
   // Create a break point object and set the break point.
-  break_point = MakeBreakPoint(position, this);
+  var break_point = MakeBreakPoint(position, this);
   break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position, break_point);
   if (IS_UNDEFINED(actual_position)) {
