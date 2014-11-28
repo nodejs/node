@@ -24,6 +24,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"use strict";
 
 // Default number of frames to include in the response to backtrace request.
 var kDefaultBacktraceLength = 10;
@@ -677,7 +678,7 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
 Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
                                                     condition, enabled)
 {
-  break_point = MakeBreakPoint(position);
+  var break_point = MakeBreakPoint(position);
   break_point.setCondition(condition);
   if (!enabled) {
     break_point.disable();
@@ -742,7 +743,7 @@ Debug.clearBreakPoint = function(break_point_number) {
 
 Debug.clearAllBreakPoints = function() {
   for (var i = 0; i < break_points.length; i++) {
-    break_point = break_points[i];
+    var break_point = break_points[i];
     %ClearBreakPoint(break_point);
   }
   break_points = [];
