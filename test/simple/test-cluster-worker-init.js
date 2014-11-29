@@ -33,7 +33,7 @@ if (cluster.isMaster) {
   var worker = cluster.fork();
   var timer = setTimeout(function() {
     assert(false, 'message not received');
-  }, 1000);
+  }, 5000);
 
   timer.unref();
 

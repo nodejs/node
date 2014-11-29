@@ -28,7 +28,7 @@ var execSync = require('child_process').execSync;
 var execFileSync = require('child_process').execFileSync;
 
 var TIMER = 200;
-var SLEEP = 1000;
+var SLEEP = 2000;
 
 var start = Date.now();
 var err;
