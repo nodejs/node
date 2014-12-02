@@ -1,5 +1,17 @@
 # CONTRIBUTING
 
+## ISSUE CONTRIBUTIONS
+
+When opening new issues or commenting on existing issues on this repository
+please make sure discussions are related to concrete technical issues with the
+`iojs` software.
+
+Discussion of non-technical topics including subjects like intellectual
+property, trademark and high level project questions should move to the
+[node-forward discussion repository][] instead.
+
+## CODE CONTRIBUTIONS
+
 The node.js project welcomes new contributors.  This document will guide you
 through the process.
 
@@ -152,3 +164,4 @@ not send out notifications when you add commits.
 [node.js mailing list]: http://groups.google.com/group/nodejs
 [IRC]: http://webchat.freenode.net/?channels=node.js
 [project maintainers]: https://github.com/joyent/node/wiki/Project-Organization
+[node-forward discussion repository]: https://github.com/node-forward/discussions/issues
