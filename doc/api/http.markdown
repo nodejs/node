@@ -389,7 +389,7 @@ Example:
     response.removeHeader("Content-Encoding");
 
 
-### response.write(chunk[, encoding])
+### response.write(chunk[, encoding][, callback])
 
 If this method is called and [response.writeHead()][] has not been called,
 it will switch to implicit header mode and flush the implicit headers.
@@ -399,7 +399,8 @@ be called multiple times to provide successive parts of the body.
 
 `chunk` can be a string or a buffer. If `chunk` is a string,
 the second parameter specifies how to encode it into a byte stream.
-By default the `encoding` is `'utf8'`.
+By default the `encoding` is `'utf8'`. The last parameter `callback`
+will be called when this chunk of data is flushed.
 
 **Note**: This is the raw HTTP body and has nothing to do with
 higher-level multi-part body encodings that may be used.
@@ -433,15 +434,15 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.end();
 
 
-### response.end([data][, encoding])
+### response.end([data][, encoding][, callback])
 
 This method signals to the server that all of the response headers and body
 have been sent; that server should consider this message complete.
 The method, `response.end()`, MUST be called on each
 response.
 
-If `data` is specified, it is equivalent to calling `response.write(data, encoding)`
-followed by `response.end()`.
+If `data` is specified, it is equivalent to calling
+`response.write(data, encoding)` followed by `response.end(callback)`.
 
 
 ## http.request(options[, callback])
@@ -864,7 +865,7 @@ That's usually what you want (it saves a TCP round-trip) but not when the first
 data isn't sent until possibly much later.  `request.flush()` lets you bypass
 the optimization and kickstart the request.
 
-### request.write(chunk[, encoding])
+### request.write(chunk[, encoding][, callback])
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
@@ -877,15 +878,17 @@ The `chunk` argument should be a [Buffer][] or a string.
 The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
 
+The `callback` argument is optional and will be called when this chunk of data
+is flushed.
 
-### request.end([data][, encoding])
+### request.end([data][, encoding][, callback])
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
 chunked, this will send the terminating `'0\r\n\r\n'`.
 
 If `data` is specified, it is equivalent to calling
-`request.write(data, encoding)` followed by `request.end()`.
+`request.write(data, encoding)` followed by `request.end(callback)`.
 
 ### request.abort()
 
