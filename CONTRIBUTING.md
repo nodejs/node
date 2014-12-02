@@ -18,13 +18,13 @@ through the process.
 
 ### FORK
 
-Fork the project [on GitHub](https://github.com/joyent/node) and check out
+Fork the project [on GitHub](https://github.com/iojs/io.js) and check out
 your copy.
 
 ```sh
-$ git clone git@github.com:username/node.git
-$ cd node
-$ git remote add upstream git://github.com/joyent/node.git
+$ git clone git@github.com:username/io.js.git
+$ cd io.js
+$ git remote add upstream git://github.com/iojs/io.js.git
 ```
 
 Now decide if you want your feature or bug fix to go into the master branch
@@ -150,7 +150,7 @@ node ./test/simple/test-streams2-transform.js
 $ git push origin my-feature-branch
 ```
 
-Go to https://github.com/username/node and select your feature branch.  Click
+Go to https://github.com/username/io.js and select your feature branch.  Click
 the 'Pull Request' button and fill out the form.
 
 Pull requests are usually reviewed within a few days.  If there are comments
