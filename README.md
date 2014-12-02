@@ -7,7 +7,7 @@ releases, and contributorship are under an
 [open governance model](./CONTRIBUTING.md#governance).
 
 We intend to release, with increasing regularity, releases which are
-compatible with npm ecosystem that has been built to date for node.js.
+compatible with the npm ecosystem that has been built to date for node.js.
 
 ### To build:
 
