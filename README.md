@@ -1,5 +1,6 @@
-Evented I/O for V8 javascript.
-===
+# io.js
+
+This repository began as a GitHub fork of joyent/node where contributions, releases, and contributorship are under an open governance model. We intend to produce, with increasing regularity, new releases which are compatible with the existing npm ecosystem that has been built for Node to date.
 
 ### To build:
 

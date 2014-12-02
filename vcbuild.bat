@@ -92,10 +92,12 @@ if defined noprojgen goto msbuild
 
 if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 
+if not defined PYTHON set PYTHON=python
+
 @rem Generate the VS project.
 SETLOCAL
   if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  "%PYTHON%" configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
   if errorlevel 1 goto create-msvs-files-failed
   if not exist node.sln goto create-msvs-files-failed
   echo Project files generated.
@@ -206,7 +208,7 @@ goto exit
 
 :run-tests
 echo running 'python tools/test.py %test_args%'
-python tools/test.py %test_args%
+"%PYTHON%" tools/test.py %test_args%
 if "%test%"=="test" goto jslint
 goto exit
 
@@ -228,7 +230,7 @@ goto exit
 :jslint
 echo running jslint
 set PYTHONPATH=tools/closure_linter/
-python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+"%PYTHON%" tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 goto exit
 
 :help
@@ -249,6 +251,6 @@ rem ***************
 
 :getnodeversion
 set NODE_VERSION=
-for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
+for /F "usebackq tokens=*" %%i in (`"%PYTHON%" "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
 goto :EOF
