@@ -1,0 +1,143 @@
+LIBRARY
+; zlib data compression and ZIP file I/O library
+
+VERSION		1.2.8
+
+EXPORTS
+        adler32                                  @1
+        compress                                 @2
+        crc32                                    @3
+        deflate                                  @4
+        deflateCopy                              @5
+        deflateEnd                               @6
+        deflateInit2_                            @7
+        deflateInit_                             @8
+        deflateParams                            @9
+        deflateReset                             @10
+        deflateSetDictionary                     @11
+        gzclose                                  @12
+        gzdopen                                  @13
+        gzerror                                  @14
+        gzflush                                  @15
+        gzopen                                   @16
+        gzread                                   @17
+        gzwrite                                  @18
+        inflate                                  @19
+        inflateEnd                               @20
+        inflateInit2_                            @21
+        inflateInit_                             @22
+        inflateReset                             @23
+        inflateSetDictionary                     @24
+        inflateSync                              @25
+        uncompress                               @26
+        zlibVersion                              @27
+        gzprintf                                 @28
+        gzputc                                   @29
+        gzgetc                                   @30
+        gzseek                                   @31
+        gzrewind                                 @32
+        gztell                                   @33
+        gzeof                                    @34
+        gzsetparams                              @35
+        zError                                   @36
+        inflateSyncPoint                         @37
+        get_crc_table                            @38
+        compress2                                @39
+        gzputs                                   @40
+        gzgets                                   @41
+        inflateCopy                              @42
+        inflateBackInit_                         @43
+        inflateBack                              @44
+        inflateBackEnd                           @45
+        compressBound                            @46
+        deflateBound                             @47
+        gzclearerr                               @48
+        gzungetc                                 @49
+        zlibCompileFlags                         @50
+        deflatePrime                             @51
+        deflatePending                           @52
+
+        unzOpen                                  @61
+        unzClose                                 @62
+        unzGetGlobalInfo                         @63
+        unzGetCurrentFileInfo                    @64
+        unzGoToFirstFile                         @65
+        unzGoToNextFile                          @66
+        unzOpenCurrentFile                       @67
+        unzReadCurrentFile                       @68
+        unzOpenCurrentFile3                      @69
+        unztell                                  @70
+        unzeof                                   @71
+        unzCloseCurrentFile                      @72
+        unzGetGlobalComment                      @73
+        unzStringFileNameCompare                 @74
+        unzLocateFile                            @75
+        unzGetLocalExtrafield                    @76
+        unzOpen2                                 @77
+        unzOpenCurrentFile2                      @78
+        unzOpenCurrentFilePassword               @79
+
+        zipOpen                                  @80
+        zipOpenNewFileInZip                      @81
+        zipWriteInFileInZip                      @82
+        zipCloseFileInZip                        @83
+        zipClose                                 @84
+        zipOpenNewFileInZip2                     @86
+        zipCloseFileInZipRaw                     @87
+        zipOpen2                                 @88
+        zipOpenNewFileInZip3                     @89
+
+        unzGetFilePos                            @100
+        unzGoToFilePos                           @101
+
+        fill_win32_filefunc                      @110
+
+; zlibwapi v1.2.4 added:
+        fill_win32_filefunc64                   @111
+        fill_win32_filefunc64A                  @112
+        fill_win32_filefunc64W                  @113
+
+        unzOpen64                               @120
+        unzOpen2_64                             @121
+        unzGetGlobalInfo64                      @122
+        unzGetCurrentFileInfo64                 @124
+        unzGetCurrentFileZStreamPos64           @125
+        unztell64                               @126
+        unzGetFilePos64                         @127
+        unzGoToFilePos64                        @128
+
+        zipOpen64                               @130
+        zipOpen2_64                             @131
+        zipOpenNewFileInZip64                   @132
+        zipOpenNewFileInZip2_64                 @133
+        zipOpenNewFileInZip3_64                 @134
+        zipOpenNewFileInZip4_64                 @135
+        zipCloseFileInZipRaw64                  @136
+
+; zlib1 v1.2.4 added:
+        adler32_combine                         @140
+        crc32_combine                           @142
+        deflateSetHeader                        @144
+        deflateTune                             @145
+        gzbuffer                                @146
+        gzclose_r                               @147
+        gzclose_w                               @148
+        gzdirect                                @149
+        gzoffset                                @150
+        inflateGetHeader                        @156
+        inflateMark                             @157
+        inflatePrime                            @158
+        inflateReset2                           @159
+        inflateUndermine                        @160
+
+; zlib1 v1.2.6 added:
+        gzgetc_                                 @161
+        inflateResetKeep                        @163
+        deflateResetKeep                        @164
+
+; zlib1 v1.2.7 added:
+        gzopen_w                                @165
+
+; zlib1 v1.2.8 added:
+        inflateGetDictionary                    @166
+        gzvprintf                               @167
