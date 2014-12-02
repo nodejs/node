@@ -190,12 +190,12 @@ expertise to take full responsibility for the change, according to the
 - Always include the `Reviewed-by: Your Name <your-email>` in the
   commit message.
 - In commit messages also include `Fixes:` that either includes the
-  **full url** (e.g.  `https://github.com/joyent/node/issues/...`),
+  **full url** (e.g.  `https://github.com/iojs/io.js/issues/...`),
   and/or the hash and commit message if the commit fixes a bug in a
   previous commit.
 - PR's should include their full `PR-URL:` so it's easy to trace a
   commit back to the conversation that lead up to that change.
-- Double check PR's to make sure the persons **full name** and email
+- Double check PR's to make sure the person's **full name** and email
   address are correct before merging.
 - Except when updating dependencies, all commits should be self
   contained.  Meaning, every commit should pass all tests. This makes
