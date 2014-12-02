@@ -1,5 +1,13 @@
 # CONTRIBUTING
 
+## ISSUE CONTRIBUTIONS
+
+When opening new issues or commenting on existing issues on this repository please make sure discussions are related to concrete technical issues with the `iojs` software.
+
+Discussion of non-technical topics including subjects like intellectual property, trademark and high level project questions should move to the [node-forward discussion repository](https://github.com/node-forward/discussions/issues) instead.
+
+## CODE CONTRIBUTIONS
+
 The node.js project welcomes new contributors.  This document will guide you
 through the process.
 
