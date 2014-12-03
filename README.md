@@ -1,5 +1,6 @@
 io.js
 ===
+[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/iojs/io.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 This repository began as a GitHub fork of
 [joyent/node](https://github.com/joyent/node) where contributions,
