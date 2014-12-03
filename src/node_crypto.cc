@@ -151,8 +151,8 @@ template int SSLWrap<TLSCallbacks>::TLSExtStatusCallback(SSL* s, void* arg);
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  assert(sizeof(uv_thread_t) <= sizeof(void*));
-  CRYPTO_THREADID_set_pointer(tid, (void*) uv_thread_self());
+  assert(sizeof(uv_thread_t) <= sizeof(void*));  // NOLINT(runtime/sizeof)
+  CRYPTO_THREADID_set_pointer(tid, reinterpret_cast<void*>(uv_thread_self()));
 }
 
 
