@@ -1,18 +1,30 @@
 # CONTRIBUTING
 
+## ISSUE CONTRIBUTIONS
+
+When opening new issues or commenting on existing issues on this repository
+please make sure discussions are related to concrete technical issues with the
+`iojs` software.
+
+Discussion of non-technical topics including subjects like intellectual
+property, trademark and high level project questions should move to the
+[node-forward discussion repository][] instead.
+
+## CODE CONTRIBUTIONS
+
 The node.js project welcomes new contributors.  This document will guide you
 through the process.
 
 
 ### FORK
 
-Fork the project [on GitHub](https://github.com/joyent/node) and check out
+Fork the project [on GitHub](https://github.com/iojs/io.js) and check out
 your copy.
 
 ```sh
-$ git clone git@github.com:username/node.git
-$ cd node
-$ git remote add upstream git://github.com/joyent/node.git
+$ git clone git@github.com:username/io.js.git
+$ cd io.js
+$ git remote add upstream git://github.com/iojs/io.js.git
 ```
 
 Now decide if you want your feature or bug fix to go into the master branch
@@ -138,7 +150,7 @@ node ./test/simple/test-streams2-transform.js
 $ git push origin my-feature-branch
 ```
 
-Go to https://github.com/username/node and select your feature branch.  Click
+Go to https://github.com/username/io.js and select your feature branch.  Click
 the 'Pull Request' button and fill out the form.
 
 Pull requests are usually reviewed within a few days.  If there are comments
@@ -152,6 +164,7 @@ not send out notifications when you add commits.
 [node.js mailing list]: http://groups.google.com/group/nodejs
 [IRC]: http://webchat.freenode.net/?channels=node.js
 [project maintainers]: https://github.com/joyent/node/wiki/Project-Organization
+[node-forward discussion repository]: https://github.com/node-forward/discussions/issues
 
 # Contribution Policy
 
