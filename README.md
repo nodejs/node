@@ -6,7 +6,7 @@ This repository began as a GitHub fork of
 releases, and contributorship are under an
 [open governance model](./CONTRIBUTING.md#governance).
 
-We intend to release, with increasing regularity, releases which are
+We intend to land, with increasing regularity, releases which are
 compatible with the npm ecosystem that has been built to date for node.js.
 
 ### To build:
