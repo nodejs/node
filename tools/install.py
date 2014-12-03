@@ -154,8 +154,7 @@ def files(action):
     'src/smalloc.h',
   ], 'include/node/')
 
-  if 'false' == variables.get('node_shared_cares'):
-    subdir_files('deps/cares/include', 'include/node/', action)
+  subdir_files('deps/cares/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
