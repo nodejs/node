@@ -130,7 +130,7 @@ Resources for Newcomers
   - [searching the npm registry](http://npmjs.org/)
   - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
   - [node.js mailing list](http://groups.google.com/group/nodejs)
-  - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
+  - irc chatroom, [#io.js on freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
   - [community](https://github.com/joyent/node/wiki/Community)
   - [contributing](https://github.com/joyent/node/wiki/Contributing)
   - [big list of all the helpful wiki pages](https://github.com/joyent/node/wiki/_pages)
