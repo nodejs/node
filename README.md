@@ -13,11 +13,11 @@ compatible with the npm ecosystem that has been built to date for node.js.
 
 Prerequisites (Unix only):
 
-    * `gcc` and `g++` 4.8 or newer, or
-    * `clang` and `clang++` 3.3 or newer
-    * Python 2.6 or 2.7
-    * GNU Make 3.81 or newer
-    * libexecinfo (FreeBSD and OpenBSD only)
+* `gcc` and `g++` 4.8 or newer, or
+* `clang` and `clang++` 3.3 or newer
+* Python 2.6 or 2.7
+* GNU Make 3.81 or newer
+* libexecinfo (FreeBSD and OpenBSD only)
 
 Unix/Macintosh:
 
@@ -39,9 +39,9 @@ make install
 
 Prerequisites (Windows only):
 
-    * Python 2.6 or 2.7
-    * Visual Studio 2013 for Windows Desktop, or
-    * Visual Studio Express 2013 for Windows Desktop
+* Python 2.6 or 2.7
+* Visual Studio 2013 for Windows Desktop, or
+* Visual Studio Express 2013 for Windows Desktop
 
 Windows:
 
