@@ -9,6 +9,8 @@ releases, and contributorship are under an
 We intend to release, with increasing regularity, releases which are
 compatible with the npm ecosystem that has been built to date for node.js.
 
+It is our hope that io.js and node.js will one day reconcile.
+
 ### To build:
 
 Prerequisites (Unix only):
