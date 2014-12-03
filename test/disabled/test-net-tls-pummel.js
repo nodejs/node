@@ -52,7 +52,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
       var peerDN = socket.getPeerCertificate('DNstring');
       assert.equal(verified, 1);
       assert.equal(peerDN,
-                   'C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,' +
+                   'C=UK,ST=Acknack Ltd,L=Rhys Jones,O=io.js,' +
                    'OU=Test TLS Certificate,CN=localhost');
       console.log('server got: ' + JSON.stringify(data));
       assert.equal('open', socket.readyState);
@@ -88,7 +88,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
     var peerDN = client.getPeerCertificate('DNstring');
     assert.equal(verified, 1);
     assert.equal(peerDN,
-                 'C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,' +
+                 'C=UK,ST=Acknack Ltd,L=Rhys Jones,O=io.js,' +
                  'OU=Test TLS Certificate,CN=localhost');
     client.write('PING');
   });

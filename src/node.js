@@ -19,10 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Hello, and welcome to hacking node.js!
+// Hello, and welcome to hacking io.js!
 //
 // This file is invoked by node::Load in src/node.cc, and responsible for
-// bootstrapping the node.js core. Special caution is given to the performance
+// bootstrapping the io.js core. Special caution is given to the performance
 // of the startup process, so many dependencies are invoked lazily.
 
 'use strict';

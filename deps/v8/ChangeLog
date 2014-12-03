@@ -5051,7 +5051,7 @@
         StoreBuffer::Filter.
 
         Randomize the seed used for string hashing.  This helps guard against
-        CPU-eating DOS attacks against node.js servers.  Based on code from
+        CPU-eating DOS attacks against io.js servers.  Based on code from
         Bert Belder.  This version only solves the issue for those that compile
         V8 themselves or those that do not use snapshots.  A snapshot-based
         precompiled V8 will still have predictable string hash codes.

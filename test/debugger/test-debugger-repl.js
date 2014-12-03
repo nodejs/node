@@ -70,7 +70,7 @@ addTest('sb("setInterval()", "!(setInterval.flag++)")', [
 
 // Continue
 addTest('c', [
-  /break in node.js:\d+/,
+  /break in io.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 

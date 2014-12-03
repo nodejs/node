@@ -16,7 +16,7 @@ program to gracefully exit:
       output: process.stdout
     });
 
-    rl.question("What do you think of node.js? ", function(answer) {
+    rl.question("What do you think of io.js? ", function(answer) {
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback:", answer);
 

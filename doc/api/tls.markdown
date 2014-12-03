@@ -148,7 +148,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     on the format.
 
     `ECDHE-RSA-AES128-SHA256`, `DHE-RSA-AES128-SHA256` and
-    `AES128-GCM-SHA256` are TLS v1.2 ciphers and used when node.js is
+    `AES128-GCM-SHA256` are TLS v1.2 ciphers and used when io.js is
     linked against OpenSSL 1.0.1 or newer, such as the bundled version
     of OpenSSL.  Note that it is still possible for a TLS v1.2 client
     to negotiate a weaker cipher unless `honorCipherOrder` is enabled.
@@ -186,7 +186,7 @@ automatically set as a listener for the [secureConnection][] event.  The
 
     Note: If SSLv2 is used, the server will send its list of preferences to the
     client, and the client chooses the cipher.  Support for SSLv2 is disabled
-    unless node.js was configured with `./configure --with-sslv2`.
+    unless io.js was configured with `./configure --with-sslv2`.
 
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
@@ -448,7 +448,7 @@ dictionary with keys:
   instead of the client preferences. For further details see `tls` module
   documentation.
 
-If no 'ca' details are given, then node.js will use the default
+If no 'ca' details are given, then io.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
@@ -698,14 +698,14 @@ Example:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
-         O: 'node.js',
+         O: 'io.js',
          OU: 'Test TLS Certificate',
          CN: 'localhost' },
       issuerInfo:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
-         O: 'node.js',
+         O: 'io.js',
          OU: 'Test TLS Certificate',
          CN: 'localhost' },
       issuer:

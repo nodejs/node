@@ -1,7 +1,7 @@
 {
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
   "name": "node-doc-generator",
-  "description": "Internal tool for generating Node.js API docs",
+  "description": "Internal tool for generating io.js API docs",
   "version": "0.0.0",
   "engines": {
     "node": ">=0.6.10"

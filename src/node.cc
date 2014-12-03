@@ -2844,11 +2844,11 @@ void LoadEnvironment(Environment* env) {
   V8::SetFatalErrorHandler(node::OnFatalError);
   V8::AddMessageListener(OnMessage);
 
-  // Compile, execute the src/node.js file. (Which was included as static C
+  // Compile, execute the src/io.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
   // source code.)
 
-  // The node.js file returns a function 'f'
+  // The io.js file returns a function 'f'
   atexit(AtExit);
 
   TryCatch try_catch;
@@ -2858,7 +2858,7 @@ void LoadEnvironment(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "node.js");
+  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "io.js");
   Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
@@ -2868,11 +2868,11 @@ void LoadEnvironment(Environment* env) {
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside node.js we'll take care of assigning things to
+  // all our bindings. Inside io.js we'll take care of assigning things to
   // their places.
 
   // We start the process this way in order to be more modular. Developers
-  // who do not like how 'src/node.js' setups the module system but do like
+  // who do not like how 'src/io.js' setups the module system but do like
   // Node's I/O bindings may want to replace 'f' with their own function.
 
   // Add a reference to the global object

@@ -2565,7 +2565,7 @@
 
 * slab_allocator: fix leak of Persistent handles (Shigeki Ohtsu)
 
-* windows/msi: add node.js prompt to startmenu (Jeroen Janssen)
+* windows/msi: add io.js prompt to startmenu (Jeroen Janssen)
 
 * windows/msi: fix adding node to PATH (Jeroen Janssen)
 
@@ -4720,7 +4720,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Better logic for testing if an argument is a port
 
-* Improve error reporting (single line "node.js:176:9" errors)
+* Improve error reporting (single line "io.js:176:9" errors)
 
 * Bugfix: Some http responses being truncated (appeared in 0.1.94)
 
@@ -5437,7 +5437,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 2009.08.21, Version 0.1.5, b0fd3e281cb5f7cd8d3a26bd2b89e1b59998e5ed
 
-  * Bugfix: Buggy connections could crash node.js. Now check
+  * Bugfix: Buggy connections could crash io.js. Now check
     connection before sending data every time (Kevin van Zonneveld)
 
   * Bugfix: stdin fd (0) being ignored by node.File. (Abe Fettig)

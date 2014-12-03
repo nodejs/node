@@ -21,7 +21,7 @@
  */
 
 /*
- * DTrace provider for node.js.
+ * DTrace provider for io.js.
  */
 
 /*

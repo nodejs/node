@@ -15,7 +15,7 @@
     'node_use_mdb%': 'false',
     'node_v8_options%': '',
     'library_files': [
-      'src/node.js',
+      'src/io.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
       'lib/_linklist.js',

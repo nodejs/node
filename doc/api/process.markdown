@@ -107,8 +107,8 @@ handling.
 Don't use it, use [domains](domain.html) instead. If you do use it, restart
 your application after every unhandled exception!
 
-Do *not* use it as the node.js equivalent of `On Error Resume Next`. An
-unhandled exception means your application - and by extension node.js itself -
+Do *not* use it as the io.js equivalent of `On Error Resume Next`. An
+unhandled exception means your application - and by extension io.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
 Think of resuming as pulling the power cord when you are upgrading your system.
@@ -138,7 +138,7 @@ programs.
 
 Note:
 
-- `SIGUSR1` is reserved by node.js to start the debugger.  It's possible to
+- `SIGUSR1` is reserved by io.js to start the debugger.  It's possible to
   install a listener but that won't stop the debugger from starting.
 - `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that resets
   the terminal mode before exiting with code `128 + signal number`. If one of
@@ -454,7 +454,7 @@ Note: this function is only available on POSIX platforms (i.e. not Windows,
 Android)
 
 Returns an array with the supplementary group IDs. POSIX leaves it unspecified
-if the effective group ID is included but node.js ensures it always is.
+if the effective group ID is included but io.js ensures it always is.
 
 
 ## process.setgroups(groups)
@@ -568,7 +568,7 @@ Example of sending a signal to yourself:
 
     process.kill(process.pid, 'SIGHUP');
 
-Note: When SIGUSR1 is received by Node.js it starts the debugger, see
+Note: When SIGUSR1 is received by io.js it starts the debugger, see
 [Signal Events](#process_signal_events).
 
 ## process.pid

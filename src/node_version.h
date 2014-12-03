@@ -59,7 +59,7 @@
       (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
 /**
- * When this version number is changed, node.js will refuse
+ * When this version number is changed, io.js will refuse
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.

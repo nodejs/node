@@ -1,7 +1,7 @@
 Notes about the icu directory.
 ===
 
-The files in this directory were written for the node.js effort. It's
+The files in this directory were written for the io.js effort. It's
 the intent of their author (Steven R. Loomis / srl295) to merge them
 upstream into ICU, pending much discussion within the ICU-PMC.
 

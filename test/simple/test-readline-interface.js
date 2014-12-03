@@ -332,7 +332,7 @@ function isWarned(emitter) {
   });
 
   assert.doesNotThrow(function() {
-    rli.question("What do you think of node.js? ", function(answer) {
+    rli.question("What do you think of io.js? ", function(answer) {
       console.log("Thank you for your valuable feedback:", answer);
       rli.close();
     })

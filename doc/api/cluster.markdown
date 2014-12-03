@@ -74,7 +74,7 @@ out of a total of eight.
 
 Because `server.listen()` hands off most of the work to the master
 process, there are three cases where the behavior between a normal
-node.js process and a cluster worker differs:
+io.js process and a cluster worker differs:
 
 1. `server.listen({fd: 7})` Because the message is passed to the master,
    file descriptor 7 **in the parent** will be listened on, and the
@@ -91,7 +91,7 @@ node.js process and a cluster worker differs:
    want to listen on a unique port, generate a port number based on the
    cluster worker ID.
 
-There is no routing logic in Node.js, or in your program, and no shared
+There is no routing logic in io.js, or in your program, and no shared
 state between the workers.  Therefore, it is important to design your
 program such that it does not rely too heavily on in-memory data objects
 for things like sessions and login.

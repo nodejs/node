@@ -7,7 +7,7 @@ Node provides a tri-directional `popen(3)` facility through the
 
 It is possible to stream data through a child's `stdin`, `stdout`, and
 `stderr` in a fully non-blocking way.  (Note that some programs use
-line-buffered I/O internally.  That doesn't affect node.js but it means
+line-buffered I/O internally.  That doesn't affect io.js but it means
 data you send to the child process may not be immediately consumed.)
 
 To create a child process use `require('child_process').spawn()` or
@@ -403,7 +403,7 @@ index corresponds to a fd in the child.  The value is one of the following:
    between parent and child. A ChildProcess may have at most *one* IPC stdio
    file descriptor. Setting this option enables the ChildProcess.send() method.
    If the child writes JSON messages to this file descriptor, then this will
-   trigger ChildProcess.on('message').  If the child is a Node.js program, then
+   trigger ChildProcess.on('message').  If the child is a io.js program, then
    the presence of an IPC channel will enable process.send() and
    process.on('message').
 3. `'ignore'` - Do not set this file descriptor in the child. Note that Node

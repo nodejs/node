@@ -23,7 +23,7 @@ try:
 except OSError, e:
   if e.errno == errno.ENOENT:
     print '''
-      Node.js compile error: could not find objdump
+      io.js compile error: could not find objdump
 
       Check that GNU binutils are installed and included in PATH
       '''

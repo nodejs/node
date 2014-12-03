@@ -10,7 +10,7 @@ C                      = US
 ST                     = CA
 L                      = SF
 O                      = Joyent
-OU                     = Node.js
+OU                     = io.js
 CN                     = agent3
 emailAddress           = ry@tinyclouds.org
 

@@ -117,7 +117,7 @@ void usage() {
   }
 
 /**
- * @param status changed from reference to pointer to match node.js style
+ * @param status changed from reference to pointer to match io.js style
  */
 void calculatePackageName(UErrorCode* status) {
   packageName.clear();
@@ -138,7 +138,7 @@ void calculatePackageName(UErrorCode* status) {
  * return zero for false, or nonzero if it was openable.
  * Assumes calculatePackageName was called.
  * @param exists set to TRUE if exists, FALSE otherwise.
- * Changed from reference to pointer to match node.js style
+ * Changed from reference to pointer to match io.js style
  * @return 0 on "OK" (success or resource-missing),
  * 1 on "FAILURE" (unexpected error)
  */

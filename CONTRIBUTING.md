@@ -1,6 +1,6 @@
 # CONTRIBUTING
 
-The node.js project welcomes new contributors.  This document will guide you
+The io.js project welcomes new contributors.  This document will guide you
 through the process.
 
 
@@ -19,7 +19,7 @@ Now decide if you want your feature or bug fix to go into the master branch
 or the stable branch.  As a rule of thumb, bug fixes go into the stable branch
 while new features go into the master branch.
 
-The stable branch is effectively frozen; patches that change the node.js
+The stable branch is effectively frozen; patches that change the io.js
 API/ABI or affect the run-time behavior of applications get rejected.
 
 The rules for the master branch are less strict; consult the
@@ -29,13 +29,13 @@ In a nutshell, modules are at varying levels of API stability.  Bug fixes are
 always welcome but API or behavioral  changes to modules at stability level 3
 and up are off-limits.
 
-Node.js has several bundled dependencies in the deps/ and the tools/
+io.js has several bundled dependencies in the deps/ and the tools/
 directories that are not part of the project proper.  Any changes to files
 in those directories or its subdirectories should be sent to their respective
 projects.  Do not send your patch to us, we cannot accept it.
 
 In case of doubt, open an issue in the [issue tracker][], post your question
-to the [node.js mailing list][] or contact one of the [project maintainers][]
+to the [io.js mailing list][] or contact one of the [project maintainers][]
 on [IRC][].
 
 Especially do so if you plan to work on something big.  Nothing is more
@@ -149,6 +149,6 @@ not send out notifications when you add commits.
 
 [stability index page]: https://github.com/joyent/node/blob/master/doc/api/documentation.markdown
 [issue tracker]: https://github.com/joyent/node/issues
-[node.js mailing list]: http://groups.google.com/group/nodejs
-[IRC]: http://webchat.freenode.net/?channels=node.js
+[io.js mailing list]: http://groups.google.com/group/nodejs
+[IRC]: http://webchat.freenode.net/?channels=io.js
 [project maintainers]: https://github.com/joyent/node/wiki/Project-Organization

@@ -22,7 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-// ASCII conversion in node.js simply masks off the high bits,
+// ASCII conversion in io.js simply masks off the high bits,
 // it doesn't do transliteration.
 assert.equal(Buffer('hérité').toString('ascii'), 'hC)ritC)');
 

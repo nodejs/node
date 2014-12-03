@@ -1,8 +1,8 @@
 STRINGTABLE
 BEGIN
-    1 "Node.js"
-    2 "Node.js" // {Locked} means don't localize
-    3 "Node.js performance counters"
+    1 "io.js"
+    2 "io.js" // {Locked} means don't localize
+    3 "io.js performance counters"
     5 "HTTP server requests"
     6 "HTTP server requests" // {Locked} means don't localize
     7 "Number of HTTP server requests"

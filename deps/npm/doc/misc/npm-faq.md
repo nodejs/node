@@ -178,7 +178,7 @@ an argument to `git checkout`.  The default is `master`.
 
 ## What is a `module`?
 
-A module is anything that can be loaded with `require()` in a Node.js
+A module is anything that can be loaded with `require()` in a io.js
 program.  The following things are all examples of things that can be
 loaded as modules:
 
@@ -207,7 +207,7 @@ we might say that "The variable `req` refers to the `request` module".
 The `package.json` file defines the package.  (See "What is a
 package?" above.)
 
-The `node_modules` folder is the place Node.js looks for modules.
+The `node_modules` folder is the place io.js looks for modules.
 (See "What is a module?" above.)
 
 For example, if you create a file at `node_modules/foo.js` and then

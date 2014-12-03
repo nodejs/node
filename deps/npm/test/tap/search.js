@@ -218,7 +218,7 @@ var allMock = {
   },
   "marko": {
       "name": "marko",
-      "description": "Marko is an extensible, streaming, asynchronous, high performance, HTML-based templating language that can be used in Node.js or in the browser.",
+      "description": "Marko is an extensible, streaming, asynchronous, high performance, HTML-based templating language that can be used in io.js or in the browser.",
       "dist-tags": {
           "latest": "1.2.16"
       },

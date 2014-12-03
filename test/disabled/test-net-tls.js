@@ -70,8 +70,8 @@ var secureServer = net.createServer(function(connection) {
     assert.equal(verified, true);
     assert.equal(peerDN,
                  '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones' +
-                 '/O=node.js/OU=Test TLS Certificate/CN=localhost",' +
-                 '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js' +
+                 '/O=io.js/OU=Test TLS Certificate/CN=localhost",' +
+                 '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=io.js' +
                  '/OU=Test TLS Certificate/CN=localhost",' +
                  '"valid_from":"Nov 11 09:52:22 2009 GMT",' +
                  '"valid_to":"Nov  6 09:52:22 2029 GMT",' +
@@ -108,8 +108,8 @@ secureServer.on('listening', function() {
     assert.equal(verified, true);
     assert.equal(peerDN,
                  '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones' +
-                 '/O=node.js/OU=Test TLS Certificate/CN=localhost",' +
-                 '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js' +
+                 '/O=io.js/OU=Test TLS Certificate/CN=localhost",' +
+                 '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=io.js' +
                  '/OU=Test TLS Certificate/CN=localhost",' +
                  '"valid_from":"Nov 11 09:52:22 2009 GMT",' +
                  '"valid_to":"Nov  6 09:52:22 2029 GMT",' +

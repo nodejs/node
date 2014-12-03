@@ -3,7 +3,7 @@
 ## Overview
 
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
-was primarily developed for use by [Node.js](http://nodejs.org), but it's also
+was primarily developed for use by [io.js](http://nodejs.org), but it's also
 used by Mozilla's [Rust language](http://www.rust-lang.org/),
 [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
 [pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/joyent/libuv/wiki/Projects-that-use-libuv).
@@ -169,7 +169,7 @@ Solaris 121 and later using GCC toolchain.
 
 See the [guidelines for contributing][].
 
-[node.js]: http://nodejs.org/
+[io.js]: http://nodejs.org/
 [GYP]: http://code.google.com/p/gyp/
 [Python]: https://www.python.org/downloads/
 [Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express

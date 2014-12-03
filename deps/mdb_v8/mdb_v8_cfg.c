@@ -23,7 +23,7 @@
  * mdb_v8_cfg.c: canned configurations for previous V8 versions.
  *
  * The functions and data defined here enable this dmod to support debugging
- * Node.js binaries that predated V8's built-in postmortem debugging support.
+ * io.js binaries that predated V8's built-in postmortem debugging support.
  */
 
 #include "v8cfg.h"
@@ -96,7 +96,7 @@ v8cfg_canned_readsym(v8_cfg_t *cfgp, const char *name, intptr_t *valp)
 }
 
 /*
- * Canned configuration for the V8 bundled with Node.js v0.4.8 and later.
+ * Canned configuration for the V8 bundled with io.js v0.4.8 and later.
  */
 static v8_cfg_symbol_t v8_symbols_node_04[] = {
 	{ "v8dbg_type_AccessCheckInfo__ACCESS_CHECK_INFO_TYPE", 0x91 },
@@ -389,7 +389,7 @@ static v8_cfg_symbol_t v8_symbols_node_04[] = {
 };
 
 /*
- * Canned configuration for the V8 bundled with Node.js v0.6.5.
+ * Canned configuration for the V8 bundled with io.js v0.6.5.
  */
 static v8_cfg_symbol_t v8_symbols_node_06[] = {
 	{ "v8dbg_type_AccessCheckInfo__ACCESS_CHECK_INFO_TYPE", 0x93 },

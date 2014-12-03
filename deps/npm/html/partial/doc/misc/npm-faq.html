@@ -121,7 +121,7 @@ git+https://user@hostname/project/blah.git#commit-ish
 </code></pre><p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
 an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
 <h2 id="what-is-a-module-">What is a <code>module</code>?</h2>
-<p>A module is anything that can be loaded with <code>require()</code> in a Node.js
+<p>A module is anything that can be loaded with <code>require()</code> in a io.js
 program.  The following things are all examples of things that can be
 loaded as modules:</p>
 <ul>
@@ -143,7 +143,7 @@ was loaded <em>from</em> a file.  For example, in the following program:</p>
 <h2 id="so-why-is-it-the-node_modules-folder-but-package-json-file-why-not-node_packages-or-module-json-">So, why is it the &quot;<code>node_modules</code>&quot; folder, but &quot;<code>package.json</code>&quot; file?  Why not <code>node_packages</code> or <code>module.json</code>?</h2>
 <p>The <code>package.json</code> file defines the package.  (See &quot;What is a
 package?&quot; above.)</p>
-<p>The <code>node_modules</code> folder is the place Node.js looks for modules.
+<p>The <code>node_modules</code> folder is the place io.js looks for modules.
 (See &quot;What is a module?&quot; above.)</p>
 <p>For example, if you create a file at <code>node_modules/foo.js</code> and then
 had a program that did <code>var f = require(&#39;foo.js&#39;)</code> then it would load

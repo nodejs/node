@@ -122,7 +122,7 @@
 
 /*
  * The following macros are used to output ASCII SeqStrings, ConsStrings, and
- * Node.js ExternalStrings.  To represent each string, we use three fields:
+ * io.js ExternalStrings.  To represent each string, we use three fields:
  *
  *    "str":	a pointer to the string itself
  *
@@ -214,7 +214,7 @@
     }
 
 /*
- * Print out the given Node.js ExternalString, or do nothing if the string is
+ * Print out the given io.js ExternalString, or do nothing if the string is
  * not an ASCII ExternalString.
  */
 #define	APPEND_NODESTR(str, len, attrs)					\

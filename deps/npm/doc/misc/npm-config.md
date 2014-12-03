@@ -261,7 +261,7 @@ The command to run for `npm edit` or `npm config edit`.
 
 If set to true, then npm will stubbornly refuse to install (or even
 consider installing) any package that claims to not be compatible with
-the current Node.js version.
+the current io.js version.
 
 ### force
 

@@ -29,7 +29,7 @@ namespace node {
 
 const BIO_METHOD NodeBIO::method = {
   BIO_TYPE_MEM,
-  "node.js SSL buffer",
+  "io.js SSL buffer",
   NodeBIO::Write,
   NodeBIO::Read,
   NodeBIO::Puts,

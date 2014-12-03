@@ -199,10 +199,10 @@ Example usage for capturing errors:
     // handled error just threw:
     // Error: really, it's ok
     //     at /tmp/test2.js:27:9
-    //     at process._tickCallback (node.js:583:11)
+    //     at process._tickCallback (io.js:583:11)
     //     at Function.Module.runMain (module.js:492:11)
-    //     at startup (node.js:123:16)
-    //     at node.js:1012:3
+    //     at startup (io.js:123:16)
+    //     at io.js:1012:3
 
 ## tracing.removeAsyncListener(asyncListener)
 

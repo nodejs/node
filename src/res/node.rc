@@ -51,8 +51,8 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Joyent, Inc"
-            VALUE "ProductName", "Node.js"
-            VALUE "FileDescription", "Node.js: Evented I/O for V8 JavaScript"
+            VALUE "ProductName", "io.js"
+            VALUE "FileDescription", "io.js: Evented I/O for V8 JavaScript"
             VALUE "FileVersion", NODE_VERSION_STRING
             VALUE "ProductVersion", NODE_VERSION_STRING
             VALUE "OriginalFilename", "node.exe"

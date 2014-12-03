@@ -856,7 +856,7 @@ the client should send the request body.
 
 Flush the request headers.
 
-For efficiency reasons, node.js normally buffers the request headers until you
+For efficiency reasons, io.js normally buffers the request headers until you
 call `request.end()` or write the first chunk of request data.  It then tries
 hard to pack the request headers and data into a single TCP packet.
 

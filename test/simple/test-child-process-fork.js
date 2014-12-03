@@ -24,7 +24,7 @@ var common = require('../common');
 var fork = require('child_process').fork;
 var args = ['foo', 'bar'];
 
-var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
+var n = fork(common.fixturesDir + '/child-process-spawn-io.js', args);
 assert.deepEqual(args, ['foo', 'bar']);
 
 var messageCount = 0;

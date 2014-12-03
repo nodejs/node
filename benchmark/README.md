@@ -1,7 +1,7 @@
-# Node.js core benchmark tests
+# io.js core benchmark tests
 
 This folder contains benchmark tests to measure the performance for certain
-Node.js APIs.
+io.js APIs.
 
 ## How to run tests
 

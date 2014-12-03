@@ -28,7 +28,7 @@ var net = require('net');
 var gotResponse = false;
 
 var server = net.createServer(function(conn) {
-  var body = 'Yet another node.js server.';
+  var body = 'Yet another io.js server.';
 
   var response =
       'HTTP/1.1 200 OK\r\n' +

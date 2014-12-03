@@ -2264,7 +2264,7 @@ function copyTempDouble(ptr) {
             if (!e.code) throw e;
             throw new FS.ErrnoError(ERRNO_CODES[e.code]);
           }
-          // node.js v0.10.20 doesn't report blksize and blocks on Windows. Fake them with default blksize of 4096.
+          // io.js v0.10.20 doesn't report blksize and blocks on Windows. Fake them with default blksize of 4096.
           // See http://support.microsoft.com/kb/140365
           if (NODEFS.isWindows && !stat.blksize) {
             stat.blksize = 4096;
@@ -5146,7 +5146,7 @@ function copyTempDouble(ptr) {
                                            (canvasContainer['webkitRequestFullScreen'] ? function() { canvasContainer['webkitRequestFullScreen'](Element['ALLOW_KEYBOARD_INPUT']) } : null);
         canvasContainer.requestFullScreen();
       },requestAnimationFrame:function requestAnimationFrame(func) {
-        if (typeof window === 'undefined') { // Provide fallback to setTimeout if window is undefined (e.g. in Node.js)
+        if (typeof window === 'undefined') { // Provide fallback to setTimeout if window is undefined (e.g. in io.js)
           setTimeout(func, 1000/60);
         } else {
           if (!window.requestAnimationFrame) {

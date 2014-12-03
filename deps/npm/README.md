@@ -186,10 +186,10 @@ you should [read this](https://www.npmjs.org/doc/developers.html)
 "npm" and "The npm Registry" are owned by npm, Inc.
 All rights reserved.  See the included LICENSE file for more details.
 
-"Node.js" and "node" are trademarks owned by Joyent, Inc.
+"io.js" and "node" are trademarks owned by Joyent, Inc.
 
 Modules published on the npm registry are not officially endorsed by
-npm, Inc. or the Node.js project.
+npm, Inc. or the io.js project.
 
 Data published to the npm registry is not part of npm itself, and is
 the sole property of the publisher.  While every effort is made to
@@ -234,7 +234,7 @@ When you find issues, please report them:
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
 
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+You can also look for isaacs in #io.js on irc://irc.freenode.net.  He
 will no doubt tell you to put the output in a gist or email.
 
 ## SEE ALSO

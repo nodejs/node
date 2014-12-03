@@ -1651,7 +1651,7 @@ jsstr_print_external(uintptr_t addr, uint_t flags, char **bufp, size_t *lenp)
 	}
 
 	if (flags & JSSTR_VERBOSE)
-		mdb_printf("assuming Node.js string\n");
+		mdb_printf("assuming io.js string\n");
 
 	if (read_heap_ptr(&ptr1, addr, V8_OFF_EXTERNALSTRING_RESOURCE) != 0) {
 		(void) bsnprintf(bufp, lenp,

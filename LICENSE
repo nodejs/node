@@ -539,8 +539,8 @@ maintained libraries. The externally maintained libraries used by Node are:
     --------
 
 
-    "Node.js" and "node" trademark Joyent, Inc. npm is not officially
-    part of the Node.js project, and is neither owned by nor
+    "io.js" and "node" trademark Joyent, Inc. npm is not officially
+    part of the io.js project, and is neither owned by nor
     officially affiliated with Joyent, Inc.
 
     Packages published in the npm registry (other than the Software and
@@ -584,7 +584,7 @@ maintained libraries. The externally maintained libraries used by Node are:
     THE SOFTWARE.
   """
 
-- test/gc/node_modules/weak. Node-weak is a node.js addon that provides garbage
+- test/gc/node_modules/weak. Node-weak is a io.js addon that provides garbage
   collector notifications. Node-weak's license follows:
   """
     Copyright (c) 2011, Ben Noordhuis <info@bnoordhuis.nl>

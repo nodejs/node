@@ -94,7 +94,7 @@ var headers = []
   .concat(multipleForbidden.map(makeHeader('foo')))
   .concat(multipleAllowed.map(makeHeader('bar')))
   .concat(multipleForbidden.map(makeHeader('bar')))
-  // content-length is a special case since node.js
+  // content-length is a special case since io.js
   // is dropping connetions with non-numeric headers
   .concat([['content-length', 0], ['content-length', 123]]);
 

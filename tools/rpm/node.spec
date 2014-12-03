@@ -18,7 +18,7 @@
 Name: node
 Version: %{_version}
 Release: 1
-Summary: Node.js is a platform for building fast, scalable network applications.
+Summary: io.js is a platform for building fast, scalable network applications.
 Group: Development/Languages
 License: MIT
 URL: http://nodejs.org/
@@ -32,15 +32,15 @@ BuildRequires: python
 # Conflicts with the HAM radio package.
 Conflicts: node <= 0.3.2-11
 
-# Conflicts with the Fedora node.js package.
+# Conflicts with the Fedora io.js package.
 Conflicts: nodejs
 
 
 %description
-Node.js is a platform built on Chrome's JavaScript runtime for easily
+io.js is a platform built on Chrome's JavaScript runtime for easily
 building fast, scalable network applications.
 
-Node.js uses an event-driven, non-blocking I/O model that makes it
+io.js uses an event-driven, non-blocking I/O model that makes it
 lightweight and efficient, perfect for data-intensive real-time
 applications that run across distributed devices.
 
@@ -71,9 +71,9 @@ make %{?_smp_mflags}
 
 
 # Use mildly hard-coded paths in the install and files targets for now.
-# _libdir is /usr/lib64 on some systems but the node.js installer always
+# _libdir is /usr/lib64 on some systems but the io.js installer always
 # installs to /usr/lib. I have commits sitting in a branch that add --libdir
-# and --mandir configure switches to the node.js configure script but it's
+# and --mandir configure switches to the io.js configure script but it's
 # debatable if it's worth the extra complexity.
 %install
 export DONT_STRIP=1  # Don't strip debug symbols for now.

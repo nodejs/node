@@ -326,7 +326,7 @@ def cc_macros():
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    print '''Node.js configure error: No acceptable C compiler found!
+    print '''io.js configure error: No acceptable C compiler found!
 
         Please make sure you have a C compiler installed on your system and/or
         consider adjusting the CC environment variable if you installed
@@ -391,7 +391,7 @@ def is_arm_hard_float_abi():
         not '__VFP_FP__' in cc_macros()):
     return False
   else:
-    print '''Node.js configure error: Your version of GCC does not report
+    print '''io.js configure error: Your version of GCC does not report
       the Floating-Point ABI to compile for your hardware
 
       Please manually specify which floating-point ABI to use with the

@@ -1438,7 +1438,7 @@ Changes since version 0.10.3:
 
 This is the first versioned release from the current unstable libuv branch.
 
-Changes since Node.js v0.11.0:
+Changes since io.js v0.11.0:
 
 * all platforms: nanosecond resolution support for uv_fs_[fl]stat (Timothy J.
   Fontaine)
@@ -1492,9 +1492,9 @@ Changes since version 0.10.2:
 2013.03.25, Version 0.10.2 (Stable), 0f36a00568f3e7608f97f6c6cdb081f4800a50c9
 
 This is the first officially versioned release of libuv. Starting now
-libuv will make releases independently of Node.js.
+libuv will make releases independently of io.js.
 
-Changes since Node.js v0.10.0:
+Changes since io.js v0.10.0:
 
 * test: add tap output for windows (Timothy J. Fontaine)
 
@@ -1506,7 +1506,7 @@ Changes since Node.js v0.10.0:
 
 * stream: run try_select only for pipes and ttys (Fedor Indutny)
 
-Changes since Node.js v0.10.1:
+Changes since io.js v0.10.1:
 
 * build: rename OS to PLATFORM (Ben Noordhuis)
 

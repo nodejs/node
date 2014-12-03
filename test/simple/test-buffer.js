@@ -557,7 +557,7 @@ var pos = 0;
 for (var i = 0; i < segments.length; ++i) {
   pos += b.write(segments[i], pos, 'base64');
 }
-assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
+assert.equal(b.toString('binary', 0, pos), 'Madness?! This is io.js!');
 
 // Creating buffers larger than pool size.
 var l = Buffer.poolSize + 5;

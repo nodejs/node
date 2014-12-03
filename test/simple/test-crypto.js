@@ -582,7 +582,7 @@ assert.strictEqual(verified, true, 'sign and verify (stream)');
 
 function testCipher1(key) {
   // Test encryption and decryption
-  var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
+  var plaintext = 'Keep this a secret? No! Tell everyone about io.js!';
   var cipher = crypto.createCipher('aes192', key);
 
   // encrypt plaintext which is in utf8 format

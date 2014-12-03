@@ -46,7 +46,7 @@ var deflate = zlib.createDeflate({ dictionary: spdyDict });
 
 var input = [
   'HTTP/1.1 200 Ok',
-  'Server: node.js',
+  'Server: io.js',
   'Content-Length: 0',
   ''
 ].join('\r\n');

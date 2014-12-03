@@ -128,7 +128,7 @@ addTest(function(client, done) {
     var foundMainScript = false;
     for (var k in client.scripts) {
       var script = client.scripts[k];
-      if (script && script.name === 'node.js') {
+      if (script && script.name === 'io.js') {
         foundMainScript = true;
         break;
       }

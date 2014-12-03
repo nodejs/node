@@ -4,7 +4,7 @@
         ^
 ReferenceError: undefined_reference_error_maker is not defined
     at *test*message*nexttick_throw.js:*:*
-    at process._tickCallback (node.js:*:*)
+    at process._tickCallback (io.js:*:*)
     at Function.Module.runMain (module.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at startup (io.js:*:*)
+    at io.js:*:*

@@ -46,7 +46,7 @@ Creating a typed array from a `Buffer` works with the following caveats:
    with elements `[1,2,3,4]`, not an `Uint32Array` with a single element
    `[0x1020304]` or `[0x4030201]`.
 
-NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
+NOTE: io.js v0.8 simply retained a reference to the buffer in `array.buffer`
 instead of cloning it.
 
 While more efficient, it introduces subtle incompatibilities with the typed
@@ -274,7 +274,7 @@ so the legal range is between `0x00` and `0xFF` hex or `0` and `255`.
 
 Example: copy an ASCII string into a buffer, one byte at a time:
 
-    str = "node.js";
+    str = "io.js";
     buf = new Buffer(str.length);
 
     for (var i = 0; i < str.length ; i++) {
@@ -283,7 +283,7 @@ Example: copy an ASCII string into a buffer, one byte at a time:
 
     console.log(buf);
 
-    // node.js
+    // io.js
 
 ### buf.equals(otherBuffer)
 
