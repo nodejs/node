@@ -245,8 +245,7 @@
           'conditions': [
             [ 'OS=="linux"', {
               'sources': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o',
-                '<(SHARED_INTERMEDIATE_DIR)/libuv_dtrace_provider.o',
+                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
               ],
             }],
             [ 'OS!="mac" and OS!="linux"', {
@@ -510,15 +509,13 @@
             {
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
-                '<(OBJ_DIR)/libuv/deps/uv/src/unix/core.o',
                 '<(OBJ_DIR)/node/src/node_dtrace.o',
               ],
               'outputs': [
                 '<(OBJ_DIR)/node/src/node_dtrace_provider.o'
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
-                '-s', 'deps/uv/src/unix/uv-dtrace.d', '<@(_inputs)',
-                '-o', '<@(_outputs)' ]
+                '<@(_inputs)', '-o', '<@(_outputs)' ]
             }
           ]
         }],
@@ -533,17 +530,7 @@
               'action': [
                 'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
               ],
-            },
-            {
-              'action_name': 'libuv_dtrace_provider_o',
-              'inputs': [ 'deps/uv/src/unix/uv-dtrace.d' ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/libuv_dtrace_provider.o'
-              ],
-              'action': [
-                'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
-              ],
-            },
+            }
           ],
         }],
       ]
