@@ -294,9 +294,9 @@ maintained libraries. The externally maintained libraries used by Node are:
 - Zlib at deps/zlib. zlib's license follows:
   """
     /* zlib.h -- interface of the 'zlib' general purpose compression library
-      version 1.2.4, March 14th, 2010
+      version 1.2.8, April 28th, 2013
 
-      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+      Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
 
       This software is provided 'as-is', without any express or implied
       warranty.  In no event will the authors be held liable for any damages
@@ -314,9 +314,8 @@ maintained libraries. The externally maintained libraries used by Node are:
          misrepresented as being the original software.
       3. This notice may not be removed or altered from any source distribution.
 
-      Jean-loup Gailly
-      Mark Adler
-
+      Jean-loup Gailly        Mark Adler
+      jloup@gzip.org          madler@alumni.caltech.edu
     */
   """
 
