@@ -61,10 +61,10 @@ Okay, so you have decided on the proper branch.  Create a feature branch
 and start hacking:
 
 ```sh
-$ git checkout -b my-feature-branch -t origin/v0.10
+$ git checkout -b my-feature-branch -t origin/v0.12
 ```
 
-(Where v0.10 is the latest stable branch as of this writing.)
+(Where v0.12 is the latest stable branch as of this writing.)
 
 
 ### COMMIT
@@ -113,7 +113,7 @@ Use `git rebase` (not `git merge`) to sync your work from time to time.
 
 ```sh
 $ git fetch upstream
-$ git rebase upstream/v0.10  # or upstream/master
+$ git rebase upstream/v0.12  # or upstream/master
 ```
 
 
@@ -213,6 +213,110 @@ expertise to take full responsibility for the change, according to the
 - Except when updating dependencies, all commits should be self
   contained.  Meaning, every commit should pass all tests. This makes
   it much easier when bisecting to find a breaking change.
+
+### Direct instruction
+
+(Optional) Ensure that you are not in a borked `am`/`rebase` state
+
+```sh
+git am --abort
+git rebase --abort
+```
+
+Checkout proper target branch
+
+```sh
+git checkout v0.12
+```
+
+Update the tree
+
+```sh
+git fetch origin
+git merge --ff-only origin/v0.12
+```
+
+Apply external patches
+
+```sh
+curl https://github.com/iojs/io.js/pull/xxx.patch | git am --whitespace=fix
+```
+
+Check and re-review the changes
+
+```sh
+git diff origin/v0.12
+```
+
+Check number of commits and commit messages
+
+```sh
+git log origin/v0.12...v0.12
+```
+
+If there are multiple commits that relate to the same feature or
+one with a feature and separate with a test for that feature -
+you'll need to squash them (or strictly speaking `fixup`).
+
+```sh
+git rebase -i origin/v0.12
+```
+
+This will open a screen like this (in the default shell editor):
+
+```sh
+pick 6928fc1 crypto: add feature A
+pick 8120c4c add test for feature A
+pick 51759dc feature B
+pick 7d6f433 test for feature B
+
+# Rebase f9456a2..7d6f433 onto f9456a2
+#
+# Commands:
+#  p, pick = use commit
+#  r, reword = use commit, but edit the commit message
+#  e, edit = use commit, but stop for amending
+#  s, squash = use commit, but meld into previous commit
+#  f, fixup = like "squash", but discard this commit's log message
+#  x, exec = run command (the rest of the line) using shell
+#
+# These lines can be re-ordered; they are executed from top to bottom.
+#
+# If you remove a line here THAT COMMIT WILL BE LOST.
+#
+# However, if you remove everything, the rebase will be aborted.
+#
+# Note that empty commits are commented out
+```
+
+Replace a couple of `pick`s with `fixup` to squash them into a previous commit:
+
+```sh
+pick 6928fc1 crypto: add feature A
+fixup 8120c4c add test for feature A
+pick 51759dc feature B
+fixup 7d6f433 test for feature B
+```
+
+Replace `pick` with `reword` to change the commit message:
+
+```sh
+reword 6928fc1 crypto: add feature A
+fixup 8120c4c add test for feature A
+reword 51759dc feature B
+fixup 7d6f433 test for feature B
+```
+
+Save the file and close the editor, you'll be asked to enter new commit message
+for that commit, and everything else should go smoothly. Note that this is a
+good moment to fix incorrect commit logs, ensure that they are properly
+formatted, and add `Reviewed-By` line.
+
+Time to push it:
+
+```sh
+git push origin v0.12
+```
 
 # Governance
 
