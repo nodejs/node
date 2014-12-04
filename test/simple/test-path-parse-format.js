@@ -28,7 +28,6 @@ var winPaths = [
   'another_path\\DIR with spaces\\1\\2\\33\\index',
   '\\foo\\C:',
   'file',
-  '.\\file',
 
   // unc
   '\\\\server\\share\\file_path',

@@ -317,7 +317,8 @@ if (isWindows) {
        [['c:/', '//dir'], 'c:\\dir'],
        [['c:/', '//server/share'], '\\\\server\\share\\'],
        [['c:/', '//server//share'], '\\\\server\\share\\'],
-       [['c:/', '///some//dir'], 'c:\\some\\dir']
+       [['c:/', '///some//dir'], 'c:\\some\\dir'],
+       [['c:/some/random/path', '../../../../../d:/some/dir'], 'd:\\some\\dir']
       ];
 } else {
   // Posix
