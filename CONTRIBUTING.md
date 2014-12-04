@@ -239,7 +239,7 @@ git merge --ff-only origin/v0.12
 Apply external patches
 
 ```sh
-curl https://github.com/iojs/io.js/pull/xxx.patch | git am
+curl https://github.com/iojs/io.js/pull/xxx.patch | git am --whitespace=fix
 ```
 
 Check and re-review the changes
