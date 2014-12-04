@@ -2062,7 +2062,7 @@ extern "C" void node_module_register(void* m) {
   } else {
     // Once node::Init was called we can only register dynamic modules.
     // See DLOpen.
-    CHECK_NE(modpending, NULL);
+    assert(modpending == NULL);
     modpending = mp;
   }
 }
