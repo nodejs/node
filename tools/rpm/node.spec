@@ -15,14 +15,14 @@
 # This is updated by rpmbuild.sh.
 %define _version 0.10.12
 
-Name: node
+Name: iojs
 Version: %{_version}
 Release: 1
-Summary: Node.js is a platform for building fast, scalable network applications.
+Summary: io.js is a platform for building fast, scalable network applications.
 Group: Development/Languages
 License: MIT
-URL: http://nodejs.org/
-Source0: http://nodejs.org/dist/v%{_version}/node-v%{_version}.tar.gz
+URL: http://iojs.org/
+Source0: http://iojs.org/dist/v%{_version}/iojs-v%{_version}.tar.gz
 BuildRequires: gcc
 BuildRequires: gcc-c++
 BuildRequires: glibc-devel
@@ -37,10 +37,10 @@ Conflicts: nodejs
 
 
 %description
-Node.js is a platform built on Chrome's JavaScript runtime for easily
+io.js is a platform built on Chrome's JavaScript runtime for easily
 building fast, scalable network applications.
 
-Node.js uses an event-driven, non-blocking I/O model that makes it
+io.js uses an event-driven, non-blocking I/O model that makes it
 lightweight and efficient, perfect for data-intensive real-time
 applications that run across distributed devices.
 
@@ -71,10 +71,10 @@ make %{?_smp_mflags}
 
 
 # Use mildly hard-coded paths in the install and files targets for now.
-# _libdir is /usr/lib64 on some systems but the node.js installer always
-# installs to /usr/lib. I have commits sitting in a branch that add --libdir
-# and --mandir configure switches to the node.js configure script but it's
-# debatable if it's worth the extra complexity.
+# _libdir is /usr/lib64 on some systems but the installer always installs
+# to /usr/lib.  I have commits sitting in a branch that add --libdir and
+# --mandir configure switches to the configure script but it's debatable
+# if it's worth the extra complexity.
 %install
 export DONT_STRIP=1  # Don't strip debug symbols for now.
 make install DESTDIR=%{buildroot}
@@ -100,5 +100,8 @@ done
 
 
 %changelog
+* Thu Dec 4 2014 Ben Noordhuis <info@bnoordhuis.nl>
+- Rename to iojs.
+
 * Fri Jul 5 2013 Ben Noordhuis <info@bnoordhuis.nl>
 - Initial release.
