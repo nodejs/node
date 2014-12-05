@@ -120,7 +120,7 @@ Resources for Newcomers
   - [iojs.org](http://iojs.org)
   - [nodejs.org](http://nodejs.org/)
   - [how to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
-  - [list of node modules](https://github.com/joyent/node/wiki/modules)
+  - [list of modules](https://github.com/joyent/node/wiki/modules)
   - [searching the npm registry](http://npmjs.org/)
   - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
   - [node.js mailing list](http://groups.google.com/group/nodejs)
