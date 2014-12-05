@@ -127,5 +127,5 @@ Resources for Newcomers
   - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
   - [node community](https://github.com/joyent/node/wiki/Community)
   - [contributing](https://github.com/io.js/iojs/wiki/Contributing)
-  - - [big list of all the helpful wiki pages](https://github.com/joynet/node/wiki/_pages)
+  - [big list of all the helpful wiki pages](https://github.com/joynet/node/wiki/_pages)
   - [big list of all the helpful wiki pages](https://github.com/io.js/iojs/wiki/_pages)
