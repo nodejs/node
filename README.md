@@ -124,5 +124,5 @@ Resources for Newcomers
   - [node.js mailing list](http://groups.google.com/group/nodejs)
   - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
   - [community](https://github.com/iojs/io.js/wiki/Community)
-  - [contributing]https://github.com/iojs/io.js/wiki/Contributing)
+  - [contributing](https://github.com/iojs/io.js/wiki/Contributing)
   - [big list of all the helpful wiki pages](https://github.com/iojs/io.js/wiki/_pages)
