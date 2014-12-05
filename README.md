@@ -5,11 +5,11 @@ Evented I/O for V8 javascript.
 
 Prerequisites (Unix only):
 
-    * `gcc` and `g++` 4.8 or newer, or
-    * `clang` and `clang++` 3.3 or newer
-    * Python 2.6 or 2.7
-    * GNU Make 3.81 or newer
-    * libexecinfo (FreeBSD and OpenBSD only)
+ * `gcc` and `g++` 4.8 or newer, or
+ * `clang` and `clang++` 3.3 or newer
+ * Python 2.6 or 2.7
+ * GNU Make 3.81 or newer
+ * libexecinfo (FreeBSD and OpenBSD only)
 
 Unix/Macintosh:
 
@@ -31,9 +31,9 @@ make install
 
 Prerequisites (Windows only):
 
-    * Python 2.6 or 2.7
-    * Visual Studio 2013 for Windows Desktop, or
-    * Visual Studio Express 2013 for Windows Desktop
+ * Python 2.6 or 2.7
+ * Visual Studio 2013 for Windows Desktop, or
+ * Visual Studio Express 2013 for Windows Desktop
 
 Windows:
 
@@ -116,13 +116,13 @@ vcbuild full-icu
 Resources for Newcomers
 ---
   - [The Wiki](https://github.com/joyent/node/wiki)
-  - [nodejs.org](http://nodejs.org/)
-  - [how to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
-  - [list of modules](https://github.com/joyent/node/wiki/modules)
-  - [searching the npm registry](http://npmjs.org/)
-  - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
-  - [node.js mailing list](http://groups.google.com/group/nodejs)
+  - [Nodejs.org](http://nodejs.org/)
+  - [How to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
+  - [List of modules](https://github.com/joyent/node/wiki/modules)
+  - [Searching the npm registry](http://npmjs.org/)
+  - [List of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
+  - [Node.js mailing list](http://groups.google.com/group/nodejs)
   - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
-  - [community](https://github.com/joyent/node/wiki/Community)
-  - [contributing](https://github.com/joyent/node/wiki/Contributing)
-  - [big list of all the helpful wiki pages](https://github.com/joyent/node/wiki/_pages)
+  - [Community](https://github.com/joyent/node/wiki/Community)
+  - [Contributing](https://github.com/joyent/node/wiki/Contributing)
+  - [Big list of all the helpful wiki pages](https://github.com/joyent/node/wiki/_pages)
