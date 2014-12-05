@@ -28,7 +28,7 @@ you can also pass arguments to the callback.
 
 ## clearInterval(intervalObject)
 
-Stops a interval from triggering.
+Stops an interval from triggering.
 
 ## unref()
 

@@ -197,7 +197,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     SecureContext). If `SNICallback` wasn't provided - default callback with
     high-level API will be used (see below).
 
-  - `sessionIdContext`: A string containing a opaque identifier for session
+  - `sessionIdContext`: A string containing an opaque identifier for session
     resumption. If `requestCert` is `true`, the default is MD5 hash value
     generated from command-line. Otherwise, the default is not provided.
 
@@ -421,7 +421,7 @@ connections using TLS or SSL.
 `function (cleartextStream) {}`
 
 This event is emitted after a new connection has been successfully
-handshaked. The argument is a instance of [CleartextStream][]. It has all the
+handshaked. The argument is an instance of [CleartextStream][]. It has all the
 common stream methods and events.
 
 `cleartextStream.authorized` is a boolean value which indicates if the
