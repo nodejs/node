@@ -84,6 +84,20 @@ allows that to be increased. Set to zero for unlimited.
 
 Returns emitter, so calls can be chained.
 
+### emitter.getMaxListeners()
+
+Returns the current max listener value for the emitter which is either set by
+`emitter.setMaxListeners(n)` or defaults to `EventEmitter.defaultMaxListeners`.
+
+This can be useful to increment/decrement max listeners to avoid the warning
+while not being irresponsible and setting a too big number.
+
+    emitter.setMaxListeners(emitter.getMaxListeners() + 1);
+    emitter.once('event', function () {
+      // do stuff
+      emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
+    });
+
 ### EventEmitter.defaultMaxListeners
 
 `emitter.setMaxListeners(n)` sets the maximum on a per-instance basis.
