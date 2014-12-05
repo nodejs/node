@@ -123,7 +123,12 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
     uv_spinlock_unlock(&termios_spinlock);
 
     raw = tty->orig_termios;
-    cfmakeraw(&raw);
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag |= (ONLCR);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
 
     /* Put terminal in raw mode after draining */
     if (tcsetattr(fd, TCSADRAIN, &raw))
