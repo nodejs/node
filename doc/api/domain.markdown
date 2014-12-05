@@ -1,6 +1,9 @@
 # Domain
 
-    Stability: 2 - Unstable
+    Stability: 0 - Deprecated
+
+**IMPORTANT:** The domain module is deprecated and may be removed in
+the future.
 
 Domains provide a way to handle multiple different IO operations as a
 single group.  If any of the event emitters or callbacks registered to a
