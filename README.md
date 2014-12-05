@@ -116,13 +116,11 @@ vcbuild full-icu
 Resources for Newcomers
 ---
   - [The Wiki](https://github.com/iojs/io.js/wiki)
-  - [nodejs.org](http://iojs.org/)
+  - [iojs.org](http://iojs.org/)
   - [how to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
-  - [list of modules](https://github.com/joyent/node/wiki/modules)
   - [searching the npm registry](http://npmjs.org/)
-  - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
-  - [node.js mailing list](http://groups.google.com/group/nodejs)
-  - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
+  - [io.js mailing list](http://groups.google.com/group/iojs)
+  - irc chatroom, [#io.js on freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
   - [community](https://github.com/iojs/io.js/wiki/Community)
   - [contributing](https://github.com/iojs/io.js/wiki/Contributing)
   - [big list of all the helpful wiki pages](https://github.com/iojs/io.js/wiki/_pages)
