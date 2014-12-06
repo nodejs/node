@@ -328,11 +328,23 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       return env->ThrowError("SSLv2 methods disabled");
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_method();
+#else
+      return env->ThrowError("SSLv3 methods disabled");
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_server_method();
+#else
+      return env->ThrowError("SSLv3 methods disabled");
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_client_method();
+#else
+      return env->ThrowError("SSLv3 methods disabled");
+#endif
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
