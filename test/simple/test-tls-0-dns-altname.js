@@ -47,7 +47,12 @@ var server = tls.createServer({
   }, function() {
     requests++;
     var cert = c.getPeerCertificate();
-    assert.equal(cert.subjectaltname, 'DNS:google.com\0.evil.com');
+    assert.equal(cert.subjectaltname,
+                 'DNS:google.com\0.evil.com, ' +
+                     'DNS:just-another.com, ' +
+                     'IP Address:8.8.8.8, '+
+                     'IP Address:8.8.4.4, '+
+                     'DNS:last.com');
     c.write('ok');
   });
 });

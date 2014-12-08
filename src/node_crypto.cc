@@ -1144,6 +1144,9 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
   for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
     GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
 
+    if (i != 0)
+      BIO_write(out, ", ", 2);
+
     if (gen->type == GEN_DNS) {
       ASN1_IA5STRING* name = gen->d.dNSName;
 
