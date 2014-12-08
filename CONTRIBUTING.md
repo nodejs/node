@@ -432,10 +432,11 @@ Note that changes to TC membership require unanimous consensus.  See
 
 ## Caine's requirements
 
-Hello! I am pleased to see your valuable contribution to this project.
-Would you please mind answering a couple of questions to help me
-classify this submission and/or gather required information for the
-core team members?
+Hello!
+
+I am pleased to see your valuable contribution to this project. Would you
+please mind answering a couple of questions to help me classify this submission
+and/or gather required information for the core team members?
 
 ### Questions:
 
@@ -446,7 +447,7 @@ core team members?
   likely not a io.js problem. _Expected: `yes`_
 * Which part of core do you think it might be related to?
   _One of: `tls, crypto, buffer, http, https, assert, util, streams,
-  smalloc, cluster, child_process, dgram, c++, other`_ (_label_)
+  smalloc, cluster, child_process, dgram, c++, docs, other`_ (_label_)
 * Which versions of io.js do you think are affected by this?
   _One of: `v0.10, v0.12, v1.0.0`_ (_label_)
 * _PR-only_ Does `make test` pass after applying this Pull Request.
