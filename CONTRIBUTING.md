@@ -446,8 +446,10 @@ and/or gather required information for the core team members?
   If the error is not reproducible with just core modules - it is most
   likely not a io.js problem. _Expected: `yes`_
 * Which part of core do you think it might be related to?
-  _One of: `tls, crypto, buffer, http, https, assert, util, streams,
-  smalloc, cluster, child_process, dgram, c++, docs, other`_ (_label_)
+  _One of: `debugger, http, assert, buffer, child_process, cluster, crypto,
+  dgram, dns, domain, events, fs, http, https, module, net, os, path,
+  querystring, readline, repl, smalloc, stream, timers, tls, url, util, vm,
+  zlib, c++, docs, other`_ (_label_)
 * Which versions of io.js do you think are affected by this?
   _One of: `v0.10, v0.12, v1.0.0`_ (_label_)
 * _PR-only_ Does `make test` pass after applying this Pull Request.
