@@ -27,9 +27,9 @@ var completed = 0;
 var expected_tests = 4;
 
 // test creating and reading symbolic link
-var linkData = path.join(common.fixturesDir, 'cycles/');
+var linkData = path.join(common.fixturesDir, 'cycles');
 var linkPath = path.join(common.tmpDir, 'cycles_link');
-var relative = '../fixtures/cycles'
+var relative = '../fixtures/cycles';
 
 // Delete previously created link
 try {
@@ -51,7 +51,7 @@ fs.symlink(relative, linkPath, 'junction', function(err) {
 
     fs.readlink(linkPath, function(err, destination) {
       if (err) throw err;
-      assert.equal(destination, linkData);
+      assert.equal(path.resolve(destination), linkData);
       completed++;
 
       fs.unlink(linkPath, function(err) {
