@@ -84,7 +84,11 @@ class AsyncWrap : public BaseObject {
  private:
   inline AsyncWrap();
 
-  uint32_t provider_type_;
+  // When the async hooks init JS function is called from the constructor it is
+  // expected the context object will receive a _asyncQueue object property
+  // that will be used to call pre/post in MakeCallback.
+  bool has_async_queue_;
+  ProviderType provider_type_;
 };
 
 }  // namespace node
