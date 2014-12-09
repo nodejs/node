@@ -63,7 +63,8 @@ class AsyncWrap : public BaseObject {
 
   inline AsyncWrap(Environment* env,
                    v8::Handle<v8::Object> object,
-                   ProviderType provider);
+                   ProviderType provider,
+                   AsyncWrap* parent = nullptr);
 
   inline virtual ~AsyncWrap() override = default;
 

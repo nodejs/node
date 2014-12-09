@@ -22,6 +22,7 @@
 #ifndef SRC_TCP_WRAP_H_
 #define SRC_TCP_WRAP_H_
 
+#include "async-wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
 
@@ -29,7 +30,7 @@ namespace node {
 
 class TCPWrap : public StreamWrap {
  public:
-  static v8::Local<v8::Object> Instantiate(Environment* env);
+  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
@@ -37,7 +38,7 @@ class TCPWrap : public StreamWrap {
   uv_tcp_t* UVHandle();
 
  private:
-  TCPWrap(Environment* env, v8::Handle<v8::Object> object);
+  TCPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
   ~TCPWrap();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

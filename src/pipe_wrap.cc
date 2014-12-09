@@ -21,6 +21,7 @@
 
 #include "pipe_wrap.h"
 
+#include "async-wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -37,6 +38,7 @@ namespace node {
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -74,12 +76,13 @@ uv_pipe_t* PipeWrap::UVHandle() {
 }
 
 
-Local<Object> PipeWrap::Instantiate(Environment* env) {
+Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope handle_scope(env->isolate());
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
-  Local<Object> instance = constructor->NewInstance();
+  Local<Value> ptr = External::New(env->isolate(), parent);
+  Local<Object> instance = constructor->NewInstance(1, &ptr);
   CHECK_EQ(false, instance.IsEmpty());
   return handle_scope.Escape(instance);
 }
@@ -147,15 +150,24 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  new PipeWrap(env, args.This(), args[0]->IsTrue());
+  if (args[0]->IsExternal()) {
+    void* ptr = args[0].As<External>()->Value();
+    new PipeWrap(env, args.This(), false, static_cast<AsyncWrap*>(ptr));
+  } else {
+    new PipeWrap(env, args.This(), args[0]->IsTrue(), nullptr);
+  }
 }
 
 
-PipeWrap::PipeWrap(Environment* env, Handle<Object> object, bool ipc)
+PipeWrap::PipeWrap(Environment* env,
+                   Handle<Object> object,
+                   bool ipc,
+                   AsyncWrap* parent)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_PIPEWRAP) {
+                 AsyncWrap::PROVIDER_PIPEWRAP,
+                 parent) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
@@ -214,7 +226,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   }
 
   // Instanciate the client javascript object and handle.
-  Local<Object> client_obj = Instantiate(env);
+  Local<Object> client_obj = Instantiate(env, pipe_wrap);
 
   // Unwrap the client javascript object.
   PipeWrap* wrap = Unwrap<PipeWrap>(client_obj);
