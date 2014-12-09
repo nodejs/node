@@ -2071,12 +2071,12 @@ struct node_module* get_builtin_module(const char* name) {
 struct node_module* get_linked_module(const char* name) {
   struct node_module* mp;
 
-  for (mp = modlist_linked; mp != NULL; mp = mp->nm_link) {
+  for (mp = modlist_linked; mp != nullptr; mp = mp->nm_link) {
     if (strcmp(mp->nm_modname, name) == 0)
       break;
   }
 
-  CHECK(mp == NULL || (mp->nm_flags & NM_F_LINKED) != 0);
+  CHECK(mp == nullptr || (mp->nm_flags & NM_F_LINKED) != 0);
   return mp;
 }
 
@@ -2298,7 +2298,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value module_v(module);
   node_module* mod = get_linked_module(*module_v);
 
-  if (mod == NULL) {
+  if (mod == nullptr) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
@@ -2309,12 +2309,12 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> exports = Object::New(env->isolate());
 
-  if (mod->nm_context_register_func != NULL) {
+  if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(exports,
                                   module,
                                   env->context(),
                                   mod->nm_priv);
-  } else if (mod->nm_register_func != NULL) {
+  } else if (mod->nm_register_func != nullptr) {
     mod->nm_register_func(exports, module, mod->nm_priv);
   } else {
     return env->ThrowError("Linked module has no declared entry point.");
