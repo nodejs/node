@@ -51,10 +51,8 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     int argc,
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(symbol);
-  v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  CHECK(cb->IsFunction());
-
-  return MakeCallback(cb, argc, argv);
+  CHECK(cb_v->IsFunction());
+  return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 
 
@@ -63,10 +61,8 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
     int argc,
     v8::Handle<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(index);
-  v8::Local<v8::Function> cb = cb_v.As<v8::Function>();
-  CHECK(cb->IsFunction());
-
-  return MakeCallback(cb, argc, argv);
+  CHECK(cb_v->IsFunction());
+  return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 
 }  // namespace node
