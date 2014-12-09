@@ -947,7 +947,7 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
    *
    * Currently it's based on whether the 'readonly' attribute is set, which
    * makes little sense because the semantics are so different: the 'read-only'
-   * flag is just a way for a user to protect against accidental deleteion, and
+   * flag is just a way for a user to protect against accidental deletion, and
    * serves no security purpose. Windows uses ACLs for that.
    *
    * Also people now use uv_fs_chmod() to take away the writable bit for good
@@ -956,7 +956,7 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
    * deleted.
    *
    * IOW it's all just a clusterfuck and we should think of something that
-   * makes slighty more sense.
+   * makes slightly more sense.
    *
    * And uv_fs_chmod should probably just fail on windows or be a total no-op.
    * There's nothing sensible it can do anyway.

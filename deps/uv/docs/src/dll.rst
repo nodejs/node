@@ -4,7 +4,7 @@
 Shared library handling
 =======================
 
-libuv prodives cross platform utilities for loading shared libraries and
+libuv provides cross platform utilities for loading shared libraries and
 retrieving symbols from them, using the following API.
 
 

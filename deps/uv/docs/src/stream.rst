@@ -62,7 +62,7 @@ Data types
 
     Callback called when a stream server has received an incoming connection.
     The user can accept the connection by calling :c:func:`uv_accept`.
-    `status` will de 0 in case of success, < 0 otherwise.
+    `status` will be 0 in case of success, < 0 otherwise.
 
 
 Public members
@@ -200,7 +200,7 @@ API
     When blocking mode is enabled all writes complete synchronously. The
     interface remains unchanged otherwise, e.g. completion or failure of the
     operation will still be reported through a callback which is made
-    asychronously.
+    asynchronously.
 
     .. warning::
         Relying too much on this API is not recommended. It is likely to change

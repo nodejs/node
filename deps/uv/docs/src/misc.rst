@@ -1,10 +1,10 @@
 
 .. _misc:
 
-Miscelaneous utilities
+Miscellaneous utilities
 ======================
 
-This section contains miscelaneous functions that don't really belong in any
+This section contains miscellaneous functions that don't really belong in any
 other section.
 
 
@@ -186,11 +186,11 @@ API
 
 .. c:function:: int uv_ip4_name(const struct sockaddr_in* src, char* dst, size_t size)
 
-    Convert a binary structure containing an IPv4 addres to a string.
+    Convert a binary structure containing an IPv4 address to a string.
 
 .. c:function:: int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size)
 
-    Convert a binary structure containing an IPv6 addres to a string.
+    Convert a binary structure containing an IPv6 address to a string.
 
 .. c:function:: int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
 .. c:function:: int uv_inet_pton(int af, const char* src, void* dst)

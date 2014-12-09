@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <stdarg.h>
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
@@ -441,4 +442,17 @@ int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
 #endif
 
   return 0;
+}
+
+
+int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...) {
+  va_list ap;
+  int err;
+
+  va_start(ap, option);
+  /* Any platform-agnostic options should be handled here. */
+  err = uv__loop_configure(loop, option, ap);
+  va_end(ap);
+
+  return err;
 }
