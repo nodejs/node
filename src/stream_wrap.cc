@@ -43,6 +43,7 @@ using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
@@ -54,6 +55,27 @@ using v8::String;
 using v8::True;
 using v8::Undefined;
 using v8::Value;
+
+
+void StreamWrap::Initialize(Handle<Object> target,
+                         Handle<Value> unused,
+                         Handle<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
+
+  Local<FunctionTemplate> sw =
+      FunctionTemplate::New(env->isolate(), ShutdownWrap::NewShutdownWrap);
+  sw->InstanceTemplate()->SetInternalFieldCount(1);
+  sw->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"),
+              sw->GetFunction());
+
+  Local<FunctionTemplate> ww =
+      FunctionTemplate::New(env->isolate(), WriteWrap::NewWriteWrap);
+  ww->InstanceTemplate()->SetInternalFieldCount(1);
+  ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
+              ww->GetFunction());
+}
 
 
 StreamWrap::StreamWrap(Environment* env,
@@ -87,6 +109,7 @@ void StreamWrap::UpdateWriteQueueSize() {
       Integer::NewFromUnsigned(env()->isolate(), stream()->write_queue_size);
   object()->Set(env()->write_queue_size_string(), write_queue_size);
 }
+
 
 void StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
   StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
@@ -564,9 +587,7 @@ void StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
-  ShutdownWrap* req_wrap = new ShutdownWrap(env,
-                                            req_wrap_obj,
-                                            AsyncWrap::PROVIDER_SHUTDOWNWRAP);
+  ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj);
   int err = wrap->callbacks()->DoShutdown(req_wrap, AfterShutdown);
   req_wrap->Dispatched();
   if (err)
@@ -752,3 +773,5 @@ int StreamWrapCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
 }
 
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(stream_wrap, node::StreamWrap::Initialize)

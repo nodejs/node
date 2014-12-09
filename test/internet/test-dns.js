@@ -632,8 +632,9 @@ var getaddrinfoCallbackCalled = false;
 
 console.log('looking up nodejs.org...');
 
-var req = {};
-var err = process.binding('cares_wrap').getaddrinfo(req, 'nodejs.org', 4);
+var cares = process.binding('cares_wrap');
+var req = new cares.GetAddrInfoReqWrap();
+var err = cares.getaddrinfo(req, 'nodejs.org', 4);
 
 req.oncomplete = function(err, domains) {
   assert.strictEqual(err, 0);

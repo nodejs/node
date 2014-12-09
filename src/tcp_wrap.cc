@@ -52,7 +52,22 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
-typedef class ReqWrap<uv_connect_t> ConnectWrap;
+
+class TCPConnectWrap : public ReqWrap<uv_connect_t> {
+ public:
+  TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+};
+
+
+TCPConnectWrap::TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPWRAP) {
+  Wrap<TCPConnectWrap>(req_wrap_obj, this);
+}
+
+
+static void NewTCPConnectWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
 
 
 Local<Object> TCPWrap::Instantiate(Environment* env) {
@@ -129,6 +144,14 @@ void TCPWrap::Initialize(Handle<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"), t->GetFunction());
   env->set_tcp_constructor_template(t);
+
+  // Create FunctionTemplate for TCPConnectWrap.
+  Local<FunctionTemplate> cwt =
+      FunctionTemplate::New(env->isolate(), NewTCPConnectWrap);
+  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
+              cwt->GetFunction());
 }
 
 
@@ -319,7 +342,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
 
 
 void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
-  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  TCPConnectWrap* req_wrap = static_cast<TCPConnectWrap*>(req->data);
   TCPWrap* wrap = static_cast<TCPWrap*>(req->handle->data);
   CHECK_EQ(req_wrap->env(), wrap->env());
   Environment* env = wrap->env();
@@ -363,9 +386,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    ConnectWrap* req_wrap = new ConnectWrap(env,
-                                            req_wrap_obj,
-                                            AsyncWrap::PROVIDER_CONNECTWRAP);
+    TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
@@ -396,9 +417,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    ConnectWrap* req_wrap = new ConnectWrap(env,
-                                            req_wrap_obj,
-                                            AsyncWrap::PROVIDER_CONNECTWRAP);
+    TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
