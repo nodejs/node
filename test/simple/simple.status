@@ -1,1 +1,4 @@
 prefix simple
+
+[$system==linux]
+test-net-GH-5504                  : PASS,FLAKY
