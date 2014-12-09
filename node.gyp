@@ -64,6 +64,7 @@
       'lib/tty.js',
       'lib/url.js',
       'lib/util.js',
+      'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
     ],
