@@ -146,6 +146,11 @@ enum {
   UV_HANDLE_IPV6          = 0x10000 /* Handle is bound to a IPv6 socket. */
 };
 
+/* loop flags */
+enum {
+  UV_LOOP_BLOCK_SIGPROF = 1
+};
+
 typedef enum {
   UV_CLOCK_PRECISE = 0,  /* Use the highest resolution clock available. */
   UV_CLOCK_FAST = 1      /* Use the fastest clock with <= 1ms granularity. */

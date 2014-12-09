@@ -182,10 +182,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
     len += service_len;
   }
 
-  if (hostname) {
+  if (hostname)
     req->hostname = memcpy(buf + len, hostname, hostname_len);
-    len += hostname_len;
-  }
 
   uv__work_submit(loop,
                   &req->work_req,

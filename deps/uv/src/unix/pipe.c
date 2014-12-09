@@ -44,13 +44,10 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un saddr;
   const char* pipe_fname;
   int sockfd;
-  int bound;
   int err;
 
   pipe_fname = NULL;
   sockfd = -1;
-  bound = 0;
-  err = -EINVAL;
 
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
@@ -83,7 +80,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
       err = -EACCES;
     goto out;
   }
-  bound = 1;
 
   /* Success. */
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
@@ -91,11 +87,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   return 0;
 
 out:
-  if (bound) {
-    /* unlink() before uv__close() to avoid races. */
-    assert(pipe_fname != NULL);
-    unlink(pipe_fname);
-  }
+  /* unlink() before uv__close() to avoid races. */
+  assert(pipe_fname != NULL);
+  unlink(pipe_fname);
   uv__close(sockfd);
   free((void*)pipe_fname);
   return err;
@@ -158,7 +152,6 @@ void uv_pipe_connect(uv_connect_t* req,
   int r;
 
   new_sock = (uv__stream_fd(handle) == -1);
-  err = -EINVAL;
 
   if (new_sock) {
     err = uv__socket(AF_UNIX, SOCK_STREAM, 0);

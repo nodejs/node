@@ -22,6 +22,7 @@
 #ifndef RUNNER_H_
 #define RUNNER_H_
 
+#include <limits.h> /* PATH_MAX */
 #include <stdio.h> /* FILE */
 
 
@@ -83,8 +84,11 @@ typedef struct {
 #define TEST_HELPER       HELPER_ENTRY
 #define BENCHMARK_HELPER  HELPER_ENTRY
 
-#define PATHMAX 1024
-extern char executable_path[PATHMAX];
+#ifdef PATH_MAX
+extern char executable_path[PATH_MAX];
+#else
+extern char executable_path[4096];
+#endif
 
 /*
  * Include platform-dependent definitions
@@ -130,7 +134,7 @@ void print_tests(FILE* stream);
  */
 
 /* Do platform-specific initialization. */
-void platform_init(int argc, char** argv);
+int platform_init(int argc, char** argv);
 
 /* Invoke "argv[0] test-name [test-part]". Store process info in *p. */
 /* Make sure that all stdio output of the processes is buffered up. */

@@ -28,6 +28,7 @@
 #define UV_COMMON_H_
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -58,6 +59,8 @@ enum {
 # define UV__HANDLE_REF       0x20
 # define UV__HANDLE_CLOSING   0x01
 #endif
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
 
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,

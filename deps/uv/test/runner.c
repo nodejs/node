@@ -26,7 +26,7 @@
 #include "task.h"
 #include "uv.h"
 
-char executable_path[PATHMAX] = { '\0' };
+char executable_path[sizeof(executable_path)];
 
 int tap_output = 0;
 

@@ -549,7 +549,6 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   if (server->accepted_fd == -1)
     return -EAGAIN;
 
-  err = 0;
   switch (client->type) {
     case UV_NAMED_PIPE:
     case UV_TCP:
@@ -951,6 +950,7 @@ static void uv__stream_eof(uv_stream_t* stream, const uv_buf_t* buf) {
     uv__handle_stop(stream);
   uv__stream_osx_interrupt_select(stream);
   stream->read_cb(stream, UV_EOF, buf);
+  stream->flags &= ~UV_STREAM_READING;
 }
 
 
@@ -1117,8 +1117,13 @@ static void uv__read(uv_stream_t* stream) {
       } else {
         /* Error. User should call uv_close(). */
         stream->read_cb(stream, -errno, &buf);
-        assert(!uv__io_active(&stream->io_watcher, UV__POLLIN) &&
-               "stream->read_cb(status=-1) did not call uv_close()");
+        if (stream->flags & UV_STREAM_READING) {
+          stream->flags &= ~UV_STREAM_READING;
+          uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLIN);
+          if (!uv__io_active(&stream->io_watcher, UV__POLLOUT))
+            uv__handle_stop(stream);
+          uv__stream_osx_interrupt_select(stream);
+        }
       }
       return;
     } else if (nread == 0) {
@@ -1319,7 +1324,7 @@ int uv_write2(uv_write_t* req,
   /* It's legal for write_queue_size > 0 even when the write_queue is empty;
    * it means there are error-state requests in the write_completed_queue that
    * will touch up write_queue_size later, see also uv__write_req_finish().
-   * We chould check that write_queue is empty instead but that implies making
+   * We could check that write_queue is empty instead but that implies making
    * a write() syscall when we know that the handle is in error mode.
    */
   empty_queue = (stream->write_queue_size == 0);
@@ -1471,15 +1476,8 @@ int uv_read_start(uv_stream_t* stream,
 
 
 int uv_read_stop(uv_stream_t* stream) {
-  /* Sanity check. We're going to stop the handle unless it's primed for
-   * writing but that means there should be some kind of write action in
-   * progress.
-   */
-  assert(!uv__io_active(&stream->io_watcher, UV__POLLOUT) ||
-         !QUEUE_EMPTY(&stream->write_completed_queue) ||
-         !QUEUE_EMPTY(&stream->write_queue) ||
-         stream->shutdown_req != NULL ||
-         stream->connect_req != NULL);
+  if (!(stream->flags & UV_STREAM_READING))
+    return 0;
 
   stream->flags &= ~UV_STREAM_READING;
   uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLIN);

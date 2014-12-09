@@ -100,7 +100,7 @@ static NOINLINE void uv__once_inner(uv_once_t* guard,
 
   } else {
     /* We lost the race. Destroy the event we created and wait for the */
-    /* existing one todv become signaled. */
+    /* existing one to become signaled. */
     CloseHandle(created_event);
     result = WaitForSingleObject(existing_event, INFINITE);
     assert(result == WAIT_OBJECT_0);
@@ -155,7 +155,7 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->arg = arg;
 
   /* Create the thread in suspended state so we have a chance to pass
-   * its own creation handle to it */
+   * its own creation handle to it */   
   thread = (HANDLE) _beginthreadex(NULL,
                                    0,
                                    uv__thread_start,
