@@ -1,5 +1,6 @@
 var common = require('../common.js');
 var url = require('url');
+var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
   type: 'one two three four five six'.split(' '),
@@ -19,6 +20,14 @@ function main(conf) {
     six: 'https://user:pass@example.com/',
   };
   var input = inputs[type] || '';
+
+  // Force-optimize url.parse() so that the benchmark doesn't get
+  // disrupted by the optimizer kicking in halfway through.
+  for (var name in inputs)
+    url.parse(inputs[name]);
+
+  v8.setFlagsFromString('--allow_natives_syntax');
+  eval('%OptimizeFunctionOnNextCall(url.parse)');
 
   bench.start();
   for (var i = 0; i < n; i += 1)
