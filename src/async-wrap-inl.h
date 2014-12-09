@@ -37,30 +37,12 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             v8::Handle<v8::Object> object,
                             ProviderType provider)
     : BaseObject(env, object),
-      async_flags_(NO_OPTIONS),
       provider_type_(provider) {
-  if (!env->has_async_listener())
-    return;
-
-  // TODO(trevnorris): Do we really need to TryCatch this call?
-  v8::TryCatch try_catch;
-  try_catch.SetVerbose(true);
-
-  v8::Local<v8::Value> val = object.As<v8::Value>();
-  env->async_listener_run_function()->Call(env->process_object(), 1, &val);
-
-  if (!try_catch.HasCaught())
-    async_flags_ |= HAS_ASYNC_LISTENER;
 }
 
 
 inline uint32_t AsyncWrap::provider_type() const {
   return provider_type_;
-}
-
-
-inline bool AsyncWrap::has_async_listener() {
-  return async_flags_ & HAS_ASYNC_LISTENER;
 }
 
 
@@ -78,14 +60,6 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
 
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-
-  if (has_async_listener()) {
-    v8::Local<v8::Value> val = context.As<v8::Value>();
-    env()->async_listener_load_function()->Call(process, 1, &val);
-
-    if (try_catch.HasCaught())
-      return v8::Undefined(env()->isolate());
-  }
 
   bool has_domain = domain_v->IsObject();
   if (has_domain) {
@@ -117,14 +91,6 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeDomainCallback(
       if (try_catch.HasCaught())
         return Undefined(env()->isolate());
     }
-  }
-
-  if (has_async_listener()) {
-    v8::Local<v8::Value> val = context.As<v8::Value>();
-    env()->async_listener_unload_function()->Call(process, 1, &val);
-
-    if (try_catch.HasCaught())
-      return Undefined(env()->isolate());
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
@@ -172,26 +138,10 @@ inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  if (has_async_listener()) {
-    v8::Local<v8::Value> val = context.As<v8::Value>();
-    env()->async_listener_load_function()->Call(process, 1, &val);
-
-    if (try_catch.HasCaught())
-      return v8::Undefined(env()->isolate());
-  }
-
   v8::Local<v8::Value> ret = cb->Call(context, argc, argv);
 
   if (try_catch.HasCaught()) {
     return Undefined(env()->isolate());
-  }
-
-  if (has_async_listener()) {
-    v8::Local<v8::Value> val = context.As<v8::Value>();
-    env()->async_listener_unload_function()->Call(process, 1, &val);
-
-    if (try_catch.HasCaught())
-      return v8::Undefined(env()->isolate());
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
