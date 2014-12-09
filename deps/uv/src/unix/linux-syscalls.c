@@ -21,6 +21,7 @@
 
 #include "linux-syscalls.h"
 #include <unistd.h>
+#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -298,7 +299,7 @@ int uv__epoll_pwait(int epfd,
                  nevents,
                  timeout,
                  sigmask,
-                 sizeof(*sigmask));
+                 _NSIG / 8);
 #else
   return errno = ENOSYS, -1;
 #endif

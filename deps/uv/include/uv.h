@@ -226,6 +226,16 @@ typedef struct uv_work_s uv_work_t;
 typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 
+typedef enum {
+  /* Block a signal when polling for new events.  The second argument to
+   * uv_loop_configure() is the signal number.
+   *
+   * This operation is currently only implemented for SIGPROF signals,
+   * to suppress unnecessary wakeups when using a sampling profiler.
+   * Requesting other signals will fail with UV_EINVAL.
+   */
+  UV_LOOP_BLOCK_SIGNAL
+} uv_loop_option;
 
 typedef enum {
   UV_RUN_DEFAULT = 0,
@@ -263,6 +273,15 @@ UV_EXTERN void uv_loop_delete(uv_loop_t*);
  * Returns the default loop.
  */
 UV_EXTERN uv_loop_t* uv_default_loop(void);
+
+/*
+ * Set additional loop options.  You should normally call this before the
+ * first call to uv_run() unless mentioned otherwise.
+ *
+ * Returns 0 on success or a UV_E* error code on failure.  Be prepared to
+ * handle UV_ENOSYS; it means the loop option is not supported by the platform.
+ */
+UV_EXTERN int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...);
 
 /*
  * This function runs the event loop. It will act differently depending on the

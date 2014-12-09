@@ -112,3 +112,15 @@ void uv__loop_delete(uv_loop_t* loop) {
   loop->watchers = NULL;
   loop->nwatchers = 0;
 }
+
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
+  if (option != UV_LOOP_BLOCK_SIGNAL)
+    return UV_ENOSYS;
+
+  if (va_arg(ap, int) != SIGPROF)
+    return UV_EINVAL;
+
+  loop->flags |= UV_LOOP_BLOCK_SIGPROF;
+  return 0;
+}

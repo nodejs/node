@@ -67,8 +67,7 @@ TEST_IMPL(poll_closesocket) {
   r = ioctlsocket(sock, FIONBIO, &on);
   ASSERT(r == 0);
 
-  r = uv_ip4_addr("127.0.0.1", TEST_PORT, &addr);
-  ASSERT(r == 0);
+  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
 
   r = connect(sock, (const struct sockaddr*) &addr, sizeof addr);
   ASSERT(r != 0);

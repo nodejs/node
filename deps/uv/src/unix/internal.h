@@ -111,6 +111,11 @@ enum {
   UV_TCP_SINGLE_ACCEPT = 0x400  /* Only accept() when idle. */
 };
 
+/* loop flags */
+enum {
+  UV_LOOP_BLOCK_SIGPROF = 1
+};
+
 /* core */
 int uv__nonblock(int fd, int set);
 int uv__cloexec(int fd, int set);
