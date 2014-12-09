@@ -42,9 +42,6 @@
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
-    // Setup the tracing module
-    NativeModule.require('tracing')._nodeInitialization(process);
-
     // do this good and early, since it handles errors.
     startup.processFatal();
 
