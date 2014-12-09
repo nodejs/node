@@ -177,7 +177,8 @@ class StreamWrap : public HandleWrap {
   StreamWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_stream_t* stream,
-             AsyncWrap::ProviderType provider);
+             AsyncWrap::ProviderType provider,
+             AsyncWrap* parent = nullptr);
 
   ~StreamWrap() {
     if (!callbacks_gc_ && callbacks_ != &default_callbacks_) {
