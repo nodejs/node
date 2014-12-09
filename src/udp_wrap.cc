@@ -62,13 +62,19 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
 SendWrap::SendWrap(Environment* env,
                    Local<Object> req_wrap_obj,
                    bool have_callback)
-    : ReqWrap<uv_udp_send_t>(env, req_wrap_obj),
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
       have_callback_(have_callback) {
+  Wrap<SendWrap>(req_wrap_obj, this);
 }
 
 
 inline bool SendWrap::have_callback() const {
   return have_callback_;
+}
+
+
+static void NewSendWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
 }
 
 
@@ -120,6 +126,14 @@ void UDPWrap::Initialize(Handle<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
+
+  // Create FunctionTemplate for SendWrap
+  Local<FunctionTemplate> swt =
+      FunctionTemplate::New(env->isolate(), NewSendWrap);
+  swt->InstanceTemplate()->SetInternalFieldCount(1);
+  swt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"),
+              swt->GetFunction());
 }
 
 
