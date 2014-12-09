@@ -748,28 +748,28 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
     }
 
     case UCS2: {
-      const uint16_t* out = reinterpret_cast<const uint16_t*>(buf);
-      uint16_t* dst = nullptr;
-      if (IsBigEndian()) {
-        // Node's "ucs2" encoding expects LE character data inside a
-        // Buffer, so we need to reorder on BE platforms.  See
-        // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
-        // encoding specification
-        dst = new uint16_t[buflen / 2];
-        for (size_t i = 0; i < buflen / 2; i++) {
-          dst[i] = (out[i] << 8) | (out[i] >> 8);
-        }
-        out = dst;
+      // Node's "ucs2" encoding expects LE character data inside a
+      // Buffer, so we need to reorder on BE platforms.  See
+      // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+      // encoding specification.  Note that we have to make a copy
+      // to avoid pointer aliasing and unaligned access, something
+      // that we can't guarantee by just reinterpret_casting |buf|.
+      size_t srclen = buflen / 2;
+      uint16_t* src = new uint16_t[srclen];
+      for (size_t i = 0, k = 0; i < srclen; i += 1, k += 2) {
+        const uint8_t lo = static_cast<uint8_t>(buf[k + 0]);
+        const uint8_t hi = static_cast<uint8_t>(buf[k + 1]);
+        src[i] = lo | hi << 8;
       }
-      if (buflen < EXTERN_APEX)
+      if (buflen < EXTERN_APEX) {
         val = String::NewFromTwoByte(isolate,
-                                     out,
+                                     src,
                                      String::kNormalString,
-                                     buflen / 2);
-      else
-        val = ExternTwoByteString::NewFromCopy(isolate, out, buflen / 2);
-      if (dst)
-        delete[] dst;
+                                     srclen);
+      } else {
+        val = ExternTwoByteString::NewFromCopy(isolate, src, srclen);
+      }
+      delete[] src;
       break;
     }
 
