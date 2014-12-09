@@ -19,50 +19,48 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Test creating and resolving relative junction or symbolic link
+
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 var completed = 0;
-var expected_tests = 4;
+var expected_tests = 2;
 
-// test creating and reading symbolic link
-var linkData = path.join(common.fixturesDir, 'cycles');
-var linkPath = path.join(common.tmpDir, 'cycles_link');
-var relative = '../fixtures/cycles';
+var linkPath1 = path.join(common.tmpDir, 'junction1');
+var linkPath2 = path.join(common.tmpDir, 'junction2');
+var linkTarget = path.join(common.fixturesDir);
+var linkData = '../fixtures';
 
-// Delete previously created link
-try {
-  fs.unlinkSync(linkPath);
-} catch (e) {}
+// Prepare.
+try { fs.mkdirSync(common.tmpDir); } catch (e) {}
+try { fs.unlinkSync(linkPath1); } catch (e) {}
+try { fs.unlinkSync(linkPath2); } catch (e) {}
 
-console.log('linkData: ' + linkData);
-console.log('linkPath: ' + linkPath);
-console.log('relative target: ' + relative)
-
-fs.symlink(relative, linkPath, 'junction', function(err) {
+// Test fs.symlink()
+fs.symlink(linkData, linkPath1, 'junction', function(err) {
   if (err) throw err;
-  completed++;
-
-  fs.lstat(linkPath, function(err, stats) {
-    if (err) throw err;
-    assert.ok(stats.isSymbolicLink());
-    completed++;
-
-    fs.readlink(linkPath, function(err, destination) {
-      if (err) throw err;
-      assert.equal(path.resolve(destination), linkData);
-      completed++;
-
-      fs.unlink(linkPath, function(err) {
-        if (err) throw err;
-        assert(!fs.existsSync(linkPath));
-        assert(fs.existsSync(linkData));
-        completed++;
-      });
-    });
-  });
+  verifyLink(linkPath1);
 });
+
+// Test fs.symlinkSync()
+fs.symlinkSync(linkData, linkPath2, 'junction');
+verifyLink(linkPath2);
+
+function verifyLink(linkPath) {
+  var stats = fs.lstatSync(linkPath);
+  assert.ok(stats.isSymbolicLink());
+
+  var data1 = fs.readFileSync(linkPath + '/x.txt', 'ascii');
+  var data2 = fs.readFileSync(linkTarget + '/x.txt', 'ascii');
+  assert.strictEqual(data1, data2);
+
+  // Clean up.
+  fs.unlinkSync(linkPath);
+
+  completed++;
+}
 
 process.on('exit', function() {
   assert.equal(completed, expected_tests);
