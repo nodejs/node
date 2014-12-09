@@ -54,6 +54,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
@@ -63,8 +64,39 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
-typedef class ReqWrap<uv_getnameinfo_t> GetNameInfoReqWrap;
+
+class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
+ public:
+  GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+};
+
+GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
+                                       Local<Object> req_wrap_obj)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP) {
+  Wrap<GetAddrInfoReqWrap>(req_wrap_obj, this);
+}
+
+
+static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
+
+
+class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
+  public:
+    GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+};
+
+GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
+                                       Local<Object> req_wrap_obj)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
+  Wrap<GetNameInfoReqWrap>(req_wrap_obj, this);
+}
+
+
+static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
 
 
 static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
@@ -228,7 +260,7 @@ static Local<Array> HostentToNames(Environment* env, struct hostent* host) {
 class QueryWrap : public AsyncWrap {
  public:
   QueryWrap(Environment* env, Local<Object> req_wrap_obj)
-      : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_CARES) {
+      : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP) {
     if (env->in_domain())
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
@@ -1031,10 +1063,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     abort();
   }
 
-  GetAddrInfoReqWrap* req_wrap =
-    new GetAddrInfoReqWrap(env,
-                           req_wrap_obj,
-                           AsyncWrap::PROVIDER_GETADDRINFOREQWRAP);
+  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -1070,10 +1099,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
-  GetNameInfoReqWrap* req_wrap =
-      new GetNameInfoReqWrap(env,
-                             req_wrap_obj,
-                             AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP);
+  GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
 
   int err = uv_getnameinfo(env->event_loop(),
                            &req_wrap->req_,
@@ -1263,6 +1289,22 @@ static void Initialize(Handle<Object> target,
               Integer::New(env->isolate(), AI_ADDRCONFIG));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED));
+
+  Local<FunctionTemplate> aiw =
+      FunctionTemplate::New(env->isolate(), NewGetAddrInfoReqWrap);
+  aiw->InstanceTemplate()->SetInternalFieldCount(1);
+  aiw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"),
+              aiw->GetFunction());
+
+  Local<FunctionTemplate> niw =
+      FunctionTemplate::New(env->isolate(), NewGetNameInfoReqWrap);
+  niw->InstanceTemplate()->SetInternalFieldCount(1);
+  niw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
+              niw->GetFunction());
 }
 
 }  // namespace cares_wrap

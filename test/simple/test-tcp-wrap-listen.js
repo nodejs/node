@@ -23,6 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 
 var TCP = process.binding('tcp_wrap').TCP;
+var WriteWrap = process.binding('stream_wrap').WriteWrap;
 
 var server = new TCP();
 
@@ -55,7 +56,8 @@ server.onconnection = function(err, client) {
 
       assert.equal(0, client.writeQueueSize);
 
-      var req = { async: false };
+      var req = new WriteWrap();
+      req.async = false;
       var err = client.writeBuffer(req, buffer);
       assert.equal(err, 0);
       client.pendingWrites.push(req);
