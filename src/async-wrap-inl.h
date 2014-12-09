@@ -35,7 +35,8 @@ namespace node {
 
 inline AsyncWrap::AsyncWrap(Environment* env,
                             v8::Handle<v8::Object> object,
-                            ProviderType provider)
+                            ProviderType provider,
+                            AsyncWrap* parent)
     : BaseObject(env, object),
       provider_type_(provider) {
 }
