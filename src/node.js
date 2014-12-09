@@ -232,14 +232,8 @@
   };
 
   startup.processFatal = function() {
-    var tracing = NativeModule.require('tracing');
-    var _errorHandler = tracing._errorHandler;
-    // Cleanup
-    delete tracing._errorHandler;
-
     process._fatalException = function(er) {
-      // First run through error handlers from asyncListener.
-      var caught = _errorHandler(er);
+      var caught;
 
       if (process.domain && process.domain._errorHandler)
         caught = process.domain._errorHandler(er) || caught;
@@ -262,10 +256,6 @@
       // if we handled an error, then make sure any ticks get processed
       } else {
         var t = setImmediate(process._tickCallback);
-        // Complete hack to make sure any errors thrown from async
-        // listeners don't cause an infinite loop.
-        if (t._asyncQueue)
-          t._asyncQueue = [];
       }
 
       return caught;
@@ -299,12 +289,7 @@
   };
 
   startup.processNextTick = function() {
-    var tracing = NativeModule.require('tracing');
     var nextTickQueue = [];
-    var asyncFlags = tracing._asyncFlags;
-    var _runAsyncQueue = tracing._runAsyncQueue;
-    var _loadAsyncQueue = tracing._loadAsyncQueue;
-    var _unloadAsyncQueue = tracing._unloadAsyncQueue;
     var microtasksScheduled = false;
 
     // Used to run V8's micro task queue.
@@ -317,10 +302,6 @@
     // *Must* match Environment::TickInfo::Fields in src/env.h.
     var kIndex = 0;
     var kLength = 1;
-
-    // For asyncFlags.
-    // *Must* match Environment::AsyncListeners::Fields in src/env.h
-    var kCount = 0;
 
     process.nextTick = nextTick;
     // Needs to be accessible from beyond this scope.
@@ -368,7 +349,7 @@
     // Run callbacks that have no domain.
     // Using domains will cause this to be overridden.
     function _tickCallback() {
-      var callback, hasQueue, threw, tock;
+      var callback, threw, tock;
 
       scheduleMicrotasks();
 
@@ -376,9 +357,6 @@
         tock = nextTickQueue[tickInfo[kIndex]++];
         callback = tock.callback;
         threw = true;
-        hasQueue = !!tock._asyncQueue;
-        if (hasQueue)
-          _loadAsyncQueue(tock);
         try {
           callback();
           threw = false;
@@ -386,8 +364,6 @@
           if (threw)
             tickDone();
         }
-        if (hasQueue)
-          _unloadAsyncQueue(tock);
         if (1e4 < tickInfo[kIndex])
           tickDone();
       }
@@ -396,7 +372,7 @@
     }
 
     function _tickDomainCallback() {
-      var callback, domain, hasQueue, threw, tock;
+      var callback, domain, threw, tock;
 
       scheduleMicrotasks();
 
@@ -404,9 +380,6 @@
         tock = nextTickQueue[tickInfo[kIndex]++];
         callback = tock.callback;
         domain = tock.domain;
-        hasQueue = !!tock._asyncQueue;
-        if (hasQueue)
-          _loadAsyncQueue(tock);
         if (domain)
           domain.enter();
         threw = true;
@@ -417,8 +390,6 @@
           if (threw)
             tickDone();
         }
-        if (hasQueue)
-          _unloadAsyncQueue(tock);
         if (1e4 < tickInfo[kIndex])
           tickDone();
         if (domain)
@@ -435,12 +406,8 @@
 
       var obj = {
         callback: callback,
-        domain: process.domain || null,
-        _asyncQueue: undefined
+        domain: process.domain || null
       };
-
-      if (asyncFlags[kCount] > 0)
-        _runAsyncQueue(obj);
 
       nextTickQueue.push(obj);
       tickInfo[kLength]++;

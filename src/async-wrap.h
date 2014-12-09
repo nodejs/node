@@ -30,11 +30,6 @@ namespace node {
 
 class AsyncWrap : public BaseObject {
  public:
-  enum AsyncFlags {
-    NO_OPTIONS = 0,
-    HAS_ASYNC_LISTENER = 1
-  };
-
   enum ProviderType {
     PROVIDER_NONE               = 1 << 0,
     PROVIDER_CARES              = 1 << 1,
@@ -63,8 +58,6 @@ class AsyncWrap : public BaseObject {
 
   inline virtual ~AsyncWrap() override = default;
 
-  inline bool has_async_listener();
-
   inline uint32_t provider_type() const;
 
   // Only call these within a valid HandleScope.
@@ -88,7 +81,6 @@ class AsyncWrap : public BaseObject {
       int argc,
       v8::Handle<v8::Value>* argv);
 
-  uint32_t async_flags_;
   uint32_t provider_type_;
 };
 
