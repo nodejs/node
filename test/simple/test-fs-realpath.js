@@ -27,9 +27,14 @@ var exec = require('child_process').exec;
 var async_completed = 0, async_expected = 0, unlink = [];
 var isWindows = process.platform === 'win32';
 var skipSymlinks = false;
+var assertPathEqual = assert.equal; // non-win32
 
 var root = '/';
 if (isWindows) {
+  assertPathEqual = function (actual, expected, msg) {
+    assert.equal(actual.toLowerCase(), expected.toLowerCase(), msg);
+  };
+
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
 
@@ -111,11 +116,11 @@ function test_simple_relative_symlink(callback) {
     unlink.push(t[0]);
   });
   var result = fs.realpathSync(entry);
-  assert.equal(result, path.resolve(expected),
+  assertPathEqual(result, path.resolve(expected),
       'got ' + common.inspect(result) + ' expected ' +
       common.inspect(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -143,13 +148,13 @@ function test_simple_absolute_symlink(callback) {
     unlink.push(t[0]);
   });
   var result = fs.realpathSync(entry);
-  assert.equal(result, path.resolve(expected),
+  assertPathEqual(result, path.resolve(expected),
       'got ' +
       common.inspect(result) +
       ' expected ' +
       common.inspect(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -179,9 +184,9 @@ function test_deep_relative_file_symlink(callback) {
   unlink.push(linkPath1);
   unlink.push(entry);
 
-  assert.equal(fs.realpathSync(entry), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -210,10 +215,10 @@ function test_deep_relative_dir_symlink(callback) {
   unlink.push(linkPath1b);
   unlink.push(entry);
 
-  assert.equal(fs.realpathSync(entry), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(entry), path.resolve(expected));
 
   asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -259,9 +264,9 @@ function test_cyclic_link_overprotection(callback) {
   try {fs.unlinkSync(link)} catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);
-  assert.equal(fs.realpathSync(testPath), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(testPath), path.resolve(expected));
   asynctest(fs.realpath, [testPath], callback, function(er, res) {
-    assert.equal(res, path.resolve(expected));
+    assertPathEqual(res, path.resolve(expected));
   });
 }
 
@@ -295,10 +300,10 @@ function test_relative_input_cwd(callback) {
 
   var origcwd = process.cwd();
   process.chdir(entrydir);
-  assert.equal(fs.realpathSync(entry), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     process.chdir(origcwd);
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -354,9 +359,9 @@ function test_deep_symlink_mix(callback) {
     unlink.push(tmp('node-test-realpath-d2'));
   }
   var expected = tmpAbsDir + '/cycles/root.js';
-  assert.equal(fs.realpathSync(entry), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -372,10 +377,10 @@ function test_non_symlinks(callback) {
   var expected = tmpAbsDir + '/cycles/root.js';
   var origcwd = process.cwd();
   process.chdir(entrydir);
-  assert.equal(fs.realpathSync(entry), path.resolve(expected));
+  assertPathEqual(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     process.chdir(origcwd);
-    assert.equal(result, path.resolve(expected),
+    assertPathEqual(result, path.resolve(expected),
         'got ' +
         common.inspect(result) +
         ' expected ' +
@@ -388,12 +393,12 @@ var upone = path.join(process.cwd(), '..');
 function test_escape_cwd(cb) {
   console.log('test_escape_cwd');
   asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
-    assert.equal(upone, uponeActual,
+    assertPathEqual(upone, uponeActual,
         'realpath("..") expected: ' + path.resolve(upone) + ' actual:' + uponeActual);
   });
 }
 var uponeActual = fs.realpathSync('..');
-assert.equal(upone, uponeActual,
+assertPathEqual(upone, uponeActual,
     'realpathSync("..") expected: ' + path.resolve(upone) + ' actual:' + uponeActual);
 
 
@@ -434,14 +439,14 @@ function test_up_multiple(cb) {
   var abedabeda = tmp('abedabeda'.split('').join('/'));
   var abedabeda_real = tmp('a');
 
-  assert.equal(fs.realpathSync(abedabeda), abedabeda_real);
-  assert.equal(fs.realpathSync(abedabed), abedabed_real);
+  assertPathEqual(fs.realpathSync(abedabeda), abedabeda_real);
+  assertPathEqual(fs.realpathSync(abedabed), abedabed_real);
   fs.realpath(abedabeda, function (er, real) {
     if (er) throw er;
-    assert.equal(abedabeda_real, real);
+    assertPathEqual(abedabeda_real, real);
     fs.realpath(abedabed, function (er, real) {
       if (er) throw er;
-      assert.equal(abedabed_real, real);
+      assertPathEqual(abedabed_real, real);
       cb();
       cleanup();
     });
@@ -499,10 +504,10 @@ function test_abs_with_kids(cb) {
   var expectPath = root + '/a/b/c/x.txt';
   var actual = fs.realpathSync(linkPath);
   // console.log({link:linkPath,expect:expectPath,actual:actual},'sync');
-  assert.equal(actual, path.resolve(expectPath));
+  assertPathEqual(actual, path.resolve(expectPath));
   asynctest(fs.realpath, [linkPath], cb, function(er, actual) {
     // console.log({link:linkPath,expect:expectPath,actual:actual},'async');
-    assert.equal(actual, path.resolve(expectPath));
+    assertPathEqual(actual, path.resolve(expectPath));
     cleanup();
   });
 }
@@ -529,12 +534,12 @@ function test_lying_cache_liar(cb) {
 
   var bluff = path.resolve('/foo/bar/baz/bluff');
   var rps = fs.realpathSync(bluff, cache);
-  assert.equal(cache[bluff], rps);
+  assertPathEqual(cache[bluff], rps);
   var nums = path.resolve('/1/2/3/4/5/6/7');
   var called = false; // no sync cb calling!
   fs.realpath(nums, cache, function(er, rp) {
     called = true;
-    assert.equal(cache[nums], rp);
+    assertPathEqual(cache[nums], rp);
     if (--n === 0) cb();
   });
   assert(called === false);
@@ -542,9 +547,9 @@ function test_lying_cache_liar(cb) {
   var test = path.resolve('/a/b/c/d'),
       expect = path.resolve('/a/b/d');
   var actual = fs.realpathSync(test, cache);
-  assert.equal(expect, actual);
+  assertPathEqual(expect, actual);
   fs.realpath(test, cache, function(er, actual) {
-    assert.equal(expect, actual);
+    assertPathEqual(expect, actual);
     if (--n === 0) cb();
   });
 }
@@ -577,14 +582,15 @@ function runNextTest(err) {
                        ' subtests completed OK for fs.realpath');
   }
   testsRun++;
+  console.log('Running test %d: %s', numtests - tests.length, test.name);
   test(runNextTest);
 }
 
 
-assert.equal(root, fs.realpathSync('/'));
+assertPathEqual(root, fs.realpathSync('/'));
 fs.realpath('/', function(err, result) {
   assert.equal(null, err);
-  assert.equal(root, result);
+  assertPathEqual(root, result);
 });
 
 
