@@ -61,9 +61,9 @@ class AsyncWrap : public BaseObject {
   inline uint32_t provider_type() const;
 
   // Only call these within a valid HandleScope.
-  inline v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::Function> cb,
-                                            int argc,
-                                            v8::Handle<v8::Value>* argv);
+  v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::Function> cb,
+                                     int argc,
+                                     v8::Handle<v8::Value>* argv);
   inline v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::String> symbol,
                                             int argc,
                                             v8::Handle<v8::Value>* argv);
@@ -76,7 +76,7 @@ class AsyncWrap : public BaseObject {
 
   // TODO(trevnorris): BURN IN FIRE! Remove this as soon as a suitable
   // replacement is committed.
-  inline v8::Handle<v8::Value> MakeDomainCallback(
+  v8::Handle<v8::Value> MakeDomainCallback(
       const v8::Handle<v8::Function> cb,
       int argc,
       v8::Handle<v8::Value>* argv);
