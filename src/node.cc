@@ -996,11 +996,18 @@ Handle<Value> MakeCallback(Environment* env,
 
   Local<Object> process = env->process_object();
   Local<Object> object, domain;
+  bool has_async_queue = false;
   bool has_domain = false;
+
+  if (recv->IsObject()) {
+    object = recv.As<Object>();
+    Local<Value> async_queue_v = object->Get(env->async_queue_string());
+    if (async_queue_v->IsObject())
+      has_async_queue = true;
+  }
 
   if (env->using_domains()) {
     CHECK(recv->IsObject());
-    object = recv.As<Object>();
     Local<Value> domain_v = object->Get(env->domain_string());
     has_domain = domain_v->IsObject();
     if (has_domain) {
@@ -1022,7 +1029,23 @@ Handle<Value> MakeCallback(Environment* env,
     }
   }
 
+  if (has_async_queue) {
+    try_catch.SetVerbose(false);
+    env->async_hooks_pre_function()->Call(object, 0, nullptr);
+    if (try_catch.HasCaught())
+      FatalError("node:;MakeCallback", "pre hook threw");
+    try_catch.SetVerbose(true);
+  }
+
   Local<Value> ret = callback->Call(recv, argc, argv);
+
+  if (has_async_queue) {
+    try_catch.SetVerbose(false);
+    env->async_hooks_post_function()->Call(object, 0, nullptr);
+    if (try_catch.HasCaught())
+      FatalError("node::MakeCallback", "post hook threw");
+    try_catch.SetVerbose(true);
+  }
 
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env->exit_string());
