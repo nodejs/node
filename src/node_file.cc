@@ -156,6 +156,7 @@ static void After(uv_fs_t *req) {
 
     switch (req->fs_type) {
       // These all have no data to pass.
+      case UV_FS_ACCESS:
       case UV_FS_CLOSE:
       case UV_FS_RENAME:
       case UV_FS_UNLINK:
@@ -172,10 +173,6 @@ static void After(uv_fs_t *req) {
       case UV_FS_FCHOWN:
         // These, however, don't.
         argc = 1;
-        break;
-
-      case UV_FS_ACCESS:
-        argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_UTIME:
@@ -330,7 +327,6 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(access, args[2], *path, mode);
   } else {
     SYNC_CALL(access, *path, *path, mode);
-    args.GetReturnValue().Set(SYNC_RESULT);
   }
 }
 

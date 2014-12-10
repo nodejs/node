@@ -47,36 +47,31 @@ assert(typeof fs.R_OK === 'number');
 assert(typeof fs.W_OK === 'number');
 assert(typeof fs.X_OK === 'number');
 
-fs.access(__filename, function(err, access) {
+fs.access(__filename, function(err) {
   assert.strictEqual(err, null, 'error should not exist');
-  assert.strictEqual(access, true, 'access should be true');
 });
 
-fs.access(__filename, fs.R_OK, function(err, access) {
+fs.access(__filename, fs.R_OK, function(err) {
   assert.strictEqual(err, null, 'error should not exist');
-  assert.strictEqual(access, true, 'access should be true');
 });
 
-fs.access(doesNotExist, function(err, access) {
+fs.access(doesNotExist, function(err) {
   assert.notEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
-  assert.strictEqual(access, false, 'access should be false');
 });
 
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err, access) {
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err) {
   assert.strictEqual(err, null, 'error should not exist');
-  assert.strictEqual(access, true, 'access should be true');
 });
 
-fs.access(readOnlyFile, fs.W_OK, function(err, access) {
+fs.access(readOnlyFile, fs.W_OK, function(err) {
   assert.notEqual(err, null, 'error should exist');
   assert.strictEqual(err.path, readOnlyFile);
-  assert.strictEqual(access, false, 'access should be false');
 });
 
 assert.throws(function() {
-  fs.access(100, fs.F_OK, function(err, access) {});
+  fs.access(100, fs.F_OK, function(err) {});
 }, /path must be a string/);
 
 assert.throws(function() {
@@ -84,14 +79,13 @@ assert.throws(function() {
 }, /callback must be a function/);
 
 assert.doesNotThrow(function() {
-  var access = fs.accessSync(__filename);
-  assert.strictEqual(access, true, 'access should be true');
+  fs.accessSync(__filename);
 });
 
 assert.doesNotThrow(function() {
   var mode = fs.F_OK | fs.R_OK | fs.W_OK;
-  var access = fs.accessSync(__filename, mode);
-  assert.strictEqual(access, true, 'access should be true');
+
+  fs.accessSync(__filename, mode);
 });
 
 assert.throws(function() {

@@ -680,20 +680,18 @@ Default if no `mode` is specified.
 on Windows (will behave like `fs.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
-a possible error argument, and the result of `access()`. If any of the
-accessibility checks fail, the error argument will be populated. If all of the
-checks are successful, the result of `access()` will be `true`. The following
-example checks if the file `/etc/passwd` can be read and written by the current
-process.
+a possible error argument. If any of the accessibility checks fail, the error
+argument will be populated. The following example checks if the file
+`/etc/passwd` can be read and written by the current process.
 
-    fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function(err, access) {
-      util.debug(access ? 'can read/write' : 'no access!');
+    fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function(err) {
+      util.debug(err ? 'no access!' : 'can read/write');
     });
 
 ## fs.accessSync(path[, mode])
 
-Synchronous version of `fs.access`. This returns `true` on success, and throws
-if any accessibility checks fail.
+Synchronous version of `fs.access`. This throws if any accessibility checks
+fail, and does nothing otherwise.
 
 ## Class: fs.Stats
 
