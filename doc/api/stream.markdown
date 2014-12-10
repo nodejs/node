@@ -1038,12 +1038,11 @@ initialized.
 
 #### writable.\_write(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be written.  Will always
+* `chunk` {Buffer | String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
-  encoding type.  Ignore if chunk is a buffer.  Note that chunk will
-  **always** be a buffer unless the `decodeStrings` option is
-  explicitly set to `false`.
+  encoding type. If chunk is a buffer, then this is the special
+  value - 'buffer', ignore it in this case.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunk.
 
@@ -1150,10 +1149,11 @@ initialized.
 
 #### transform.\_transform(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be transformed.  Will always
+* `chunk` {Buffer | String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
-  encoding type.  (Ignore if `decodeStrings` chunk is a buffer.)
+  encoding type. If chunk is a buffer, then this is the special
+  value - 'buffer', ignore it in this case.
 * `callback` {Function} Call this function (optionally with an error
   argument and data) when you are done processing the supplied chunk.
 
