@@ -1,6 +1,8 @@
 prefix simple
 
 test-crypto-domains               : PASS,FLAKY
+test-debug-signal-cluster         : PASS,FLAKY
+test-cluster-basic                : PASS,FLAKY
 
 [$system==win32]
 test-timers-first-fire            : PASS,FLAKY
@@ -14,4 +16,3 @@ test-util-debug                   : PASS,FLAKY
 [$system==macos]
 
 [$system==solaris]
-test-debug-signal-cluster         : PASS,FLAKY
