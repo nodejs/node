@@ -274,6 +274,7 @@ NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         size_t len,
                                         enum encoding encoding = BINARY);
 
+// The input buffer should be in host endianness.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const uint16_t* buf,
                                         size_t len);

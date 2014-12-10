@@ -777,19 +777,6 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
                                  size_t buflen) {
   const uint16_t* src = buf;
 
-  // Node's "ucs2" encoding expects LE character data inside a
-  // Buffer, so we need to reorder on BE platforms.  See
-  // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
-  // encoding specification.
-  if (IsBigEndian()) {
-    // Inefficient, see StringSlice<UCS2>() in src/node_buffer.cc;
-    // this is potentially the second copy of the actual input.
-    uint16_t* copy = new uint16_t[buflen];
-    for (size_t i = 0; i < buflen; i += 1)
-      copy[i] = buf[i] << 8 | buf[i] >> 8;
-    src = copy;
-  }
-
   Local<String> val;
   if (buflen < EXTERN_APEX) {
     val = String::NewFromTwoByte(isolate,

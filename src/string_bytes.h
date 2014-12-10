@@ -77,6 +77,7 @@ class StringBytes {
                                      size_t buflen,
                                      enum encoding encoding);
 
+  // The input buffer should be in host endianness.
   static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                      const uint16_t* buf,
                                      size_t buflen);

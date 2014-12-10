@@ -276,7 +276,11 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   const uint16_t* buf;
   bool release = false;
 
-  if (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0) {
+  // Node's "ucs2" encoding expects LE character data inside a Buffer, so we
+  // need to reorder on BE platforms.  See http://nodejs.org/api/buffer.html
+  // regarding Node's "ucs2" encoding specification.
+  const bool aligned = (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0);
+  if (IsLittleEndian() && aligned) {
     buf = reinterpret_cast<const uint16_t*>(data);
   } else {
     // Make a copy to avoid unaligned accesses in v8::String::NewFromTwoByte().
