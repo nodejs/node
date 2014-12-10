@@ -71,10 +71,15 @@ class StringBytes {
                       int* chars_written = nullptr);
 
   // Take the bytes in the src, and turn it into a Buffer or String.
+  // Don't call with encoding=UCS2.
   static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                      const char* buf,
                                      size_t buflen,
                                      enum encoding encoding);
+
+  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                     const uint16_t* buf,
+                                     size_t buflen);
 
   // Deprecated legacy interface
 

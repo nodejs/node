@@ -142,6 +142,7 @@ NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
 #endif
 
 #include <assert.h>
+#include <stdint.h>
 
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
@@ -267,16 +268,29 @@ NODE_DEPRECATED("Use FatalException(isolate, ...)",
   return FatalException(v8::Isolate::GetCurrent(), try_catch);
 })
 
+// Don't call with encoding=UCS2.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
-                                        const void* buf,
+                                        const char* buf,
                                         size_t len,
                                         enum encoding encoding = BINARY);
+
+NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                        const uint16_t* buf,
+                                        size_t len);
+
 NODE_DEPRECATED("Use Encode(isolate, ...)",
                 inline v8::Local<v8::Value> Encode(
     const void* buf,
     size_t len,
     enum encoding encoding = BINARY) {
-  return Encode(v8::Isolate::GetCurrent(), buf, len, encoding);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  if (encoding == UCS2) {
+    assert(reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t) == 0 &&
+           "UCS2 buffer must be aligned on two-byte boundary.");
+    const uint16_t* that = static_cast<const uint16_t*>(buf);
+    return Encode(isolate, that, len / sizeof(*that));
+  }
+  return Encode(isolate, static_cast<const char*>(buf), len, encoding);
 })
 
 // Returns -1 if the handle was not valid for decoding

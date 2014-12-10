@@ -1447,8 +1447,8 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   int slen = i2d_SSL_SESSION(sess, nullptr);
   CHECK_GT(slen, 0);
 
-  unsigned char* sbuf = new unsigned char[slen];
-  unsigned char* p = sbuf;
+  char* sbuf = new char[slen];
+  unsigned char* p = reinterpret_cast<unsigned char*>(sbuf);
   i2d_SSL_SESSION(sess, &p);
   args.GetReturnValue().Set(Encode(env->isolate(), sbuf, slen, BUFFER));
   delete[] sbuf;
