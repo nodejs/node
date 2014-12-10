@@ -264,6 +264,40 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <>
+void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ARGS_THIS(args.This())
+  SLICE_START_END(args[0], args[1], obj_length)
+  length /= 2;
+
+  const char* data = obj_data + start;
+  const uint16_t* buf;
+  bool release = false;
+
+  if (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0) {
+    buf = reinterpret_cast<const uint16_t*>(data);
+  } else {
+    // Make a copy to avoid unaligned accesses in v8::String::NewFromTwoByte().
+    uint16_t* copy = new uint16_t[length];
+    for (size_t i = 0, k = 0; i < length; i += 1, k += 2) {
+      // Assumes that the input is little endian.
+      const uint8_t lo = static_cast<uint8_t>(data[k + 0]);
+      const uint8_t hi = static_cast<uint8_t>(data[k + 1]);
+      copy[i] = lo | hi << 8;
+    }
+    buf = copy;
+    release = true;
+  }
+
+  args.GetReturnValue().Set(StringBytes::Encode(env->isolate(), buf, length));
+
+  if (release)
+    delete[] buf;
+}
+
+
 void BinarySlice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<BINARY>(args);
 }

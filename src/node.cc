@@ -1219,13 +1219,15 @@ enum encoding ParseEncoding(Isolate* isolate,
 }
 
 Local<Value> Encode(Isolate* isolate,
-                    const void* buf,
+                    const char* buf,
                     size_t len,
                     enum encoding encoding) {
-  return StringBytes::Encode(isolate,
-                             static_cast<const char*>(buf),
-                             len,
-                             encoding);
+  CHECK_NE(encoding, UCS2);
+  return StringBytes::Encode(isolate, buf, len, encoding);
+}
+
+Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
+  return StringBytes::Encode(isolate, buf, len);
 }
 
 // Returns -1 if the handle was not valid for decoding
