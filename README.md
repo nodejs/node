@@ -9,6 +9,13 @@ io.js contributions, releases, and contributorship are under an
 We intend to land, with increasing regularity, releases which are
 compatible with the npm ecosystem that has been built to date for node.js.
 
+### Is it io.js or IO.js or iojs or IOjs or iOjS?
+
+The official name is **io.js**, which should never be capitalized,
+especially not at the start of a sentence, unless it is being
+displayed in a location that is customarily all-caps (such as
+the title of man pages.)
+
 ### To build:
 
 Prerequisites (Unix only):
