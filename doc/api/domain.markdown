@@ -260,13 +260,14 @@ uncaught exceptions to the active Domain object.
 Domain is a child class of [EventEmitter][].  To handle the errors that it
 catches, listen to its `error` event.
 
-### domain.run(fn)
+### domain.run(fn[, arg][, ...])
 
 * `fn` {Function}
 
 Run the supplied function in the context of the domain, implicitly
 binding all event emitters, timers, and lowlevel requests that are
-created in that context.
+created in that context. Optionally, arguments can be passed to
+the function.
 
 This is the most basic way to use a domain.
 

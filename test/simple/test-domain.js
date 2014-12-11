@@ -258,6 +258,13 @@ var result = d.run(function () {
 assert.equal(result, 'return value');
 
 
+// check if the executed function take in count the applied parameters
+result = d.run(function (a, b) {
+  return a + ' ' + b;
+}, 'return', 'value');
+assert.equal(result, 'return value');
+
+
 var fst = fs.createReadStream('stream for nonexistent file')
 d.add(fst)
 expectCaught++;
