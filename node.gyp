@@ -466,7 +466,7 @@
       'target_name': 'node_dtrace_header',
       'type': 'none',
       'conditions': [
-        [ 'node_use_dtrace=="true" and OS!="mac" and OS!="linux"', {
+        [ 'node_use_dtrace=="true" and OS!="linux"', {
           'actions': [
             {
               'action_name': 'node_dtrace_header',
