@@ -1939,9 +1939,6 @@ extern "C" void node_module_register(void* m) {
     mp->nm_link = modlist_linked;
     modlist_linked = mp;
   } else {
-    // Once node::Init was called we can only register dynamic modules.
-    // See DLOpen.
-    CHECK_NE(modpending, nullptr);
     modpending = mp;
   }
 }
@@ -1980,8 +1977,9 @@ typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  struct node_module* mp;
   uv_lib_t lib;
+
+  CHECK_EQ(modpending, nullptr);
 
   if (args.Length() < 2) {
     env->ThrowError("process.dlopen takes exactly 2 arguments.");
@@ -1990,11 +1988,15 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> module = args[0]->ToObject();  // Cast
   node::Utf8Value filename(args[1]);  // Cast
+  const bool is_dlopen_error = uv_dlopen(*filename, &lib);
 
-  Local<String> exports_string = env->exports_string();
-  Local<Object> exports = module->Get(exports_string)->ToObject();
+  // Objects containing v14 or later modules will have registered themselves
+  // on the pending list.  Activate all of them now.  At present, only one
+  // module per object is supported.
+  node_module* const mp = modpending;
+  modpending = nullptr;
 
-  if (uv_dlopen(*filename, &lib)) {
+  if (is_dlopen_error) {
     Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
@@ -2003,14 +2005,6 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
   }
-
-  /*
-   * Objects containing v14 or later modules will have registered themselves
-   * on the pending list.  Activate all of them now.  At present, only one
-   * module per object is supported.
-   */
-  mp = modpending;
-  modpending = nullptr;
 
   if (mp == nullptr) {
     env->ThrowError("Module did not self-register.");
@@ -2033,6 +2027,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   mp->nm_dso_handle = lib.handle;
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
+
+  Local<String> exports_string = env->exports_string();
+  Local<Object> exports = module->Get(exports_string)->ToObject();
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
