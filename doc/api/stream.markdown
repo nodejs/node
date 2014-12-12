@@ -585,11 +585,10 @@ Calling [`write()`][] after calling [`end()`][] will raise an error.
 
 ```javascript
 // write 'hello, ' and then end with 'world!'
-http.createServer(function (req, res) {
-  res.write('hello, ');
-  res.end('world!');
-  // writing more now is not allowed!
-});
+var file = fs.createWriteStream('example.txt');
+file.write('hello, ');
+file.end('world!');
+// writing more now is not allowed!
 ```
 
 #### Event: 'finish'
