@@ -197,12 +197,13 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node's awareness of package.json files.
 
-If there is no package.json file present in the directory, then node
-will attempt to load an `index.js` or `index.node` file out of that
+If there is no package.json file present in the directory, then node will
+attempt to load an `index.js`, `index.json`, or `index.node` file out of that
 directory.  For example, if there was no package.json file in the above
 example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
+* `./some-library/index.json`
 * `./some-library/index.node`
 
 ## Caching
