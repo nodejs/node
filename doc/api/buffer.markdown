@@ -764,6 +764,13 @@ buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### buf.indexOf(value[, fromIndex])
+
+* `value` Buffer or String or Number
+* `fromIndex` Number, Optional, Default: 0
+
+Finds the index within the buffer of the first occurrence of the specified value, starting the search at fromIndex. Returns -1 if the value is not found.
+
 ## buffer.INSPECT_MAX_BYTES
 
 * Number, Default: 50

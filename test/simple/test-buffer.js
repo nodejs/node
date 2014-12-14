@@ -1184,3 +1184,13 @@ assert.throws(function() {
   var b = new Buffer(1);
   b.equals('abc');
 });
+
+// IndexOf Tests
+assert.equal(Buffer('abc').indexOf(''), 0)
+assert.equal(Buffer('abc').indexOf('bd'), -1)
+assert.equal(Buffer('abc').indexOf('bc'), 1)
+assert.equal(Buffer('abc').indexOf(0x62), 1)
+assert.equal(Buffer('abc').indexOf(Buffer('bc')), 1)
+assert.equal(Buffer('abc').indexOf(Buffer([0x62,0x63])), 1)
+assert.equal(Buffer('abc').indexOf('bc', 1), 1)
+assert.equal(Buffer('abc').indexOf('bc', 2), -1)
