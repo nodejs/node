@@ -34,6 +34,7 @@
 #include <limits.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define CHECK_NOT_OOB(r)                                                    \
   do {                                                                      \
@@ -585,6 +586,54 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(val);
 }
 
+void IndexOf(const FunctionCallbackInfo<Value> &args) {
+  Local<Object> obj = args[0]->ToObject();
+  char* obj_data =
+      static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
+  int32_t obj_length = obj->GetIndexedPropertiesExternalArrayDataLength();
+
+  Local<Object> search = args[1]->ToObject();
+  char* search_data =
+    static_cast<char*>(search->GetIndexedPropertiesExternalArrayData());
+  int32_t search_length = search->GetIndexedPropertiesExternalArrayDataLength();
+
+  int32_t pos = args[2]->Int32Value();
+  int32_t start = MIN(MAX(pos, 0), obj_length);
+
+  if (search_length == 0) {
+    return args.GetReturnValue().Set(start);
+  }
+
+  while (search_length <= obj_length - start) {
+    // Search for the first byte of the needle.
+    char *chr = reinterpret_cast<char *>(
+        memchr(&obj_data[start], search_data[0], obj_length - start));
+    int32_t chrpos = (intptr_t)chr - (intptr_t)obj_data;
+    if (chr == NULL) {
+      // First byte not found, short circuit.
+      return args.GetReturnValue().Set(-1);
+    }
+    if (search_length == 1) {
+      // Nothing more to compare, we found it.
+      return args.GetReturnValue().Set(chrpos);
+    }
+    if (search_length > obj_length - chrpos) {
+      // Needle is longer than the rest of the haystack,
+      // no way it is contained in there.
+      return args.GetReturnValue().Set(-1);
+    }
+    int cmp = memcmp(&chr[1], &search_data[1], search_length - 1);
+    if (cmp == 0) {
+      // All bytes are equal, we found it.
+      return args.GetReturnValue().Set(chrpos);
+    }
+    // Advance start position for next iteration.
+    start = chrpos + 1;
+  }
+
+  return args.GetReturnValue().Set(-1);
+}
+
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -629,6 +678,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(internal, "byteLength", ByteLength);
   env->SetMethod(internal, "compare", Compare);
   env->SetMethod(internal, "fill", Fill);
+  env->SetMethod(internal, "indexOf", IndexOf);
 
   env->SetMethod(internal, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(internal, "readDoubleLE", ReadDoubleLE);
