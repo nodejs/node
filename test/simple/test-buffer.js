@@ -1194,3 +1194,13 @@ assert.equal(Buffer('abc').indexOf(Buffer('bc')), 1)
 assert.equal(Buffer('abc').indexOf(Buffer([0x62,0x63])), 1)
 assert.equal(Buffer('abc').indexOf('bc', 1), 1)
 assert.equal(Buffer('abc').indexOf('bc', 2), -1)
+
+// LastIndexOf Tests
+assert.equal(Buffer('abcabc').lastIndexOf(''), 6)
+assert.equal(Buffer('abcabc').lastIndexOf('bd'), -1)
+assert.equal(Buffer('abcabc').lastIndexOf('bc'), 4)
+assert.equal(Buffer('abcabc').lastIndexOf(0x62), 4)
+assert.equal(Buffer('abcabc').lastIndexOf(Buffer('bc')), 4)
+assert.equal(Buffer('abcabc').lastIndexOf(Buffer([0x62,0x63])), 4)
+assert.equal(Buffer('abcabc').lastIndexOf('bc', 1), 4)
+assert.equal(Buffer('abcabc').lastIndexOf('bc', 5), -1)

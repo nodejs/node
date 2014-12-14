@@ -586,7 +586,40 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(val);
 }
 
-void IndexOf(const FunctionCallbackInfo<Value> &args) {
+int32_t IndexOf_DoSearch(char* obj_data, int32_t obj_length,
+                      char* search_data, int32_t search_length,
+                      int32_t start) {
+  while (search_length <= obj_length - start) {
+    // Search for the first byte of the needle.
+    char *chr = reinterpret_cast<char *>(
+        memchr(&obj_data[start], search_data[0], obj_length - start));
+    int32_t chrpos = (intptr_t)chr - (intptr_t)obj_data;
+    if (chr == NULL) {
+      // First byte not found, short circuit.
+      return -1;
+    }
+    if (search_length == 1) {
+      // Nothing more to compare, we found it.
+      return chrpos;
+    }
+    if (search_length > obj_length - chrpos) {
+      // Needle is longer than the rest of the haystack,
+      // no way it is contained in there.
+      return -1;
+    }
+    int cmp = memcmp(&chr[1], &search_data[1], search_length - 1);
+    if (cmp == 0) {
+      // All bytes are equal, we found it.
+      return chrpos;
+    }
+    // Advance start position for next iteration.
+    start = chrpos + 1;
+  }
+
+  return -1;
+}
+
+void IndexOf_Do(const FunctionCallbackInfo<Value> &args, bool isLast) {
   Local<Object> obj = args[0]->ToObject();
   char* obj_data =
       static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
@@ -599,41 +632,51 @@ void IndexOf(const FunctionCallbackInfo<Value> &args) {
 
   int32_t pos = args[2]->Int32Value();
   int32_t start = MIN(MAX(pos, 0), obj_length);
+  int32_t end = obj_length;
 
-  if (search_length == 0) {
-    return args.GetReturnValue().Set(start);
+  if (isLast) {
+    if (search_length == 0) {
+      return args.GetReturnValue().Set(end);
+    }
+    int32_t best = -1;
+    while (search_length <= end - start) {
+      int32_t t = IndexOf_DoSearch(obj_data, obj_length,
+                                   search_data, search_length,
+                                   start);
+      if (t < 0) {
+        if (best < 0) {
+          break;
+        } else {
+          end = start;
+          start = best + 1;
+          if (start >= end) {
+            break;
+          }
+        }
+      } else {
+        best = t;
+        start = t + 1 + ((int32_t)(end - t) / 2);
+      }
+    }
+    args.GetReturnValue().Set(best);
+  } else {
+    if (search_length == 0) {
+      return args.GetReturnValue().Set(start);
+    }
+    int32_t ret = IndexOf_DoSearch(obj_data, obj_length,
+                                   search_data, search_length,
+                                   start);
+    args.GetReturnValue().Set(ret);
   }
-
-  while (search_length <= obj_length - start) {
-    // Search for the first byte of the needle.
-    char *chr = reinterpret_cast<char *>(
-        memchr(&obj_data[start], search_data[0], obj_length - start));
-    int32_t chrpos = (intptr_t)chr - (intptr_t)obj_data;
-    if (chr == NULL) {
-      // First byte not found, short circuit.
-      return args.GetReturnValue().Set(-1);
-    }
-    if (search_length == 1) {
-      // Nothing more to compare, we found it.
-      return args.GetReturnValue().Set(chrpos);
-    }
-    if (search_length > obj_length - chrpos) {
-      // Needle is longer than the rest of the haystack,
-      // no way it is contained in there.
-      return args.GetReturnValue().Set(-1);
-    }
-    int cmp = memcmp(&chr[1], &search_data[1], search_length - 1);
-    if (cmp == 0) {
-      // All bytes are equal, we found it.
-      return args.GetReturnValue().Set(chrpos);
-    }
-    // Advance start position for next iteration.
-    start = chrpos + 1;
-  }
-
-  return args.GetReturnValue().Set(-1);
 }
 
+void IndexOf(const FunctionCallbackInfo<Value> &args) {
+  IndexOf_Do(args, false);
+}
+
+void LastIndexOf(const FunctionCallbackInfo<Value> &args) {
+  IndexOf_Do(args, true);
+}
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -679,6 +722,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(internal, "compare", Compare);
   env->SetMethod(internal, "fill", Fill);
   env->SetMethod(internal, "indexOf", IndexOf);
+  env->SetMethod(internal, "lastIndexOf", LastIndexOf);
 
   env->SetMethod(internal, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(internal, "readDoubleLE", ReadDoubleLE);

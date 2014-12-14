@@ -769,7 +769,18 @@ buffer.
 * `value` Buffer or String or Number
 * `fromIndex` Number, Optional, Default: 0
 
-Finds the index within the buffer of the first occurrence of the specified value, starting the search at fromIndex. Returns -1 if the value is not found.
+Finds the index within the buffer of the first occurrence of the
+specified value, starting the search at fromIndex. Returns -1 if the
+value is not found.
+
+### buf.lastIndexOf(value[, fromIndex])
+
+* `value` Buffer or String or Number
+* `fromIndex` Number, Optional, Default: 0
+
+Finds the index within the buffer of the *last* occurrence of the
+specified value, starting the search at fromIndex. Returns -1 if the
+value is not found.
 
 ## buffer.INSPECT_MAX_BYTES
 
