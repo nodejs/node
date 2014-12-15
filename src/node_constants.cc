@@ -1107,6 +1107,22 @@ void DefineSystemConstants(Handle<Object> target) {
 #ifdef S_IXOTH
   NODE_DEFINE_CONSTANT(target, S_IXOTH);
 #endif
+
+#ifdef F_OK
+  NODE_DEFINE_CONSTANT(target, F_OK);
+#endif
+
+#ifdef R_OK
+  NODE_DEFINE_CONSTANT(target, R_OK);
+#endif
+
+#ifdef W_OK
+  NODE_DEFINE_CONSTANT(target, W_OK);
+#endif
+
+#ifdef X_OK
+  NODE_DEFINE_CONSTANT(target, X_OK);
+#endif
 }
 
 void DefineUVConstants(Handle<Object> target) {
