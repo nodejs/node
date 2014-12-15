@@ -656,13 +656,13 @@ that leaves you vulnerable to race conditions: another process may remove the
 file between the calls to `fs.exists()` and `fs.open()`.  Just open the file
 and handle the error when it's not there.
 
-`fs.exists()` will be deprecated.
+`fs.exists()` is **deprecated**.
 
 ## fs.existsSync(path)
 
 Synchronous version of `fs.exists`.
 
-`fs.existsSync()` will be deprecated.
+`fs.existsSync()` is **deprecated**.
 
 ## fs.access(path[, mode], callback)
 

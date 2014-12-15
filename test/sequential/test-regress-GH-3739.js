@@ -44,17 +44,17 @@ for (var i = 0; i < 50; i++) {
 }
 
 // Test existsSync
-var r = fs.existsSync(dir);
+var r = common.fileExists(dir);
 if (r !== true) {
   cleanup();
-  throw new Error('fs.existsSync returned false');
+  throw new Error('fs.accessSync returned false');
 }
 
 // Text exists
-fs.exists(dir, function(r) {
+fs.access(dir, function(err) {
   cleanup();
-  if (r !== true) {
-    throw new Error('fs.exists reported false');
+  if (err) {
+    throw new Error('fs.access reported false');
   }
 });
 
