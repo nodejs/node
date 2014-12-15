@@ -165,6 +165,7 @@ static void After(uv_fs_t *req) {
 
     switch (req->fs_type) {
       // These all have no data to pass.
+      case UV_FS_ACCESS:
       case UV_FS_CLOSE:
       case UV_FS_RENAME:
       case UV_FS_UNLINK:
@@ -315,6 +316,28 @@ struct fs_req_wrap {
 #define SYNC_REQ req_wrap.req
 
 #define SYNC_RESULT err
+
+
+static void Access(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  if (args.Length() < 2)
+    return THROW_BAD_ARGS;
+  if (!args[0]->IsString())
+    return TYPE_ERROR("path must be a string");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
+
+  node::Utf8Value path(args[0]);
+  int mode = static_cast<int>(args[1]->Int32Value());
+
+  if (args[2]->IsObject()) {
+    ASYNC_CALL(access, args[2], *path, mode);
+  } else {
+    SYNC_CALL(access, *path, *path, mode);
+  }
+}
 
 
 static void Close(const FunctionCallbackInfo<Value>& args) {
@@ -1112,6 +1135,7 @@ void InitFs(Handle<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSInitialize"),
               env->NewFunctionTemplate(FSInitialize)->GetFunction());
 
+  env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "read", Read);
