@@ -58,8 +58,11 @@ if (process.env.NODE_COMMON_PIPE) {
   }
 }
 
-if (!fs.existsSync(exports.opensslCli))
+try {
+  fs.accessSync(exports.opensslCli);
+} catch (err) {
   exports.opensslCli = false;
+}
 
 if (process.platform === 'win32') {
   exports.faketimeCli = false;
@@ -319,3 +322,12 @@ exports.isValidHostname = function(str) {
 
   return !!str.match(re) && str.length <= 255;
 }
+
+exports.fileExists = function(pathname) {
+  try {
+    fs.accessSync(pathname);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
