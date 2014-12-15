@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 var assert = require('assert');
@@ -26,7 +27,7 @@ var assert = require('assert');
 var errors = 0;
 
 var enoentPath = 'foo123';
-assert.equal(fs.existsSync(enoentPath), false);
+assert.equal(common.fileExists(enoentPath), false);
 
 var enoentChild = spawn(enoentPath);
 enoentChild.on('error', function (err) {

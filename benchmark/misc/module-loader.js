@@ -56,7 +56,7 @@ function measure(n) {
 }
 
 function rmrf(location) {
-  if (fs.existsSync(location)) {
+  try {
     var things = fs.readdirSync(location);
     things.forEach(function(thing) {
       var cur = path.join(location, thing),
@@ -68,5 +68,7 @@ function rmrf(location) {
       fs.unlinkSync(cur);
     });
     fs.rmdirSync(location);
+  } catch (err) {
+    // Ignore error
   }
 }

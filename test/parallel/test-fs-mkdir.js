@@ -38,7 +38,7 @@ function unlink(pathname) {
 
   fs.mkdir(pathname, function(err) {
     assert.equal(err, null);
-    assert.equal(fs.existsSync(pathname), true);
+    assert.equal(common.fileExists(pathname), true);
     ncalls++;
   });
 
@@ -56,7 +56,7 @@ function unlink(pathname) {
 
   fs.mkdir(pathname, 511 /*=0777*/, function(err) {
     assert.equal(err, null);
-    assert.equal(fs.existsSync(pathname), true);
+    assert.equal(common.fileExists(pathname), true);
     ncalls++;
   });
 
@@ -72,7 +72,7 @@ function unlink(pathname) {
   unlink(pathname);
   fs.mkdirSync(pathname);
 
-  var exists = fs.existsSync(pathname);
+  var exists = common.fileExists(pathname);
   unlink(pathname);
 
   assert.equal(exists, true);

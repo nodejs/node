@@ -54,8 +54,8 @@ fs.symlink(linkData, linkPath, 'junction', function(err) {
 
       fs.unlink(linkPath, function(err) {
         if (err) throw err;
-        assert(!fs.existsSync(linkPath));
-        assert(fs.existsSync(linkData));
+        assert(!common.fileExists(linkPath));
+        assert(common.fileExists(linkData));
         completed++;
       });
     });

@@ -40,14 +40,14 @@ fs.watchFile(FILENAME, {interval:TIMEOUT - 250}, function(curr, prev) {
   console.log([curr, prev]);
   switch (++nevents) {
   case 1:
-    assert.equal(fs.existsSync(FILENAME), false);
+    assert.equal(common.fileExists(FILENAME), false);
     break;
   case 2:
   case 3:
-    assert.equal(fs.existsSync(FILENAME), true);
+    assert.equal(common.fileExists(FILENAME), true);
     break;
   case 4:
-    assert.equal(fs.existsSync(FILENAME), false);
+    assert.equal(common.fileExists(FILENAME), false);
     fs.unwatchFile(FILENAME);
     break;
   default:
