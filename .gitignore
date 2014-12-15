@@ -16,6 +16,7 @@ iojs_g
 .benchmark_reports
 /.project
 /.cproject
+icu_config.gypi
 
 /out
 
