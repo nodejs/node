@@ -110,6 +110,69 @@ function test16(clazz) {
 }
 
 
+function test24(clazz) {
+  var buffer = new clazz(6);
+
+  buffer.writeInt24BE(0x23, 0);
+  buffer.writeInt24LE(0x23, 3);
+  ASSERT.equal(0x00, buffer[0]);
+  ASSERT.equal(0x00, buffer[1]);
+  ASSERT.equal(0x23, buffer[2]);
+  ASSERT.equal(0x23, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x00, buffer[5]);
+
+  buffer.writeInt24BE(-5, 0);
+  buffer.writeInt24LE(-5, 3);
+  ASSERT.equal(0xff, buffer[0]);
+  ASSERT.equal(0xff, buffer[1]);
+  ASSERT.equal(0xfb, buffer[2]);
+  ASSERT.equal(0xfb, buffer[3]);
+  ASSERT.equal(0xff, buffer[4]);
+  ASSERT.equal(0xff, buffer[5]);
+
+  buffer.writeInt24BE(-0x6fffff, 0);
+  buffer.writeInt24LE(-0x6fffff, 3);
+  ASSERT.equal(0x90, buffer[0]);
+  ASSERT.equal(0x00, buffer[1]);
+  ASSERT.equal(0x01, buffer[2]);
+  ASSERT.equal(0x01, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x90, buffer[5]);
+
+  /* Make sure we handle min/max correctly */
+  buffer.writeInt24BE(0x7fffff, 0);
+  buffer.writeInt24BE(-0x800000, 3);
+  ASSERT.equal(0x7f, buffer[0]);
+  ASSERT.equal(0xff, buffer[1]);
+  ASSERT.equal(0xff, buffer[2]);
+  ASSERT.equal(0x80, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x00, buffer[5]);
+  ASSERT.throws(function() {
+    buffer.writeInt24BE(0x7fffff + 1, 0);
+  });
+  ASSERT.throws(function() {
+    buffer.writeInt24BE(-0x800000 - 1, 0);
+  });
+
+  buffer.writeInt24LE(0x7fffff, 0);
+  buffer.writeInt24LE(-0x800000, 3);
+  ASSERT.equal(0xff, buffer[0]);
+  ASSERT.equal(0xff, buffer[1]);
+  ASSERT.equal(0x7f, buffer[2]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x80, buffer[5]);
+  ASSERT.throws(function() {
+    buffer.writeInt24LE(0x7fffff + 1, 0);
+  });
+  ASSERT.throws(function() {
+    buffer.writeInt24LE(-0x800000 - 1, 0);
+  });
+}
+
+
 function test32(clazz) {
   var buffer = new clazz(8);
 
@@ -185,4 +248,5 @@ function test32(clazz) {
 
 test8(Buffer);
 test16(Buffer);
+test24(Buffer);
 test32(Buffer);
