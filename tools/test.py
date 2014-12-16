@@ -58,9 +58,15 @@ class ProgressIndicator(object):
   def __init__(self, cases, flaky_tests_mode):
     self.cases = cases
     self.flaky_tests_mode = flaky_tests_mode
-    self.queue = Queue(len(cases))
+    self.queue = {
+      'parallel': Queue(len(cases)),
+      'sequential': Queue(len(cases))
+    }
     for case in cases:
-      self.queue.put_nowait(case)
+      if case.parallel:
+        self.queue['parallel'].put_nowait(case)
+      else:
+        self.queue['sequential'].put_nowait(case)
     self.succeeded = 0
     self.remaining = len(cases)
     self.total = len(cases)
@@ -87,11 +93,11 @@ class ProgressIndicator(object):
     # That way -j1 avoids threading altogether which is a nice fallback
     # in case of threading problems.
     for i in xrange(tasks - 1):
-      thread = threading.Thread(target=self.RunSingle, args=[])
+      thread = threading.Thread(target=self.RunSingle, args=[True])
       threads.append(thread)
       thread.start()
     try:
-      self.RunSingle()
+      self.RunSingle(False)
       # Wait for the remaining threads
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
@@ -105,12 +111,17 @@ class ProgressIndicator(object):
     self.Done()
     return not self.failed
 
-  def RunSingle(self):
+  def RunSingle(self, parallel):
     while not self.terminate:
       try:
-        test = self.queue.get_nowait()
+        test = self.queue['parallel'].get_nowait()
       except Empty:
-        return
+        if parallel:
+          return
+        try:
+          test = self.queue['sequential'].get_nowait()
+        except Empty:
+          return
       case = test.case
       self.lock.acquire()
       self.AboutToRun(case)
@@ -381,6 +392,7 @@ class TestCase(object):
     self.duration = None
     self.arch = arch
     self.mode = mode
+    self.parallel = False
 
   def IsNegative(self):
     return False
@@ -1068,6 +1080,7 @@ class ClassifiedTest(object):
   def __init__(self, case, outcomes):
     self.case = case
     self.outcomes = outcomes
+    self.parallel = self.case.parallel
 
 
 class Configuration(object):

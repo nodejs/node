@@ -105,7 +105,6 @@ class SimpleTestCase(test.TestCase):
   def GetSource(self):
     return open(self.file).read()
 
-
 class SimpleTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root, section, additional=[]):
@@ -135,6 +134,18 @@ class SimpleTestConfiguration(test.TestConfiguration):
     status_file = join(self.root, '%s.status' % (self.section))
     if exists(status_file):
       test.ReadConfigurationInto(status_file, sections, defs)
+
+class ParallelTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=[]):
+    super(ParallelTestConfiguration, self).__init__(context, root, section,
+                                                    additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(ParallelTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for test in result:
+      test.parallel = True
+    return result
 
 class AddonTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=[]):
