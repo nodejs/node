@@ -107,7 +107,8 @@ prints the active watchers. To remove a watcher, type
 functions body
 * `setBreakpoint('script.js', 1)`, `sb(...)` - Set breakpoint on first line of
 script.js
-* `clearBreakpoint`, `cb(...)` - Clear breakpoint
+* `clearBreakpoint('script.js', 1)`, `cb(...)` - Clear breakpoint in script.js
+on line 1
 
 It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
