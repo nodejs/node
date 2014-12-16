@@ -33,7 +33,7 @@ var server = net.createServer(function(c) {
 });
 server.listen(common.PORT);
 
-var killers = [0, Infinity, NaN];
+var killers = [0];
 
 var left = killers.length;
 killers.forEach(function(killer) {
