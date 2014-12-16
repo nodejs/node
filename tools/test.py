@@ -40,6 +40,7 @@ import tempfile
 import time
 import threading
 import utils
+import multiprocessing
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -1237,6 +1238,8 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
       default=1, type="int")
+  result.add_option("-J", help="Run tasks in parallel on all cores",
+      default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
   result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
@@ -1258,6 +1261,8 @@ def ProcessOptions(options):
   VERBOSE = options.verbose
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
+  if options.J:
+    options.j = multiprocessing.cpu_count()
   def CheckTestMode(name, option):
     if not option in ["run", "skip", "dontcare"]:
       print "Unknown %s mode %s" % (name, option)
