@@ -100,6 +100,42 @@ function test16(clazz) {
 }
 
 
+function test24(clazz) {
+  var data = new clazz(6);
+  var value = 0xf90a6d;
+
+  data.writeUInt24BE(value, 0);
+  ASSERT.equal(0xf9, data[0]);
+  ASSERT.equal(0x0a, data[1]);
+  ASSERT.equal(0x6d, data[2]);
+
+  data.writeUInt24BE(value, 1);
+  ASSERT.equal(0xf9, data[1]);
+  ASSERT.equal(0x0a, data[2]);
+  ASSERT.equal(0x6d, data[3]);
+
+  data.writeUInt24BE(value, 2);
+  ASSERT.equal(0xf9, data[2]);
+  ASSERT.equal(0x0a, data[3]);
+  ASSERT.equal(0x6d, data[4]);
+
+  data.writeUInt24LE(value, 0);
+  ASSERT.equal(0xf9, data[2]);
+  ASSERT.equal(0x0a, data[1]);
+  ASSERT.equal(0x6d, data[0]);
+
+  data.writeUInt24LE(value, 1);
+  ASSERT.equal(0xf9, data[3]);
+  ASSERT.equal(0x0a, data[2]);
+  ASSERT.equal(0x6d, data[1]);
+
+  data.writeUInt24LE(value, 2);
+  ASSERT.equal(0xf9, data[4]);
+  ASSERT.equal(0x0a, data[3]);
+  ASSERT.equal(0x6d, data[2]);
+}
+
+
 function test32(clazz) {
   var data = new clazz(6);
   var value = 0xe7f90a6d;
@@ -144,4 +180,5 @@ function test32(clazz) {
 
 test8(Buffer);
 test16(Buffer);
+test24(Buffer);
 test32(Buffer);
