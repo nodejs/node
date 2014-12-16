@@ -381,6 +381,15 @@ Example:
 
     var contentType = response.getHeader('content-type');
 
+### response.getAllHeaders()
+
+Reads out all headers that are already been queued but not yet sent to the
+client. This can only be called before headers get implicitly flushed.
+
+Example:
+
+    var headers = response.getAllHeaders();
+
 ### response.removeHeader(name)
 
 Removes a header that's queued for implicit sending.
