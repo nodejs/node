@@ -90,7 +90,8 @@ distclean:
 	-rm -rf node_modules
 
 test: all
-	$(PYTHON) tools/test.py --mode=release simple message
+	$(PYTHON) tools/test.py --mode=release simple message -j9
+	$(PYTHON) tools/test.py --mode=release io
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
