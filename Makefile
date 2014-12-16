@@ -94,6 +94,9 @@ test: all
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
+test-parallel: all
+	$(PYTHON) tools/test.py --mode=release parallel -J
+
 test-http1: all
 	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
 
