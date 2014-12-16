@@ -49,30 +49,34 @@ class SimpleTestCase(test.TestCase):
     self.mode = mode
     self.tmpdir = join(dirname(self.config.root), 'tmp')
     self.additional_flags = additional
+
+  def GetTmpDir(self):
+    return "%s.%d" % (self.tmpdir, self.thread_id)
+
   
   def AfterRun(self, result):
     # delete the whole tmp dir
     try:
-      rmtree(self.tmpdir)
+      rmtree(self.GetTmpDir())
     except:
       pass
     # make it again.
     try:
-      mkdir(self.tmpdir)
+      mkdir(self.GetTmpDir())
     except:
       pass
 
   def BeforeRun(self):
     # delete the whole tmp dir
     try:
-      rmtree(self.tmpdir)
+      rmtree(self.GetTmpDir())
     except:
       pass
     # make it again.
     # intermittently fails on win32, so keep trying
-    while not os.path.exists(self.tmpdir):
+    while not os.path.exists(self.GetTmpDir()):
       try:
-        mkdir(self.tmpdir)
+        mkdir(self.GetTmpDir())
       except:
         pass
   
