@@ -126,6 +126,7 @@ static bool print_eval = false;
 static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
+static bool promisify_core = false;
 static const char* eval_string = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
@@ -2682,6 +2683,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
   }
 
+  // --promisify-core
+  if (promisify_core) {
+    READONLY_PROPERTY(process, "promisifyCore", True(env->isolate()));
+  }
+
   // --throw-deprecation
   if (throw_deprecation) {
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
@@ -2900,6 +2906,7 @@ static void PrintHelp() {
          "  --throw-deprecation  throw an exception anytime a deprecated "
          "function is used\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
+         "  --promisify-core     EXPERIMENTAL: promise-enabled core API\n"
          "  --v8-options         print v8 command line options\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -3014,6 +3021,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--promisify-core") == 0) {
+      promisify_core = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;

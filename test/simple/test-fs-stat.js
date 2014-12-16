@@ -24,6 +24,7 @@ var assert = require('assert');
 var fs = require('fs');
 var got_error = false;
 var success_count = 0;
+var expected_count = 5;
 
 fs.stat('.', function(err, stats) {
   if (err) {
@@ -40,6 +41,32 @@ fs.stat('.', function(err, stats) {
   assert.ok(stats.hasOwnProperty('blksize'));
   assert.ok(stats.hasOwnProperty('blocks'));
 });
+
+if (!process.promisifyCore) {
+  console.log(
+    '// Skipping tests of promisified API, `--promisify-core` is needed');
+} else {
+  expected_count++;
+  fs.stat('.')
+    .then(function(stats) {
+      assert.ok(stats.hasOwnProperty('blksize'));
+      assert.ok(stats.hasOwnProperty('blocks'));
+      success_count++;
+    })
+    .catch(reportTestError);
+
+  expected_count++;
+  fs.stat('./does-not-exist')
+    .then(
+      function(stats) {
+        throw new Error('stat should have failed for unkown file');
+      },
+      function(err) {
+        assert.equal('ENOENT', err.code);
+        success_count++;
+      })
+    .catch(reportTestError);
+}
 
 fs.lstat('.', function(err, stats) {
   if (err) {
@@ -122,7 +149,11 @@ fs.stat(__filename, function(err, s) {
 });
 
 process.on('exit', function() {
-  assert.equal(5, success_count);
+  assert.equal(expected_count, success_count);
   assert.equal(false, got_error);
 });
 
+function reportTestError(err) {
+  console.error('\nTEST FAILED\n', err.stack, '\n');
+  got_error = true;
+}

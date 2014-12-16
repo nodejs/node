@@ -1,4 +1,5 @@
 README
+setup.cfg
 setup.py
 closure_linter/__init__.py
 closure_linter/checker.py
