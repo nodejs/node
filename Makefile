@@ -90,15 +90,18 @@ distclean:
 	-rm -rf node_modules
 
 test: all
-	$(PYTHON) tools/test.py --mode=release simple message
+	$(PYTHON) tools/test.py --mode=release message parallel sequential
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
+test-parallel: all
+	$(PYTHON) tools/test.py --mode=release parallel -J
+
 test-http1: all
-	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
+	$(PYTHON) tools/test.py --mode=release --use-http1 sequential parallel message
 
 test-valgrind: all
-	$(PYTHON) tools/test.py --mode=release --valgrind simple message
+	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
 test/gc/node_modules/weak/build/Release/weakref.node:
 	@if [ ! -f $(NODE_EXE) ]; then make all; fi
@@ -141,7 +144,7 @@ test-message: test-build
 	$(PYTHON) tools/test.py message
 
 test-simple: all
-	$(PYTHON) tools/test.py simple
+	$(PYTHON) tools/test.py parallel sequential
 
 test-pummel: all wrk
 	$(PYTHON) tools/test.py pummel

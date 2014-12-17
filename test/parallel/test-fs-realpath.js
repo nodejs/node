@@ -103,7 +103,7 @@ function test_simple_relative_symlink(callback) {
   var entry = common.tmpDir + '/symlink',
       expected = common.tmpDir + '/cycles/root.js';
   [
-    [entry, '../tmp/cycles/root.js']
+    [entry, '../' + common.tmpDirName + '/cycles/root.js']
   ].forEach(function(t) {
     try {fs.unlinkSync(t[0]);}catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
@@ -335,15 +335,16 @@ function test_deep_symlink_mix(callback) {
   fs.mkdirSync(tmp('node-test-realpath-d2'), 0700);
   try {
     [
-      [entry, '../tmp/node-test-realpath-d1/foo'],
-      [tmp('node-test-realpath-d1'), '../tmp/node-test-realpath-d2'],
+      [entry, '../' + common.tmpDirName + '/node-test-realpath-d1/foo'],
+      [tmp('node-test-realpath-d1'),
+          '../' + common.tmpDirName + '/node-test-realpath-d2'],
       [tmp('node-test-realpath-d2/foo'), '../node-test-realpath-f2'],
       [tmp('node-test-realpath-f2'), fixturesAbsDir +
            '/nested-index/one/realpath-c'],
       [fixturesAbsDir + '/nested-index/one/realpath-c', fixturesAbsDir +
             '/nested-index/two/realpath-c'],
       [fixturesAbsDir + '/nested-index/two/realpath-c',
-        '../../../tmp/cycles/root.js']
+        '../../../' + common.tmpDirName + '/cycles/root.js']
     ].forEach(function(t) {
       //common.debug('setting up '+t[0]+' -> '+t[1]);
       try { fs.unlinkSync(t[0]); } catch (e) {}

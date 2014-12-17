@@ -19,29 +19,45 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
 var assert = require('assert');
-var http = require('http');
 var net = require('net');
+var util = require('util');
+var common = require('../common');
+var revivals = 0;
+var deaths = 0;
 
-var request = 0;
-var response = 0;
-process.on('exit', function() {
-  assert.equal(request, 1, 'http server "request" callback was not called');
-  assert.equal(response, 1, 'http request "response" callback was not called');
-});
+process.on('beforeExit', function() { deaths++; } );
 
-var server = http.createServer(function(req, res) {
-  request++;
-  res.end();
-}).listen(function() {
-  var options = {
-    agent: null,
-    port: this.address().port
-  };
-  http.get(options, function(res) {
-    response++;
-    res.resume();
-    server.close();
+process.once('beforeExit', tryImmediate);
+
+function tryImmediate() {
+  console.log('set immediate');
+  setImmediate(function() {
+    revivals++;
+    process.once('beforeExit', tryTimer);
   });
+}
+
+function tryTimer() {
+  console.log('set a timeout');
+  setTimeout(function () {
+    console.log('timeout cb, do another once beforeExit');
+    revivals++;
+    process.once('beforeExit', tryListen);
+  }, 1);
+}
+
+function tryListen() {
+  console.log('create a server');
+  net.createServer()
+    .listen(common.PORT)
+    .on('listening', function() {
+      revivals++;
+      this.close();
+    });
+}
+
+process.on('exit', function() {
+  assert.equal(4, deaths);
+  assert.equal(3, revivals);
 });

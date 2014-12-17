@@ -163,10 +163,10 @@ if "%test%"=="" goto exit
 if "%config%"=="Debug" set test_args=--mode=debug
 if "%config%"=="Release" set test_args=--mode=release
 
-if "%test%"=="test" set test_args=%test_args% simple message
+if "%test%"=="test" set test_args=%test_args% sequential parallel message
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
-if "%test%"=="test-simple" set test_args=%test_args% simple
+if "%test%"=="test-simple" set test_args=%test_args% sequential parallel
 if "%test%"=="test-message" set test_args=%test_args% message
 if "%test%"=="test-gc" set test_args=%test_args% gc
 if "%test%"=="test-all" set test_args=%test_args%

@@ -27,7 +27,7 @@ var assert = require('assert');
 
 var fs = require('fs'),
     dgram = require('dgram'), server, client,
-    server_port = 20989,
+    server_port = common.PORT,
     message_to_send = 'A message to send',
     timer;
 

@@ -110,7 +110,7 @@ require('../fixtures/node_modules/foo');
 
 common.debug('test name clashes');
 // this one exists and should import the local module
-var my_path = require('./path');
+var my_path = require('../fixtures/path');
 assert.ok(common.indirectInstanceOf(my_path.path_func, Function));
 // this one does not exist and should throw
 assert.throws(function() { require('./utils')});
@@ -246,7 +246,7 @@ assert.deepEqual(children, {
       'fixtures/node_modules/baz/node_modules/asdf.js': {}
     }
   },
-  'simple/path.js': {},
+  'fixtures/path.js': {},
   'fixtures/throws_error.js': {},
   'fixtures/registerExt.test': {},
   'fixtures/registerExt.hello.world': {},

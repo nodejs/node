@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var assert = require('assert'),
+    common = require('../common'),
     http = require('http');
 
 var complete;
@@ -38,7 +39,7 @@ var server = http.createServer(function (req, res) {
 });
 
 
-server.listen(0, function () {
+server.listen(common.PORT, function () {
   console.log('listen', server.address().port);
 
   var agent = new http.Agent({maxSockets: 1});

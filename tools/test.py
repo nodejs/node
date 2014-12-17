@@ -1317,7 +1317,8 @@ def GetSpecialCommandProcessor(value):
 
 
 BUILT_IN_TESTS = [
-  'simple',
+  'sequential',
+  'parallel',
   'pummel',
   'message',
   'internet',

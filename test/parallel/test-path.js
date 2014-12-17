@@ -61,8 +61,8 @@ if (!isWindows) {
 
 assert.equal(path.extname(f), '.js');
 
-assert.equal(path.dirname(f).substr(-11),
-             isWindows ? 'test\\simple' : 'test/simple');
+assert.equal(path.dirname(f).substr(-13),
+             isWindows ? 'test\\parallel' : 'test/parallel');
 assert.equal(path.dirname('/a/b/'), '/a');
 assert.equal(path.dirname('/a/b'), '/a');
 assert.equal(path.dirname('/a'), '/');
