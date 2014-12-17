@@ -163,7 +163,7 @@ if "%test%"=="" goto exit
 if "%config%"=="Debug" set test_args=--mode=debug
 if "%config%"=="Release" set test_args=--mode=release
 
-if "%test%"=="test" set test_args=%test_args% sequential parallel message
+if "%test%"=="test" set test_args=%test_args% sequential parallel message -J
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% sequential parallel

@@ -9,6 +9,7 @@ tags
 *.pyc
 doc/api.xml
 tmp/
+test/tmp*/
 node
 node_g
 *.swp
