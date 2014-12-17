@@ -40,6 +40,7 @@ import tempfile
 import time
 import threading
 import utils
+import multiprocessing
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -58,9 +59,13 @@ class ProgressIndicator(object):
   def __init__(self, cases, flaky_tests_mode):
     self.cases = cases
     self.flaky_tests_mode = flaky_tests_mode
-    self.queue = Queue(len(cases))
+    self.parallel_queue = Queue(len(cases))
+    self.sequential_queue = Queue(len(cases))
     for case in cases:
-      self.queue.put_nowait(case)
+      if case.parallel:
+        self.parallel_queue.put_nowait(case)
+      else:
+        self.sequential_queue.put_nowait(case)
     self.succeeded = 0
     self.remaining = len(cases)
     self.total = len(cases)
@@ -87,11 +92,11 @@ class ProgressIndicator(object):
     # That way -j1 avoids threading altogether which is a nice fallback
     # in case of threading problems.
     for i in xrange(tasks - 1):
-      thread = threading.Thread(target=self.RunSingle, args=[])
+      thread = threading.Thread(target=self.RunSingle, args=[True, i + 1])
       threads.append(thread)
       thread.start()
     try:
-      self.RunSingle()
+      self.RunSingle(False, 0)
       # Wait for the remaining threads
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
@@ -105,13 +110,19 @@ class ProgressIndicator(object):
     self.Done()
     return not self.failed
 
-  def RunSingle(self):
+  def RunSingle(self, parallel, thread_id):
     while not self.terminate:
       try:
-        test = self.queue.get_nowait()
+        test = self.parallel_queue.get_nowait()
       except Empty:
-        return
+        if parallel:
+          return
+        try:
+          test = self.sequential_queue.get_nowait()
+        except Empty:
+          return
       case = test.case
+      case.thread_id = thread_id
       self.lock.acquire()
       self.AboutToRun(case)
       self.lock.release()
@@ -381,6 +392,8 @@ class TestCase(object):
     self.duration = None
     self.arch = arch
     self.mode = mode
+    self.parallel = False
+    self.thread_id = 0
 
   def IsNegative(self):
     return False
@@ -399,11 +412,12 @@ class TestCase(object):
   def GetSource(self):
     return "(no source available)"
 
-  def RunCommand(self, command):
+  def RunCommand(self, command, env):
     full_command = self.context.processor(command)
     output = Execute(full_command,
                      self.context,
-                     self.context.GetTimeout(self.mode))
+                     self.context.GetTimeout(self.mode),
+                     env)
     self.Cleanup()
     return TestOutput(self,
                       full_command,
@@ -420,7 +434,9 @@ class TestCase(object):
     self.BeforeRun()
 
     try:
-      result = self.RunCommand(self.GetCommand())
+      result = self.RunCommand(self.GetCommand(), {
+        "TEST_THREAD_ID": "%d" % self.thread_id
+      })
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
       # tries to print to stdout/stderr after that and the tty buffer is
@@ -559,15 +575,22 @@ def CheckedUnlink(name):
     PrintError("os.unlink() " + str(e))
 
 
-def Execute(args, context, timeout=None):
+def Execute(args, context, timeout=None, env={}):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
+
+  # Extend environment
+  env_copy = os.environ.copy()
+  for key, value in env.iteritems():
+    env_copy[key] = value
+
   (process, exit_code, timed_out) = RunProcess(
     context,
     timeout,
     args = args,
     stdout = fd_out,
     stderr = fd_err,
+    env = env_copy
   )
   os.close(fd_out)
   os.close(fd_err)
@@ -1068,6 +1091,7 @@ class ClassifiedTest(object):
   def __init__(self, case, outcomes):
     self.case = case
     self.outcomes = outcomes
+    self.parallel = self.case.parallel
 
 
 class Configuration(object):
@@ -1224,6 +1248,8 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
       default=1, type="int")
+  result.add_option("-J", help="Run tasks in parallel on all cores",
+      default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
   result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
@@ -1245,6 +1271,8 @@ def ProcessOptions(options):
   VERBOSE = options.verbose
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
+  if options.J:
+    options.j = multiprocessing.cpu_count()
   def CheckTestMode(name, option):
     if not option in ["run", "skip", "dontcare"]:
       print "Unknown %s mode %s" % (name, option)

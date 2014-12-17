@@ -27,8 +27,17 @@ var os = require('os');
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
 exports.libDir = path.join(exports.testDir, '../lib');
-exports.tmpDir = path.join(exports.testDir, 'tmp');
+exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
+
+if (process.env.TEST_THREAD_ID) {
+  // Distribute ports in parallel tests
+  if (!process.env.NODE_COMMON_PORT)
+    exports.PORT += +process.env.TEST_THREAD_ID * 100;
+
+  exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
+}
+exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 
 exports.opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
 if (process.platform === 'win32') {
