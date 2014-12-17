@@ -22,6 +22,7 @@
 var assert = require('assert');
 var cluster = require('cluster')
 var net = require('net');
+var common = require('../common');
 
 var destroyed;
 var success;
@@ -53,7 +54,7 @@ if (cluster.isMaster) {
       success = true;
     });
 
-  }).listen(0, function() {
+  }).listen(common.PORT, function() {
     var port = this.address().port;
 
     worker = cluster.fork()

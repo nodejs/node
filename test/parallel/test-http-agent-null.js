@@ -19,27 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
 var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
+var http = require('http');
+var net = require('net');
 
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+var request = 0;
+var response = 0;
+process.on('exit', function() {
+  assert.equal(request, 1, 'http server "request" callback was not called');
+  assert.equal(response, 1, 'http request "response" callback was not called');
+});
 
-tls.createServer({ key: key, cert: cert }, function(conn) {
-  conn.end();
-  this.close();
-}).listen(0, function() {
-  var options = { port: this.address().port, rejectUnauthorized: true };
-  tls.connect(options).on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-    assert.equal(err.message, 'unable to verify the first certificate');
-    this.destroy();
-  }));
+var server = http.createServer(function(req, res) {
+  request++;
+  res.end();
+}).listen(common.PORT, function() {
+  var options = {
+    agent: null,
+    port: this.address().port
+  };
+  http.get(options, function(res) {
+    response++;
+    res.resume();
+    server.close();
+  });
 });

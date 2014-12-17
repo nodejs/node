@@ -73,7 +73,7 @@ child.exec(nodejs + ' --eval "require(\'' + filename + '\')"',
     });
 
 // module path resolve bug, regression test
-child.exec(nodejs + ' --eval "require(\'./test/simple/test-cli-eval.js\')"',
+child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
