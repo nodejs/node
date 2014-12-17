@@ -1,4 +1,27 @@
-2014.10.20, Version 0.10.33 (Stable)
+2014.12.17, Version 0.10.34 (Stable)
+
+* uv: update to v0.10.30
+
+* zlib: upgrade to v1.2.8
+
+* child_process: check execFile args is an array (Sam Roberts)
+
+* child_process: check fork args is an array (Sam Roberts)
+
+* crypto: update root certificates (Ben Noordhuis)
+
+* domains: fix issues with abort on uncaught (Julien Gilli)
+
+* timers: Avoid linear scan in _unrefActive. (Julien Gilli)
+
+* timers: fix unref() memory leak (Trevor Norris)
+
+* v8: add api for aborting on uncaught exception (Julien Gilli)
+
+* debugger: fix when using "use strict" (Julien Gilli)
+
+
+2014.10.20, Version 0.10.33 (Stable), 8d045a30e95602b443eb259a5021d33feb4df079
 
 * openssl: Update to 1.0.1j (Addressing multiple CVEs)
 
@@ -71,7 +94,7 @@
 
 * deps: backport 4ed5fde4f from v8 upstream (Fedor Indutny)
 
-* deps: cherry-pick eca441b2 from OpenSSL (Fedor Indutny)
+* 
 
 * lib: remove and restructure calls to isNaN() (cjihrig)
 
