@@ -444,6 +444,8 @@ response.
 If `data` is specified, it is equivalent to calling
 `response.write(data, encoding)` followed by `response.end(callback)`.
 
+If `callback` is specified, it will be called when the response stream
+is finished.
 
 ## http.request(options[, callback])
 
@@ -889,6 +891,9 @@ chunked, this will send the terminating `'0\r\n\r\n'`.
 
 If `data` is specified, it is equivalent to calling
 `request.write(data, encoding)` followed by `request.end(callback)`.
+
+If `callback` is specified, it will be called when the request stream
+is finished.
 
 ### request.abort()
 
