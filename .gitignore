@@ -70,3 +70,6 @@ deps/zlib/zlib.target.mk
 # test artifacts
 tools/faketime
 icu_config.gypi
+
+# DS store
+.DS_Store
