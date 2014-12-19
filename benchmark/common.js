@@ -187,7 +187,7 @@ Benchmark.prototype.end = function(operations) {
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
   if (!silent)
-    console.log('%s: %s', heading, value.toPrecision(5));
+    console.log('%s: %s', heading, value.toFixed(0));
   process.exit(0);
 };
 
