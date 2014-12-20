@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var util = require('util');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -74,10 +75,10 @@ function parent() {
   var clientExited = false;
   var serverListened = false;
   var opt = {
-    env: {
+    env: util._extend(process.env, {
       NODE_DEBUG: 'net',
       NODE_COMMON_PORT: process.env.NODE_COMMON_PORT,
-    }
+    })
   };
 
   process.on('exit', function() {

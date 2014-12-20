@@ -21,6 +21,7 @@
 
 var common = require('../common');
 var assert = require('assert');
+var util = require('util');
 
 if (process.argv[2] === 'child')
   child();
@@ -47,7 +48,7 @@ function test(environ, shouldWrite) {
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
-    env: { NODE_DEBUG: environ }
+    env: util._extend(process.env, { NODE_DEBUG: environ })
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);

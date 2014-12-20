@@ -21,12 +21,13 @@
 
 var common = require('../common');
 var assert = require('assert');
+var util = require('util');
 
 var spawn = require('child_process').spawn;
 var child = spawn(process.execPath, [], {
-  env: {
+  env: util._extend(process.env, {
     NODE_DEBUG: process.argv[2]
-  }
+  })
 });
 var wanted = child.pid + '\n';
 var found = '';
