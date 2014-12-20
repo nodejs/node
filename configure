@@ -356,28 +356,8 @@ def is_arm_hard_float_abi():
   # the Floating Point ABI used (PCS stands for Procedure Call Standard).
   # We use these as well as a couple of other defines to statically determine
   # what FP ABI used.
-  # GCC versions 4.4 and below don't support hard-fp.
-  # GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
-  # __ARM_PCS_VFP.
 
-  if compiler_version() >= (4, 6, 0):
-    return '__ARM_PCS_VFP' in cc_macros()
-  elif compiler_version() < (4, 5, 0):
-    return False
-  elif '__ARM_PCS_VFP' in cc_macros():
-    return True
-  elif ('__ARM_PCS' in cc_macros() or
-        '__SOFTFP' in cc_macros() or
-        not '__VFP_FP__' in cc_macros()):
-    return False
-  else:
-    print '''Node.js configure error: Your version of GCC does not report
-      the Floating-Point ABI to compile for your hardware
-
-      Please manually specify which floating-point ABI to use with the
-      --with-arm-float-abi option.
-      '''
-    sys.exit()
+  return '__ARM_PCS_VFP' in cc_macros()
 
 
 def host_arch_cc():
@@ -480,10 +460,6 @@ def configure_node(o):
 
   if not is_clang and cc_version != 0:
     o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
-
-  # clang has always supported -fvisibility=hidden, right?
-  if not is_clang and cc_version < (4,0,0):
-    o['variables']['visibility'] = ''
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
