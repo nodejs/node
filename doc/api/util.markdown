@@ -267,10 +267,21 @@ Marks that a method should not be used any more.
       }
     }, 'util.puts: Use console.log instead')
 
-It returns a modified function which warns once by default. If
-`--no-deprecation` is set then this function is a NO-OP. If
-`--throw-deprecation` is set then the application will throw an exception
-if the deprecated API is used.
+It returns a modified function which warns once by default.
+
+If `--no-deprecation` is set then this function is a NO-OP.  Configurable
+at run-time through the `process.noDeprecation` boolean (only effective
+when set before a module is loaded.)
+
+If `--trace-deprecation` is set, a warning and a stack trace are logged
+to the console the first time the deprecated API is used.  Configurable
+at run-time through the `process.traceDeprecation` boolean.
+
+If `--throw-deprecation` is set then the application throws an exception
+when the deprecated API is used.  Configurable at run-time through the
+`process.throwDeprecation` boolean.
+
+`process.throwDeprecation` takes precedence over `process.traceDeprecation`.
 
 ## util.debug(string)
 
