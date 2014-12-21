@@ -153,8 +153,22 @@ nameBuilder2.prototype = Object;
 nb2 = new nameBuilder2('Ryan', 'Dahl');
 assert.throws(makeBlock(a.deepEqual, nb1, nb2), a.AssertionError);
 
-// String literal + object blew up my implementation...
-assert.throws(makeBlock(a.deepEqual, 'a', {}), a.AssertionError);
+// primitives and object
+assert.throws(makeBlock(a.deepEqual, null, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, undefined, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, 'a', ['a']), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, 'a', {0: 'a'}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, 1, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, true, {}), a.AssertionError);
+if (typeof Symbol === 'symbol') {
+  assert.throws(makeBlock(assert.deepEqual, Symbol(), {}), a.AssertionError);
+}
+
+// primitive wrappers and object
+assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']), a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), {0: 'a'}), a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}), a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}), a.AssertionError);
 
 // Testing the throwing
 function thrower(errorConstructor) {
