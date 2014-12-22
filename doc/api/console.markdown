@@ -64,11 +64,19 @@ Defaults to `false`. Colors are customizable, see below.
 
 ## console.time(label)
 
-Mark a time.
+Used to calculate the duration of a specific operation. To start a timer, call
+the `console.time()` method, giving it a name as only parameter. To stop the
+timer, and to get the elapsed time in miliseconds, just call the
+[`console.timeEnd()`](#console_console_timeend_label) method, again passing the
+timer's name as the parameter.
 
 ## console.timeEnd(label)
 
-Finish timer, record output. Example:
+Stops a timer that was previously started by calling
+[`console.time()`](#console_console_time_label) and print the result to the
+console.
+
+Example:
 
     console.time('100-elements');
     for (var i = 0; i < 100; i++) {
