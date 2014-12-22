@@ -150,7 +150,8 @@ template int SSLWrap<TLSCallbacks>::TLSExtStatusCallback(SSL* s, void* arg);
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  static_assert(sizeof(uv_thread_t) <= sizeof(void*),
+  static uv_thread_t uv_thread_inhibit_warning;
+  static_assert(sizeof(uv_thread_inhibit_warning) <= sizeof(tid),
                 "uv_thread_t does not fit in a pointer");
   CRYPTO_THREADID_set_pointer(tid, reinterpret_cast<void*>(uv_thread_self()));
 }
