@@ -398,22 +398,6 @@ def host_arch_win():
   return matchup.get(arch, 'ia32')
 
 
-def compiler_version():
-  try:
-    proc = subprocess.Popen(shlex.split(CC) + ['--version'],
-                            stdout=subprocess.PIPE)
-  except WindowsError:
-    return (0, False)
-
-  is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
-
-  proc = subprocess.Popen(shlex.split(CC) + ['-dumpversion'],
-                          stdout=subprocess.PIPE)
-  version = tuple(map(int, proc.communicate()[0].split('.')))
-
-  return (version, is_clang)
-
-
 def configure_arm(o):
   if options.arm_float_abi:
     arm_float_abi = options.arm_float_abi
@@ -454,12 +438,6 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
-
-  cc_version, is_clang = compiler_version()
-  o['variables']['clang'] = 1 if is_clang else 0
-
-  if not is_clang and cc_version != 0:
-    o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
