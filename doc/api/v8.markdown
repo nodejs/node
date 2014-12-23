@@ -6,7 +6,7 @@ This module exposes events and interfaces specific to the version of [V8][]
 built with node.  These interfaces are subject to change by upstream and are
 therefore not covered under the stability index.
 
-### getHeapStatistics()
+## getHeapStatistics()
 
 Returns an object with the following properties
 
@@ -20,7 +20,7 @@ Returns an object with the following properties
 }
 ```
 
-### setFlagsFromString()
+## setFlagsFromString()
 
 Set additional V8 command line flags.  Use with care; changing settings
 after the VM has started may result in unpredictable behavior, including
