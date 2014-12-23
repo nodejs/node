@@ -41,10 +41,10 @@ assert.doesNotThrow(function() { spawn(cmd, a, o); });
 assert.doesNotThrow(function() { spawn(cmd, o); });
 
 // Variants of undefined as explicit 'no argument' at a position
-assert.doesNotThrow(function() { execFile(empty, u, o); });
-assert.doesNotThrow(function() { execFile(empty, a, u); });
-assert.doesNotThrow(function() { execFile(empty, n, o); });
-assert.doesNotThrow(function() { execFile(empty, a, n); });
+assert.doesNotThrow(function() { spawn(cmd, u, o); });
+assert.doesNotThrow(function() { spawn(cmd, a, u); });
+assert.doesNotThrow(function() { spawn(cmd, n, o); });
+assert.doesNotThrow(function() { spawn(cmd, a, n); });
 
 assert.throws(function() { spawn(cmd, s); }, TypeError);
 assert.doesNotThrow(function() { spawn(cmd, a, s); }, TypeError);
