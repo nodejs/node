@@ -1,4 +1,13 @@
-2014.12.17, Version 0.10.34 (Stable)
+2014.12.22, Version 0.10.35 (Stable)
+
+* tls: re-add 1024-bit SSL certs removed by f9456a2 (Chris Dickinson)
+
+* timers: don't close interval timers when unrefd (Julien Gilli)
+
+* timers: don't mutate unref list while iterating it (Julien Gilli)
+
+
+2014.12.17, Version 0.10.34 (Stable), 52795f8fcc2de77cf997e671ea58614e5e425dfe
 
 * uv: update to v0.10.30
 
