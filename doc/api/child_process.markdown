@@ -485,7 +485,8 @@ See also: `child_process.exec()` and `child_process.fork()`
      understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {Number} (Default: 0)
-  * `maxBuffer` {Number} (Default: `200*1024`)
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed (Default: `200*1024`)
   * `killSignal` {String} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -527,8 +528,8 @@ default options are
 If `timeout` is greater than 0, then it will kill the child process
 if it runs longer than `timeout` milliseconds. The child process is killed with
 `killSignal` (default: `'SIGTERM'`). `maxBuffer` specifies the largest
-amount of data allowed on stdout or stderr - if this value is exceeded then
-the child process is killed.
+amount of data (in bytes) allowed on stdout or stderr - if this value is
+exceeded then the child process is killed.
 
 
 ### child_process.execFile(file[, args][, options][, callback])
@@ -540,7 +541,8 @@ the child process is killed.
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
-  * `maxBuffer` {Number} (Default: 200\*1024)
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed (Default: 200\*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -612,7 +614,8 @@ configuration at startup.
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
   * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number}
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
 * return: {Object}
   * `pid` {Number} Pid of the child process
@@ -645,7 +648,8 @@ process has exited.
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
   * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number}
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
 * return: {Buffer|String} The stdout from the command
 
@@ -675,7 +679,8 @@ throw.  The `Error` object will contain the entire result from
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
   * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number}
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
 * return: {Buffer|String} The stdout from the command
 
