@@ -31,7 +31,7 @@ var b;
 arr = [];
 
 for (b of buffer)
-    arr.push(b);
+  arr.push(b);
 
 assert.deepEqual(arr, [1, 2, 3, 4, 5]);
 
