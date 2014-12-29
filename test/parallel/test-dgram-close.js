@@ -32,7 +32,7 @@ buf.fill(42);
 var socket = dgram.createSocket('udp4');
 var handle = socket._handle;
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
-socket.close();
+assert.strictEqual(socket.close(), socket);
 socket = null;
 
 // Verify that accessing handle after closure doesn't throw
