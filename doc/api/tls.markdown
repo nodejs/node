@@ -602,11 +602,11 @@ when the server has been bound.
 See `net.Server` for more information.
 
 
-### server.close()
+### server.close([callback])
 
 Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
-event.
+event.  Optionally, you can pass a callback to listen for the `'close'` event.
 
 ### server.address()
 
