@@ -32,9 +32,13 @@ buf.fill(42);
 var socket = dgram.createSocket('udp4');
 var handle = socket._handle;
 var closeEvents = 0;
+var closeCallbacks = 0;
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
-assert.strictEqual(socket.close(), socket);
+assert.strictEqual(socket.close(function() {
+  ++closeCallbacks;
+}), socket);
 socket.on('close', function() {
+  assert.equal(closeCallbacks, 1);
   ++closeEvents;
 });
 socket = null;
@@ -48,4 +52,5 @@ setImmediate(function() {
 
 process.on('exit', function() {
   assert.equal(closeEvents, 1);
+  assert.equal(closeCallbacks, 1);
 });
