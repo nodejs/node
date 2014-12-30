@@ -54,6 +54,7 @@
       'lib/_stream_duplex.js',
       'lib/_stream_transform.js',
       'lib/_stream_passthrough.js',
+      'lib/sprintf.js',
       'lib/string_decoder.js',
       'lib/sys.js',
       'lib/timers.js',
