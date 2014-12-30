@@ -630,16 +630,14 @@
     // Load events module in order to access prototype elements on process like
     // process.addListener.
     var signalWraps = {};
-    var addListener = process.addListener;
-    var removeListener = process.removeListener;
 
     function isSignal(event) {
       return event.slice(0, 3) === 'SIG' &&
              startup.lazyConstants().hasOwnProperty(event);
     }
 
-    // Wrap addListener for the special signal types
-    process.on = process.addListener = function(type, listener) {
+    // Detect presence of a listener for the special signal types
+    process.on('newListener', function(type, listener) {
       if (isSignal(type) &&
           !signalWraps.hasOwnProperty(type)) {
         var Signal = process.binding('signal_wrap').Signal;
@@ -659,23 +657,15 @@
 
         signalWraps[type] = wrap;
       }
+    });
 
-      return addListener.apply(this, arguments);
-    };
-
-    process.removeListener = function(type, listener) {
-      var ret = removeListener.apply(this, arguments);
-      if (isSignal(type)) {
-        assert(signalWraps.hasOwnProperty(type));
-
-        if (NativeModule.require('events').listenerCount(this, type) === 0) {
-          signalWraps[type].close();
-          delete signalWraps[type];
-        }
+    process.on('removeListener', function(type, listener) {
+      if (signalWraps.hasOwnProperty(type) &&
+          NativeModule.require('events').listenerCount(this, type) === 0) {
+        signalWraps[type].close();
+        delete signalWraps[type];
       }
-
-      return ret;
-    };
+    });
   };
 
 
