@@ -50,7 +50,7 @@ static int ares_win32_init(void)
 #ifdef USE_WINSOCK
 
   hnd_iphlpapi = 0;
-  hnd_iphlpapi = LoadLibrary("iphlpapi.dll");
+  hnd_iphlpapi = LoadLibraryW(L"iphlpapi.dll");
   if (!hnd_iphlpapi)
     return ARES_ELOADIPHLPAPI;
 
@@ -78,7 +78,7 @@ static int ares_win32_init(void)
    */
 
   hnd_advapi32 = 0;
-  hnd_advapi32 = LoadLibrary("advapi32.dll");
+  hnd_advapi32 = LoadLibraryW(L"advapi32.dll");
   if (hnd_advapi32)
     {
       ares_fpSystemFunction036 = (fpSystemFunction036_t)
