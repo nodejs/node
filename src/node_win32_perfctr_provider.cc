@@ -135,7 +135,7 @@ void InitPerfCountersWin32() {
   wcscpy_s(Inst, INST_MAX_LEN, INST_PREFIX);
   _itow_s(pid, Inst + INST_PREFIX_LEN, INST_MAX_LEN - INST_PREFIX_LEN, 10);
 
-  advapimod = LoadLibrary("advapi32.dll");
+  advapimod = LoadLibraryW(L"advapi32.dll");
   if (advapimod) {
     perfctr_startProvider = (PerfStartProviderExFunc)
       GetProcAddress(advapimod, "PerfStartProviderEx");
