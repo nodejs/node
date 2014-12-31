@@ -167,7 +167,7 @@ void NTAPI etw_events_enable_callback(
 void init_etw() {
   events_enabled = 0;
 
-  advapi = LoadLibrary("advapi32.dll");
+  advapi = LoadLibraryW(L"advapi32.dll");
   if (advapi) {
     event_register = (EventRegisterFunc)
       GetProcAddress(advapi, "EventRegister");
