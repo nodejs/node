@@ -90,6 +90,66 @@ const uint32_t kOnMessageComplete = 3;
   }                                                                           \
   int name##_(const char* at, size_t length)
 
+struct RecyclingHeapAllocator {
+  RecyclingHeapAllocator(void) {
+    size_count_ = 0;
+    memset(block_sizes_, 0, sizeof(block_sizes_));
+    memset(block_rings_, 0, sizeof(block_rings_));
+  }
+
+
+  int FindIndexForSize(size_t how_big) {
+    size_t i;
+    for (i = 0; i < size_count_; ++i) {
+      if (block_sizes_[i] == how_big) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+
+  char *AllocateChunk(size_t bytes) {
+    int i = FindIndexForSize(bytes);
+    if (i == -1 || block_rings_[i] == NULL) {
+      int block_count = 5;
+      char *big_pointer = new char[bytes * block_count];
+      char *alloc_result;
+      char *cur_pointer;
+      alloc_result = &big_pointer[0];
+      for (i = 1; i < block_count; ++i) {
+        cur_pointer = &big_pointer[bytes*i];
+        FreeChunk(cur_pointer, bytes);
+      }
+      return alloc_result;
+    }
+    char *ptr_head = block_rings_[i];
+    block_rings_[i] = *(reinterpret_cast<char **>(ptr_head));
+    return ptr_head;
+  }
+
+
+  void FreeChunk(char *ptr, int bytes) {
+    void **cptr = reinterpret_cast<void **>(ptr);
+    int i = FindIndexForSize(bytes);
+    if (i == -1) {
+      i = size_count_;
+      block_sizes_[i] = bytes;
+      block_rings_[i] = NULL;
+      size_count_ += 1;
+    }
+    *cptr = block_rings_[i];
+    block_rings_[i] = ptr;
+  }
+
+
+  size_t block_sizes_[128];
+  char *block_rings_[128];
+  size_t size_count_;
+};
+
+static RecyclingHeapAllocator fast_allocator;
+
 
 // helper class for the Parser
 struct StringPtr {
@@ -104,12 +164,19 @@ struct StringPtr {
   }
 
 
+  void IncreaseSizePast(size_t x) {
+    while (alloc_size_ < x) {
+      alloc_size_ = ((alloc_size_ + 128) * 5)/4;
+    }
+  }
+
   // If str_ does not point to a heap string yet, this function makes it do
   // so. This is called at the end of each http_parser_execute() so as not
   // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
   void Save() {
     if (!on_heap_ && size_ > 0) {
-      char* s = new char[size_];
+      IncreaseSizePast(size_);
+      char* s = fast_allocator.AllocateChunk(alloc_size_);
       memcpy(s, str_, size_);
       str_ = s;
       on_heap_ = true;
@@ -119,33 +186,45 @@ struct StringPtr {
 
   void Reset() {
     if (on_heap_) {
-      delete[] str_;
+      fast_allocator.FreeChunk(str_, alloc_size_);
       on_heap_ = false;
     }
 
     str_ = nullptr;
     size_ = 0;
+    alloc_size_ = 0;
   }
 
 
   void Update(const char* str, size_t size) {
-    if (str_ == nullptr)
-      str_ = str;
-    else if (on_heap_ || str_ + size_ != str) {
-      // Non-consecutive input, make a copy on the heap.
-      // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
-      char* s = new char[size_ + size];
+    if (str_ == nullptr) {
+      str_ = const_cast<char *>(str);  // for runtime efficiency
+      size_ += size;
+      return;
+    }
+    if (str_ + size_ == str) {
+      size_ += size;
+      return;
+    }
+    // Non-consecutive input, make a copy on the heap.
+    if (!on_heap_ || size_ + size > alloc_size_) {
+      size_t old_alloc_size = alloc_size_;
+      IncreaseSizePast(size_ + size);
+      char* s = fast_allocator.AllocateChunk(alloc_size_);
       memcpy(s, str_, size_);
       memcpy(s + size_, str, size);
-
-      if (on_heap_)
-        delete[] str_;
-      else
+      size_ += size;
+      if (on_heap_) {
+        fast_allocator.FreeChunk(str_, old_alloc_size);
+      } else {
         on_heap_ = true;
-
+      }
       str_ = s;
+      return;
     }
+    memcpy(str_ + size_, str, size);
     size_ += size;
+    return;
   }
 
 
@@ -157,9 +236,9 @@ struct StringPtr {
   }
 
 
-  const char* str_;
+  char* str_;
   bool on_heap_;
-  size_t size_;
+  size_t size_, alloc_size_;
 };
 
 
