@@ -247,7 +247,7 @@ static void After(uv_fs_t *req) {
     }
   }
 
-  req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
+  req_wrap->Fulfill(argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
   delete req_wrap;
