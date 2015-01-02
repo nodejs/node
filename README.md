@@ -4,21 +4,24 @@ io.js
 
 This repository began as a GitHub fork of
 [joyent/node](https://github.com/joyent/node).
-io.js contributions, releases, and contributorship are under an
-[open governance model](./CONTRIBUTING.md#governance).
-We intend to land, with increasing regularity, releases which are
-compatible with the npm ecosystem that has been built to date for node.js.
 
-### Is it io.js or IO.js or iojs or IOjs or iOjS?
+io.js contributions, releases, and contributorship are under an
+[open governance model](./GOVERNANCE.md).
+We intend to land, with increasing regularity, releases which are
+compatible with the npm ecosystem that has been built to date for Node.js.
+
+## Is it io.js or IO.js or iojs or IOjs or iOjS?
 
 The official name is **io.js**, which should never be capitalized,
 especially not at the start of a sentence, unless it is being
 displayed in a location that is customarily all-caps (such as
 the title of man pages.)
 
-### To build:
+## To build:
 
-Prerequisites (Unix only):
+### Unix / Macintosh
+
+Prerequisites:
 
 * `gcc` and `g++` 4.8 or newer, or
 * `clang` and `clang++` 3.3 or newer
@@ -26,77 +29,59 @@ Prerequisites (Unix only):
 * GNU Make 3.81 or newer
 * libexecinfo (FreeBSD and OpenBSD only)
 
-Unix/Macintosh:
-
-```sh
-./configure
-make
-make install
+```text
+$ ./configure
+$ make
+$ make install
 ```
 
-If your python binary is in a non-standard location or has a
+If your Python binary is in a non-standard location or has a
 non-standard name, run the following instead:
 
-```sh
-export PYTHON=/path/to/python
-$PYTHON ./configure
-make
-make install
+```text
+$ export PYTHON=/path/to/python
+$ $PYTHON ./configure
+$ make
+$ make install
 ```
 
-Prerequisites (Windows only):
+To run the tests:
 
-* Python 2.6 or 2.7
+```text
+$ make test
+```
+
+To build the documentation:
+
+```text
+$ make doc
+```
+
+To read the documentation:
+
+```text
+$ man doc/node.1
+```
+
+### Windows
+
+Prerequisites:
+
+* [Python 2.6 or 2.7](https://www.python.org/downloads/)
 * Visual Studio 2013 for Windows Desktop, or
 * Visual Studio Express 2013 for Windows Desktop
+* Basic Unix tools required for some tests,
+  [Git for Windows](http://git-scm.com/download/win) includes Git Bash
+  and tools which can be included in the global `PATH`.
 
-Windows:
-
-```sh
-vcbuild nosign
+```text
+> vcbuild nosign
 ```
 
-You can download pre-built binaries for various operating systems from
-[http://nodejs.org/download/](http://nodejs.org/download/).  The Windows
-and OS X installers will prompt you for the location in which to install.
-The tarballs are self-contained; you can extract them to a local directory
-with:
+To run the tests:
 
-```sh
-tar xzf /path/to/node-<version>-<platform>-<arch>.tar.gz
-```
-
-Or system-wide with:
-
-```sh
-cd /usr/local && tar --strip-components 1 -xzf \
-                    /path/to/node-<version>-<platform>-<arch>.tar.gz
-```
-
-### To run the tests:
-
-Unix/Macintosh:
-
-```sh
-make test
-```
-
-Windows:
-
-```sh
-vcbuild test
-```
-
-### To build the documentation:
-
-```sh
-make doc
-```
-
-### To read the documentation:
-
-```sh
-man doc/node.1
+```text
+> vcbuild test
 ```
 
 ### `Intl` (ECMA-402) support:
@@ -110,62 +95,62 @@ This option will build with "small" (English only) support, but
 the full `Intl` (ECMA-402) APIs.  With `--download=all` it will
 download the ICU library as needed.
 
-Unix/Macintosh:
+Unix / Macintosh:
 
-```sh
-./configure --with-intl=small-icu --download=all
+```text
+$ ./configure --with-intl=small-icu --download=all
 ```
 
 Windows:
 
-```sh
-vcbuild small-icu download-all
+```text
+> vcbuild small-icu download-all
 ```
 
-The `small-icu` mode builds
-with English-only data. You can add full data at runtime.
+The `small-icu` mode builds with English-only data. You can add full
+data at runtime.
 
 *Note:* more docs are on
-[the wiki](https://github.com/joyent/node/wiki/Intl).
+[the joyent/node wiki](https://github.com/joyent/node/wiki/Intl).
 
 #### Build with full ICU support (all locales supported by ICU):
 
-With the `--download=all`, this may download ICU if you don't
-have an ICU in `deps/icu`.
+With the `--download=all`, this may download ICU if you don't have an
+ICU in `deps/icu`.
 
-Unix/Macintosh:
+Unix / Macintosh:
 
-```sh
-./configure --with-intl=full-icu --download=all
+```text
+$ ./configure --with-intl=full-icu --download=all
 ```
 
 Windows:
 
-```sh
-vcbuild full-icu download-all
+```text
+> vcbuild full-icu download-all
 ```
 
 #### Build with no Intl support `:-(`
 
-The `Intl` object will not be available.
-This is the default at present, so this option is not normally needed.
+The `Intl` object will not be available. This is the default at
+present, so this option is not normally needed.
 
-Unix/Macintosh:
+Unix / Macintosh:
 
-```sh
-./configure --with-intl=none
+```text
+$ ./configure --with-intl=none
 ```
 
 Windows:
 
-```sh
-vcbuild intl-none
+```text
+> vcbuild intl-none
 ```
 
-#### Use existing installed ICU (Unix/Macintosh only):
+#### Use existing installed ICU (Unix / Macintosh only):
 
-```sh
-pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
+```text
+$ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
 #### Build with a specific ICU:
@@ -175,42 +160,55 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-Unix/Macintosh: from an already-unpacked ICU
+Unix / Macintosh
 
-```sh
-./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
+```text
+# from an already-unpacked ICU:
+$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
+
+# from a local ICU tarball
+$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
+
+# from a tarball URL
+$ ./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
 ```
 
-Unix/Macintosh: from a local ICU tarball
+Windows
 
-```sh
-./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
+First unpack latest ICU to `deps/icu`
+[icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
+as `deps/icu` (You'll have: `deps/icu/source/...`)
+
+```text
+> vcbuild full-icu
 ```
 
-Unix/Macintosh: from a tarball URL
+## Resources for Newcomers
 
-```sh
-./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
-```
+* [CONTRIBUTING.md](./CONTRIBUTING.md)
+* [GOVERNANCE.md](./GOVERNANCE.md)
+* IRC:
+  [#io.js on Freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
+* [iojs/io.js on Gitter](https://gitter.im/iojs/io.js)
 
-Windows: first unpack latest ICU to `deps/icu`
-  [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
-  as `deps/icu` (You'll have: `deps/icu/source/...`)
 
-```sh
-vcbuild full-icu
-```
 
-Resources for Newcomers
----
-  - [The Wiki](https://github.com/joyent/node/wiki)
-  - [nodejs.org](http://nodejs.org/)
-  - [how to install node.js and npm (node package manager)](http://www.joyent.com/blog/installing-node-and-npm/)
-  - [list of modules](https://github.com/joyent/node/wiki/modules)
-  - [searching the npm registry](http://npmjs.org/)
-  - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
-  - [node.js mailing list](http://groups.google.com/group/nodejs)
-  - irc chatroom, [#io.js on freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
-  - [community](https://github.com/joyent/node/wiki/Community)
-  - [contributing](https://github.com/joyent/node/wiki/Contributing)
-  - [big list of all the helpful wiki pages](https://github.com/joyent/node/wiki/_pages)
+## Current Project Team Members
+
+The io.js project team comprises a group of core collaborators and a sub-group
+that forms the _Technical Committee_ (TC) which governs the project. For more
+information about the governance of the io.js project, see
+[GOVERNANCE.md](./GOVERNANCE.md).
+
+* **Isaac Z. Schlueter** ([@isaacs](https://github.com/isaacs)) &lt;i@izs.me&gt; (Technical Committee)
+* **Ben Noordhuis** ([@bnoordhuis](https://github.com/bnoordhuis)) &lt;info@bnoordhuis.nl&gt; (Technical Committee)
+* **Bert Belder** ([@piscisaureus](https://github.com/piscisaureus)) &lt;bertbelder@gmail.com&gt; (Technical Committee)
+* **Fedor Indutny** ([@indutny](https://github.com/indutny)) &lt;fedor.indutny@gmail.com&gt; (Technical Committee)
+* **Trevor Norris** ([@trevnorris](https://github.com/trevnorris)) &lt;trev.norris@gmail.com&gt; (Technical Committee)
+* **Chris Dickinson** ([@chrisdickinson](https://github.com/chrisdickinson)) &lt;christopher.s.dickinson@gmail.com&gt; (Technical Committee)
+* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt; (Technical Committee)
+* **Mikeal Rogers** ([@mikeal](https://github.com/mikeal)) &lt;mikeal.rogers@gmail.com&gt;
+* **Rod Vagg** ([@rvagg](https://github.com/rvagg)) &lt;rod@vagg.org&gt;
+
+Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
+maintaining the io.js project.
