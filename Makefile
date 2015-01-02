@@ -222,16 +222,6 @@ email.md: ChangeLog tools/email-footer.md
 blog.html: email.md
 	cat $< | ./$(NODE_EXE) tools/doc/node_modules/.bin/marked > $@
 
-website-upload: doc
-	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
-	ssh node@nodejs.org '\
-    rm -f ~/web/nodejs.org/dist/latest &&\
-    ln -s $(VERSION) ~/web/nodejs.org/dist/latest &&\
-    rm -f ~/web/nodejs.org/docs/latest &&\
-    ln -s $(VERSION) ~/web/nodejs.org/docs/latest &&\
-    rm -f ~/web/nodejs.org/dist/node-latest.tar.gz &&\
-    ln -s $(VERSION)/node-$(VERSION).tar.gz ~/web/nodejs.org/dist/node-latest.tar.gz'
-
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
 
@@ -361,11 +351,6 @@ $(PKGSRC): release-only
 		-f packlist -I /opt/local -p dist -U $(PKGSRC)
 
 pkgsrc: $(PKGSRC)
-
-dist-upload: $(TARBALL) $(PKG)
-	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
-	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
-	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
 wrkclean:
 	$(MAKE) -C tools/wrk/ clean
