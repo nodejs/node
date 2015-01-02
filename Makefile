@@ -105,19 +105,17 @@ test-http1: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
-test/gc/node_modules/weak/build/Release/weakref.node:
-	@if [ ! -f $(NODE_EXE) ]; then make all; fi
+test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 	./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
-build-addons:
-	@if [ ! -f node ]; then make all; fi
+build-addons: $(NODE_EXE)
 	rm -rf test/addons/doc-*/
-	./node tools/doc/addon-verify.js
+	./$(NODE_EXE) tools/doc/addon-verify.js
 	$(foreach dir, \
 			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
-			./node deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+			./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 					--directory="$(shell pwd)/$(dir)" \
 					--nodedir="$(shell pwd)" && ) echo "build done"
 
