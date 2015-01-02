@@ -137,9 +137,9 @@ def files(action):
   action(['src/node.stp'], 'share/systemtap/tapset/')
 
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
-    action(['doc/node.1'], 'man/man1/')
+    action(['doc/iojs.1'], 'man/man1/')
   else:
-    action(['doc/node.1'], 'share/man/man1/')
+    action(['doc/iojs.1'], 'share/man/man1/')
 
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
