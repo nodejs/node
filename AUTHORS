@@ -109,7 +109,7 @@ Danny Coates <dannycoates@gmail.com>
 Nick Stenning <nick@whiteink.com>
 Bert Belder <bertbelder@gmail.com>
 Trent Mick <trentm@gmail.com>
-Fedor Indutny <fedor.indutny@gmail.com>
+Fedor Indutny <fedor@indutny.com>
 Illarionov Oleg <oleg@emby.ru>
 Aria Stewart <aredridel@nbtsc.org>
 Johan Euphrosine <proppy@aminche.com>
@@ -149,7 +149,6 @@ Theo Schlossnagle <jesus@omniti.com>
 Kai Chen <kaichenxyz@gmail.com>
 Daniel Chcouri <333222@gmail.com>
 Mihai Călin Bazon <mihai@bazon.net>
-Kevin Millikin <kmillikin@chromium.org>
 Ali Farhadi <a.farhadi@gmail.com>
 Daniel Ennis <aikar@aikar.co>
 Carter Allen <CarterA@opt-6.com>
@@ -199,7 +198,6 @@ Kip Gebhardt <kip.gebhardt@voxer.com>
 Stefan Rusu <saltwaterc@gmail.com>
 Shigeki Ohtsu <ohtsu@d.jp>
 Wojciech Wnętrzak <w.wnetrzak@gmail.com>
-Vyacheslav Egorov <vegorov@chromium.org>
 Devon Govett <devongovett@gmail.com>
 Steve Engledow <steve.engledow@proxama.com>
 Pierre-Alexandre St-Jean <pierrealexandre.stjean@gmail.com>
@@ -221,7 +219,6 @@ Antranig Basman <antranig.basman@colorado.edu>
 Maciej Małecki <maciej.malecki@notimplemented.org>
 Evan Martin <martine@danga.com>
 Peter Lyons <pete@peterlyons.com>
-Jakob Kummerow <jkummerow@chromium.org>
 Jann Horn <jannhorn@googlemail.com>
 Abimanyu Raja <abimanyuraja@gmail.com>
 Karl Skomski <karl@skomski.com>
@@ -311,12 +308,10 @@ Farid Neshat <FaridN_SOAD@yahoo.com>
 Johannes Wüller <johanneswueller@gmail.com>
 Erik Lundin <mjor.himself@gmail.com>
 Bryan Cantrill <bryan@joyent.com>
-Michael Starzinger <mstarzinger@chromium.org>
 Yosef Dinerstein <yosefd@microsoft.com>
 Nathan Friedly <nathan@nfriedly.com>
 Aaron Jacobs <jacobsa@google.com>
 Mustansir Golawala <mgolawala@gmail.com>
-Lasse R.H. Nielsen <lrn@chromium.org>
 Atsuo Fukaya <fukayatsu@gmail.com>
 Domenic Denicola <domenic@domenicdenicola.com>
 Joshua S. Weinstein <josher19@users.sf.net>
@@ -333,7 +328,6 @@ J. Lee Coltrane <lee@projectmastermind.com>
 Javier Hernández <jhernandez@emergya.com>
 James Koval <james.ross.koval@gmail.com>
 Kevin Gadd <kevin.gadd@gmail.com>
-Yang Guo <yangguo@chromium.org>
 Ray Solomon <raybsolomon@gmail.com>
 Kevin Bowman <github@magicmonkey.org>
 Erwin van der Koogh <github@koogh.com>
@@ -342,11 +336,8 @@ Simon Sturmer <sstur@me.com>
 Joel Brandt <joelrbrandt@gmail.com>
 Marc Harter <wavded@gmail.com>
 Nuno Job <nunojobpinto@gmail.com>
-Daniel Clifford <danno@chromium.org>
 Ben Kelly <ben@wanderview.com>
 Felix Böhm <felixboehm55@googlemail.com>
-Erik Corry <erik.corry@gmail.com>
-Toon Verwaest <verwaest@chromium.org>
 George Shank <shankga@gmail.com>
 Gabriel de Perthuis <g2p.code@gmail.com>
 Vladimir Beloborodov <redhead.ru@gmail.com>
@@ -436,15 +427,13 @@ Henry Chin <hheennrryy@gmail.com>
 Julian Gruber <julian@juliangruber.com>
 JeongHoon Byun <outsideris@gmail.com>
 Iskren Ivov Chernev <iskren.chernev@gmail.com>
-Raymond Feng <raymond@strongloop.com>
 Alexey Kupershtokh <alexey.kupershtokh@gmail.com>
 Manav Rathi <manav.r@directi.com>
 Benjamin Ruston <benjy.ruston@gmail.com>
 Marcin Kostrzewa <marcinkostrzewa@yahoo.com>
 Suwon Chae <doortts@gmail.com>
-wicked <wicked@alawar.com>
 David Braun <NodeJS-box@snkmail.com>
-Mitar <mitar.git@tnode.com>
+Mitar Milutinovic <mitar.git@tnode.com>
 Michael Hart <michael.hart.au@gmail.com>
 Andrew Hart <hartandrewr@gmail.com>
 Rafael Garcia <rgarcia2009@gmail.com>
@@ -502,7 +491,6 @@ Jason Gerfen <jason.gerfen@gmail.com>
 Patrik Stutz <patrik.stutz@gmail.com>
 Zarko Stankovic <stankovic.zarko@gmail.com>
 Maxim Bogushevich <boga1@mail.ru>
-Sam Roberts <sam@strongloop.com>
 Phillip Alexander <git@phillipalexander.io>
 Thom Seddon <thom@nightworld.com>
 Nick Simmons <nick.simmons@jadedpixel.com>
@@ -535,11 +523,10 @@ Lorenz Leutgeb <lorenz.leutgeb@gmail.com>
 ayanamist <contact@ayanamist.com>
 gluxon <bcheng.gt@gmail.com>
 Tom Gallacher <tomgallacher23@gmail.com>
-svenpanne@chromium.org <svenpanne@chromium.org>
 Jo Liss <joliss42@gmail.com>
 Jun Ma <roammm@gmail.com>
 Jacob Hoffman-Andrews <github@hoffman-andrews.com>
-Keith M Wesolowski <wesolows@foobazco.org>
+Keith M Wesolowski <wesolows@joyent.com>
 Maxime Quandalle <maxime.quandalle@gmail.com>
 Oguz Bastemur <obastemur@gmail.com>
 Yuriy Nemtsov <nemtsov@gmail.com>
@@ -548,7 +535,6 @@ iamdoron <doronpagot@gmail.com>
 Austin Moran <moraustin@gmail.com>
 Kenan Sulayman <kenan@sly.mn>
 Christian <me@rndm.de>
-orangemocha@github.com <orangemocha@github.com>
 Pedro Ballesteros <nitroduna@gmail.com>
 Anton Khlynovskiy <subzey@gmail.com>
 Nicolas Talle <dev@nicolab.net>
@@ -558,7 +544,6 @@ Saúl Ibarra Corretgé <saghul@gmail.com>
 Greg Brail <greg@apigee.com>
 Shuhei Kagawa <shuhei.kagawa@gmail.com>
 Josh Dague <daguej@email.uc.edu>
-dcarney@chromium.org <dcarney@chromium.org>
 Goh Yisheng (Andrew) <mail.yisheng@gmail.com>
 James Pickard <james.pickard@gmail.com>
 Andrew Low <Andrew_Low@ca.ibm.com>
@@ -566,7 +551,6 @@ Nick Apperson <apperson@gmail.com>
 C. Scott Ananian <cscott@cscott.net>
 Yuki KAN <re@pixely.jp>
 Evan Carroll <me@evancarroll.com>
-Fedor Indutny <fedor@indutny.com>
 William Bert <william@spanishdict.com>
 goussardg <guillaume.goussard@mgo.com>
 Geir Hauge <geir.hauge@ntnu.no>
@@ -585,7 +569,6 @@ Dan Kaplun <dan@beardtree.com>
 Colin Ihrig <cjihrig@gmail.com>
 Greg Sabia Tucker <greg@narrowlabs.com>
 Mark Stosberg <mark@rideamigos.com>
-jochen@chromium.org <jochen@chromium.org>
 Calvin Metcalf <calvin.metcalf@gmail.com>
 Ryan Cole <ryan@rycole.com>
 Kevin Decker <kpdecker@gmail.com>
@@ -602,7 +585,6 @@ Jan Krems <jan.krems@gmail.com>
 Fred K. Schott <fschott@box.com>
 Chris Dickinson <christopher.s.dickinson@gmail.com>
 Jonathan Reem <jonathan.reem@gmail.com>
-Arnout Kazemier <3rd-Eden@users.noreply.github.com>
 Refael Ackermann <refael@empeeric.com>
 Ionică Bizău <bizauionica@yahoo.com>
 Eli Skeggs <skeggse@gmail.com>

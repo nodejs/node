@@ -4,10 +4,13 @@ git log --reverse --format='%aN <%aE>' | awk '
 
 BEGIN {
   print "# Authors ordered by first contribution.\n";
+
+  # explicit excludes
+  excludes["<erik.corry@gmail.com>"] = 1 # chromium team
 }
 
 {
-  if ($NF in all == 0) {
+  if ($NF !~ /@chromium.org/ && all[$NF] != 1 && excludes[$NF] != 1) {
     all[$NF] = 1;
     ordered[length(all)] = $0;
   }
