@@ -99,10 +99,68 @@ make doc
 man doc/node.1
 ```
 
-### To build `Intl` (ECMA-402) support:
+### `Intl` (ECMA-402) support:
 
-*Note:* more docs, including how to reduce disk footprint, are on
+[Intl](https://github.com/joyent/node/wiki/Intl) support is not
+enabled by default.
+
+#### "small" (English only) support
+
+This option will build with "small" (English only) support, but
+the full `Intl` (ECMA-402) APIs.  With `--download=all` it will
+download the ICU library as needed.
+
+Unix/Macintosh:
+
+```sh
+./configure --with-intl=small-icu --download=all
+```
+
+Windows:
+
+```sh
+vcbuild small-icu download-all
+```
+
+The `small-icu` mode builds
+with English-only data. You can add full data at runtime.
+
+*Note:* more docs are on
 [the wiki](https://github.com/joyent/node/wiki/Intl).
+
+#### Build with full ICU support (all locales supported by ICU):
+
+With the `--download=all`, this may download ICU if you don't
+have an ICU in `deps/icu`.
+
+Unix/Macintosh:
+
+```sh
+./configure --with-intl=full-icu --download=all
+```
+
+Windows:
+
+```sh
+vcbuild full-icu download-all
+```
+
+#### Build with no Intl support `:-(`
+
+The `Intl` object will not be available.
+This is the default at present, so this option is not normally needed.
+
+Unix/Macintosh:
+
+```sh
+./configure --with-intl=none
+```
+
+Windows:
+
+```sh
+vcbuild intl-none
+```
 
 #### Use existing installed ICU (Unix/Macintosh only):
 
@@ -110,19 +168,34 @@ man doc/node.1
 pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
-#### Build ICU from source:
+#### Build with a specific ICU:
 
-First: Unpack latest ICU
-  [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
-  as `deps/icu` (You'll have: `deps/icu/source/...`)
+You can find other ICU releases at
+[the ICU homepage](http://icu-project.org/download).
+Download the file named something like `icu4c-**##.#**-src.tgz` (or
+`.zip`).
 
-Unix/Macintosh:
+Unix/Macintosh: from an already-unpacked ICU
 
 ```sh
-./configure --with-intl=full-icu
+./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
 
-Windows:
+Unix/Macintosh: from a local ICU tarball
+
+```sh
+./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
+```
+
+Unix/Macintosh: from a tarball URL
+
+```sh
+./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
+```
+
+Windows: first unpack latest ICU to `deps/icu`
+  [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
+  as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```sh
 vcbuild full-icu

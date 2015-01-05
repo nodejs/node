@@ -122,6 +122,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct timespec spec;
   QUEUE* q;
   uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
   unsigned int nfds;
@@ -129,6 +131,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int saved_errno;
   int nevents;
   int count;
+  int err;
   int fd;
 
   if (loop->nfds == 0) {
@@ -150,6 +153,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -165,11 +175,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nfds = 1;
     saved_errno = 0;
-    if (port_getn(loop->backend_fd,
-                  events,
-                  ARRAY_SIZE(events),
-                  &nfds,
-                  timeout == -1 ? NULL : &spec)) {
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
+    err = port_getn(loop->backend_fd,
+                    events,
+                    ARRAY_SIZE(events),
+                    &nfds,
+                    timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+
+    if (err) {
       /* Work around another kernel bug: port_getn() may return events even
        * on error.
        */

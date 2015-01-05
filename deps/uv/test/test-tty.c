@@ -96,6 +96,13 @@ TEST_IMPL(tty) {
 
   printf("width=%d height=%d\n", width, height);
 
+  if (width == 0 && height == 0) {
+   /* Some environments such as containers or Jenkins behave like this
+    * sometimes */
+    MAKE_VALGRIND_HAPPY();
+    return TEST_SKIP;
+  }
+
   /*
    * Is it a safe assumption that most people have terminals larger than
    * 10x10?

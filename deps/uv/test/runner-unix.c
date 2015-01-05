@@ -22,10 +22,11 @@
 #include "runner-unix.h"
 #include "runner.h"
 
+#include <limits.h>
 #include <stdint.h> /* uintptr_t */
 
 #include <errno.h>
-#include <unistd.h> /* usleep */
+#include <unistd.h> /* readlink, usleep */
 #include <string.h> /* strdup */
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +41,7 @@
 
 
 /* Do platform-specific initialization. */
-void platform_init(int argc, char **argv) {
+int platform_init(int argc, char **argv) {
   const char* tap;
 
   tap = getenv("UV_TAP_OUTPUT");
@@ -49,8 +50,14 @@ void platform_init(int argc, char **argv) {
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
-  strncpy(executable_path, argv[0], sizeof(executable_path) - 1);
   signal(SIGPIPE, SIG_IGN);
+
+  if (realpath(argv[0], executable_path) == NULL) {
+    perror("realpath");
+    return -1;
+  }
+
+  return 0;
 }
 
 

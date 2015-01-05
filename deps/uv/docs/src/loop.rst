@@ -50,6 +50,23 @@ API
 
     Initializes the given `uv_loop_t` structure.
 
+.. c:function:: int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...)
+
+    Set additional loop options.  You should normally call this before the
+    first call to :c:func:`uv_run` unless mentioned otherwise.
+
+    Returns 0 on success or a UV_E* error code on failure.  Be prepared to
+    handle UV_ENOSYS; it means the loop option is not supported by the platform.
+
+    Supported options:
+
+    - UV_LOOP_BLOCK_SIGNAL: Block a signal when polling for new events.  The
+      second argument to :c:func:`uv_loop_configure` is the signal number.
+
+      This operation is currently only implemented for SIGPROF signals,
+      to suppress unnecessary wakeups when using a sampling profiler.
+      Requesting other signals will fail with UV_EINVAL.
+
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 
     Closes all internal loop resources. This function must only be called once
@@ -59,7 +76,7 @@ API
 .. c:function:: uv_loop_t* uv_default_loop(void)
 
     Returns the initialized default loop. It may return NULL in case of
-    allocation failture.
+    allocation failure.
 
 .. c:function:: int uv_run(uv_loop_t* loop, uv_run_mode mode)
 

@@ -131,7 +131,7 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
       object->GetIndexedPropertiesExternalArrayDataType();
   size_t array_size = ExternalArraySize(array_type);
   CHECK_GT(array_size, 0);
-  if (array_size > 1) {
+  if (array_size > 1 && array_data != NULL) {
     CHECK_GT(array_length * array_size, array_length);  // Overflow check.
     array_length *= array_size;
   }

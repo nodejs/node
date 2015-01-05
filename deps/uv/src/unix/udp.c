@@ -278,9 +278,6 @@ int uv__udp_bind(uv_udp_t* handle,
   int yes;
   int fd;
 
-  err = -EINVAL;
-  fd = -1;
-
   /* Check for bad flags. */
   if (flags & ~(UV_UDP_IPV6ONLY | UV_UDP_REUSEADDR))
     return -EINVAL;

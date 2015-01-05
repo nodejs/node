@@ -191,6 +191,9 @@ API
 
     Equivalent to ``mkdtemp(3)``.
 
+    .. note::
+        The result can be found as a null terminated string at `req->path`.
+
 .. c:function:: int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
     Equivalent to ``rmdir(2)``.
@@ -258,7 +261,7 @@ API
             * ``UV_FS_SYMLINK_DIR``: indicates that `path` points to a directory.
 
             * ``UV_FS_SYMLINK_JUNCTION``: request that the symlink is created
-              using junktion points.
+              using junction points.
 
 .. c:function:: int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 

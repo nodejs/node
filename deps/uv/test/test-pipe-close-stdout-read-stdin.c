@@ -54,7 +54,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
   int fd[2];
   int status;
 
-  pipe(fd);
+  r = pipe(fd);
+  ASSERT(r == 0);
 
   if ((pid = fork()) == 0) {
     /*
@@ -63,7 +64,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     */
     close(fd[1]);
     close(0);
-    dup(fd[0]);
+    r = dup(fd[0]);
+    ASSERT(r != -1);
 
     /* Create a stream that reads from the pipe. */
     uv_pipe_t stdin_pipe;
