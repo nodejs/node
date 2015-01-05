@@ -55,9 +55,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   unsigned int nevents;
   unsigned int revents;
   QUEUE* q;
+  uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uv__io_t* w;
   int filter;
   int fflags;
   int count;
@@ -117,6 +119,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -127,12 +136,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the

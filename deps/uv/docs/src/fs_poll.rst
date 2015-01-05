@@ -62,7 +62,7 @@ API
 
     Get the path being monitored by the handle. The buffer must be preallocated
     by the user. Returns 0 on success or an error code < 0 in case of failure.
-    On sucess, `buf` will contain the path and `len` its length. If the buffer
+    On success, `buf` will contain the path and `len` its length. If the buffer
     is not big enough UV_ENOBUFS will be returned and len will be set to the
     required size.
 

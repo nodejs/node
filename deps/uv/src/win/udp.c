@@ -83,7 +83,7 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle, SOCKET socket,
   }
 
   if (pSetFileCompletionNotificationModes) {
-    /* All know windowses that support SetFileCompletionNotificationModes */
+    /* All known Windows that support SetFileCompletionNotificationModes */
     /* have a bug that makes it impossible to use this function in */
     /* conjunction with datagram sockets. We can work around that but only */
     /* if the user is using the default UDP driver (AFD) and has no other */

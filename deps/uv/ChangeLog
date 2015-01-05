@@ -1,3 +1,67 @@
+2014.12.10, Version 1.0.2 (Stable), eec671f0059953505f9a3c9aeb7f9f31466dd7cd
+
+Changes since version 1.0.1:
+
+* linux: fix sigmask size arg in epoll_pwait() call (Ben Noordhuis)
+
+* linux: handle O_NONBLOCK != SOCK_NONBLOCK case (Helge Deller)
+
+* doc: fix spelling (Joey Geralnik)
+
+* unix, windows: fix typos in comments (Joey Geralnik)
+
+* test: canonicalize test runner path (Ben Noordhuis)
+
+* test: fix compilation warnings (Saúl Ibarra Corretgé)
+
+* test: skip tty test if detected width and height are 0 (Saúl Ibarra Corretgé)
+
+* doc: update README with IRC channel (Saúl Ibarra Corretgé)
+
+* Revert "unix: use cfmakeraw() for setting raw TTY mode" (Ben Noordhuis)
+
+* doc: document how to get result of uv_fs_mkdtemp (Tim Caswell)
+
+* unix: add flag for blocking SIGPROF during poll (Ben Noordhuis)
+
+* unix, windows: add uv_loop_configure() function (Ben Noordhuis)
+
+* win: keep a reference to AFD_POLL_INFO in cancel poll (Marc Schlaich)
+
+* test: raise fd limit for OSX select test (Saúl Ibarra Corretgé)
+
+* unix: remove overzealous assert in uv_read_stop (Saúl Ibarra Corretgé)
+
+* unix: reset the reading flag when a stream gets EOF (Saúl Ibarra Corretgé)
+
+* unix: stop reading if an error is produced (Saúl Ibarra Corretgé)
+
+* cleanup: remove all dead assignments (Maciej Małecki)
+
+* linux: return early if we have no interfaces (Maciej Małecki)
+
+* cleanup: remove a dead increment (Maciej Małecki)
+
+
+2014.12.10, Version 0.10.30 (Stable), 5a63f5e9546dca482eeebc3054139b21f509f21f
+
+Changes since version 0.10.29:
+
+* linux: fix sigmask size arg in epoll_pwait() call (Ben Noordhuis)
+
+* linux: handle O_NONBLOCK != SOCK_NONBLOCK case (Helge Deller)
+
+* doc: update project links (Ben Noordhuis)
+
+* windows: fix compilation of tests (Marc Schlaich)
+
+* unix: add flag for blocking SIGPROF during poll (Ben Noordhuis)
+
+* unix, windows: add uv_loop_configure() function (Ben Noordhuis)
+
+* win: keep a reference to AFD_POLL_INFO in cancel poll (Marc Schlaich)
+
+
 2014.11.27, Version 1.0.1 (Stable), 0a8e81374e861d425b56c45c8599595d848911d2
 
 Changes since version 1.0.0:
@@ -83,6 +147,17 @@ Changes since version 1.0.0-rc1:
 * unix, windows: add uv_thread_equal (Tomasz Kołodziejski)
 
 * windows: fix fs_write with nbufs > 1 and offset (Unknown W. Brackets)
+
+
+2014.10.21, Version 0.10.29 (Stable), 2d728542d3790183417f8f122a110693cd85db14
+
+Changes since version 0.10.28:
+
+* darwin: allocate enough space for select() hack (Fedor Indutny)
+
+* linux: try epoll_pwait if epoll_wait is missing (Michael Hudson-Doyle)
+
+* windows: map ERROR_INVALID_DRIVE to UV_ENOENT (Saúl Ibarra Corretgé)
 
 
 2014.09.18, Version 1.0.0-rc1 (Unstable), 0c28bbf7b42882853d1799ab96ff68b07f7f8d49
@@ -271,6 +346,20 @@ Changes since version 0.11.26:
   Kelman)
 
 * windows: relay TCP bind errors via ipc (Alexis Campailla)
+
+
+2014.07.32, Version 0.10.28 (Stable), 9c14b616f5fb84bfd7d45707bab4bbb85894443e
+
+Changes since version 0.10.27:
+
+* windows: fix handling closed socket while poll handle is closing (Saúl Ibarra
+  Corretgé)
+
+* unix: return system error on EAI_SYSTEM (Saúl Ibarra Corretgé)
+
+* unix: fix bogus structure field name (Saúl Ibarra Corretgé)
+
+* darwin: invoke `mach_timebase_info` only once (Fedor Indutny)
 
 
 2014.06.28, Version 0.11.26 (Unstable), 115281a1058c4034d5c5ccedacb667fe3f6327ea

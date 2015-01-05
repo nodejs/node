@@ -151,7 +151,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * Could maybe mod if we knew for sure no events are removed, but
        * content of w->events is handled above as not reliable (falls back)
        * so may require a pollset_query() which would have to be pretty cheap
-       * compared to a PS_DELETE to be worth optimising. Alternatively, could
+       * compared to a PS_DELETE to be worth optimizing. Alternatively, could
        * lazily remove events, squelching them in the mean time. */
       pc.cmd = PS_DELETE;
       if (pollset_ctl(loop->backend_fd, &pc, 1)) {
@@ -332,7 +332,7 @@ int uv_exepath(char* buffer, size_t* size) {
     res = readlink(symlink, temp_buffer, PATH_MAX-1);
 
     /* if readlink fails, it is a normal file just copy symlink to the 
-     * outbut buffer. 
+     * output buffer.
      */
     if (res < 0) {
       assert(*size > strlen(symlink));

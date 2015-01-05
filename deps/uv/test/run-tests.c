@@ -46,7 +46,8 @@ static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
-  platform_init(argc, argv);
+  if (platform_init(argc, argv))
+    return EXIT_FAILURE;
 
   argv = uv_setup_args(argc, argv);
 
@@ -56,8 +57,10 @@ int main(int argc, char **argv) {
   case 3: return run_test_part(argv[1], argv[2]);
   default:
     LOGF("Too many arguments.\n");
-    return 1;
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 

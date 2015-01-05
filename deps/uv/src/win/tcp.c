@@ -241,7 +241,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
  * allow binding to addresses that are in use by sockets in TIME_WAIT, it
  * effectively allows 'stealing' a port which is in use by another application.
  *
- * SO_EXCLUSIVEADDRUSE is also not good here because it does cehck all sockets,
+ * SO_EXCLUSIVEADDRUSE is also not good here because it does check all sockets,
  * regardless of state, so we'd get an error even if the port is in use by a
  * socket in TIME_WAIT state.
  *
@@ -590,7 +590,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     }
 
     /* Initialize other unused requests too, because uv_tcp_endgame */
-    /* doesn't know how how many requests were intialized, so it will */
+    /* doesn't know how how many requests were initialized, so it will */
     /* try to clean up {uv_simultaneous_server_accepts} requests. */
     for (i = simultaneous_accepts; i < uv_simultaneous_server_accepts; i++) {
       req = &handle->accept_reqs[i];
@@ -1342,7 +1342,7 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     if (uv_tcp_try_cancel_io(tcp) != 0) {
       /* When cancellation is not possible, there is another option: we can */
       /* close the incoming sockets, which will also cancel the accept */
-      /* operations. However this is not cool because we might inadvertedly */
+      /* operations. However this is not cool because we might inadvertently */
       /* close a socket that just accepted a new connection, which will */
       /* cause the connection to be aborted. */
       unsigned int i;

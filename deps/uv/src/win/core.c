@@ -39,7 +39,7 @@
 static uv_loop_t default_loop_struct;
 static uv_loop_t* default_loop_ptr;
 
-/* uv_once intialization guards */
+/* uv_once initialization guards */
 static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
 
 
@@ -103,7 +103,7 @@ static void uv_init(void) {
 #endif
 
   /* Fetch winapi function pointers. This must be done first because other
-   * intialization code might need these function pointers to be loaded.
+   * initialization code might need these function pointers to be loaded.
    */
   uv_winapi_init();
 
@@ -133,7 +133,7 @@ int uv_loop_init(uv_loop_t* loop) {
   if (loop->iocp == NULL)
     return uv_translate_sys_error(GetLastError());
 
-  /* To prevent uninitialized memory access, loop->time must be intialized
+  /* To prevent uninitialized memory access, loop->time must be initialized
    * to zero before calling uv_update_time for the first time.
    */
   loop->time = 0;
@@ -199,7 +199,7 @@ uv_loop_t* uv_default_loop(void) {
 static void uv__loop_close(uv_loop_t* loop) {
   size_t i;
 
-  /* close the async handle without needeing an extra loop iteration */
+  /* close the async handle without needing an extra loop iteration */
   assert(!loop->wq_async.async_sent);
   loop->wq_async.close_cb = NULL;
   uv__handle_closing(&loop->wq_async);
@@ -269,6 +269,11 @@ void uv_loop_delete(uv_loop_t* loop) {
   assert(err == 0);
   if (loop != default_loop)
     free(loop);
+}
+
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
+  return UV_ENOSYS;
 }
 
 
@@ -411,7 +416,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_process_endgames(loop);
 
     if (mode == UV_RUN_ONCE) {
-      /* UV_RUN_ONCE implies forward progess: at least one callback must have
+      /* UV_RUN_ONCE implies forward progress: at least one callback must have
        * been invoked when it returns. uv__io_poll() can return without doing
        * I/O (meaning: no callbacks) when its timeout expires - which means we
        * have pending timers that satisfy the forward progress constraint.

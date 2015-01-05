@@ -296,7 +296,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   req->alloc = (void*)alloc_ptr;
 
   /* convert node string to UTF16 into allocated memory and save pointer in */
-  /* the reques. */
+  /* the request. */
   if (node != NULL) {
     req->node = (WCHAR*)alloc_ptr;
     if (uv_utf8_to_utf16(node,

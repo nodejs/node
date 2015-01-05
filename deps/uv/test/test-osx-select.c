@@ -90,6 +90,8 @@ TEST_IMPL(osx_select_many_fds) {
   uv_tty_t tty;
   uv_tcp_t tcps[1500];
 
+  TEST_FILE_LIMIT(ARRAY_SIZE(tcps) + 2);
+
   r = uv_ip4_addr("127.0.0.1", 0, &addr);
   ASSERT(r == 0);
 

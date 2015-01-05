@@ -229,6 +229,9 @@ typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 typedef struct uv_dirent_s uv_dirent_t;
 
+typedef enum {
+  UV_LOOP_BLOCK_SIGNAL
+} uv_loop_option;
 
 typedef enum {
   UV_RUN_DEFAULT = 0,
@@ -257,6 +260,7 @@ UV_EXTERN uv_loop_t* uv_loop_new(void);
 UV_EXTERN void uv_loop_delete(uv_loop_t*);
 UV_EXTERN size_t uv_loop_size(void);
 UV_EXTERN int uv_loop_alive(const uv_loop_t* loop);
+UV_EXTERN int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...);
 
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
 UV_EXTERN void uv_stop(uv_loop_t*);

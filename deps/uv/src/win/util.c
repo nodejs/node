@@ -44,7 +44,7 @@
  * of the console title is that it is smaller than 64K. However in practice
  * it is much smaller, and there is no way to figure out what the exact length
  * of the title is or can be, at least not on XP. To make it even more
- * annoying, GetConsoleTitle failes when the buffer to be read into is bigger
+ * annoying, GetConsoleTitle fails when the buffer to be read into is bigger
  * than the actual maximum length. So we make a conservative guess here;
  * just don't put the novel you're writing in the title, unless the plot
  * survives truncation.
@@ -64,7 +64,7 @@ static double hrtime_interval_ = 0;
 
 
 /*
- * One-time intialization code for functionality defined in util.c.
+ * One-time initialization code for functionality defined in util.c.
  */
 void uv__util_init() {
   LARGE_INTEGER perf_frequency;
