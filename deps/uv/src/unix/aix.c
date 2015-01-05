@@ -294,7 +294,7 @@ int uv_exepath(char* buffer, size_t* size) {
   int fd;
   char **argv;
 
-  if ((buffer == NULL) || (size == NULL))
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());

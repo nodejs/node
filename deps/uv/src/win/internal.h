@@ -364,8 +364,8 @@ int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
     int* addr_len, WSAOVERLAPPED *overlapped,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine);
 
-int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
-    OVERLAPPED* overlapped);
+int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
+    AFD_POLL_INFO* info_out, OVERLAPPED* overlapped);
 
 /* Whether there are any non-IFS LSPs stacked on TCP */
 extern int uv_tcp_non_ifs_lsp_ipv4;

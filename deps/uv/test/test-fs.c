@@ -568,7 +568,17 @@ TEST_IMPL(fs_file_loop) {
   loop = uv_default_loop();
 
   unlink("test_symlink");
-  uv_fs_symlink(loop, &req, "test_symlink", "test_symlink", 0, NULL);
+  r = uv_fs_symlink(loop, &req, "test_symlink", "test_symlink", 0, NULL);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support symlinks; we'll get UV_ENOTSUP.
+   * Starting with vista they are supported, but only when elevated, otherwise
+   * we'll see UV_EPERM.
+   */
+  if (r == UV_ENOTSUP || r == UV_EPERM)
+    return 0;
+#endif
+  ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_open(loop, &req, "test_symlink", O_RDONLY, 0, NULL);

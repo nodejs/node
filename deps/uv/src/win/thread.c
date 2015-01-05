@@ -117,7 +117,19 @@ void uv_once(uv_once_t* guard, void (*callback)(void)) {
   uv__once_inner(guard, callback);
 }
 
-static UV_THREAD_LOCAL uv_thread_t uv__current_thread = NULL;
+
+/* Verify that uv_thread_t can be stored in a TLS slot. */
+STATIC_ASSERT(sizeof(uv_thread_t) <= sizeof(void*));
+
+static uv_key_t uv__current_thread_key;
+static uv_once_t uv__current_thread_init_guard = UV_ONCE_INIT;
+
+
+static void uv__init_current_thread_key(void) {
+  if (uv_key_create(&uv__current_thread_key))
+    abort();
+}
+
 
 struct thread_ctx {
   void (*entry)(void* arg);
@@ -126,8 +138,7 @@ struct thread_ctx {
 };
 
 
-static UINT __stdcall uv__thread_start(void* arg)
-{
+static UINT __stdcall uv__thread_start(void* arg) {
   struct thread_ctx *ctx_p;
   struct thread_ctx ctx;
 
@@ -135,7 +146,9 @@ static UINT __stdcall uv__thread_start(void* arg)
   ctx = *ctx_p;
   free(ctx_p);
 
-  uv__current_thread = ctx.self;
+  uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
+  uv_key_set(&uv__current_thread_key, (void*) ctx.self);
+
   ctx.entry(ctx.arg);
 
   return 0;
@@ -177,8 +190,9 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 
 
 uv_thread_t uv_thread_self(void) {
-  return uv__current_thread;
+  return (uv_thread_t) uv_key_get(&uv__current_thread_key);
 }
+
 
 int uv_thread_join(uv_thread_t *tid) {
   if (WaitForSingleObject(*tid, INFINITE))

@@ -27,6 +27,7 @@
 TEST_IMPL(platform_output) {
   char buffer[512];
   size_t rss;
+  size_t size;
   double uptime;
   uv_rusage_t rusage;
   uv_cpu_info_t* cpus;
@@ -38,6 +39,11 @@ TEST_IMPL(platform_output) {
   err = uv_get_process_title(buffer, sizeof(buffer));
   ASSERT(err == 0);
   printf("uv_get_process_title: %s\n", buffer);
+
+  size = sizeof(buffer);
+  err = uv_cwd(buffer, &size);
+  ASSERT(err == 0);
+  printf("uv_cwd: %s\n", buffer);
 
   err = uv_resident_set_memory(&rss);
   ASSERT(err == 0);

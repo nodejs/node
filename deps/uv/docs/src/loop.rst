@@ -52,6 +52,8 @@ API
 
 .. c:function:: int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...)
 
+    .. versionadded:: 1.0.2
+
     Set additional loop options.  You should normally call this before the
     first call to :c:func:`uv_run` unless mentioned otherwise.
 

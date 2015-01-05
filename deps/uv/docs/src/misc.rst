@@ -2,7 +2,7 @@
 .. _misc:
 
 Miscellaneous utilities
-======================
+=======================
 
 This section contains miscellaneous functions that don't really belong in any
 other section.
@@ -206,6 +206,10 @@ API
 .. c:function:: int uv_cwd(char* buffer, size_t* size)
 
     Gets the current working directory.
+
+    .. versionchanged:: 1.1.0
+
+        On Unix the path no longer ends in a slash.
 
 .. c:function:: int uv_chdir(const char* dir)
 

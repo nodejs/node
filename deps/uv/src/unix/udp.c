@@ -598,7 +598,11 @@ int uv_udp_set_membership(uv_udp_t* handle,
 }
 
 
-static int uv__setsockopt_maybe_char(uv_udp_t* handle, int option, int val) {
+static int uv__setsockopt_maybe_char(uv_udp_t* handle,
+                                     int option4,
+                                     int option6,
+                                     int val) {
+  int r;
 #if defined(__sun) || defined(_AIX)
   char arg = val;
 #else
@@ -608,7 +612,20 @@ static int uv__setsockopt_maybe_char(uv_udp_t* handle, int option, int val) {
   if (val < 0 || val > 255)
     return -EINVAL;
 
-  if (setsockopt(handle->io_watcher.fd, IPPROTO_IP, option, &arg, sizeof(arg)))
+  if (handle->flags & UV_HANDLE_IPV6)
+    r = setsockopt(handle->io_watcher.fd,
+                   IPPROTO_IPV6,
+                   option6,
+                   &arg,
+                   sizeof(arg));
+  else
+    r = setsockopt(handle->io_watcher.fd,
+                   IPPROTO_IP,
+                   option4,
+                   &arg,
+                   sizeof(arg));
+
+  if (r)
     return -errno;
 
   return 0;
@@ -632,20 +649,26 @@ int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
   if (ttl < 1 || ttl > 255)
     return -EINVAL;
 
-  if (setsockopt(handle->io_watcher.fd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)))
-    return -errno;
-
-  return 0;
+  return uv__setsockopt_maybe_char(handle,
+                                   IP_TTL,
+                                   IPV6_UNICAST_HOPS,
+                                   ttl);
 }
 
 
 int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
-  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_TTL, ttl);
+  return uv__setsockopt_maybe_char(handle,
+                                   IP_MULTICAST_TTL,
+                                   IPV6_MULTICAST_HOPS,
+                                   ttl);
 }
 
 
 int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
-  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_LOOP, on);
+  return uv__setsockopt_maybe_char(handle,
+                                   IP_MULTICAST_LOOP,
+                                   IPV6_MULTICAST_LOOP,
+                                   on);
 }
 
 int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr) {

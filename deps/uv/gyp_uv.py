@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-import glob
-import platform
 import os
-import subprocess
+import platform
 import sys
 
 try:
@@ -33,16 +31,6 @@ def host_arch():
   if machine.startswith('arm'): return 'arm'
   if machine.startswith('mips'): return 'mips'
   return machine  # Return as-is and hope for the best.
-
-
-def compiler_version():
-  proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
-  is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
-  proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
-  version = proc.communicate()[0].split('.')
-  version = map(int, version[:2])
-  version = tuple(version)
-  return (version, is_clang)
 
 
 def run_gyp(args):
@@ -85,9 +73,6 @@ if __name__ == '__main__':
     if 'eclipse' not in args and 'ninja' not in args:
       args.extend(['-Goutput_dir=' + output_dir])
       args.extend(['--generator-output', output_dir])
-    (major, minor), is_clang = compiler_version()
-    args.append('-Dgcc_version=%d' % (10 * major + minor))
-    args.append('-Dclang=%d' % int(is_clang))
 
   if not any(a.startswith('-Dhost_arch=') for a in args):
     args.append('-Dhost_arch=%s' % host_arch())

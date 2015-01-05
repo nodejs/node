@@ -1,3 +1,152 @@
+2015.01.06, Version 1.2.0 (Stable)
+
+Changes since version 1.1.0:
+
+* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)
+
+* tty: implement binary I/O terminal mode (Yuri D'Elia)
+
+* test: fix spawn test with autotools build (Ben Noordhuis)
+
+* test: skip ipv6 tests when ipv6 is not supported (Ben Noordhuis)
+
+* common: move STATIC_ASSERT to uv-common.h (Alexey Melnichuk)
+
+* win/thread: store thread handle in a TLS slot (Alexey Melnichuk)
+
+* unix: fix ttl, multicast ttl and loop options on IPv6 (Saúl Ibarra Corretgé)
+
+* linux: fix support for preadv/pwritev-less kernels (Ben Noordhuis)
+
+* unix: make uv_exepath(size=0) return UV_EINVAL (Ben Noordhuis)
+
+* darwin: fix uv_exepath(smallbuf) UV_EPERM error (Ben Noordhuis)
+
+* openbsd: fix uv_exepath(smallbuf) UV_EINVAL error (Ben Noordhuis)
+
+* linux: fix uv_exepath(size=1) UV_EINVAL error (Ben Noordhuis)
+
+* sunos: preemptively fix uv_exepath(size=1) (Ben Noordhuis)
+
+* win: fix and clarify comments in winapi.h (Bert Belder)
+
+* win: make available NtQueryDirectoryFile (Bert Belder)
+
+* win: add definitions for directory information types (Bert Belder)
+
+* win: use NtQueryDirectoryFile to implement uv_fs_scandir (Bert Belder)
+
+* unix: don't unlink unix socket on bind error (Ben Noordhuis)
+
+* build: fix bad comment in autogen.sh (Ben Noordhuis)
+
+* build: add AC_PROG_LIBTOOL to configure.ac (Ben Noordhuis)
+
+* test: skip udp_options6 if there no IPv6 support (Saúl Ibarra Corretgé)
+
+* win: add definitions for MUI errors mingw lacks (Bert Belder)
+
+* build: enable warnings in autotools build (Ben Noordhuis)
+
+* build: remove -Wno-dollar-in-identifier-extension (Ben Noordhuis)
+
+* build: move flags from Makefile.am to configure.ac (Ben Noordhuis)
+
+
+2015.01.06, Version 0.10.32 (Stable), 378de30c59aef5fdb6d130fa5cfcb0a68fce571c
+
+Changes since version 0.10.31:
+
+* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)
+
+
+2014.12.25, Version 1.1.0 (Stable), 9572f3e74a167f59a8017e57ca3ebe91ffd88e18
+
+Changes since version 1.0.2:
+
+* test: test that closing a poll handle doesn't corrupt the stack (Bert Belder)
+
+* win: fix compilation of tests (Marc Schlaich)
+
+* Revert "win: keep a reference to AFD_POLL_INFO in cancel poll" (Bert Belder)
+
+* win: avoid stack corruption when closing a poll handle (Bert Belder)
+
+* test: fix test-fs-file-loop on Windows (Bert Belder)
+
+* test: fix test-cwd-and-chdir (Bert Belder)
+
+* doc: indicate what version uv_loop_configure was added on (Saúl Ibarra
+  Corretgé)
+
+* doc: fix sphinx warning (Saúl Ibarra Corretgé)
+
+* test: skip spawn_setuid_setgid if we get EACCES (Saúl Ibarra Corretgé)
+
+* test: silence some Clang warnings (Saúl Ibarra Corretgé)
+
+* test: relax osx_select_many_fds (Saúl Ibarra Corretgé)
+
+* test: fix compilation warnings when building with Clang (Saúl Ibarra
+  Corretgé)
+
+* win: fix autotools build of tests (Luis Lavena)
+
+* gitignore: ignore Visual Studio files (Marc Schlaich)
+
+* win: set fallback message if FormatMessage fails (Marc Schlaich)
+
+* win: fall back to default language in uv_dlerror (Marc Schlaich)
+
+* test: improve compatibility for dlerror test (Marc Schlaich)
+
+* test: check dlerror is "no error" in no error case (Marc Schlaich)
+
+* unix: change uv_cwd not to return a trailing slash (Saúl Ibarra Corretgé)
+
+* test: fix cwd_and_chdir test on Unix (Saúl Ibarra Corretgé)
+
+* test: add uv_cwd output to platform_output test (Saúl Ibarra Corretgé)
+
+* build: fix dragonflybsd autotools build (John Marino)
+
+* win: scandir use 'ls' for formatting long strings (Kenneth Perry)
+
+* build: remove clang and gcc_version gyp defines (Ben Noordhuis)
+
+* unix, windows: don't treat uv_run_mode as a bitmask (Saúl Ibarra Corretgé)
+
+* unix, windows: fix UV_RUN_ONCE mode if progress was made (Saúl Ibarra
+  Corretgé)
+
+
+2014.12.25, Version 0.10.31 (Stable), 4dbd27e2219069a6daa769fb37f98673b77b4261
+
+Changes since version 0.10.30:
+
+* test: test that closing a poll handle doesn't corrupt the stack (Bert Belder)
+
+* win: fix compilation of tests (Marc Schlaich)
+
+* Revert "win: keep a reference to AFD_POLL_INFO in cancel poll" (Bert Belder)
+
+* win: avoid stack corruption when closing a poll handle (Bert Belder)
+
+* gitignore: ignore Visual Studio files (Marc Schlaich)
+
+* win: set fallback message if FormatMessage fails (Marc Schlaich)
+
+* win: fall back to default language in uv_dlerror (Marc Schlaich)
+
+* test: improve compatibility for dlerror test (Marc Schlaich)
+
+* test: check dlerror is "no error" in no error case (Marc Schlaich)
+
+* build: link against -pthread (Logan Rosen)
+
+* win: scandir use 'ls' for formatting long strings (Kenneth Perry)
+
+
 2014.12.10, Version 1.0.2 (Stable), eec671f0059953505f9a3c9aeb7f9f31466dd7cd
 
 Changes since version 1.0.1:

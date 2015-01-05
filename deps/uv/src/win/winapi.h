@@ -4104,12 +4104,23 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+/* from winternl.h */
+typedef struct _UNICODE_STRING {
+  USHORT Length;
+  USHORT MaximumLength;
+  PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
+typedef const UNICODE_STRING *PCUNICODE_STRING;
+
+/* from ntifs.h */
 #ifndef DEVICE_TYPE
 # define DEVICE_TYPE DWORD
 #endif
 
-/* from ntifs.h */
-/* MinGW already has it, mingw-w64 does not. */
+/* MinGW already has a definition for REPARSE_DATA_BUFFER, but mingw-w64 does
+ * not.
+ */
 #if defined(_MSC_VER) || defined(__MINGW64_VERSION_MAJOR)
   typedef struct _REPARSE_DATA_BUFFER {
     ULONG  ReparseTag;
@@ -4204,6 +4215,37 @@ typedef enum _FILE_INFORMATION_CLASS {
   FileRemoteProtocolInformation,
   FileMaximumInformation
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
+
+typedef struct _FILE_DIRECTORY_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  WCHAR FileName[1];
+} FILE_DIRECTORY_INFORMATION, *PFILE_DIRECTORY_INFORMATION;
+
+typedef struct _FILE_BOTH_DIR_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  ULONG EaSize;
+  CCHAR ShortNameLength;
+  WCHAR ShortName[12];
+  WCHAR FileName[1];
+} FILE_BOTH_DIR_INFORMATION, *PFILE_BOTH_DIR_INFORMATION;
 
 typedef struct _FILE_BASIC_INFORMATION {
   LARGE_INTEGER CreationTime;
@@ -4512,6 +4554,19 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
                   ULONG SystemInformationLength,
                   PULONG ReturnLength);
 
+typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
+                 (HANDLE FileHandle,
+                  HANDLE Event,
+                  PIO_APC_ROUTINE ApcRoutine,
+                  PVOID ApcContext,
+                  PIO_STATUS_BLOCK IoStatusBlock,
+                  PVOID FileInformation,
+                  ULONG Length,
+                  FILE_INFORMATION_CLASS FileInformationClass,
+                  BOOLEAN ReturnSingleEntry,
+                  PUNICODE_STRING FileName,
+                  BOOLEAN RestartScan
+                );
 
 /*
  * Kernel32 headers
@@ -4553,6 +4608,30 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
 /* from winerror.h */
 #ifndef ERROR_SYMLINK_NOT_SUPPORTED
 # define ERROR_SYMLINK_NOT_SUPPORTED 1464
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_FOUND
+# define ERROR_MUI_FILE_NOT_FOUND 15100
+#endif
+
+#ifndef ERROR_MUI_INVALID_FILE
+# define ERROR_MUI_INVALID_FILE 15101
+#endif
+
+#ifndef ERROR_MUI_INVALID_RC_CONFIG
+# define ERROR_MUI_INVALID_RC_CONFIG 15102
+#endif
+
+#ifndef ERROR_MUI_INVALID_LOCALE_NAME
+# define ERROR_MUI_INVALID_LOCALE_NAME 15103
+#endif
+
+#ifndef ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME
+# define ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME 15104
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_LOADED
+# define ERROR_MUI_FILE_NOT_LOADED 15105
 #endif
 
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
@@ -4626,6 +4705,7 @@ extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
 extern sNtSetInformationFile pNtSetInformationFile;
 extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
 
 
