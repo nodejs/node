@@ -55,17 +55,15 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Make a copy of the file name, it outlives this function's scope. */
   pipe_fname = strdup(name);
-  if (pipe_fname == NULL) {
-    err = -ENOMEM;
-    goto out;
-  }
+  if (pipe_fname == NULL)
+    return -ENOMEM;
 
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
 
   err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
   if (err < 0)
-    goto out;
+    goto err_socket;
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
@@ -78,7 +76,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == -ENOENT)
       err = -EACCES;
-    goto out;
+    goto err_bind;
   }
 
   /* Success. */
@@ -86,11 +84,10 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   handle->io_watcher.fd = sockfd;
   return 0;
 
-out:
-  /* unlink() before uv__close() to avoid races. */
-  assert(pipe_fname != NULL);
-  unlink(pipe_fname);
+err_bind:
   uv__close(sockfd);
+
+err_socket:
   free((void*)pipe_fname);
   return err;
 }

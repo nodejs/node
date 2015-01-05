@@ -78,7 +78,7 @@ int uv_exepath(char* buffer, size_t* size) {
   int mib[4];
   size_t cb;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
 #ifdef __DragonFly__

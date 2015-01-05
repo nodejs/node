@@ -246,6 +246,9 @@ TEST_IMPL(tcp_ping_pong) {
 
 
 TEST_IMPL(tcp_ping_pong_v6) {
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   tcp_pinger_v6_new();
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 

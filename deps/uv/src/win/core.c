@@ -387,6 +387,7 @@ int uv_loop_alive(const uv_loop_t* loop) {
 int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   DWORD timeout;
   int r;
+  int ran_pending;
   void (*poll)(uv_loop_t* loop, DWORD timeout);
 
   if (pGetQueuedCompletionStatusEx)
@@ -402,12 +403,12 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_update_time(loop);
     uv_process_timers(loop);
 
-    uv_process_reqs(loop);
+    ran_pending = uv_process_reqs(loop);
     uv_idle_invoke(loop);
     uv_prepare_invoke(loop);
 
     timeout = 0;
-    if ((mode & UV_RUN_NOWAIT) == 0)
+    if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
     (*poll)(loop, timeout);
@@ -428,7 +429,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     }
 
     r = uv__loop_alive(loop);
-    if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
+    if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
       break;
   }
 

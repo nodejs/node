@@ -98,19 +98,19 @@ skip:
     uv__nonblock(fd, 1);
 
   uv__stream_open((uv_stream_t*) tty, fd, flags);
-  tty->mode = 0;
+  tty->mode = UV_TTY_MODE_NORMAL;
 
   return 0;
 }
 
 
-int uv_tty_set_mode(uv_tty_t* tty, int mode) {
-  struct termios raw;
+int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
+  struct termios tmp;
   int fd;
 
   fd = uv__stream_fd(tty);
 
-  if (mode && tty->mode == 0) {  /* on */
+  if (tty->mode == UV_TTY_MODE_NORMAL && mode != UV_TTY_MODE_NORMAL) {
     if (tcgetattr(fd, &tty->orig_termios))
       return -errno;
 
@@ -121,27 +121,30 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
       orig_termios_fd = fd;
     }
     uv_spinlock_unlock(&termios_spinlock);
-
-    raw = tty->orig_termios;
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_oflag |= (ONLCR);
-    raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 1;
-    raw.c_cc[VTIME] = 0;
-
-    /* Put terminal in raw mode after draining */
-    if (tcsetattr(fd, TCSADRAIN, &raw))
-      return -errno;
-
-    tty->mode = 1;
-  } else if (mode == 0 && tty->mode) {  /* off */
-    /* Put terminal in original mode after flushing */
-    if (tcsetattr(fd, TCSAFLUSH, &tty->orig_termios))
-      return -errno;
-    tty->mode = 0;
   }
 
+  tmp = tty->orig_termios;
+  switch (mode) {
+    case UV_TTY_MODE_NORMAL:
+      break;
+    case UV_TTY_MODE_RAW:
+      tmp.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+      tmp.c_oflag |= (ONLCR);
+      tmp.c_cflag |= (CS8);
+      tmp.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+      tmp.c_cc[VMIN] = 1;
+      tmp.c_cc[VTIME] = 0;
+      break;
+    case UV_TTY_MODE_IO:
+      cfmakeraw(&tmp);
+      break;
+  }
+
+  /* Apply changes after draining */
+  if (tcsetattr(fd, TCSADRAIN, &tmp))
+    return -errno;
+
+  tty->mode = mode;
   return 0;
 }
 

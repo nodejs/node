@@ -1032,6 +1032,7 @@ TEST_IMPL(spawn_with_an_odd_path) {
 #ifndef _WIN32
 TEST_IMPL(spawn_setuid_setgid) {
   int r;
+  struct passwd* pw;
 
   /* if not root, then this will fail. */
   uv_uid_t uid = getuid();
@@ -1043,7 +1044,6 @@ TEST_IMPL(spawn_setuid_setgid) {
   init_process_options("spawn_helper1", exit_cb);
 
   /* become the "nobody" user. */
-  struct passwd* pw;
   pw = getpwnam("nobody");
   ASSERT(pw != NULL);
   options.uid = pw->pw_uid;
@@ -1051,6 +1051,9 @@ TEST_IMPL(spawn_setuid_setgid) {
   options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
+  if (r == UV_EACCES)
+    RETURN_SKIP("user 'nobody' cannot access the test runner");
+
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
@@ -1297,7 +1300,16 @@ TEST_IMPL(spawn_reads_child_path) {
   int len;
   char file[64];
   char path[1024];
-  char *env[2] = {path, NULL};
+  char* env[3];
+
+  /* Need to carry over the dynamic linker path when the test runner is
+   * linked against libuv.so, see https://github.com/libuv/libuv/issues/85.
+   */
+#if defined(__APPLE__)
+  static const char dyld_path_var[] = "DYLD_LIBRARY_PATH";
+#else
+  static const char dyld_path_var[] = "LD_LIBRARY_PATH";
+#endif
 
   /* Set up the process, but make sure that the file to run is relative and */
   /* requires a lookup into PATH */
@@ -1311,6 +1323,16 @@ TEST_IMPL(spawn_reads_child_path) {
   exepath[len] = 0;
   strcpy(path, "PATH=");
   strcpy(path + 5, exepath);
+
+  env[0] = path;
+  env[1] = getenv(dyld_path_var);
+  env[2] = NULL;
+
+  if (env[1] != NULL) {
+    static char buf[1024 + sizeof(dyld_path_var)];
+    snprintf(buf, sizeof(buf), "%s=%s", dyld_path_var, env[1]);
+    env[1] = buf;
+  }
 
   options.file = file;
   options.args[0] = file;

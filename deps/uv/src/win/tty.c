@@ -170,7 +170,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
 }
 
 
-int uv_tty_set_mode(uv_tty_t* tty, int mode) {
+int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   DWORD flags;
   unsigned char was_reading;
   uv_alloc_cb alloc_cb;
@@ -185,12 +185,15 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
     return 0;
   }
 
-  if (mode) {
-    /* Raw input */
-    flags = ENABLE_WINDOW_INPUT;
-  } else {
-    /* Line-buffered mode. */
-    flags = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
+  switch (mode) {
+    case UV_TTY_MODE_NORMAL:
+      flags = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
+      break;
+    case UV_TTY_MODE_RAW:
+      flags = ENABLE_WINDOW_INPUT;
+      break;
+    case UV_TTY_MODE_IO:
+      return UV_ENOTSUP;
   }
 
   if (!SetConsoleMode(tty->handle, flags)) {

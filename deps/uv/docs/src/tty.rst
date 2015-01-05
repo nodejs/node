@@ -16,6 +16,24 @@ Data types
 
     TTY handle type.
 
+.. c:type:: uv_tty_mode_t
+
+    .. versionadded:: 1.2.0
+
+    TTY mode type:
+
+    ::
+
+        typedef enum {
+            /* Initial/normal terminal mode */
+            UV_TTY_MODE_NORMAL,
+            /* Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
+            UV_TTY_MODE_RAW,
+            /* Binary-safe I/O mode for IPC (Unix-only) */
+            UV_TTY_MODE_IO
+        } uv_tty_mode_t;
+
+
 
 Public members
 ^^^^^^^^^^^^^^
@@ -43,9 +61,12 @@ API
     .. note::
         TTY streams which are not readable have blocking writes.
 
-.. c:function:: int uv_tty_set_mode(uv_tty_t*, int mode)
+.. c:function:: int uv_tty_set_mode(uv_tty_t*, uv_tty_mode_t mode)
 
-    Set the TTY mode. 0 for normal, 1 for raw.
+    .. versionchanged:: 1.2.0: the mode is specified as a :c:type:`uv_tty_mode_t`
+                        value.
+
+    Set the TTY using the specified terminal mode.
 
 .. c:function:: int uv_tty_reset_mode(void)
 

@@ -33,7 +33,7 @@ UV_EXTRA_AUTOMAKE_FLAGS=
 if test "$automake_version_major" -gt 1 || \
    test "$automake_version_major" -eq 1 && \
    test "$automake_version_minor" -gt 11; then
-  # serial-tests is available in v0.12 and newer.
+  # serial-tests is available in v1.12 and newer.
   UV_EXTRA_AUTOMAKE_FLAGS="$UV_EXTRA_AUTOMAKE_FLAGS serial-tests"
 fi
 echo "m4_define([UV_EXTRA_AUTOMAKE_FLAGS], [$UV_EXTRA_AUTOMAKE_FLAGS])" \
