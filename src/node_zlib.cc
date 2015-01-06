@@ -63,11 +63,6 @@ enum node_zlib_mode {
   UNZIP
 };
 
-enum node_zlib_error {
-  kNoError,
-  kFailed,
-  kWritePending
-};
 
 void InitZlib(v8::Handle<v8::Object> target);
 
@@ -208,7 +203,7 @@ class ZCtx : public AsyncWrap {
     if (!async) {
       // sync version
       Process(work_req);
-      if (CheckError(ctx) == kNoError)
+      if (CheckError(ctx))
         AfterSync(ctx, args);
       return;
     }
@@ -292,7 +287,7 @@ class ZCtx : public AsyncWrap {
   }
 
 
-  static node_zlib_error CheckError(ZCtx* ctx) {
+  static bool CheckError(ZCtx* ctx) {
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {
     case Z_OK:
@@ -305,18 +300,14 @@ class ZCtx : public AsyncWrap {
         ZCtx::Error(ctx, "Missing dictionary");
       else
         ZCtx::Error(ctx, "Bad dictionary");
-      return kFailed;
+      return false;
     default:
       // something else.
-      if (ctx->strm_.total_out == 0) {
-        ZCtx::Error(ctx, "Zlib error");
-        return kFailed;
-      } else {
-        return kWritePending;
-      }
+      ZCtx::Error(ctx, "Zlib error");
+      return false;
     }
 
-    return kNoError;
+    return true;
   }
 
 
@@ -330,8 +321,7 @@ class ZCtx : public AsyncWrap {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
 
-    node_zlib_error error = CheckError(ctx);
-    if (error == kFailed)
+    if (!CheckError(ctx))
       return;
 
     Local<Integer> avail_out = Integer::New(env->isolate(),
@@ -344,11 +334,6 @@ class ZCtx : public AsyncWrap {
     // call the write() cb
     Local<Value> args[2] = { avail_in, avail_out };
     ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
-
-    if (error == kWritePending) {
-      ZCtx::Error(ctx, "Zlib error");
-      return;
-    }
 
     ctx->Unref();
     if (ctx->pending_close_)
@@ -554,12 +539,10 @@ class ZCtx : public AsyncWrap {
     switch (ctx->mode_) {
       case DEFLATE:
       case DEFLATERAW:
-      case GZIP:
         ctx->err_ = deflateReset(&ctx->strm_);
         break;
       case INFLATE:
       case INFLATERAW:
-      case GUNZIP:
         ctx->err_ = inflateReset(&ctx->strm_);
         break;
       default:
