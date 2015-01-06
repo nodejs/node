@@ -56,20 +56,20 @@ function createCallBackBasedTest(stat) {
  return function runStatViaCallbacks(cb) {
     stat(FILES[0], function(err, data) {
       if (err) throw err;
-      second();
+      second(data);
     });
 
     function second() {
       stat(FILES[1], function(err, data) {
         if (err) throw err;
-        third();
+        third(data);
       });
     }
 
     function third() {
       stat(FILES[2], function(err, data) {
         if (err) throw err;
-        cb();
+        cb(data);
       });
     }
   };
