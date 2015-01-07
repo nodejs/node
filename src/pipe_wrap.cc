@@ -177,7 +177,7 @@ PipeWrap::PipeWrap(Environment* env,
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-  node::Utf8Value name(args[0]);
+  node::Utf8Value name(args.GetIsolate(), args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
 }
@@ -300,7 +300,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value name(args[1]);
+  node::Utf8Value name(env->isolate(), args[1]);
 
   PipeConnectWrap* req_wrap = new PipeConnectWrap(env, req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,
