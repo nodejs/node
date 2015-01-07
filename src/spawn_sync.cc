@@ -958,7 +958,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   if (js_value->IsString())
     js_string = js_value.As<String>();
   else
-    js_string = js_value->ToString();
+    js_string = js_value->ToString(env()->isolate());
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -992,7 +992,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // needed - it's okay since we cloned the original object.
   for (uint32_t i = 0; i < length; i++) {
     if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString());
+      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
   }
 
   // Index has a pointer to every string element, plus one more for a final

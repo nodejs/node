@@ -409,7 +409,7 @@ size_t StringBytes::StorageSize(Isolate* isolate,
     return Buffer::Length(val);
   }
 
-  Local<String> str = val->ToString();
+  Local<String> str = val->ToString(isolate);
 
   switch (encoding) {
     case BINARY:
@@ -461,7 +461,7 @@ size_t StringBytes::Size(Isolate* isolate,
   if (GetExternalParts(isolate, val, &data, &data_size))
     return data_size;
 
-  Local<String> str = val->ToString();
+  Local<String> str = val->ToString(isolate);
 
   switch (encoding) {
     case BINARY:

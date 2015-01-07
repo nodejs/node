@@ -1686,7 +1686,7 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<String> reason_string = OneByteString(isolate, reason);
   Local<Value> exception_value = Exception::Error(reason_string);
-  Local<Object> exception_object = exception_value->ToObject();
+  Local<Object> exception_object = exception_value->ToObject(isolate);
   exception_object->Set(FIXED_ONE_BYTE_STRING(isolate, "code"),
                         OneByteString(isolate, code));
   args.GetReturnValue().Set(exception_object);
@@ -2169,7 +2169,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  SecureContext* sc = Unwrap<SecureContext>(args[0]->ToObject());
+  SecureContext* sc = Unwrap<SecureContext>(args[0]->ToObject(env->isolate()));
 
   bool is_server = args[1]->BooleanValue();
 
@@ -3004,7 +3004,9 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    encoding = ParseEncoding(env->isolate(), args[0]->ToString(), BUFFER);
+    encoding = ParseEncoding(env->isolate(),
+                             args[0]->ToString(env->isolate()),
+                             BUFFER);
   }
 
   unsigned char* md_value = nullptr;
@@ -3119,7 +3121,9 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    encoding = ParseEncoding(env->isolate(), args[0]->ToString(), BUFFER);
+    encoding = ParseEncoding(env->isolate(),
+                             args[0]->ToString(env->isolate()),
+                             BUFFER);
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
@@ -3319,7 +3323,9 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   unsigned int len = args.Length();
   enum encoding encoding = BUFFER;
   if (len >= 2 && args[1]->IsString()) {
-    encoding = ParseEncoding(env->isolate(), args[1]->ToString(), BUFFER);
+    encoding = ParseEncoding(env->isolate(),
+                             args[1]->ToString(env->isolate()),
+                             BUFFER);
   }
 
   node::Utf8Value passphrase(args[2]);
@@ -3532,7 +3538,9 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   // BINARY works for both buffers and binary strings.
   enum encoding encoding = BINARY;
   if (args.Length() >= 3) {
-    encoding = ParseEncoding(env->isolate(), args[2]->ToString(), BINARY);
+    encoding = ParseEncoding(env->isolate(),
+                             args[2]->ToString(env->isolate()),
+                             BINARY);
   }
 
   ssize_t hlen = StringBytes::Size(env->isolate(), args[1], encoding);
