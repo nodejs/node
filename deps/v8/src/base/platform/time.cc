@@ -401,7 +401,7 @@ class HighResolutionTickClock FINAL : public TickClock {
   }
   virtual ~HighResolutionTickClock() {}
 
-  virtual int64_t Now() OVERRIDE {
+  int64_t Now() OVERRIDE {
     LARGE_INTEGER now;
     BOOL result = QueryPerformanceCounter(&now);
     DCHECK(result);
@@ -419,9 +419,7 @@ class HighResolutionTickClock FINAL : public TickClock {
     return ticks + 1;
   }
 
-  virtual bool IsHighResolution() OVERRIDE {
-    return true;
-  }
+  bool IsHighResolution() OVERRIDE { return true; }
 
  private:
   int64_t ticks_per_second_;
@@ -435,7 +433,7 @@ class RolloverProtectedTickClock FINAL : public TickClock {
   RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
   virtual ~RolloverProtectedTickClock() {}
 
-  virtual int64_t Now() OVERRIDE {
+  int64_t Now() OVERRIDE {
     LockGuard<Mutex> lock_guard(&mutex_);
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
@@ -454,9 +452,7 @@ class RolloverProtectedTickClock FINAL : public TickClock {
     return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
   }
 
-  virtual bool IsHighResolution() OVERRIDE {
-    return false;
-  }
+  bool IsHighResolution() OVERRIDE { return false; }
 
  private:
   Mutex mutex_;

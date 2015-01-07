@@ -29,8 +29,6 @@
 
 {
   'variables': {
-    'v8_compress_startup_data%': 'off',
-
     'v8_enable_disassembler%': 0,
 
     'v8_enable_gdbjit%': 0,
@@ -38,6 +36,8 @@
     'v8_object_print%': 0,
 
     'v8_enable_verify_heap%': 0,
+
+    'v8_trace_maps%': 0,
 
     'v8_use_snapshot%': 'true',
 
@@ -59,9 +59,8 @@
     # Enable compiler warnings when using V8_DEPRECATED apis.
     'v8_deprecation_warnings%': 0,
 
-    # Use external files for startup data blobs:
-    # the JS builtins sources and the start snapshot.
-    'v8_use_external_startup_data%': 0,
+    # Set to 1 to enable DCHECKs in release builds.
+    'dcheck_always_on%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -77,6 +76,9 @@
       ['v8_enable_verify_heap==1', {
         'defines': ['VERIFY_HEAP',],
       }],
+      ['v8_trace_maps==1', {
+        'defines': ['TRACE_MAPS',],
+      }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
       }],
@@ -89,11 +91,11 @@
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_I18N_SUPPORT',],
       }],
-      ['v8_compress_startup_data=="bz2"', {
-        'defines': ['COMPRESS_STARTUP_DATA_BZ2',],
-      }],
       ['v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
+      }],
+      ['dcheck_always_on!=0', {
+        'defines': ['DEBUG',],
       }],
     ],  # conditions
     'configurations': {

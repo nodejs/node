@@ -20,9 +20,9 @@
 // corresponds to 'offsetof' (in stddef.h), except that it doesn't
 // use 0 or NULL, which causes a problem with the compiler warnings
 // we have enabled (which is also why 'offsetof' doesn't seem to work).
-// Here we simply use the non-zero value 4, which seems to work.
-#define OFFSET_OF(type, field)                                          \
-  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
+// Here we simply use the aligned, non-zero value 16.
+#define OFFSET_OF(type, field) \
+  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(16)->field)) - 16)
 
 
 #if V8_OS_NACL

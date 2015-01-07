@@ -21,7 +21,7 @@ namespace compiler {
 class InstructionSelectorTest : public TestWithContext, public TestWithZone {
  public:
   InstructionSelectorTest();
-  virtual ~InstructionSelectorTest();
+  ~InstructionSelectorTest() OVERRIDE;
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 

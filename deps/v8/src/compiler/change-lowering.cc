@@ -75,7 +75,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   CallDescriptor* descriptor = linkage()->GetStubCallDescriptor(
       callable.descriptor(), 0, CallDescriptor::kNoFlags);
   Node* target = jsgraph()->HeapConstant(callable.code());
-  Node* context = jsgraph()->ZeroConstant();
+  Node* context = jsgraph()->NoContextConstant();
   Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
   Node* heap_number = graph()->NewNode(common()->Call(descriptor), target,
                                        context, effect, control);
@@ -163,6 +163,9 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
         machine()->Word64Shl(),
         graph()->NewNode(machine()->ChangeInt32ToInt64(), value),
         SmiShiftBitsConstant()));
+  } else if (NodeProperties::GetBounds(value).upper->Is(Type::SignedSmall())) {
+    return Replace(
+        graph()->NewNode(machine()->WordShl(), value, SmiShiftBitsConstant()));
   }
 
   Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);
@@ -196,9 +199,9 @@ namespace {
 bool CanCover(Node* value, IrOpcode::Value opcode) {
   if (value->opcode() != opcode) return false;
   bool first = true;
-  for (auto i = value->uses().begin(); i != value->uses().end(); ++i) {
-    if (NodeProperties::IsEffectEdge(i.edge())) continue;
-    DCHECK(NodeProperties::IsValueEdge(i.edge()));
+  for (Edge const edge : value->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) continue;
+    DCHECK(NodeProperties::IsValueEdge(edge));
     if (!first) return false;
     first = false;
   }
@@ -233,11 +236,9 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* phi1 = d1.Phi(kMachFloat64, phi2, ChangeSmiToFloat64(object));
     Node* ephi1 = d1.EffectPhi(number, effect);
 
-    for (auto i = value->uses().begin(); i != value->uses().end();) {
-      if (NodeProperties::IsEffectEdge(i.edge())) {
-        i.UpdateToAndIncrement(ephi1);
-      } else {
-        ++i;
+    for (Edge edge : value->use_edges()) {
+      if (NodeProperties::IsEffectEdge(edge)) {
+        edge.UpdateTo(ephi1);
       }
     }
     return Replace(phi1);

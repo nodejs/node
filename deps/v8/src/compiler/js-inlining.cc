@@ -7,7 +7,6 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-inlining.h"
@@ -87,7 +86,7 @@ class Inlinee {
   }
 
   // Counts JSFunction, Receiver, arguments, context but not effect, control.
-  size_t total_parameters() { return start_->op()->OutputCount(); }
+  size_t total_parameters() { return start_->op()->ValueOutputCount(); }
 
   // Counts only formal parameters.
   size_t formal_parameters() {
@@ -127,19 +126,17 @@ void Inlinee::UnifyReturn(JSGraph* jsgraph) {
   NodeVector effects(jsgraph->zone());
   // Iterate over all control flow predecessors,
   // which must be return statements.
-  InputIter iter = final_merge->inputs().begin();
-  while (iter != final_merge->inputs().end()) {
-    Node* input = *iter;
+  for (Edge edge : final_merge->input_edges()) {
+    Node* input = edge.to();
     switch (input->opcode()) {
       case IrOpcode::kReturn:
         values.push_back(NodeProperties::GetValueInput(input, 0));
         effects.push_back(NodeProperties::GetEffectInput(input));
-        iter.UpdateToAndIncrement(NodeProperties::GetControlInput(input));
+        edge.UpdateTo(NodeProperties::GetControlInput(input));
         input->RemoveAllInputs();
         break;
       default:
         UNREACHABLE();
-        ++iter;
         break;
     }
   }
@@ -168,9 +165,8 @@ class CopyVisitor : public NullNodeVisitor {
 
   void Post(Node* original) {
     NodeVector inputs(temp_zone_);
-    for (InputIter it = original->inputs().begin();
-         it != original->inputs().end(); ++it) {
-      inputs.push_back(GetCopy(*it));
+    for (Node* const node : original->inputs()) {
+      inputs.push_back(GetCopy(node));
     }
 
     // Reuse the operator in the copy. This assumes that op lives in a zone
@@ -209,11 +205,10 @@ class CopyVisitor : public NullNodeVisitor {
   }
 
   Node* GetSentinel(Node* original) {
-    Node* sentinel = sentinels_[original->id()];
-    if (sentinel == NULL) {
-      sentinel = target_graph_->NewNode(&sentinel_op_);
+    if (sentinels_[original->id()] == NULL) {
+      sentinels_[original->id()] = target_graph_->NewNode(&sentinel_op_);
     }
-    return sentinel;
+    return sentinels_[original->id()];
   }
 
   NodeVector copies_;
@@ -244,35 +239,33 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   // context, effect, control.
   int inliner_inputs = call->op()->ValueInputCount();
   // Iterate over all uses of the start node.
-  UseIter iter = start_->uses().begin();
-  while (iter != start_->uses().end()) {
-    Node* use = *iter;
+  for (Edge edge : start_->use_edges()) {
+    Node* use = edge.from();
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
         int index = 1 + OpParameter<int>(use->op());
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
-          NodeProperties::ReplaceWithValue(*iter, call->InputAt(index));
+          NodeProperties::ReplaceWithValue(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
           // This is the context projection, rewire it to the context from the
           // JSFunction object.
-          NodeProperties::ReplaceWithValue(*iter, context);
+          NodeProperties::ReplaceWithValue(use, context);
         } else if (index < inlinee_context_index) {
           // Call has fewer arguments than required, fill with undefined.
-          NodeProperties::ReplaceWithValue(*iter, jsgraph->UndefinedConstant());
+          NodeProperties::ReplaceWithValue(use, jsgraph->UndefinedConstant());
         } else {
           // We got too many arguments, discard for now.
           // TODO(sigurds): Fix to treat arguments array correctly.
         }
-        ++iter;
         break;
       }
       default:
-        if (NodeProperties::IsEffectEdge(iter.edge())) {
-          iter.UpdateToAndIncrement(context);
-        } else if (NodeProperties::IsControlEdge(iter.edge())) {
-          iter.UpdateToAndIncrement(control);
+        if (NodeProperties::IsEffectEdge(edge)) {
+          edge.UpdateTo(context);
+        } else if (NodeProperties::IsControlEdge(edge)) {
+          edge.UpdateTo(control);
         } else {
           UNREACHABLE();
         }
@@ -406,19 +399,21 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
 
   Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
 
-  Node* outer_frame_state = call.frame_state();
-  // Insert argument adaptor frame if required.
-  if (call.formal_arguments() != inlinee.formal_parameters()) {
-    outer_frame_state =
-        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
-  }
+  if (FLAG_turbo_deoptimization) {
+    Node* outer_frame_state = call.frame_state();
+    // Insert argument adaptor frame if required.
+    if (call.formal_arguments() != inlinee.formal_parameters()) {
+      outer_frame_state =
+          CreateArgumentsAdaptorFrameState(&call, function, info.zone());
+    }
 
-  for (NodeVectorConstIter it = visitor.copies().begin();
-       it != visitor.copies().end(); ++it) {
-    Node* node = *it;
-    if (node != NULL && node->opcode() == IrOpcode::kFrameState) {
-      AddClosureToFrameState(node, function);
-      NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
+    for (NodeVectorConstIter it = visitor.copies().begin();
+         it != visitor.copies().end(); ++it) {
+      Node* node = *it;
+      if (node != NULL && node->opcode() == IrOpcode::kFrameState) {
+        AddClosureToFrameState(node, function);
+        NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
+      }
     }
   }
 
@@ -455,9 +450,8 @@ class JSCallRuntimeAccessor {
 
   NodeVector inputs(Zone* zone) const {
     NodeVector inputs(zone);
-    for (InputIter it = call_->inputs().begin(); it != call_->inputs().end();
-         ++it) {
-      inputs.push_back(*it);
+    for (Node* const node : call_->inputs()) {
+      inputs.push_back(node);
     }
     return inputs;
   }

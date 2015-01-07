@@ -109,7 +109,7 @@ module R {
   assertThrows(function() { l }, ReferenceError)
   assertThrows(function() { R.l }, ReferenceError)
 
-  assertThrows(function() { eval("c = -1") }, SyntaxError)
+  assertThrows(function() { eval("c = -1") }, TypeError)
   assertThrows(function() { R.c = -2 }, TypeError)
 
   // Initialize first bunch of variables.
@@ -129,7 +129,7 @@ module R {
   assertEquals(-4, R.v = -4)
   assertEquals(-3, l = -3)
   assertEquals(-4, R.l = -4)
-  assertThrows(function() { eval("c = -3") }, SyntaxError)
+  assertThrows(function() { eval("c = -3") }, TypeError)
   assertThrows(function() { R.c = -4 }, TypeError)
 
   assertEquals(-4, v)

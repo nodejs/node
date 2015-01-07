@@ -3,25 +3,26 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
-#include "test/cctest/cctest.h"
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
-#include "src/compiler/generic-node.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
+
+Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0, 0, 1,
+                 0, 0);
 
 // TODO(titzer): pull RPO tests out to their own file.
 static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
@@ -33,17 +34,6 @@ static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
       CHECK_EQ(NULL, order->at(i)->loop_end());
       CHECK_EQ(NULL, order->at(i)->loop_header());
     }
-  }
-  int number = 0;
-  for (auto const block : *order) {
-    if (block->deferred()) continue;
-    CHECK_EQ(number, block->ao_number());
-    ++number;
-  }
-  for (auto const block : *order) {
-    if (!block->deferred()) continue;
-    CHECK_EQ(number, block->ao_number());
-    ++number;
   }
 }
 
@@ -120,8 +110,7 @@ static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
     os << AsDOT(*graph);
   }
 
-  ZonePool zone_pool(graph->zone()->isolate());
-  Schedule* schedule = Scheduler::ComputeSchedule(&zone_pool, graph);
+  Schedule* schedule = Scheduler::ComputeSchedule(graph->zone(), graph);
 
   if (FLAG_trace_turbo_scheduler) {
     OFStream os(stdout);
@@ -137,8 +126,8 @@ TEST(RPODegenerate1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 1, false);
   CHECK_EQ(schedule.start(), order->at(0));
 }
@@ -149,8 +138,8 @@ TEST(RPODegenerate2) {
   Schedule schedule(scope.main_zone());
 
   schedule.AddGoto(schedule.start(), schedule.end());
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 2, false);
   CHECK_EQ(schedule.start(), order->at(0));
   CHECK_EQ(schedule.end(), order->at(1));
@@ -170,9 +159,8 @@ TEST(RPOLine) {
       schedule.AddGoto(last, block);
       last = block;
     }
-    ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
-        Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+        Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
     CheckRPONumbers(order, 1 + i, false);
 
     for (size_t i = 0; i < schedule.BasicBlockCount(); i++) {
@@ -189,8 +177,8 @@ TEST(RPOSelfLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   schedule.AddSuccessorForTesting(schedule.start(), schedule.start());
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 1, true);
   BasicBlock* loop[] = {schedule.start()};
   CheckLoop(order, loop, 1);
@@ -200,12 +188,13 @@ TEST(RPOSelfLoop) {
 TEST(RPOEntryLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessorForTesting(schedule.start(), schedule.end());
-  schedule.AddSuccessorForTesting(schedule.end(), schedule.start());
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlock* body = schedule.NewBasicBlock();
+  schedule.AddSuccessorForTesting(schedule.start(), body);
+  schedule.AddSuccessorForTesting(body, schedule.start());
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 2, true);
-  BasicBlock* loop[] = {schedule.start(), schedule.end()};
+  BasicBlock* loop[] = {schedule.start(), body};
   CheckLoop(order, loop, 2);
 }
 
@@ -215,8 +204,8 @@ TEST(RPOEndLoop) {
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
   schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 3, true);
   loop1->Check(order);
 }
@@ -228,8 +217,8 @@ TEST(RPOEndLoopNested) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
   schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
   schedule.AddSuccessorForTesting(loop1->last(), schedule.start());
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 3, true);
   loop1->Check(order);
 }
@@ -249,8 +238,8 @@ TEST(RPODiamond) {
   schedule.AddSuccessorForTesting(B, D);
   schedule.AddSuccessorForTesting(C, D);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 4, false);
 
   CHECK_EQ(0, A->rpo_number());
@@ -274,8 +263,8 @@ TEST(RPOLoop1) {
   schedule.AddSuccessorForTesting(C, B);
   schedule.AddSuccessorForTesting(C, D);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 4, true);
   BasicBlock* loop[] = {B, C};
   CheckLoop(order, loop, 2);
@@ -296,8 +285,8 @@ TEST(RPOLoop2) {
   schedule.AddSuccessorForTesting(C, B);
   schedule.AddSuccessorForTesting(B, D);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 4, true);
   BasicBlock* loop[] = {B, C};
   CheckLoop(order, loop, 2);
@@ -339,9 +328,8 @@ TEST(RPOLoopN) {
     if (i == 9) schedule.AddSuccessorForTesting(E, G);
     if (i == 10) schedule.AddSuccessorForTesting(F, G);
 
-    ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
-        Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+        Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
     CheckRPONumbers(order, 7, true);
     BasicBlock* loop[] = {B, C, D, E, F};
     CheckLoop(order, loop, 5);
@@ -368,8 +356,8 @@ TEST(RPOLoopNest1) {
   schedule.AddSuccessorForTesting(E, B);
   schedule.AddSuccessorForTesting(E, F);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 6, true);
   BasicBlock* loop1[] = {B, C, D, E};
   CheckLoop(order, loop1, 4);
@@ -404,8 +392,8 @@ TEST(RPOLoopNest2) {
   schedule.AddSuccessorForTesting(F, C);
   schedule.AddSuccessorForTesting(G, B);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 8, true);
   BasicBlock* loop1[] = {B, C, D, E, F, G};
   CheckLoop(order, loop1, 6);
@@ -432,8 +420,8 @@ TEST(RPOLoopFollow1) {
   schedule.AddSuccessorForTesting(loop1->header(), loop2->header());
   schedule.AddSuccessorForTesting(loop2->last(), E);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
 
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
@@ -459,8 +447,8 @@ TEST(RPOLoopFollow2) {
   schedule.AddSuccessorForTesting(S, loop2->header());
   schedule.AddSuccessorForTesting(loop2->last(), E);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
 
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
@@ -483,9 +471,8 @@ TEST(RPOLoopFollowN) {
       schedule.AddSuccessorForTesting(A, loop1->header());
       schedule.AddSuccessorForTesting(loop1->nodes[exit], loop2->header());
       schedule.AddSuccessorForTesting(loop2->nodes[exit], E);
-      ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
-          Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+          Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
 
       CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
                static_cast<int>(order->size()));
@@ -515,8 +502,8 @@ TEST(RPONestedLoopFollow1) {
   schedule.AddSuccessorForTesting(C, E);
   schedule.AddSuccessorForTesting(C, B);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
 
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
@@ -545,9 +532,8 @@ TEST(RPOLoopBackedges1) {
       schedule.AddSuccessorForTesting(loop1->nodes[i], loop1->header());
       schedule.AddSuccessorForTesting(loop1->nodes[j], E);
 
-      ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
-          Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+          Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
       loop1->Check(order);
     }
@@ -574,9 +560,8 @@ TEST(RPOLoopOutedges1) {
       schedule.AddSuccessorForTesting(loop1->nodes[j], D);
       schedule.AddSuccessorForTesting(D, E);
 
-      ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
-          Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+          Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
       loop1->Check(order);
     }
@@ -603,9 +588,8 @@ TEST(RPOLoopOutedges2) {
       schedule.AddSuccessorForTesting(O, E);
     }
 
-    ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
-        Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+        Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
     loop1->Check(order);
   }
@@ -631,9 +615,8 @@ TEST(RPOLoopOutloops1) {
       schedule.AddSuccessorForTesting(loopN[j]->last(), E);
     }
 
-    ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
-        Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+        Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
     loop1->Check(order);
 
@@ -653,7 +636,7 @@ TEST(RPOLoopMultibackedge) {
   BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.end();
+  BasicBlock* D = schedule.NewBasicBlock();
   BasicBlock* E = schedule.NewBasicBlock();
 
   schedule.AddSuccessorForTesting(A, B);
@@ -664,8 +647,8 @@ TEST(RPOLoopMultibackedge) {
   schedule.AddSuccessorForTesting(D, B);
   schedule.AddSuccessorForTesting(E, B);
 
-  ZonePool zone_pool(scope.main_isolate());
-  BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+  BasicBlockVector* order =
+      Scheduler::ComputeSpecialRPO(scope.main_zone(), &schedule);
   CheckRPONumbers(order, 5, true);
 
   BasicBlock* loop1[] = {B, C, D, E};
@@ -680,8 +663,7 @@ TEST(BuildScheduleEmpty) {
   graph.SetStart(graph.NewNode(builder.Start(0)));
   graph.SetEnd(graph.NewNode(builder.End(), graph.start()));
 
-  ZonePool zone_pool(scope.main_isolate());
-  USE(Scheduler::ComputeSchedule(&zone_pool, &graph));
+  USE(Scheduler::ComputeSchedule(scope.main_zone(), &graph));
 }
 
 
@@ -696,8 +678,7 @@ TEST(BuildScheduleOneParameter) {
 
   graph.SetEnd(graph.NewNode(builder.End(), ret));
 
-  ZonePool zone_pool(scope.main_isolate());
-  USE(Scheduler::ComputeSchedule(&zone_pool, &graph));
+  USE(Scheduler::ComputeSchedule(scope.main_zone(), &graph));
 }
 
 
@@ -1571,7 +1552,6 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder;
   const Operator* op;
 
   Handle<HeapObject> object =
@@ -1607,7 +1587,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n20 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n20);
   n20->ReplaceInput(0, n9);
-  op = machine_builder.Int32Add();
+  op = &kIntAdd;
   Node* n19 = graph.NewNode(op, nil, nil);
   USE(n19);
   op = common_builder.Phi(kMachAnyTagged, 2);
@@ -1731,7 +1711,6 @@ TEST(FloatingDiamond2) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1740,7 +1719,7 @@ TEST(FloatingDiamond2) {
   Node* p1 = graph.NewNode(common.Parameter(1), start);
   Node* d1 = CreateDiamond(&graph, &common, p0);
   Node* d2 = CreateDiamond(&graph, &common, p1);
-  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* add = graph.NewNode(&kIntAdd, d1, d2);
   Node* ret = graph.NewNode(common.Return(), add, start, start);
   Node* end = graph.NewNode(common.End(), ret, start);
 
@@ -1754,7 +1733,6 @@ TEST(FloatingDiamond3) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1763,7 +1741,7 @@ TEST(FloatingDiamond3) {
   Node* p1 = graph.NewNode(common.Parameter(1), start);
   Node* d1 = CreateDiamond(&graph, &common, p0);
   Node* d2 = CreateDiamond(&graph, &common, p1);
-  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* add = graph.NewNode(&kIntAdd, d1, d2);
   Node* d3 = CreateDiamond(&graph, &common, add);
   Node* ret = graph.NewNode(common.Return(), d3, start, start);
   Node* end = graph.NewNode(common.End(), ret, start);
@@ -1779,7 +1757,6 @@ TEST(NestedFloatingDiamonds) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1816,12 +1793,94 @@ TEST(NestedFloatingDiamonds) {
 }
 
 
+TEST(NestedFloatingDiamondWithChain) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* c = graph.NewNode(common.Int32Constant(7));
+
+  Node* brA1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* tA1 = graph.NewNode(common.IfTrue(), brA1);
+  Node* fA1 = graph.NewNode(common.IfFalse(), brA1);
+  Node* mA1 = graph.NewNode(common.Merge(2), tA1, fA1);
+  Node* phiA1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p1, mA1);
+
+  Node* brB1 = graph.NewNode(common.Branch(), p1, graph.start());
+  Node* tB1 = graph.NewNode(common.IfTrue(), brB1);
+  Node* fB1 = graph.NewNode(common.IfFalse(), brB1);
+  Node* mB1 = graph.NewNode(common.Merge(2), tB1, fB1);
+  Node* phiB1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p1, mB1);
+
+  Node* brA2 = graph.NewNode(common.Branch(), phiB1, mA1);
+  Node* tA2 = graph.NewNode(common.IfTrue(), brA2);
+  Node* fA2 = graph.NewNode(common.IfFalse(), brA2);
+  Node* mA2 = graph.NewNode(common.Merge(2), tA2, fA2);
+  Node* phiA2 = graph.NewNode(common.Phi(kMachAnyTagged, 2), phiB1, c, mA2);
+
+  Node* brB2 = graph.NewNode(common.Branch(), phiA1, mB1);
+  Node* tB2 = graph.NewNode(common.IfTrue(), brB2);
+  Node* fB2 = graph.NewNode(common.IfFalse(), brB2);
+  Node* mB2 = graph.NewNode(common.Merge(2), tB2, fB2);
+  Node* phiB2 = graph.NewNode(common.Phi(kMachAnyTagged, 2), phiA1, c, mB2);
+
+  Node* add = graph.NewNode(&kIntAdd, phiA2, phiB2);
+  Node* ret = graph.NewNode(common.Return(), add, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(35, &graph);
+}
+
+
+TEST(NestedFloatingDiamondWithLoop) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* fv = graph.NewNode(common.Int32Constant(7));
+  Node* br = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  Node* loop = graph.NewNode(common.Loop(2), f, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* add = graph.NewNode(&kIntAdd, ind, fv);
+  Node* br1 = graph.NewNode(common.Branch(), add, loop);
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+
+  loop->ReplaceInput(1, t1);  // close loop.
+  ind->ReplaceInput(1, ind);  // close induction variable.
+
+  Node* m = graph.NewNode(common.Merge(2), t, f1);
+  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 2), fv, ind, m);
+
+  Node* ret = graph.NewNode(common.Return(), phi, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(20, &graph);
+}
+
+
 TEST(LoopedFloatingDiamond1) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1831,7 +1890,7 @@ TEST(LoopedFloatingDiamond1) {
   Node* c = graph.NewNode(common.Int32Constant(7));
   Node* loop = graph.NewNode(common.Loop(2), start, start);
   Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
-  Node* add = graph.NewNode(machine.IntAdd(), ind, c);
+  Node* add = graph.NewNode(&kIntAdd, ind, c);
 
   Node* br = graph.NewNode(common.Branch(), add, loop);
   Node* t = graph.NewNode(common.IfTrue(), br);
@@ -1859,8 +1918,6 @@ TEST(LoopedFloatingDiamond2) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1877,7 +1934,7 @@ TEST(LoopedFloatingDiamond2) {
   Node* m1 = graph.NewNode(common.Merge(2), t1, f1);
   Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), c, ind, m1);
 
-  Node* add = graph.NewNode(machine.IntAdd(), ind, phi1);
+  Node* add = graph.NewNode(&kIntAdd, ind, phi1);
 
   Node* br = graph.NewNode(common.Branch(), add, loop);
   Node* t = graph.NewNode(common.IfTrue(), br);
@@ -1895,12 +1952,60 @@ TEST(LoopedFloatingDiamond2) {
 }
 
 
+TEST(LoopedFloatingDiamond3) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* c = graph.NewNode(common.Int32Constant(7));
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* br1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+
+  Node* loop1 = graph.NewNode(common.Loop(2), t1, start);
+  Node* ind1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* add1 = graph.NewNode(&kIntAdd, ind1, c);
+  Node* br2 = graph.NewNode(common.Branch(), add1, loop1);
+  Node* t2 = graph.NewNode(common.IfTrue(), br2);
+  Node* f2 = graph.NewNode(common.IfFalse(), br2);
+
+  loop1->ReplaceInput(1, t2);   // close inner loop.
+  ind1->ReplaceInput(1, ind1);  // close inner induction variable.
+
+  Node* m1 = graph.NewNode(common.Merge(2), f1, f2);
+  Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), c, ind1, m1);
+
+  Node* add = graph.NewNode(&kIntAdd, ind, phi1);
+
+  Node* br = graph.NewNode(common.Branch(), add, loop);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  loop->ReplaceInput(1, t);   // close loop.
+  ind->ReplaceInput(1, add);  // close induction variable.
+
+  Node* ret = graph.NewNode(common.Return(), ind, start, f);
+  Node* end = graph.NewNode(common.End(), ret, f);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(28, &graph);
+}
+
+
 TEST(PhisPushedDownToDifferentBranches) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);

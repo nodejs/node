@@ -1145,7 +1145,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
   DCHECK(*reinterpret_cast<double*>
          (ExternalReference::math_exp_constants(8).address()) == 1);
-  __ Move(double_scratch2, 1);
+  __ Move(double_scratch2, 1.);
   __ add_d(result, result, double_scratch2);
   __ srl(temp1, temp2, 11);
   __ Ext(temp2, temp2, 0, 11);

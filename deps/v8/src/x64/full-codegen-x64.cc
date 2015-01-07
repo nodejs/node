@@ -187,10 +187,10 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
-    if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
+    if (FLAG_harmony_scoping && info->scope()->is_script_scope()) {
       __ Push(rdi);
       __ Push(info->scope()->GetScopeInfo());
-      __ CallRuntime(Runtime::kNewGlobalContext, 2);
+      __ CallRuntime(Runtime::kNewScriptContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
@@ -895,7 +895,7 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   EmitDebugCheckDeclarationContext(variable);
 
   // Load instance object.
-  __ LoadContext(rax, scope_->ContextChainLength(scope_->GlobalScope()));
+  __ LoadContext(rax, scope_->ContextChainLength(scope_->ScriptScope()));
   __ movp(rax, ContextOperand(rax, variable->interface()->Index()));
   __ movp(rax, ContextOperand(rax, Context::EXTENSION_INDEX));
 
@@ -1067,6 +1067,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Get the object to enumerate over. If the object is null or undefined, skip
   // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  SetExpressionPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
   __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
   __ j(equal, &exit);
@@ -1170,6 +1171,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Generate code for doing the condition check.
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&loop);
+  SetExpressionPosition(stmt->each());
+
   __ movp(rax, Operand(rsp, 0 * kPointerSize));  // Get the current index.
   __ cmpp(rax, Operand(rsp, 1 * kPointerSize));  // Compare to the array length.
   __ j(above_equal, loop_statement.break_label());
@@ -1239,48 +1242,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  Comment cmnt(masm_, "[ ForOfStatement");
-  SetStatementPosition(stmt);
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // var iterator = iterable[Symbol.iterator]();
-  VisitForEffect(stmt->assign_iterator());
-
-  // Loop entry.
-  __ bind(loop_statement.continue_label());
-
-  // result = iterator.next()
-  VisitForEffect(stmt->next_result());
-
-  // if (result.done) break;
-  Label result_not_done;
-  VisitForControl(stmt->result_done(),
-                  loop_statement.break_label(),
-                  &result_not_done,
-                  &result_not_done);
-  __ bind(&result_not_done);
-
-  // each = result.value
-  VisitForEffect(stmt->assign_each());
-
-  // Generate code for the body of the loop.
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
-  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
-  __ jmp(loop_statement.continue_label());
-
-  // Exit and decrement the loop depth.
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  __ bind(loop_statement.break_label());
-  decrement_loop_depth();
-}
-
-
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
@@ -1338,6 +1299,19 @@ void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
   __ j(not_equal, &done);
   __ CallRuntime(Runtime::kThrowNonMethodError, 0);
   __ bind(&done);
+}
+
+
+void FullCodeGenerator::EmitSetHomeObjectIfNeeded(Expression* initializer,
+                                                  int offset) {
+  if (NeedsHomeObject(initializer)) {
+    __ movp(StoreDescriptor::ReceiverRegister(), Operand(rsp, 0));
+    __ Move(StoreDescriptor::NameRegister(),
+            isolate()->factory()->home_object_symbol());
+    __ movp(StoreDescriptor::ValueRegister(),
+            Operand(rsp, offset * kPointerSize));
+    CallStoreIC();
+  }
 }
 
 
@@ -1704,6 +1678,14 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             __ movp(StoreDescriptor::ReceiverRegister(), Operand(rsp, 0));
             CallStoreIC(key->LiteralFeedbackId());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
+
+            if (NeedsHomeObject(value)) {
+              __ movp(StoreDescriptor::ReceiverRegister(), rax);
+              __ Move(StoreDescriptor::NameRegister(),
+                      isolate()->factory()->home_object_symbol());
+              __ movp(StoreDescriptor::ValueRegister(), Operand(rsp, 0));
+              CallStoreIC();
+            }
           } else {
             VisitForEffect(value);
           }
@@ -1713,6 +1695,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(key);
         VisitForStackValue(value);
         if (property->emit_store()) {
+          EmitSetHomeObjectIfNeeded(value, 2);
           __ Push(Smi::FromInt(SLOPPY));  // Strict mode
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
@@ -1745,7 +1728,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ Push(Operand(rsp, 0));  // Duplicate receiver.
     VisitForStackValue(it->first);
     EmitAccessor(it->second->getter);
+    EmitSetHomeObjectIfNeeded(it->second->getter, 2);
     EmitAccessor(it->second->setter);
+    EmitSetHomeObjectIfNeeded(it->second->setter, 3);
     __ Push(Smi::FromInt(NONE));
     __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
   }
@@ -2172,15 +2157,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForAccumulatorValue(value);
   __ Pop(rbx);
 
-  // Check generator state.
-  Label wrong_state, closed_state, done;
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
-  __ SmiCompare(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
-                Smi::FromInt(0));
-  __ j(equal, &closed_state);
-  __ j(less, &wrong_state);
-
   // Load suspended function and context.
   __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
   __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
@@ -2202,7 +2178,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
-  Label resume_frame;
+  Label resume_frame, done;
   __ bind(&push_frame);
   __ call(&resume_frame);
   __ jmp(&done);
@@ -2248,25 +2224,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ Abort(kGeneratorFailedToResume);
-
-  // Reach here when generator is closed.
-  __ bind(&closed_state);
-  if (resume_mode == JSGeneratorObject::NEXT) {
-    // Return completed iterator result when generator is closed.
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    // Pop value from top-of-stack slot; box result into result register.
-    EmitCreateIteratorResult(true);
-  } else {
-    // Throw the provided value.
-    __ Push(rax);
-    __ CallRuntime(Runtime::kThrow, 1);
-  }
-  __ jmp(&done);
-
-  // Throw error if we attempt to operate on a running generator.
-  __ bind(&wrong_state);
-  __ Push(rbx);
-  __ CallRuntime(Runtime::kThrowGeneratorStateError, 1);
 
   __ bind(&done);
   context()->Plug(result_register());
@@ -2447,6 +2404,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
     VisitForStackValue(key);
     VisitForStackValue(value);
+    EmitSetHomeObjectIfNeeded(value, 2);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
@@ -2638,8 +2596,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
+  } else if (IsSignallingAssignmentToConst(var, op, strict_mode())) {
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
   }
-  // Non-initializing assignments to consts are ignored.
 }
 
 
@@ -5043,7 +5002,7 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_global_scope() ||
+  if (declaration_scope->is_script_scope() ||
       declaration_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global

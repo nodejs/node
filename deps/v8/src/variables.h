@@ -64,7 +64,7 @@ class Variable: public ZoneObject {
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
-  // be the global scope). scope() is NULL in that case. Currently the
+  // be the script scope). scope() is NULL in that case. Currently the
   // scope is only used to follow the context chain length.
   Scope* scope() const { return scope_; }
 

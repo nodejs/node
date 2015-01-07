@@ -10,6 +10,7 @@
 using testing::AllOf;
 using testing::Capture;
 using testing::CaptureEq;
+using testing::Not;
 
 namespace v8 {
 namespace internal {
@@ -33,12 +34,12 @@ TEST_F(SelectLoweringTest, SelectWithSameConditions) {
   Node* const p2 = Parameter(2);
   Node* const p3 = Parameter(3);
   Node* const p4 = Parameter(4);
+  Node* const s0 = graph()->NewNode(common()->Select(kMachInt32), p0, p1, p2);
 
   Capture<Node*> branch;
   Capture<Node*> merge;
   {
-    Reduction const r =
-        Reduce(graph()->NewNode(common()->Select(kMachInt32), p0, p1, p2));
+    Reduction const r = Reduce(s0);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
@@ -54,6 +55,15 @@ TEST_F(SelectLoweringTest, SelectWithSameConditions) {
         Reduce(graph()->NewNode(common()->Select(kMachInt32), p0, p3, p4));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsPhi(kMachInt32, p3, p4, CaptureEq(&merge)));
+  }
+  {
+    // We must not reuse the diamond if it is reachable from either else/then
+    // values of the Select, because the resulting graph can not be scheduled.
+    Reduction const r =
+        Reduce(graph()->NewNode(common()->Select(kMachInt32), p0, s0, p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsPhi(kMachInt32, s0, p0, Not(CaptureEq(&merge))));
   }
 }
 

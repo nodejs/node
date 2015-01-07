@@ -8,10 +8,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <sys/types.h>
 
 // Ubuntu Dapper requires memory pages to be marked as
 // executable. Otherwise, OS raises an exception when executing code

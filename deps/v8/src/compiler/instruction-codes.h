@@ -15,6 +15,8 @@
 #include "src/compiler/ia32/instruction-codes-ia32.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/compiler/mips/instruction-codes-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/compiler/mips64/instruction-codes-mips64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/x64/instruction-codes-x64.h"
 #else
@@ -37,6 +39,18 @@ namespace compiler {
   V(ArchRet)                \
   V(ArchStackPointer)       \
   V(ArchTruncateDoubleToI)  \
+  V(CheckedLoadInt8)        \
+  V(CheckedLoadUint8)       \
+  V(CheckedLoadInt16)       \
+  V(CheckedLoadUint16)      \
+  V(CheckedLoadWord32)      \
+  V(CheckedLoadFloat32)     \
+  V(CheckedLoadFloat64)     \
+  V(CheckedStoreWord8)      \
+  V(CheckedStoreWord16)     \
+  V(CheckedStoreWord32)     \
+  V(CheckedStoreFloat32)    \
+  V(CheckedStoreFloat64)    \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {
@@ -95,6 +109,10 @@ enum FlagsCondition {
   kOverflow,
   kNotOverflow
 };
+
+inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
+  return static_cast<FlagsCondition>(condition ^ 1);
+}
 
 std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc);
 

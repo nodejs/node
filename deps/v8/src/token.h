@@ -163,7 +163,11 @@ namespace internal {
   T(ILLEGAL, "ILLEGAL", 0)                                           \
                                                                      \
   /* Scanner-internal use only. */                                   \
-  T(WHITESPACE, NULL, 0)
+  T(WHITESPACE, NULL, 0)                                             \
+                                                                     \
+  /* ES6 Template Literals */                                        \
+  T(TEMPLATE_SPAN, NULL, 0)                                          \
+  T(TEMPLATE_TAIL, NULL, 0)
 
 
 class Token {

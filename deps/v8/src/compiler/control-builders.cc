@@ -78,7 +78,6 @@ void SwitchBuilder::BeginSwitch() {
   body_environment_ = environment()->CopyAsUnreachable();
   label_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
-  body_environments_.AddBlock(NULL, case_count(), zone());
 }
 
 

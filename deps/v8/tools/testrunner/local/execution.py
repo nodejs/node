@@ -33,6 +33,7 @@ import time
 from pool import Pool
 from . import commands
 from . import perfdata
+from . import statusfile
 from . import utils
 
 
@@ -98,6 +99,10 @@ class Runner(object):
         "--stress-opt" in self.context.mode_flags or
         "--stress-opt" in self.context.extra_flags):
       timeout *= 4
+    # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
+    # the like.
+    if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
+      timeout *= 2
     if test.dependency is not None:
       dep_command = [ c.replace(test.path, test.dependency) for c in command ]
     else:

@@ -294,7 +294,7 @@ class RepresentationChanger {
       case IrOpcode::kInt32Constant: {
         int32_t value = OpParameter<int32_t>(node);
         if (value == 0 || value == 1) return node;
-        return jsgraph()->OneConstant();  // value != 0
+        return jsgraph()->Int32Constant(1);  // value != 0
       }
       case IrOpcode::kHeapConstant: {
         Handle<Object> handle = OpParameter<Unique<Object> >(node).handle();

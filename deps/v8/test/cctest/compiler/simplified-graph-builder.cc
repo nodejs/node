@@ -5,7 +5,6 @@
 #include "test/cctest/compiler/simplified-graph-builder.h"
 
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -46,7 +45,7 @@ void SimplifiedGraphBuilder::End() {
 Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
                                        Node** value_inputs, bool incomplete) {
-  DCHECK(op->InputCount() == value_input_count);
+  DCHECK(op->ValueInputCount() == value_input_count);
 
   DCHECK(!OperatorProperties::HasContextInput(op));
   DCHECK(!OperatorProperties::HasFrameStateInput(op));

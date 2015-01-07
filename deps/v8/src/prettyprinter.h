@@ -30,7 +30,7 @@ class PrettyPrinter: public AstVisitor {
   static void PrintOut(Zone* zone, AstNode* node);
 
   // Individual nodes
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

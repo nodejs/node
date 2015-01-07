@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/typer.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -21,6 +21,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         binop(NULL),
         unop(NULL),
         javascript(main_zone()),
+        machine(main_zone()),
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
@@ -75,7 +76,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* reduce(Node* node) {
     JSGraph jsgraph(&graph, &common, &javascript, &machine);
-    JSTypedLowering reducer(&jsgraph);
+    JSTypedLowering reducer(&jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -166,17 +167,19 @@ static Type* kStringTypes[] = {Type::InternalizedString(), Type::OtherString(),
 
 
 static Type* kInt32Types[] = {
-    Type::UnsignedSmall(),   Type::OtherSignedSmall(), Type::OtherUnsigned31(),
-    Type::OtherUnsigned32(), Type::OtherSigned32(),    Type::SignedSmall(),
-    Type::Signed32(),        Type::Unsigned32(),       Type::Integral32()};
+    Type::UnsignedSmall(),       Type::NegativeSigned32(),
+    Type::NonNegativeSigned32(), Type::SignedSmall(),
+    Type::Signed32(),            Type::Unsigned32(),
+    Type::Integral32()};
 
 
 static Type* kNumberTypes[] = {
-    Type::UnsignedSmall(),   Type::OtherSignedSmall(), Type::OtherUnsigned31(),
-    Type::OtherUnsigned32(), Type::OtherSigned32(),    Type::SignedSmall(),
-    Type::Signed32(),        Type::Unsigned32(),       Type::Integral32(),
-    Type::MinusZero(),       Type::NaN(),              Type::OtherNumber(),
-    Type::OrderedNumber(),   Type::Number()};
+    Type::UnsignedSmall(),       Type::NegativeSigned32(),
+    Type::NonNegativeSigned32(), Type::SignedSmall(),
+    Type::Signed32(),            Type::Unsigned32(),
+    Type::Integral32(),          Type::MinusZero(),
+    Type::NaN(),                 Type::OrderedNumber(),
+    Type::PlainNumber(),         Type::Number()};
 
 
 static Type* kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
@@ -303,12 +306,13 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
 TEST(Int32BitwiseShifts) {
   JSBitwiseShiftTypedLoweringTester R;
 
-  Type* types[] = {
-      Type::SignedSmall(), Type::UnsignedSmall(), Type::OtherSigned32(),
-      Type::Unsigned32(),  Type::Signed32(),      Type::MinusZero(),
-      Type::NaN(),         Type::OtherNumber(),   Type::Undefined(),
-      Type::Null(),        Type::Boolean(),       Type::Number(),
-      Type::String()};
+  Type* types[] = {Type::SignedSmall(),      Type::UnsignedSmall(),
+                   Type::NegativeSigned32(), Type::NonNegativeSigned32(),
+                   Type::Unsigned32(),       Type::Signed32(),
+                   Type::MinusZero(),        Type::NaN(),
+                   Type::Undefined(),        Type::Null(),
+                   Type::Boolean(),          Type::Number(),
+                   Type::PlainNumber(),      Type::String()};
 
   for (size_t i = 0; i < arraysize(types); ++i) {
     Node* p0 = R.Parameter(types[i], 0);
@@ -326,9 +330,13 @@ TEST(Int32BitwiseShifts) {
 
         CheckToI32(p0, r0, R.signedness[k]);
 
-        R.CheckPureBinop(IrOpcode::kWord32And, r1);
-        CheckToI32(p1, r1->InputAt(0), R.signedness[k + 1]);
-        R.CheckInt32Constant(0x1F, r1->InputAt(1));
+        if (r1->opcode() == IrOpcode::kWord32And) {
+          R.CheckPureBinop(IrOpcode::kWord32And, r1);
+          CheckToI32(p1, r1->InputAt(0), R.signedness[k + 1]);
+          R.CheckInt32Constant(0x1F, r1->InputAt(1));
+        } else {
+          CheckToI32(p1, r1, R.signedness[k]);
+        }
       }
     }
   }
@@ -364,10 +372,11 @@ TEST(Int32BitwiseBinops) {
   JSBitwiseTypedLoweringTester R;
 
   Type* types[] = {
-      Type::SignedSmall(), Type::UnsignedSmall(), Type::Unsigned32(),
-      Type::Signed32(),    Type::MinusZero(),     Type::NaN(),
-      Type::OtherNumber(), Type::Undefined(),     Type::Null(),
-      Type::Boolean(),     Type::Number(),        Type::String()};
+      Type::SignedSmall(),   Type::UnsignedSmall(), Type::Unsigned32(),
+      Type::Signed32(),      Type::MinusZero(),     Type::NaN(),
+      Type::OrderedNumber(), Type::PlainNumber(),   Type::Undefined(),
+      Type::Null(),          Type::Boolean(),       Type::Number(),
+      Type::String()};
 
   for (size_t i = 0; i < arraysize(types); ++i) {
     Node* p0 = R.Parameter(types[i], 0);
@@ -542,12 +551,7 @@ TEST(JSToBoolean_replacement) {
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* n = R.Parameter(types[i]);
-    Node* c = R.graph.NewNode(R.javascript.ToBoolean(), n, R.context(),
-                              R.start(), R.start());
-    Node* effect_use = R.UseForEffect(c);
-    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
-
-    R.CheckEffectInput(c, effect_use);
+    Node* c = R.graph.NewNode(R.javascript.ToBoolean(), n, R.context());
     Node* r = R.reduce(c);
 
     if (types[i]->Is(Type::Boolean())) {
@@ -557,10 +561,6 @@ TEST(JSToBoolean_replacement) {
     } else {
       CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());
     }
-
-    CHECK_EQ(n, add->InputAt(0));
-    CHECK_EQ(r, add->InputAt(1));
-    R.CheckEffectInput(R.start(), effect_use);
   }
 }
 
@@ -752,15 +752,12 @@ TEST(UnaryNot) {
 
   for (size_t i = 0; i < arraysize(kJSTypes); i++) {
     Node* orig = R.Unop(opnot, R.Parameter(kJSTypes[i]));
-    Node* use = R.graph.NewNode(R.common.Return(), orig);
     Node* r = R.reduce(orig);
-    // TODO(titzer): test will break if/when js-typed-lowering constant folds.
-    CHECK_EQ(IrOpcode::kBooleanNot, use->InputAt(0)->opcode());
 
     if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
       // The original node was turned into a ToBoolean.
       CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
-    } else {
+    } else if (r->opcode() != IrOpcode::kHeapConstant) {
       CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     }
   }
@@ -815,7 +812,7 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != NULL) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->InputCount(); i++) {
+      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
         CHECK_NE(R.start(), effect_use->InputAt(i));
       }
     }
@@ -993,7 +990,7 @@ TEST(OrderNumberBinopEffects1) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::String(), Type::String());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Symbol());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
@@ -1066,8 +1063,8 @@ TEST(OrderCompareEffects) {
     CHECK_EQ(B.p1, i0->InputAt(0));
     CHECK_EQ(B.p0, i1->InputAt(0));
 
-    // But effects should be ordered start -> i1 -> i0 -> effect_use
-    B.CheckEffectOrdering(i1, i0);
+    // But effects should be ordered start -> i1 -> effect_use
+    B.CheckEffectOrdering(i1);
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -1181,33 +1178,6 @@ TEST(Int32BinopEffects) {
 }
 
 
-TEST(UnaryNotEffects) {
-  JSTypedLoweringTester R;
-  const Operator* opnot = R.javascript.UnaryNot();
-
-  for (size_t i = 0; i < arraysize(kJSTypes); i++) {
-    Node* p0 = R.Parameter(kJSTypes[i], 0);
-    Node* orig = R.Unop(opnot, p0);
-    Node* effect_use = R.UseForEffect(orig);
-    Node* value_use = R.graph.NewNode(R.common.Return(), orig);
-    Node* r = R.reduce(orig);
-    // TODO(titzer): test will break if/when js-typed-lowering constant folds.
-    CHECK_EQ(IrOpcode::kBooleanNot, value_use->InputAt(0)->opcode());
-
-    if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
-      // The original node was turned into a ToBoolean, which has an effect.
-      CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
-      R.CheckEffectInput(R.start(), orig);
-      R.CheckEffectInput(orig, effect_use);
-    } else {
-      // effect should have been removed from this node.
-      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
-      R.CheckEffectInput(R.start(), effect_use);
-    }
-  }
-}
-
-
 TEST(Int32AddNarrowing) {
   {
     JSBitwiseTypedLoweringTester R;
@@ -1226,11 +1196,7 @@ TEST(Int32AddNarrowing) {
             Node* r = R.reduce(or_node);
 
             CHECK_EQ(R.ops[o + 1]->opcode(), r->op()->opcode());
-            CHECK_EQ(IrOpcode::kInt32Add, add_node->opcode());
-            bool is_signed = l ? R.signedness[o] : R.signedness[o + 1];
-
-            Type* add_type = NodeProperties::GetBounds(add_node).upper;
-            CHECK(add_type->Is(I32Type(is_signed)));
+            CHECK_EQ(IrOpcode::kNumberAdd, add_node->opcode());
           }
         }
       }
@@ -1253,40 +1219,33 @@ TEST(Int32AddNarrowing) {
             Node* r = R.reduce(or_node);
 
             CHECK_EQ(R.ops[o + 1]->opcode(), r->op()->opcode());
-            CHECK_EQ(IrOpcode::kInt32Add, add_node->opcode());
-            bool is_signed = l ? R.signedness[o] : R.signedness[o + 1];
-
-            Type* add_type = NodeProperties::GetBounds(add_node).upper;
-            CHECK(add_type->Is(I32Type(is_signed)));
+            CHECK_EQ(IrOpcode::kNumberAdd, add_node->opcode());
           }
         }
       }
     }
   }
-}
+  {
+    JSBitwiseTypedLoweringTester R;
 
+    for (int o = 0; o < R.kNumberOps; o += 2) {
+      Node* n0 = R.Parameter(I32Type(R.signedness[o]));
+      Node* n1 = R.Parameter(I32Type(R.signedness[o + 1]));
+      Node* one = R.graph.NewNode(R.common.NumberConstant(1));
 
-TEST(Int32AddNarrowingNotOwned) {
-  JSBitwiseTypedLoweringTester R;
-
-  for (int o = 0; o < R.kNumberOps; o += 2) {
-    Node* n0 = R.Parameter(I32Type(R.signedness[o]));
-    Node* n1 = R.Parameter(I32Type(R.signedness[o + 1]));
-    Node* one = R.graph.NewNode(R.common.NumberConstant(1));
-
-    Node* add_node = R.Binop(R.simplified.NumberAdd(), n0, n1);
-    Node* or_node = R.Binop(R.ops[o], add_node, one);
-    Node* other_use = R.Binop(R.simplified.NumberAdd(), add_node, one);
-    Node* r = R.reduce(or_node);
-    CHECK_EQ(R.ops[o + 1]->opcode(), r->op()->opcode());
-    // Should not be reduced to Int32Add because of the other number add.
-    CHECK_EQ(IrOpcode::kNumberAdd, add_node->opcode());
-    // Conversion to int32 should be done.
-    CheckToI32(add_node, r->InputAt(0), R.signedness[o]);
-    CheckToI32(one, r->InputAt(1), R.signedness[o + 1]);
-    // The other use should also not be touched.
-    CHECK_EQ(add_node, other_use->InputAt(0));
-    CHECK_EQ(one, other_use->InputAt(1));
+      Node* add_node = R.Binop(R.simplified.NumberAdd(), n0, n1);
+      Node* or_node = R.Binop(R.ops[o], add_node, one);
+      Node* other_use = R.Binop(R.simplified.NumberAdd(), add_node, one);
+      Node* r = R.reduce(or_node);
+      CHECK_EQ(R.ops[o + 1]->opcode(), r->op()->opcode());
+      CHECK_EQ(IrOpcode::kNumberAdd, add_node->opcode());
+      // Conversion to int32 should be done.
+      CheckToI32(add_node, r->InputAt(0), R.signedness[o]);
+      CheckToI32(one, r->InputAt(1), R.signedness[o + 1]);
+      // The other use should also not be touched.
+      CHECK_EQ(add_node, other_use->InputAt(0));
+      CHECK_EQ(one, other_use->InputAt(1));
+    }
   }
 }
 

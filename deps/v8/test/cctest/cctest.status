@@ -81,58 +81,14 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(sigurds): The schedule is borked with multiple inlinees,
-  # and cannot handle free-floating loops yet
-  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
-  'test-run-inlining/InlineLoop': [SKIP],
-
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
-
-  # Support for breakpoints requires using LoadICs and StoreICs.
-  'test-debug/BreakPointICStore': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointICLoad': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointICCall': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointICCallWithGC': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointConstructCallWithGC': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointReturn': [PASS, NO_VARIANTS],
-  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],
-  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
-  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepLinear': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepKeyedLoadLoop': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepKeyedStoreLoop': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepNamedLoadLoop': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepNamedStoreLoop': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepLinearMixedICs': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepDeclarations': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepLocals': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepIf': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepSwitch': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepWhile': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepDoWhile': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFor': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepForContinue': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepForBreak': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepForIn': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepWith': [PASS, NO_VARIANTS],
-  'test-debug/DebugConditional': [PASS, NO_VARIANTS],
-  'test-debug/StepInOutSimple': [PASS, NO_VARIANTS],
-  'test-debug/StepInOutTree': [PASS, NO_VARIANTS],
-  'test-debug/StepInOutBranch': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakStackInspection': [PASS, NO_VARIANTS],
-  'test-debug/BreakMessageWhenMessageHandlerIsReset': [PASS, NO_VARIANTS],
-  'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
-  'test-debug/DisableBreak': [PASS, NO_VARIANTS],
-  'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/DeoptimizeDuringDebugBreak': [PASS, NO_VARIANTS],
+  # BUG(3742).
+  'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'test-api/Regress385349': [PASS, NO_VARIANTS],
@@ -149,6 +105,17 @@
   'test-debug/CallingContextIsNotDebugContext': [PASS, NO_VARIANTS],
   'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
+  'test-debug/BreakMessageWhenMessageHandlerIsReset': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreak': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakFunctionApply': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakStackInspection': [PASS, NO_VARIANTS],
+  'test-debug/DeoptimizeDuringDebugBreak': [PASS, NO_VARIANTS],
+  'test-debug/DisableBreak': [PASS, NO_VARIANTS],
+  'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
+  'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
+
+  # TODO(titzer): Triggers bug in late control reduction.
+  'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -306,6 +273,9 @@
   # TODO(mips-team): Currently fails on mips board.
   'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
   'test-parsing/TooManyArguments': [SKIP],
+  'test-api/Threading3': [SKIP],
+  'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
+  'test-api/RequestInterruptTestWithAccessor': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -345,12 +315,6 @@
   'test-log/LogAccessorCallbacks': [SKIP],
   'test-log/LogCallbacks': [SKIP],
   'test-log/ProfLazyMode': [SKIP],
-
-  # platform-tls.h does not contain an ANDROID-related header.
-  'test-platform-tls/FastTLS': [SKIP],
-
-  # This test times out.
-  'test-threads/ThreadJoinSelf': [SKIP],
 }],  # 'arch == android_arm or arch == android_ia32'
 
 ##############################################################################

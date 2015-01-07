@@ -68,10 +68,8 @@ class MachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      CompilationInfo info(graph->zone()->isolate(), graph->zone());
-      Linkage linkage(graph->zone(), call_descriptor);
-      Pipeline pipeline(&info);
-      code_ = pipeline.GenerateCodeForMachineGraph(&linkage, graph, schedule);
+      code_ =
+          Pipeline::GenerateCodeForTesting(call_descriptor, graph, schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }

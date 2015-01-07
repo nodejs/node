@@ -98,8 +98,8 @@ class TransitionArray: public FixedArray {
   static Handle<TransitionArray> Insert(Handle<Map> map, Handle<Name> name,
                                         Handle<Map> target,
                                         SimpleTransitionFlag flag);
-  // Search a  transition for a given type, property name and attributes.
-  int Search(PropertyType type, Name* name, PropertyAttributes attributes,
+  // Search a  transition for a given kind, property name and attributes.
+  int Search(PropertyKind kind, Name* name, PropertyAttributes attributes,
              int* out_insertion_index = NULL);
 
   // Search a non-property transition (like elements kind, observe or frozen
@@ -163,7 +163,7 @@ class TransitionArray: public FixedArray {
   static const int kTransitionTarget = 1;
   static const int kTransitionSize = 2;
 
-#ifdef OBJECT_PRINT
+#if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
 
@@ -216,15 +216,14 @@ class TransitionArray: public FixedArray {
 
   // Search a first transition for a given property name.
   inline int SearchName(Name* name, int* out_insertion_index = NULL);
-  int SearchDetails(int transition, PropertyType type,
+  int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
 
-  // Compares two tuples <key, is_data_property, attributes>, returns -1 if
+  // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
-  static inline int CompareKeys(Name* key1, uint32_t hash1,
-                                bool is_data_property1,
+  static inline int CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
                                 PropertyAttributes attributes1, Name* key2,
-                                uint32_t hash2, bool is_data_property2,
+                                uint32_t hash2, PropertyKind kind2,
                                 PropertyAttributes attributes2);
 
   // Compares keys, returns -1 if key1 is "less" than key2,
@@ -234,9 +233,9 @@ class TransitionArray: public FixedArray {
 
   // Compares two details, returns -1 if details1 is "less" than details2,
   // 0 if details1 equal to details2 and 1 otherwise.
-  static inline int CompareDetails(bool is_data_property1,
+  static inline int CompareDetails(PropertyKind kind1,
                                    PropertyAttributes attributes1,
-                                   bool is_data_property2,
+                                   PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
   inline void NoIncrementalWriteBarrierSet(int transition_number,

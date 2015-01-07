@@ -327,16 +327,25 @@ class SourceProcessor(SourceFileProcessor):
     return (super(SourceProcessor, self).IgnoreDir(name) or
             name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
 
-  IGNORE_COPYRIGHTS = ['cpplint.py',
+  IGNORE_COPYRIGHTS = ['box2d.js',
+                       'cpplint.py',
+                       'copy.js',
+                       'corrections.js',
+                       'crypto.js',
                        'daemon.py',
                        'earley-boyer.js',
-                       'raytrace.js',
-                       'crypto.js',
+                       'fannkuch.js',
+                       'fasta.js',
+                       'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
-                       'jsmin.py',
+                       'lua_binarytrees.js',
+                       'memops.js',
+                       'primes.js',
+                       'raytrace.js',
                        'regexp-pcre.js',
-                       'gnuplot-4.6.3-emscripten.js']
+                       'gnuplot-4.6.3-emscripten.js',
+                       'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
   def EndOfDeclaration(self, line):

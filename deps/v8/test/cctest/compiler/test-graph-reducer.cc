@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "graph-tester.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-reducer.h"
 
 using namespace v8::internal;
@@ -202,7 +201,7 @@ TEST(ReduceGraphFromEnd1) {
   Node* end = graph.NewNode(&OPA1, n1);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   ReducerRecorder recorder(graph.zone());
   reducer.AddReducer(&recorder);
   reducer.ReduceGraph();
@@ -220,7 +219,7 @@ TEST(ReduceGraphFromEnd2) {
   Node* end = graph.NewNode(&OPA2, n2, n3);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   ReducerRecorder recorder(graph.zone());
   reducer.AddReducer(&recorder);
   reducer.ReduceGraph();
@@ -238,7 +237,7 @@ TEST(ReduceInPlace1) {
   Node* end = graph.NewNode(&OPA1, n1);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   InPlaceABReducer r;
   reducer.AddReducer(&r);
 
@@ -263,7 +262,7 @@ TEST(ReduceInPlace2) {
   Node* end = graph.NewNode(&OPA2, n2, n3);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   InPlaceABReducer r;
   reducer.AddReducer(&r);
 
@@ -293,7 +292,7 @@ TEST(ReduceNew1) {
   Node* end = graph.NewNode(&OPA2, n2, n3);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   NewABReducer r(&graph);
   reducer.AddReducer(&r);
 
@@ -330,7 +329,7 @@ TEST(Wrapping1) {
   graph.SetEnd(end);
   CHECK_EQ(1, graph.NodeCount());
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   A0Wrapper r(&graph);
   reducer.AddReducer(&r);
 
@@ -352,7 +351,7 @@ TEST(Wrapping2) {
   graph.SetEnd(end);
   CHECK_EQ(1, graph.NodeCount());
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   B0Wrapper r(&graph);
   reducer.AddReducer(&r);
 
@@ -379,7 +378,7 @@ TEST(Forwarding1) {
   Node* end = graph.NewNode(&OPA1, n1);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   A1Forwarder r;
   reducer.AddReducer(&r);
 
@@ -403,7 +402,7 @@ TEST(Forwarding2) {
   Node* end = graph.NewNode(&OPA2, n2, n3);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   A1Forwarder r;
   reducer.AddReducer(&r);
 
@@ -434,7 +433,7 @@ TEST(Forwarding3) {
     }
     graph.SetEnd(end);
 
-    GraphReducer reducer(&graph);
+    GraphReducer reducer(&graph, graph.zone());
     A1Forwarder r;
     reducer.AddReducer(&r);
 
@@ -458,7 +457,7 @@ TEST(ReduceForward1) {
   Node* end = graph.NewNode(&OPA2, n2, n3);
   graph.SetEnd(end);
 
-  GraphReducer reducer(&graph);
+  GraphReducer reducer(&graph, graph.zone());
   InPlaceABReducer r;
   B1Forwarder f;
   reducer.AddReducer(&r);
@@ -501,7 +500,7 @@ TEST(Sorter1) {
 
     graph.SetEnd(end);
 
-    GraphReducer reducer(&graph);
+    GraphReducer reducer(&graph, graph.zone());
     reducer.AddReducer(&r);
 
     int before = graph.NodeCount();
@@ -560,7 +559,7 @@ TEST(SortForwardReduce) {
 
         GenDAG(&graph, p3, p2, p1);
 
-        GraphReducer reducer(&graph);
+        GraphReducer reducer(&graph, graph.zone());
         AB2Sorter r1;
         A1Forwarder r2;
         InPlaceABReducer r3;
@@ -599,7 +598,7 @@ TEST(Order) {
     Node* end = graph.NewNode(&OPA1, n1);
     graph.SetEnd(end);
 
-    GraphReducer reducer(&graph);
+    GraphReducer reducer(&graph, graph.zone());
     InPlaceABReducer abr;
     InPlaceBCReducer bcr;
     if (i == 0) {

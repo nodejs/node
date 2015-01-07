@@ -20,6 +20,9 @@
 // and exposed through kMath as typed array. We assume the compiler to convert
 // from decimal to binary accurately enough to produce the intended values.
 // kMath is initialized to a Float64Array during genesis and not writable.
+
+"use strict";
+
 var kMath;
 
 const INVPIO2 = kMath[0];
@@ -424,11 +427,12 @@ function MathTan(x) {
 //
 const LN2_HI    = kMath[34];
 const LN2_LO    = kMath[35];
-const TWO54     = kMath[36];
-const TWO_THIRD = kMath[37];
+const TWO_THIRD = kMath[36];
 macro KLOG1P(x)
-(kMath[38+x])
+(kMath[37+x])
 endmacro
+// 2^54
+const TWO54 = 18014398509481984;
 
 function MathLog1p(x) {
   x = x * 1;  // Convert to number.
@@ -607,10 +611,10 @@ function MathLog1p(x) {
 //      For IEEE double 
 //          if x > 7.09782712893383973096e+02 then expm1(x) overflow
 //
-const KEXPM1_OVERFLOW = kMath[45];
-const INVLN2          = kMath[46];
+const KEXPM1_OVERFLOW = kMath[44];
+const INVLN2          = kMath[45];
 macro KEXPM1(x)
-(kMath[47+x])
+(kMath[46+x])
 endmacro
 
 function MathExpm1(x) {
@@ -730,7 +734,7 @@ function MathExpm1(x) {
 //      sinh(x) is |x| if x is +Infinity, -Infinity, or NaN.
 //      only sinh(0)=0 is exact for finite x.
 //
-const KSINH_OVERFLOW = kMath[52];
+const KSINH_OVERFLOW = kMath[51];
 const TWO_M28 = 3.725290298461914e-9;  // 2^-28, empty lower half
 const LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
 
@@ -782,7 +786,7 @@ function MathSinh(x) {
 //      cosh(x) is |x| if x is +INF, -INF, or NaN.
 //      only cosh(0)=1 is exact for finite x.
 //
-const KCOSH_OVERFLOW = kMath[52];
+const KCOSH_OVERFLOW = kMath[51];
 
 function MathCosh(x) {
   x = x * 1;  // Convert to number.
@@ -811,4 +815,182 @@ function MathCosh(x) {
   if (NUMBER_IS_NAN(x)) return x;
   // |x| > overflowthreshold.
   return INFINITY;
+}
+
+// ES6 draft 09-27-13, section 20.2.2.21.
+// Return the base 10 logarithm of x
+//
+// Method :
+//      Let log10_2hi = leading 40 bits of log10(2) and
+//          log10_2lo = log10(2) - log10_2hi,
+//          ivln10   = 1/log(10) rounded.
+//      Then
+//              n = ilogb(x),
+//              if(n<0)  n = n+1;
+//              x = scalbn(x,-n);
+//              log10(x) := n*log10_2hi + (n*log10_2lo + ivln10*log(x))
+//
+// Note 1:
+//      To guarantee log10(10**n)=n, where 10**n is normal, the rounding
+//      mode must set to Round-to-Nearest.
+// Note 2:
+//      [1/log(10)] rounded to 53 bits has error .198 ulps;
+//      log10 is monotonic at all binary break points.
+//
+// Special cases:
+//      log10(x) is NaN if x < 0;
+//      log10(+INF) is +INF; log10(0) is -INF;
+//      log10(NaN) is that NaN;
+//      log10(10**N) = N  for N=0,1,...,22.
+//
+
+const IVLN10 = kMath[52];
+const LOG10_2HI = kMath[53];
+const LOG10_2LO = kMath[54];
+
+function MathLog10(x) {
+  x = x * 1;  // Convert to number.
+  var hx = %_DoubleHi(x);
+  var lx = %_DoubleLo(x);
+  var k = 0;
+
+  if (hx < 0x00100000) {
+    // x < 2^-1022
+    // log10(+/- 0) = -Infinity.
+    if (((hx & 0x7fffffff) | lx) === 0) return -INFINITY;
+    // log10 of negative number is NaN.
+    if (hx < 0) return NAN;
+    // Subnormal number. Scale up x.
+    k -= 54;
+    x *= TWO54;
+    hx = %_DoubleHi(x);
+    lx = %_DoubleLo(x);
+  }
+
+  // Infinity or NaN.
+  if (hx >= 0x7ff00000) return x;
+
+  k += (hx >> 20) - 1023;
+  i = (k & 0x80000000) >> 31;
+  hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
+  y = k + i;
+  x = %_ConstructDouble(hx, lx);
+
+  z = y * LOG10_2LO + IVLN10 * MathLog(x);
+  return z + y * LOG10_2HI;
+}
+
+
+// ES6 draft 09-27-13, section 20.2.2.22.
+// Return the base 2 logarithm of x
+//
+// fdlibm does not have an explicit log2 function, but fdlibm's pow
+// function does implement an accurate log2 function as part of the
+// pow implementation.  This extracts the core parts of that as a
+// separate log2 function.
+
+// Method:
+// Compute log2(x) in two pieces:
+// log2(x) = w1 + w2
+// where w1 has 53-24 = 29 bits of trailing zeroes.
+
+const DP_H = kMath[64];
+const DP_L = kMath[65];
+
+// Polynomial coefficients for (3/2)*(log2(x) - 2*s - 2/3*s^3)
+macro KLOG2(x)
+(kMath[55+x])
+endmacro
+
+// cp = 2/(3*ln(2)). Note that cp_h + cp_l is cp, but with more accuracy.
+const CP = kMath[61];
+const CP_H = kMath[62];
+const CP_L = kMath[63];
+// 2^53
+const TWO53 = 9007199254740992; 
+
+function MathLog2(x) {
+  x = x * 1;  // Convert to number.
+  var ax = MathAbs(x);
+  var hx = %_DoubleHi(x);
+  var lx = %_DoubleLo(x);
+  var ix = hx & 0x7fffffff;
+
+  // Handle special cases.
+  // log2(+/- 0) = -Infinity
+  if ((ix | lx) == 0) return -INFINITY;
+
+  // log(x) = NaN, if x < 0
+  if (hx < 0) return NAN;
+
+  // log2(Infinity) = Infinity, log2(NaN) = NaN
+  if (ix >= 0x7ff00000) return x;
+
+  var n = 0;
+
+  // Take care of subnormal number.
+  if (ix < 0x00100000) {
+    ax *= TWO53;
+    n -= 53;
+    ix = %_DoubleHi(ax);
+  }
+
+  n += (ix >> 20) - 0x3ff;
+  var j = ix & 0x000fffff;
+
+  // Determine interval.
+  ix = j | 0x3ff00000;  // normalize ix.
+
+  var bp = 1;
+  var dp_h = 0;
+  var dp_l = 0;
+  if (j > 0x3988e) {  // |x| > sqrt(3/2)
+    if (j < 0xbb67a) {  // |x| < sqrt(3)
+      bp = 1.5;
+      dp_h = DP_H;
+      dp_l = DP_L;
+    } else {
+      n += 1;
+      ix -= 0x00100000;
+    }
+  }
+ 
+  ax = %_ConstructDouble(ix, %_DoubleLo(ax));
+
+  // Compute ss = s_h + s_l = (x - 1)/(x+1) or (x - 1.5)/(x + 1.5)
+  var u = ax - bp;
+  var v = 1 / (ax + bp);
+  var ss = u * v;
+  var s_h = %_ConstructDouble(%_DoubleHi(ss), 0);
+
+  // t_h = ax + bp[k] High
+  var t_h = %_ConstructDouble(%_DoubleHi(ax + bp), 0)
+  var t_l = ax - (t_h - bp);
+  var s_l = v * ((u - s_h * t_h) - s_h * t_l);
+
+  // Compute log2(ax)
+  var s2 = ss * ss;
+  var r = s2 * s2 * (KLOG2(0) + s2 * (KLOG2(1) + s2 * (KLOG2(2) + s2 * (
+                     KLOG2(3) + s2 * (KLOG2(4) + s2 * KLOG2(5))))));
+  r += s_l * (s_h + ss);
+  s2  = s_h * s_h;
+  t_h = %_ConstructDouble(%_DoubleHi(3.0 + s2 + r), 0);
+  t_l = r - ((t_h - 3.0) - s2);
+  // u + v = ss * (1 + ...)
+  u = s_h * t_h;
+  v = s_l * t_h + t_l * ss;
+
+  // 2 / (3 * log(2)) * (ss + ...)
+  p_h = %_ConstructDouble(%_DoubleHi(u + v), 0);
+  p_l = v - (p_h - u);
+  z_h = CP_H * p_h;
+  z_l = CP_L * p_h + p_l * CP + dp_l;
+
+  // log2(ax) = (ss + ...) * 2 / (3 * log(2)) = n + dp_h + z_h + z_l
+  var t = n;
+  var t1 = %_ConstructDouble(%_DoubleHi(((z_h + z_l) + dp_h) + t), 0);
+  var t2 = z_l - (((t1 - t) - dp_h) - z_h);
+
+  // t1 + t2 = log2(ax), sum up because we do not care about extra precision.
+  return t1 + t2;
 }

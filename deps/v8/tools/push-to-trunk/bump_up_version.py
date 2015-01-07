@@ -198,13 +198,10 @@ class ChangeVersion(Step):
       msg = "[Auto-roll] Bump up version to %s" % self["new_version"]
       self.GitCommit("%s\n\nTBR=%s" % (msg, self._options.author),
                      author=self._options.author)
-      if self._options.svn:
-        self.SVNCommit("branches/bleeding_edge", msg)
-      else:
-        self.GitUpload(author=self._options.author,
-                       force=self._options.force_upload,
-                       bypass_hooks=True)
-        self.GitDCommit()
+      self.GitUpload(author=self._options.author,
+                     force=self._options.force_upload,
+                     bypass_hooks=True)
+      self.GitCLLand()
       print "Successfully changed the version."
     finally:
       # Clean up.

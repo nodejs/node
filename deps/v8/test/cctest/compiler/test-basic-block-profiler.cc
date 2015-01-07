@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/basic-block-profiler.h"
-#include "src/compiler/generic-node-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 

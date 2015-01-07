@@ -168,6 +168,7 @@ macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnProperty));
 macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(functionName));
+macro HAS_INDEX(array, index, is_array) = ((is_array && %_HasFastPackedElements(%IS_VAR(array))) ? (index < array.length) : (index in array));
 
 # Private names.
 # GET_PRIVATE should only be used if the property is known to exists on obj
@@ -291,3 +292,5 @@ const ITERATOR_KIND_ENTRIES = 3;
 
 # Check whether debug is active.
 const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
+macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
+macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (DEBUG_IS_STEPPING(function)) %DebugPrepareStepInIfStepping(function);

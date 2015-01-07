@@ -5,6 +5,7 @@
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/js-builtin-reducer.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/types.h"
@@ -94,6 +95,10 @@ class JSCallReduction {
  private:
   Node* node_;
 };
+
+
+JSBuiltinReducer::JSBuiltinReducer(JSGraph* jsgraph)
+    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
 
 
 // ECMA-262, section 15.8.2.1.
@@ -230,6 +235,19 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+
+Graph* JSBuiltinReducer::graph() const { return jsgraph()->graph(); }
+
+
+CommonOperatorBuilder* JSBuiltinReducer::common() const {
+  return jsgraph()->common();
+}
+
+
+MachineOperatorBuilder* JSBuiltinReducer::machine() const {
+  return jsgraph()->machine();
 }
 
 }  // namespace compiler

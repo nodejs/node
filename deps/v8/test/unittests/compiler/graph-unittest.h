@@ -7,7 +7,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,11 +28,11 @@ using ::testing::Matcher;
 
 class GraphTest : public TestWithContext, public TestWithZone {
  public:
-  explicit GraphTest(int parameters = 1);
-  virtual ~GraphTest();
+  explicit GraphTest(int num_parameters = 1);
+  ~GraphTest() OVERRIDE;
 
  protected:
-  Node* Parameter(int32_t index);
+  Node* Parameter(int32_t index = 0);
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
@@ -62,10 +61,13 @@ class GraphTest : public TestWithContext, public TestWithZone {
 
 class TypedGraphTest : public GraphTest {
  public:
-  explicit TypedGraphTest(int parameters = 1)
-      : GraphTest(parameters), typer_(graph(), MaybeHandle<Context>()) {}
+  explicit TypedGraphTest(int num_parameters = 1);
+  ~TypedGraphTest() OVERRIDE;
 
  protected:
+  Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }
+  Node* Parameter(Type* type, int32_t index = 0);
+
   Typer* typer() { return &typer_; }
 
  private:

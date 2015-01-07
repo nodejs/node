@@ -9,6 +9,7 @@
 #include "src/v8.h"
 
 #include "src/assembler.h"
+#include "src/base/functional.h"
 #include "src/base/platform/platform.h"
 #include "src/ostreams.h"
 
@@ -549,4 +550,17 @@ void FlagList::EnforceFlagImplications() {
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
 }
 
+
+uint32_t FlagList::Hash() {
+  std::ostringstream modified_args_as_string;
+  for (size_t i = 0; i < num_flags; ++i) {
+    Flag* current = &flags[i];
+    if (!current->IsDefault()) {
+      modified_args_as_string << *current;
+    }
+  }
+  std::string args(modified_args_as_string.str());
+  return static_cast<uint32_t>(
+      base::hash_range(args.c_str(), args.c_str() + args.length()));
+}
 } }  // namespace v8::internal

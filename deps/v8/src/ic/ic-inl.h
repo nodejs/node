@@ -96,6 +96,12 @@ Code* IC::GetTargetAtAddress(Address address,
 void IC::SetTargetAtAddress(Address address, Code* target,
                             ConstantPoolArray* constant_pool) {
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
+
+  // Don't use this for load_ics when --vector-ics is turned on.
+  DCHECK(!(FLAG_vector_ics && target->is_inline_cache_stub()) ||
+         (target->kind() != Code::LOAD_IC &&
+          target->kind() != Code::KEYED_LOAD_IC));
+
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
@@ -119,9 +125,6 @@ void IC::SetTargetAtAddress(Address address, Code* target,
 
 
 void IC::set_target(Code* code) {
-#ifdef VERIFY_HEAP
-  code->VerifyEmbeddedObjectsDependency();
-#endif
   SetTargetAtAddress(address(), code, constant_pool());
   target_set_ = true;
 }

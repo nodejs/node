@@ -446,7 +446,7 @@ static intptr_t MemoryInUse() {
     bool write_permission = (buffer[position++] == 'w');
     CHECK(buffer[position] == '-' || buffer[position] == 'x');
     bool execute_permission = (buffer[position++] == 'x');
-    CHECK(buffer[position] == '-' || buffer[position] == 'p');
+    CHECK(buffer[position] == 's' || buffer[position] == 'p');
     bool private_mapping = (buffer[position++] == 'p');
     CHECK_EQ(buffer[position++], ' ');
     uintptr_t offset = ReadLong(buffer, &position, 16);

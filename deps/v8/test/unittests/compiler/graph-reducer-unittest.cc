@@ -55,20 +55,20 @@ class GraphReducerTest : public TestWithZone {
 
  protected:
   void ReduceNode(Node* node, Reducer* r) {
-    GraphReducer reducer(graph());
+    GraphReducer reducer(graph(), zone());
     reducer.AddReducer(r);
     reducer.ReduceNode(node);
   }
 
   void ReduceNode(Node* node, Reducer* r1, Reducer* r2) {
-    GraphReducer reducer(graph());
+    GraphReducer reducer(graph(), zone());
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.ReduceNode(node);
   }
 
   void ReduceNode(Node* node, Reducer* r1, Reducer* r2, Reducer* r3) {
-    GraphReducer reducer(graph());
+    GraphReducer reducer(graph(), zone());
     reducer.AddReducer(r1);
     reducer.AddReducer(r2);
     reducer.AddReducer(r3);
@@ -87,6 +87,7 @@ TEST_F(GraphReducerTest, NodeIsDeadAfterReplace) {
   Node* node0 = graph()->NewNode(&OP0);
   Node* node1 = graph()->NewNode(&OP1, node0);
   Node* node2 = graph()->NewNode(&OP1, node0);
+  EXPECT_CALL(r, Reduce(node0)).WillOnce(Return(Reducer::NoChange()));
   EXPECT_CALL(r, Reduce(node1)).WillOnce(Return(Reducer::Replace(node2)));
   ReduceNode(node1, &r);
   EXPECT_FALSE(node0->IsDead());
@@ -114,7 +115,6 @@ TEST_F(GraphReducerTest, ReduceAgainAfterChanged) {
       Return(Reducer::Changed(node0)));
   EXPECT_CALL(r1, Reduce(node0)).InSequence(s1);
   EXPECT_CALL(r2, Reduce(node0)).InSequence(s2);
-  EXPECT_CALL(r3, Reduce(node0)).InSequence(s3);
   ReduceNode(node0, &r1, &r2, &r3);
 }
 

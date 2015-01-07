@@ -8,11 +8,9 @@
 #include "src/v8.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/operator-properties-inl.h"
 #include "src/compiler/operator-properties.h"
 
 namespace v8 {
@@ -102,7 +100,7 @@ inline int NodeProperties::GetFrameStateIndex(Node* node) {
 // -----------------------------------------------------------------------------
 // Edge kinds.
 
-inline bool NodeProperties::IsInputRange(Node::Edge edge, int first, int num) {
+inline bool NodeProperties::IsInputRange(Edge edge, int first, int num) {
   // TODO(titzer): edge.index() is linear time;
   // edges maybe need to be marked as value/effect/control.
   if (num == 0) return false;
@@ -110,25 +108,25 @@ inline bool NodeProperties::IsInputRange(Node::Edge edge, int first, int num) {
   return first <= index && index < first + num;
 }
 
-inline bool NodeProperties::IsValueEdge(Node::Edge edge) {
+inline bool NodeProperties::IsValueEdge(Edge edge) {
   Node* node = edge.from();
   return IsInputRange(edge, FirstValueIndex(node),
                       node->op()->ValueInputCount());
 }
 
-inline bool NodeProperties::IsContextEdge(Node::Edge edge) {
+inline bool NodeProperties::IsContextEdge(Edge edge) {
   Node* node = edge.from();
   return IsInputRange(edge, FirstContextIndex(node),
                       OperatorProperties::GetContextInputCount(node->op()));
 }
 
-inline bool NodeProperties::IsEffectEdge(Node::Edge edge) {
+inline bool NodeProperties::IsEffectEdge(Edge edge) {
   Node* node = edge.from();
   return IsInputRange(edge, FirstEffectIndex(node),
                       node->op()->EffectInputCount());
 }
 
-inline bool NodeProperties::IsControlEdge(Node::Edge edge) {
+inline bool NodeProperties::IsControlEdge(Edge edge) {
   Node* node = edge.from();
   return IsInputRange(edge, FirstControlIndex(node),
                       node->op()->ControlInputCount());
@@ -177,13 +175,12 @@ inline void NodeProperties::ReplaceWithValue(Node* node, Node* value,
   }
 
   // Requires distinguishing between value and effect edges.
-  UseIter iter = node->uses().begin();
-  while (iter != node->uses().end()) {
-    if (NodeProperties::IsEffectEdge(iter.edge())) {
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NE(NULL, effect);
-      iter = iter.UpdateToAndIncrement(effect);
+      edge.UpdateTo(effect);
     } else {
-      iter = iter.UpdateToAndIncrement(value);
+      edge.UpdateTo(value);
     }
   }
 }
@@ -201,6 +198,11 @@ inline bool NodeProperties::IsTyped(Node* node) {
 inline Bounds NodeProperties::GetBounds(Node* node) {
   DCHECK(IsTyped(node));
   return node->bounds();
+}
+
+inline void NodeProperties::RemoveBounds(Node* node) {
+  Bounds empty;
+  node->set_bounds(empty);
 }
 
 inline void NodeProperties::SetBounds(Node* node, Bounds b) {

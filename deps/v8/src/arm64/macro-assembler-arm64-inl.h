@@ -1244,14 +1244,7 @@ void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
   DCHECK(!csp.Is(sp_));
   if (!TmpList()->IsEmpty()) {
-    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-      UseScratchRegisterScope temps(this);
-      Register temp = temps.AcquireX();
-      Sub(temp, StackPointer(), space);
-      Bic(csp, temp, 0xf);
-    } else {
-      Sub(csp, StackPointer(), space);
-    }
+    Sub(csp, StackPointer(), space);
   } else {
     // TODO(jbramley): Several callers rely on this not using scratch
     // registers, so we use the assembler directly here. However, this means
@@ -1288,11 +1281,7 @@ void MacroAssembler::SyncSystemStackPointer() {
   DCHECK(emit_debug_code());
   DCHECK(!csp.Is(sp_));
   { InstructionAccurateScope scope(this);
-    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-      bic(csp, StackPointer(), 0xf);
-    } else {
-      mov(csp, StackPointer());
-    }
+    mov(csp, StackPointer());
   }
   AssertStackConsistency();
 }

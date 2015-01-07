@@ -574,52 +574,49 @@ enum SecondaryField {
 // because 'NegateCondition' function flips LSB to negate condition.
 enum Condition {
   // Any value < 0 is considered no_condition.
-  kNoCondition  = -1,
-
-  overflow      =  0,
-  no_overflow   =  1,
-  Uless         =  2,
-  Ugreater_equal=  3,
-  equal         =  4,
-  not_equal     =  5,
-  Uless_equal   =  6,
-  Ugreater      =  7,
-  negative      =  8,
-  positive      =  9,
-  parity_even   = 10,
-  parity_odd    = 11,
-  less          = 12,
+  kNoCondition = -1,
+  overflow = 0,
+  no_overflow = 1,
+  Uless = 2,
+  Ugreater_equal = 3,
+  equal = 4,
+  not_equal = 5,
+  Uless_equal = 6,
+  Ugreater = 7,
+  negative = 8,
+  positive = 9,
+  parity_even = 10,
+  parity_odd = 11,
+  less = 12,
   greater_equal = 13,
-  less_equal    = 14,
-  greater       = 15,
-  ueq           = 16,  // Unordered or Equal.
-  nue           = 17,  // Not (Unordered or Equal).
-
-  cc_always     = 18,
+  less_equal = 14,
+  greater = 15,
+  ueq = 16,  // Unordered or Equal.
+  nue = 17,  // Not (Unordered or Equal).
+  cc_always = 18,
 
   // Aliases.
-  carry         = Uless,
-  not_carry     = Ugreater_equal,
-  zero          = equal,
-  eq            = equal,
-  not_zero      = not_equal,
-  ne            = not_equal,
-  nz            = not_equal,
-  sign          = negative,
-  not_sign      = positive,
-  mi            = negative,
-  pl            = positive,
-  hi            = Ugreater,
-  ls            = Uless_equal,
-  ge            = greater_equal,
-  lt            = less,
-  gt            = greater,
-  le            = less_equal,
-  hs            = Ugreater_equal,
-  lo            = Uless,
-  al            = cc_always,
-
-  cc_default    = kNoCondition
+  carry = Uless,
+  not_carry = Ugreater_equal,
+  zero = equal,
+  eq = equal,
+  not_zero = not_equal,
+  ne = not_equal,
+  nz = not_equal,
+  sign = negative,
+  not_sign = positive,
+  mi = negative,
+  pl = positive,
+  hi = Ugreater,
+  ls = Uless_equal,
+  ge = greater_equal,
+  lt = less,
+  gt = greater,
+  le = less_equal,
+  hs = Ugreater_equal,
+  lo = Uless,
+  al = cc_always,
+  cc_default = kNoCondition
 };
 
 

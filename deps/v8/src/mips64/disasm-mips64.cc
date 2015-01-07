@@ -963,6 +963,10 @@ int Decoder::DecodeTypeRegister(Instruction* instr) {
           Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
           break;
         }
+        case DEXT: {
+          Format(instr, "dext    'rt, 'rs, 'sa, 'ss1");
+          break;
+        }
         default:
           UNREACHABLE();
       }

@@ -109,7 +109,9 @@ void StoreBuffer::Uniq() {
   for (Address* read = old_start_; read < old_top_; read++) {
     Address current = *read;
     if (current != previous) {
-      if (heap_->InNewSpace(*reinterpret_cast<Object**>(current))) {
+      Object* object = reinterpret_cast<Object*>(
+          base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(current)));
+      if (heap_->InNewSpace(object)) {
         *write++ = current;
       }
     }
@@ -507,11 +509,37 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
-              if (!heap_object->MayContainRawValues()) {
-                FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(), slot_callback,
-                    clear_maps);
+              bool may_contain_raw_values = heap_object->MayContainRawValues();
+              if (!may_contain_raw_values) {
+                Address obj_address = heap_object->address();
+                const int start_offset = HeapObject::kHeaderSize;
+                const int end_offset = heap_object->Size();
+#if V8_DOUBLE_FIELDS_UNBOXING
+                LayoutDescriptorHelper helper(heap_object->map());
+                bool has_only_tagged_fields = helper.all_fields_tagged();
+
+                if (!has_only_tagged_fields) {
+                  for (int offset = start_offset; offset < end_offset;) {
+                    int end_of_region_offset;
+                    if (helper.IsTagged(offset, end_offset,
+                                        &end_of_region_offset)) {
+                      FindPointersToNewSpaceInRegion(
+                          obj_address + offset,
+                          obj_address + end_of_region_offset, slot_callback,
+                          clear_maps);
+                    }
+                    offset = end_of_region_offset;
+                  }
+                } else {
+#endif
+                  Address start_address = obj_address + start_offset;
+                  Address end_address = obj_address + end_offset;
+                  // Object has only tagged fields.
+                  FindPointersToNewSpaceInRegion(start_address, end_address,
+                                                 slot_callback, clear_maps);
+#if V8_DOUBLE_FIELDS_UNBOXING
+                }
+#endif
               }
             }
           }

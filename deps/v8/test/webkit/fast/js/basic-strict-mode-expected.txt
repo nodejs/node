@@ -129,7 +129,7 @@ PASS (function (){ 'use strict'; delete someDeclaredGlobal;}) threw exception Sy
 PASS (function(){(function (){ 'use strict'; delete someDeclaredGlobal;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
 PASS 'use strict'; if (0) { someGlobal = 'Shouldn\'t be able to assign this.'; }; true; is true
 PASS 'use strict'; someGlobal = 'Shouldn\'t be able to assign this.';  threw exception ReferenceError: someGlobal is not defined.
-FAIL 'use strict'; (function f(){ f = 'shouldn\'t be able to assign to function expression name'; })() should throw an exception. Was undefined.
+PASS 'use strict'; (function f(){ f = 'shouldn\'t be able to assign to function expression name'; })() threw exception TypeError: Assignment to constant variable..
 PASS 'use strict'; eval('var introducedVariable = "FAIL: variable introduced into containing scope";'); introducedVariable threw exception ReferenceError: introducedVariable is not defined.
 PASS 'use strict'; objectWithReadonlyProperty.prop = 'fail' threw exception TypeError: Cannot assign to read only property 'prop' of #<Object>.
 PASS 'use strict'; delete objectWithReadonlyProperty.prop threw exception TypeError: Cannot delete property 'prop' of #<Object>.

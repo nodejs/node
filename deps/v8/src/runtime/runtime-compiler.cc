@@ -47,10 +47,10 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
+  DCHECK(isolate->use_crankshaft());
 
   Handle<Code> unoptimized(function->shared()->code());
-  if (!isolate->use_crankshaft() ||
-      function->shared()->optimization_disabled() ||
+  if (function->shared()->optimization_disabled() ||
       isolate->DebuggerHasBreakPoints()) {
     // If the function is not optimizable or debugger is active continue
     // using the code from the full compiler.
@@ -176,7 +176,7 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function,
                                             Handle<Code> current_code) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!isolate->use_crankshaft() || !current_code->optimizable()) return false;
+  if (!current_code->optimizable()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -347,9 +347,10 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
+  CONVERT_SMI_ARG_CHECKED(source_offset, 2);
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
@@ -375,6 +376,14 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
       isolate, fun,
       Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
                                     restriction, RelocInfo::kNoPosition));
+  if (function_literal_only) {
+    // The actual body is wrapped, which shifts line numbers.
+    Handle<Script> script(Script::cast(fun->shared()->script()), isolate);
+    if (script->line_offset() == 0) {
+      int line_num = Script::GetLineNumber(script, source_offset);
+      script->set_line_offset(Smi::FromInt(-line_num));
+    }
+  }
   return *fun;
 }
 

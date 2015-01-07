@@ -27,12 +27,13 @@
 #endif
 
 #if V8_TARGET_ARCH_IA32 || (V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_32_BIT) || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||     \
+    V8_TARGET_ARCH_MIPS64
 #define V8_TURBOFAN_BACKEND 1
 #else
 #define V8_TURBOFAN_BACKEND 0
 #endif
-#if V8_TURBOFAN_BACKEND && !(V8_OS_WIN && V8_TARGET_ARCH_X64)
+#if V8_TURBOFAN_BACKEND
 #define V8_TURBOFAN_TARGET 1
 #else
 #define V8_TURBOFAN_TARGET 0
@@ -81,22 +82,13 @@ namespace internal {
 #endif
 
 
-// Support for alternative bool type. This is only enabled if the code is
-// compiled with USE_MYBOOL defined. This catches some nasty type bugs.
-// For instance, 'bool b = "false";' results in b == true! This is a hidden
-// source of bugs.
-// However, redefining the bool type does have some negative impact on some
-// platforms. It gives rise to compiler warnings (i.e. with
-// MSVC) in the API header files when mixing code that uses the standard
-// bool with code that uses the redefined version.
-// This does not actually belong in the platform code, but needs to be
-// defined here because the platform code uses bool, and platform.h is
-// include very early in the main include file.
-
-#ifdef USE_MYBOOL
-typedef unsigned int __my_bool__;
-#define bool __my_bool__  // use 'indirection' to avoid name clashes
+// Determine whether double field unboxing feature is enabled.
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#define V8_DOUBLE_FIELDS_UNBOXING 1
+#else
+#define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
+
 
 typedef uint8_t byte;
 typedef byte* Address;
@@ -352,6 +344,7 @@ class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
     class SplayTree;
 class String;
+class Symbol;
 class Name;
 class Struct;
 class Symbol;
@@ -369,6 +362,7 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
+// Keep this enum in sync with the ObjectSpace enum in v8.h
 enum AllocationSpace {
   NEW_SPACE,            // Semispaces collected with copying collector.
   OLD_POINTER_SPACE,    // May contain pointers to new space.
@@ -610,6 +604,8 @@ enum CpuFeature {
   SSE4_1,
   SSE3,
   SAHF,
+  AVX,
+  FMA3,
   // ARM
   VFP3,
   ARMv7,
@@ -628,6 +624,7 @@ enum CpuFeature {
   MIPSr6,
   // ARM64
   ALWAYS_ALIGN_CSP,
+  COHERENT_CACHE,
   NUMBER_OF_CPU_FEATURES
 };
 
@@ -644,7 +641,7 @@ enum ScopeType {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
-  GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+  SCRIPT_SCOPE,    // The top-level scope for a script or a top-level eval.
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
   WITH_SCOPE,      // The scope introduced by with.
@@ -776,7 +773,8 @@ enum FunctionKind {
   kArrowFunction = 1,
   kGeneratorFunction = 2,
   kConciseMethod = 4,
-  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
+  kDefaultConstructor = 8
 };
 
 
@@ -785,7 +783,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
-         kind == FunctionKind::kConciseGeneratorMethod;
+         kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kDefaultConstructor;
 }
 
 
@@ -805,6 +804,14 @@ inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kConciseMethod;
 }
+
+
+inline bool IsDefaultConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kDefaultConstructor;
+}
+
+
 } }  // namespace v8::internal
 
 namespace i = v8::internal;

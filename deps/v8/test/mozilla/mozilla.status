@@ -279,21 +279,6 @@
   # RegExp flags.
   'ecma_3/RegExp/15.10.4.1-6': [FAIL_OK],
 
-  # PCRE doesn't allow subpattern nesting deeper than 200, this tests
-  # depth 500.  JSC detects the case, and return null from the match,
-  # and passes this test (the test doesn't check for a correct return
-  # value).
-  'ecma_3/RegExp/regress-119909': [PASS, FAIL_OK],
-
-
-  # Difference in the way capturing subpatterns work.  In JS, when the
-  # 'minimum repeat count' is reached, the empty string must not match.
-  # In this case, we are similar but not identical to JSC.  Hard to
-  # support the JS behavior with PCRE, so maybe emulate JSC?
-  'ecma_3/RegExp/regress-209919': [PASS, FAIL_OK],
-  'js1_5/extensions/regress-459606': [PASS, FAIL_OK],
-
-
   # PCRE's match limit is reached.  SpiderMonkey hangs on the first one,
   # JSC returns true somehow.  Maybe they up the match limit?  There is
   # an open V8 bug 676063 about this.
@@ -316,12 +301,12 @@
   'js1_5/Regress/regress-230216-2': [FAIL_OK],
 
 
-  # Regexp too long for PCRE.
-  'js1_5/Regress/regress-280769': [PASS, FAIL],
-  'js1_5/Regress/regress-280769-1': [PASS, FAIL],
-  'js1_5/Regress/regress-280769-2': [PASS, FAIL],
-  'js1_5/Regress/regress-280769-4': [PASS, FAIL],
-  'js1_5/Regress/regress-280769-5': [PASS, FAIL],
+  # BUG(v8:3767)
+  'js1_5/Regress/regress-280769-2': [PASS, ['arch == arm64', SKIP]],
+
+  # Regexps too big.
+  'js1_5/Regress/regress-280769-1': [SKIP],
+  'js1_5/Regress/regress-280769-5': [SKIP],
 
 
   # We do not support static RegExp.multiline - should we?.
@@ -367,9 +352,9 @@
 
 
   # No support for toSource().
-  'js1_5/Regress/regress-248444': [FAIL_OK],
   'js1_5/Regress/regress-313967-01': [FAIL_OK],
   'js1_5/Regress/regress-313967-02': [FAIL_OK],
+  'js1_5/extensions/regress-459606': [FAIL_OK],
 
   # This fails because we don't have stack space for Function.prototype.apply
   # with very large numbers of arguments.  The test uses 2^24 arguments.
@@ -572,11 +557,6 @@
   # the empty string?
   'js1_5/Regress/regress-336100': [FAIL_OK],
 
-
-  # Regular expression test failures due to PCRE. We match JSC (ie, perl)
-  # behavior and not the ECMA spec.
-  'ecma_3/RegExp/perlstress-001': [PASS, FAIL_OK],
-  'ecma_3/RegExp/regress-334158': [PASS, FAIL],
 
   # This test fails due to http://code.google.com/p/v8/issues/detail?id=187
   # Failure to clear captures when a lookahead is unwound.
@@ -866,11 +846,10 @@
 
 
 ['arch ==  arm64', {
-  # BUG(v8:3152): Runs out of stack in debug mode.
-  'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
-
   # BUG(v8:3503): Times out in debug mode.
   'js1_5/Regress/regress-280769-2': [PASS, FAIL, ['mode == debug', SKIP]],
+  # BUG(v8:3716): Flaky failure.
+  'ecma/Date/15.9.5.26-1': [PASS, FAIL],
 }],  # 'arch ==  arm64'
 
 
@@ -892,6 +871,10 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el'
+
+['arch == mips64el and simulator_run == True', {
+  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+}],
 
 ['arch == mips', {
 
@@ -931,5 +914,8 @@
   'js1_5/extensions/regress-330569': [SKIP],
   'js1_5/extensions/regress-351448': [SKIP],
   'js1_5/extensions/regress-336410-1': [SKIP],
+
+  #BUG(3152): Avoid C stack overflow.
+  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run == True'
 ]

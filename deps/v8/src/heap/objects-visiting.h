@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
+#include "src/layout-descriptor.h"
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.
@@ -105,26 +106,35 @@ class StaticVisitorBase : public AllStatic {
 
   // Determine which specialized visitor should be used for given instance type
   // and instance type.
-  static VisitorId GetVisitorId(int instance_type, int instance_size);
+  static VisitorId GetVisitorId(int instance_type, int instance_size,
+                                bool has_unboxed_fields);
 
+  // Determine which specialized visitor should be used for given map.
   static VisitorId GetVisitorId(Map* map) {
-    return GetVisitorId(map->instance_type(), map->instance_size());
+    return GetVisitorId(
+        map->instance_type(), map->instance_size(),
+        FLAG_unbox_double_fields && !map->HasFastPointerLayout());
   }
 
   // For visitors that allow specialization by size calculate VisitorId based
   // on size, base visitor id and generic visitor id.
   static VisitorId GetVisitorIdForSize(VisitorId base, VisitorId generic,
-                                       int object_size) {
+                                       int object_size,
+                                       bool has_unboxed_fields) {
     DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
            (base == kVisitJSObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(kMinObjectSizeInWords * kPointerSize <= object_size);
     DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+    DCHECK(!has_unboxed_fields || (base == kVisitJSObject));
 
-    const VisitorId specialization = static_cast<VisitorId>(
-        base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords);
+    if (has_unboxed_fields) return generic;
 
-    return Min(specialization, generic);
+    int visitor_id =
+        Min(base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords,
+            static_cast<int>(generic));
+
+    return static_cast<VisitorId>(visitor_id);
   }
 };
 
@@ -158,7 +168,7 @@ class VisitorDispatchTable {
             StaticVisitorBase::VisitorId generic, int object_size_in_words>
   void RegisterSpecialization() {
     static const int size = object_size_in_words * kPointerSize;
-    Register(StaticVisitorBase::GetVisitorIdForSize(base, generic, size),
+    Register(StaticVisitorBase::GetVisitorIdForSize(base, generic, size, false),
              &Visitor::template VisitSpecialized<size>);
   }
 
@@ -189,11 +199,43 @@ class BodyVisitorBase : public AllStatic {
  public:
   INLINE(static void IteratePointers(Heap* heap, HeapObject* object,
                                      int start_offset, int end_offset)) {
-    Object** start_slot =
-        reinterpret_cast<Object**>(object->address() + start_offset);
-    Object** end_slot =
-        reinterpret_cast<Object**>(object->address() + end_offset);
-    StaticVisitor::VisitPointers(heap, start_slot, end_slot);
+    DCHECK(!FLAG_unbox_double_fields || object->map()->HasFastPointerLayout());
+    IterateRawPointers(heap, object, start_offset, end_offset);
+  }
+
+  INLINE(static void IterateBody(Heap* heap, HeapObject* object,
+                                 int start_offset, int end_offset)) {
+    if (!FLAG_unbox_double_fields || object->map()->HasFastPointerLayout()) {
+      IterateRawPointers(heap, object, start_offset, end_offset);
+    } else {
+      IterateBodyUsingLayoutDescriptor(heap, object, start_offset, end_offset);
+    }
+  }
+
+ private:
+  INLINE(static void IterateRawPointers(Heap* heap, HeapObject* object,
+                                        int start_offset, int end_offset)) {
+    StaticVisitor::VisitPointers(heap,
+                                 HeapObject::RawField(object, start_offset),
+                                 HeapObject::RawField(object, end_offset));
+  }
+
+  static void IterateBodyUsingLayoutDescriptor(Heap* heap, HeapObject* object,
+                                               int start_offset,
+                                               int end_offset) {
+    DCHECK(FLAG_unbox_double_fields);
+    DCHECK(IsAligned(start_offset, kPointerSize) &&
+           IsAligned(end_offset, kPointerSize));
+
+    LayoutDescriptorHelper helper(object->map());
+    DCHECK(!helper.all_fields_tagged());
+    for (int offset = start_offset; offset < end_offset;) {
+      int end_of_region_offset;
+      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
+        IterateRawPointers(heap, object, offset, end_of_region_offset);
+      }
+      offset = end_of_region_offset;
+    }
   }
 };
 
@@ -203,7 +245,7 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
     int object_size = BodyDescriptor::SizeOf(map, object);
-    BodyVisitorBase<StaticVisitor>::IteratePointers(
+    BodyVisitorBase<StaticVisitor>::IterateBody(
         map->GetHeap(), object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
@@ -222,9 +264,9 @@ template <typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
 class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
-    BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->GetHeap(), object, BodyDescriptor::kStartOffset,
-        BodyDescriptor::kEndOffset);
+    BodyVisitorBase<StaticVisitor>::IterateBody(map->GetHeap(), object,
+                                                BodyDescriptor::kStartOffset,
+                                                BodyDescriptor::kEndOffset);
     return static_cast<ReturnType>(BodyDescriptor::kSize);
   }
 };

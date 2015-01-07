@@ -38,8 +38,8 @@ assertEquals(8, eval("6;'abc';8"));
 // "/" comes just before "0".
 assertThrows('"\\x1/"');
 assertThrows('"\\u111/"');
-assertEquals("\\x1/", RegExp("\\x1/").source);
-assertEquals("\\u111/", RegExp("\\u111/").source);
+assertEquals("\\x1\\/", RegExp("\\x1/").source);
+assertEquals("\\u111\\/", RegExp("\\u111/").source);
 
 // ":" comes just after "9".
 assertThrows('"\\x1:"');

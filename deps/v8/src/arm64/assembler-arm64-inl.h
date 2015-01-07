@@ -503,7 +503,7 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
     DCHECK(addrmode == Offset);
 
     regoffset_ = offset.reg();
-    shift_= offset.shift();
+    shift_ = offset.shift();
     shift_amount_ = offset.shift_amount();
 
     extend_ = NO_EXTEND;
@@ -520,7 +520,7 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
     extend_ = offset.extend();
     shift_amount_ = offset.shift_amount();
 
-    shift_= NO_SHIFT;
+    shift_ = NO_SHIFT;
     offset_ = 0;
 
     // These assertions match those in the extended-register constructor.

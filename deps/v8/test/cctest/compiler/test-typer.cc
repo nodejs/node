@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "src/codegen.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"

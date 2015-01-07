@@ -390,6 +390,9 @@ class Debug {
   void FloodWithOneShot(Handle<JSFunction> function,
                         BreakLocatorType type = ALL_BREAK_LOCATIONS);
   void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
+  void FloodDefaultConstructorWithOneShot(Handle<JSFunction> function);
+  void FloodWithOneShotGeneric(Handle<JSFunction> function,
+                               Handle<Object> holder = Handle<Object>());
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
@@ -444,8 +447,8 @@ class Debug {
                              Object** restarter_frame_function_pointer);
 
   // Passed to MakeWeak.
-  static void HandleWeakDebugInfo(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void HandlePhantomDebugInfo(
+      const PhantomCallbackData<DebugInfoListNode>& data);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -500,6 +503,8 @@ class Debug {
     return reinterpret_cast<Address>(&thread_local_.step_into_fp_);
   }
 
+  StepAction last_step_action() { return thread_local_.last_step_action_; }
+
  private:
   explicit Debug(Isolate* isolate);
 
@@ -512,6 +517,9 @@ class Debug {
   // Check whether there are commands in the command queue.
   inline bool has_commands() const { return !command_queue_.IsEmpty(); }
   inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
+  inline bool break_disabled() const {
+    return break_disabled_ || in_debug_event_listener_;
+  }
 
   void OnException(Handle<Object> exception, bool uncaught,
                    Handle<Object> promise);
@@ -545,6 +553,8 @@ class Debug {
                          Handle<Object> exec_state,
                          Handle<Object> event_data,
                          v8::Debug::ClientData* client_data);
+  void ProcessCompileEventInDebugScope(v8::DebugEvent event,
+                                       Handle<Script> script);
   void ProcessDebugEvent(v8::DebugEvent event,
                          Handle<JSObject> event_data,
                          bool auto_continue);
@@ -562,6 +572,8 @@ class Debug {
   void ClearStepNext();
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   void RemoveDebugInfo(DebugInfo** debug_info);
+  void RemoveDebugInfo(DebugInfoListNode* node);
+  void RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
@@ -589,6 +601,7 @@ class Debug {
   bool live_edit_enabled_;
   bool has_break_points_;
   bool break_disabled_;
+  bool in_debug_event_listener_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
 
@@ -699,14 +712,21 @@ class DebugScope BASE_EMBEDDED {
 class DisableBreak BASE_EMBEDDED {
  public:
   explicit DisableBreak(Debug* debug, bool disable_break)
-    : debug_(debug), old_state_(debug->break_disabled_) {
+      : debug_(debug),
+        previous_break_disabled_(debug->break_disabled_),
+        previous_in_debug_event_listener_(debug->in_debug_event_listener_) {
     debug_->break_disabled_ = disable_break;
+    debug_->in_debug_event_listener_ = disable_break;
   }
-  ~DisableBreak() { debug_->break_disabled_ = old_state_; }
+  ~DisableBreak() {
+    debug_->break_disabled_ = previous_break_disabled_;
+    debug_->in_debug_event_listener_ = previous_in_debug_event_listener_;
+  }
 
  private:
   Debug* debug_;
-  bool old_state_;
+  bool previous_break_disabled_;
+  bool previous_in_debug_event_listener_;
   DISALLOW_COPY_AND_ASSIGN(DisableBreak);
 };
 

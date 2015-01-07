@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_GRAPH_REPLAY_H_
 #define V8_COMPILER_GRAPH_REPLAY_H_
 
+#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/node.h"
 
 namespace v8 {

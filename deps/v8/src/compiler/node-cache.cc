@@ -13,6 +13,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+enum { kInitialSize = 16u, kLinearProbe = 5u };
+
+}  // namespace
+
+
 template <typename Key, typename Hash, typename Pred>
 struct NodeCache<Key, Hash, Pred>::Entry {
   Key key_;
@@ -92,17 +99,21 @@ Node** NodeCache<Key, Hash, Pred>::Find(Zone* zone, Key key) {
 
 
 template <typename Key, typename Hash, typename Pred>
-void NodeCache<Key, Hash, Pred>::GetCachedNodes(NodeVector* nodes) {
+void NodeCache<Key, Hash, Pred>::GetCachedNodes(ZoneVector<Node*>* nodes) {
   if (entries_) {
     for (size_t i = 0; i < size_ + kLinearProbe; i++) {
-      if (entries_[i].value_ != NULL) nodes->push_back(entries_[i].value_);
+      if (entries_[i].value_) nodes->push_back(entries_[i].value_);
     }
   }
 }
 
-template class NodeCache<int64_t>;
+
+// -----------------------------------------------------------------------------
+// Instantiations
+
+
 template class NodeCache<int32_t>;
-template class NodeCache<void*>;
+template class NodeCache<int64_t>;
 
 }  // namespace compiler
 }  // namespace internal

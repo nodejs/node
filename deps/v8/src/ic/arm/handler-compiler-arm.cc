@@ -92,6 +92,28 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
 }
 
 
+void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
+                                                Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ push(vector);
+  __ push(slot);
+}
+
+
+void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ pop(slot);
+  __ pop(vector);
+}
+
+
+void PropertyHandlerCompiler::DiscardVectorAndSlot() {
+  MacroAssembler* masm = this->masm();
+  // Remove vector and slot.
+  __ add(sp, sp, Operand(2 * kPointerSize));
+}
+
+
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
     Handle<Name> name, Register scratch0, Register scratch1) {
@@ -140,26 +162,16 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype, Label* miss) {
-  Isolate* isolate = masm->isolate();
-  // Get the global function with the given index.
-  Handle<JSFunction> function(
-      JSFunction::cast(isolate->native_context()->get(index)));
-
-  // Check we're still in the same context.
-  Register scratch = prototype;
+    MacroAssembler* masm, int index, Register result, Label* miss) {
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
-  __ ldr(scratch, MemOperand(cp, offset));
-  __ ldr(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
-  __ ldr(scratch, MemOperand(scratch, Context::SlotOffset(index)));
-  __ Move(ip, function);
-  __ cmp(ip, scratch);
-  __ b(ne, miss);
-
+  __ ldr(result, MemOperand(cp, offset));
+  __ ldr(result, FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ldr(result, MemOperand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
-  __ Move(prototype, Handle<Map>(function->initial_map()));
+  __ ldr(result,
+         FieldMemOperand(result, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
-  __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
+  __ ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
 }
 
 
@@ -326,18 +338,38 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 }
 
 
-void NamedStoreHandlerCompiler::GenerateRestoreNameAndMap(
-    Handle<Name> name, Handle<Map> transition) {
+void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ mov(this->name(), Operand(name));
-  __ mov(StoreTransitionDescriptor::MapRegister(), Operand(transition));
 }
 
 
-void NamedStoreHandlerCompiler::GenerateConstantCheck(Object* constant,
+void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
+                                                   Register scratch,
+                                                   Label* miss) {
+  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
+  Register map_reg = StoreTransitionDescriptor::MapRegister();
+  DCHECK(!map_reg.is(scratch));
+  __ LoadWeakValue(map_reg, cell, miss);
+  if (transition->CanBeDeprecated()) {
+    __ ldr(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
+    __ tst(scratch, Operand(Map::Deprecated::kMask));
+    __ b(ne, miss);
+  }
+}
+
+
+void NamedStoreHandlerCompiler::GenerateConstantCheck(Register map_reg,
+                                                      int descriptor,
                                                       Register value_reg,
+                                                      Register scratch,
                                                       Label* miss_label) {
-  __ Move(scratch1(), handle(constant, isolate()));
-  __ cmp(value_reg, scratch1());
+  DCHECK(!map_reg.is(scratch));
+  DCHECK(!map_reg.is(value_reg));
+  DCHECK(!value_reg.is(scratch));
+  __ LoadInstanceDescriptors(map_reg, scratch);
+  __ ldr(scratch,
+         FieldMemOperand(scratch, DescriptorArray::GetValueOffset(descriptor)));
+  __ cmp(value_reg, scratch);
   __ b(ne, miss_label);
 }
 
@@ -416,11 +448,11 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
       Register map_reg = scratch1;
+      __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
       if (depth != 1 || check == CHECK_ALL_MAPS) {
-        // CheckMap implicitly loads the map of |reg| into |map_reg|.
-        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK);
-      } else {
-        __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+        __ CmpWeakValue(map_reg, cell, scratch2);
+        __ b(ne, miss);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -438,17 +470,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      // Two possible reasons for loading the prototype from the map:
-      // (1) Can't store references to new space in code.
-      // (2) Handler is shared for all receivers with the same prototype
-      //     map (but not necessarily the same prototype instance).
-      bool load_prototype_from_map =
-          heap()->InNewSpace(*prototype) || depth == 1;
-      if (load_prototype_from_map) {
-        __ ldr(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
-      } else {
-        __ mov(reg, Operand(prototype));
-      }
+      __ ldr(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
     }
 
     // Go to the next object in the prototype chain.
@@ -461,7 +483,10 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
   if (depth != 0 || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, scratch1, current_map, miss, DONT_DO_SMI_CHECK);
+    __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+    Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+    __ CmpWeakValue(scratch1, cell, scratch2);
+    __ b(ne, miss);
   }
 
   // Perform security check for access to the global object.
@@ -481,6 +506,10 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ b(&success);
     __ bind(miss);
+    if (IC::ICUseVector(kind())) {
+      DCHECK(kind() == Code::LOAD_IC);
+      PopVectorAndSlot();
+    }
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -579,6 +608,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     } else {
       __ Push(holder_reg, this->name());
     }
+    InterceptorVectorSlotPush(holder_reg);
     // Invoke an interceptor.  Note: map checks from receiver to
     // interceptor's holder has been compiled before (see a caller
     // of this method.)
@@ -596,6 +626,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     __ Ret();
 
     __ bind(&interceptor_failed);
+    InterceptorVectorSlotPop(holder_reg);
     __ pop(this->name());
     __ pop(holder_reg);
     if (must_preserve_receiver_reg) {
@@ -625,7 +656,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  Register holder_reg = Frontend(receiver(), name);
+  Register holder_reg = Frontend(name);
 
   __ push(receiver());  // receiver
   __ push(holder_reg);
@@ -666,11 +697,15 @@ Register NamedStoreHandlerCompiler::value() {
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
+  if (IC::ICUseVector(kind())) {
+    PushVectorAndSlot();
+  }
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
   Register result = StoreDescriptor::ValueRegister();
-  __ mov(result, Operand(cell));
+  Handle<WeakCell> weak_cell = factory()->NewWeakCell(cell);
+  __ LoadWeakValue(result, weak_cell, &miss);
   __ ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
@@ -682,6 +717,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, r1, r3);
+  if (IC::ICUseVector(kind())) {
+    DiscardVectorAndSlot();
+  }
   __ Ret();
 
   FrontendFooter(name, &miss);

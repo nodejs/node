@@ -82,14 +82,6 @@ class Operator : public ZoneObject {
     return (properties() & property) == property;
   }
 
-  // Number of data inputs to the operator, for verifying graph structure.
-  // TODO(titzer): convert callers to ValueInputCount();
-  int InputCount() const { return ValueInputCount(); }
-
-  // Number of data outputs from the operator, for verifying graph structure.
-  // TODO(titzer): convert callers to ValueOutputCount();
-  int OutputCount() const { return ValueOutputCount(); }
-
   Properties properties() const { return properties_; }
 
   // TODO(titzer): convert return values here to size_t.
@@ -149,12 +141,12 @@ class Operator1 : public Operator {
 
   T const& parameter() const { return parameter_; }
 
-  virtual bool Equals(const Operator* other) const FINAL {
+  bool Equals(const Operator* other) const FINAL {
     if (opcode() != other->opcode()) return false;
     const Operator1<T>* that = static_cast<const Operator1<T>*>(other);
     return this->pred_(this->parameter(), that->parameter());
   }
-  virtual size_t HashCode() const FINAL {
+  size_t HashCode() const FINAL {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
   virtual void PrintParameter(std::ostream& os) const {
@@ -162,7 +154,7 @@ class Operator1 : public Operator {
   }
 
  protected:
-  virtual void PrintTo(std::ostream& os) const FINAL {
+  void PrintTo(std::ostream& os) const FINAL {
     os << mnemonic();
     PrintParameter(os);
   }
@@ -178,6 +170,20 @@ class Operator1 : public Operator {
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
   return static_cast<const Operator1<T>*>(op)->parameter();
+}
+
+// NOTE: We have to be careful to use the right equal/hash functions below, for
+// float/double we always use the ones operating on the bit level.
+template <>
+inline float const& OpParameter(const Operator* op) {
+  return static_cast<const Operator1<float, base::bit_equal_to<float>,
+                                     base::bit_hash<float>>*>(op)->parameter();
+}
+
+template <>
+inline double const& OpParameter(const Operator* op) {
+  return static_cast<const Operator1<double, base::bit_equal_to<double>,
+                                     base::bit_hash<double>>*>(op)->parameter();
 }
 
 }  // namespace compiler

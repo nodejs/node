@@ -489,7 +489,6 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(for_in, V8.ForIn)                                                         \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
-  SC(zone_segment_bytes, V8.ZoneSegmentBytes)                                  \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
   SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)            \
   SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized)    \

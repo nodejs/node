@@ -40,13 +40,8 @@ class Types {
   Types(Region* region, Isolate* isolate)
       : region_(region), rng_(isolate->random_number_generator()) {
     #define DECLARE_TYPE(name, value) \
-      name = Type::name(region); \
-      if (SmiValuesAre31Bits() || \
-          (!Type::name(region)->Equals(Type::OtherSigned32()) && \
-           !Type::name(region)->Equals(Type::OtherUnsigned31()))) { \
-        /* Hack: Avoid generating those empty bitset types. */ \
-        types.push_back(name); \
-      }
+      name = Type::name(region);      \
+      types.push_back(name);
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
 
@@ -133,7 +128,7 @@ class Types {
   Handle<i::Oddball> uninitialized;
 
   #define DECLARE_TYPE(name, value) TypeHandle name;
-  BITSET_TYPE_LIST(DECLARE_TYPE)
+  PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
 
   TypeHandle ObjectClass;
@@ -238,12 +233,6 @@ class Types {
           int j = rng_->NextInt(n);
           #define PICK_BITSET_TYPE(type, value) \
             if (j-- == 0) { \
-              if (!SmiValuesAre31Bits() && \
-                  (Type::type(region_)->Equals(Type::OtherSigned32()) || \
-                   Type::type(region_)->Equals(Type::OtherUnsigned31()))) { \
-                /* Hack: Avoid generating those empty bitset types. */ \
-                continue; \
-              } \
               TypeHandle tmp = Type::Intersect( \
                   result, Type::type(region_), region_); \
               if (tmp->Is(Type::None()) && i != 0) { \

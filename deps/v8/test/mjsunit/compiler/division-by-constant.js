@@ -101,6 +101,7 @@ function CreateTestValues() {
 
 // -----------------------------------------------------------------------------
 
+
 function TestDivisionLike(ref, construct, values, divisor) {
   // Define the function to test.
   var OptFun = new Function("dividend", construct(divisor));
@@ -111,12 +112,14 @@ function TestDivisionLike(ref, construct, values, divisor) {
   %OptimizeFunctionOnNextCall(OptFun);
   OptFun(13);
 
-  // Check results.
-  values.forEach(function(dividend) {
+function dude(dividend) {
     // Avoid deopt caused by overflow, we do not want to test this here.
     if (dividend === -2147483648 && divisor === -1) return;
     assertEquals(ref(dividend, divisor), OptFun(dividend));
-  });
+  }
+
+  // Check results.
+  values.forEach(dude);
 }
 
 function Test(ref, construct) {

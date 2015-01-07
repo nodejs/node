@@ -276,9 +276,6 @@ class MergeToBranch(ScriptsBase):
     # CC ulan to make sure that fixes are merged to Google3.
     options.cc = "ulan@chromium.org"
 
-    # Thd old git-svn workflow is deprecated for this script.
-    assert options.vc_interface != "git_svn"
-
     # Make sure to use git hashes in the new workflows.
     for revision in options.revisions:
       if (IsSvnNumber(revision) or

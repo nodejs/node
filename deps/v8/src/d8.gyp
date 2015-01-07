@@ -129,7 +129,6 @@
             '../tools/js2c.py',
             '<@(_outputs)',
             'D8',
-            'off',  # compress startup data
             '<@(js_files)'
           ],
         },

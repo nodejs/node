@@ -27,8 +27,8 @@ class StringAllocator {
 class HeapStringAllocator FINAL : public StringAllocator {
  public:
   ~HeapStringAllocator() { DeleteArray(space_); }
-  virtual char* allocate(unsigned bytes) OVERRIDE;
-  virtual char* grow(unsigned* bytes) OVERRIDE;
+  char* allocate(unsigned bytes) OVERRIDE;
+  char* grow(unsigned* bytes) OVERRIDE;
 
  private:
   char* space_;

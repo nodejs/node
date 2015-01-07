@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-classes
+// Flags: --harmony-classes --harmony-sloppy
 
 (function TestBasics() {
   var C = class C {}
@@ -19,8 +19,16 @@
   assertEquals(Function.prototype, Object.getPrototypeOf(D));
   assertEquals('D', D.name);
 
+  class D2 { constructor() {} }
+  assertEquals('D2', D2.name);
+
+  // TODO(arv): The logic for the name of anonymous functions in ES6 requires
+  // the below to be 'E';
   var E = class {}
-  assertEquals('', E.name);
+  assertEquals('', E.name);  // Should be 'E'.
+
+  var F = class { constructor() {} };
+  assertEquals('', F.name);  // Should be 'F'.
 })();
 
 
@@ -151,6 +159,15 @@
   assertThrows('class C extends function B() { with ({}); return B; }() {}',
                SyntaxError);
 
+  var D = class extends function() {
+    arguments.caller;
+  } {};
+  assertThrows(function() {
+    Object.getPrototypeOf(D).arguments;
+  }, TypeError);
+  assertThrows(function() {
+    new D;
+  }, TypeError);
 })();
 
 
@@ -589,15 +606,274 @@ function assertAccessorDescriptor(object, name) {
 })();
 
 
-/* TODO(arv): Implement
-(function TestNameBindingInConstructor() {
+(function TestDefaultConstructorNoCrash() {
+  // Regression test for https://code.google.com/p/v8/issues/detail?id=3661
+  class C {}
+  assertEquals(undefined, C());
+  assertEquals(undefined, C(1));
+  assertTrue(new C() instanceof C);
+  assertTrue(new C(1) instanceof C);
+})();
+
+
+(function TestDefaultConstructor() {
+  var calls = 0;
+  class Base {
+    constructor() {
+      calls++;
+    }
+  }
+  class Derived extends Base {}
+  var object = new Derived;
+  assertEquals(1, calls);
+
+  calls = 0;
+  Derived();
+  assertEquals(1, calls);
+})();
+
+
+(function TestDefaultConstructorArguments() {
+  var args, self;
+  class Base {
+    constructor() {
+      self = this;
+      args = arguments;
+    }
+  }
+  class Derived extends Base {}
+
+  new Derived;
+  assertEquals(0, args.length);
+
+  new Derived(0, 1, 2);
+  assertEquals(3, args.length);
+  assertTrue(self instanceof Derived);
+
+  var arr = new Array(100);
+  var obj = {};
+  Derived.apply(obj, arr);
+  assertEquals(100, args.length);
+  assertEquals(obj, self);
+})();
+
+
+(function TestDefaultConstructorArguments2() {
+  var args;
+  class Base {
+    constructor(x, y) {
+      args = arguments;
+    }
+  }
+  class Derived extends Base {}
+
+  new Derived;
+  assertEquals(0, args.length);
+
+  new Derived(1);
+  assertEquals(1, args.length);
+  assertEquals(1, args[0]);
+
+  new Derived(1, 2, 3);
+  assertEquals(3, args.length);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(3, args[2]);
+})();
+
+
+(function TestNameBindingConst() {
+  assertThrows('class C { constructor() { C = 42; } }; new C();', TypeError);
+  assertThrows('new (class C { constructor() { C = 42; } })', TypeError);
+  assertThrows('class C { m() { C = 42; } }; new C().m()', TypeError);
+  assertThrows('new (class C { m() { C = 42; } }).m()', TypeError);
+  assertThrows('class C { get x() { C = 42; } }; new C().x', TypeError);
+  assertThrows('(new (class C { get x() { C = 42; } })).x', TypeError);
+  assertThrows('class C { set x(_) { C = 42; } }; new C().x = 15;', TypeError);
+  assertThrows('(new (class C { set x(_) { C = 42; } })).x = 15;', TypeError);
+})();
+
+
+(function TestNameBinding() {
+  var C2;
   class C {
     constructor() {
-      assertThrows(function() {
-        C = 42;
-      }, ReferenceError);
+      C2 = C;
+    }
+    m() {
+      C2 = C;
+    }
+    get x() {
+      C2 = C;
+    }
+    set x(_) {
+      C2 = C;
     }
   }
   new C();
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().m();
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().x;
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().x = 1;
+  assertEquals(C, C2);
 })();
-*/
+
+
+(function TestNameBindingExpression() {
+  var C3;
+  var C = class C2 {
+    constructor() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    m() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    get x() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    set x(_) {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+  }
+  new C();
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().m();
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().x;
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().x = 1;
+  assertEquals(C, C3);
+})();
+
+
+(function TestNameBindingInExtendsExpression() {
+  assertThrows(function() {
+    class x extends x {}
+  }, ReferenceError);
+
+  assertThrows(function() {
+    (class x extends x {});
+  }, ReferenceError);
+
+  assertThrows(function() {
+    var x = (class x extends x {});
+  }, ReferenceError);
+})();
+
+
+(function TestSuperCallSyntacticRestriction() {
+  assertThrows(function() {
+    class C {
+      constructor() {
+        var y;
+        super();
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(this.x);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(this);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super.method();
+        super(this);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(super.method());
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(super());
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(1, 2, Object.getPrototypeOf(this));
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        { super(1, 2); }
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        if (1) super();
+      }
+    }; new C();
+  }, TypeError);
+
+  class C1 extends Object {
+    constructor() {
+      'use strict';
+      super();
+    }
+  };
+  new C1();
+
+  class C2 extends Object {
+    constructor() {
+      ; 'use strict';;;;;
+      super();
+    }
+  };
+  new C2();
+
+  class C3 extends Object {
+    constructor() {
+      ; 'use strict';;;;;
+      // This is a comment.
+      super();
+    }
+  };
+  new C3();
+
+  class C4 extends Object {
+    constructor() {
+      super(new super());
+    }
+  }; new C4();
+}());

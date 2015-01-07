@@ -24,7 +24,9 @@ class TypeFeedbackOracle: public ZoneObject {
                      Handle<Context> native_context, Zone* zone);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
+  bool LoadIsUninitialized(FeedbackVectorICSlot slot);
   bool StoreIsUninitialized(TypeFeedbackId id);
+  bool CallIsUninitialized(FeedbackVectorICSlot slot);
   bool CallIsMonomorphic(FeedbackVectorICSlot slot);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
@@ -38,12 +40,19 @@ class TypeFeedbackOracle: public ZoneObject {
   void GetStoreModeAndKeyType(TypeFeedbackId id,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
+  void GetLoadKeyType(TypeFeedbackId id, IcCheckType* key_type);
 
   void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
                              SmallMapList* receiver_types);
+  void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<String> name,
+                             SmallMapList* receiver_types);
   void KeyedPropertyReceiverTypes(TypeFeedbackId id,
                                   SmallMapList* receiver_types,
-                                  bool* is_string);
+                                  bool* is_string,
+                                  IcCheckType* key_type);
+  void KeyedPropertyReceiverTypes(FeedbackVectorICSlot slot,
+                                  SmallMapList* receiver_types, bool* is_string,
+                                  IcCheckType* key_type);
   void AssignmentReceiverTypes(TypeFeedbackId id,
                                Handle<String> name,
                                SmallMapList* receiver_types);
@@ -56,6 +65,8 @@ class TypeFeedbackOracle: public ZoneObject {
 
   void CollectReceiverTypes(TypeFeedbackId id,
                             SmallMapList* types);
+  template <class T>
+  void CollectReceiverTypes(T* obj, SmallMapList* types);
 
   static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
@@ -97,6 +108,13 @@ class TypeFeedbackOracle: public ZoneObject {
                             Handle<String> name,
                             Code::Flags flags,
                             SmallMapList* types);
+  template <class T>
+  void CollectReceiverTypes(T* obj, Handle<String> name, Code::Flags flags,
+                            SmallMapList* types);
+
+  // Returns true if there is at least one string map and if
+  // all maps are string maps.
+  bool HasOnlyStringMaps(SmallMapList* receiver_types);
 
   void SetInfo(TypeFeedbackId id, Object* target);
 

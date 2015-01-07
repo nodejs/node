@@ -23,9 +23,9 @@ class MachineOperatorBuilder;
 class SimplifiedOperatorReducer FINAL : public Reducer {
  public:
   explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
-  virtual ~SimplifiedOperatorReducer();
+  ~SimplifiedOperatorReducer() FINAL;
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) FINAL;
 
  private:
   Reduction Change(Node* node, const Operator* op, Node* a);

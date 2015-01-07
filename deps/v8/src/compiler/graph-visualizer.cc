@@ -8,8 +8,6 @@
 #include <string>
 
 #include "src/code-stubs.h"
-#include "src/compiler/generic-node.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
@@ -27,6 +25,9 @@ namespace internal {
 namespace compiler {
 
 static int SafeId(Node* node) { return node == NULL ? -1 : node->id(); }
+static const char* SafeMnemonic(Node* node) {
+  return node == NULL ? "null" : node->op()->mnemonic();
+}
 
 #define DEAD_COLOR "#999999"
 
@@ -227,7 +228,7 @@ class GraphVisualizer {
   void PrintNode(Node* node, bool gray);
 
  private:
-  void PrintEdge(Node::Edge edge);
+  void PrintEdge(Edge edge);
 
   AllNodes all_;
   std::ostream& os_;
@@ -284,26 +285,26 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
   label << *node->op();
   os_ << "    label=\"{{#" << SafeId(node) << ":" << Escaped(label);
 
-  InputIter i = node->inputs().begin();
+  auto i = node->input_edges().begin();
   for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">#" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">#" << SafeId((*i).to());
   }
   for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">X #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">X #" << SafeId((*i).to());
   }
   for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">F #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">F #" << SafeId((*i).to());
   }
   for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">E #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">E #" << SafeId((*i).to());
   }
 
   if (OperatorProperties::IsBasicBlockBegin(node->op()) ||
       GetControlCluster(node) == NULL) {
     for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      os_ << "|<I" << i.index() << ">C #" << SafeId(*i);
+      os_ << "|<I" << (*i).index() << ">C #" << SafeId((*i).to());
     }
   }
   os_ << "}";
@@ -337,7 +338,7 @@ static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
 }
 
 
-void GraphVisualizer::PrintEdge(Node::Edge edge) {
+void GraphVisualizer::PrintEdge(Edge edge) {
   Node* from = edge.from();
   int index = edge.index();
   Node* to = edge.to();
@@ -381,8 +382,8 @@ void GraphVisualizer::Print() {
 
   // With all the nodes written, add the edges.
   for (Node* const node : all_.live) {
-    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-      PrintEdge(i.edge());
+    for (Edge edge : node->use_edges()) {
+      PrintEdge(edge);
     }
   }
   os_ << "}\n";
@@ -530,7 +531,7 @@ void GraphC1Visualizer::PrintInputs(InputIter* i, int count,
 
 
 void GraphC1Visualizer::PrintInputs(Node* node) {
-  InputIter i = node->inputs().begin();
+  auto i = node->inputs().begin();
   PrintInputs(&i, node->op()->ValueInputCount(), " ");
   PrintInputs(&i, OperatorProperties::GetContextInputCount(node->op()),
               " Ctx:");
@@ -723,14 +724,18 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
       }
     } else if (range->IsSpilled()) {
-      InstructionOperand* op = range->TopLevel()->GetSpillOperand();
-      if (op->IsDoubleStackSlot()) {
-        os_ << " \"double_stack:" << op->index() << "\"";
-      } else if (op->IsStackSlot()) {
-        os_ << " \"stack:" << op->index() << "\"";
+      int index = -1;
+      if (range->TopLevel()->HasSpillRange()) {
+        index = kMaxInt;  // This hasn't been set yet.
       } else {
-        DCHECK(op->IsConstant());
-        os_ << " \"const(nostack):" << op->index() << "\"";
+        index = range->TopLevel()->GetSpillOperand()->index();
+      }
+      if (range->TopLevel()->Kind() == DOUBLE_REGISTERS) {
+        os_ << " \"double_stack:" << index << "\"";
+      } else if (range->TopLevel()->Kind() == GENERAL_REGISTERS) {
+        os_ << " \"stack:" << index << "\"";
+      } else {
+        os_ << " \"const(nostack):" << index << "\"";
       }
     }
     int parent_index = -1;
@@ -783,6 +788,43 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 std::ostream& operator<<(std::ostream& os, const AsC1VAllocator& ac) {
   Zone tmp_zone(ac.allocator_->code()->zone()->isolate());
   GraphC1Visualizer(os, &tmp_zone).PrintAllocator(ac.phase_, ac.allocator_);
+  return os;
+}
+
+const int kUnvisited = 0;
+const int kOnStack = 1;
+const int kVisited = 2;
+
+std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
+  Zone local_zone(ar.graph.zone()->isolate());
+  ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
+  ZoneStack<Node*> stack(&local_zone);
+
+  stack.push(ar.graph.end());
+  state[ar.graph.end()->id()] = kOnStack;
+  while (!stack.empty()) {
+    Node* n = stack.top();
+    bool pop = true;
+    for (Node* const i : n->inputs()) {
+      if (state[i->id()] == kUnvisited) {
+        state[i->id()] = kOnStack;
+        stack.push(i);
+        pop = false;
+        break;
+      }
+    }
+    if (pop) {
+      state[n->id()] = kVisited;
+      stack.pop();
+      os << "#" << SafeId(n) << ":" << SafeMnemonic(n) << "(";
+      int j = 0;
+      for (Node* const i : n->inputs()) {
+        if (j++ > 0) os << ", ";
+        os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
+      }
+      os << ")" << std::endl;
+    }
+  }
   return os;
 }
 }

@@ -91,7 +91,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
 
   virtual ~ExternalStreamingStream() { delete[] current_data_; }
 
-  virtual unsigned BufferSeekForward(unsigned delta) OVERRIDE {
+  unsigned BufferSeekForward(unsigned delta) OVERRIDE {
     // We never need to seek forward when streaming scripts. We only seek
     // forward when we want to parse a function whose location we already know,
     // and when streaming, we don't know the locations of anything we haven't
@@ -100,7 +100,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
     return 0;
   }
 
-  virtual unsigned FillBuffer(unsigned position) OVERRIDE;
+  unsigned FillBuffer(unsigned position) OVERRIDE;
 
  private:
   void HandleUtf8SplitCharacters(unsigned* data_in_buffer);

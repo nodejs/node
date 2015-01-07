@@ -227,17 +227,6 @@ function MathAtanh(x) {
   return 0.5 * MathLog((1 + x) / (1 - x));
 }
 
-// ES6 draft 09-27-13, section 20.2.2.21.
-function MathLog10(x) {
-  return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
-}
-
-
-// ES6 draft 09-27-13, section 20.2.2.22.
-function MathLog2(x) {
-  return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
-}
-
 // ES6 draft 09-27-13, section 20.2.2.17.
 function MathHypot(x, y) {  // Function length is 2.
   // We may want to introduce fast paths for two arguments and when
@@ -369,8 +358,8 @@ function SetUpMath() {
     "asinh", MathAsinh,
     "acosh", MathAcosh,
     "atanh", MathAtanh,
-    "log10", MathLog10,
-    "log2", MathLog2,
+    "log10", MathLog10,   // implemented by third_party/fdlibm
+    "log2", MathLog2,     // implemented by third_party/fdlibm
     "hypot", MathHypot,
     "fround", MathFroundJS,
     "clz32", MathClz32,

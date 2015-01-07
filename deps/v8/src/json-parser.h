@@ -400,7 +400,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                            descriptor)->NowContains(value)) {
               Handle<HeapType> value_type(value->OptimalType(
                       isolate(), expected_representation));
-              Map::GeneralizeFieldType(target, descriptor, value_type);
+              Map::GeneralizeFieldType(target, descriptor,
+                                       expected_representation, value_type);
             }
             DCHECK(target->instance_descriptors()->GetFieldType(
                     descriptor)->NowContains(value));

@@ -238,7 +238,10 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Bail out if no moving is necessary.
   if (num_additional_args === del_count) return;
   // Move data to new array.
-  var new_array = new InternalArray(len - del_count + num_additional_args);
+  var new_array = new InternalArray(
+      // Clamp array length to 2^32-1 to avoid early RangeError.
+      MathMin(len - del_count + num_additional_args, 0xffffffff));
+  var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {
     var limit = indices;
@@ -267,7 +270,12 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
         } else if (key >= start_i + del_count) {
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
-            new_array[key - del_count + num_additional_args] = current;
+            var new_key = key - del_count + num_additional_args;
+            new_array[new_key] = current;
+            if (new_key > 0xffffffff) {
+              big_indices = big_indices || new InternalArray();
+              big_indices.push(new_key);
+            }
           }
         }
       }
@@ -275,6 +283,14 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   }
   // Move contents of new_array into this array
   %MoveArrayContents(new_array, array);
+  // Add any moved values that aren't elements anymore.
+  if (!IS_UNDEFINED(big_indices)) {
+    var length = big_indices.length;
+    for (var i = 0; i < length; ++i) {
+      var key = big_indices[i];
+      array[key] = new_array[key];
+    }
+  }
 }
 
 
@@ -282,9 +298,10 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
 // because the receiver is not an array (so we have no choice) or because we
 // know we are not deleting or moving a lot of elements.
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
+  var is_array = IS_ARRAY(array);
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    if (index in array) {
+    if (HAS_INDEX(array, index, is_array)) {
       var current = array[index];
       // The spec requires [[DefineOwnProperty]] here, %AddElement is close
       // enough (in that it ignores the prototype).
@@ -295,6 +312,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
 
 
 function SimpleMove(array, start_i, del_count, len, num_additional_args) {
+  var is_array = IS_ARRAY(array);
   if (num_additional_args !== del_count) {
     // Move the existing elements after the elements to be deleted
     // to the right position in the resulting array.
@@ -302,7 +320,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = len - del_count; i > start_i; i--) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
-        if (from_index in array) {
+        if (HAS_INDEX(array, from_index, is_array)) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -312,7 +330,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = start_i; i < len - del_count; i++) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
-        if (from_index in array) {
+        if (HAS_INDEX(array, from_index, is_array)) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -966,7 +984,7 @@ function ArraySort(comparefn) {
   // of a prototype property.
   var CopyFromPrototype = function CopyFromPrototype(obj, length) {
     var max = 0;
-    for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
+    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, length);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -995,7 +1013,7 @@ function ArraySort(comparefn) {
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
   var ShadowPrototypeElements = function(obj, from, to) {
-    for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
+    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, to);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -1063,7 +1081,7 @@ function ArraySort(comparefn) {
     }
     for (i = length - num_holes; i < length; i++) {
       // For compatability with Webkit, do not expose elements in the prototype.
-      if (i in %GetPrototype(obj)) {
+      if (i in %_GetPrototype(obj)) {
         obj[i] = UNDEFINED;
       } else {
         delete obj[i];
@@ -1137,9 +1155,10 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1172,9 +1191,10 @@ function ArrayForEach(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1205,9 +1225,10 @@ function ArraySome(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1237,9 +1258,10 @@ function ArrayEvery(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1270,9 +1292,10 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1407,10 +1430,11 @@ function ArrayReduce(callback, current) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
+  var is_array = IS_ARRAY(array);
   var i = 0;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
-      if (i in array) {
+      if (HAS_INDEX(array, i, is_array)) {
         current = array[i++];
         break find_initial;
       }
@@ -1421,7 +1445,7 @@ function ArrayReduce(callback, current) {
   var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
@@ -1443,10 +1467,11 @@ function ArrayReduceRight(callback, current) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
+  var is_array = IS_ARRAY(array);
   var i = length - 1;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
-      if (i in array) {
+      if (HAS_INDEX(array, i, is_array)) {
         current = array[i--];
         break find_initial;
       }
@@ -1457,7 +1482,7 @@ function ArrayReduceRight(callback, current) {
   var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i >= 0; i--) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);

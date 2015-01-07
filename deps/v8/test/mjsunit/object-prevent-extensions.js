@@ -27,6 +27,8 @@
 
 // Tests the Object.preventExtensions method - ES 15.2.3.10
 
+// Flags: --allow-natives-syntax
+
 
 var obj1 = {};
 // Extensible defaults to true.
@@ -126,3 +128,35 @@ assertEquals(50, v);
 var n = o[0] = 100;
 assertEquals(undefined, o[0]);
 assertEquals(100, n);
+
+// Fast properties should remain fast
+obj = { x: 42, y: 'foo' };
+assertTrue(%HasFastProperties(obj));
+Object.preventExtensions(obj);
+assertFalse(Object.isExtensible(obj));
+assertFalse(Object.isSealed(obj));
+assertTrue(%HasFastProperties(obj));
+
+// Non-extensible objects should share maps where possible
+obj = { prop1: 1, prop2: 2 };
+obj2 = { prop1: 3, prop2: 4 };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.preventExtensions(obj);
+Object.preventExtensions(obj2);
+assertFalse(Object.isExtensible(obj));
+assertFalse(Object.isExtensible(obj2));
+assertFalse(Object.isSealed(obj));
+assertFalse(Object.isSealed(obj2));
+assertTrue(%HaveSameMap(obj, obj2));
+
+// Non-extensible objects should share maps even when they have elements
+obj = { prop1: 1, prop2: 2, 75: 'foo' };
+obj2 = { prop1: 3, prop2: 4, 150: 'bar' };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.preventExtensions(obj);
+Object.preventExtensions(obj2);
+assertFalse(Object.isExtensible(obj));
+assertFalse(Object.isExtensible(obj2));
+assertFalse(Object.isSealed(obj));
+assertFalse(Object.isSealed(obj2));
+assertTrue(%HaveSameMap(obj, obj2));

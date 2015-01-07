@@ -36,6 +36,14 @@ struct AsJSON {
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad);
 
+struct AsRPO {
+  explicit AsRPO(const Graph& g) : graph(g) {}
+  const Graph& graph;
+};
+
+std::ostream& operator<<(std::ostream& os, const AsRPO& ad);
+
+
 struct AsC1VCompilation {
   explicit AsC1VCompilation(const CompilationInfo* info) : info_(info) {}
   const CompilationInfo* info_;

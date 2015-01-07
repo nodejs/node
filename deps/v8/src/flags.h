@@ -57,6 +57,9 @@ class FlagList {
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
+
+  // Hash of current flags (to quickly determine flag changes).
+  static uint32_t Hash();
 };
 
 } }  // namespace v8::internal

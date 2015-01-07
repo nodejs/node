@@ -1,0 +1,86 @@
+{
+  "name": "JSTests",
+  "run_count": 5,
+  "run_count_android_arm": 3,
+  "run_count_android_arm64": 3,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Classes",
+      "path": ["Classes"],
+      "main": "run.js",
+      "resources": ["super.js", "default-constructor.js"],
+      "flags": ["--harmony-classes"],
+      "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Super"},
+        {"name": "DefaultConstructor"}
+      ]
+    },
+    {
+      "name": "Collections",
+      "path": ["Collections"],
+      "main": "run.js",
+      "resources": [
+        "common.js",
+        "map.js",
+        "run.js",
+        "set.js",
+        "weakmap.js",
+        "weakset.js"
+      ],
+      "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Map-Smi"},
+        {"name": "Map-String"},
+        {"name": "Map-Object"},
+        {"name": "Map-Iteration"},
+        {"name": "Set-Smi"},
+        {"name": "Set-String"},
+        {"name": "Set-Object"},
+        {"name": "Set-Iteration"},
+        {"name": "WeakMap"},
+        {"name": "WeakSet"}
+      ]
+    },
+    {
+      "name": "Iterators",
+      "path": ["Iterators"],
+      "main": "run.js",
+      "resources": ["forof.js"],
+      "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"}
+      ]
+    },
+    {
+      "name": "Strings",
+      "path": ["Strings"],
+      "main": "run.js",
+      "resources": ["harmony-string.js"],
+      "flags": ["--harmony-strings"],
+      "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "StringFunctions"}
+      ]
+    },
+    {
+      "name": "Templates",
+      "path": ["Templates"],
+      "main": "run.js",
+      "resources": ["templates.js"],
+      "flags": ["--harmony-templates"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
+      "total": true,
+      "tests": [
+        {"name": "Untagged"},
+        {"name": "LargeUntagged"},
+        {"name": "Tagged"}
+      ]
+    }
+  ]
+}

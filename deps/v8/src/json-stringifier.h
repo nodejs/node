@@ -8,6 +8,7 @@
 #include "src/v8.h"
 
 #include "src/conversions.h"
+#include "src/string-builder.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -24,41 +25,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
       Handle<String> object));
 
  private:
-  static const int kInitialPartLength = 32;
-  static const int kMaxPartLength = 16 * 1024;
-  static const int kPartLengthGrowthFactor = 2;
-
   enum Result { UNCHANGED, SUCCESS, EXCEPTION };
-
-  void Accumulate();
-
-  void Extend();
-
-  void ChangeEncoding();
-
-  INLINE(void ShrinkCurrentPart());
-
-  template <bool is_one_byte, typename Char>
-  INLINE(void Append_(Char c));
-
-  template <bool is_one_byte, typename Char>
-  INLINE(void Append_(const Char* chars));
-
-  INLINE(void Append(uint8_t c)) {
-    if (is_one_byte_) {
-      Append_<true>(c);
-    } else {
-      Append_<false>(c);
-    }
-  }
-
-  INLINE(void AppendOneByte(const char* chars)) {
-    if (is_one_byte_) {
-      Append_<true>(reinterpret_cast<const uint8_t*>(chars));
-    } else {
-      Append_<false>(reinterpret_cast<const uint8_t*>(chars));
-    }
-  }
 
   MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
       Handle<Object> object,
@@ -69,14 +36,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
                           bool deferred_comma,
                           bool deferred_key);
 
-  template <typename ResultType, typename Char>
-  INLINE(static Handle<String> StringifyString_(Isolate* isolate,
-                                                Vector<Char> vector,
-                                                Handle<String> result));
-
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
-    return Serialize_<false>(obj, false, factory_->empty_string());
+    return Serialize_<false>(obj, false, factory()->empty_string());
   }
 
   // Serialize an array element.
@@ -103,9 +65,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
   Result Serialize_(Handle<Object> object, bool comma, Handle<Object> key);
 
   void SerializeDeferredKey(bool deferred_comma, Handle<Object> deferred_key) {
-    if (deferred_comma) Append(',');
+    if (deferred_comma) builder_.AppendCharacter(',');
     SerializeString(Handle<String>::cast(deferred_key));
-    Append(':');
+    builder_.AppendCharacter(':');
   }
 
   Result SerializeSmi(Smi* object);
@@ -125,42 +87,25 @@ class BasicJsonStringifier BASE_EMBEDDED {
   void SerializeString(Handle<String> object);
 
   template <typename SrcChar, typename DestChar>
-  INLINE(static int SerializeStringUnchecked_(const SrcChar* src,
-                                              DestChar* dest,
-                                              int length));
+  INLINE(static void SerializeStringUnchecked_(
+      Vector<const SrcChar> src,
+      IncrementalStringBuilder::NoExtend<DestChar>* dest));
 
-  template <bool is_one_byte, typename Char>
+  template <typename SrcChar, typename DestChar>
   INLINE(void SerializeString_(Handle<String> string));
 
   template <typename Char>
   INLINE(static bool DoNotEscape(Char c));
 
-  template <typename Char>
-  INLINE(static Vector<const Char> GetCharVector(Handle<String> string));
-
   Result StackPush(Handle<Object> object);
   void StackPop();
 
-  INLINE(Handle<String> accumulator()) {
-    return Handle<String>(String::cast(accumulator_store_->value()), isolate_);
-  }
-
-  INLINE(void set_accumulator(Handle<String> string)) {
-    return accumulator_store_->set_value(*string);
-  }
+  Factory* factory() { return isolate_->factory(); }
 
   Isolate* isolate_;
-  Factory* factory_;
-  // We use a value wrapper for the string accumulator to keep the
-  // (indirect) handle to it in the outermost handle scope.
-  Handle<JSValue> accumulator_store_;
-  Handle<String> current_part_;
+  IncrementalStringBuilder builder_;
   Handle<String> tojson_string_;
   Handle<JSArray> stack_;
-  int current_index_;
-  int part_length_;
-  bool is_one_byte_;
-  bool overflowed_;
 
   static const int kJsonEscapeTableEntrySize = 8;
   static const char* const JsonEscapeTable;
@@ -237,31 +182,16 @@ const char* const BasicJsonStringifier::JsonEscapeTable =
 
 
 BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
-    : isolate_(isolate),
-      current_index_(0),
-      is_one_byte_(true),
-      overflowed_(false) {
-  factory_ = isolate_->factory();
-  accumulator_store_ = Handle<JSValue>::cast(
-      Object::ToObject(isolate, factory_->empty_string()).ToHandleChecked());
-  part_length_ = kInitialPartLength;
-  current_part_ = factory_->NewRawOneByteString(part_length_).ToHandleChecked();
-  tojson_string_ = factory_->toJSON_string();
-  stack_ = factory_->NewJSArray(8);
+    : isolate_(isolate), builder_(isolate) {
+  tojson_string_ = factory()->toJSON_string();
+  stack_ = factory()->NewJSArray(8);
 }
 
 
 MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object) {
   Result result = SerializeObject(object);
-  if (result == UNCHANGED) return isolate_->factory()->undefined_value();
-  if (result == SUCCESS) {
-    ShrinkCurrentPart();
-    Accumulate();
-    if (overflowed_) {
-      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), Object);
-    }
-    return accumulator();
-  }
+  if (result == UNCHANGED) return factory()->undefined_value();
+  if (result == SUCCESS) return builder_.Finish();
   DCHECK(result == EXCEPTION);
   return MaybeHandle<Object>();
 }
@@ -281,58 +211,29 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
 
   object = String::Flatten(object);
   DCHECK(object->IsFlat());
+  Handle<SeqString> result;
   if (object->IsOneByteRepresentationUnderneath()) {
-    Handle<String> result = isolate->factory()->NewRawOneByteString(
-        worst_case_length).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
-    return StringifyString_<SeqOneByteString>(
-        isolate,
-        object->GetFlatContent().ToOneByteVector(),
-        result);
+    result = isolate->factory()
+                 ->NewRawOneByteString(worst_case_length)
+                 .ToHandleChecked();
+    IncrementalStringBuilder::NoExtendString<uint8_t> no_extend(
+        result, worst_case_length);
+    no_extend.Append('\"');
+    SerializeStringUnchecked_(object->GetFlatContent().ToOneByteVector(),
+                              &no_extend);
+    no_extend.Append('\"');
   } else {
-    Handle<String> result = isolate->factory()->NewRawTwoByteString(
-        worst_case_length).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
-    return StringifyString_<SeqTwoByteString>(
-        isolate,
-        object->GetFlatContent().ToUC16Vector(),
-        result);
+    result = isolate->factory()
+                 ->NewRawTwoByteString(worst_case_length)
+                 .ToHandleChecked();
+    IncrementalStringBuilder::NoExtendString<uc16> no_extend(result,
+                                                             worst_case_length);
+    no_extend.Append('\"');
+    SerializeStringUnchecked_(object->GetFlatContent().ToUC16Vector(),
+                              &no_extend);
+    no_extend.Append('\"');
   }
-}
-
-
-template <typename ResultType, typename Char>
-Handle<String> BasicJsonStringifier::StringifyString_(Isolate* isolate,
-                                                      Vector<Char> vector,
-                                                      Handle<String> result) {
-  DisallowHeapAllocation no_gc;
-  int final_size = 0;
-  ResultType* dest = ResultType::cast(*result);
-  dest->Set(final_size++, '\"');
-  final_size += SerializeStringUnchecked_(vector.start(),
-                                          dest->GetChars() + 1,
-                                          vector.length());
-  dest->Set(final_size++, '\"');
-  return SeqString::Truncate(Handle<SeqString>::cast(result), final_size);
-}
-
-
-template <bool is_one_byte, typename Char>
-void BasicJsonStringifier::Append_(Char c) {
-  if (is_one_byte) {
-    SeqOneByteString::cast(*current_part_)->SeqOneByteStringSet(
-        current_index_++, c);
-  } else {
-    SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
-        current_index_++, c);
-  }
-  if (current_index_ == part_length_) Extend();
-}
-
-
-template <bool is_one_byte, typename Char>
-void BasicJsonStringifier::Append_(const Char* chars) {
-  for (; *chars != '\0'; chars++) Append_<is_one_byte, Char>(*chars);
+  return result;
 }
 
 
@@ -345,7 +246,7 @@ MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   if (!fun->IsJSFunction()) return object;
 
   // Call toJSON function.
-  if (key->IsSmi()) key = factory_->NumberToString(key);
+  if (key->IsSmi()) key = factory()->NumberToString(key);
   Handle<Object> argv[] = { key };
   HandleScope scope(isolate_);
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -372,7 +273,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
         Handle<Object> error;
-        MaybeHandle<Object> maybe_error = factory_->NewTypeError(
+        MaybeHandle<Object> maybe_error = factory()->NewTypeError(
             "circular_structure", HandleVector<Object>(NULL, 0));
         if (maybe_error.ToHandle(&error)) isolate_->Throw(*error);
         return EXCEPTION;
@@ -416,15 +317,15 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
       switch (Oddball::cast(*object)->kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          AppendOneByte("false");
+          builder_.AppendCString("false");
           return SUCCESS;
         case Oddball::kTrue:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          AppendOneByte("true");
+          builder_.AppendCString("true");
           return SUCCESS;
         case Oddball::kNull:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          AppendOneByte("null");
+          builder_.AppendCString("null");
           return SUCCESS;
         default:
           return UNCHANGED;
@@ -472,23 +373,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
       EXCEPTION);
   if (result->IsUndefined()) return UNCHANGED;
   if (deferred_key) {
-    if (key->IsSmi()) key = factory_->NumberToString(key);
+    if (key->IsSmi()) key = factory()->NumberToString(key);
     SerializeDeferredKey(deferred_comma, key);
   }
 
-  Handle<String> result_string = Handle<String>::cast(result);
-  // Shrink current part, attach it to the accumulator, also attach the result
-  // string to the accumulator, and allocate a new part.
-  ShrinkCurrentPart();  // Shrink.
-  part_length_ = kInitialPartLength;  // Allocate conservatively.
-  Extend();             // Attach current part and allocate new part.
-  // Attach result string to the accumulator.
-  Handle<String> cons;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, cons,
-      factory_->NewConsString(accumulator(), result_string),
-      EXCEPTION);
-  set_accumulator(cons);
+  builder_.AppendString(Handle<String>::cast(result));
   return SUCCESS;
 }
 
@@ -511,7 +400,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     DCHECK(class_name == isolate_->heap()->Boolean_string());
     Object* value = JSValue::cast(*object)->value();
     DCHECK(value->IsBoolean());
-    AppendOneByte(value->IsTrue() ? "true" : "false");
+    builder_.AppendCString(value->IsTrue() ? "true" : "false");
   }
   return SUCCESS;
 }
@@ -521,7 +410,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeSmi(Smi* object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
-  AppendOneByte(IntToCString(object->value(), buffer));
+  builder_.AppendCString(IntToCString(object->value(), buffer));
   return SUCCESS;
 }
 
@@ -529,13 +418,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeSmi(Smi* object) {
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeDouble(
     double number) {
   if (std::isinf(number) || std::isnan(number)) {
-    AppendOneByte("null");
+    builder_.AppendCString("null");
     return SUCCESS;
   }
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
-  AppendOneByte(DoubleToCString(number, buffer));
+  builder_.AppendCString(DoubleToCString(number, buffer));
   return SUCCESS;
 }
 
@@ -547,13 +436,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   if (stack_push != SUCCESS) return stack_push;
   uint32_t length = 0;
   CHECK(object->length()->ToArrayIndex(&length));
-  Append('[');
+  builder_.AppendCharacter('[');
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS: {
       Handle<FixedArray> elements(
           FixedArray::cast(object->elements()), isolate_);
       for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) Append(',');
+        if (i > 0) builder_.AppendCharacter(',');
         SerializeSmi(Smi::cast(elements->get(i)));
       }
       break;
@@ -564,7 +453,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       Handle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(object->elements()), isolate_);
       for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) Append(',');
+        if (i > 0) builder_.AppendCharacter(',');
         SerializeDouble(elements->get_scalar(i));
       }
       break;
@@ -573,14 +462,14 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       Handle<FixedArray> elements(
           FixedArray::cast(object->elements()), isolate_);
       for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) Append(',');
+        if (i > 0) builder_.AppendCharacter(',');
         Result result =
             SerializeElement(isolate_,
                              Handle<Object>(elements->get(i), isolate_),
                              i);
         if (result == SUCCESS) continue;
         if (result == UNCHANGED) {
-          AppendOneByte("null");
+          builder_.AppendCString("null");
         } else {
           return result;
         }
@@ -596,9 +485,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       break;
     }
   }
-  Append(']');
+  builder_.AppendCharacter(']');
   StackPop();
-  current_part_ = handle_scope.CloseAndEscape(current_part_);
   return SUCCESS;
 }
 
@@ -606,19 +494,19 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
     Handle<JSArray> object, uint32_t length) {
   for (uint32_t i = 0; i < length; i++) {
-    if (i > 0) Append(',');
+    if (i > 0) builder_.AppendCharacter(',');
     Handle<Object> element;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, element,
         Object::GetElement(isolate_, object, i),
         EXCEPTION);
     if (element->IsUndefined()) {
-      AppendOneByte("null");
+      builder_.AppendCString("null");
     } else {
       Result result = SerializeElement(isolate_, element, i);
       if (result == SUCCESS) continue;
       if (result == UNCHANGED) {
-        AppendOneByte("null");
+        builder_.AppendCString("null");
       } else {
         return result;
       }
@@ -635,7 +523,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   if (stack_push != SUCCESS) return stack_push;
   DCHECK(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
 
-  Append('{');
+  builder_.AppendCharacter('{');
   bool comma = false;
 
   if (object->HasFastProperties() &&
@@ -652,8 +540,15 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.type() == FIELD && *map == object->map()) {
-        property = Handle<Object>(object->RawFastPropertyAt(
-            FieldIndex::ForDescriptor(*map, i)), isolate_);
+        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+        Isolate* isolate = object->GetIsolate();
+        if (object->IsUnboxedDoubleField(field_index)) {
+          double value = object->RawFastDoublePropertyAt(field_index);
+          property = isolate->factory()->NewHeapNumber(value);
+
+        } else {
+          property = handle(object->RawFastPropertyAt(field_index), isolate);
+        }
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,
@@ -680,7 +575,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
         maybe_property = Object::GetPropertyOrElement(object, key_handle);
       } else {
         DCHECK(key->IsNumber());
-        key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
+        key_handle = factory()->NumberToString(Handle<Object>(key, isolate_));
         uint32_t index;
         if (key->IsSmi()) {
           maybe_property = Object::GetElement(
@@ -700,130 +595,59 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
     }
   }
 
-  Append('}');
+  builder_.AppendCharacter('}');
   StackPop();
-  current_part_ = handle_scope.CloseAndEscape(current_part_);
   return SUCCESS;
 }
 
 
-void BasicJsonStringifier::ShrinkCurrentPart() {
-  DCHECK(current_index_ < part_length_);
-  current_part_ = SeqString::Truncate(Handle<SeqString>::cast(current_part_),
-                                      current_index_);
-}
+template <typename SrcChar, typename DestChar>
+void BasicJsonStringifier::SerializeStringUnchecked_(
+    Vector<const SrcChar> src,
+    IncrementalStringBuilder::NoExtend<DestChar>* dest) {
+  // Assert that uc16 character is not truncated down to 8 bit.
+  // The <uc16, char> version of this method must not be called.
+  DCHECK(sizeof(DestChar) >= sizeof(SrcChar));
 
-
-void BasicJsonStringifier::Accumulate() {
-  if (accumulator()->length() + current_part_->length() > String::kMaxLength) {
-    // Screw it.  Simply set the flag and carry on.  Throw exception at the end.
-    set_accumulator(factory_->empty_string());
-    overflowed_ = true;
-  } else {
-    set_accumulator(factory_->NewConsString(accumulator(),
-                                            current_part_).ToHandleChecked());
+  for (int i = 0; i < src.length(); i++) {
+    SrcChar c = src[i];
+    if (DoNotEscape(c)) {
+      dest->Append(c);
+    } else {
+      dest->AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
+    }
   }
-}
-
-
-void BasicJsonStringifier::Extend() {
-  Accumulate();
-  if (part_length_ <= kMaxPartLength / kPartLengthGrowthFactor) {
-    part_length_ *= kPartLengthGrowthFactor;
-  }
-  if (is_one_byte_) {
-    current_part_ =
-        factory_->NewRawOneByteString(part_length_).ToHandleChecked();
-  } else {
-    current_part_ =
-        factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
-  }
-  DCHECK(!current_part_.is_null());
-  current_index_ = 0;
-}
-
-
-void BasicJsonStringifier::ChangeEncoding() {
-  ShrinkCurrentPart();
-  Accumulate();
-  current_part_ =
-      factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
-  DCHECK(!current_part_.is_null());
-  current_index_ = 0;
-  is_one_byte_ = false;
 }
 
 
 template <typename SrcChar, typename DestChar>
-int BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
-                                                    DestChar* dest,
-                                                    int length) {
-  DestChar* dest_start = dest;
-
-  // Assert that uc16 character is not truncated down to 8 bit.
-  // The <uc16, char> version of this method must not be called.
-  DCHECK(sizeof(*dest) >= sizeof(*src));
-
-  for (int i = 0; i < length; i++) {
-    SrcChar c = src[i];
-    if (DoNotEscape(c)) {
-      *(dest++) = static_cast<DestChar>(c);
-    } else {
-      const uint8_t* chars = reinterpret_cast<const uint8_t*>(
-          &JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
-      while (*chars != '\0') *(dest++) = *(chars++);
-    }
-  }
-
-  return static_cast<int>(dest - dest_start);
-}
-
-
-template <bool is_one_byte, typename Char>
 void BasicJsonStringifier::SerializeString_(Handle<String> string) {
   int length = string->length();
-  Append_<is_one_byte, char>('"');
+  builder_.Append<uint8_t, DestChar>('"');
   // We make a rough estimate to find out if the current string can be
   // serialized without allocating a new string part. The worst case length of
   // an escaped character is 6.  Shifting the remainin string length right by 3
   // is a more pessimistic estimate, but faster to calculate.
-
-  if (((part_length_ - current_index_) >> 3) > length) {
+  int worst_case_length = length << 3;
+  if (builder_.CurrentPartCanFit(worst_case_length)) {
     DisallowHeapAllocation no_gc;
-    Vector<const Char> vector = GetCharVector<Char>(string);
-    if (is_one_byte) {
-      current_index_ += SerializeStringUnchecked_(
-          vector.start(),
-          SeqOneByteString::cast(*current_part_)->GetChars() + current_index_,
-          length);
-    } else {
-      current_index_ += SerializeStringUnchecked_(
-          vector.start(),
-          SeqTwoByteString::cast(*current_part_)->GetChars() + current_index_,
-          length);
-    }
+    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
+    IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
+        &builder_, worst_case_length);
+    SerializeStringUnchecked_(vector, &no_extend);
   } else {
-    String* string_location = NULL;
-    Vector<const Char> vector(NULL, 0);
-    for (int i = 0; i < length; i++) {
-      // If GC moved the string, we need to refresh the vector.
-      if (*string != string_location) {
-        DisallowHeapAllocation no_gc;
-        // This does not actually prevent the string from being relocated later.
-        vector = GetCharVector<Char>(string);
-        string_location = *string;
-      }
-      Char c = vector[i];
+    FlatStringReader reader(isolate_, string);
+    for (int i = 0; i < reader.length(); i++) {
+      SrcChar c = reader.Get<SrcChar>(i);
       if (DoNotEscape(c)) {
-        Append_<is_one_byte, Char>(c);
+        builder_.Append<SrcChar, DestChar>(c);
       } else {
-        Append_<is_one_byte, uint8_t>(reinterpret_cast<const uint8_t*>(
-            &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
+        builder_.AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
       }
     }
   }
 
-  Append_<is_one_byte, uint8_t>('"');
+  builder_.Append<uint8_t, DestChar>('"');
 }
 
 
@@ -839,37 +663,20 @@ bool BasicJsonStringifier::DoNotEscape(uint16_t c) {
 }
 
 
-template <>
-Vector<const uint8_t> BasicJsonStringifier::GetCharVector(
-    Handle<String> string) {
-  String::FlatContent flat = string->GetFlatContent();
-  DCHECK(flat.IsOneByte());
-  return flat.ToOneByteVector();
-}
-
-
-template <>
-Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
-  String::FlatContent flat = string->GetFlatContent();
-  DCHECK(flat.IsTwoByte());
-  return flat.ToUC16Vector();
-}
-
-
 void BasicJsonStringifier::SerializeString(Handle<String> object) {
   object = String::Flatten(object);
-  if (is_one_byte_) {
+  if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
     if (object->IsOneByteRepresentationUnderneath()) {
-      SerializeString_<true, uint8_t>(object);
+      SerializeString_<uint8_t, uint8_t>(object);
     } else {
-      ChangeEncoding();
+      builder_.ChangeEncoding();
       SerializeString(object);
     }
   } else {
     if (object->IsOneByteRepresentationUnderneath()) {
-      SerializeString_<false, uint8_t>(object);
+      SerializeString_<uint8_t, uc16>(object);
     } else {
-      SerializeString_<false, uc16>(object);
+      SerializeString_<uc16, uc16>(object);
     }
   }
 }

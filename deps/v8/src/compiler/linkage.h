@@ -187,10 +187,11 @@ class Linkage : public ZoneObject {
 
   CallDescriptor* GetStubCallDescriptor(
       const CallInterfaceDescriptor& descriptor, int stack_parameter_count = 0,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags) const;
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags,
+      Operator::Properties properties = Operator::kNoProperties) const;
   static CallDescriptor* GetStubCallDescriptor(
       const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-      CallDescriptor::Flags flags, Zone* zone);
+      CallDescriptor::Flags flags, Operator::Properties properties, Zone* zone);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports

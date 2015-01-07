@@ -30,46 +30,7 @@ function DoConstructRegExp(object, pattern, flags) {
   pattern = IS_UNDEFINED(pattern) ? '' : ToString(pattern);
   flags = IS_UNDEFINED(flags) ? '' : ToString(flags);
 
-  var global = false;
-  var ignoreCase = false;
-  var multiline = false;
-  var sticky = false;
-  for (var i = 0; i < flags.length; i++) {
-    var c = %_CallFunction(flags, i, StringCharAt);
-    switch (c) {
-      case 'g':
-        if (global) {
-          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-        }
-        global = true;
-        break;
-      case 'i':
-        if (ignoreCase) {
-          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-        }
-        ignoreCase = true;
-        break;
-      case 'm':
-        if (multiline) {
-          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-        }
-        multiline = true;
-        break;
-      case 'y':
-        if (!harmony_regexps || sticky) {
-          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-        }
-        sticky = true;
-        break;
-      default:
-        throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-    }
-  }
-
-  %RegExpInitializeObject(object, pattern, global, ignoreCase, multiline, sticky);
-
-  // Call internal function to compile the pattern.
-  %RegExpCompile(object, pattern, flags);
+  %RegExpInitializeAndCompile(object, pattern, flags);
 }
 
 

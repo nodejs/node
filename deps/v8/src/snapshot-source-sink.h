@@ -19,12 +19,19 @@ namespace internal {
  */
 class SnapshotByteSource FINAL {
  public:
-  SnapshotByteSource(const byte* array, int length);
-  ~SnapshotByteSource();
+  SnapshotByteSource(const char* data, int length)
+      : data_(reinterpret_cast<const byte*>(data)),
+        length_(length),
+        position_(0) {}
+
+  explicit SnapshotByteSource(Vector<const byte> payload)
+      : data_(payload.start()), length_(payload.length()), position_(0) {}
+
+  ~SnapshotByteSource() {}
 
   bool HasMore() { return position_ < length_; }
 
-  int Get() {
+  byte Get() {
     DCHECK(position_ < length_);
     return data_[position_++];
   }
@@ -83,8 +90,7 @@ class SnapshotByteSink {
   }
 
   void PutInt(uintptr_t integer, const char* description);
-  void PutRaw(byte* data, int number_of_bytes, const char* description);
-  void PutBlob(byte* data, int number_of_bytes, const char* description);
+  void PutRaw(const byte* data, int number_of_bytes, const char* description);
   int Position() { return data_.length(); }
 
   const List<byte>& data() const { return data_; }

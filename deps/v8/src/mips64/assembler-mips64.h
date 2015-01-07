@@ -886,6 +886,7 @@ class Assembler : public AssemblerBase {
   void clz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
 
   // --------Coprocessor-instructions----------------
 

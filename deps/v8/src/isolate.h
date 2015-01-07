@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include <queue>
 #include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
@@ -390,8 +391,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, fp_stubs_generated, false)                                           \
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  V(InterruptCallback, api_interrupt_callback, NULL)                           \
-  V(void*, api_interrupt_callback_data, NULL)                                  \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
@@ -486,6 +485,7 @@ class Isolate {
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
+    DCHECK(base::NoBarrier_Load(&isolate_key_created_) == 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
     DCHECK(isolate != NULL);
@@ -493,6 +493,7 @@ class Isolate {
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
+    DCHECK(base::NoBarrier_Load(&isolate_key_created_) == 1);
     return reinterpret_cast<Isolate*>(
         base::Thread::GetThreadLocal(isolate_key_));
   }
@@ -760,6 +761,8 @@ class Isolate {
   bool MayIndexedAccess(Handle<JSObject> receiver,
                         uint32_t index,
                         v8::AccessType type);
+  bool IsInternallyUsedPropertyName(Handle<Object> name);
+  bool IsInternallyUsedPropertyName(Object* name);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver, v8::AccessType type);
@@ -812,7 +815,8 @@ class Isolate {
   Object* TerminateExecution();
   void CancelTerminateExecution();
 
-  void InvokeApiInterruptCallback();
+  void RequestInterrupt(InterruptCallback callback, void* data);
+  void InvokeApiInterruptCallbacks();
 
   // Administration
   void Iterate(ObjectVisitor* v);
@@ -821,9 +825,8 @@ class Isolate {
   void IterateThread(ThreadVisitor* v, char* t);
 
 
-  // Returns the current native and global context.
+  // Returns the current native context.
   Handle<Context> native_context();
-  Handle<Context> global_context();
 
   // Returns the native context of the calling JavaScript code.  That
   // is, the native context of the top-most JavaScript frame.
@@ -1065,6 +1068,8 @@ class Isolate {
   HTracer* GetHTracer();
   CodeTracer* GetCodeTracer();
 
+  void DumpAndResetCompilationStats();
+
   FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
   void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
     function_entry_hook_ = function_entry_hook;
@@ -1108,6 +1113,10 @@ class Isolate {
   static Isolate* NewForTesting() { return new Isolate(false); }
 
   std::string GetTurboCfgFileName();
+
+#if TRACE_MAPS
+  int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
+#endif
 
  private:
   explicit Isolate(bool enable_serializer);
@@ -1172,6 +1181,10 @@ class Isolate {
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
 
+#if DEBUG
+  static base::Atomic32 isolate_key_created_;
+#endif
+
   void Deinit();
 
   static void SetIsolateThreadLocals(Isolate* isolate,
@@ -1221,7 +1234,6 @@ class Isolate {
   Counters* counters_;
   CodeRange* code_range_;
   base::RecursiveMutex break_access_;
-  base::Atomic32 debugger_initialized_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
@@ -1282,6 +1294,9 @@ class Isolate {
   HeapProfiler* heap_profiler_;
   FunctionEntryHook function_entry_hook_;
 
+  typedef std::pair<InterruptCallback, void*> InterruptEntry;
+  std::queue<InterruptEntry> api_interrupts_queue_;
+
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;
   ISOLATE_INIT_LIST(GLOBAL_BACKING_STORE)
@@ -1310,6 +1325,10 @@ class Isolate {
   unsigned int stress_deopt_count_;
 
   int next_optimization_id_;
+
+#if TRACE_MAPS
+  int next_unique_sfi_id_;
+#endif
 
   // List of callbacks when a Call completes.
   List<CallCompletedCallback> call_completed_callbacks_;

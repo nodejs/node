@@ -255,8 +255,6 @@ namespace internal {
 
 %(sources_declaration)s\
 
-%(raw_sources_declaration)s\
-
   template <>
   int NativesCollection<%(type)s>::GetBuiltinsCount() {
     return %(builtin_count)i;
@@ -274,13 +272,8 @@ namespace internal {
   }
 
   template <>
-  int NativesCollection<%(type)s>::GetRawScriptsSize() {
-    return %(raw_total_length)i;
-  }
-
-  template <>
-  Vector<const char> NativesCollection<%(type)s>::GetRawScriptSource(int index) {
-%(get_raw_script_source_cases)s\
+  Vector<const char> NativesCollection<%(type)s>::GetScriptSource(int index) {
+%(get_script_source_cases)s\
     return Vector<const char>("", 0);
   }
 
@@ -291,32 +284,15 @@ namespace internal {
   }
 
   template <>
-  Vector<const byte> NativesCollection<%(type)s>::GetScriptsSource() {
-    return Vector<const byte>(sources, %(total_length)i);
+  Vector<const char> NativesCollection<%(type)s>::GetScriptsSource() {
+    return Vector<const char>(sources, %(total_length)i);
   }
-
-  template <>
-  void NativesCollection<%(type)s>::SetRawScriptsSource(Vector<const char> raw_source) {
-    DCHECK(%(raw_total_length)i == raw_source.length());
-    raw_sources = raw_source.start();
-  }
-
 }  // internal
 }  // v8
 """
 
 SOURCES_DECLARATION = """\
-  static const byte sources[] = { %s };
-"""
-
-
-RAW_SOURCES_COMPRESSION_DECLARATION = """\
-  static const char* raw_sources = NULL;
-"""
-
-
-RAW_SOURCES_DECLARATION = """\
-  static const char* raw_sources = reinterpret_cast<const char*>(sources);
+  static const char sources[] = { %s };
 """
 
 
@@ -325,8 +301,8 @@ GET_INDEX_CASE = """\
 """
 
 
-GET_RAW_SCRIPT_SOURCE_CASE = """\
-    if (index == %(i)i) return Vector<const char>(raw_sources + %(offset)i, %(raw_length)i);
+GET_SCRIPT_SOURCE_CASE = """\
+    if (index == %(i)i) return Vector<const char>(sources + %(offset)i, %(source_length)i);
 """
 
 
@@ -440,7 +416,7 @@ def BuildMetadata(sources, source_bytes, native_type):
   # Loop over modules and build up indices into the source blob:
   get_index_cases = []
   get_script_name_cases = []
-  get_raw_script_source_cases = []
+  get_script_source_cases = []
   offset = 0
   for i in xrange(len(sources.modules)):
     native_name = "native %s.js" % sources.names[i]
@@ -450,51 +426,25 @@ def BuildMetadata(sources, source_bytes, native_type):
         "name": native_name,
         "length": len(native_name),
         "offset": offset,
-        "raw_length": len(sources.modules[i]),
+        "source_length": len(sources.modules[i]),
     }
     get_index_cases.append(GET_INDEX_CASE % d)
     get_script_name_cases.append(GET_SCRIPT_NAME_CASE % d)
-    get_raw_script_source_cases.append(GET_RAW_SCRIPT_SOURCE_CASE % d)
+    get_script_source_cases.append(GET_SCRIPT_SOURCE_CASE % d)
     offset += len(sources.modules[i])
   assert offset == len(raw_sources)
-
-  # If we have the raw sources we can declare them accordingly.
-  have_raw_sources = source_bytes == raw_sources
-  raw_sources_declaration = (RAW_SOURCES_DECLARATION
-      if have_raw_sources else RAW_SOURCES_COMPRESSION_DECLARATION)
 
   metadata = {
     "builtin_count": len(sources.modules),
     "debugger_count": sum(sources.is_debugger_id),
     "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
-    "raw_sources_declaration": raw_sources_declaration,
-    "raw_total_length": sum(map(len, sources.modules)),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
-    "get_raw_script_source_cases": "".join(get_raw_script_source_cases),
+    "get_script_source_cases": "".join(get_script_source_cases),
     "get_script_name_cases": "".join(get_script_name_cases),
     "type": native_type,
   }
   return metadata
-
-
-def CompressMaybe(sources, compression_type):
-  """Take the prepared sources and generate a sequence of bytes.
-
-  Args:
-    sources: A Sources instance with the prepared sourced.
-    compression_type: string, describing the desired compression.
-
-  Returns:
-    A sequence of bytes.
-  """
-  sources_bytes = "".join(sources.modules)
-  if compression_type == "off":
-    return sources_bytes
-  elif compression_type == "bz2":
-    return bz2.compress(sources_bytes)
-  else:
-    raise Error("Unknown compression type %s." % compression_type)
 
 
 def PutInt(blob_file, value):
@@ -545,9 +495,9 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(source, target, native_type, compression_type, raw_file, startup_blob):
+def JS2C(source, target, native_type, raw_file, startup_blob):
   sources = PrepareSources(source)
-  sources_bytes = CompressMaybe(sources, compression_type)
+  sources_bytes = "".join(sources.modules)
   metadata = BuildMetadata(sources, sources_bytes, native_type)
 
   # Optionally emit raw file.
@@ -571,14 +521,13 @@ def main():
                     help="file to write the processed sources array to.")
   parser.add_option("--startup_blob", action="store",
                     help="file to write the startup blob to.")
-  parser.set_usage("""js2c out.cc type compression sources.js ...
+  parser.set_usage("""js2c out.cc type sources.js ...
       out.cc: C code to be generated.
       type: type parameter for NativesCollection template.
-      compression: type of compression used. [off|bz2]
       sources.js: JS internal sources or macros.py.""")
   (options, args) = parser.parse_args()
 
-  JS2C(args[3:], args[0], args[1], args[2], options.raw, options.startup_blob)
+  JS2C(args[2:], args[0], args[1], options.raw, options.startup_blob)
 
 
 if __name__ == "__main__":

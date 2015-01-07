@@ -118,6 +118,9 @@ base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
+#if DEBUG
+base::Atomic32 Isolate::isolate_key_created_ = 0;
+#endif
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
@@ -157,6 +160,9 @@ void Isolate::InitializeOncePerProcess() {
   base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
   CHECK(thread_data_table_ == NULL);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
+#if DEBUG
+  base::NoBarrier_Store(&isolate_key_created_, 1);
+#endif
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
   thread_data_table_ = new Isolate::ThreadDataTable();
@@ -796,14 +802,26 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 }
 
 
+bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
+  return name.is_identical_to(factory()->hidden_string()) ||
+         name.is_identical_to(factory()->prototype_users_symbol());
+}
+
+
+bool Isolate::IsInternallyUsedPropertyName(Object* name) {
+  return name == heap()->hidden_string() ||
+         name == heap()->prototype_users_symbol();
+}
+
+
 bool Isolate::MayNamedAccess(Handle<JSObject> receiver,
                              Handle<Object> key,
                              v8::AccessType type) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
-  // Skip checks for hidden properties access.  Note, we do not
+  // Skip checks for internally used properties. Note, we do not
   // require existence of a context in this case.
-  if (key.is_identical_to(factory()->hidden_string())) return true;
+  if (IsInternallyUsedPropertyName(key)) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
@@ -911,22 +929,26 @@ void Isolate::CancelTerminateExecution() {
 }
 
 
-void Isolate::InvokeApiInterruptCallback() {
-  // Note: callback below should be called outside of execution access lock.
-  InterruptCallback callback = NULL;
-  void* data = NULL;
-  {
-    ExecutionAccess access(this);
-    callback = api_interrupt_callback_;
-    data = api_interrupt_callback_data_;
-    api_interrupt_callback_ = NULL;
-    api_interrupt_callback_data_ = NULL;
-  }
+void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
+  ExecutionAccess access(this);
+  api_interrupts_queue_.push(InterruptEntry(callback, data));
+  stack_guard()->RequestApiInterrupt();
+}
 
-  if (callback != NULL) {
+
+void Isolate::InvokeApiInterruptCallbacks() {
+  // Note: callback below should be called outside of execution access lock.
+  while (true) {
+    InterruptEntry entry;
+    {
+      ExecutionAccess access(this);
+      if (api_interrupts_queue_.empty()) return;
+      entry = api_interrupts_queue_.front();
+      api_interrupts_queue_.pop();
+    }
     VMState<EXTERNAL> state(this);
     HandleScope handle_scope(this);
-    callback(reinterpret_cast<v8::Isolate*>(this), data);
+    entry.first(reinterpret_cast<v8::Isolate*>(this), entry.second);
   }
 }
 
@@ -1485,11 +1507,6 @@ Handle<Context> Isolate::native_context() {
 }
 
 
-Handle<Context> Isolate::global_context() {
-  return handle(context()->global_object()->global_context());
-}
-
-
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
   if (debug_->in_debug_scope()) {
@@ -1650,6 +1667,9 @@ Isolate::Isolate(bool enable_serializer)
       optimizing_compiler_thread_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
+#if TRACE_MAPS
+      next_unique_sfi_id_(0),
+#endif
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL) {
   {
@@ -1745,11 +1765,7 @@ void Isolate::Deinit() {
     heap_.mark_compact_collector()->EnsureSweepingCompleted();
   }
 
-  if (turbo_statistics() != NULL) {
-    OFStream os(stdout);
-    os << *turbo_statistics() << std::endl;
-  }
-  if (FLAG_hydrogen_stats) GetHStatistics()->Print();
+  DumpAndResetCompilationStats();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2148,6 +2164,8 @@ bool Isolate::Init(Deserializer* des) {
 
   initialized_from_snapshot_ = (des != NULL);
 
+  if (!FLAG_inline_new) heap_.DisableInlineAllocation();
+
   return true;
 }
 
@@ -2251,6 +2269,19 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 }
 
 
+void Isolate::DumpAndResetCompilationStats() {
+  if (turbo_statistics() != nullptr) {
+    OFStream os(stdout);
+    os << *turbo_statistics() << std::endl;
+  }
+  if (hstatistics() != nullptr) hstatistics()->Print();
+  delete turbo_statistics_;
+  turbo_statistics_ = nullptr;
+  delete hstatistics_;
+  hstatistics_ = nullptr;
+}
+
+
 HStatistics* Isolate::GetHStatistics() {
   if (hstatistics() == NULL) set_hstatistics(new HStatistics());
   return hstatistics();
@@ -2350,13 +2381,13 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
     heap()->set_symbol_registry(*registry);
 
-    static const char* nested[] = {
-      "for", "for_api", "for_intern", "keyFor", "private_api", "private_intern"
-    };
+    static const char* nested[] = {"for", "for_api", "keyFor", "private_api",
+                                   "private_intern"};
     for (unsigned i = 0; i < arraysize(nested); ++i) {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
-      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
+      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8,
+                                    "SetupSymbolRegistry");
       JSObject::SetProperty(registry, name, obj, STRICT).Assert();
     }
   }

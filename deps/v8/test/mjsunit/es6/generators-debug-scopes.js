@@ -97,6 +97,7 @@ function CheckScopeChain(scopes, exec_state) {
     assertEquals(i, response.body.scopes[i].index);
     assertEquals(scopes[i], response.body.scopes[i].type);
     if (scopes[i] == debug.ScopeType.Local ||
+        scopes[i] == debug.ScopeType.Script ||
         scopes[i] == debug.ScopeType.Closure) {
       assertTrue(response.body.scopes[i].object.ref < 0);
     } else {
@@ -159,6 +160,7 @@ function CheckScopeContent(content, number, exec_state) {
   assertEquals(scope.scopeType(), response.body.type);
   assertEquals(number, response.body.index);
   if (scope.scopeType() == debug.ScopeType.Local ||
+      scope.scopeType() == debug.ScopeType.Script ||
       scope.scopeType() == debug.ScopeType.Closure) {
     assertTrue(response.body.object.ref < 0);
   } else {
@@ -178,6 +180,7 @@ RunTest("Local 1",
         [],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({}, 0, exec_state);
         });
@@ -188,6 +191,7 @@ RunTest("Local 2",
         [1],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({a:1}, 0, exec_state);
         });
@@ -198,6 +202,7 @@ RunTest("Local 3",
         [1],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({a:1,x:3}, 0, exec_state);
         });
@@ -208,6 +213,7 @@ RunTest("Local 4",
         [1, 2],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({a:1,b:2,x:3,y:4}, 0, exec_state);
         });
@@ -218,6 +224,7 @@ RunTest("Local 5",
         [],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({}, 0, exec_state);
         });
@@ -228,6 +235,7 @@ RunTest("Local 6",
         [],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({i:5}, 0, exec_state);
         });
@@ -242,6 +250,7 @@ RunTest("Local 7",
         [1, 2],
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6}, 0, exec_state);
         });
@@ -254,6 +263,7 @@ RunTest("With",
           CheckScopeChain([debug.ScopeType.With,
                            debug.ScopeType.With,
                            debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({}, 0, exec_state);
           CheckScopeContent({}, 1, exec_state);
@@ -267,6 +277,7 @@ RunTest("Closure 1",
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Local,
                            debug.ScopeType.Closure,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({a:1}, 1, exec_state);
         },
@@ -305,6 +316,7 @@ RunTest("The full monty",
                            debug.ScopeType.With,
                            debug.ScopeType.Closure,
                            debug.ScopeType.Closure,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({b:16}, 0, exec_state);
           CheckScopeContent({a:15}, 1, exec_state);
@@ -321,6 +333,7 @@ RunTest("Catch block 1",
         function (exec_state) {
           CheckScopeChain([debug.ScopeType.Catch,
                            debug.ScopeType.Local,
+                           debug.ScopeType.Script,
                            debug.ScopeType.Global], exec_state);
           CheckScopeContent({e:'Exception'}, 0, exec_state);
         });

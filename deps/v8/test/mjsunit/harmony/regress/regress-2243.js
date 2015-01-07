@@ -27,5 +27,5 @@
 
 // Flags: --harmony-scoping
 
-assertThrows("'use strict'; (function f() { f = 123; })", SyntaxError);
-assertThrows("(function f() { 'use strict'; f = 123; })", SyntaxError);
+assertThrows("'use strict'; (function f() { f = 123; })()", TypeError);
+assertThrows("(function f() { 'use strict'; f = 123; })()", TypeError);

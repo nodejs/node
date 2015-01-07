@@ -8,7 +8,7 @@
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/runtime/string-builder.h"
+#include "src/string-builder.h"
 #include "src/string-search.h"
 
 namespace v8 {

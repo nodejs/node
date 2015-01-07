@@ -167,6 +167,15 @@
   '15.2.3.14-1-2': [PASS, FAIL_OK],
   '15.2.3.14-1-3': [PASS, FAIL_OK],
 
+  # String.prototype.contains renamed to 'S.p.includes'
+  'String.prototype.contains_FailBadLocation' : [FAIL_OK],
+  'String.prototype.contains_FailLocation' : [FAIL_OK],
+  'String.prototype.contains_FailMissingLetter' : [FAIL_OK],
+  'String.prototype.contains_lengthProp' : [FAIL_OK],
+  'String.prototype.contains_Success' : [FAIL_OK],
+  'String.prototype.contains_SuccessNoLocation' : [FAIL_OK],
+
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run in debug mode.

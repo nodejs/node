@@ -79,10 +79,11 @@ function listener(event, exec_state, event_data, data) {
                          frame.argumentValue(j).value());
           }
 
-          // All frames except the bottom one have two scopes.
-          assertEquals(2, frame.scopeCount());
+          // All frames except the bottom one have three scopes.
+          assertEquals(3, frame.scopeCount());
           assertEquals(debug.ScopeType.Local, frame.scope(0).scopeType());
-          assertEquals(debug.ScopeType.Global, frame.scope(1).scopeType());
+          assertEquals(debug.ScopeType.Script, frame.scope(1).scopeType());
+          assertEquals(debug.ScopeType.Global, frame.scope(2).scopeType());
 
           Object.keys(expected_locals).forEach(function (name) {
             assertEquals(expected_locals[name],
@@ -124,9 +125,10 @@ function listener(event, exec_state, event_data, data) {
           assertEquals(expected_args_sum,
                        frame.evaluate(arguments_sum).value());
         } else {
-          // The bottom frame only have the global scope.
-          assertEquals(1, frame.scopeCount());
-          assertEquals(debug.ScopeType.Global, frame.scope(0).scopeType());
+          // The bottom frame only have the script scope and the global scope.
+          assertEquals(2, frame.scopeCount());
+          assertEquals(debug.ScopeType.Script, frame.scope(0).scopeType());
+          assertEquals(debug.ScopeType.Global, frame.scope(1).scopeType());
         }
 
         // Check the frame function.

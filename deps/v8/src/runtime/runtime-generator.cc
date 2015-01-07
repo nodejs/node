@@ -135,16 +135,14 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowGeneratorStateError) {
+RUNTIME_FUNCTION(Runtime_GeneratorClose) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-  int continuation = generator->continuation();
-  const char* message = continuation == JSGeneratorObject::kGeneratorClosed
-                            ? "generator_finished"
-                            : "generator_running";
-  Vector<Handle<Object> > argv = HandleVector<Object>(NULL, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewError(message, argv));
+
+  generator->set_continuation(JSGeneratorObject::kGeneratorClosed);
+
+  return isolate->heap()->undefined_value();
 }
 
 

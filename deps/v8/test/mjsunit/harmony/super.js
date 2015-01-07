@@ -1861,3 +1861,61 @@ function Subclass(base, constructor) {
   T1.__proto = null;
   assertThrows(function() { new T1(); }, TypeError);
 }());
+
+
+(function TestSuperCallSyntacticRestriction() {
+  assertThrows(function() {
+    function C() {
+        var y;
+        super();
+    }
+    new C();
+  }, TypeError);
+  assertThrows(function() {
+    function C() {
+      super(this.x);
+    }
+    new C();
+  }, TypeError);
+  assertThrows(function() {
+    function C() {
+      super(this);
+    }
+    new C();
+  }, TypeError);
+  assertThrows(function() {
+    function C() {
+      super(1, 2, Object.getPrototypeOf(this));
+    }
+    new C();
+  }, TypeError);
+  assertThrows(function() {
+    function C() {
+      { super(1, 2); }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    function C() {
+      if (1) super();
+    }; new C();
+  }, TypeError);
+
+  function C1() {
+    'use strict';
+    super();
+  };
+  new C1();
+
+  function C2() {
+    ; 'use strict';;;;;
+    super();
+  };
+  new C2();
+
+  function C3() {
+    ; 'use strict';;;;;
+    // This is a comment.
+    super();
+  }
+  new C3();
+}());

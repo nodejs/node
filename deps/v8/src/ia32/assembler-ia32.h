@@ -619,12 +619,14 @@ class Assembler : public AssemblerBase {
   void mov_b(Register dst, Register src) { mov_b(dst, Operand(src)); }
   void mov_b(Register dst, const Operand& src);
   void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
-  void mov_b(const Operand& dst, int8_t imm8);
+  void mov_b(const Operand& dst, int8_t src) { mov_b(dst, Immediate(src)); }
+  void mov_b(const Operand& dst, const Immediate& src);
   void mov_b(const Operand& dst, Register src);
 
   void mov_w(Register dst, const Operand& src);
+  void mov_w(const Operand& dst, int16_t src) { mov_w(dst, Immediate(src)); }
+  void mov_w(const Operand& dst, const Immediate& src);
   void mov_w(const Operand& dst, Register src);
-  void mov_w(const Operand& dst, int16_t imm16);
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
@@ -926,6 +928,17 @@ class Assembler : public AssemblerBase {
   void cpuid();
 
   // SSE instructions
+  void addss(XMMRegister dst, XMMRegister src) { addss(dst, Operand(src)); }
+  void addss(XMMRegister dst, const Operand& src);
+  void subss(XMMRegister dst, XMMRegister src) { subss(dst, Operand(src)); }
+  void subss(XMMRegister dst, const Operand& src);
+  void mulss(XMMRegister dst, XMMRegister src) { mulss(dst, Operand(src)); }
+  void mulss(XMMRegister dst, const Operand& src);
+  void divss(XMMRegister dst, XMMRegister src) { divss(dst, Operand(src)); }
+  void divss(XMMRegister dst, const Operand& src);
+
+  void ucomiss(XMMRegister dst, XMMRegister src) { ucomiss(dst, Operand(src)); }
+  void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
@@ -1049,6 +1062,182 @@ class Assembler : public AssemblerBase {
   // Parallel XMM operations.
   void movntdqa(XMMRegister dst, const Operand& src);
   void movntdq(const Operand& dst, XMMRegister src);
+
+  // AVX instructions
+  void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd132sd(dst, src1, Operand(src2));
+  }
+  void vfmadd213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd213sd(dst, src1, Operand(src2));
+  }
+  void vfmadd231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd231sd(dst, src1, Operand(src2));
+  }
+  void vfmadd132sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0x99, dst, src1, src2);
+  }
+  void vfmadd213sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xa9, dst, src1, src2);
+  }
+  void vfmadd231sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xb9, dst, src1, src2);
+  }
+  void vfmsub132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub132sd(dst, src1, Operand(src2));
+  }
+  void vfmsub213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub213sd(dst, src1, Operand(src2));
+  }
+  void vfmsub231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub231sd(dst, src1, Operand(src2));
+  }
+  void vfmsub132sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0x9b, dst, src1, src2);
+  }
+  void vfmsub213sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xab, dst, src1, src2);
+  }
+  void vfmsub231sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xbb, dst, src1, src2);
+  }
+  void vfnmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd132sd(dst, src1, Operand(src2));
+  }
+  void vfnmadd213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd213sd(dst, src1, Operand(src2));
+  }
+  void vfnmadd231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd231sd(dst, src1, Operand(src2));
+  }
+  void vfnmadd132sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0x9d, dst, src1, src2);
+  }
+  void vfnmadd213sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xad, dst, src1, src2);
+  }
+  void vfnmadd231sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xbd, dst, src1, src2);
+  }
+  void vfnmsub132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub132sd(dst, src1, Operand(src2));
+  }
+  void vfnmsub213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub213sd(dst, src1, Operand(src2));
+  }
+  void vfnmsub231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub231sd(dst, src1, Operand(src2));
+  }
+  void vfnmsub132sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0x9f, dst, src1, src2);
+  }
+  void vfnmsub213sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xaf, dst, src1, src2);
+  }
+  void vfnmsub231sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmasd(0xbf, dst, src1, src2);
+  }
+  void vfmasd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vfmadd132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd132ss(dst, src1, Operand(src2));
+  }
+  void vfmadd213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd213ss(dst, src1, Operand(src2));
+  }
+  void vfmadd231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmadd231ss(dst, src1, Operand(src2));
+  }
+  void vfmadd132ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0x99, dst, src1, src2);
+  }
+  void vfmadd213ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xa9, dst, src1, src2);
+  }
+  void vfmadd231ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xb9, dst, src1, src2);
+  }
+  void vfmsub132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub132ss(dst, src1, Operand(src2));
+  }
+  void vfmsub213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub213ss(dst, src1, Operand(src2));
+  }
+  void vfmsub231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmsub231ss(dst, src1, Operand(src2));
+  }
+  void vfmsub132ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0x9b, dst, src1, src2);
+  }
+  void vfmsub213ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xab, dst, src1, src2);
+  }
+  void vfmsub231ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xbb, dst, src1, src2);
+  }
+  void vfnmadd132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd132ss(dst, src1, Operand(src2));
+  }
+  void vfnmadd213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd213ss(dst, src1, Operand(src2));
+  }
+  void vfnmadd231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmadd231ss(dst, src1, Operand(src2));
+  }
+  void vfnmadd132ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0x9d, dst, src1, src2);
+  }
+  void vfnmadd213ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xad, dst, src1, src2);
+  }
+  void vfnmadd231ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xbd, dst, src1, src2);
+  }
+  void vfnmsub132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub132ss(dst, src1, Operand(src2));
+  }
+  void vfnmsub213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub213ss(dst, src1, Operand(src2));
+  }
+  void vfnmsub231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfnmsub231ss(dst, src1, Operand(src2));
+  }
+  void vfnmsub132ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0x9f, dst, src1, src2);
+  }
+  void vfnmsub213ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xaf, dst, src1, src2);
+  }
+  void vfnmsub231ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vfmass(0xbf, dst, src1, src2);
+  }
+  void vfmass(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vaddsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vaddsd(dst, src1, Operand(src2));
+  }
+  void vaddsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x58, dst, src1, src2);
+  }
+  void vsubsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsubsd(dst, src1, Operand(src2));
+  }
+  void vsubsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5c, dst, src1, src2);
+  }
+  void vmulsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmulsd(dst, src1, Operand(src2));
+  }
+  void vmulsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x59, dst, src1, src2);
+  }
+  void vdivsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vdivsd(dst, src1, Operand(src2));
+  }
+  void vdivsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5e, dst, src1, src2);
+  }
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal
@@ -1151,6 +1340,14 @@ class Assembler : public AssemblerBase {
   void emit_operand(Register reg, const Operand& adr);
 
   void emit_farith(int b1, int b2, int i);
+
+  // Emit vex prefix
+  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
+  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128 };
+  enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
+  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x2 };
+  inline void emit_vex_prefix(XMMRegister v, VectorLength l, SIMDPrefix pp,
+                              LeadingOpcode m, VexW w);
 
   // labels
   void print(Label* L);

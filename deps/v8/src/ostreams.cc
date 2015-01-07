@@ -28,7 +28,9 @@ OFStreamBase::int_type OFStreamBase::overflow(int_type c) {
 }
 
 
-OFStream::OFStream(FILE* f) : OFStreamBase(f), std::ostream(this) {}
+OFStream::OFStream(FILE* f) : OFStreamBase(f), std::ostream(this) {
+  DCHECK_NOT_NULL(f);
+}
 
 
 OFStream::~OFStream() {}

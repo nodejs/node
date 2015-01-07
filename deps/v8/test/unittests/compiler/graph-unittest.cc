@@ -4,8 +4,6 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include <ostream>  // NOLINT(readability/streams)
-
 #include "src/compiler/node-properties-inl.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
@@ -91,6 +89,20 @@ Matcher<Node*> GraphTest::IsFalseConstant() {
 Matcher<Node*> GraphTest::IsTrueConstant() {
   return IsHeapConstant(
       Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+}
+
+
+TypedGraphTest::TypedGraphTest(int num_parameters)
+    : GraphTest(num_parameters), typer_(graph(), MaybeHandle<Context>()) {}
+
+
+TypedGraphTest::~TypedGraphTest() {}
+
+
+Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
+  Node* node = GraphTest::Parameter(index);
+  NodeProperties::SetBounds(node, Bounds(type));
+  return node;
 }
 
 }  // namespace compiler
