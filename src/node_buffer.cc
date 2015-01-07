@@ -386,7 +386,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  node::Utf8Value str(args[1]);
+  node::Utf8Value str(args.GetIsolate(), args[1]);
   size_t str_length = str.length();
   size_t in_there = str_length;
   char* ptr = obj_data + start + str_length;

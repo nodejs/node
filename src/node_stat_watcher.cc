@@ -107,7 +107,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 3);
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(args.GetIsolate(), args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
 

@@ -76,8 +76,8 @@ using v8::Value;
     return env->ThrowError( \
         "expected object for " #obj " to contain string member " #member); \
   } \
-  node::Utf8Value _##member(obj->Get(OneByteString(env->isolate(), \
-                                                     #member))); \
+  node::Utf8Value _##member(env->isolate(), \
+      obj->Get(OneByteString(env->isolate(), #member))); \
   if ((*(const char **)valp = *_##member) == nullptr) \
     *(const char **)valp = "<unknown>";
 
@@ -215,7 +215,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
-  node::Utf8Value fwdfor(strfwdfor);
+  node::Utf8Value fwdfor(env->isolate(), strfwdfor);
 
   if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == nullptr)
     req.forwardedFor = const_cast<char*>("");
