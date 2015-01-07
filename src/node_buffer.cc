@@ -336,7 +336,7 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> target = args[0]->ToObject();
+  Local<Object> target = args[0]->ToObject(env->isolate());
 
   if (!HasInstance(target))
     return env->ThrowTypeError("first arg should be a Buffer");
@@ -421,7 +421,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> str = args[0]->ToString();
+  Local<String> str = args[0]->ToString(env->isolate());
 
   if (encoding == HEX && str->Length() % 2 != 0)
     return env->ThrowTypeError("Invalid hex string");
@@ -583,7 +583,7 @@ void ByteLength(const FunctionCallbackInfo<Value> &args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> s = args[0]->ToString();
+  Local<String> s = args[0]->ToString(env->isolate());
   enum encoding e = ParseEncoding(env->isolate(), args[1], UTF8);
 
   uint32_t size = StringBytes::Size(env->isolate(), s, e);

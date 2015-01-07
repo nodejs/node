@@ -421,7 +421,7 @@ class Parser : public BaseObject {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
       Local<Value> e = Exception::Error(env->parse_error_string());
-      Local<Object> obj = e->ToObject();
+      Local<Object> obj = e->ToObject(env->isolate());
       obj->Set(env->bytes_parsed_string(), nparsed_obj);
       obj->Set(env->code_string(),
                OneByteString(env->isolate(), http_errno_name(err)));
@@ -450,7 +450,7 @@ class Parser : public BaseObject {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
       Local<Value> e = env->parse_error_string();
-      Local<Object> obj = e->ToObject();
+      Local<Object> obj = e->ToObject(env->isolate());
       obj->Set(env->bytes_parsed_string(), Integer::New(env->isolate(), 0));
       obj->Set(env->code_string(),
                OneByteString(env->isolate(), http_errno_name(err)));

@@ -757,7 +757,7 @@ Local<Value> ErrnoException(Isolate* isolate,
     e = Exception::Error(cons2);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
@@ -819,7 +819,7 @@ Local<Value> UVException(Isolate* isolate,
     e = Exception::Error(cons2);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   // TODO(piscisaureus) errno should probably go
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
@@ -899,7 +899,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     e = Exception::Error(message);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
   if (path != nullptr) {
@@ -1350,9 +1350,9 @@ void AppendExceptionLine(Environment* env,
     goto print;
 
   err_obj->Set(env->message_string(),
-               String::Concat(arrow_str, msg->ToString()));
+               String::Concat(arrow_str, msg->ToString(env->isolate())));
   err_obj->Set(env->stack_string(),
-               String::Concat(arrow_str, stack->ToString()));
+               String::Concat(arrow_str, stack->ToString(env->isolate())));
   return;
 
  print:
@@ -1376,7 +1376,7 @@ static void ReportException(Environment* env,
   if (er->IsUndefined() || er->IsNull())
     trace_value = Undefined(env->isolate());
   else
-    trace_value = er->ToObject()->Get(env->stack_string());
+    trace_value = er->ToObject(env->isolate())->Get(env->stack_string());
 
   node::Utf8Value trace(trace_value);
 
@@ -1988,7 +1988,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Object> module = args[0]->ToObject();  // Cast
+  Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(args[1]);  // Cast
   const bool is_dlopen_error = uv_dlopen(*filename, &lib);
 
@@ -2002,7 +2002,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
-    errmsg = String::Concat(errmsg, args[1]->ToString());
+    errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
 #endif  // _WIN32
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
@@ -2031,7 +2031,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   modlist_addon = mp;
 
   Local<String> exports_string = env->exports_string();
-  Local<Object> exports = module->Get(exports_string)->ToObject();
+  Local<Object> exports = module->Get(exports_string)->ToObject(env->isolate());
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
@@ -2123,14 +2123,14 @@ void OnMessage(Handle<Message> message, Handle<Value> error) {
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module = args[0]->ToString();
+  Local<String> module = args[0]->ToString(env->isolate());
   node::Utf8Value module_v(module);
 
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
 
   if (cache->Has(module)) {
-    exports = cache->Get(module)->ToObject();
+    exports = cache->Get(module)->ToObject(env->isolate());
     args.GetReturnValue().Set(exports);
     return;
   }
@@ -2176,7 +2176,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module = args[0]->ToString();
+  Local<String> module = args[0]->ToString(env->isolate());
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module);
@@ -2792,8 +2792,8 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
-  V8::SetFatalErrorHandler(node::OnFatalError);
-  V8::AddMessageListener(OnMessage);
+  env->isolate()->SetFatalErrorHandler(node::OnFatalError);
+  env->isolate()->AddMessageListener(OnMessage);
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
@@ -3485,7 +3485,7 @@ void EmitBeforeExit(Environment* env) {
   Local<String> exit_code = FIXED_ONE_BYTE_STRING(env->isolate(), "exitCode");
   Local<Value> args[] = {
     FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
-    process_object->Get(exit_code)->ToInteger()
+    process_object->Get(exit_code)->ToInteger(env->isolate())
   };
   MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
 }

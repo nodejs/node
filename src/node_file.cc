@@ -927,7 +927,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Second argument needs to be a buffer");
   }
 
-  Local<Object> buffer_obj = args[1]->ToObject();
+  Local<Object> buffer_obj = args[1]->ToObject(env->isolate());
   char *buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
