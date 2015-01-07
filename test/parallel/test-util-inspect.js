@@ -243,4 +243,19 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect(Symbol('hi')), 'Symbol(hi)');
   assert.equal(util.inspect([Symbol()]), '[ Symbol() ]');
   assert.equal(util.inspect({ foo: Symbol() }), '{ foo: Symbol() }');
+
+  var options = { showHidden: true };
+  var subject = {};
+
+  subject[Symbol('symbol')] = 42;
+
+  assert.equal(util.inspect(subject), '{}');
+  assert.equal(util.inspect(subject, options), '{ [Symbol(symbol)]: 42 }');
+
+  subject = [1, 2, 3];
+  subject[Symbol('symbol')] = 42;
+
+  assert.equal(util.inspect(subject), '[ 1, 2, 3 ]');
+  assert.equal(util.inspect(subject, options), '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
+
 }
