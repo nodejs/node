@@ -23,11 +23,11 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-var args = ['--harmony', '--use-strict', '-i'];
+var args = ['--harmony', '--harmony_scoping', '--use-strict', '-i'];
 var child = spawn(process.execPath, args);
 
-var input = 'function x(){const y=1;y=2}\n';
-var expectOut = /^> SyntaxError: Assignment to constant variable.\n/;
+var input = '(function(){const y=1;y=2})()\n';
+var expectOut = /^> TypeError: Assignment to constant variable.\n/;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {
