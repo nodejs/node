@@ -189,6 +189,65 @@ void Assembler::emit_optional_rex_32(const Operand& op) {
 }
 
 
+// byte 1 of 3-byte VEX
+void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
+                                LeadingOpcode m) {
+  byte rxb = ~((reg.high_bit() << 2) | rm.high_bit()) << 5;
+  emit(rxb | m);
+}
+
+
+// byte 1 of 3-byte VEX
+void Assembler::emit_vex3_byte1(XMMRegister reg, const Operand& rm,
+                                LeadingOpcode m) {
+  byte rxb = ~((reg.high_bit() << 2) | rm.rex_) << 5;
+  emit(rxb | m);
+}
+
+
+// byte 1 of 2-byte VEX
+void Assembler::emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
+                                SIMDPrefix pp) {
+  byte rv = ~((reg.high_bit() << 4) | v.code()) << 3;
+  emit(rv | l | pp);
+}
+
+
+// byte 2 of 3-byte VEX
+void Assembler::emit_vex3_byte2(VexW w, XMMRegister v, VectorLength l,
+                                SIMDPrefix pp) {
+  emit(w | ((~v.code() & 0xf) << 3) | l | pp);
+}
+
+
+void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
+                                XMMRegister rm, VectorLength l, SIMDPrefix pp,
+                                LeadingOpcode mm, VexW w) {
+  if (rm.high_bit() || mm != k0F || w != kW0) {
+    emit_vex3_byte0();
+    emit_vex3_byte1(reg, rm, mm);
+    emit_vex3_byte2(w, vreg, l, pp);
+  } else {
+    emit_vex2_byte0();
+    emit_vex2_byte1(reg, vreg, l, pp);
+  }
+}
+
+
+void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
+                                const Operand& rm, VectorLength l,
+                                SIMDPrefix pp, LeadingOpcode mm, VexW w) {
+  if (rm.rex_ || mm != k0F || w != kW0) {
+    emit_vex3_byte0();
+    emit_vex3_byte1(reg, rm, mm);
+    emit_vex3_byte2(w, vreg, l, pp);
+  } else {
+    emit_vex2_byte0();
+    emit_vex2_byte1(reg, vreg, l, pp);
+  }
+}
+
+
 Address Assembler::target_address_at(Address pc,
                                      ConstantPoolArray* constant_pool) {
   return Memory::int32_at(pc) + pc + 4;

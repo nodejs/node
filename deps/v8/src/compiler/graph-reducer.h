@@ -5,16 +5,12 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
+#include "src/compiler/graph.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-// Forward declarations.
-class Graph;
-class Node;
-
 
 // Represents the result of trying to reduce a node in the graph.
 class Reduction FINAL {
@@ -55,20 +51,42 @@ class Reducer {
 // Performs an iterative reduction of a node graph.
 class GraphReducer FINAL {
  public:
-  explicit GraphReducer(Graph* graph);
+  GraphReducer(Graph* graph, Zone* zone);
 
   Graph* graph() const { return graph_; }
 
-  void AddReducer(Reducer* reducer) { reducers_.push_back(reducer); }
+  void AddReducer(Reducer* reducer);
 
   // Reduce a single node.
-  void ReduceNode(Node* node);
+  void ReduceNode(Node* const);
   // Reduce the whole graph.
   void ReduceGraph();
 
  private:
+  enum class State : uint8_t;
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
+
+  // Reduce a single node.
+  Reduction Reduce(Node* const);
+  // Reduce the node on top of the stack.
+  void ReduceTop();
+
+  // Node stack operations.
+  void Pop();
+  void Push(Node* node);
+
+  // Revisit queue operations.
+  bool Recurse(Node* node);
+  void Revisit(Node* node);
+
   Graph* graph_;
+  NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
+  ZoneStack<Node*> revisit_;
+  ZoneStack<NodeState> stack_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };

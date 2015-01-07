@@ -294,39 +294,55 @@ struct Tests : Rep {
     CHECK(T.Constant(fac->NewNumber(0))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(1))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.OtherSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.OtherSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.NegativeSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.NegativeSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.NegativeSignedSmall));
     if (SmiValuesAre31Bits()) {
-      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
+      CHECK(
+          !T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 1))
+                 ->Is(T.NegativeSignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
       CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
       CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
-      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
-      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSignedSmall));
-      CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
-      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
-      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 1))
+                ->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
+      CHECK(
+          T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.NegativeSigned32));
     }
-    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.OtherUnsigned32));
-    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.OtherUnsigned32));
-    CHECK(T.Constant(fac->NewNumber(0xffffffffu+1.0))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-0x7fffffff-2.0))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0x80000000u))->Is(T.NonNegativeSigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0xffffffffu))->Is(T.NonNegativeSigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0.1))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-10.1))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(10e60))->Is(T.Integral32));
     CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
     CHECK(T.Constant(fac->NewNumber(v8::base::OS::nan_value()))->Is(T.NaN));
-    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.Integral32));
   }
 
   void Range() {
@@ -904,7 +920,7 @@ struct Tests : Rep {
       if (type->IsRange()) {
         TypeHandle lub = Rep::BitsetType::New(
             Rep::BitsetType::Lub(type), T.region());
-        CHECK(lub->Is(T.Union(T.Integral32, T.OtherNumber)));
+        CHECK(lub->Is(T.PlainNumber));
       }
     }
 
@@ -934,10 +950,8 @@ struct Tests : Rep {
 
     CheckSub(T.Object, T.Receiver);
     CheckSub(T.Array, T.Object);
-    CheckSub(T.Function, T.Object);
     CheckSub(T.Proxy, T.Receiver);
     CheckUnordered(T.Object, T.Proxy);
-    CheckUnordered(T.Array, T.Function);
 
 
     // Subtyping between concrete structural types
@@ -973,7 +987,7 @@ struct Tests : Rep {
     CheckSub(T.NumberArray, T.Object);
     CheckUnordered(T.StringArray, T.AnyArray);
 
-    CheckSub(T.MethodFunction, T.Function);
+    CheckSub(T.MethodFunction, T.Object);
     CheckSub(T.NumberFunction1, T.Object);
     CheckUnordered(T.SignedFunction1, T.NumberFunction1);
     CheckUnordered(T.NumberFunction1, T.NumberFunction2);
@@ -1259,10 +1273,8 @@ struct Tests : Rep {
     CheckDisjoint(T.InternalizedString, T.Symbol);
     CheckOverlap(T.Object, T.Receiver);
     CheckOverlap(T.Array, T.Object);
-    CheckOverlap(T.Function, T.Object);
     CheckOverlap(T.Proxy, T.Receiver);
     CheckDisjoint(T.Object, T.Proxy);
-    CheckDisjoint(T.Array, T.Function);
 
     // Structural types
     CheckOverlap(T.ObjectClass, T.Object);
@@ -1286,7 +1298,7 @@ struct Tests : Rep {
     CheckOverlap(T.NumberArray, T.Array);
     CheckDisjoint(T.NumberArray, T.AnyArray);
     CheckDisjoint(T.NumberArray, T.StringArray);
-    CheckOverlap(T.MethodFunction, T.Function);
+    CheckOverlap(T.MethodFunction, T.Object);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction1);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction2);
     CheckDisjoint(T.NumberFunction1, T.NumberFunction2);
@@ -1456,11 +1468,11 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.NumberArray, T.String), T.Number);
 
     // Bitset-function
-    CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Function)));
+    CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Object)));
     CHECK(this->IsUnion(T.Union(T.NumberFunction1, T.Number)));
 
-    CheckEqual(T.Union(T.MethodFunction, T.Function), T.Function);
-    CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Function);
+    CheckEqual(T.Union(T.MethodFunction, T.Object), T.Object);
+    CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Object);
     CheckOverlap(T.Union(T.NumberFunction2, T.String), T.Object);
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number);
 
@@ -1528,7 +1540,7 @@ struct Tests : Rep {
     CheckEqual(
         T.Union(T.NumberFunction1, T.NumberFunction2),
         T.Union(T.NumberFunction2, T.NumberFunction1));
-    CheckSub(T.Union(T.SignedFunction1, T.MethodFunction), T.Function);
+    CheckSub(T.Union(T.SignedFunction1, T.MethodFunction), T.Object);
 
     // Union-union
     CheckEqual(
@@ -1689,11 +1701,11 @@ struct Tests : Rep {
 
     // Bitset-array
     CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
-    CheckEqual(T.Intersect(T.AnyArray, T.Function), T.None);
+    CheckEqual(T.Intersect(T.AnyArray, T.Proxy), T.None);
 
     // Bitset-function
     CheckEqual(T.Intersect(T.MethodFunction, T.Object), T.MethodFunction);
-    CheckEqual(T.Intersect(T.NumberFunction1, T.Array), T.None);
+    CheckEqual(T.Intersect(T.NumberFunction1, T.Proxy), T.None);
 
     // Bitset-union
     CheckEqual(
@@ -1829,6 +1841,32 @@ struct Tests : Rep {
       }
     }
     */
+  }
+
+  void GetRange() {
+    // GetRange(Range(a, b)) = Range(a, b).
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      TypeHandle type1 = *it1;
+      if (type1->IsRange()) {
+        typename Type::RangeType* range = type1->GetRange();
+        CHECK(type1->Min() == range->Min()->Number());
+        CHECK(type1->Max() == range->Max()->Number());
+      }
+    }
+
+    // GetRange(Union(Constant(x), Range(min,max))) == Range(min, max).
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        if (type1->IsConstant() && type2->IsRange()) {
+          TypeHandle u = T.Union(type1, type2);
+
+          CHECK(type2->Min() == u->GetRange()->Min()->Number());
+          CHECK(type2->Max() == u->GetRange()->Max()->Number());
+        }
+      }
+    }
   }
 
   template<class Type2, class TypeHandle2, class Region2, class Rep2>
@@ -2027,6 +2065,13 @@ TEST(Distributivity) {
   CcTest::InitializeVM();
   ZoneTests().Distributivity();
   HeapTests().Distributivity();
+}
+
+
+TEST(GetRange) {
+  CcTest::InitializeVM();
+  ZoneTests().GetRange();
+  HeapTests().GetRange();
 }
 
 

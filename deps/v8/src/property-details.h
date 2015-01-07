@@ -41,16 +41,24 @@ typedef TypeImpl<ZoneTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
+// Order of kinds is significant.
+// Must fit in the BitField PropertyDetails::KindField.
+enum PropertyKind { DATA = 0, ACCESSOR = 1 };
+
+
+// Order of modes is significant.
+// Must fit in the BitField PropertyDetails::StoreModeField.
+enum PropertyLocation { IN_OBJECT = 0, IN_DESCRIPTOR = 1 };
+
+
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
-  // Only in slow mode.
-  NORMAL = 0,
-  // Only in fast mode.
-  FIELD = 1,
-  CONSTANT = 2,
-  CALLBACKS = 3
+  FIELD = (IN_OBJECT << 1) | DATA,
+  CONSTANT = (IN_DESCRIPTOR << 1) | DATA,
+  ACCESSOR_FIELD = (IN_OBJECT << 1) | ACCESSOR,
+  CALLBACKS = (IN_DESCRIPTOR << 1) | ACCESSOR
 };
 
 
@@ -229,6 +237,9 @@ class PropertyDetails BASE_EMBEDDED {
     return Representation::FromKind(static_cast<Representation::Kind>(bits));
   }
 
+  PropertyKind kind() const { return KindField::decode(value_); }
+  PropertyLocation location() const { return LocationField::decode(value_); }
+
   PropertyType type() const { return TypeField::decode(value_); }
 
   PropertyAttributes attributes() const {
@@ -240,13 +251,12 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   Representation representation() const {
-    DCHECK(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
-  int field_index() const {
-    return FieldIndexField::decode(value_);
-  }
+  int field_index() const { return FieldIndexField::decode(value_); }
+
+  inline int field_width_in_words() const;
 
   inline PropertyDetails AsDeleted() const;
 
@@ -257,11 +267,12 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
   bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
-  bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
+  bool IsDeleted() const { return DeletedField::decode(value_) != 0; }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField : public BitField<PropertyType, 0, 2> {};
+  class KindField : public BitField<PropertyKind, 0, 1> {};
+  class LocationField : public BitField<PropertyLocation, 1, 1> {};
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
@@ -275,10 +286,23 @@ class PropertyDetails BASE_EMBEDDED {
   class FieldIndexField
       : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
                         kDescriptorIndexBitCount> {};  // NOLINT
-  // All bits for fast objects must fix in a smi.
-  STATIC_ASSERT(9 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
+
+  // NOTE: TypeField overlaps with KindField and LocationField.
+  class TypeField : public BitField<PropertyType, 0, 2> {};
+  STATIC_ASSERT(KindField::kNext == LocationField::kShift);
+  STATIC_ASSERT(TypeField::kShift == KindField::kShift);
+  STATIC_ASSERT(TypeField::kNext == LocationField::kNext);
+
+  // All bits for both fast and slow objects must fit in a smi.
+  STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
+  STATIC_ASSERT(FieldIndexField::kNext <= 31);
 
   static const int kInitialIndex = 1;
+
+#ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print(bool dictionary_mode);
+#endif
 
  private:
   PropertyDetails(int value, int pointer) {

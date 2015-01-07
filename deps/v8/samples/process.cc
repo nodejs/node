@@ -32,10 +32,6 @@
 #include <map>
 #include <string>
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#error Using compressed startup data is not supported for this sample
-#endif
-
 using namespace std;
 using namespace v8;
 
@@ -116,10 +112,8 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
                            const PropertyCallbackInfo<Value>& info);
 
   // Callbacks that access maps
-  static void MapGet(Local<String> name,
-                     const PropertyCallbackInfo<Value>& info);
-  static void MapSet(Local<String> name,
-                     Local<Value> value,
+  static void MapGet(Local<Name> name, const PropertyCallbackInfo<Value>& info);
+  static void MapSet(Local<Name> name, Local<Value> value,
                      const PropertyCallbackInfo<Value>& info);
 
   // Utility methods for wrapping C++ objects as JavaScript objects,
@@ -359,13 +353,15 @@ string ObjectToString(Local<Value> value) {
 }
 
 
-void JsHttpRequestProcessor::MapGet(Local<String> name,
+void JsHttpRequestProcessor::MapGet(Local<Name> name,
                                     const PropertyCallbackInfo<Value>& info) {
+  if (name->IsSymbol()) return;
+
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
 
   // Convert the JavaScript string to a std::string.
-  string key = ObjectToString(name);
+  string key = ObjectToString(Local<String>::Cast(name));
 
   // Look up the value if it exists using the standard STL ideom.
   map<string, string>::iterator iter = obj->find(key);
@@ -381,14 +377,15 @@ void JsHttpRequestProcessor::MapGet(Local<String> name,
 }
 
 
-void JsHttpRequestProcessor::MapSet(Local<String> name,
-                                    Local<Value> value_obj,
+void JsHttpRequestProcessor::MapSet(Local<Name> name, Local<Value> value_obj,
                                     const PropertyCallbackInfo<Value>& info) {
+  if (name->IsSymbol()) return;
+
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
 
   // Convert the key and value to std::strings.
-  string key = ObjectToString(name);
+  string key = ObjectToString(Local<String>::Cast(name));
   string value = ObjectToString(value_obj);
 
   // Update the map.
@@ -405,7 +402,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
 
   Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
   result->SetInternalFieldCount(1);
-  result->SetNamedPropertyHandler(MapGet, MapSet);
+  result->SetHandler(NamedPropertyHandlerConfiguration(MapGet, MapSet));
 
   // Again, return the result through the current handle scope.
   return handle_scope.Escape(result);

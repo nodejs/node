@@ -64,13 +64,13 @@ class AstString : public ZoneObject {
 
 class AstRawString : public AstString {
  public:
-  virtual int length() const OVERRIDE {
+  int length() const OVERRIDE {
     if (is_one_byte_)
       return literal_bytes_.length();
     return literal_bytes_.length() / 2;
   }
 
-  virtual void Internalize(Isolate* isolate) OVERRIDE;
+  void Internalize(Isolate* isolate) OVERRIDE;
 
   bool AsArrayIndex(uint32_t* index) const;
 
@@ -124,11 +124,9 @@ class AstConsString : public AstString {
       : left_(left),
         right_(right) {}
 
-  virtual int length() const OVERRIDE {
-    return left_->length() + right_->length();
-  }
+  int length() const OVERRIDE { return left_->length() + right_->length(); }
 
-  virtual void Internalize(Isolate* isolate) OVERRIDE;
+  void Internalize(Isolate* isolate) OVERRIDE;
 
  private:
   friend class AstValueFactory;
@@ -248,8 +246,10 @@ class AstValue : public ZoneObject {
   F(dot_result, ".result")                              \
   F(empty, "")                                          \
   F(eval, "eval")                                       \
+  F(get_template_callsite, "GetTemplateCallSite")       \
   F(initialize_const_global, "initializeConstGlobal")   \
   F(initialize_var_global, "initializeVarGlobal")       \
+  F(let, "let")                                         \
   F(make_reference_error, "MakeReferenceErrorEmbedded") \
   F(make_syntax_error, "MakeSyntaxErrorEmbedded")       \
   F(make_type_error, "MakeTypeErrorEmbedded")           \

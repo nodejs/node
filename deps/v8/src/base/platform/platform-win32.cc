@@ -346,26 +346,41 @@ void Win32Time::SetToCurrentTime() {
 }
 
 
-int64_t FileTimeToInt64(FILETIME ft) {
-  ULARGE_INTEGER result;
-  result.LowPart = ft.dwLowDateTime;
-  result.HighPart = ft.dwHighDateTime;
-  return static_cast<int64_t>(result.QuadPart);
-}
-
-
 // Return the local timezone offset in milliseconds east of UTC. This
 // takes into account whether daylight saving is in effect at the time.
 // Only times in the 32-bit Unix range may be passed to this function.
 // Also, adding the time-zone offset to the input must not overflow.
 // The function EquivalentTime() in date.js guarantees this.
 int64_t Win32Time::LocalOffset(TimezoneCache* cache) {
-  FILETIME local;
-  SYSTEMTIME system_utc, system_local;
-  FileTimeToSystemTime(&time_.ft_, &system_utc);
-  SystemTimeToTzSpecificLocalTime(NULL, &system_utc, &system_local);
-  SystemTimeToFileTime(&system_local, &local);
-  return (FileTimeToInt64(local) - FileTimeToInt64(time_.ft_)) / kTimeScaler;
+  cache->InitializeIfNeeded();
+
+  Win32Time rounded_to_second(*this);
+  rounded_to_second.t() =
+      rounded_to_second.t() / 1000 / kTimeScaler * 1000 * kTimeScaler;
+  // Convert to local time using POSIX localtime function.
+  // Windows XP Service Pack 3 made SystemTimeToTzSpecificLocalTime()
+  // very slow.  Other browsers use localtime().
+
+  // Convert from JavaScript milliseconds past 1/1/1970 0:00:00 to
+  // POSIX seconds past 1/1/1970 0:00:00.
+  double unchecked_posix_time = rounded_to_second.ToJSTime() / 1000;
+  if (unchecked_posix_time > INT_MAX || unchecked_posix_time < 0) {
+    return 0;
+  }
+  // Because _USE_32BIT_TIME_T is defined, time_t is a 32-bit int.
+  time_t posix_time = static_cast<time_t>(unchecked_posix_time);
+
+  // Convert to local time, as struct with fields for day, hour, year, etc.
+  tm posix_local_time_struct;
+  if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
+
+  if (posix_local_time_struct.tm_isdst > 0) {
+    return (cache->tzinfo_.Bias + cache->tzinfo_.DaylightBias) * -kMsPerMinute;
+  } else if (posix_local_time_struct.tm_isdst == 0) {
+    return (cache->tzinfo_.Bias + cache->tzinfo_.StandardBias) * -kMsPerMinute;
+  } else {
+    return cache->tzinfo_.Bias * -kMsPerMinute;
+  }
 }
 
 

@@ -10,7 +10,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -52,10 +51,13 @@ double ValueOfOperator<double>(const Operator* op) {
 
 class ReducerTester : public HandleAndZoneScope {
  public:
-  explicit ReducerTester(int num_parameters = 0)
+  explicit ReducerTester(
+      int num_parameters = 0,
+      MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags)
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
+        machine(main_zone(), kMachPtr, flags),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
@@ -357,7 +359,36 @@ TEST(ReduceWord32Sar) {
 }
 
 
-TEST(ReduceWord32Equal) {
+static void CheckJsShift(ReducerTester* R) {
+  DCHECK(R->machine.Word32ShiftIsSafe());
+
+  Node* x = R->Parameter(0);
+  Node* y = R->Parameter(1);
+  Node* thirty_one = R->Constant<int32_t>(0x1f);
+  Node* y_and_thirty_one =
+      R->graph.NewNode(R->machine.Word32And(), y, thirty_one);
+
+  // If the underlying machine shift instructions 'and' their right operand
+  // with 0x1f then:  x << (y & 0x1f) => x << y
+  R->CheckFoldBinop(x, y, x, y_and_thirty_one);
+}
+
+
+TEST(ReduceJsShifts) {
+  ReducerTester R(0, MachineOperatorBuilder::kWord32ShiftIsSafe);
+
+  R.binop = R.machine.Word32Shl();
+  CheckJsShift(&R);
+
+  R.binop = R.machine.Word32Shr();
+  CheckJsShift(&R);
+
+  R.binop = R.machine.Word32Sar();
+  CheckJsShift(&R);
+}
+
+
+TEST(Word32Equal) {
   ReducerTester R;
   R.binop = R.machine.Word32Equal();
 

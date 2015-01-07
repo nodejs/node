@@ -8,7 +8,6 @@
 
 #include "src/base/bits.h"
 #include "src/codegen.h"
-#include "src/compiler/generic-node-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -122,36 +121,6 @@ TEST(RunBranch) {
   m.Branch(m.Int32Constant(0), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(0 - constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(constant));
-
-  CHECK_EQ(constant, m.Call());
-}
-
-
-TEST(RunRedundantBranch1) {
-  RawMachineAssemblerTester<int32_t> m;
-  int constant = 944777;
-
-  MLabel blocka;
-  m.Branch(m.Int32Constant(0), &blocka, &blocka);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(constant));
-
-  CHECK_EQ(constant, m.Call());
-}
-
-
-TEST(RunRedundantBranch2) {
-  RawMachineAssemblerTester<int32_t> m;
-  int constant = 966777;
-
-  MLabel blocka, blockb, blockc;
-  m.Branch(m.Int32Constant(0), &blocka, &blockc);
-  m.Bind(&blocka);
-  m.Branch(m.Int32Constant(0), &blockb, &blockb);
-  m.Bind(&blockc);
-  m.Goto(&blockb);
   m.Bind(&blockb);
   m.Return(m.Int32Constant(constant));
 

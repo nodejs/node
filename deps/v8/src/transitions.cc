@@ -97,7 +97,7 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
   bool is_special_transition = flag == SPECIAL_TRANSITION;
   DCHECK_EQ(is_special_transition, IsSpecialTransition(*name));
   PropertyDetails details = is_special_transition
-                                ? PropertyDetails(NONE, NORMAL, 0)
+                                ? PropertyDetails(NONE, FIELD, 0)
                                 : GetTargetDetails(*name, *target);
 
   int insertion_index = kNotFound;
@@ -105,7 +105,7 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
       is_special_transition
           ? map->transitions()->SearchSpecial(Symbol::cast(*name),
                                               &insertion_index)
-          : map->transitions()->Search(details.type(), *name,
+          : map->transitions()->Search(details.kind(), *name,
                                        details.attributes(), &insertion_index);
   if (index == kNotFound) {
     ++new_nof;
@@ -157,7 +157,7 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
     index = is_special_transition ? map->transitions()->SearchSpecial(
                                         Symbol::cast(*name), &insertion_index)
                                   : map->transitions()->Search(
-                                        details.type(), *name,
+                                        details.kind(), *name,
                                         details.attributes(), &insertion_index);
     if (index == kNotFound) {
       ++new_nof;
@@ -189,22 +189,18 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
 }
 
 
-int TransitionArray::SearchDetails(int transition, PropertyType type,
+int TransitionArray::SearchDetails(int transition, PropertyKind kind,
                                    PropertyAttributes attributes,
                                    int* out_insertion_index) {
   int nof_transitions = number_of_transitions();
   DCHECK(transition < nof_transitions);
   Name* key = GetKey(transition);
-  bool is_data = type == FIELD || type == CONSTANT;
   for (; transition < nof_transitions && GetKey(transition) == key;
        transition++) {
     Map* target = GetTarget(transition);
     PropertyDetails target_details = GetTargetDetails(key, target);
 
-    bool target_is_data =
-        target_details.type() == FIELD || target_details.type() == CONSTANT;
-
-    int cmp = CompareDetails(is_data, attributes, target_is_data,
+    int cmp = CompareDetails(kind, attributes, target_details.kind(),
                              target_details.attributes());
     if (cmp == 0) {
       return transition;
@@ -217,13 +213,13 @@ int TransitionArray::SearchDetails(int transition, PropertyType type,
 }
 
 
-int TransitionArray::Search(PropertyType type, Name* name,
+int TransitionArray::Search(PropertyKind kind, Name* name,
                             PropertyAttributes attributes,
                             int* out_insertion_index) {
   int transition = SearchName(name, out_insertion_index);
   if (transition == kNotFound) {
     return kNotFound;
   }
-  return SearchDetails(transition, type, attributes, out_insertion_index);
+  return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
 } }  // namespace v8::internal

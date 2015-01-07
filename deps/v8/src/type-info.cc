@@ -81,11 +81,37 @@ bool TypeFeedbackOracle::LoadIsUninitialized(TypeFeedbackId id) {
 }
 
 
+bool TypeFeedbackOracle::LoadIsUninitialized(FeedbackVectorICSlot slot) {
+  Code::Kind kind = feedback_vector_->GetKind(slot);
+  if (kind == Code::LOAD_IC) {
+    LoadICNexus nexus(feedback_vector_, slot);
+    return nexus.StateFromFeedback() == UNINITIALIZED;
+  } else if (kind == Code::KEYED_LOAD_IC) {
+    KeyedLoadICNexus nexus(feedback_vector_, slot);
+    return nexus.StateFromFeedback() == UNINITIALIZED;
+  } else if (kind == Code::NUMBER_OF_KINDS) {
+    // Code::NUMBER_OF_KINDS indicates a slot that was never even compiled
+    // in full code.
+    return true;
+  }
+
+  return false;
+}
+
+
 bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
   Handle<Object> maybe_code = GetInfo(ast_id);
   if (!maybe_code->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(maybe_code);
   return code->ic_state() == UNINITIALIZED;
+}
+
+
+bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorICSlot slot) {
+  Handle<Object> value = GetInfo(slot);
+  return value->IsUndefined() ||
+         value.is_identical_to(
+             TypeFeedbackVector::UninitializedSentinel(isolate()));
 }
 
 
@@ -126,6 +152,21 @@ void TypeFeedbackOracle::GetStoreModeAndKeyType(
     }
   }
   *store_mode = STANDARD_STORE;
+  *key_type = ELEMENT;
+}
+
+
+void TypeFeedbackOracle::GetLoadKeyType(
+    TypeFeedbackId ast_id, IcCheckType* key_type) {
+  Handle<Object> maybe_code = GetInfo(ast_id);
+  if (maybe_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(maybe_code);
+    if (code->kind() == Code::KEYED_LOAD_IC) {
+      ExtraICState extra_ic_state = code->extra_ic_state();
+      *key_type = KeyedLoadIC::GetKeyType(extra_ic_state);
+      return;
+    }
+  }
   *key_type = ELEMENT;
 }
 
@@ -269,17 +310,45 @@ void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
 }
 
 
-void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
-    TypeFeedbackId id, SmallMapList* receiver_types, bool* is_string) {
-  receiver_types->Clear();
-  CollectReceiverTypes(id, receiver_types);
-
-  // Are all the receiver maps string maps?
+bool TypeFeedbackOracle::HasOnlyStringMaps(SmallMapList* receiver_types) {
   bool all_strings = receiver_types->length() > 0;
   for (int i = 0; i < receiver_types->length(); i++) {
     all_strings &= receiver_types->at(i)->IsStringMap();
   }
-  *is_string = all_strings;
+  return all_strings;
+}
+
+
+void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
+    TypeFeedbackId id,
+    SmallMapList* receiver_types,
+    bool* is_string,
+    IcCheckType* key_type) {
+  receiver_types->Clear();
+  CollectReceiverTypes(id, receiver_types);
+  *is_string = HasOnlyStringMaps(receiver_types);
+  GetLoadKeyType(id, key_type);
+}
+
+
+void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorICSlot slot,
+                                               Handle<String> name,
+                                               SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  LoadICNexus nexus(feedback_vector_, slot);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+  CollectReceiverTypes(&nexus, name, flags, receiver_types);
+}
+
+
+void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
+    FeedbackVectorICSlot slot, SmallMapList* receiver_types, bool* is_string,
+    IcCheckType* key_type) {
+  receiver_types->Clear();
+  KeyedLoadICNexus nexus(feedback_vector_, slot);
+  CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+  *is_string = HasOnlyStringMaps(receiver_types);
+  *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
 }
 
 
@@ -316,14 +385,21 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
 
   DCHECK(object->IsCode());
   Handle<Code> code(Handle<Code>::cast(object));
+  CollectReceiverTypes<Code>(*code, name, flags, types);
+}
 
+
+template <class T>
+void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<String> name,
+                                              Code::Flags flags,
+                                              SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
-      code->ic_state() == MEGAMORPHIC) {
+      obj->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
     isolate()->stub_cache()->CollectMatchingMaps(
         types, name, flags, native_context_, zone());
   } else {
-    CollectReceiverTypes(ast_id, types);
+    CollectReceiverTypes<T>(obj, types);
   }
 }
 
@@ -367,12 +443,18 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
   Handle<Object> object = GetInfo(ast_id);
   if (!object->IsCode()) return;
   Handle<Code> code = Handle<Code>::cast(object);
+  CollectReceiverTypes<Code>(*code, types);
+}
+
+
+template <class T>
+void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
   MapHandleList maps;
-  if (code->ic_state() == MONOMORPHIC) {
-    Map* map = code->FindFirstMap();
+  if (obj->ic_state() == MONOMORPHIC) {
+    Map* map = obj->FindFirstMap();
     if (map != NULL) maps.Add(handle(map));
-  } else if (code->ic_state() == POLYMORPHIC) {
-    code->FindAllMaps(&maps);
+  } else if (obj->ic_state() == POLYMORPHIC) {
+    obj->FindAllMaps(&maps);
   } else {
     return;
   }

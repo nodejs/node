@@ -37,7 +37,7 @@ var current_source = '';  // Current source being compiled.
 var source_count = 0;  // Total number of scources compiled.
 var host_compilations = 0;  // Number of scources compiled through the API.
 var eval_compilations = 0;  // Number of scources compiled through eval.
-
+var mute_listener = false;
 
 function compileSource(source) {
   current_source = source;
@@ -45,8 +45,20 @@ function compileSource(source) {
   source_count++;
 }
 
+function safeEval(code) {
+  try {
+    mute_listener = true;
+    return eval('(' + code + ')');
+  } catch (e) {
+    assertEquals(void 0, e);
+    return undefined;
+  } finally {
+    mute_listener = false;
+  }
+}
 
 function listener(event, exec_state, event_data, data) {
+  if (mute_listener) return;
   try {
     if (event == Debug.DebugEvent.BeforeCompile ||
         event == Debug.DebugEvent.AfterCompile ||
@@ -81,7 +93,7 @@ function listener(event, exec_state, event_data, data) {
       }
       // Check that script context is included into the event message.
       var json = event_data.toJSONProtocol();
-      var msg = eval('(' + json + ')');
+      var msg = safeEval(json);
       assertTrue('context' in msg.body.script);
 
       // Check that we pick script name from //# sourceURL, iff present

@@ -28,6 +28,7 @@
         'base/division-by-constant-unittest.cc',
         'base/flags-unittest.cc',
         'base/functional-unittest.cc',
+        'base/iterator-unittest.cc',
         'base/platform/condition-variable-unittest.cc',
         'base/platform/mutex-unittest.cc',
         'base/platform/platform-unittest.cc',
@@ -37,19 +38,26 @@
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/change-lowering-unittest.cc',
+        'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
+        'compiler/control-equivalence-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-unittest.cc',
         'compiler/graph-unittest.h',
         'compiler/instruction-selector-unittest.cc',
         'compiler/instruction-selector-unittest.h',
+        'compiler/instruction-sequence-unittest.cc',
+        'compiler/instruction-sequence-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
+        'compiler/load-elimination-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
+        'compiler/move-optimizer-unittest.cc',
+        'compiler/node-matchers-unittest.cc',
         'compiler/node-test-utils.cc',
         'compiler/node-test-utils.h',
         'compiler/register-allocator-unittest.cc',
@@ -87,6 +95,11 @@
             'compiler/mips/instruction-selector-mips-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="mips64el"', {
+          'sources': [  ### gcmole(arch:mips64el) ###
+            'compiler/mips64/instruction-selector-mips64-unittest.cc',
+          ],
+        }],
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'compiler/x64/instruction-selector-x64-unittest.cc',
@@ -96,13 +109,14 @@
           # compiler-unittests can't be built against a shared library, so we
           # need to depend on the underlying static target in that case.
           'conditions': [
-            ['v8_use_snapshot=="true"', {
+            ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
               'dependencies': ['../../tools/gyp/v8.gyp:v8_snapshot'],
-            },
-            {
-              'dependencies': [
-                '../../tools/gyp/v8.gyp:v8_nosnapshot',
-              ],
+            }],
+            ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
+              'dependencies': ['../../tools/gyp/v8.gyp:v8_external_snapshot'],
+            }],
+            ['v8_use_snapshot!="true"', {
+              'dependencies': ['../../tools/gyp/v8.gyp:v8_nosnapshot'],
             }],
           ],
         }, {

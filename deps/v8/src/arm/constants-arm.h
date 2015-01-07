@@ -332,9 +332,9 @@ enum NeonSize {
 // standard SoftwareInterrupCode. Bit 23 is reserved for the stop feature.
 enum SoftwareInterruptCodes {
   // transition to C code
-  kCallRtRedirected= 0x10,
+  kCallRtRedirected = 0x10,
   // break point
-  kBreakpoint= 0x20,
+  kBreakpoint = 0x20,
   // stop
   kStopCode = 1 << 23
 };

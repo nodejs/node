@@ -13,6 +13,12 @@
 #endif
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_OS_ANDROID
+#define DISABLE_ON_ANDROID(Name) DISABLED_##Name
+#else
+#define DISABLE_ON_ANDROID(Name) Name
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -33,13 +39,13 @@ namespace {
 class SelfJoinThread FINAL : public Thread {
  public:
   SelfJoinThread() : Thread(Options("SelfJoinThread")) {}
-  virtual void Run() OVERRIDE { Join(); }
+  void Run() FINAL { Join(); }
 };
 
 }  // namespace
 
 
-TEST(Thread, SelfJoin) {
+TEST(Thread, DISABLE_ON_ANDROID(SelfJoin)) {
   SelfJoinThread thread;
   thread.Start();
   thread.Join();
@@ -61,7 +67,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
     }
   }
 
-  virtual void Run() FINAL OVERRIDE {
+  void Run() FINAL {
     for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(!Thread::HasThreadLocal(keys_[i]));
     }
@@ -91,10 +97,12 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
 
  private:
   static void* GetValue(size_t x) {
-    return reinterpret_cast<void*>(static_cast<uintptr_t>(x + 1));
+    return bit_cast<void*>(static_cast<uintptr_t>(x + 1));
   }
 
-  Thread::LocalStorageKey keys_[256];
+  // Older versions of Android have fewer TLS slots (nominally 64, but the
+  // system uses "about 5 of them" itself).
+  Thread::LocalStorageKey keys_[32];
 };
 
 }  // namespace

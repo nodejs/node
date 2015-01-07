@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -137,8 +136,8 @@ class OperandGenerator {
   }
 
   InstructionOperand* Label(BasicBlock* block) {
-    // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->rpo_number());
+    int index = sequence()->AddImmediate(Constant(block->GetRpoNumber()));
+    return ImmediateOperand::Create(index, zone());
   }
 
  protected:
@@ -257,7 +256,7 @@ class FlagsContinuation FINAL {
 
   void Negate() {
     DCHECK(!IsNone());
-    condition_ = static_cast<FlagsCondition>(condition_ ^ 1);
+    condition_ = NegateFlagsCondition(condition_);
   }
 
   void Commute() {
@@ -317,8 +316,6 @@ class FlagsContinuation FINAL {
     if (negate) Negate();
   }
 
-  void SwapBlocks() { std::swap(true_block_, false_block_); }
-
   // Encodes this flags continuation into the given opcode.
   InstructionCode Encode(InstructionCode opcode) {
     opcode |= FlagsModeField::encode(mode_);
@@ -341,10 +338,10 @@ class FlagsContinuation FINAL {
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
 struct CallBuffer {
-  CallBuffer(Zone* zone, CallDescriptor* descriptor,
+  CallBuffer(Zone* zone, const CallDescriptor* descriptor,
              FrameStateDescriptor* frame_state);
 
-  CallDescriptor* descriptor;
+  const CallDescriptor* descriptor;
   FrameStateDescriptor* frame_state_descriptor;
   NodeVector output_nodes;
   InstructionOperandVector outputs;

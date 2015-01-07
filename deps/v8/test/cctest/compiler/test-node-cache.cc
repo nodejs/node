@@ -115,51 +115,6 @@ TEST(Int64Constant_hits) {
 }
 
 
-TEST(PtrConstant_back_to_back) {
-  GraphTester graph;
-  PtrNodeCache cache;
-  int32_t buffer[50];
-
-  for (int32_t* p = buffer;
-       (p - buffer) < static_cast<ptrdiff_t>(arraysize(buffer)); p++) {
-    Node** pos = cache.Find(graph.zone(), p);
-    CHECK_NE(NULL, pos);
-    for (int j = 0; j < 3; j++) {
-      Node** npos = cache.Find(graph.zone(), p);
-      CHECK_EQ(pos, npos);
-    }
-  }
-}
-
-
-TEST(PtrConstant_hits) {
-  GraphTester graph;
-  PtrNodeCache cache;
-  const int32_t kSize = 50;
-  int32_t buffer[kSize];
-  Node* nodes[kSize];
-  CommonOperatorBuilder common(graph.zone());
-
-  for (size_t i = 0; i < arraysize(buffer); i++) {
-    int k = static_cast<int>(i);
-    int32_t* p = &buffer[i];
-    nodes[i] = graph.NewNode(common.Int32Constant(k));
-    *cache.Find(graph.zone(), p) = nodes[i];
-  }
-
-  int hits = 0;
-  for (size_t i = 0; i < arraysize(buffer); i++) {
-    int32_t* p = &buffer[i];
-    Node** pos = cache.Find(graph.zone(), p);
-    if (*pos != NULL) {
-      CHECK_EQ(nodes[i], *pos);
-      hits++;
-    }
-  }
-  CHECK_LT(4, hits);
-}
-
-
 static bool Contains(NodeVector* nodes, Node* n) {
   for (size_t i = 0; i < nodes->size(); i++) {
     if (nodes->at(i) == n) return true;

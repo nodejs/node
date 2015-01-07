@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
+"use strict";
 
 // This file relies on the fact that the following declaration has been made
 // in runtime.js and symbol.js:
 // var $Object = global.Object;
 // var $Symbol = global.Symbol;
-
-var symbolToStringTag = InternalSymbol("Symbol.toStringTag");
 
 var kBuiltinStringTags = {
   "__proto__": null,

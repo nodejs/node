@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/operator-properties-inl.h"
-#include "testing/gtest-support.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator.h"
+#include "src/compiler/operator-properties.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -14,13 +16,14 @@ namespace compiler {
 
 template <typename T>
 class MachineOperatorTestWithParam
-    : public ::testing::TestWithParam< ::testing::tuple<MachineType, T> > {
+    : public TestWithZone,
+      public ::testing::WithParamInterface< ::testing::tuple<MachineType, T> > {
  protected:
   MachineType type() const { return ::testing::get<0>(B::GetParam()); }
   const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::TestWithParam< ::testing::tuple<MachineType, T> > B;
+  typedef ::testing::WithParamInterface< ::testing::tuple<MachineType, T> > B;
 };
 
 
@@ -47,14 +50,14 @@ typedef MachineOperatorTestWithParam<LoadRepresentation>
 
 
 TEST_P(MachineLoadOperatorTest, InstancesAreGloballyShared) {
-  MachineOperatorBuilder machine1(type());
-  MachineOperatorBuilder machine2(type());
+  MachineOperatorBuilder machine1(zone(), type());
+  MachineOperatorBuilder machine2(zone(), type());
   EXPECT_EQ(machine1.Load(GetParam()), machine2.Load(GetParam()));
 }
 
 
 TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   const Operator* op = machine.Load(GetParam());
 
   EXPECT_EQ(2, op->ValueInputCount());
@@ -69,13 +72,13 @@ TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
 
 
 TEST_P(MachineLoadOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(IrOpcode::kLoad, machine.Load(GetParam())->opcode());
 }
 
 
 TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(GetParam(),
             OpParameter<LoadRepresentation>(machine.Load(GetParam())));
 }
@@ -105,14 +108,14 @@ class MachineStoreOperatorTest
 
 
 TEST_P(MachineStoreOperatorTest, InstancesAreGloballyShared) {
-  MachineOperatorBuilder machine1(type());
-  MachineOperatorBuilder machine2(type());
+  MachineOperatorBuilder machine1(zone(), type());
+  MachineOperatorBuilder machine2(zone(), type());
   EXPECT_EQ(machine1.Store(GetParam()), machine2.Store(GetParam()));
 }
 
 
 TEST_P(MachineStoreOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   const Operator* op = machine.Store(GetParam());
 
   EXPECT_EQ(3, op->ValueInputCount());
@@ -127,13 +130,13 @@ TEST_P(MachineStoreOperatorTest, NumberOfInputsAndOutputs) {
 
 
 TEST_P(MachineStoreOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(IrOpcode::kStore, machine.Store(GetParam())->opcode());
 }
 
 
 TEST_P(MachineStoreOperatorTest, ParameterIsCorrect) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(GetParam(),
             OpParameter<StoreRepresentation>(machine.Store(GetParam())));
 }
@@ -215,14 +218,14 @@ typedef MachineOperatorTestWithParam<PureOperator> MachinePureOperatorTest;
 
 TEST_P(MachinePureOperatorTest, InstancesAreGloballyShared) {
   const PureOperator& pop = GetParam();
-  MachineOperatorBuilder machine1(type());
-  MachineOperatorBuilder machine2(type());
+  MachineOperatorBuilder machine1(zone(), type());
+  MachineOperatorBuilder machine2(zone(), type());
   EXPECT_EQ((machine1.*pop.constructor)(), (machine2.*pop.constructor)());
 }
 
 
 TEST_P(MachinePureOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   const PureOperator& pop = GetParam();
   const Operator* op = (machine.*pop.constructor)();
 
@@ -239,7 +242,7 @@ TEST_P(MachinePureOperatorTest, NumberOfInputsAndOutputs) {
 
 
 TEST_P(MachinePureOperatorTest, MarkedAsPure) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   const PureOperator& pop = GetParam();
   const Operator* op = (machine.*pop.constructor)();
   EXPECT_TRUE(op->HasProperty(Operator::kPure));
@@ -247,7 +250,7 @@ TEST_P(MachinePureOperatorTest, MarkedAsPure) {
 
 
 TEST_P(MachinePureOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(type());
+  MachineOperatorBuilder machine(zone(), type());
   const PureOperator& pop = GetParam();
   const Operator* op = (machine.*pop.constructor)();
   EXPECT_EQ(pop.opcode, op->opcode());
@@ -266,8 +269,15 @@ INSTANTIATE_TEST_CASE_P(
 // Pseudo operators.
 
 
-TEST(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
-  MachineOperatorBuilder machine(kRepWord32);
+namespace {
+
+typedef TestWithZone MachineOperatorTest;
+
+}  // namespace
+
+
+TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
+  MachineOperatorBuilder machine(zone(), kRepWord32);
   EXPECT_EQ(machine.Word32And(), machine.WordAnd());
   EXPECT_EQ(machine.Word32Or(), machine.WordOr());
   EXPECT_EQ(machine.Word32Xor(), machine.WordXor());
@@ -288,8 +298,8 @@ TEST(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
 }
 
 
-TEST(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
-  MachineOperatorBuilder machine(kRepWord64);
+TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
+  MachineOperatorBuilder machine(zone(), kRepWord64);
   EXPECT_EQ(machine.Word64And(), machine.WordAnd());
   EXPECT_EQ(machine.Word64Or(), machine.WordOr());
   EXPECT_EQ(machine.Word64Xor(), machine.WordXor());

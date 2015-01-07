@@ -5,6 +5,8 @@
 #ifndef V8_TYPE_FEEDBACK_VECTOR_H_
 #define V8_TYPE_FEEDBACK_VECTOR_H_
 
+#include <vector>
+
 #include "src/checks.h"
 #include "src/elements-kind.h"
 #include "src/heap/heap.h"
@@ -13,6 +15,40 @@
 
 namespace v8 {
 namespace internal {
+
+class FeedbackVectorSpec {
+ public:
+  FeedbackVectorSpec() : slots_(0), ic_slots_(0) {}
+  FeedbackVectorSpec(int slots, int ic_slots)
+      : slots_(slots), ic_slots_(ic_slots) {
+    if (FLAG_vector_ics) ic_slot_kinds_.resize(ic_slots);
+  }
+
+  int slots() const { return slots_; }
+  void increase_slots(int count) { slots_ += count; }
+
+  int ic_slots() const { return ic_slots_; }
+  void increase_ic_slots(int count) {
+    ic_slots_ += count;
+    if (FLAG_vector_ics) ic_slot_kinds_.resize(ic_slots_);
+  }
+
+  void SetKind(int ic_slot, Code::Kind kind) {
+    DCHECK(FLAG_vector_ics);
+    ic_slot_kinds_[ic_slot] = kind;
+  }
+
+  Code::Kind GetKind(int ic_slot) const {
+    DCHECK(FLAG_vector_ics);
+    return static_cast<Code::Kind>(ic_slot_kinds_.at(ic_slot));
+  }
+
+ private:
+  int slots_;
+  int ic_slots_;
+  std::vector<unsigned char> ic_slot_kinds_;
+};
+
 
 // The shape of the TypeFeedbackVector is an array with:
 // 0: first_ic_slot_index (== length() if no ic slots are present)
@@ -118,17 +154,11 @@ class TypeFeedbackVector : public FixedArray {
     set(GetIndex(slot), value, mode);
   }
 
-  // IC slots need metadata to recognize the type of IC. Set a Kind for every
-  // slot. If GetKind() returns Code::NUMBER_OF_KINDS, then there is
-  // no kind associated with this slot. This may happen in the current design
-  // if a decision is made at compile time not to emit an IC that was planned
-  // for at parse time. This can be eliminated if we encode kind at parse
-  // time.
+  // IC slots need metadata to recognize the type of IC.
   Code::Kind GetKind(FeedbackVectorICSlot slot) const;
-  void SetKind(FeedbackVectorICSlot slot, Code::Kind kind);
 
-  static Handle<TypeFeedbackVector> Allocate(Isolate* isolate, int slot_count,
-                                             int ic_slot_count);
+  static Handle<TypeFeedbackVector> Allocate(Isolate* isolate,
+                                             const FeedbackVectorSpec& spec);
 
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);
@@ -168,6 +198,8 @@ class TypeFeedbackVector : public FixedArray {
   static const int kVectorICKindBits = 2;
   static VectorICKind FromCodeKind(Code::Kind kind);
   static Code::Kind FromVectorICKind(VectorICKind kind);
+  void SetKind(FeedbackVectorICSlot slot, Code::Kind kind);
+
   typedef BitSetComputer<VectorICKind, kVectorICKindBits, kSmiValueSize,
                          uint32_t> VectorICComputer;
 
@@ -201,6 +233,9 @@ class FeedbackNexus {
     if (maps.length() > 0) return *maps.at(0);
     return NULL;
   }
+
+  // TODO(mvstanton): remove FindAllMaps, it didn't survive a code review.
+  void FindAllMaps(MapHandleList* maps) const { ExtractMaps(maps); }
 
   virtual InlineCacheState StateFromFeedback() const = 0;
   virtual int ExtractMaps(MapHandleList* maps) const = 0;
@@ -250,24 +285,84 @@ class CallICNexus : public FeedbackNexus {
     DCHECK(vector->GetKind(slot) == Code::CALL_IC);
   }
 
+  void Clear(Code* host);
+
   void ConfigureUninitialized();
   void ConfigureGeneric();
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
-  virtual InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const OVERRIDE;
 
-  virtual int ExtractMaps(MapHandleList* maps) const OVERRIDE {
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE {
     // CallICs don't record map feedback.
     return 0;
   }
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
     return MaybeHandle<Code>();
   }
   virtual bool FindHandlers(CodeHandleList* code_list,
                             int length = -1) const OVERRIDE {
     return length == 0;
   }
+};
+
+
+class LoadICNexus : public FeedbackNexus {
+ public:
+  LoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::LOAD_IC);
+  }
+  LoadICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::LOAD_IC);
+  }
+
+  void Clear(Code* host);
+
+  void ConfigureMegamorphic();
+  void ConfigurePremonomorphic();
+  void ConfigureMonomorphic(Handle<HeapType> type, Handle<Code> handler);
+
+  void ConfigurePolymorphic(TypeHandleList* types, CodeHandleList* handlers);
+
+  InlineCacheState StateFromFeedback() const OVERRIDE;
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
+  virtual bool FindHandlers(CodeHandleList* code_list,
+                            int length = -1) const OVERRIDE;
+};
+
+
+class KeyedLoadICNexus : public FeedbackNexus {
+ public:
+  KeyedLoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::KEYED_LOAD_IC);
+  }
+  KeyedLoadICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::KEYED_LOAD_IC);
+  }
+
+  void Clear(Code* host);
+
+  void ConfigureGeneric();
+  void ConfigurePremonomorphic();
+  // name can be a null handle for element loads.
+  void ConfigureMonomorphic(Handle<Name> name, Handle<HeapType> type,
+                            Handle<Code> handler);
+  // name can be null.
+  void ConfigurePolymorphic(Handle<Name> name, TypeHandleList* types,
+                            CodeHandleList* handlers);
+
+  InlineCacheState StateFromFeedback() const OVERRIDE;
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
+  virtual bool FindHandlers(CodeHandleList* code_list,
+                            int length = -1) const OVERRIDE;
+  Name* FindFirstName() const OVERRIDE;
 };
 }
 }  // namespace v8::internal

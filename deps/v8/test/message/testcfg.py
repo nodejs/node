@@ -75,6 +75,7 @@ class MessageTestSuite(testsuite.TestSuite):
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output, Android output."""
     if not string: return True
+    if not string.strip(): return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or
             # These five patterns appear in normal Native Client output.

@@ -141,6 +141,9 @@ def BuildOptions():
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
+  result.add_option("--dcheck-always-on",
+                    help="Indicates that V8 was compiled with DCHECKs enabled",
+                    default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -491,7 +494,8 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
-      arch in ['arm64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
+      arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64el'] and \
+      ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,
@@ -507,6 +511,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "system": utils.GuessOS(),
     "tsan": options.tsan,
     "msan": options.msan,
+    "dcheck_always_on": options.dcheck_always_on,
   }
   all_tests = []
   num_tests = 0

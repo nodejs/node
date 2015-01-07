@@ -83,6 +83,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   Isolate* isolate() const {
     return reinterpret_cast<Isolate*>(::v8::TestWithIsolate::isolate());
   }
+  base::RandomNumberGenerator* random_number_generator() const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolate);

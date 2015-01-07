@@ -18,11 +18,11 @@ class SimplifiedOperatorReducerTest : public GraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), simplified_(zone()) {}
-  virtual ~SimplifiedOperatorReducerTest() {}
+  ~SimplifiedOperatorReducerTest() OVERRIDE {}
 
  protected:
   Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine;
+    MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(graph(), common(), &javascript, &machine);
     SimplifiedOperatorReducer reducer(&jsgraph);
@@ -43,7 +43,7 @@ class SimplifiedOperatorReducerTestWithParam
  public:
   explicit SimplifiedOperatorReducerTestWithParam(int num_parameters = 1)
       : SimplifiedOperatorReducerTest(num_parameters) {}
-  virtual ~SimplifiedOperatorReducerTestWithParam() {}
+  ~SimplifiedOperatorReducerTestWithParam() OVERRIDE {}
 };
 
 
@@ -475,126 +475,6 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeUint32ToTagged) {
                                 Int32Constant(bit_cast<int32_t>(n))));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastUI2D(n)));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// LoadElement
-
-
-TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
-  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
-                                Type::Any(), kMachAnyTagged};
-  ElementAccess access_nocheck = access;
-  access_nocheck.bounds_check = kNoBoundsCheck;
-  Node* const base = Parameter(0);
-  Node* const effect = graph()->start();
-  {
-    Node* const key = NumberConstant(-42.0);
-    Node* const length = NumberConstant(100.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_FALSE(r.Changed());
-  }
-  {
-    Node* const key = NumberConstant(-0.0);
-    Node* const length = NumberConstant(1.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(0);
-    Node* const length = NumberConstant(1);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(42.2);
-    Node* const length = NumberConstant(128);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(39.2);
-    Node* const length = NumberConstant(32.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_FALSE(r.Changed());
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// StoreElement
-
-
-TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
-  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
-                                Type::Any(), kMachAnyTagged};
-  ElementAccess access_nocheck = access;
-  access_nocheck.bounds_check = kNoBoundsCheck;
-  Node* const base = Parameter(0);
-  Node* const value = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  {
-    Node* const key = NumberConstant(-72.1);
-    Node* const length = NumberConstant(0.0);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_FALSE(r.Changed());
-  }
-  {
-    Node* const key = NumberConstant(-0.0);
-    Node* const length = NumberConstant(999);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(0);
-    Node* const length = NumberConstant(1);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(42.2);
-    Node* const length = NumberConstant(128);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(39.2);
-    Node* const length = NumberConstant(32.0);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_FALSE(r.Changed());
   }
 }
 

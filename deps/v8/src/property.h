@@ -119,7 +119,7 @@ class LookupResult FINAL BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         transition_(NULL),
-        details_(NONE, NORMAL, Representation::None()) {
+        details_(NONE, FIELD, Representation::None()) {
     isolate->set_top_lookup_result(this);
   }
 
@@ -148,7 +148,7 @@ class LookupResult FINAL BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, NORMAL, Representation::None());
+    details_ = PropertyDetails(NONE, FIELD, 0);
     holder_ = NULL;
     transition_ = NULL;
   }
@@ -160,7 +160,6 @@ class LookupResult FINAL BASE_EMBEDDED {
 
   // Property callbacks does not include transitions to callbacks.
   bool IsPropertyCallbacks() const {
-    DCHECK(!(details_.type() == CALLBACKS && !IsFound()));
     return !IsTransition() && details_.type() == CALLBACKS;
   }
 
@@ -170,12 +169,10 @@ class LookupResult FINAL BASE_EMBEDDED {
   }
 
   bool IsField() const {
-    DCHECK(!(details_.type() == FIELD && !IsFound()));
     return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == FIELD;
   }
 
   bool IsConstant() const {
-    DCHECK(!(details_.type() == CONSTANT && !IsFound()));
     return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == CONSTANT;
   }
 

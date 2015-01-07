@@ -34,14 +34,12 @@ int SysInfo::NumberOfProcessors() {
   int ncpu = 0;
   size_t len = sizeof(ncpu);
   if (sysctl(mib, arraysize(mib), &ncpu, &len, NULL, 0) != 0) {
-    UNREACHABLE();
     return 1;
   }
   return ncpu;
 #elif V8_OS_POSIX
   long result = sysconf(_SC_NPROCESSORS_ONLN);  // NOLINT(runtime/int)
   if (result == -1) {
-    UNREACHABLE();
     return 1;
   }
   return static_cast<int>(result);
@@ -60,7 +58,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   int64_t memsize = 0;
   size_t len = sizeof(memsize);
   if (sysctl(mib, arraysize(mib), &memsize, &len, NULL, 0) != 0) {
-    UNREACHABLE();
     return 0;
   }
   return memsize;
@@ -70,7 +67,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, NULL, 0);
   sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, NULL, 0);
   if (pages == -1 || page_size == -1) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(pages) * page_size;
@@ -78,7 +74,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   MEMORYSTATUSEX memory_info;
   memory_info.dwLength = sizeof(memory_info);
   if (!GlobalMemoryStatusEx(&memory_info)) {
-    UNREACHABLE();
     return 0;
   }
   int64_t result = static_cast<int64_t>(memory_info.ullTotalPhys);
@@ -87,7 +82,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 #elif V8_OS_QNX
   struct stat stat_buf;
   if (stat("/proc", &stat_buf) != 0) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(stat_buf.st_size);
@@ -98,7 +92,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   long pages = sysconf(_SC_PHYS_PAGES);    // NOLINT(runtime/int)
   long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
   if (pages == -1 || page_size == -1) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(pages) * page_size;
@@ -114,7 +107,6 @@ int64_t SysInfo::AmountOfVirtualMemory() {
   struct rlimit rlim;
   int result = getrlimit(RLIMIT_DATA, &rlim);
   if (result != 0) {
-    UNREACHABLE();
     return 0;
   }
   return (rlim.rlim_cur == RLIM_INFINITY) ? 0 : rlim.rlim_cur;

@@ -158,8 +158,8 @@ class NativesExternalStringResource FINAL
   NativesExternalStringResource(Bootstrapper* bootstrapper,
                                 const char* source,
                                 size_t length);
-  virtual const char* data() const OVERRIDE { return data_; }
-  virtual size_t length() const OVERRIDE { return length_; }
+  const char* data() const OVERRIDE { return data_; }
+  size_t length() const OVERRIDE { return length_; }
 
  private:
   const char* data_;

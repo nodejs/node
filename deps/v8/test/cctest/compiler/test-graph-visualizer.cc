@@ -6,8 +6,6 @@
 #include "test/cctest/cctest.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
-#include "src/compiler/generic-node.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-operator.h"

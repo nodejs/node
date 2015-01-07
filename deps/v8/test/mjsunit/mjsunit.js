@@ -231,16 +231,7 @@ var assertUnoptimized;
     return deepObjectEquals(a, b);
   }
 
-  function checkArity(args, arity, name) {
-    if (args.length < arity) {
-      fail(PrettyPrint(arity), args.length,
-           name + " requires " + arity + " or more arguments");
-    }
-  }
-
   assertSame = function assertSame(expected, found, name_opt) {
-    checkArity(arguments, 2, "assertSame");
-
     // TODO(mstarzinger): We should think about using Harmony's egal operator
     // or the function equivalent Object.is() here.
     if (found === expected) {
@@ -253,8 +244,6 @@ var assertUnoptimized;
 
 
   assertEquals = function assertEquals(expected, found, name_opt) {
-    checkArity(arguments, 2, "assertEquals");
-
     if (!deepEquals(found, expected)) {
       fail(PrettyPrint(expected), found, name_opt);
     }

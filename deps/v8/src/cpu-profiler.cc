@@ -246,7 +246,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
     Script* script = Script::cast(shared->script());
     rec->entry->set_script_id(script->id()->value());
     rec->entry->set_bailout_reason(
-        GetBailoutReason(shared->DisableOptimizationReason()));
+        GetBailoutReason(shared->disable_optimization_reason()));
   }
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
@@ -272,8 +272,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
         int position = static_cast<int>(it.rinfo()->data());
         if (position >= 0) {
           int pc_offset = static_cast<int>(it.rinfo()->pc() - code->address());
-          int line_number = script->GetLineNumber(position) + 1;
-          line_table->SetPosition(pc_offset, line_number);
+          int line_number = script->GetLineNumber(position);
+          line_table->SetPosition(pc_offset, line_number + 1);
         }
       }
     }
@@ -289,7 +289,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
   rec->entry->set_bailout_reason(
-      GetBailoutReason(shared->DisableOptimizationReason()));
+      GetBailoutReason(shared->disable_optimization_reason()));
   processor_->Enqueue(evt_rec);
 }
 
@@ -324,7 +324,7 @@ void CpuProfiler::CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   rec->start = code->address();
-  rec->bailout_reason = GetBailoutReason(shared->DisableOptimizationReason());
+  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
   processor_->Enqueue(evt_rec);
 }
 

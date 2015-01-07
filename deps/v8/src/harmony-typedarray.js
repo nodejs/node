@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
+"use strict";
 
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
@@ -58,6 +58,17 @@ function NAMEForEach(f /* thisArg */) {  // length == 1
     %_CallFunction(new_receiver, TO_OBJECT_INLINE(element), i, this, f);
   }
 }
+
+// ES6 draft 08-24-14, section 22.2.2.2
+function NAMEOf() {  // length == 0
+  var length = %_ArgumentsLength();
+  var array = new this(length);
+  for (var i = 0; i < length; i++) {
+    array[i] = %_Arguments(i);
+  }
+  return array;
+}
+
 endmacro
 
 TYPED_ARRAYS(TYPED_ARRAY_HARMONY_ADDITIONS)
@@ -66,6 +77,11 @@ TYPED_ARRAYS(TYPED_ARRAY_HARMONY_ADDITIONS)
 function HarmonyTypedArrayExtendPrototypes() {
 macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %CheckIsBootstrapping();
+
+  // Set up non-enumerable functions on the object.
+  InstallFunctions(global.NAME, DONT_ENUM | DONT_DELETE | READ_ONLY, $Array(
+    "of", NAMEOf
+  ));
 
   // Set up non-enumerable functions on the prototype object.
   InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(

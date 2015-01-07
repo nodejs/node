@@ -30,6 +30,24 @@ static void ConnectTransition(Handle<Map> parent,
 }
 
 
+static void CheckPropertyDetailsFieldsConsistency(PropertyType type,
+                                                  PropertyKind kind,
+                                                  PropertyLocation location) {
+  int type_value = PropertyDetails::TypeField::encode(type);
+  int kind_location_value = PropertyDetails::KindField::encode(kind) |
+                            PropertyDetails::LocationField::encode(location);
+  CHECK_EQ(type_value, kind_location_value);
+}
+
+
+TEST(PropertyDetailsFieldsConsistency) {
+  CheckPropertyDetailsFieldsConsistency(FIELD, DATA, IN_OBJECT);
+  CheckPropertyDetailsFieldsConsistency(CONSTANT, DATA, IN_DESCRIPTOR);
+  CheckPropertyDetailsFieldsConsistency(ACCESSOR_FIELD, ACCESSOR, IN_OBJECT);
+  CheckPropertyDetailsFieldsConsistency(CALLBACKS, ACCESSOR, IN_DESCRIPTOR);
+}
+
+
 TEST(TransitionArray_SimpleFieldTransitions) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -59,7 +77,7 @@ TEST(TransitionArray_SimpleFieldTransitions) {
       transitions->Insert(map0, name1, map1, SIMPLE_PROPERTY_TRANSITION);
   ConnectTransition(map0, transitions, map1);
   CHECK(transitions->IsSimpleTransition());
-  transition = transitions->Search(FIELD, *name1, attributes);
+  transition = transitions->Search(DATA, *name1, attributes);
   CHECK_EQ(TransitionArray::kSimpleTransitionIndex, transition);
   CHECK_EQ(*name1, transitions->GetKey(transition));
   CHECK_EQ(*map1, transitions->GetTarget(transition));
@@ -69,11 +87,11 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   ConnectTransition(map0, transitions, map2);
   CHECK(transitions->IsFullTransitionArray());
 
-  transition = transitions->Search(FIELD, *name1, attributes);
+  transition = transitions->Search(DATA, *name1, attributes);
   CHECK_EQ(*name1, transitions->GetKey(transition));
   CHECK_EQ(*map1, transitions->GetTarget(transition));
 
-  transition = transitions->Search(FIELD, *name2, attributes);
+  transition = transitions->Search(DATA, *name2, attributes);
   CHECK_EQ(*name2, transitions->GetKey(transition));
   CHECK_EQ(*map2, transitions->GetTarget(transition));
 
@@ -109,7 +127,7 @@ TEST(TransitionArray_FullFieldTransitions) {
   transitions = transitions->Insert(map0, name1, map1, PROPERTY_TRANSITION);
   ConnectTransition(map0, transitions, map1);
   CHECK(transitions->IsFullTransitionArray());
-  transition = transitions->Search(FIELD, *name1, attributes);
+  transition = transitions->Search(DATA, *name1, attributes);
   CHECK_EQ(*name1, transitions->GetKey(transition));
   CHECK_EQ(*map1, transitions->GetTarget(transition));
 
@@ -117,11 +135,11 @@ TEST(TransitionArray_FullFieldTransitions) {
   ConnectTransition(map0, transitions, map2);
   CHECK(transitions->IsFullTransitionArray());
 
-  transition = transitions->Search(FIELD, *name1, attributes);
+  transition = transitions->Search(DATA, *name1, attributes);
   CHECK_EQ(*name1, transitions->GetKey(transition));
   CHECK_EQ(*map1, transitions->GetTarget(transition));
 
-  transition = transitions->Search(FIELD, *name2, attributes);
+  transition = transitions->Search(DATA, *name2, attributes);
   CHECK_EQ(*name2, transitions->GetKey(transition));
   CHECK_EQ(*map2, transitions->GetTarget(transition));
 
@@ -161,7 +179,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   }
 
   for (int i = 0; i < PROPS_COUNT; i++) {
-    int transition = transitions->Search(FIELD, *names[i], attributes);
+    int transition = transitions->Search(DATA, *names[i], attributes);
     CHECK_EQ(*names[i], transitions->GetKey(transition));
     CHECK_EQ(*maps[i], transitions->GetTarget(transition));
   }
@@ -204,7 +222,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
 
-    int transition = transitions->Search(FIELD, *name, attributes);
+    int transition = transitions->Search(DATA, *name, attributes);
     CHECK_EQ(*name, transitions->GetKey(transition));
     CHECK_EQ(*attr_maps[i], transitions->GetTarget(transition));
   }
@@ -267,14 +285,14 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
 
-    int transition = transitions->Search(FIELD, *name, attributes);
+    int transition = transitions->Search(DATA, *name, attributes);
     CHECK_EQ(*name, transitions->GetKey(transition));
     CHECK_EQ(*attr_maps[i], transitions->GetTarget(transition));
   }
 
   // Ensure that info about the other fields still valid.
   for (int i = 0; i < PROPS_COUNT; i++) {
-    int transition = transitions->Search(FIELD, *names[i], NONE);
+    int transition = transitions->Search(DATA, *names[i], NONE);
     CHECK_EQ(*names[i], transitions->GetKey(transition));
     CHECK_EQ(*maps[i], transitions->GetTarget(transition));
   }

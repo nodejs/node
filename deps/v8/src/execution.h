@@ -69,6 +69,11 @@ class Execution FINAL : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> ToUint32(
       Isolate* isolate, Handle<Object> obj);
 
+
+  // ES6, draft 10-14-14, section 7.1.15
+  MUST_USE_RESULT static MaybeHandle<Object> ToLength(
+      Isolate* isolate, Handle<Object> obj);
+
   // ECMA-262 9.8
   MUST_USE_RESULT static MaybeHandle<Object> ToString(
       Isolate* isolate, Handle<Object> obj);

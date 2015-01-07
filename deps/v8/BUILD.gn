@@ -2,9 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Because standalone V8 builds are not supported, assume this is part of a
+# Chromium build.
+import("//build/module_args/v8.gni")
+
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
-v8_compress_startup_data = "off"
 v8_deprecation_warnings = false
 v8_enable_disassembler = false
 v8_enable_gdbjit = false
@@ -15,7 +18,6 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_use_external_startup_data = false
 v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
@@ -93,11 +95,6 @@ config("features") {
   if (v8_enable_i18n_support == true) {
     defines += [
       "V8_I18N_SUPPORT",
-    ]
-  }
-  if (v8_compress_startup_data == "bz2") {
-    defines += [
-      "COMPRESS_STARTUP_DATA_BZ2",
     ]
   }
   if (v8_enable_extra_checks == true) {
@@ -216,7 +213,6 @@ action("js2c") {
   args = [
     rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
     "CORE",
-    v8_compress_startup_data
   ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
@@ -243,9 +239,12 @@ action("js2c_experimental") {
     "src/generator.js",
     "src/harmony-string.js",
     "src/harmony-array.js",
+    "src/harmony-array-includes.js",
     "src/harmony-typedarray.js",
     "src/harmony-classes.js",
-    "src/harmony-tostring.js"
+    "src/harmony-tostring.js",
+    "src/harmony-templates.js",
+    "src/harmony-regexp.js"
   ]
 
   outputs = [
@@ -255,7 +254,6 @@ action("js2c_experimental") {
   args = [
     rebase_path("$target_gen_dir/experimental-libraries.cc", root_build_dir),
     "EXPERIMENTAL",
-    v8_compress_startup_data
   ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
@@ -282,7 +280,7 @@ if (v8_use_external_startup_data) {
     ]
 
     outputs = [
-      "$root_gen_dir/natives_blob.bin"
+      "$root_out_dir/natives_blob.bin"
     ]
 
     script = "tools/concatenate-files.py"
@@ -335,10 +333,10 @@ action("run_mksnapshot") {
   }
 
   if (v8_use_external_startup_data) {
-    outputs += [ "$root_gen_dir/snapshot_blob.bin" ]
+    outputs += [ "$root_out_dir/snapshot_blob.bin" ]
     args += [
       "--startup_blob",
-      rebase_path("$root_gen_dir/snapshot_blob.bin", root_build_dir)
+      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir)
     ]
   }
 }
@@ -361,7 +359,6 @@ source_set("v8_nosnapshot") {
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "src/snapshot-empty.cc",
-    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -383,7 +380,6 @@ source_set("v8_snapshot") {
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/snapshot.cc",
-    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -436,6 +432,8 @@ source_set("v8_base") {
     "src/assert-scope.cc",
     "src/ast-numbering.cc",
     "src/ast-numbering.h",
+    "src/ast-this-access-visitor.cc",
+    "src/ast-this-access-visitor.h",
     "src/ast-value-factory.cc",
     "src/ast-value-factory.h",
     "src/ast.cc",
@@ -491,22 +489,22 @@ source_set("v8_base") {
     "src/compiler/code-generator-impl.h",
     "src/compiler/code-generator.cc",
     "src/compiler/code-generator.h",
+    "src/compiler/common-node-cache.cc",
     "src/compiler/common-node-cache.h",
+    "src/compiler/common-operator-reducer.cc",
+    "src/compiler/common-operator-reducer.h",
     "src/compiler/common-operator.cc",
     "src/compiler/common-operator.h",
     "src/compiler/control-builders.cc",
     "src/compiler/control-builders.h",
+    "src/compiler/control-equivalence.h",
     "src/compiler/control-reducer.cc",
     "src/compiler/control-reducer.h",
     "src/compiler/diamond.h",
     "src/compiler/frame.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
-    "src/compiler/generic-algorithm-inl.h",
     "src/compiler/generic-algorithm.h",
-    "src/compiler/generic-graph.h",
-    "src/compiler/generic-node-inl.h",
-    "src/compiler/generic-node.h",
     "src/compiler/graph-builder.cc",
     "src/compiler/graph-builder.h",
     "src/compiler/graph-inl.h",
@@ -540,15 +538,23 @@ source_set("v8_base") {
     "src/compiler/js-operator.h",
     "src/compiler/js-typed-lowering.cc",
     "src/compiler/js-typed-lowering.h",
+    "src/compiler/jump-threading.cc",
+    "src/compiler/jump-threading.h",
     "src/compiler/linkage-impl.h",
     "src/compiler/linkage.cc",
     "src/compiler/linkage.h",
+    "src/compiler/load-elimination.cc",
+    "src/compiler/load-elimination.h",
+    "src/compiler/loop-analysis.cc",
+    "src/compiler/loop-analysis.h",
     "src/compiler/machine-operator-reducer.cc",
     "src/compiler/machine-operator-reducer.h",
     "src/compiler/machine-operator.cc",
     "src/compiler/machine-operator.h",
     "src/compiler/machine-type.cc",
     "src/compiler/machine-type.h",
+    "src/compiler/move-optimizer.cc",
+    "src/compiler/move-optimizer.h",
     "src/compiler/node-aux-data-inl.h",
     "src/compiler/node-aux-data.h",
     "src/compiler/node-cache.cc",
@@ -558,12 +564,12 @@ source_set("v8_base") {
     "src/compiler/node-properties.h",
     "src/compiler/node.cc",
     "src/compiler/node.h",
+    "src/compiler/opcodes.cc",
     "src/compiler/opcodes.h",
-    "src/compiler/operator-properties-inl.h",
+    "src/compiler/operator-properties.cc",
     "src/compiler/operator-properties.h",
     "src/compiler/operator.cc",
     "src/compiler/operator.h",
-    "src/compiler/phi-reducer.h",
     "src/compiler/pipeline.cc",
     "src/compiler/pipeline.h",
     "src/compiler/pipeline-statistics.cc",
@@ -572,6 +578,8 @@ source_set("v8_base") {
     "src/compiler/raw-machine-assembler.h",
     "src/compiler/register-allocator.cc",
     "src/compiler/register-allocator.h",
+    "src/compiler/register-allocator-verifier.cc",
+    "src/compiler/register-allocator-verifier.h",
     "src/compiler/register-configuration.cc",
     "src/compiler/register-configuration.h",
     "src/compiler/representation-change.h",
@@ -780,6 +788,9 @@ source_set("v8_base") {
     "src/jsregexp-inl.h",
     "src/jsregexp.cc",
     "src/jsregexp.h",
+    "src/layout-descriptor-inl.h",
+    "src/layout-descriptor.cc",
+    "src/layout-descriptor.h",
     "src/list-inl.h",
     "src/list.h",
     "src/lithium-allocator-inl.h",
@@ -873,7 +884,6 @@ source_set("v8_base") {
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.cc",
     "src/runtime/runtime.h",
-    "src/runtime/string-builder.h",
     "src/safepoint-table.cc",
     "src/safepoint-table.h",
     "src/sampler.cc",
@@ -890,9 +900,12 @@ source_set("v8_base") {
     "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
+    "src/snapshot-common.cc",
     "src/snapshot-source-sink.cc",
     "src/snapshot-source-sink.h",
     "src/snapshot.h",
+    "src/string-builder.cc",
+    "src/string-builder.h",
     "src/string-search.cc",
     "src/string-search.h",
     "src/string-stream.cc",
@@ -1210,11 +1223,6 @@ source_set("v8_base") {
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
     cflags = [ "/wd4267" ]
   }
-  if (is_linux) {
-    if (v8_compress_startup_data == "bz2") {
-      libs += [ "bz2" ]
-    }
-  }
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
@@ -1260,6 +1268,7 @@ source_set("v8_libbase") {
     "src/base/flags.h",
     "src/base/functional.cc",
     "src/base/functional.h",
+    "src/base/iterator.h",
     "src/base/lazy-instance.h",
     "src/base/logging.cc",
     "src/base/logging.h",
@@ -1388,10 +1397,6 @@ if (current_toolchain == host_toolchain) {
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
     ]
-
-    if (v8_compress_startup_data == "bz2") {
-      libs = [ "bz2" ]
-    }
   }
 }
 
@@ -1406,7 +1411,7 @@ component("v8") {
     "src/v8dll-main.cc",
   ]
 
-  if (v8_use_external_startup_data) {
+  if (v8_use_snapshot && v8_use_external_startup_data) {
     deps = [
       ":v8_base",
       ":v8_external_snapshot",
@@ -1417,6 +1422,7 @@ component("v8") {
       ":v8_snapshot",
     ]
   } else {
+    assert(!v8_use_external_startup_data)
     deps = [
       ":v8_base",
       ":v8_nosnapshot",
@@ -1438,7 +1444,7 @@ component("v8") {
 } else {
 
 group("v8") {
-  if (v8_use_external_startup_data) {
+  if (v8_use_snapshot && v8_use_external_startup_data) {
     deps = [
       ":v8_base",
       ":v8_external_snapshot",
@@ -1449,6 +1455,7 @@ group("v8") {
       ":v8_snapshot",
     ]
   } else {
+    assert(!v8_use_external_startup_data)
     deps = [
       ":v8_base",
       ":v8_nosnapshot",

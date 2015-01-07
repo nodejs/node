@@ -410,14 +410,32 @@ TEST(Type3) {
             "e6843895       pkhbt r3, r4, r5, lsl #17");
     COMPARE(pkhtb(r3, r4, Operand(r5, ASR, 17)),
             "e68438d5       pkhtb r3, r4, r5, asr #17");
-    COMPARE(uxtb(r9, Operand(r10, ROR, 0)),
-            "e6ef907a       uxtb r9, r10");
-    COMPARE(uxtb(r3, Operand(r4, ROR, 8)),
-            "e6ef3474       uxtb r3, r4, ror #8");
-    COMPARE(uxtab(r3, r4, Operand(r5, ROR, 8)),
-            "e6e43475       uxtab r3, r4, r5, ror #8");
-    COMPARE(uxtb16(r3, Operand(r4, ROR, 8)),
-            "e6cf3474       uxtb16 r3, r4, ror #8");
+
+    COMPARE(sxtb(r1, r7, 0, eq), "06af1077       sxtbeq r1, r7");
+    COMPARE(sxtb(r0, r0, 8, ne), "16af0470       sxtbne r0, r0, ror #8");
+    COMPARE(sxtb(r9, r10, 16), "e6af987a       sxtb r9, r10, ror #16");
+    COMPARE(sxtb(r4, r3, 24), "e6af4c73       sxtb r4, r3, ror #24");
+
+    COMPARE(sxtab(r3, r4, r5), "e6a43075       sxtab r3, r4, r5");
+
+    COMPARE(sxth(r5, r0), "e6bf5070       sxth r5, r0");
+    COMPARE(sxth(r5, r9, 8), "e6bf5479       sxth r5, r9, ror #8");
+    COMPARE(sxth(r5, r9, 16, hi), "86bf5879       sxthhi r5, r9, ror #16");
+    COMPARE(sxth(r8, r9, 24, cc), "36bf8c79       sxthcc r8, r9, ror #24");
+
+    COMPARE(sxtah(r3, r4, r5, 16), "e6b43875       sxtah r3, r4, r5, ror #16");
+
+    COMPARE(uxtb(r9, r10), "e6ef907a       uxtb r9, r10");
+    COMPARE(uxtb(r3, r4, 8), "e6ef3474       uxtb r3, r4, ror #8");
+
+    COMPARE(uxtab(r3, r4, r5, 8), "e6e43475       uxtab r3, r4, r5, ror #8");
+
+    COMPARE(uxtb16(r3, r4, 8), "e6cf3474       uxtb16 r3, r4, ror #8");
+
+    COMPARE(uxth(r9, r10), "e6ff907a       uxth r9, r10");
+    COMPARE(uxth(r3, r4, 8), "e6ff3474       uxth r3, r4, ror #8");
+
+    COMPARE(uxtah(r3, r4, r5, 24), "e6f43c75       uxtah r3, r4, r5, ror #24");
   }
 
   COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");

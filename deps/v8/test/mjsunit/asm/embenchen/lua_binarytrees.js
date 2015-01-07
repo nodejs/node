@@ -1,7 +1,3 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
 var EXPECTED_OUTPUT =
   'stretch tree of depth 10\t check: -1\n' +
   '1448\t trees of depth 4\t check: -1448\n' +

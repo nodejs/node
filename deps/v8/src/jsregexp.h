@@ -46,10 +46,9 @@ class RegExpImpl {
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
-  MUST_USE_RESULT static MaybeHandle<Object> Compile(
-      Handle<JSRegExp> re,
-      Handle<String> pattern,
-      Handle<String> flags);
+  MUST_USE_RESULT static MaybeHandle<Object> Compile(Handle<JSRegExp> re,
+                                                     Handle<String> pattern,
+                                                     JSRegExp::Flags flags);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
@@ -213,7 +212,8 @@ class RegExpImpl {
   // total regexp code compiled including code that has subsequently been freed
   // and the total executable memory at any point.
   static const int kRegExpExecutableMemoryLimit = 16 * MB;
-  static const int kRegWxpCompiledLimit = 1 * MB;
+  static const int kRegExpCompiledLimit = 1 * MB;
+  static const int kRegExpTooLargeToOptimize = 10 * KB;
 
  private:
   static bool CompileIrregexp(Handle<JSRegExp> re,
@@ -1665,6 +1665,8 @@ class RegExpEngine: public AllStatic {
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
                                    bool is_one_byte, Zone* zone);
+
+  static bool TooMuchRegExpCode(Handle<String> pattern);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };

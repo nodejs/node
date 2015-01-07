@@ -93,8 +93,14 @@ class X64OperandConverter : public InstructionOperandConverter {
         int32_t disp = InputInt32(NextOffset(offset));
         return Operand(base, index, scale, disp);
       }
-      case kMode_M1:
+      case kMode_M1: {
+        Register base = InputRegister(NextOffset(offset));
+        int32_t disp = 0;
+        return Operand(base, disp);
+      }
       case kMode_M2:
+        UNREACHABLE();  // Should use kModeMR with more compact encoding instead
+        return Operand(no_reg, 0);
       case kMode_M4:
       case kMode_M8: {
         Register index = InputRegister(NextOffset(offset));
@@ -119,16 +125,62 @@ class X64OperandConverter : public InstructionOperandConverter {
     return Operand(no_reg, 0);
   }
 
-  Operand MemoryOperand() {
-    int first_input = 0;
+  Operand MemoryOperand(int first_input = 0) {
     return MemoryOperand(&first_input);
   }
 };
 
 
-static bool HasImmediateInput(Instruction* instr, int index) {
+namespace {
+
+bool HasImmediateInput(Instruction* instr, int index) {
   return instr->InputAt(index)->IsImmediate();
 }
+
+
+class OutOfLineLoadZero FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadZero(CodeGenerator* gen, Register result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ xorl(result_, result_); }
+
+ private:
+  Register const result_;
+};
+
+
+class OutOfLineLoadNaN FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadNaN(CodeGenerator* gen, XMMRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ pcmpeqd(result_, result_); }
+
+ private:
+  XMMRegister const result_;
+};
+
+
+class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
+ public:
+  OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
+                             XMMRegister input)
+      : OutOfLineCode(gen), result_(result), input_(input) {}
+
+  void Generate() FINAL {
+    __ subp(rsp, Immediate(kDoubleSize));
+    __ movsd(MemOperand(rsp, 0), input_);
+    __ SlowTruncateToI(result_, rsp, 0);
+    __ addp(rsp, Immediate(kDoubleSize));
+  }
+
+ private:
+  Register const result_;
+  XMMRegister const input_;
+};
+
+}  // namespace
 
 
 #define ASSEMBLE_UNOP(asm_instr)         \
@@ -207,6 +259,247 @@ static bool HasImmediateInput(Instruction* instr, int index) {
   } while (0)
 
 
+#define ASSEMBLE_AVX_DOUBLE_BINOP(asm_instr)                           \
+  do {                                                                 \
+    CpuFeatureScope avx_scope(masm(), AVX);                            \
+    if (instr->InputAt(1)->IsDoubleRegister()) {                       \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
+                   i.InputDoubleRegister(1));                          \
+    } else {                                                           \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
+                   i.InputOperand(1));                                 \
+    }                                                                  \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                               \
+  do {                                                                       \
+    auto result = i.OutputDoubleRegister();                                  \
+    auto buffer = i.InputRegister(0);                                        \
+    auto index1 = i.InputRegister(1);                                        \
+    auto index2 = i.InputInt32(2);                                           \
+    OutOfLineCode* ool;                                                      \
+    if (instr->InputAt(3)->IsRegister()) {                                   \
+      auto length = i.InputRegister(3);                                      \
+      DCHECK_EQ(0, index2);                                                  \
+      __ cmpl(index1, length);                                               \
+      ool = new (zone()) OutOfLineLoadNaN(this, result);                     \
+    } else {                                                                 \
+      auto length = i.InputInt32(3);                                         \
+      DCHECK_LE(index2, length);                                             \
+      __ cmpq(index1, Immediate(length - index2));                           \
+      class OutOfLineLoadFloat FINAL : public OutOfLineCode {                \
+       public:                                                               \
+        OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result,           \
+                           Register buffer, Register index1, int32_t index2, \
+                           int32_t length)                                   \
+            : OutOfLineCode(gen),                                            \
+              result_(result),                                               \
+              buffer_(buffer),                                               \
+              index1_(index1),                                               \
+              index2_(index2),                                               \
+              length_(length) {}                                             \
+                                                                             \
+        void Generate() FINAL {                                              \
+          __ leal(kScratchRegister, Operand(index1_, index2_));              \
+          __ pcmpeqd(result_, result_);                                      \
+          __ cmpl(kScratchRegister, Immediate(length_));                     \
+          __ j(above_equal, exit());                                         \
+          __ asm_instr(result_,                                              \
+                       Operand(buffer_, kScratchRegister, times_1, 0));      \
+        }                                                                    \
+                                                                             \
+       private:                                                              \
+        XMMRegister const result_;                                           \
+        Register const buffer_;                                              \
+        Register const index1_;                                              \
+        int32_t const index2_;                                               \
+        int32_t const length_;                                               \
+      };                                                                     \
+      ool = new (zone())                                                     \
+          OutOfLineLoadFloat(this, result, buffer, index1, index2, length);  \
+    }                                                                        \
+    __ j(above_equal, ool->entry());                                         \
+    __ asm_instr(result, Operand(buffer, index1, times_1, index2));          \
+    __ bind(ool->exit());                                                    \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                               \
+  do {                                                                         \
+    auto result = i.OutputRegister();                                          \
+    auto buffer = i.InputRegister(0);                                          \
+    auto index1 = i.InputRegister(1);                                          \
+    auto index2 = i.InputInt32(2);                                             \
+    OutOfLineCode* ool;                                                        \
+    if (instr->InputAt(3)->IsRegister()) {                                     \
+      auto length = i.InputRegister(3);                                        \
+      DCHECK_EQ(0, index2);                                                    \
+      __ cmpl(index1, length);                                                 \
+      ool = new (zone()) OutOfLineLoadZero(this, result);                      \
+    } else {                                                                   \
+      auto length = i.InputInt32(3);                                           \
+      DCHECK_LE(index2, length);                                               \
+      __ cmpq(index1, Immediate(length - index2));                             \
+      class OutOfLineLoadInteger FINAL : public OutOfLineCode {                \
+       public:                                                                 \
+        OutOfLineLoadInteger(CodeGenerator* gen, Register result,              \
+                             Register buffer, Register index1, int32_t index2, \
+                             int32_t length)                                   \
+            : OutOfLineCode(gen),                                              \
+              result_(result),                                                 \
+              buffer_(buffer),                                                 \
+              index1_(index1),                                                 \
+              index2_(index2),                                                 \
+              length_(length) {}                                               \
+                                                                               \
+        void Generate() FINAL {                                                \
+          Label oob;                                                           \
+          __ leal(kScratchRegister, Operand(index1_, index2_));                \
+          __ cmpl(kScratchRegister, Immediate(length_));                       \
+          __ j(above_equal, &oob, Label::kNear);                               \
+          __ asm_instr(result_,                                                \
+                       Operand(buffer_, kScratchRegister, times_1, 0));        \
+          __ jmp(exit());                                                      \
+          __ bind(&oob);                                                       \
+          __ xorl(result_, result_);                                           \
+        }                                                                      \
+                                                                               \
+       private:                                                                \
+        Register const result_;                                                \
+        Register const buffer_;                                                \
+        Register const index1_;                                                \
+        int32_t const index2_;                                                 \
+        int32_t const length_;                                                 \
+      };                                                                       \
+      ool = new (zone())                                                       \
+          OutOfLineLoadInteger(this, result, buffer, index1, index2, length);  \
+    }                                                                          \
+    __ j(above_equal, ool->entry());                                           \
+    __ asm_instr(result, Operand(buffer, index1, times_1, index2));            \
+    __ bind(ool->exit());                                                      \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_STORE_FLOAT(asm_instr)                              \
+  do {                                                                       \
+    auto buffer = i.InputRegister(0);                                        \
+    auto index1 = i.InputRegister(1);                                        \
+    auto index2 = i.InputInt32(2);                                           \
+    auto value = i.InputDoubleRegister(4);                                   \
+    if (instr->InputAt(3)->IsRegister()) {                                   \
+      auto length = i.InputRegister(3);                                      \
+      DCHECK_EQ(0, index2);                                                  \
+      Label done;                                                            \
+      __ cmpl(index1, length);                                               \
+      __ j(above_equal, &done, Label::kNear);                                \
+      __ asm_instr(Operand(buffer, index1, times_1, index2), value);         \
+      __ bind(&done);                                                        \
+    } else {                                                                 \
+      auto length = i.InputInt32(3);                                         \
+      DCHECK_LE(index2, length);                                             \
+      __ cmpq(index1, Immediate(length - index2));                           \
+      class OutOfLineStoreFloat FINAL : public OutOfLineCode {               \
+       public:                                                               \
+        OutOfLineStoreFloat(CodeGenerator* gen, Register buffer,             \
+                            Register index1, int32_t index2, int32_t length, \
+                            XMMRegister value)                               \
+            : OutOfLineCode(gen),                                            \
+              buffer_(buffer),                                               \
+              index1_(index1),                                               \
+              index2_(index2),                                               \
+              length_(length),                                               \
+              value_(value) {}                                               \
+                                                                             \
+        void Generate() FINAL {                                              \
+          __ leal(kScratchRegister, Operand(index1_, index2_));              \
+          __ cmpl(kScratchRegister, Immediate(length_));                     \
+          __ j(above_equal, exit());                                         \
+          __ asm_instr(Operand(buffer_, kScratchRegister, times_1, 0),       \
+                       value_);                                              \
+        }                                                                    \
+                                                                             \
+       private:                                                              \
+        Register const buffer_;                                              \
+        Register const index1_;                                              \
+        int32_t const index2_;                                               \
+        int32_t const length_;                                               \
+        XMMRegister const value_;                                            \
+      };                                                                     \
+      auto ool = new (zone())                                                \
+          OutOfLineStoreFloat(this, buffer, index1, index2, length, value);  \
+      __ j(above_equal, ool->entry());                                       \
+      __ asm_instr(Operand(buffer, index1, times_1, index2), value);         \
+      __ bind(ool->exit());                                                  \
+    }                                                                        \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER_IMPL(asm_instr, Value)                  \
+  do {                                                                         \
+    auto buffer = i.InputRegister(0);                                          \
+    auto index1 = i.InputRegister(1);                                          \
+    auto index2 = i.InputInt32(2);                                             \
+    if (instr->InputAt(3)->IsRegister()) {                                     \
+      auto length = i.InputRegister(3);                                        \
+      DCHECK_EQ(0, index2);                                                    \
+      Label done;                                                              \
+      __ cmpl(index1, length);                                                 \
+      __ j(above_equal, &done, Label::kNear);                                  \
+      __ asm_instr(Operand(buffer, index1, times_1, index2), value);           \
+      __ bind(&done);                                                          \
+    } else {                                                                   \
+      auto length = i.InputInt32(3);                                           \
+      DCHECK_LE(index2, length);                                               \
+      __ cmpq(index1, Immediate(length - index2));                             \
+      class OutOfLineStoreInteger FINAL : public OutOfLineCode {               \
+       public:                                                                 \
+        OutOfLineStoreInteger(CodeGenerator* gen, Register buffer,             \
+                              Register index1, int32_t index2, int32_t length, \
+                              Value value)                                     \
+            : OutOfLineCode(gen),                                              \
+              buffer_(buffer),                                                 \
+              index1_(index1),                                                 \
+              index2_(index2),                                                 \
+              length_(length),                                                 \
+              value_(value) {}                                                 \
+                                                                               \
+        void Generate() FINAL {                                                \
+          __ leal(kScratchRegister, Operand(index1_, index2_));                \
+          __ cmpl(kScratchRegister, Immediate(length_));                       \
+          __ j(above_equal, exit());                                           \
+          __ asm_instr(Operand(buffer_, kScratchRegister, times_1, 0),         \
+                       value_);                                                \
+        }                                                                      \
+                                                                               \
+       private:                                                                \
+        Register const buffer_;                                                \
+        Register const index1_;                                                \
+        int32_t const index2_;                                                 \
+        int32_t const length_;                                                 \
+        Value const value_;                                                    \
+      };                                                                       \
+      auto ool = new (zone())                                                  \
+          OutOfLineStoreInteger(this, buffer, index1, index2, length, value);  \
+      __ j(above_equal, ool->entry());                                         \
+      __ asm_instr(Operand(buffer, index1, times_1, index2), value);           \
+      __ bind(ool->exit());                                                    \
+    }                                                                          \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                \
+  do {                                                           \
+    if (instr->InputAt(4)->IsRegister()) {                       \
+      Register value = i.InputRegister(4);                       \
+      ASSEMBLE_CHECKED_STORE_INTEGER_IMPL(asm_instr, Register);  \
+    } else {                                                     \
+      Immediate value = i.InputImmediate(4);                     \
+      ASSEMBLE_CHECKED_STORE_INTEGER_IMPL(asm_instr, Immediate); \
+    }                                                            \
+  } while (false)
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X64OperandConverter i(this, instr);
@@ -238,7 +531,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ jmp(GetLabel(i.InputRpo(0)));
+      AssembleArchJump(i.InputRpo(0));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -249,9 +542,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
       break;
-    case kArchTruncateDoubleToI:
-      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+    case kArchTruncateDoubleToI: {
+      auto result = i.OutputRegister();
+      auto input = i.InputDoubleRegister(0);
+      auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
+      __ cvttsd2siq(result, input);
+      __ cmpq(result, Immediate(1));
+      __ j(overflow, ool->entry());
+      __ bind(ool->exit());
       break;
+    }
     case kX64Add32:
       ASSEMBLE_BINOP(addl);
       break;
@@ -396,7 +696,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fprem();
       // The following 2 instruction implicitly use rax.
       __ fnstsw_ax();
-      if (CpuFeatures::IsSupported(SAHF) && masm()->IsEnabled(SAHF)) {
+      if (CpuFeatures::IsSupported(SAHF)) {
+        CpuFeatureScope sahf_scope(masm(), SAHF);
         __ sahf();
       } else {
         __ shrl(rax, Immediate(8));
@@ -482,8 +783,27 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
+    case kAVXFloat64Add:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vaddsd);
+      break;
+    case kAVXFloat64Sub:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vsubsd);
+      break;
+    case kAVXFloat64Mul:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vmulsd);
+      break;
+    case kAVXFloat64Div:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
+      break;
     case kX64Movsxbl:
-      __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      if (instr->addressing_mode() != kMode_None) {
+        __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ movsxbl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ movsxbl(i.OutputRegister(), i.InputOperand(0));
+      }
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
       __ movzxbl(i.OutputRegister(), i.MemoryOperand());
@@ -499,10 +819,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX64Movsxwl:
-      __ movsxwl(i.OutputRegister(), i.MemoryOperand());
+      if (instr->addressing_mode() != kMode_None) {
+        __ movsxwl(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ movsxwl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ movsxwl(i.OutputRegister(), i.InputOperand(0));
+      }
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
       __ movzxwl(i.OutputRegister(), i.MemoryOperand());
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
       int index = 0;
@@ -525,6 +853,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         } else {
           __ movl(i.OutputRegister(), i.MemoryOperand());
         }
+        __ AssertZeroExtended(i.OutputRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
@@ -574,11 +903,48 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kX64Lea32:
-      __ leal(i.OutputRegister(), i.MemoryOperand());
+    case kX64Lea32: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      // Shorten "leal" to "addl", "subl" or "shll" if the register allocation
+      // and addressing mode just happens to work out. The "addl"/"subl" forms
+      // in these cases are faster based on measurements.
+      if (i.InputRegister(0).is(i.OutputRegister())) {
+        if (mode == kMode_MRI) {
+          int32_t constant_summand = i.InputInt32(1);
+          if (constant_summand > 0) {
+            __ addl(i.OutputRegister(), Immediate(constant_summand));
+          } else if (constant_summand < 0) {
+            __ subl(i.OutputRegister(), Immediate(-constant_summand));
+          }
+        } else if (mode == kMode_MR1) {
+          if (i.InputRegister(1).is(i.OutputRegister())) {
+            __ shll(i.OutputRegister(), Immediate(1));
+          } else {
+            __ leal(i.OutputRegister(), i.MemoryOperand());
+          }
+        } else if (mode == kMode_M2) {
+          __ shll(i.OutputRegister(), Immediate(1));
+        } else if (mode == kMode_M4) {
+          __ shll(i.OutputRegister(), Immediate(2));
+        } else if (mode == kMode_M8) {
+          __ shll(i.OutputRegister(), Immediate(3));
+        } else {
+          __ leal(i.OutputRegister(), i.MemoryOperand());
+        }
+      } else {
+        __ leal(i.OutputRegister(), i.MemoryOperand());
+      }
+      __ AssertZeroExtended(i.OutputRegister());
       break;
+    }
     case kX64Lea:
       __ leaq(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kX64Dec32:
+      __ decl(i.OutputRegister());
+      break;
+    case kX64Inc32:
+      __ incl(i.OutputRegister());
       break;
     case kX64Push:
       if (HasImmediateInput(instr, 0)) {
@@ -603,27 +969,54 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ RecordWrite(object, index, value, mode);
       break;
     }
+    case kCheckedLoadInt8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movsxbl);
+      break;
+    case kCheckedLoadUint8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movzxbl);
+      break;
+    case kCheckedLoadInt16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movsxwl);
+      break;
+    case kCheckedLoadUint16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movzxwl);
+      break;
+    case kCheckedLoadWord32:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movl);
+      break;
+    case kCheckedLoadFloat32:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(movss);
+      break;
+    case kCheckedLoadFloat64:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(movsd);
+      break;
+    case kCheckedStoreWord8:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movb);
+      break;
+    case kCheckedStoreWord16:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movw);
+      break;
+    case kCheckedStoreWord32:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movl);
+      break;
+    case kCheckedStoreFloat32:
+      ASSEMBLE_CHECKED_STORE_FLOAT(movss);
+      break;
+    case kCheckedStoreFloat64:
+      ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
+      break;
   }
 }
 
 
 // Assembles branches after this instruction.
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   X64OperandConverter i(this, instr);
-  Label done;
-
-  // Emit a branch. The true and false targets are always the last two inputs
-  // to the instruction.
-  BasicBlock::RpoNumber tblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
-  BasicBlock::RpoNumber fblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
-  bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = GetLabel(tblock);
-  Label* flabel = fallthru ? &done : GetLabel(fblock);
-  Label::Distance flabel_distance = fallthru ? Label::kNear : Label::kFar;
-  switch (condition) {
+  Label::Distance flabel_distance =
+      branch->fallthru ? Label::kNear : Label::kFar;
+  Label* tlabel = branch->true_label;
+  Label* flabel = branch->false_label;
+  switch (branch->condition) {
     case kUnorderedEqual:
       __ j(parity_even, flabel, flabel_distance);
     // Fall through.
@@ -679,8 +1072,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
       __ j(no_overflow, tlabel);
       break;
   }
-  if (!fallthru) __ jmp(flabel, flabel_distance);  // no fallthru to flabel.
-  __ bind(&done);
+  if (!branch->fallthru) __ jmp(flabel, flabel_distance);
+}
+
+
+void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+  if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
 }
 
 
@@ -799,23 +1196,6 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-    if (info->strict_mode() == SLOPPY && !info->is_native()) {
-      Label ok;
-      StackArgumentsAccessor args(rbp, info->scope()->num_parameters());
-      __ movp(rcx, args.GetReceiverOperand());
-      __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &ok, Label::kNear);
-      __ movp(rcx, GlobalObjectOperand());
-      __ movp(rcx, FieldOperand(rcx, GlobalObject::kGlobalProxyOffset));
-      __ movp(args.GetReceiverOperand(), rcx);
-      __ bind(&ok);
-    }
-
   } else {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
@@ -918,6 +1298,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kHeapObject:
           __ Move(dst, src.ToHeapObject());
           break;
+        case Constant::kRpoNumber:
+          UNREACHABLE();  // TODO(dcarney): load of labels on x64.
+          break;
       }
       if (destination->IsStackSlot()) {
         __ movq(g.ToOperand(destination), kScratchRegister);
@@ -1001,7 +1384,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ movsd(xmm0, src);
     __ movsd(src, dst);
     __ movsd(dst, xmm0);
-  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
+  } else if (source->IsDoubleRegister() && destination->IsDoubleStackSlot()) {
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = g.ToDoubleRegister(source);

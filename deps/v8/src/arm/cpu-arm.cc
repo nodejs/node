@@ -27,6 +27,8 @@ namespace internal {
 void CpuFeatures::FlushICache(void* start, size_t size) {
   if (size == 0) return;
 
+  if (CpuFeatures::IsSupported(COHERENT_CACHE)) return;
+
 #if defined(USE_SIMULATOR)
   // Not generating ARM instructions for C-code. This means that we are
   // building an ARM emulator based target.  We should notify the simulator

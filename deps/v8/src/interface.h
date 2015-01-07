@@ -123,7 +123,7 @@ class Interface : public ZoneObject {
     return exports ? exports->occupancy() : 0;
   }
 
-  // The context slot in the hosting global context pointing to this module.
+  // The context slot in the hosting script context pointing to this module.
   int Index() {
     DCHECK(IsModule() && IsFrozen());
     return Chase()->index_;

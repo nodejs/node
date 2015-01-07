@@ -24,7 +24,8 @@ TEST(VectorStructure) {
   Factory* factory = isolate->factory();
 
   // Empty vectors are the empty fixed array.
-  Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(0, 0);
+  FeedbackVectorSpec empty;
+  Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(empty);
   CHECK(Handle<FixedArray>::cast(vector)
             .is_identical_to(factory->empty_fixed_array()));
   // Which can nonetheless be queried.
@@ -33,15 +34,24 @@ TEST(VectorStructure) {
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  vector = factory->NewTypeFeedbackVector(1, 0);
+  FeedbackVectorSpec one_slot(1, 0);
+  vector = factory->NewTypeFeedbackVector(one_slot);
   CHECK_EQ(1, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  vector = factory->NewTypeFeedbackVector(0, 1);
+  FeedbackVectorSpec one_icslot(0, 1);
+  if (FLAG_vector_ics) {
+    one_icslot.SetKind(0, Code::CALL_IC);
+  }
+  vector = factory->NewTypeFeedbackVector(one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());
 
-  vector = factory->NewTypeFeedbackVector(3, 5);
+  FeedbackVectorSpec spec(3, 5);
+  if (FLAG_vector_ics) {
+    for (int i = 0; i < 5; i++) spec.SetKind(i, Code::CALL_IC);
+  }
+  vector = factory->NewTypeFeedbackVector(spec);
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
 
@@ -53,6 +63,7 @@ TEST(VectorStructure) {
   }
 
   int index = vector->GetIndex(FeedbackVectorSlot(0));
+
   CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length, index);
   CHECK(FeedbackVectorSlot(0) == vector->ToSlot(index));
 
@@ -78,11 +89,7 @@ TEST(VectorICMetadata) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(10, 3 * 10);
-  CHECK_EQ(10, vector->Slots());
-  CHECK_EQ(3 * 10, vector->ICSlots());
-
+  FeedbackVectorSpec spec(10, 3 * 10);
   // Set metadata.
   for (int i = 0; i < 30; i++) {
     Code::Kind kind;
@@ -93,8 +100,12 @@ TEST(VectorICMetadata) {
     } else {
       kind = Code::KEYED_LOAD_IC;
     }
-    vector->SetKind(FeedbackVectorICSlot(i), kind);
+    spec.SetKind(i, kind);
   }
+
+  Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(spec);
+  CHECK_EQ(10, vector->Slots());
+  CHECK_EQ(3 * 10, vector->ICSlots());
 
   // Meanwhile set some feedback values and type feedback values to
   // verify the data structure remains intact.
@@ -102,7 +113,7 @@ TEST(VectorICMetadata) {
   vector->change_ic_generic_count(3333);
   vector->Set(FeedbackVectorSlot(0), *vector);
 
-  // Verify the metadata remains the same.
+  // Verify the metadata is correctly set up from the spec.
   for (int i = 0; i < 30; i++) {
     Code::Kind kind = vector->GetKind(FeedbackVectorICSlot(i));
     if (i % 3 == 0) {
@@ -125,7 +136,8 @@ TEST(VectorSlotClearing) {
   // We only test clearing FeedbackVectorSlots, not FeedbackVectorICSlots.
   // The reason is that FeedbackVectorICSlots need a full code environment
   // to fully test (See VectorICProfilerStatistics test below).
-  Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(5, 0);
+  FeedbackVectorSpec spec(5, 0);
+  Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(spec);
 
   // Fill with information
   vector->Set(FeedbackVectorSlot(0), Smi::FromInt(1));
@@ -188,7 +200,7 @@ TEST(VectorICProfilerStatistics) {
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
-  int ic_slot = FLAG_vector_ics ? 1 : 0;
+  int ic_slot = 0;
   CHECK(
       feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -217,7 +229,7 @@ TEST(VectorCallICStates) {
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorICSlot slot(FLAG_vector_ics ? 1 : 0);
+  FeedbackVectorICSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // CallIC doesn't return map feedback.
@@ -238,5 +250,59 @@ TEST(VectorCallICStates) {
 
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+
+TEST(VectorLoadICStates) {
+  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "var o = { foo: 3 };"
+      "function f(a) { return a.foo; } f(o);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorICSlot slot(0);
+  LoadICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun("f(o)");
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  // Verify that the monomorphic map is the one we expect.
+  Handle<JSObject> o = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str("o"))));
+  CHECK_EQ(o->map(), nexus.FindFirstMap());
+
+  // Now go polymorphic.
+  CompileRun("f({ blarg: 3, foo: 2 })");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun(
+      "delete o.foo;"
+      "f(o)");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun("f({ blarg: 3, torino: 10, foo: 2 })");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+  MapHandleList maps;
+  nexus.FindAllMaps(&maps);
+  CHECK_EQ(4, maps.length());
+
+  // Finally driven megamorphic.
+  CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
+  CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(NULL, nexus.FindFirstMap());
+
+  // After a collection, state should not be reset to PREMONOMORPHIC.
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
 }

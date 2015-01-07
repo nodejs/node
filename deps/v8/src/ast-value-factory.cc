@@ -56,22 +56,20 @@ class AstRawStringInternalizationKey : public HashTableKey {
   explicit AstRawStringInternalizationKey(const AstRawString* string)
       : string_(string) {}
 
-  virtual bool IsMatch(Object* other) OVERRIDE {
+  bool IsMatch(Object* other) OVERRIDE {
     if (string_->is_one_byte_)
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
   }
 
-  virtual uint32_t Hash() OVERRIDE {
-    return string_->hash() >> Name::kHashShift;
-  }
+  uint32_t Hash() OVERRIDE { return string_->hash() >> Name::kHashShift; }
 
-  virtual uint32_t HashForObject(Object* key) OVERRIDE {
+  uint32_t HashForObject(Object* key) OVERRIDE {
     return String::cast(key)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     if (string_->is_one_byte_)
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());
@@ -182,9 +180,8 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      value_ = Object::GetProperty(
-                   isolate, handle(isolate->native_context()->builtins()),
-                   symbol_name_).ToHandleChecked();
+      DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
+      value_ = isolate->factory()->iterator_symbol();
       break;
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);

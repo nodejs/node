@@ -167,22 +167,19 @@ class ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      Handle<FixedArray> to,
-      Handle<FixedArrayBase> from) = 0;
+      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
+      Handle<FixedArrayBase> from, FixedArray::KeyFilter filter) = 0;
 
   MUST_USE_RESULT inline MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      Handle<FixedArray> to) {
-    return AddElementsToFixedArray(
-        receiver, holder, to, handle(holder->elements()));
+      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
+      FixedArray::KeyFilter filter) {
+    return AddElementsToFixedArray(receiver, holder, to,
+                                   handle(holder->elements()), filter);
   }
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
-    DCHECK(elements_kind < kElementsKindCount);
+    DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 

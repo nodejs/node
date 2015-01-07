@@ -151,6 +151,21 @@ StrictMode FunctionLiteral::strict_mode() const {
 }
 
 
+bool FunctionLiteral::uses_super_property() const {
+  DCHECK_NOT_NULL(scope());
+  return scope()->uses_super_property() || scope()->inner_uses_super_property();
+}
+
+
+bool FunctionLiteral::uses_super_constructor_call() const {
+  DCHECK_NOT_NULL(scope());
+  return scope()->uses_super_constructor_call() ||
+         scope()->inner_uses_super_constructor_call();
+}
+
+
+// Helper to find an existing shared function info in the baseline code for the
+// given function literal. Used to canonicalize SharedFunctionInfo objects.
 void FunctionLiteral::InitializeSharedInfo(
     Handle<Code> unoptimized_code) {
   for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
@@ -564,6 +579,12 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
   return (call_type != POSSIBLY_EVAL_CALL);
+}
+
+
+FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
+  int ic_slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
+  return FeedbackVectorRequirements(0, ic_slots);
 }
 
 
@@ -993,134 +1014,6 @@ CaseClause::CaseClause(Zone* zone, Expression* label,
       label_(label),
       statements_(statements),
       compare_type_(Type::None(zone)) {}
-
-
-#define REGULAR_NODE(NodeType)                                   \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-  }
-#define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType)               \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
-  }
-#define DONT_OPTIMIZE_NODE(NodeType)                             \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    set_dont_crankshaft_reason(k##NodeType);                     \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
-    set_dont_crankshaft_reason(k##NodeType);                     \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_TURBOFAN_NODE(NodeType)                             \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    set_dont_crankshaft_reason(k##NodeType);                     \
-    set_dont_turbofan_reason(k##NodeType);                       \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
-    set_dont_crankshaft_reason(k##NodeType);                     \
-    set_dont_turbofan_reason(k##NodeType);                       \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)     \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
-    add_flag(kDontSelfOptimize);                                 \
-  }
-#define DONT_CACHE_NODE(NodeType)                                \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    set_dont_crankshaft_reason(k##NodeType);                     \
-    add_flag(kDontSelfOptimize);                                 \
-    add_flag(kDontCache);                                        \
-  }
-
-REGULAR_NODE(VariableDeclaration)
-REGULAR_NODE(FunctionDeclaration)
-REGULAR_NODE(Block)
-REGULAR_NODE(ExpressionStatement)
-REGULAR_NODE(EmptyStatement)
-REGULAR_NODE(IfStatement)
-REGULAR_NODE(ContinueStatement)
-REGULAR_NODE(BreakStatement)
-REGULAR_NODE(ReturnStatement)
-REGULAR_NODE(SwitchStatement)
-REGULAR_NODE(CaseClause)
-REGULAR_NODE(Conditional)
-REGULAR_NODE(Literal)
-REGULAR_NODE(ArrayLiteral)
-REGULAR_NODE(ObjectLiteral)
-REGULAR_NODE(RegExpLiteral)
-REGULAR_NODE(FunctionLiteral)
-REGULAR_NODE(Assignment)
-REGULAR_NODE(Throw)
-REGULAR_NODE(UnaryOperation)
-REGULAR_NODE(CountOperation)
-REGULAR_NODE(BinaryOperation)
-REGULAR_NODE(CompareOperation)
-REGULAR_NODE(ThisFunction)
-
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(Call)
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(CallNew)
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(Property)
-// In theory, for VariableProxy we'd have to add:
-// if (node->var()->IsLookupSlot())
-//   set_dont_optimize_reason(kReferenceToAVariableWhichRequiresDynamicLookup);
-// But node->var() is usually not bound yet at VariableProxy creation time, and
-// LOOKUP variables only result from constructs that cannot be inlined anyway.
-REGULAR_NODE_WITH_FEEDBACK_SLOTS(VariableProxy)
-
-// We currently do not optimize any modules.
-DONT_OPTIMIZE_NODE(ModuleDeclaration)
-DONT_OPTIMIZE_NODE(ImportDeclaration)
-DONT_OPTIMIZE_NODE(ExportDeclaration)
-DONT_OPTIMIZE_NODE(ModuleVariable)
-DONT_OPTIMIZE_NODE(ModulePath)
-DONT_OPTIMIZE_NODE(ModuleUrl)
-DONT_OPTIMIZE_NODE(ModuleStatement)
-DONT_OPTIMIZE_NODE(WithStatement)
-DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
-
-DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
-
-// TODO(turbofan): Remove the dont_turbofan_reason once this list is empty.
-// This list must be kept in sync with Pipeline::GenerateCode.
-DONT_TURBOFAN_NODE(ForOfStatement)
-DONT_TURBOFAN_NODE(TryCatchStatement)
-DONT_TURBOFAN_NODE(TryFinallyStatement)
-DONT_TURBOFAN_NODE(ClassLiteral)
-
-DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(SuperReference)
-
-DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
-DONT_SELFOPTIMIZE_NODE(WhileStatement)
-DONT_SELFOPTIMIZE_NODE(ForStatement)
-
-DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(ForInStatement)
-
-DONT_CACHE_NODE(ModuleLiteral)
-
-
-void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
-  add_slot_node(node);
-  if (node->is_jsruntime()) {
-    // Don't try to optimize JS runtime calls because we bailout on them.
-    set_dont_crankshaft_reason(kCallToAJavaScriptRuntimeFunction);
-  }
-}
-
-#undef REGULAR_NODE
-#undef DONT_OPTIMIZE_NODE
-#undef DONT_SELFOPTIMIZE_NODE
-#undef DONT_CACHE_NODE
 
 
 uint32_t Literal::Hash() {

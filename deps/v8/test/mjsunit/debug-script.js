@@ -27,6 +27,12 @@
 
 // Flags: --expose-debug-as debug --expose-gc --send-idle-notification
 // Flags: --allow-natives-syntax
+// Flags: --noharmony-shipping
+// Note: this test checks that that the number of scripts reported as native
+// by Debug.scripts() is the same as a number of core native scripts.
+// Native scripts that are added by --harmony-shipping are classified
+// as 'experimental', but are still returned by Debug.scripts(), so
+// we disable harmony-shipping for this test
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;

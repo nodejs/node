@@ -60,8 +60,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                  (function->code()->kind() == Code::FUNCTION &&
                   function->code()->optimizable()));
 
-  // If the function is optimized, just return.
+  if (!isolate->use_crankshaft()) return isolate->heap()->undefined_value();
+
+  // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
+
+  // If the function cannot optimized, just return.
+  if (function->shared()->optimization_disabled()) {
+    return isolate->heap()->undefined_value();
+  }
 
   function->MarkForOptimization();
 
@@ -75,7 +82,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
           *function, Code::kMaxLoopNestingMarker);
     } else if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
-      function->MarkForConcurrentOptimization();
+      function->AttemptConcurrentOptimization();
     }
   }
 
@@ -87,6 +94,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  function->shared()->set_disable_optimization_reason(kOptimizationDisabled);
   function->shared()->set_optimization_disabled(true);
   return isolate->heap()->undefined_value();
 }
@@ -163,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  isolate->heap()->NotifyContextDisposed();
+  isolate->heap()->NotifyContextDisposed(true);
   return isolate->heap()->undefined_value();
 }
 

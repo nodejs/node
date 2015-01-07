@@ -39,8 +39,9 @@ class GapResolver FINAL {
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GAP_RESOLVER_H_

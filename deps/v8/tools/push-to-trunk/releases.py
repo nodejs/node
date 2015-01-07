@@ -136,9 +136,6 @@ class RetrieveV8Releases(Step):
     return (self._options.max_releases > 0
             and len(releases) > self._options.max_releases)
 
-  def GetBleedingEdgeFromPush(self, title):
-    return MatchSafe(PUSH_MSG_SVN_RE.match(title))
-
   def GetBleedingEdgeGitFromPush(self, title):
     return MatchSafe(PUSH_MSG_GIT_RE.match(title))
 
@@ -166,13 +163,13 @@ class RetrieveV8Releases(Step):
   def GetReleaseDict(
       self, git_hash, bleeding_edge_rev, bleeding_edge_git, branch, version,
       patches, cl_body):
-    revision = self.vc.GitSvn(git_hash)
+    revision = self.GetCommitPositionNumber(git_hash)
     return {
-      # The SVN revision on the branch.
+      # The cr commit position number on the branch.
       "revision": revision,
       # The git revision on the branch.
       "revision_git": git_hash,
-      # The SVN revision on bleeding edge (only for newer trunk pushes).
+      # The cr commit position number on master.
       "bleeding_edge": bleeding_edge_rev,
       # The same for git.
       "bleeding_edge_git": bleeding_edge_git,
@@ -211,28 +208,29 @@ class RetrieveV8Releases(Step):
         patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
-    bleeding_edge_revision = self.GetBleedingEdgeFromPush(title)
-    bleeding_edge_git = ""
-    if bleeding_edge_revision:
-      bleeding_edge_git = self.vc.SvnGit(bleeding_edge_revision,
-                                         self.vc.RemoteMasterBranch())
-    else:
-      bleeding_edge_git = self.GetBleedingEdgeGitFromPush(title)
+    bleeding_edge_git = self.GetBleedingEdgeGitFromPush(title)
+    bleeding_edge_position = ""
+    if bleeding_edge_git:
+      bleeding_edge_position = self.GetCommitPositionNumber(bleeding_edge_git)
+    # TODO(machenbach): Add the commit position number.
     return self.GetReleaseDict(
-        git_hash, bleeding_edge_revision, bleeding_edge_git, branch, version,
+        git_hash, bleeding_edge_position, bleeding_edge_git, branch, version,
         patches, body), self["patch"]
 
   def GetReleasesFromMaster(self):
-    tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v --limit 20")
-    releases = []
-    for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
-      git_hash = self.vc.SvnGit(revision)
+    # TODO(machenbach): Implement this in git as soon as we tag again on
+    # master.
+    # tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v
+    # --limit 20")
+    # releases = []
+    # for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
+    #   git_hash = self.vc.SvnGit(revision)
 
       # Add bleeding edge release. It does not contain patches or a code
       # review link, as tags are not uploaded.
-      releases.append(self.GetReleaseDict(
-        git_hash, revision, git_hash, self.vc.MasterBranch(), tag, "", ""))
-    return releases
+    #   releases.append(self.GetReleaseDict(
+    #     git_hash, revision, git_hash, self.vc.MasterBranch(), tag, "", ""))
+    return []
 
   def GetReleasesFromBranch(self, branch):
     self.GitReset(self.vc.RemoteBranch(branch))
@@ -324,7 +322,7 @@ def ConvertToCommitNumber(step, revision):
   # Simple check for git hashes.
   if revision.isdigit() and len(revision) < 8:
     return revision
-  return step.GitConvertToSVNRevision(
+  return step.GetCommitPositionNumber(
       revision, cwd=os.path.join(step._options.chromium, "v8"))
 
 

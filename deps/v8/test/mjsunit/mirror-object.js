@@ -125,12 +125,7 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
         // Check that serialized name is correct.
         assertEquals(properties[i].name(), fromJSON.properties[i].name, 'Unexpected serialized name');
 
-        // If property type is normal property type is not serialized.
-        if (properties[i].propertyType() != debug.PropertyType.Normal) {
-          assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType, 'Unexpected serialized property type');
-        } else {
-          assertTrue(typeof(fromJSON.properties[i].propertyType) === 'undefined', 'Unexpected serialized property type');
-        }
+        assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType, 'Unexpected serialized property type');
 
         // If there are no attributes attributes are not serialized.
         if (properties[i].attributes() != debug.PropertyAttribute.None) {

@@ -96,16 +96,6 @@ function WeakMapDelete(key) {
 }
 
 
-function WeakMapClear() {
-  if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakMap.prototype.clear', this]);
-  }
-  // Replace the internal table with a new empty table.
-  %WeakCollectionInitialize(this);
-}
-
-
 // -------------------------------------------------------------------
 
 function SetUpWeakMap() {
@@ -122,8 +112,7 @@ function SetUpWeakMap() {
     "get", WeakMapGet,
     "set", WeakMapSet,
     "has", WeakMapHas,
-    "delete", WeakMapDelete,
-    "clear", WeakMapClear
+    "delete", WeakMapDelete
   ));
 }
 
@@ -198,16 +187,6 @@ function WeakSetDelete(value) {
 }
 
 
-function WeakSetClear() {
-  if (!IS_WEAKSET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakSet.prototype.clear', this]);
-  }
-  // Replace the internal table with a new empty table.
-  %WeakCollectionInitialize(this);
-}
-
-
 // -------------------------------------------------------------------
 
 function SetUpWeakSet() {
@@ -223,8 +202,7 @@ function SetUpWeakSet() {
   InstallFunctions($WeakSet.prototype, DONT_ENUM, $Array(
     "add", WeakSetAdd,
     "has", WeakSetHas,
-    "delete", WeakSetDelete,
-    "clear", WeakSetClear
+    "delete", WeakSetDelete
   ));
 }
 

@@ -5,6 +5,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
@@ -24,7 +25,7 @@ namespace compiler {
 class ChangeLoweringTest : public GraphTest {
  public:
   ChangeLoweringTest() : simplified_(zone()) {}
-  virtual ~ChangeLoweringTest() {}
+  ~ChangeLoweringTest() OVERRIDE {}
 
   virtual MachineType WordRepresentation() const = 0;
 
@@ -61,12 +62,8 @@ class ChangeLoweringTest : public GraphTest {
                   : SmiTagging<8>::SmiValueSize();
   }
 
-  Node* Parameter(int32_t index = 0) {
-    return graph()->NewNode(common()->Parameter(index), graph()->start());
-  }
-
   Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine(WordRepresentation());
+    MachineOperatorBuilder machine(zone(), WordRepresentation());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(graph(), common(), &javascript, &machine);
     CompilationInfo info(isolate(), zone());
@@ -111,11 +108,9 @@ class ChangeLoweringCommonTest
     : public ChangeLoweringTest,
       public ::testing::WithParamInterface<MachineType> {
  public:
-  virtual ~ChangeLoweringCommonTest() {}
+  ~ChangeLoweringCommonTest() OVERRIDE {}
 
-  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
-    return GetParam();
-  }
+  MachineType WordRepresentation() const FINAL { return GetParam(); }
 };
 
 
@@ -178,16 +173,15 @@ INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
 
 class ChangeLowering32Test : public ChangeLoweringTest {
  public:
-  virtual ~ChangeLowering32Test() {}
-  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
-    return kRepWord32;
-  }
+  ~ChangeLowering32Test() OVERRIDE {}
+  MachineType WordRepresentation() const FINAL { return kRepWord32; }
 };
 
 
 TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Signed32()));
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 
@@ -209,6 +203,19 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
                     IsIfFalse(AllOf(CaptureEq(&branch),
                                     IsBranch(IsProjection(1, CaptureEq(&add)),
                                              graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTaggedSmall) {
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::SignedSmall()));
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* change = reduction.replacement();
+  Capture<Node*> add, branch, heap_number, if_true;
+  EXPECT_THAT(change, IsWord32Shl(val, IsInt32Constant(SmiShiftAmount())));
 }
 
 
@@ -324,10 +331,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
 
 class ChangeLowering64Test : public ChangeLoweringTest {
  public:
-  virtual ~ChangeLowering64Test() {}
-  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
-    return kRepWord64;
-  }
+  ~ChangeLowering64Test() OVERRIDE {}
+  MachineType WordRepresentation() const FINAL { return kRepWord64; }
 };
 
 

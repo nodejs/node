@@ -23,7 +23,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithParameter) {
   m.Return(m.Int32Add(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kIA32Add, s[0]->arch_opcode());
+  EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
 }
 
 
@@ -34,18 +34,26 @@ TEST_F(InstructionSelectorTest, Int32AddWithImmediate) {
       m.Return(m.Int32Add(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kIA32Add, s[0]->arch_opcode());
-      ASSERT_EQ(2U, s[0]->InputCount());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
+      if (imm == 0) {
+        ASSERT_EQ(1U, s[0]->InputCount());
+      } else {
+        ASSERT_EQ(2U, s[0]->InputCount());
+        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      }
     }
     {
       StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Int32Add(m.Int32Constant(imm), m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kIA32Add, s[0]->arch_opcode());
-      ASSERT_EQ(2U, s[0]->InputCount());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
+      if (imm == 0) {
+        ASSERT_EQ(1U, s[0]->InputCount());
+      } else {
+        ASSERT_EQ(2U, s[0]->InputCount());
+        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      }
     }
   }
 }
@@ -112,10 +120,13 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestAddBinop) {
   m.Return(m.Int32Add(add, param1));
   Stream s = m.Build();
   ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kIA32Add, s[0]->arch_opcode());
+  EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param1), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(param1), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -131,6 +142,7 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
   EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param1), s.ToVreg(s[0]->InputAt(1)));
 }
 
 
@@ -304,9 +316,10 @@ class AddressingModeUnitTest : public InstructionSelectorTest {
   AddressingModeUnitTest() : m(NULL) { Reset(); }
   ~AddressingModeUnitTest() { delete m; }
 
-  void Run(Node* base, Node* index, AddressingMode mode) {
-    Node* load = m->Load(kMachInt32, base, index);
-    m->Store(kMachInt32, base, index, load);
+  void Run(Node* base, Node* load_index, Node* store_index,
+           AddressingMode mode) {
+    Node* load = m->Load(kMachInt32, base, load_index);
+    m->Store(kMachInt32, base, store_index, load);
     m->Return(m->Int32Constant(0));
     Stream s = m->Build();
     ASSERT_EQ(2U, s.size());
@@ -342,21 +355,21 @@ class AddressingModeUnitTest : public InstructionSelectorTest {
 TEST_F(AddressingModeUnitTest, AddressingMode_MR) {
   Node* base = base_reg;
   Node* index = zero;
-  Run(base, index, kMode_MR);
+  Run(base, index, index, kMode_MR);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MRI) {
   Node* base = base_reg;
   Node* index = non_zero;
-  Run(base, index, kMode_MRI);
+  Run(base, index, index, kMode_MRI);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MR1) {
   Node* base = base_reg;
   Node* index = index_reg;
-  Run(base, index, kMode_MR1);
+  Run(base, index, index, kMode_MR1);
 }
 
 
@@ -365,16 +378,18 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MRN) {
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = base_reg;
-    Node* index = m->Int32Mul(index_reg, scales[i]);
-    Run(base, index, expected[i]);
+    Node* load_index = m->Int32Mul(index_reg, scales[i]);
+    Node* store_index = m->Int32Mul(index_reg, scales[i]);
+    Run(base, load_index, store_index, expected[i]);
   }
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MR1I) {
   Node* base = base_reg;
-  Node* index = m->Int32Add(index_reg, non_zero);
-  Run(base, index, kMode_MR1I);
+  Node* load_index = m->Int32Add(index_reg, non_zero);
+  Node* store_index = m->Int32Add(index_reg, non_zero);
+  Run(base, load_index, store_index, kMode_MR1I);
 }
 
 
@@ -383,44 +398,52 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MRNI) {
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = base_reg;
-    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
-    Run(base, index, expected[i]);
+    Node* load_index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Node* store_index =
+        m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Run(base, load_index, store_index, expected[i]);
   }
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_M1) {
+TEST_F(AddressingModeUnitTest, AddressingMode_M1ToMR) {
   Node* base = null_ptr;
   Node* index = index_reg;
-  Run(base, index, kMode_M1);
+  // M1 maps to MR
+  Run(base, index, index, kMode_MR);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MN) {
-  AddressingMode expected[] = {kMode_M1, kMode_M2, kMode_M4, kMode_M8};
+  AddressingMode expected[] = {kMode_MR, kMode_M2, kMode_M4, kMode_M8};
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = null_ptr;
-    Node* index = m->Int32Mul(index_reg, scales[i]);
-    Run(base, index, expected[i]);
+    Node* load_index = m->Int32Mul(index_reg, scales[i]);
+    Node* store_index = m->Int32Mul(index_reg, scales[i]);
+    Run(base, load_index, store_index, expected[i]);
   }
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_M1I) {
+TEST_F(AddressingModeUnitTest, AddressingMode_M1IToMRI) {
   Node* base = null_ptr;
-  Node* index = m->Int32Add(index_reg, non_zero);
-  Run(base, index, kMode_M1I);
+  Node* load_index = m->Int32Add(index_reg, non_zero);
+  Node* store_index = m->Int32Add(index_reg, non_zero);
+  // M1I maps to MRI
+  Run(base, load_index, store_index, kMode_MRI);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MNI) {
-  AddressingMode expected[] = {kMode_M1I, kMode_M2I, kMode_M4I, kMode_M8I};
+  AddressingMode expected[] = {kMode_MRI, kMode_M2I, kMode_M4I, kMode_M8I};
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = null_ptr;
-    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
-    Run(base, index, expected[i]);
+    Node* load_index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Node* store_index =
+        m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Run(base, load_index, store_index, expected[i]);
   }
 }
 
@@ -433,7 +456,7 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MI) {
       Reset();
       Node* base = bases[i];
       Node* index = indices[j];
-      Run(base, index, kMode_MI);
+      Run(base, index, index, kMode_MI);
     }
   }
 }
@@ -459,7 +482,7 @@ std::ostream& operator<<(std::ostream& os, const MultParam& m) {
 
 const MultParam kMultParams[] = {{-1, false, kMode_None},
                                  {0, false, kMode_None},
-                                 {1, true, kMode_M1},
+                                 {1, true, kMode_MR},
                                  {2, true, kMode_M2},
                                  {3, true, kMode_MR2},
                                  {4, true, kMode_M4},
@@ -493,11 +516,14 @@ static unsigned InputCountForLea(AddressingMode mode) {
     case kMode_MR2:
     case kMode_MR4:
     case kMode_MR8:
+    case kMode_MRI:
       return 2U;
     case kMode_M1:
     case kMode_M2:
     case kMode_M4:
     case kMode_M8:
+    case kMode_MI:
+    case kMode_MR:
       return 1U;
     default:
       UNREACHABLE();
@@ -506,7 +532,9 @@ static unsigned InputCountForLea(AddressingMode mode) {
 }
 
 
-static AddressingMode AddressingModeForAddMult(const MultParam& m) {
+static AddressingMode AddressingModeForAddMult(int32_t imm,
+                                               const MultParam& m) {
+  if (imm == 0) return m.addressing_mode;
   switch (m.addressing_mode) {
     case kMode_MR1:
       return kMode_MR1I;
@@ -524,6 +552,8 @@ static AddressingMode AddressingModeForAddMult(const MultParam& m) {
       return kMode_M4I;
     case kMode_M8:
       return kMode_M8I;
+    case kMode_MR:
+      return kMode_MRI;
     default:
       UNREACHABLE();
       return kMode_None;
@@ -563,16 +593,19 @@ TEST_P(InstructionSelectorMultTest, MultAdd32) {
     if (m_param.lea_expected) {
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
-      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
+      EXPECT_EQ(AddressingModeForAddMult(imm, m_param),
+                s[0]->addressing_mode());
       unsigned input_count = InputCountForLea(s[0]->addressing_mode());
       ASSERT_EQ(input_count, s[0]->InputCount());
-      ASSERT_EQ(InstructionOperand::IMMEDIATE,
-                s[0]->InputAt(input_count - 1)->kind());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
+      if (imm != 0) {
+        ASSERT_EQ(InstructionOperand::IMMEDIATE,
+                  s[0]->InputAt(input_count - 1)->kind());
+        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
+      }
     } else {
       ASSERT_EQ(2U, s.size());
       EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
-      EXPECT_EQ(kIA32Add, s[1]->arch_opcode());
+      EXPECT_EQ(kIA32Lea, s[1]->arch_opcode());
     }
   }
 }
@@ -599,6 +632,38 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
   EXPECT_TRUE(s.IsFixed(s[0]->OutputAt(0), edx));
+}
+
+
+TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
+    Node* mul = m.Float64Mul(add, m.Parameter(1));
+    Node* sub = m.Float64Sub(mul, add);
+    Node* ret = m.Float64Div(mul, sub);
+    m.Return(ret);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(4U, s.size());
+    EXPECT_EQ(kAVXFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Div, s[3]->arch_opcode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
+    Node* mul = m.Float64Mul(add, m.Parameter(1));
+    Node* sub = m.Float64Sub(mul, add);
+    Node* ret = m.Float64Div(mul, sub);
+    m.Return(ret);
+    Stream s = m.Build();
+    ASSERT_EQ(4U, s.size());
+    EXPECT_EQ(kSSEFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Div, s[3]->arch_opcode());
+  }
 }
 
 }  // namespace compiler

@@ -381,8 +381,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFixedArrayReferences(int entry, FixedArray* array);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
-  bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
-                                   Object* key, Object* callback_obj);
+  void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
+                                   Object* callback_obj, int field_offset = -1);
   void ExtractElementReferences(JSObject* js_obj, int entry);
   void ExtractInternalReferences(JSObject* js_obj, int entry);
 
@@ -430,6 +430,12 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             Object* child,
                             const char* name_format_string = NULL,
                             int field_offset = -1);
+  void SetDataOrAccessorPropertyReference(PropertyKind kind,
+                                          JSObject* parent_obj, int parent,
+                                          Name* reference_name, Object* child,
+                                          const char* name_format_string = NULL,
+                                          int field_offset = -1);
+
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);

@@ -48,7 +48,7 @@ class RawMachineAssembler : public GraphBuilder {
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
-  virtual ~RawMachineAssembler() {}
+  ~RawMachineAssembler() OVERRIDE {}
 
   Isolate* isolate() const { return zone()->isolate(); }
   Zone* zone() const { return graph()->zone(); }
@@ -430,8 +430,8 @@ class RawMachineAssembler : public GraphBuilder {
   Schedule* Export();
 
  protected:
-  virtual Node* MakeNode(const Operator* op, int input_count, Node** inputs,
-                         bool incomplete) FINAL;
+  Node* MakeNode(const Operator* op, int input_count, Node** inputs,
+                 bool incomplete) FINAL;
 
   bool ScheduleValid() { return schedule_ != NULL; }
 

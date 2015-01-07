@@ -27,7 +27,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   HandleScope scope(isolate);
 
   // Compute the size of relocation information needed for the code
-  // patching in Deoptimizer::DeoptimizeFunction.
+  // patching in Deoptimizer::PatchCodeForDeoptimization below.
   int min_reloc_size = 0;
   int prev_pc_offset = 0;
   DeoptimizationInputData* deopt_data =

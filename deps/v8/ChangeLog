@@ -1,3 +1,521 @@
+2014-12-23: Version 3.31.74
+
+        [turbofan] Turn DCHECK for fixed slot index into a CHECK (Chromium issue
+        444681).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-23: Version 3.31.73
+
+        [turbofan] Fix missing ChangeUint32ToUint64 in lowering of LoadBuffer
+        (Chromium issue 444695).
+
+        Enable the embedder to specify what kind of context was disposed.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-22: Version 3.31.72
+
+        [turbofan] Correctify lowering of Uint8ClampedArray buffer access
+        (Chromium issue 444508).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.71
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.70
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.69
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.68
+
+        [turbofan] Fix unsafe out-of-bounds check for checked loads/stores
+        (Chromium issue 443744).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.67
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.66
+
+        Ship ES6 template literals (issue 3230).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.65
+
+        ES6 template literals should not use legacy octal strings (issue 3736).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.64
+
+        Fixed -fsanitize=float-cast-overflow problems (issue 3773).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.63
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-17: Version 3.31.62
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-17: Version 3.31.61
+
+        ES6: Update unscopables to match spec (issue 3632).
+
+        ES6 computed property names (issue 3754).
+
+        More -fsanitize=vptr fixes (Chromium issue 441099).
+
+        [turbofan] Cache conversions inserted during typed lowering (issue
+        3763).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.60
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.59
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.58
+
+        Ship ES6 classes (issue 3330).
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.57
+
+        Consistently use only one of virtual/OVERRIDE/FINAL (issue 3753).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.56
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.55
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.54
+
+        Implement Array.from() (issue 3336).
+
+        move v8_use_external_startup_data to standalone.gypi (Chromium issue
+        421063).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.53
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.52
+
+        Ship ES6 block scoping (issue 2198).
+
+        Optimize Object.seal and Object.preventExtensions (issue 3662, Chromium
+        issue 115960).
+
+        Add Array.prototype.includes (issue 3575).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-10: Version 3.31.51
+
+        [x64] Fix optimization for certain checked load/stores (Chromium issue
+        439743).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.50
+
+        Temporarily restore make dependencies.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.49
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.48
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.47
+
+        Temporarily restore make dependencies.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-08: Version 3.31.46
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-08: Version 3.31.45
+
+        Update all DEPS to match chromium's DEPS at edb488e.
+
+        Turn on DCHECKs and other debugging code if dcheck_always_on is 1 (issue
+        3731).
+
+        Optimize GetPrototype.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-05: Version 3.31.44
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.43
+
+        ES6 template literals: Fix issue with template after rbrace (issue
+        3734).
+
+        Stage ES6 template literals (issue 3230).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.42
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.41
+
+        Simplify template literal raw string creation (issue 3710).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.40
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.39
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.38
+
+        Stage ES6 classes and object literal extensions (issue 3330).
+
+        Fixed environment handling for LFlooringDivI on ARM (Chromium issue
+        437765).
+
+        Add GetIdentityHash to v8::Name object API (Chromium issue 437416).
+
+        Set V8_CC_GNU or V8_CC_MSVC for clang in gcc / cl mode (Chromium issue
+        82385).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.37
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.36
+
+        Set V8_CC_GNU or V8_CC_MSVC for clang in gcc / cl mode (Chromium issue
+        82385).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.35
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.34
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.33
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.32
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.31
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-29: Version 3.31.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.29
+
+        Stage @@toStringTag (--harmony-tostring).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.27
+
+        Ship harmony-strings.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.26
+
+        Abort optimization in corner case (Chromium issue 436893).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-26: Version 3.31.25
+
+        Stage ES6 block scoping (issue 2198).
+
+        Introduce legacy const slots in correct context (Chromium issue 410030).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-26: Version 3.31.24
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-25: Version 3.31.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-25: Version 3.31.22
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-24: Version 3.31.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-24: Version 3.31.20
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-22: Version 3.31.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.16
+
+        Cache template literal callSiteObj (issue 3230).
+
+        Rename String.prototype.contains to 'includes'.
+
+        Reserve code range block for evacuation (Chromium issue 430118).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-20: Version 3.31.15
+
+        Rename String.prototype.contains to 'includes'.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.14
+
+        Remove Weak{Map,Set}.prototype.clear.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.13
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.12
+
+        Classes: Expand test to cover strict runtime behavior (issue 3330).
+
+        v8::String::Concat must not throw (Chromium issue 420240).
+
+        Fix disabling all break points from within the debug event callback
+        (Chromium issue 432493).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-18: Version 3.31.11
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.10
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.9
+
+        Expose internal properties of map/set iterators via mirrors.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.8
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-15: Version 3.31.7
+
+        Classes: Add support for stepping through default constructors (issue
+        3674).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.6
+
+        Fix desugaring of let bindings in for loops to handle continue properly
+        (issue 3683).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.5
+
+        Classes: Implement correct name binding (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.4
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.3
+
+        Classes: Cleanup default constructor flag.
+
+        Soft fail for invalid cache data.
+
+        Implement .of() on typed arrays (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-13: Version 3.31.2
+
+        MIPS: Leaving a generator via an exception causes it to close (issue
+        3096).
+
+        MIPS: ES6: Add support for super in object literals (issue 3571).
+
+        Increase the target new space size to the max new space size (issue
+        3626).
+
+        Leaving a generator via an exception causes it to close (issue 3096).
+
+        Correctly compute line numbers in functions from the function
+        constructor (Chromium issue 109362).
+
+        Rename v8::Exception::GetMessage to CreateMessage.
+
+        Classes: Add support for arguments in default constructor (issue 3672).
+
+        ES6: Add support for super in object literals (issue 3571).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-12: Version 3.31.1
+
+        Fix has_constant_parameter_count() confusion in LReturn (Chromium issue
+        431602).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-05: Version 3.30.33
 
         `1..isPrototypeOf.call(null)` should return false, not throw TypeError

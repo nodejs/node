@@ -35,10 +35,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#error Using compressed startup data is not supported for this sample
-#endif
-
 /**
  * This sample program shows how to implement a simple javascript shell
  * based on V8.  This includes initializing V8 with command line options,

@@ -266,7 +266,6 @@ assertTrue(WeakMap.prototype.set instanceof Function)
 assertTrue(WeakMap.prototype.get instanceof Function)
 assertTrue(WeakMap.prototype.has instanceof Function)
 assertTrue(WeakMap.prototype.delete instanceof Function)
-assertTrue(WeakMap.prototype.clear instanceof Function)
 
 
 // Test some common JavaScript idioms for WeakSets
@@ -275,7 +274,6 @@ assertTrue(s instanceof WeakSet);
 assertTrue(WeakSet.prototype.add instanceof Function)
 assertTrue(WeakSet.prototype.has instanceof Function)
 assertTrue(WeakSet.prototype.delete instanceof Function)
-assertTrue(WeakSet.prototype.clear instanceof Function)
 
 
 // Test class of instance and prototype.
@@ -468,30 +466,6 @@ for (var i = 9; i >= 0; i--) {
   m.clear();
   assertFalse(m.has(42));
   assertEquals(0, m.size);
-})();
-
-
-// Test WeakMap clear
-(function() {
-  var k = new Object();
-  var w = new WeakMap();
-  w.set(k, 23);
-  assertTrue(w.has(k));
-  assertEquals(23, w.get(k));
-  w.clear();
-  assertFalse(w.has(k));
-  assertEquals(undefined, w.get(k));
-})();
-
-
-// Test WeakSet clear
-(function() {
-  var k = new Object();
-  var w = new WeakSet();
-  w.add(k);
-  assertTrue(w.has(k));
-  w.clear();
-  assertFalse(w.has(k));
 })();
 
 

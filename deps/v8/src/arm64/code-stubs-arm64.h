@@ -97,7 +97,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
 
   static Mode GetMode(Code* stub) {
     // Find the mode depending on the first two instructions.
@@ -275,9 +275,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const FINAL { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) OVERRIDE;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -285,7 +285,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) {
+  void Activate(Code* code) OVERRIDE {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 
@@ -328,7 +328,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() { return true; }
+  bool NeedsImmovableCode() OVERRIDE { return true; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
@@ -360,7 +360,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register scratch1,
                                      Register scratch2);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
 
  private:
   static const int kInlinedProbes = 4;

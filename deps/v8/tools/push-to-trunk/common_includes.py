@@ -45,6 +45,7 @@ import urllib2
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
+CHANGELOG_FILE = "ChangeLog"
 VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
@@ -271,12 +272,6 @@ class VCInterface(object):
   def GetBranches(self):
     raise NotImplementedError()
 
-  def GitSvn(self, hsh, branch=""):
-    raise NotImplementedError()
-
-  def SvnGit(self, rev, branch=""):
-    raise NotImplementedError()
-
   def MasterBranch(self):
     raise NotImplementedError()
 
@@ -292,15 +287,9 @@ class VCInterface(object):
   def RemoteBranch(self, name):
     raise NotImplementedError()
 
-  def Land(self):
-    raise NotImplementedError()
-
   def CLLand(self):
     raise NotImplementedError()
 
-  # TODO(machenbach): There is some svn knowledge in this interface. In svn,
-  # tag and commit are different remote commands, while in git we would commit
-  # and tag locally and then push/land in one unique step.
   def Tag(self, tag, remote, message):
     """Sets a tag for the current commit.
 
@@ -309,68 +298,12 @@ class VCInterface(object):
     raise NotImplementedError()
 
 
-class GitSvnInterface(VCInterface):
-  def Pull(self):
-    self.step.GitSVNRebase()
-
-  def Fetch(self):
-    self.step.GitSVNFetch()
-
-  def GetTags(self):
-    # Get remote tags.
-    tags = filter(lambda s: re.match(r"^svn/tags/[\d+\.]+$", s),
-                  self.step.GitRemotes())
-
-    # Remove 'svn/tags/' prefix.
-    return map(lambda s: s[9:], tags)
-
-  def GetBranches(self):
-    # Get relevant remote branches, e.g. "svn/3.25".
-    branches = filter(lambda s: re.match(r"^svn/\d+\.\d+$", s),
-                      self.step.GitRemotes())
-    # Remove 'svn/' prefix.
-    return map(lambda s: s[4:], branches)
-
-  def GitSvn(self, hsh, branch=""):
-    return self.step.GitSVNFindSVNRev(hsh, branch)
-
-  def SvnGit(self, rev, branch=""):
-    return self.step.GitSVNFindGitHash(rev, branch)
-
-  def MasterBranch(self):
-    return "bleeding_edge"
-
-  def CandidateBranch(self):
-    return "trunk"
-
-  def RemoteMasterBranch(self):
-    return "svn/bleeding_edge"
-
-  def RemoteCandidateBranch(self):
-    return "svn/trunk"
-
-  def RemoteBranch(self, name):
-    return "svn/%s" % name
-
-  def Land(self):
-    self.step.GitSVNDCommit()
-
-  def CLLand(self):
-    self.step.GitDCommit()
-
-  def Tag(self, tag, remote, _):
-    self.step.GitSVNFetch()
-    self.step.Git("rebase %s" % remote)
-    self.step.GitSVNTag(tag)
-
-
-class GitTagsOnlyMixin(VCInterface):
+class GitInterface(VCInterface):
   def Pull(self):
     self.step.GitPull()
 
   def Fetch(self):
     self.step.Git("fetch")
-    self.step.GitSVNFetch()
 
   def GetTags(self):
      return self.step.Git("tag").strip().splitlines()
@@ -400,9 +333,6 @@ class GitTagsOnlyMixin(VCInterface):
       return "origin/%s" % name
     return "branch-heads/%s" % name
 
-  def PushRef(self, ref):
-    self.step.Git("push origin %s" % ref)
-
   def Tag(self, tag, remote, message):
     # Wait for the commit to appear. Assumes unique commit message titles (this
     # is the case for all automated merge and push commits - also no title is
@@ -421,41 +351,10 @@ class GitTagsOnlyMixin(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.PushRef(tag)
-
-
-class GitReadSvnWriteInterface(GitTagsOnlyMixin, GitSvnInterface):
-  pass
-
-
-class GitInterface(GitTagsOnlyMixin):
-  def Fetch(self):
-    self.step.Git("fetch")
-
-  def GitSvn(self, hsh, branch=""):
-    return ""
-
-  def SvnGit(self, rev, branch=""):
-    raise NotImplementedError()
-
-  def Land(self):
-    # FIXME(machenbach): This will not work with checkouts from bot_update
-    # after flag day because it will push to the cache. Investigate if it
-    # will work with "cl land".
-    self.step.Git("push origin")
+    self.step.Git("push origin %s" % tag)
 
   def CLLand(self):
     self.step.GitCLLand()
-
-  def PushRef(self, ref):
-    self.step.Git("push https://chromium.googlesource.com/v8/v8 %s" % ref)
-
-
-VC_INTERFACES = {
-  "git_svn": GitSvnInterface,
-  "git_read_svn_write": GitReadSvnWriteInterface,
-  "git": GitInterface,
-}
 
 
 class Step(GitRecipesMixin):
@@ -466,7 +365,7 @@ class Step(GitRecipesMixin):
     self._state = state
     self._options = options
     self._side_effect_handler = handler
-    self.vc = VC_INTERFACES[options.vc_interface]()
+    self.vc = GitInterface()
     self.vc.InjectStep(self)
 
     # The testing configuration might set a different default cwd.
@@ -559,11 +458,6 @@ class Step(GitRecipesMixin):
     if result is None:
       raise GitFailedException("'git %s' failed." % args)
     return result
-
-  def SVN(self, args="", prefix="", pipe=True, retry_on=None, cwd=None):
-    cmd = lambda: self._side_effect_handler.Command(
-        "svn", args, prefix, pipe, cwd=cwd or self.default_cwd)
-    return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
     if self._options.requires_editor:
@@ -726,34 +620,6 @@ class Step(GitRecipesMixin):
       output += "%s\n" % line
     TextToFile(output, version_file)
 
-  def SVNCommit(self, root, commit_message):
-    patch = self.GitDiff("HEAD^", "HEAD")
-    TextToFile(patch, self._config["PATCH_FILE"])
-    self.Command("svn", "update", cwd=self._options.svn)
-    if self.Command("svn", "status", cwd=self._options.svn) != "":
-      self.Die("SVN checkout not clean.")
-    if not self.Command("patch", "-d %s -p1 -i %s" %
-                        (root, self._config["PATCH_FILE"]),
-                        cwd=self._options.svn):
-      self.Die("Could not apply patch.")
-    for line in self.Command(
-        "svn", "status", cwd=self._options.svn).splitlines():
-      # Check for added and removed items. Svn status has seven status columns.
-      # The first contains ? for unknown and ! for missing.
-      match = re.match(r"^(.)...... (.*)$", line)
-      if match and match.group(1) == "?":
-        self.Command("svn", "add --force %s" % match.group(2),
-                     cwd=self._options.svn)
-      if match and match.group(1) == "!":
-        self.Command("svn", "delete --force %s" % match.group(2),
-                     cwd=self._options.svn)
-
-    self.Command(
-        "svn",
-        "commit --non-interactive --username=%s --config-dir=%s -m \"%s\"" %
-            (self._options.author, self._options.svn_config, commit_message),
-        cwd=self._options.svn)
-
 
 class BootstrapStep(Step):
   MESSAGE = "Bootstapping v8 checkout."
@@ -872,17 +738,9 @@ class ScriptsBase(object):
                         help=("Determine current sheriff to review CLs. On "
                               "success, this will overwrite the reviewer "
                               "option."))
-    parser.add_argument("--svn",
-                        help=("Optional full svn checkout for the commit."
-                              "The folder needs to be the svn root."))
-    parser.add_argument("--svn-config",
-                        help=("Optional folder used as svn --config-dir."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
-    parser.add_argument("--vc-interface",
-                        help=("Choose VC interface out of git_svn|"
-                              "git_read_svn_write."))
     parser.add_argument("--work-dir",
                         help=("Location where to bootstrap a working v8 "
                               "checkout."))
@@ -902,10 +760,6 @@ class ScriptsBase(object):
       print "To determine the current sheriff, requires the googler mapping"
       parser.print_help()
       return None
-    if options.svn and not options.svn_config:
-      print "Using pure svn for committing requires also --svn-config"
-      parser.print_help()
-      return None
 
     # Defaults for options, common to all scripts.
     options.manual = getattr(options, "manual", True)
@@ -923,8 +777,6 @@ class ScriptsBase(object):
       parser.print_help()
       return None
 
-    if not options.vc_interface:
-      options.vc_interface = "git_read_svn_write"
     if not options.work_dir:
       options.work_dir = "/tmp/v8-release-scripts-work-dir"
     return options

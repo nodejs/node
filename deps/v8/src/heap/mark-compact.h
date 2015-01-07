@@ -643,11 +643,9 @@ class MarkCompactCollector {
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() { return sweeping_in_progress_; }
 
-  void set_sequential_sweeping(bool sequential_sweeping) {
-    sequential_sweeping_ = sequential_sweeping;
-  }
+  void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
-  bool sequential_sweeping() const { return sequential_sweeping_; }
+  bool evacuation() const { return evacuation_; }
 
   // Mark the global table which maps weak objects to dependent code without
   // marking its contents.
@@ -657,7 +655,13 @@ class MarkCompactCollector {
   // to artificially keep AllocationSites alive for a time.
   void MarkAllocationSite(AllocationSite* site);
 
-  bool IsMarkingDequeEmpty();
+  MarkingDeque* marking_deque() { return &marking_deque_; }
+
+  void EnsureMarkingDequeIsCommittedAndInitialize();
+
+  void InitializeMarkingDeque();
+
+  void UncommitMarkingDeque();
 
  private:
   class SweeperTask;
@@ -704,7 +708,7 @@ class MarkCompactCollector {
 
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
-  bool sequential_sweeping_;
+  bool evacuation_;
 
   SlotsBufferAllocator slots_buffer_allocator_;
 
@@ -768,7 +772,8 @@ class MarkCompactCollector {
   //    - Processing of objects reachable through Harmony WeakMaps.
   //    - Objects reachable due to host application logic like object groups
   //      or implicit references' groups.
-  void ProcessEphemeralMarking(ObjectVisitor* visitor);
+  void ProcessEphemeralMarking(ObjectVisitor* visitor,
+                               bool only_process_harmony_weak_collections);
 
   // If the call-site of the top optimized code was not prepared for
   // deoptimization, then treat the maps in the code as strong pointers,
@@ -785,10 +790,6 @@ class MarkCompactCollector {
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
   void RefillMarkingDeque();
-
-  // After reachable maps have been marked process per context object
-  // literal map caches removing unmarked entries.
-  void ProcessMapCaches();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -807,7 +808,6 @@ class MarkCompactCollector {
   void TrimEnumCache(Map* map, DescriptorArray* descriptors);
 
   void ClearDependentCode(DependentCode* dependent_code);
-  void ClearDependentICList(Object* head);
   void ClearNonLiveDependentCode(DependentCode* dependent_code);
   int ClearNonLiveDependentCodeInGroup(DependentCode* dependent_code, int group,
                                        int start, int end, int new_start);
@@ -883,6 +883,8 @@ class MarkCompactCollector {
 #endif
 
   Heap* heap_;
+  base::VirtualMemory* marking_deque_memory_;
+  bool marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   bool have_code_to_deoptimize_;
@@ -938,14 +940,14 @@ class MarkBitCellIterator BASE_EMBEDDED {
 };
 
 
-class SequentialSweepingScope BASE_EMBEDDED {
+class EvacuationScope BASE_EMBEDDED {
  public:
-  explicit SequentialSweepingScope(MarkCompactCollector* collector)
+  explicit EvacuationScope(MarkCompactCollector* collector)
       : collector_(collector) {
-    collector_->set_sequential_sweeping(true);
+    collector_->set_evacuation(true);
   }
 
-  ~SequentialSweepingScope() { collector_->set_sequential_sweeping(false); }
+  ~EvacuationScope() { collector_->set_evacuation(false); }
 
  private:
   MarkCompactCollector* collector_;

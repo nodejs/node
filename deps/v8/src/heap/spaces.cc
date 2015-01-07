@@ -93,7 +93,8 @@ CodeRange::CodeRange(Isolate* isolate)
       code_range_(NULL),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0) {}
+      current_allocation_block_index_(0),
+      emergency_block_() {}
 
 
 bool CodeRange::SetUp(size_t requested) {
@@ -144,6 +145,7 @@ bool CodeRange::SetUp(size_t requested) {
   current_allocation_block_index_ = 0;
 
   LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
+  ReserveEmergencyBlock();
   return true;
 }
 
@@ -202,34 +204,19 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
                                      const size_t commit_size,
                                      size_t* allocated) {
   DCHECK(commit_size <= requested_size);
-  DCHECK(allocation_list_.length() == 0 ||
-         current_allocation_block_index_ < allocation_list_.length());
-  if (allocation_list_.length() == 0 ||
-      requested_size > allocation_list_[current_allocation_block_index_].size) {
-    // Find an allocation block large enough.
-    if (!GetNextAllocationBlock(requested_size)) return NULL;
+  FreeBlock current;
+  if (!ReserveBlock(requested_size, &current)) {
+    *allocated = 0;
+    return NULL;
   }
-  // Commit the requested memory at the start of the current allocation block.
-  size_t aligned_requested = RoundUp(requested_size, MemoryChunk::kAlignment);
-  FreeBlock current = allocation_list_[current_allocation_block_index_];
-  if (aligned_requested >= (current.size - Page::kPageSize)) {
-    // Don't leave a small free block, useless for a large object or chunk.
-    *allocated = current.size;
-  } else {
-    *allocated = aligned_requested;
-  }
+  *allocated = current.size;
   DCHECK(*allocated <= current.size);
   DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
   if (!isolate_->memory_allocator()->CommitExecutableMemory(
           code_range_, current.start, commit_size, *allocated)) {
     *allocated = 0;
+    ReleaseBlock(&current);
     return NULL;
-  }
-  allocation_list_[current_allocation_block_index_].start += *allocated;
-  allocation_list_[current_allocation_block_index_].size -= *allocated;
-  if (*allocated == current.size) {
-    // This block is used up, get the next one.
-    GetNextAllocationBlock(0);
   }
   return current.start;
 }
@@ -257,6 +244,49 @@ void CodeRange::TearDown() {
   code_range_ = NULL;
   free_list_.Free();
   allocation_list_.Free();
+}
+
+
+bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
+  DCHECK(allocation_list_.length() == 0 ||
+         current_allocation_block_index_ < allocation_list_.length());
+  if (allocation_list_.length() == 0 ||
+      requested_size > allocation_list_[current_allocation_block_index_].size) {
+    // Find an allocation block large enough.
+    if (!GetNextAllocationBlock(requested_size)) return false;
+  }
+  // Commit the requested memory at the start of the current allocation block.
+  size_t aligned_requested = RoundUp(requested_size, MemoryChunk::kAlignment);
+  *block = allocation_list_[current_allocation_block_index_];
+  // Don't leave a small free block, useless for a large object or chunk.
+  if (aligned_requested < (block->size - Page::kPageSize)) {
+    block->size = aligned_requested;
+  }
+  DCHECK(IsAddressAligned(block->start, MemoryChunk::kAlignment));
+  allocation_list_[current_allocation_block_index_].start += block->size;
+  allocation_list_[current_allocation_block_index_].size -= block->size;
+  return true;
+}
+
+
+void CodeRange::ReleaseBlock(const FreeBlock* block) { free_list_.Add(*block); }
+
+
+void CodeRange::ReserveEmergencyBlock() {
+  const size_t requested_size = MemoryAllocator::CodePageAreaSize();
+  if (emergency_block_.size == 0) {
+    ReserveBlock(requested_size, &emergency_block_);
+  } else {
+    DCHECK(emergency_block_.size >= requested_size);
+  }
+}
+
+
+void CodeRange::ReleaseEmergencyBlock() {
+  if (emergency_block_.size != 0) {
+    ReleaseBlock(&emergency_block_);
+    emergency_block_.size = 0;
+  }
 }
 
 
@@ -892,6 +922,24 @@ void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::NEW_SPACE) ==
+              ObjectSpace::kObjectSpaceNewSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1
+                                       << AllocationSpace::OLD_POINTER_SPACE) ==
+              ObjectSpace::kObjectSpaceOldPointerSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::OLD_DATA_SPACE) ==
+              ObjectSpace::kObjectSpaceOldDataSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
+              ObjectSpace::kObjectSpaceCodeSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CELL_SPACE) ==
+              ObjectSpace::kObjectSpaceCellSpace);
+STATIC_ASSERT(
+    static_cast<ObjectSpace>(1 << AllocationSpace::PROPERTY_CELL_SPACE) ==
+    ObjectSpace::kObjectSpacePropertyCellSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
+              ObjectSpace::kObjectSpaceMapSpace);
+
+
 PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace space,
                        Executability executable)
     : Space(heap, space, executable),
@@ -1106,6 +1154,14 @@ void PagedSpace::ReleasePage(Page* page) {
 
 
 void PagedSpace::CreateEmergencyMemory() {
+  if (identity() == CODE_SPACE) {
+    // Make the emergency block available to the allocator.
+    CodeRange* code_range = heap()->isolate()->code_range();
+    if (code_range != NULL && code_range->valid()) {
+      code_range->ReleaseEmergencyBlock();
+    }
+    DCHECK(MemoryAllocator::CodePageAreaSize() == AreaSize());
+  }
   emergency_memory_ = heap()->isolate()->memory_allocator()->AllocateChunk(
       AreaSize(), AreaSize(), executable(), this);
 }
@@ -1275,7 +1331,8 @@ void NewSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
   int new_capacity =
-      Min(MaximumCapacity(), 2 * static_cast<int>(TotalCapacity()));
+      Min(MaximumCapacity(),
+          FLAG_semi_space_growth_factor * static_cast<int>(TotalCapacity()));
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -2569,7 +2626,7 @@ void PagedSpace::PrepareForMarkCompact() {
 
 
 intptr_t PagedSpace::SizeOfObjects() {
-  DCHECK(FLAG_predictable ||
+  DCHECK(!FLAG_concurrent_sweeping ||
          heap()->mark_compact_collector()->sweeping_in_progress() ||
          (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());

@@ -127,6 +127,56 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
   return array;
 }
 
+// ES6, draft 10-14-14, section 22.1.2.1
+function ArrayFrom(arrayLike, mapfn, receiver) {
+  var items = ToObject(arrayLike);
+  var mapping = !IS_UNDEFINED(mapfn);
+
+  if (mapping) {
+    if (!IS_SPEC_FUNCTION(mapfn)) {
+      throw MakeTypeError('called_non_callable', [ mapfn ]);
+    } else if (IS_NULL_OR_UNDEFINED(receiver)) {
+      receiver = %GetDefaultReceiver(mapfn) || receiver;
+    } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(mapfn)) {
+      receiver = ToObject(receiver);
+    }
+  }
+
+  var iterable = ToIterable(items);
+  var k;
+  var result;
+  var mappedValue;
+  var nextValue;
+
+  if (!IS_UNDEFINED(iterable)) {
+    result = IS_SPEC_FUNCTION(this) && this.prototype ? new this() : [];
+
+    k = 0;
+    for (nextValue of items) {
+      if (mapping) mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+      else mappedValue = nextValue;
+      %AddElement(result, k++, mappedValue, NONE);
+    }
+
+    result.length = k;
+    return result;
+  } else {
+    var len = ToLength(items.length);
+    result = IS_SPEC_FUNCTION(this) && this.prototype ? new this(len) :
+        new $Array(len);
+
+    for (k = 0; k < len; ++k) {
+      nextValue = items[k];
+      if (mapping) mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+      else mappedValue = nextValue;
+      %AddElement(result, k, mappedValue, NONE);
+    }
+
+    result.length = k;
+    return result;
+  }
+}
+
 // ES6, draft 05-22-14, section 22.1.2.3
 function ArrayOf() {
   var length = %_ArgumentsLength();
@@ -142,11 +192,25 @@ function ArrayOf() {
 
 // -------------------------------------------------------------------
 
+function HarmonyArrayExtendSymbolPrototype() {
+  %CheckIsBootstrapping();
+
+  InstallConstants($Symbol, $Array(
+    // TODO(dslomov, caitp): Move to symbol.js when shipping
+   "isConcatSpreadable", symbolIsConcatSpreadable
+  ));
+}
+
+HarmonyArrayExtendSymbolPrototype();
+
 function HarmonyArrayExtendArrayPrototype() {
   %CheckIsBootstrapping();
 
+  %FunctionSetLength(ArrayFrom, 1);
+
   // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(
+    "from", ArrayFrom,
     "of", ArrayOf
   ));
 

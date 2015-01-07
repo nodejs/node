@@ -97,19 +97,20 @@ TEST(Weakness) {
   }
   CHECK(!global_handles->IsWeak(key.location()));
 
-  // Put entry into weak map.
+  // Put two chained entries into weak map.
   {
     HandleScope scope(isolate);
-    PutIntoWeakMap(weakmap,
-                   Handle<JSObject>(JSObject::cast(*key)),
-                   Handle<Smi>(Smi::FromInt(23), isolate));
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    PutIntoWeakMap(weakmap, Handle<JSObject>(JSObject::cast(*key)), object);
+    PutIntoWeakMap(weakmap, object, Handle<Smi>(Smi::FromInt(23), isolate));
   }
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
   heap->CollectAllGarbage(false);
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
@@ -128,14 +129,14 @@ TEST(Weakness) {
   // weak references whereas the second one will also clear weak maps.
   heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
   heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      1, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(2,
+           ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 }
 
 

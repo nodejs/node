@@ -32,7 +32,7 @@ class JSGraph : public ZoneObject {
         cache_(zone()) {}
 
   // Canonicalized global constants.
-  Node* CEntryStubConstant();
+  Node* CEntryStubConstant(int result_size);
   Node* UndefinedConstant();
   Node* TheHoleConstant();
   Node* TrueConstant();
@@ -86,6 +86,10 @@ class JSGraph : public ZoneObject {
     return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
                              : Int64Constant(static_cast<int64_t>(value));
   }
+  template <typename T>
+  Node* PointerConstant(T* value) {
+    return IntPtrConstant(bit_cast<intptr_t>(value));
+  }
 
   // Creates a Float32Constant node, usually canonicalized.
   Node* Float32Constant(float value);
@@ -101,12 +105,17 @@ class JSGraph : public ZoneObject {
     return Constant(immediate);
   }
 
+  // Creates a dummy Constant node, used to satisfy calling conventions of
+  // stubs and runtime functions that do not require a context.
+  Node* NoContextConstant() { return ZeroConstant(); }
+
   JSOperatorBuilder* javascript() { return javascript_; }
   CommonOperatorBuilder* common() { return common_; }
   MachineOperatorBuilder* machine() { return machine_; }
   Graph* graph() { return graph_; }
   Zone* zone() { return graph()->zone(); }
   Isolate* isolate() { return zone()->isolate(); }
+  Factory* factory() { return isolate()->factory(); }
 
   void GetCachedNodes(NodeVector* nodes);
 
@@ -131,8 +140,6 @@ class JSGraph : public ZoneObject {
 
   Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
-
-  Factory* factory() { return isolate()->factory(); }
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);
 };
