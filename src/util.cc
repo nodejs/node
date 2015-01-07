@@ -25,12 +25,12 @@
 
 namespace node {
 
-Utf8Value::Utf8Value(v8::Handle<v8::Value> value)
+Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
   : length_(0), str_(nullptr) {
   if (value.IsEmpty())
     return;
 
-  v8::Local<v8::String> val_ = value->ToString(v8::Isolate::GetCurrent());
+  v8::Local<v8::String> val_ = value->ToString(isolate);
   if (val_.IsEmpty())
     return;
 

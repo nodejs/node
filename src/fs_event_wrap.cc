@@ -110,7 +110,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("Bad arguments");
   }
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
