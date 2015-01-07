@@ -30,7 +30,7 @@ Utf8Value::Utf8Value(v8::Handle<v8::Value> value)
   if (value.IsEmpty())
     return;
 
-  v8::Local<v8::String> val_ = value->ToString();
+  v8::Local<v8::String> val_ = value->ToString(v8::Isolate::GetCurrent());
   if (val_.IsEmpty())
     return;
 
