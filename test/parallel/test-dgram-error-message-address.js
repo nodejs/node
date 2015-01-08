@@ -23,16 +23,33 @@ var common = require('../common');
 var assert = require('assert');
 var dgram = require('dgram');
 
-// Send a too big datagram. The destination doesn't matter because it's
-// not supposed to get sent out anyway.
-var buf = Buffer(256 * 1024);
-var sock = dgram.createSocket('udp4');
-sock.send(buf, 0, buf.length, 12345, '127.0.0.1', common.mustCall(cb));
-function cb(err) {
-  assert(err instanceof Error);
-  assert.equal(err.code, 'EMSGSIZE');
-  assert.equal(err.address, '127.0.0.1');
-  assert.equal(err.port, 12345);
-  assert.equal(err.message, 'send EMSGSIZE 127.0.0.1:12345');
-  sock.close();
-}
+// IPv4 Test
+var socket_ipv4 = dgram.createSocket('udp4');
+
+socket_ipv4.on('listening', assert.fail);
+
+socket_ipv4.on('error', common.mustCall(function(e) {
+  assert.equal(e.message, 'bind EADDRNOTAVAIL 1.1.1.1:' + common.PORT);
+  assert.equal(e.address, '1.1.1.1');
+  assert.equal(e.port, common.PORT);
+  assert.equal(e.code, 'EADDRNOTAVAIL');
+  socket_ipv4.close();
+}));
+
+socket_ipv4.bind(common.PORT, '1.1.1.1');
+
+// IPv6 Test
+var socket_ipv6 = dgram.createSocket('udp6');
+var family_ipv6 = 'IPv6';
+
+socket_ipv6.on('listening', assert.fail);
+
+socket_ipv6.on('error', common.mustCall(function(e) {
+  assert.equal(e.message, 'bind EADDRNOTAVAIL 111::1:' + common.PORT);
+  assert.equal(e.address, '111::1');
+  assert.equal(e.port, common.PORT);
+  assert.equal(e.code, 'EADDRNOTAVAIL');
+  socket_ipv6.close();
+}));
+
+socket_ipv6.bind(common.PORT, '111::1');
