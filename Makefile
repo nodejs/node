@@ -99,9 +99,6 @@ test: all
 test-parallel: all
 	$(PYTHON) tools/test.py --mode=release parallel -J
 
-test-http1: all
-	$(PYTHON) tools/test.py --mode=release --use-http1 sequential parallel message
-
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
@@ -127,9 +124,6 @@ test-build: all build-addons
 test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
 	make test-npm
-
-test-all-http1: test-build
-	$(PYTHON) tools/test.py --mode=debug,release --use-http1
 
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
