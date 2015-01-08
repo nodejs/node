@@ -258,10 +258,10 @@ else
 ARCH=x86
 endif
 endif
-TARNAME=node-$(VERSION)
+TARNAME=iojs-$(VERSION)
 ifdef NIGHTLY
 TAG = nightly-$(NIGHTLY)
-TARNAME=node-$(VERSION)-$(TAG)
+TARNAME=iojs-$(VERSION)-$(TAG)
 endif
 TARBALL=$(TARNAME).tar.gz
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
@@ -269,9 +269,9 @@ BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
 ifdef NIGHTLY
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
 endif
 
 dist: doc $(TARBALL) $(PKG)
