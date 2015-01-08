@@ -26,7 +26,6 @@ set test=
 set test_args=
 set msi=
 set licensertf=
-set upload=
 set jslint=
 set buildnodeweak=
 set noetw=
@@ -62,7 +61,6 @@ if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test"          set test=test&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
-if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
@@ -77,7 +75,6 @@ shift
 goto next-arg
 
 :args-done
-if defined upload goto upload
 if defined jslint goto jslint
 
 if "%config%"=="Debug" set debug_arg=--debug
@@ -194,17 +191,6 @@ goto exit
 
 :create-msvs-files-failed
 echo Failed to create vc project files. 
-goto exit
-
-:upload
-echo uploading .exe .msi .pdb to nodejs.org
-call :getnodeversion
-@echo on
-ssh node@nodejs.org mkdir -p web/nodejs.org/dist/v%NODE_VERSION%
-scp Release\node.msi node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%.msi
-scp Release\node.exe node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.exe
-scp Release\node.pdb node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.pdb
-@echo off
 goto exit
 
 :jslint
