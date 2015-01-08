@@ -127,8 +127,21 @@ def subdir_files(path, dest, action):
     action(files, subdir + '/')
 
 def files(action):
-  exeext = '.exe' if sys.platform == 'win32' else ''
+  is_windows = sys.platform == 'win32'
+
+  exeext = '.exe' if is_windows else ''
   action(['out/Release/iojs' + exeext], 'bin/iojs' + exeext)
+
+  if not is_windows:
+    # Install iojs -> node compatibility symlink.
+    link_target = 'bin/node'
+    link_path = abspath(install_path, link_target)
+    if action == uninstall:
+      action([link_path], link_target)
+    elif action == install:
+      try_symlink('iojs', link_path)
+    else:
+      assert(0)  # Unhandled action type.
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
