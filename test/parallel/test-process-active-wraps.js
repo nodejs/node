@@ -49,7 +49,7 @@ var handles = [];
 
   expect(1, 0);
   var conn = net.createConnection(common.PORT);
-  conn.on('lookup', onlookup); 
+  conn.on('lookup', onlookup);
   conn.on('error', function() { assert(false); });
   expect(2, 1);
   conn.destroy();
@@ -65,8 +65,11 @@ var handles = [];
   });
   function onclose() {
     if (++n === handles.length) {
+      // Allow the server handle a few loop iterations to wind down.
       setImmediate(function() {
-        assert.equal(process._getActiveHandles().length, 0);
+        setImmediate(function() {
+          assert.equal(process._getActiveHandles().length, 0);
+        });
       });
     }
   }
