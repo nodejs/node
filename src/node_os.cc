@@ -106,12 +106,12 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowErrnoException(errno, "uname");
   }
   rval = info.release;
-#else  // __MINGW32__
+#else  // Windows
   char release[256];
-  OSVERSIONINFO info;
+  OSVERSIONINFOW info;
 
   info.dwOSVersionInfoSize = sizeof(info);
-  if (GetVersionEx(&info) == 0)
+  if (GetVersionExW(&info) == 0)
     return;
 
   snprintf(release,
