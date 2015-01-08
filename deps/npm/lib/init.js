@@ -31,11 +31,11 @@ function init (args, cb) {
   initJson(dir, initFile, npm.config, function (er, data) {
     log.resume()
     log.silly("package data", data)
-    log.info("init", "written successfully")
     if (er && er.message === "canceled") {
       log.warn("init", "canceled")
       return cb(null, data)
     }
+    log.info("init", "written successfully")
     cb(er, data)
   })
 }

@@ -98,8 +98,8 @@ request.del = function (uri, options, callback) {
   return requester(params)(params.uri || null, params.options, params.callback)
 }
 
-request.jar = function () {
-  return cookies.jar()
+request.jar = function (store) {
+  return cookies.jar(store)
 }
 
 request.cookie = function (str) {

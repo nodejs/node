@@ -26,7 +26,7 @@ There are a few basic ground-rules for contributors:
    style & testing issues.  To diagnose test failures, there are two ways to
    run a single test file:
      - `node_modules/.bin/taper tests/test-file.js` - run using the default
-       [`taper`](/nylen/taper) test reporter.
+       [`taper`](https://github.com/nylen/taper) test reporter.
      - `node tests/test-file.js` - view the raw
        [tap](https://testanything.org/) output.
 

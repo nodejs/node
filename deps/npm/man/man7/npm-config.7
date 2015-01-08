@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "October 2014" "" ""
+.TH "NPM\-CONFIG" "7" "January 2015" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -192,15 +192,31 @@ The browser that is called by the \fBnpm docs\fR command to open websites\.
 .IP \(bu 2
 Default: The npm CA certificate
 .IP \(bu 2
-Type: String or null
+Type: String, Array or null
 
 .RE
 .P
 The Certificate Authority signing certificate that is trusted for SSL
-connections to the registry\.
+connections to the registry\. Values should be in PEM format with newlines
+replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+ca="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
+.fi
+.RE
 .P
 Set to \fBnull\fR to only allow "known" registrars, or to a specific CA cert
 to trust only that specific signing authority\.
+.P
+Multiple CAs can be trusted by specifying an array of certificates:
+.P
+.RS 2
+.nf
+ca[]="\.\.\."
+ca[]="\.\.\."
+.fi
+.RE
 .P
 See also the \fBstrict\-ssl\fR config\.
 .SS cafile
@@ -504,14 +520,15 @@ The string that starts all the debugging log output\.
 .SS https\-proxy
 .RS 0
 .IP \(bu 2
-Default: the \fBHTTPS_PROXY\fR or \fBhttps_proxy\fR or \fBHTTP_PROXY\fR or
-\fBhttp_proxy\fR environment variables\.
+Default: null
 .IP \(bu 2
 Type: url
 
 .RE
 .P
-A proxy to use for outgoing https requests\.
+A proxy to use for outgoing https requests\. If the \fBHTTPS_PROXY\fR or
+\fBhttps_proxy\fR or \fBHTTP_PROXY\fR or \fBhttp_proxy\fR environment variables are set,
+proxy settings will be honored by the underlying \fBrequest\fR library\.
 .SS ignore\-scripts
 .RS 0
 .IP \(bu 2
@@ -801,13 +818,15 @@ this as true\.
 .SS proxy
 .RS 0
 .IP \(bu 2
-Default: \fBHTTP_PROXY\fR or \fBhttp_proxy\fR environment variable, or null
+Default: null
 .IP \(bu 2
 Type: url
 
 .RE
 .P
-A proxy to use for outgoing http requests\.
+A proxy to use for outgoing http requests\. If the \fBHTTP_PROXY\fR or
+\fBhttp_proxy\fR environment variables are set, proxy settings will be
+honored by the underlying \fBrequest\fR library\.
 .SS rebuild\-bundle
 .RS 0
 .IP \(bu 2

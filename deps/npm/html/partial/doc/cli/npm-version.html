@@ -3,7 +3,7 @@
 <pre><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Run this in a package directory to bump the version and write the new
-data back to the package.json file.</p>
+data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.json</code>.</p>
 <p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a
 valid second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, &quot;major&quot;,
 &quot;prepatch&quot;, &quot;preminor&quot;, &quot;premajor&quot;, &quot;prerelease&quot;). In the second case,

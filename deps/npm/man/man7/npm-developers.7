@@ -1,4 +1,4 @@
-.TH "NPM\-DEVELOPERS" "7" "October 2014" "" ""
+.TH "NPM\-DEVELOPERS" "7" "January 2015" "" ""
 .SH "NAME"
 \fBnpm-developers\fR \- Developer Guide
 .SH DESCRIPTION
@@ -111,6 +111,20 @@ no \fB\|\.npmignore\fR file, but there \fIis\fR a \fB\|\.gitignore\fR file, then
 ignore the stuff matched by the \fB\|\.gitignore\fR file\.  If you \fIwant\fR to
 include something that is excluded by your \fB\|\.gitignore\fR file, you can
 create an empty \fB\|\.npmignore\fR file to override it\.
+.P
+\fB\|\.npmignore\fR files follow the same pattern rules \fIhttp://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#Ignoring\-Files\fR
+as \fB\|\.gitignore\fR files:
+.RS 0
+.IP \(bu 2
+Blank lines or lines starting with \fB#\fR are ignored\.
+.IP \(bu 2
+Standard glob patterns work\.
+.IP \(bu 2
+You can end patterns with a forward slash \fB/\fR to specify a directory\.
+.IP \(bu 2
+You can negate a pattern by starting it with an exclamation point \fB!\fR\|\.
+
+.RE
 .P
 By default, the following paths and files are ignored, so there's no
 need to add them to \fB\|\.npmignore\fR explicitly:

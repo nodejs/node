@@ -12,13 +12,16 @@ deprecate.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
   // get the list of packages by user
   var path = "/-/by-user/"
-  mapToRegistry(path, npm.config, function (er, uri) {
+  mapToRegistry(path, npm.config, function (er, uri, c) {
     if (er) return cb(er)
 
-    var c = npm.config.getCredentialsByURI(uri)
     if (!(c && c.username)) return cb()
 
-    npm.registry.get(uri + c.username, { timeout : 60000 }, function (er, list) {
+    var params = {
+      timeout : 60000,
+      auth    : c
+    }
+    npm.registry.get(uri + c.username, params, function (er, list) {
       if (er) return cb()
       console.error(list)
       return cb(null, list[c.username])
@@ -34,11 +37,14 @@ function deprecate (args, cb) {
   // fetch the data and make sure it exists.
   var p = npa(pkg)
 
-  mapToRegistry(p.name, npm.config, next)
-
-  function next (er, uri) {
+  mapToRegistry(p.name, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    npm.registry.deprecate(uri, p.spec, msg, cb)
-  }
+    var params = {
+      version : p.spec,
+      message : msg,
+      auth    : auth
+    }
+    npm.registry.deprecate(uri, params, cb)
+  })
 }

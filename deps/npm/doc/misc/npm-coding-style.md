@@ -10,7 +10,7 @@ designed to reduce visual clutter and make bugs more apparent.
 If you want to contribute to npm (which is very encouraged), you should
 make your code conform to npm's style.
 
-Note: this concerns npm's code not the specific packages at npmjs.org
+Note: this concerns npm's code not the specific packages that you can download from the npm registry.
 
 ## Line Length
 
@@ -21,7 +21,7 @@ statements onto multiple lines.
 ## Indentation
 
 Two-spaces.  Tabs are better, but they look like hell in web browsers
-(and on github), and node uses 2 spaces, so that's that.
+(and on GitHub), and node uses 2 spaces, so that's that.
 
 Configure your editor appropriately.
 

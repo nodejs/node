@@ -181,7 +181,7 @@ function errorHandler (er) {
 
   case "ELIFECYCLE":
     log.error("", er.message)
-    log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script."
+    log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script '"+er.script+"'."
               ,"This is most likely a problem with the "+er.pkgname+" package,"
               ,"not with npm itself."
               ,"Tell the author that this fails on your system:"
@@ -336,6 +336,14 @@ function errorHandler (er) {
               ,"and is related to the file system being read-only."
               ,"\nOften virtualized file systems, or other file systems"
               ,"that don't support symlinks, give this error."
+              ].join("\n"))
+    break
+
+  case "ENOENT":
+    log.error("enoent", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to npm not being able to find a file."
+              ,er.file?"\nCheck if the file '"+er.file+"' is present.":""
               ].join("\n"))
     break
 

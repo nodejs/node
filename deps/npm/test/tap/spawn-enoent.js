@@ -29,7 +29,7 @@ test("enoent script", function (t) {
       "npm_config_loglevel": "warn"
     }
   }, function (er, code, sout, serr) {
-    t.similar(serr, /npm ERR! Failed at the x@1\.2\.3 start script\./)
+    t.similar(serr, /npm ERR! Failed at the x@1\.2\.3 start script 'wharble-garble-blorst'\./)
     t.end()
   })
 })

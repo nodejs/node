@@ -6,11 +6,12 @@
 save the credentials to the <code>.npmrc</code> file. If no registry is specified,
 the default registry will be used (see <code><a href="../misc/npm-config.html">npm-config(7)</a></code>).</p>
 <p>The username, password, and email are read in from prompts.</p>
-<p>You may use this command to change your email address, but not username
-or password.</p>
-<p>To reset your password, go to <a href="https://www.npmjs.org/forgot">https://www.npmjs.org/forgot</a></p>
+<p>To reset your password, go to <a href="https://www.npmjs.com/forgot">https://www.npmjs.com/forgot</a></p>
+<p>To change your email address, go to <a href="https://www.npmjs.com/email-edit">https://www.npmjs.com/email-edit</a></p>
 <p>You may use this command multiple times with the same user account to
-authorize on a new machine.</p>
+authorize on a new machine.  When authenticating on a new machine,
+the username, password and email address must all match with
+your existing record.</p>
 <p><code>npm login</code> is an alias to <code>adduser</code> and behaves exactly the same way.</p>
 <h2 id="configuration">CONFIGURATION</h2>
 <h3 id="registry">registry</h3>
@@ -33,7 +34,7 @@ registries. Can be used with <code>--registry</code> and / or <code>--scope</cod
 <pre><code>npm adduser --registry=http://private-registry.example.com --always-auth
 </code></pre><p>This will ensure that all requests to that registry (including for tarballs)
 include an authorization header. See <code>always-auth</code> in <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more
-details on always-auth. Registry-specific configuaration of <code>always-auth</code> takes
+details on always-auth. Registry-specific configuration of <code>always-auth</code> takes
 precedence over any global configuration.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>

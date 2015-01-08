@@ -11,13 +11,19 @@ var npm = require("../npm.js")
   , readlink = require("graceful-fs").readlink
   , isInside = require("path-is-inside")
   , vacuum = require("fs-vacuum")
-  , rimraf = require("rimraf")
   , some = require("async-some")
+  , asyncMap = require("slide").asyncMap
+  , normalize = require("path").normalize
 
-function gentlyRm (path, gently, cb) {
+function gentlyRm (path, gently, base, cb) {
+  if (!cb) {
+    cb = base
+    base = undefined
+  }
+
   if (!cb) {
     cb = gently
-    gently = null
+    gently = false
   }
 
   // never rm the root, prefix, or bin dirs.
@@ -27,7 +33,7 @@ function gentlyRm (path, gently, cb) {
     npm.globalDir, npm.globalRoot, npm.globalBin, npm.globalPrefix
   ]
 
-  var resolved = resolve(path)
+  var resolved = normalize(resolve(path))
   if (prefixes.indexOf(resolved) !== -1) {
     log.verbose("gentlyRm", resolved, "is part of npm and can't be removed")
     return cb(new Error("May not delete: "+resolved))
@@ -35,13 +41,14 @@ function gentlyRm (path, gently, cb) {
 
   var options = {log : log.silly.bind(log, "gentlyRm")}
   if (npm.config.get("force") || !gently) options.purge = true
+  if (base) options.base = normalize(base)
 
   if (!gently) {
     log.verbose("gentlyRm", "vacuuming", resolved)
     return vacuum(resolved, options, cb)
   }
 
-  var parent = resolve(gently)
+  var parent = options.base = normalize(base ? base : npm.prefix)
   log.verbose("gentlyRm", "verifying that", parent, "is managed by npm")
   some(prefixes, isManaged(parent), function (er, matched) {
     if (er) return cb(er)
@@ -56,7 +63,6 @@ function gentlyRm (path, gently, cb) {
     if (isInside(resolved, parent)) {
       log.silly("gentlyRm", resolved, "is under", parent)
       log.verbose("gentlyRm", "vacuuming", resolved, "up to", parent)
-      options.base = parent
       return vacuum(resolved, options, cb)
     }
 
@@ -94,7 +100,7 @@ function gentlyRm (path, gently, cb) {
           if (matched) {
             log.silly("gentlyRm", source, "is under", matched)
             log.verbose("gentlyRm", "removing", resolved)
-            rimraf(resolved, cb)
+            vacuum(resolved, options, cb)
           }
 
           log.verbose("gentlyRm", source, "is not managed by npm")
@@ -107,54 +113,54 @@ function gentlyRm (path, gently, cb) {
 
 var resolvedPaths = {}
 function isManaged (target) {
-  return predicate
-
-  function predicate (path, cb) {
+  return function predicate (path, cb) {
     if (!path) {
       log.verbose("isManaged", "no path")
       return cb(null, false)
     }
 
-    path = resolve(path)
-
-    // if the path has already been memoized, return immediately
-    var resolved = resolvedPaths[path]
-    if (resolved) {
-      var inside = isInside(target, resolved)
-      log.silly("isManaged", target, inside ? "is" : "is not", "inside", resolved)
-
-      return cb(null, inside && path)
-    }
-
-    // otherwise, check the path
-    lstat(path, function (er, stat) {
+    asyncMap([path, target], resolveSymlink, function (er, results) {
       if (er) {
         if (er.code === "ENOENT") return cb(null, false)
 
         return cb(er)
       }
 
-      // if it's not a link, cache & test the path itself
-      if (!stat.isSymbolicLink()) return cacheAndTest(path, path, target, cb)
+      var path   = results[0]
+      var target = results[1]
+      var inside = isInside(target, path)
+      log.silly("isManaged", target, inside ? "is" : "is not", "inside", path)
 
-      // otherwise, cache & test the link's source
-      readlink(path, function (er, source) {
-        if (er) {
-          if (er.code === "ENOENT") return cb(null, false)
-
-          return cb(er)
-        }
-
-        cacheAndTest(resolve(path, source), path, target, cb)
-      })
+      return cb(null, inside && path)
     })
   }
 
-  function cacheAndTest (resolved, source, target, cb) {
-    resolvedPaths[source] = resolved
-    var inside = isInside(target, resolved)
-    log.silly("cacheAndTest", target, inside ? "is" : "is not", "inside", resolved)
-    cb(null, inside && source)
+  function resolveSymlink (toResolve, cb) {
+    var resolved = resolve(toResolve)
+
+    // if the path has already been memoized, return immediately
+    var cached = resolvedPaths[resolved]
+    if (cached) return cb(null, cached)
+
+    // otherwise, check the path
+    lstat(resolved, function (er, stat) {
+      if (er) return cb(er)
+
+      // if it's not a link, cache & return the path itself
+      if (!stat.isSymbolicLink()) {
+        resolvedPaths[resolved] = resolved
+        return cb(null, resolved)
+      }
+
+      // otherwise, cache & return the link's source
+      readlink(resolved, function (er, source) {
+        if (er) return cb(er)
+
+        resolved = resolve(resolved, source)
+        resolvedPaths[resolved] = resolved
+        cb(null, resolved)
+      })
+    })
   }
 }
 

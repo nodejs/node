@@ -8,4 +8,4 @@ before_install:
   - "npm config set spin false"
   - "npm install -g npm@^2"
   - "sudo mkdir -p /var/run/couchdb"
-script: "npm run-script tap"
+script: "npm run-script test-all"

@@ -6,6 +6,10 @@ function sha1 (key, body) {
   return crypto.createHmac('sha1', key).update(body).digest('base64')
 }
 
+function rsa (key, body) {
+  return crypto.createSign("RSA-SHA1").update(body).sign(key, 'base64');
+}
+
 function rfc3986 (str) {
   return encodeURIComponent(str)
     .replace(/!/g,'%21')
@@ -37,7 +41,7 @@ function compare (a, b) {
   return a > b ? 1 : a < b ? -1 : 0
 }
 
-function hmacsign (httpMethod, base_uri, params, consumer_secret, token_secret) {
+function generateBase (httpMethod, base_uri, params) {
   // adapted from https://dev.twitter.com/docs/auth/oauth and 
   // https://dev.twitter.com/docs/auth/creating-signature
 
@@ -69,6 +73,11 @@ function hmacsign (httpMethod, base_uri, params, consumer_secret, token_secret) 
     rfc3986(normalized)
   ].join('&')
 
+  return base
+}
+
+function hmacsign (httpMethod, base_uri, params, consumer_secret, token_secret) {
+  var base = generateBase(httpMethod, base_uri, params)
   var key = [
     consumer_secret || '',
     token_secret || ''
@@ -77,5 +86,31 @@ function hmacsign (httpMethod, base_uri, params, consumer_secret, token_secret) 
   return sha1(key, base)
 }
 
+function rsasign (httpMethod, base_uri, params, private_key, token_secret) {
+  var base = generateBase(httpMethod, base_uri, params)
+  var key = private_key || ''
+
+  return rsa(key, base)
+}
+
+function sign (signMethod, httpMethod, base_uri, params, consumer_secret, token_secret) {
+  var method
+
+  switch (signMethod) {
+    case 'RSA-SHA1':
+      method = rsasign
+      break
+    case 'HMAC-SHA1':
+      method = hmacsign
+      break
+    default:
+     throw new Error("Signature method not supported: " + signMethod)
+  }
+
+  return method.apply(null, [].slice.call(arguments, 1))
+}
+
 exports.hmacsign = hmacsign
+exports.rsasign = rsasign
+exports.sign = sign
 exports.rfc3986 = rfc3986
