@@ -111,6 +111,9 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   OSVERSIONINFOW info;
 
   info.dwOSVersionInfoSize = sizeof(info);
+
+  // Don't complain that GetVersionEx is deprecated; there is no alternative.
+  #pragma warning(suppress : 4996)
   if (GetVersionExW(&info) == 0)
     return;
 
