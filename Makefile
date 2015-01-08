@@ -11,9 +11,9 @@ PREFIX ?= /usr/local
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
-NODE ?= ./node$(EXEEXT)
-NODE_EXE = node$(EXEEXT)
-NODE_G_EXE = node_g$(EXEEXT)
+NODE ?= ./iojs$(EXEEXT)
+NODE_EXE = iojs$(EXEEXT)
+NODE_G_EXE = iojs_g$(EXEEXT)
 
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
@@ -240,10 +240,10 @@ else
 ARCH=x86
 endif
 endif
-TARNAME=node-$(VERSION)
+TARNAME=iojs-$(VERSION)
 ifdef NIGHTLY
 TAG = nightly-$(NIGHTLY)
-TARNAME=node-$(VERSION)-$(TAG)
+TARNAME=iojs-$(VERSION)-$(TAG)
 endif
 TARBALL=$(TARNAME).tar.gz
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
@@ -251,9 +251,9 @@ BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
 ifdef NIGHTLY
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
 endif
 
 dist: doc $(TARBALL) $(PKG)
@@ -293,11 +293,11 @@ $(PKG): release-only
 	$(PYTHON) ./configure --without-snapshot --dest-cpu=x64 --tag=$(TAG)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	lipo $(PKGDIR)/32/usr/local/bin/node \
-		$(PKGDIR)/usr/local/bin/node \
-		-output $(PKGDIR)/usr/local/bin/node-universal \
+	lipo $(PKGDIR)/32/usr/local/bin/iojs \
+		$(PKGDIR)/usr/local/bin/iojs \
+		-output $(PKGDIR)/usr/local/bin/iojs-universal \
 		-create
-	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
+	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
 	rm -rf $(PKGDIR)/32
 	$(packagemaker) \
 		--id "org.nodejs.Node" \

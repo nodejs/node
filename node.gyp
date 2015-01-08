@@ -73,7 +73,7 @@
 
   'targets': [
     {
-      'target_name': 'node',
+      'target_name': 'iojs',
       'type': 'executable',
 
       'dependencies': [
