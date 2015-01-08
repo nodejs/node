@@ -6,8 +6,8 @@ var log = require("npmlog")
 module.exports = mapToRegistry
 
 function mapToRegistry(name, config, cb) {
-  var uri
-  var scopedRegistry
+  log.silly("mapToRegistry", "name", name)
+  var registry
 
   // the name itself takes precedence
   var data = npa(name)
@@ -15,40 +15,42 @@ function mapToRegistry(name, config, cb) {
     // the name is definitely scoped, so escape now
     name = name.replace("/", "%2f")
 
-    log.silly("mapToRegistry", "scope", data.scope)
+    log.silly("mapToRegistry", "scope (from package name)", data.scope)
 
-    scopedRegistry = config.get(data.scope + ":registry")
-    if (scopedRegistry) {
-      log.silly("mapToRegistry", "scopedRegistry (scoped package)", scopedRegistry)
-      uri = url.resolve(scopedRegistry, name)
-    }
-    else {
-      log.verbose("mapToRegistry", "no registry URL found for scope", data.scope)
+    registry = config.get(data.scope + ":registry")
+    if (!registry) {
+      log.verbose("mapToRegistry", "no registry URL found in name for scope", data.scope)
     }
   }
 
   // ...then --scope=@scope or --scope=scope
   var scope = config.get("scope")
-  if (!uri && scope) {
+  if (!registry && scope) {
     // I'm an enabler, sorry
     if (scope.charAt(0) !== "@") scope = "@" + scope
 
-    scopedRegistry = config.get(scope + ":registry")
-    if (scopedRegistry) {
-      log.silly("mapToRegistry", "scopedRegistry (scope in config)", scopedRegistry)
-      uri = url.resolve(scopedRegistry, name)
-    }
-    else {
-      log.verbose("mapToRegistry", "no registry URL found for scope", scope)
+    log.silly("mapToRegistry", "scope (from config)", scope)
+
+    registry = config.get(scope + ":registry")
+    if (!registry) {
+      log.verbose("mapToRegistry", "no registry URL found in config for scope", scope)
     }
   }
 
   // ...and finally use the default registry
-  if (!uri) {
-    uri = url.resolve(config.get("registry"), name)
+  if (!registry) {
+    log.silly("mapToRegistry", "using default registry")
+    registry = config.get("registry")
   }
 
-  log.verbose("mapToRegistry", "name", name)
-  log.verbose("mapToRegistry", "uri", uri)
-  cb(null, uri)
+  log.silly("mapToRegistry", "registry", registry)
+
+  var auth = config.getCredentialsByURI(registry)
+
+  // normalize registry URL so resolution doesn't drop a piece of registry URL
+  var normalized = registry.slice(-1) !== "/" ? registry+"/" : registry
+  var uri = url.resolve(normalized, name)
+  log.silly("mapToRegistry", "uri", uri)
+
+  cb(null, uri, auth, normalized)
 }

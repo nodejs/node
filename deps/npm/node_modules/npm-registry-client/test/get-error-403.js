@@ -12,7 +12,7 @@ tap.test("get fails with 403", function (t) {
   })
 
   var client = common.freshClient()
-  client.conf.set("fetch-retry-mintimeout", 100)
+  client.config.retry.minTimeout = 100
   client.get(
     "http://localhost:1337/habanero",
     {},

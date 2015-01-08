@@ -14,9 +14,9 @@
   // Node.js crypto-based RNG - http://nodejs.org/docs/v0.6.2/api/crypto.html
   //
   // Moderately fast, high quality
-  if (typeof(require) == 'function') {
+  if (typeof(_global.require) == 'function') {
     try {
-      var _rb = require('crypto').randomBytes;
+      var _rb = _global.require('crypto').randomBytes;
       _rng = _rb && function() {return _rb(16);};
     } catch(e) {}
   }
@@ -49,7 +49,7 @@
   }
 
   // Buffer class to use
-  var BufferClass = typeof(Buffer) == 'function' ? Buffer : Array;
+  var BufferClass = typeof(_global.Buffer) == 'function' ? _global.Buffer : Array;
 
   // Maps for number <-> hex string conversion
   var _byteToHex = [];

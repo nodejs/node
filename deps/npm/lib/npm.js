@@ -22,8 +22,7 @@ var EventEmitter = require("events").EventEmitter
   , path = require("path")
   , abbrev = require("abbrev")
   , which = require("which")
-  , semver = require("semver")
-  , RegClient = require("npm-registry-client")
+  , CachingRegClient = require("./cache/caching-client.js")
   , charSpin = require("char-spinner")
 
 npm.config = {
@@ -41,7 +40,6 @@ npm.commands = {}
 npm.rollbacks = []
 
 try {
-  var pv = process.version.replace(/^v/, '')
   // startup, ok to do this synchronously
   var j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "../package.json"))+"")
@@ -86,6 +84,7 @@ var commandCache = {}
               , "find-dupes": "dedupe"
               , "ddp": "dedupe"
               , "v": "view"
+              , "verison": "version"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -142,15 +141,20 @@ var commandCache = {}
               ]
   , plumbing = [ "build"
                , "unbuild"
-               , "isntall"
                , "xmas"
                , "substack"
                , "visnup"
                ]
-  , fullList = npm.fullList = cmdList.concat(aliasNames).filter(function (c) {
+  , littleGuys = [ "isntall" ]
+  , fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1
     })
   , abbrevs = abbrev(fullList)
+
+// we have our reasons
+fullList = npm.fullList = fullList.filter(function (c) {
+  return littleGuys.indexOf(c) === -1
+})
 
 npm.spinner =
   { int: null
@@ -351,7 +355,7 @@ function load (npm, cli, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      npm.registry = new RegClient(npm.config)
+      npm.registry = new CachingRegClient(npm.config)
 
       var umask = npm.config.get("umask")
       npm.modes = { exec: 0777 & (~umask)

@@ -146,7 +146,7 @@ Parse.prototype._startEntry = function (c) {
     e.header = header
     e.tar_file_offset = this.position
     e.tar_block = this.position / 512
-    this.emit("error", e)
+    return this.emit("error", e)
   }
 
   switch (tar.types[header.type]) {

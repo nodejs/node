@@ -51,9 +51,15 @@ test("gitignore and npmignore", function (t) {
   common.npm(["install", file], conf, verify.bind(null, t, ["foo", "bar"]))
 })
 
-test("gitignore and npmignore, not gzipped", function (t) {
+test("gitignore and npmignore, not gzipped 1/2", function (t) {
   setup()
   var file = path.resolve(dir, "gitignore-and-npmignore.tar")
+  common.npm(["install", file], conf, verify.bind(null, t, ["foo", "bar"]))
+})
+
+test("gitignore and npmignore, not gzipped 2/2", function (t) {
+  setup()
+  var file = path.resolve(dir, "gitignore-and-npmignore-2.tar")
   common.npm(["install", file], conf, verify.bind(null, t, ["foo", "bar"]))
 })
 

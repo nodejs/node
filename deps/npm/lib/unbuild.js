@@ -27,7 +27,7 @@ function unbuild_ (silent) { return function (folder, cb_) {
   log.verbose("unbuild", folder.substr(npm.prefix.length + 1))
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
-    if (er) return gentlyRm(folder, false, cb)
+    if (er) return gentlyRm(folder, false, npm.prefix, cb)
     readJson.cache.del(folder)
     chain
       ( [ [lifecycle, pkg, "preuninstall", folder, false, true]
@@ -38,7 +38,7 @@ function unbuild_ (silent) { return function (folder, cb_) {
           }
         , [rmStuff, pkg, folder]
         , [lifecycle, pkg, "postuninstall", folder, false, true]
-        , [gentlyRm, folder, undefined] ]
+        , [gentlyRm, folder, false, npm.prefix] ]
       , cb )
   })
 }}
@@ -63,15 +63,12 @@ function rmStuff (pkg, folder, cb) {
 function rmBins (pkg, folder, parent, top, cb) {
   if (!pkg.bin) return cb()
   var binRoot = top ? npm.bin : path.resolve(parent, ".bin")
-  log.verbose([binRoot, pkg.bin], "binRoot")
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === "win32") {
-      chain([ [gentlyRm, path.resolve(binRoot, b) + ".cmd", undefined]
-            , [gentlyRm, path.resolve(binRoot, b), undefined] ], cb)
+      chain([ [gentlyRm, path.resolve(binRoot, b) + ".cmd", true]
+            , [gentlyRm, path.resolve(binRoot, b), true] ], cb)
     } else {
-      gentlyRm( path.resolve(binRoot, b)
-              , !npm.config.get("force") && folder
-              , cb )
+      gentlyRm(path.resolve(binRoot, b), true, cb)
     }
   }, cb)
 }
@@ -84,6 +81,7 @@ function rmMans (pkg, folder, parent, top, cb) {
     return cb()
   }
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
+  log.verbose("rmMans", "man files are", pkg.man, "in", manRoot)
   asyncMap(pkg.man, function (man, cb) {
     if (Array.isArray(man)) {
       man.forEach(rmMan)
@@ -91,21 +89,28 @@ function rmMans (pkg, folder, parent, top, cb) {
       rmMan(man)
     }
 
-    function rmMan(man) {
-      var parseMan = man.match(/(.*)\.([0-9]+)(\.gz)?$/)
-        , stem = parseMan[1]
-        , sxn = parseMan[2]
-        , gz = parseMan[3] || ""
-        , bn = path.basename(stem)
-        , manDest = path.join( manRoot
-                            , "man"+sxn
-                            , (bn.indexOf(pkg.name) === 0 ? bn
-                              : pkg.name + "-" + bn)
-                              + "." + sxn + gz
-                            )
-      gentlyRm( manDest
-              , !npm.config.get("force") && folder
-              , cb )
+    function rmMan (man) {
+      log.silly("rmMan", "preparing to remove", man)
+      var parseMan = man.match(/(.*\.([0-9]+)(\.gz)?)$/)
+      if (!parseMan) {
+        log.error(
+          "rmMan", man, "is not a valid name for a man file.",
+          "Man files must end with a number, " +
+          "and optionally a .gz suffix if they are compressed."
+        )
+        return cb()
+      }
+
+      var stem = parseMan[1]
+      var sxn = parseMan[2]
+      var gz = parseMan[3] || ""
+      var bn = path.basename(stem)
+      var manDest = path.join(
+        manRoot,
+        "man"+sxn,
+        (bn.indexOf(pkg.name) === 0 ? bn : pkg.name+"-"+bn)+"."+sxn+gz
+      )
+      gentlyRm(manDest, true, cb)
     }
   }, cb)
 }

@@ -6,7 +6,6 @@ tag.usage = "npm tag <project>@<version> [<tag>]"
 tag.completion = require("./unpublish.js").completion
 
 var npm = require("./npm.js")
-  , registry = npm.registry
   , mapToRegistry = require("./utils/map-to-registry.js")
   , npa = require("npm-package-arg")
   , semver = require("semver")
@@ -26,9 +25,14 @@ function tag (args, cb) {
     return cb(er)
   }
 
-  mapToRegistry(project, npm.config, function (er, uri) {
+  mapToRegistry(project, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.tag(uri, version, t, cb)
+    var params = {
+      version : version,
+      tag     : t,
+      auth    : auth
+    }
+    npm.registry.tag(uri, params, cb)
   })
 }
