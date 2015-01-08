@@ -13,9 +13,11 @@ module.exports = toNerfDart
  */
 function toNerfDart(uri) {
   var parsed = url.parse(uri)
-  parsed.pathname = "/"
   delete parsed.protocol
   delete parsed.auth
+  delete parsed.query
+  delete parsed.search
+  delete parsed.hash
 
-  return url.format(parsed)
+  return url.resolve(url.format(parsed), ".")
 }

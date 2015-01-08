@@ -32,8 +32,13 @@ function uidNumber (uid, gid, cb) {
 
   child_process.execFile( process.execPath
                         , [getter, uid, gid]
-                        , function (code, out, err) {
-    if (er) return cb(new Error("could not get uid/gid\n" + err))
+                        , function (code, out, stderr) {
+    if (code) {
+      var er = new Error("could not get uid/gid\n" + stderr)
+      er.code = code
+      return cb(er)
+    }
+
     try {
       out = JSON.parse(out+"")
     } catch (ex) {

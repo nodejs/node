@@ -3,7 +3,7 @@ exports.cmd = cmd
 exports.makeEnv = makeEnv
 
 var log = require("npmlog")
-  , spawn = require("child_process").spawn
+  , spawn = require("./spawn")
   , npm = require("../npm.js")
   , path = require("path")
   , fs = require("graceful-fs")

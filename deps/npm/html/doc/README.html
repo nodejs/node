@@ -9,7 +9,7 @@
   <body>
     <div id="wrapper">
 
-<h1><a href="cli/npm.html">npm</a></h1> <p>node package manager</p>
+<h1><a href="cli/npm.html">npm</a></h1> <p>a JavaScript package manager</p>
 <p><a href="https://travis-ci.org/npm/npm"><img src="https://img.shields.io/travis/npm/npm/master.svg" alt="Build Status"></a></p>
 <h2 id="synopsis">SYNOPSIS</h2>
 <p>This is just enough info to get you up and running.</p>
@@ -30,9 +30,9 @@ and prior, clone the git repo and dig through the old tags and branches.</p>
 paths, etc.) then read on.</p>
 <h2 id="fancy-install-unix-">Fancy Install (Unix)</h2>
 <p>There&#39;s a pretty robust install script at
-<a href="https://www.npmjs.org/install.sh">https://www.npmjs.org/install.sh</a>.  You can download that and run it.</p>
+<a href="https://www.npmjs.com/install.sh">https://www.npmjs.com/install.sh</a>.  You can download that and run it.</p>
 <p>Here&#39;s an example using curl:</p>
-<pre><code>curl -L https://npmjs.org/install.sh | sh
+<pre><code>curl -L https://npmjs.com/install.sh | sh
 </code></pre><h3 id="slightly-fancier">Slightly Fancier</h3>
 <p>You can set any npm configuration params with that script:</p>
 <pre><code>npm_config_prefix=/some/path sh install.sh
@@ -45,31 +45,16 @@ If you plan on hacking on npm, <code>make link</code> is your friend.</p>
 arbitrary config keys using the <code>./configure --key=val ...</code>, and then
 run npm commands by doing <code>node cli.js &lt;cmd&gt; &lt;args&gt;</code>.  (This is helpful
 for testing, or running stuff without actually installing npm itself.)</p>
-<h2 id="fancy-windows-install">Fancy Windows Install</h2>
-<p>You can download a zip file from <a href="https://npmjs.org/dist/">https://npmjs.org/dist/</a>, and unpack it
+<h2 id="windows-install-or-upgrade">Windows Install or Upgrade</h2>
+<p>You can download a zip file from <a href="https://github.com/npm/npm/releases">https://github.com/npm/npm/releases</a>, and unpack it
 in the same folder where node.exe lives.</p>
+<p>The latest version in a zip file is 1.4.12.  To upgrade to npm 2, follow the
+Windows upgrade instructions in the npm Troubleshooting Guide:</p>
+<p><a href="https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows">https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows</a></p>
 <p>If that&#39;s not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.</p>
 <h2 id="installing-on-cygwin">Installing on Cygwin</h2>
 <p>No.</p>
-<h2 id="permissions-when-using-npm-to-install-other-stuff">Permissions when Using npm to Install Other Stuff</h2>
-<p><strong>tl;dr</strong></p>
-<ul>
-<li>Use <code>sudo</code> for greater safety.  Or don&#39;t, if you prefer not to.</li>
-<li>npm will downgrade permissions if it&#39;s root before running any build
-scripts that package authors specified.</li>
-</ul>
-<h3 id="more-details-">More details...</h3>
-<p>As of version 0.3, it is recommended to run npm as root.
-This allows npm to change the user identifier to the <code>nobody</code> user prior
-to running any package build or test commands.</p>
-<p>If you are not the root user, or if you are on a platform that does not
-support uid switching, then npm will not attempt to change the userid.</p>
-<p>If you would like to ensure that npm <strong>always</strong> runs scripts as the
-&quot;nobody&quot; user, and have it fail if it cannot downgrade permissions, then
-set the following configuration param:</p>
-<pre><code>npm config set unsafe-perm false
-</code></pre><p>This will prevent running in unsafe mode, even as non-root users.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>So sad to see you go.</p>
 <pre><code>sudo npm uninstall npm -g
@@ -122,11 +107,11 @@ change the value for <em>all</em> npm commands in that process.</p>
 command line arguments using nopt.  You may also want to check out <code>npm
 help config</code> to learn about all the options you can set there.</p>
 <h2 id="more-docs">More Docs</h2>
-<p>Check out the <a href="https://www.npmjs.org/doc/">docs</a>,
-especially the <a href="https://www.npmjs.org/doc/faq.html">faq</a>.</p>
+<p>Check out the <a href="https://docs.npmjs.com/">docs</a>,
+especially the <a href="https://docs.npmjs.com/misc/faq">faq</a>.</p>
 <p>You can use the <code>npm help</code> command to read any of them.</p>
 <p>If you&#39;re a developer, and you want to use npm to publish your program,
-you should <a href="https://www.npmjs.org/doc/developers.html">read this</a></p>
+you should <a href="https://docs.npmjs.com/misc/developers">read this</a></p>
 <h2 id="legal-stuff">Legal Stuff</h2>
 <p>&quot;npm&quot; and &quot;The npm Registry&quot; are owned by npm, Inc.
 All rights reserved.  See the included LICENSE file for more details.</p>
@@ -139,9 +124,9 @@ ensure accountability, there is absolutely no guarantee, warrantee, or
 assertion expressed or implied as to the quality, fitness for a
 specific purpose, or lack of malice in any given npm package.</p>
 <p>If you have a complaint about a package in the public npm registry,
-and cannot <a href="https://www.npmjs.org/doc/misc/npm-disputes.html">resolve it with the package
+and cannot <a href="https://docs.npmjs.com/misc/disputes">resolve it with the package
 owner</a>, please email
-<a href="&#x6d;&#x61;&#x69;&#108;&#116;&#x6f;&#58;&#x73;&#x75;&#x70;&#112;&#x6f;&#x72;&#116;&#64;&#110;&#x70;&#x6d;&#106;&#115;&#x2e;&#x63;&#111;&#109;">&#x73;&#x75;&#x70;&#112;&#x6f;&#x72;&#116;&#64;&#110;&#x70;&#x6d;&#106;&#115;&#x2e;&#x63;&#111;&#109;</a> and explain the situation.</p>
+<a href="&#x6d;&#x61;&#105;&#x6c;&#116;&#111;&#x3a;&#x73;&#x75;&#x70;&#x70;&#111;&#114;&#x74;&#64;&#110;&#x70;&#x6d;&#x6a;&#x73;&#x2e;&#99;&#x6f;&#x6d;">&#x73;&#x75;&#x70;&#x70;&#111;&#114;&#x74;&#64;&#110;&#x70;&#x6d;&#x6a;&#x73;&#x2e;&#99;&#x6f;&#x6d;</a> and explain the situation.</p>
 <p>Any data published to The npm Registry (including user account
 information) may be removed or modified at the sole discretion of the
 npm server administrators.</p>
@@ -160,8 +145,6 @@ ban your account in extreme cases.  So don&#39;t do that.</p>
 <ul>
 <li>web:
 <a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a></li>
-<li>email:
-<a href="&#109;&#x61;&#x69;&#108;&#116;&#x6f;&#58;&#110;&#112;&#x6d;&#x2d;&#x40;&#103;&#111;&#111;&#103;&#108;&#101;&#103;&#114;&#x6f;&#117;&#x70;&#x73;&#46;&#x63;&#111;&#109;">&#110;&#112;&#x6d;&#x2d;&#x40;&#103;&#111;&#111;&#103;&#108;&#101;&#103;&#114;&#x6f;&#117;&#x70;&#x73;&#46;&#x63;&#111;&#109;</a></li>
 </ul>
 <p>Be sure to include <em>all</em> of the output from the npm command that didn&#39;t work
 as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
@@ -186,5 +169,5 @@ will no doubt tell you to put the output in a gist or email.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@2.1.6</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@2.1.18</p>
 

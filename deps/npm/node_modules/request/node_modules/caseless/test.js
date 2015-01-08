@@ -6,7 +6,7 @@ tape('set get has', function (t) {
   var headers = {}
     , c = caseless(headers)
     ;
-  t.plan(14)
+  t.plan(17)
   c.set('a-Header', 'asdf')
   t.equal(c.get('a-header'), 'asdf')
   t.equal(c.has('a-header'), 'a-Header')
@@ -29,5 +29,12 @@ tape('set get has', function (t) {
   t.notOk(c.has('deleteme'))
   t.notOk(c.has('idonotexist'))
   t.ok(c.del('idonotexist'))
+
+  c.set('tva', 'test1')
+  c.set('tva-header', 'test2')
+  t.equal(c.has('tva'), 'tva')
+  t.notOk(c.has('header'))
+
+  t.equal(c.get('tva'), 'test1')
 
 })

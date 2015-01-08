@@ -78,7 +78,25 @@ test("npm run-script explicitly call pre script with arg", function (t) {
   common.npm(["run-script", "prewith-pre", "--", "an arg"], opts, testOutput.bind(null, t, "an arg"))
 })
 
-test("cleanup", function (t) {
+test('npm run-script test', function (t) {
+  common.npm(['run-script', 'test'], opts, function (er, code, stdout, stderr) {
+    if (er)
+      throw er
+    t.notOk(stderr, 'should not generate errors')
+    t.end()
+  })
+})
+
+test('npm run-script nonexistent-script', function (t) {
+  common.npm(['run-script', 'nonexistent-script'], opts, function (er, code, stdout, stderr) {
+    if (er)
+      throw er
+    t.ok(stderr, 'should generate errors')
+    t.end()
+  })
+})
+
+test('cleanup', function (t) {
   cleanup()
   t.end()
 })

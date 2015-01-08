@@ -72,6 +72,7 @@ function clone(parent, circular, depth, prototype) {
       return parent;
 
     var child;
+    var proto;
     if (typeof parent != 'object') {
       return parent;
     }
@@ -88,8 +89,14 @@ function clone(parent, circular, depth, prototype) {
       parent.copy(child);
       return child;
     } else {
-      if (typeof prototype == 'undefined') child = Object.create(Object.getPrototypeOf(parent));
-      else child = Object.create(prototype);
+      if (typeof prototype == 'undefined') {
+        proto = Object.getPrototypeOf(parent);
+        child = Object.create(proto);
+      }
+      else {
+        child = Object.create(prototype);
+        proto = prototype;
+      }
     }
 
     if (circular) {
@@ -103,6 +110,14 @@ function clone(parent, circular, depth, prototype) {
     }
 
     for (var i in parent) {
+      var attrs;
+      if (proto) {
+        attrs = Object.getOwnPropertyDescriptor(proto, i);
+      }
+      
+      if (attrs && attrs.set == null) {
+        continue;
+      }
       child[i] = _clone(parent[i], depth - 1);
     }
 

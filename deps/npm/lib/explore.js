@@ -6,7 +6,7 @@ explore.usage = "npm explore <pkg> [ -- <cmd>]"
 explore.completion = require("./utils/completion/installed-shallow.js")
 
 var npm = require("./npm.js")
-  , spawn = require("child_process").spawn
+  , spawn = require("./utils/spawn")
   , path = require("path")
   , fs = require("graceful-fs")
 

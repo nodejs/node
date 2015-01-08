@@ -8,4 +8,4 @@ var post = '});'
 var src = pre + process.binding('natives').fs + post
 var vm = require('vm')
 var fn = vm.runInThisContext(src)
-return fn(exports, require, module, __filename, __dirname)
+fn(exports, require, module, __filename, __dirname)

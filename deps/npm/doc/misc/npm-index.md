@@ -3,7 +3,7 @@ npm-index(7) -- Index of all npm documentation
 
 ### README(1)
 
-node package manager
+a JavaScript package manager
 
 ## Command Line Documentation
 
@@ -123,7 +123,7 @@ Open package repository page in the browser
 
 ### npm-restart(1)
 
-Start a package
+Restart a package
 
 ### npm-rm(1)
 
@@ -295,7 +295,7 @@ Open package repository page in the browser
 
 ### npm-restart(3)
 
-Start a package
+Restart a package
 
 ### npm-root(3)
 

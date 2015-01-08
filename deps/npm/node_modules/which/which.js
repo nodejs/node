@@ -5,12 +5,7 @@ var path = require("path")
   , fs
   , COLON = process.platform === "win32" ? ";" : ":"
   , isExe
-
-try {
-  fs = require("graceful-fs")
-} catch (ex) {
-  fs = require("fs")
-}
+  , fs = require("fs")
 
 if (process.platform == "win32") {
   // On windows, there is no good way to check that a file is executable

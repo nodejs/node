@@ -1,4 +1,4 @@
-npm(1) -- node package manager
+npm(1) -- a JavaScript package manager
 ==============================
 [![Build Status](https://img.shields.io/travis/npm/npm/master.svg)](https://travis-ci.org/npm/npm)
 ## SYNOPSIS
@@ -36,11 +36,11 @@ paths, etc.) then read on.
 ## Fancy Install (Unix)
 
 There's a pretty robust install script at
-<https://www.npmjs.org/install.sh>.  You can download that and run it.
+<https://www.npmjs.com/install.sh>.  You can download that and run it.
 
 Here's an example using curl:
 
-    curl -L https://npmjs.org/install.sh | sh
+    curl -L https://npmjs.com/install.sh | sh
 
 ### Slightly Fancier
 
@@ -62,10 +62,15 @@ arbitrary config keys using the `./configure --key=val ...`, and then
 run npm commands by doing `node cli.js <cmd> <args>`.  (This is helpful
 for testing, or running stuff without actually installing npm itself.)
 
-## Fancy Windows Install
+## Windows Install or Upgrade
 
-You can download a zip file from <https://npmjs.org/dist/>, and unpack it
+You can download a zip file from <https://github.com/npm/npm/releases>, and unpack it
 in the same folder where node.exe lives.
+
+The latest version in a zip file is 1.4.12.  To upgrade to npm 2, follow the
+Windows upgrade instructions in the npm Troubleshooting Guide:
+
+<https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows>
 
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.
@@ -73,31 +78,6 @@ git, and mess with it directly.
 ## Installing on Cygwin
 
 No.
-
-## Permissions when Using npm to Install Other Stuff
-
-**tl;dr**
-
-* Use `sudo` for greater safety.  Or don't, if you prefer not to.
-* npm will downgrade permissions if it's root before running any build
-  scripts that package authors specified.
-
-### More details...
-
-As of version 0.3, it is recommended to run npm as root.
-This allows npm to change the user identifier to the `nobody` user prior
-to running any package build or test commands.
-
-If you are not the root user, or if you are on a platform that does not
-support uid switching, then npm will not attempt to change the userid.
-
-If you would like to ensure that npm **always** runs scripts as the
-"nobody" user, and have it fail if it cannot downgrade permissions, then
-set the following configuration param:
-
-    npm config set unsafe-perm false
-
-This will prevent running in unsafe mode, even as non-root users.
 
 ## Uninstalling
 
@@ -173,13 +153,13 @@ help config` to learn about all the options you can set there.
 
 ## More Docs
 
-Check out the [docs](https://www.npmjs.org/doc/),
-especially the [faq](https://www.npmjs.org/doc/faq.html).
+Check out the [docs](https://docs.npmjs.com/),
+especially the [faq](https://docs.npmjs.com/misc/faq).
 
 You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
-you should [read this](https://www.npmjs.org/doc/developers.html)
+you should [read this](https://docs.npmjs.com/misc/developers)
 
 ## Legal Stuff
 
@@ -199,7 +179,7 @@ specific purpose, or lack of malice in any given npm package.
 
 If you have a complaint about a package in the public npm registry,
 and cannot [resolve it with the package
-owner](https://www.npmjs.org/doc/misc/npm-disputes.html), please email
+owner](https://docs.npmjs.com/misc/disputes), please email
 <support@npmjs.com> and explain the situation.
 
 Any data published to The npm Registry (including user account
@@ -228,8 +208,6 @@ When you find issues, please report them:
 
 * web:
   <https://github.com/npm/npm/issues>
-* email:
-  <npm-@googlegroups.com>
 
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.

@@ -240,10 +240,10 @@ function findVersions (npm, summary, cb) {
     var versions = data.versions
 
     var ranges = data.ranges
-    mapToRegistry(name, npm.config, function (er, uri) {
+    mapToRegistry(name, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      npm.registry.get(uri, null, next)
+      npm.registry.get(uri, { auth : auth }, next)
     })
 
     function next (er, data) {

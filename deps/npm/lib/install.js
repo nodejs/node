@@ -33,11 +33,11 @@ install.completion = function (opts, cb) {
   // if it has a slash, then it's gotta be a folder
   // if it starts with https?://, then just give up, because it's a url
   // for now, not yet implemented.
-  var registry = npm.registry
-  mapToRegistry("-/short", npm.config, function (er, uri) {
+  mapToRegistry("-/short", npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.get(uri, null, function (er, pkgs) {
+    var options = { auth : auth }
+    npm.registry.get(uri, options, function (er, pkgs) {
       if (er) return cb()
       if (!opts.partialWord) return cb(null, pkgs)
 
@@ -53,7 +53,7 @@ install.completion = function (opts, cb) {
       mapToRegistry(pkgs[0], npm.config, function (er, uri) {
         if (er) return cb(er)
 
-        registry.get(uri, null, function (er, d) {
+        npm.registry.get(uri, options, function (er, d) {
           if (er) return cb()
           return cb(null, Object.keys(d["dist-tags"] || {})
                     .concat(Object.keys(d.versions || {}))

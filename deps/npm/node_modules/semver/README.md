@@ -16,12 +16,12 @@ As a command-line utility:
 
     $ semver -h
 
-    Usage: semver <version> [<version> [...]] [-r <range> | -i <inc> | -d <dec>]
+    Usage: semver <version> [<version> [...]] [-r <range> | -i <inc> | --preid <identifier> | -l | -rv]
     Test if version(s) satisfy the supplied range(s), and sort them.
 
     Multiple versions or ranges may be supplied, unless increment
-    or decrement options are specified.  In that case, only a single
-    version may be used, and it is incremented by the specified level
+    option is specified.  In that case, only a single version may
+    be used, and it is incremented by the specified level
 
     Program exits successfully if any valid version satisfies
     all supplied ranges, and prints all satisfying versions.
@@ -101,6 +101,30 @@ the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the *next* set of prerelease versions.
 
+#### Prerelease Identifiers
+
+The method `.inc` takes an additional `identifier` string argument that
+will append the value of the string as a prerelease identifier:
+
+````javascript
+> semver.inc('1.2.3', 'pre', 'beta')
+'1.2.4-beta.0'
+```
+
+command-line example:
+
+```shell
+$ semver 1.2.3 -i prerelease --preid beta
+1.2.4-beta.0
+```
+
+Which then can be used to increment further:
+
+```shell
+$ semver 1.2.4-beta.0 -i prerelease
+1.2.4-beta.1
+```
+
 ### Advanced Range Syntax
 
 Advanced range syntax desugars to primitive comparators in
@@ -160,8 +184,6 @@ comparator.  Allows minor-level changes if not.
   equal to `beta.2`.  So, `1.2.3-beta.4` would be allowed, but
   `1.2.4-beta.2` would not, because it is a prerelease of a
   different `[major, minor, patch]` tuple.
-
-Note: this is the same as the `~>` operator in rubygems.
 
 #### Caret Ranges `^1.2.3` `^0.2.5` `^0.0.4`
 
@@ -245,6 +267,9 @@ strings that they parse.
   `v2` is greater.  Sorts in ascending order if passed to `Array.sort()`.
 * `rcompare(v1, v2)`: The reverse of compare.  Sorts an array of versions
   in descending order when passed to `Array.sort()`.
+* `diff(v1, v2)`: Returns difference between two versions by the release type
+  (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
+  or null if the versions are the same.
 
 
 ### Ranges

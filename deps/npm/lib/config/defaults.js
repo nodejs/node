@@ -189,9 +189,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , prefix : globalPrefix
     , production: process.env.NODE_ENV === "production"
     , "proprietary-attribs": true
-    , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
-    , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
-                      process.env.HTTP_PROXY || process.env.http_proxy || null
+    , proxy :  null
+    , "https-proxy" : null
     , "user-agent" : "npm/{npm-version} "
                      + "node/{node-version} "
                      + "{platform} "

@@ -22,7 +22,7 @@ Note that `package-name` is taken from `package.json`,
 not from directory name.
 
 The package name can be optionally prefixed with a scope. See `npm-scope(7)`.
-The scope must by preceded by an @-symbol and followed by a slash.
+The scope must be preceded by an @-symbol and followed by a slash.
 
 When creating tarballs for `npm publish`, the linked packages are
 "snapshotted" to their current state by resolving the symbolic links.

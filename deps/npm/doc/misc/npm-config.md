@@ -137,13 +137,21 @@ The browser that is called by the `npm docs` command to open websites.
 ### ca
 
 * Default: The npm CA certificate
-* Type: String or null
+* Type: String, Array or null
 
 The Certificate Authority signing certificate that is trusted for SSL
-connections to the registry.
+connections to the registry. Values should be in PEM format with newlines
+replaced by the string "\n". For example:
+
+    ca="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
 
 Set to `null` to only allow "known" registrars, or to a specific CA cert
 to trust only that specific signing authority.
+
+Multiple CAs can be trusted by specifying an array of certificates:
+
+    ca[]="..."
+    ca[]="..."
 
 See also the `strict-ssl` config.
 
@@ -361,11 +369,12 @@ The string that starts all the debugging log output.
 
 ### https-proxy
 
-* Default: the `HTTPS_PROXY` or `https_proxy` or `HTTP_PROXY` or
-  `http_proxy` environment variables.
+* Default: null
 * Type: url
 
-A proxy to use for outgoing https requests.
+A proxy to use for outgoing https requests. If the `HTTPS_PROXY` or
+`https_proxy` or `HTTP_PROXY` or `http_proxy` environment variables are set,
+proxy settings will be honored by the underlying `request` library.
 
 ### ignore-scripts
 
@@ -577,10 +586,12 @@ this as true.
 
 ### proxy
 
-* Default: `HTTP_PROXY` or `http_proxy` environment variable, or null
+* Default: null
 * Type: url
 
-A proxy to use for outgoing http requests.
+A proxy to use for outgoing http requests. If the `HTTP_PROXY` or
+`http_proxy` environment variables are set, proxy settings will be
+honored by the underlying `request` library.
 
 ### rebuild-bundle
 

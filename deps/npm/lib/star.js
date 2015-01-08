@@ -2,7 +2,6 @@
 module.exports = star
 
 var npm = require("./npm.js")
-  , registry = npm.registry
   , log = require("npmlog")
   , asyncMap = require("slide").asyncMap
   , mapToRegistry = require("./utils/map-to-registry.js")
@@ -11,10 +10,14 @@ star.usage = "npm star <package> [pkg, pkg, ...]\n"
            + "npm unstar <package> [pkg, pkg, ...]"
 
 star.completion = function (opts, cb) {
-  mapToRegistry("-/short", npm.config, function (er, uri) {
+  mapToRegistry("-/short", npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.get(uri, { timeout : 60000 }, function (er, list) {
+    var params = {
+      timeout : 60000,
+      auth    : auth
+    }
+    npm.registry.get(uri, params, function (er, list) {
       return cb(null, list || [])
     })
   })
@@ -27,10 +30,14 @@ function star (args, cb) {
     , using = !(npm.command.match(/^un/))
   if (!using) s = u
   asyncMap(args, function (pkg, cb) {
-    mapToRegistry(pkg, npm.config, function (er, uri) {
+    mapToRegistry(pkg, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.star(uri, using, function (er, data, raw, req) {
+      var params = {
+        starred : using,
+        auth    : auth
+      }
+      npm.registry.star(uri, params, function (er, data, raw, req) {
         if (!er) {
           console.log(s + " "+pkg)
           log.verbose("star", data)

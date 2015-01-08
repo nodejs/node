@@ -4,6 +4,7 @@
 var npm = require("../npm.js")
   , fs = require("graceful-fs")
   , writeFileAtomic = require("write-file-atomic")
+  , writeStreamAtomic = require("fs-write-stream-atomic")
   , path = require("path")
   , log = require("npmlog")
   , uidNumber = require("uid-number")
@@ -65,7 +66,7 @@ function pack_ (tarball, folder, pkg, cb) {
       if (er) log.error("tar.pack", "gzip error "+tarball)
       cb(er)
     })
-    .pipe(fstream.Writer({ type: "File", path: tarball }))
+    .pipe(writeStreamAtomic(tarball))
     .on("error", function (er) {
       if (er) log.error("tar.pack", "Could not write "+tarball)
       cb(er)
@@ -228,8 +229,7 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
             cb(er)
           })
           .on("close", cb)
-      } else if (c.toString().match(/^package\//) ||
-                 c.toString().match(/^pax_global_header/)) {
+      } else if (hasTarHeader(c)) {
         // naked tar
         fst
           .pipe(tar.Extract(extractOpts))
@@ -272,4 +272,20 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
       fst.removeListener("data", OD)
       fst.emit("data", c)
     })
+}
+
+function hasTarHeader (c) {
+  return c[257] === 0x75 && // tar archives have 7573746172 at position
+         c[258] === 0x73 && // 257 and 003030 or 202000 at position 262
+         c[259] === 0x74 &&
+         c[260] === 0x61 &&
+         c[261] === 0x72 &&
+
+       ((c[262] === 0x00 &&
+         c[263] === 0x30 &&
+         c[264] === 0x30) ||
+
+        (c[262] === 0x20 &&
+         c[263] === 0x20 &&
+         c[264] === 0x00))
 }

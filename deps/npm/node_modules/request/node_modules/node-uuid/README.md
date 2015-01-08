@@ -10,6 +10,7 @@ Features:
 * Cryptographically strong random # generation on supporting platforms
 * 1.1K minified and gzip'ed  (Want something smaller?  Check this [crazy shit](https://gist.github.com/982883) out! )
 * [Annotated source code](http://broofa.github.com/node-uuid/docs/uuid.html)
+* Comes with a Command Line Interface for generating uuids on the command line
 
 ## Getting Started
 
@@ -160,13 +161,48 @@ uuid() has become uuid.v4(), and the `format` argument is now implicit in the `b
 
 The class of container created when generating binary uuid data if no buffer argument is specified.  This is expected to go away, with no replacement API.
 
+## Command Line Interface
+
+To use the executable, it's probably best to install this library globally.
+
+`npm install -g node-uuid`
+
+Usage:
+
+```
+USAGE: uuid [version] [options]
+
+
+options:
+
+--help                     Display this message and exit
+```
+
+`version` must be an RFC4122 version that is supported by this library, which is currently version 1 and version 4 (denoted by "v1" and "v4", respectively). `version` defaults to version 4 when not supplied.
+
+### Examples
+
+```
+> uuid
+3a91f950-dec8-4688-ba14-5b7bbfc7a563
+```
+
+```
+> uuid v1
+9d0b43e0-7696-11e3-964b-250efa37a98e
+```
+
+```
+> uuid v4
+6790ac7c-24ac-4f98-8464-42f6d98a53ae
+```
+
 ## Testing
 
 In node.js
 
 ```
-> cd test
-> node test.js
+npm test
 ```
 
 In Browser

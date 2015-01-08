@@ -1,4 +1,3 @@
-
 module.exports = runScript
 
 var lifecycle = require("./utils/lifecycle.js")
@@ -124,6 +123,13 @@ function run (pkg, wd, cmd, args, cb) {
       "prestart", "start", "poststart"
     ]
   } else {
+    if (!pkg.scripts[cmd]) {
+      if (cmd === "test") {
+        pkg.scripts.test = "echo \"Error: no test specified\"";
+      } else {
+        return cb(new Error("missing script: " + cmd));
+      }
+    }
     cmds = [cmd]
   }
 

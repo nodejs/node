@@ -3,20 +3,29 @@
 module.exports = view
 view.usage = "npm view pkg[@version] [<field>[.subfield]...]"
 
+var npm = require("./npm.js")
+  , readJson = require("read-package-json")
+  , log = require("npmlog")
+  , util = require("util")
+  , semver = require("semver")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
+  , path = require("path")
+
 view.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length <= 2) {
-    return mapToRegistry("-/short", npm.config, function (er, uri) {
+    return mapToRegistry("-/short", npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.get(uri, null, cb)
+      npm.registry.get(uri, { auth : auth }, cb)
     })
   }
   // have the package, get the fields.
   var tag = npm.config.get("tag")
-  mapToRegistry(opts.conf.argv.remain[2], npm.config, function (er, uri) {
+  mapToRegistry(opts.conf.argv.remain[2], npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.get(uri, null, function (er, d) {
+    npm.registry.get(uri, { auth : auth }, function (er, d) {
       if (er) return cb(er)
       var dv = d.versions[d["dist-tags"][tag]]
         , fields = []
@@ -47,16 +56,6 @@ view.completion = function (opts, cb) {
     return f
   }
 }
-
-var npm = require("./npm.js")
-  , readJson = require("read-package-json")
-  , registry = npm.registry
-  , log = require("npmlog")
-  , util = require("util")
-  , semver = require("semver")
-  , mapToRegistry = require("./utils/map-to-registry.js")
-  , npa = require("npm-package-arg")
-  , path = require("path")
 
 function view (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -97,10 +96,10 @@ function fetchAndRead (nv, args, silent, cb) {
   var name = nv.name
     , version = nv.rawSpec || npm.config.get("tag")
 
-  mapToRegistry(name, npm.config, function (er, uri) {
+  mapToRegistry(name, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.get(uri, null, function (er, data) {
+    npm.registry.get(uri, { auth : auth }, function (er, data) {
       if (er) return cb(er)
       if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
         version = data["dist-tags"][version]

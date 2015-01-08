@@ -1,21 +1,29 @@
 var mkdir = require("mkdirp")
   , assert = require("assert")
   , git = require("../utils/git.js")
-  , once = require("once")
   , fs = require("graceful-fs")
   , log = require("npmlog")
   , path = require("path")
   , url = require("url")
   , chownr = require("chownr")
-  , zlib = require("zlib")
   , crypto = require("crypto")
   , npm = require("../npm.js")
   , rm = require("../utils/gently-rm.js")
   , inflight = require("inflight")
   , getCacheStat = require("./get-stat.js")
-  , addLocalTarball = require("./add-local-tarball.js")
-  , writeStream = require("fs-write-stream-atomic")
+  , addLocal = require("./add-local.js")
+  , realizePackageSpecifier = require("realize-package-specifier")
+  , normalizeGitUrl = require("normalize-git-url")
 
+var remotes = path.resolve(npm.config.get("cache"), "_git-remotes")
+var templates = path.join(remotes, "_templates")
+
+var VALID_VARIABLES = [
+  "GIT_SSH",
+  "GIT_SSL_NO_VERIFY",
+  "GIT_PROXY_COMMAND",
+  "GIT_SSL_CAINFO"
+]
 
 // 1. cacheDir = path.join(cache,'_git-remotes',sha1(u))
 // 2. checkGitDir(cacheDir) ? 4. : 3. (rm cacheDir if necessary)
@@ -29,41 +37,21 @@ module.exports = function addRemoteGit (u, silent, cb) {
   assert(typeof cb === "function", "must have callback")
 
   log.verbose("addRemoteGit", "u=%j silent=%j", u, silent)
-  var parsed = url.parse(u, true)
-  log.silly("addRemoteGit", "parsed", parsed)
+  var normalized = normalizeGitUrl(u)
+  log.silly("addRemoteGit", "normalized", normalized)
 
-  // git is so tricky!
-  // if the path is like ssh://foo:22/some/path then it works, but
-  // it needs the ssh://
-  // If the path is like ssh://foo:some/path then it works, but
-  // only if you remove the ssh://
-  var origUrl = u
-  u = u.replace(/^git\+/, "")
-       .replace(/#.*$/, "")
+  var v = crypto.createHash("sha1").update(normalized.url).digest("hex").slice(0, 8)
+  v = normalized.url.replace(/[^a-zA-Z0-9]+/g, "-")+"-"+v
+  log.silly("addRemoteGit", "v", v)
 
-  // ssh paths that are scp-style urls don't need the ssh://
-  if (parsed.pathname.match(/^\/?:/)) {
-    u = u.replace(/^ssh:\/\//, "")
-  }
+  var p = path.join(remotes, v)
+  cb = inflight(p, cb)
+  if (!cb) return log.verbose("addRemoteGit", p, "already in flight; waiting")
+  log.verbose("addRemoteGit", p, "not in flight; cloning")
 
-  cb = inflight(u, cb)
-  if (!cb) return log.verbose("addRemoteGit", u, "already in flight; waiting")
-  log.verbose("addRemoteGit", u, "not in flight; cloning")
-
-  // figure out what we should check out.
-  var co = parsed.hash && parsed.hash.substr(1) || "master"
-
-  var v = crypto.createHash("sha1").update(u).digest("hex").slice(0, 8)
-  v = u.replace(/[^a-zA-Z0-9]+/g, "-")+"-"+v
-
-  log.verbose("addRemoteGit", [u, co])
-
-  var p = path.join(npm.config.get("cache"), "_git-remotes", v)
-
-  // we don't need global templates when cloning.  use this empty dir to specify as template dir
-  mkdir(path.join(npm.config.get("cache"), "_git-remotes", "_templates"), function (er) {
+  getGitDir(function (er) {
     if (er) return cb(er)
-    checkGitDir(p, u, co, origUrl, silent, function (er, data) {
+    checkGitDir(p, normalized.url, normalized.branch, u, silent, function (er, data) {
       if (er) return cb(er, data)
 
       addModeRecursive(p, npm.modes.file, function (er) {
@@ -73,31 +61,53 @@ module.exports = function addRemoteGit (u, silent, cb) {
   })
 }
 
+function getGitDir (cb) {
+  getCacheStat(function (er, st) {
+    if (er) return cb(er)
+
+    // We don't need global templates when cloning. Use an empty directory for
+    // the templates, creating it (and setting its permissions) if necessary.
+    mkdir(templates, function (er) {
+      if (er) return cb(er)
+
+      // Ensure that both the template and remotes directories have the correct
+      // permissions.
+      fs.chown(templates, st.uid, st.gid, function (er) {
+        if (er) return cb(er)
+
+        fs.chown(remotes, st.uid, st.gid, function (er) {
+          cb(er, st)
+        })
+      })
+    })
+  })
+}
+
 function checkGitDir (p, u, co, origUrl, silent, cb) {
   fs.stat(p, function (er, s) {
     if (er) return cloneGitRemote(p, u, co, origUrl, silent, cb)
-    if (!s.isDirectory()) return rm(p, function (er){
+    if (!s.isDirectory()) return rm(p, function (er) {
       if (er) return cb(er)
       cloneGitRemote(p, u, co, origUrl, silent, cb)
     })
 
-    var args = [ "config", "--get", "remote.origin.url" ]
-    var env = gitEnv()
-
-    // check for git
-    git.whichAndExec(args, {cwd: p, env: env}, function (er, stdout, stderr) {
-      var stdoutTrimmed = (stdout + "\n" + stderr).trim()
-      if (er || u !== stdout.trim()) {
-        log.warn( "`git config --get remote.origin.url` returned "
-                + "wrong result ("+u+")", stdoutTrimmed )
-        return rm(p, function (er){
-          if (er) return cb(er)
-          cloneGitRemote(p, u, co, origUrl, silent, cb)
-        })
+    git.whichAndExec(
+      [ "config", "--get", "remote.origin.url" ],
+      { cwd : p, env : gitEnv },
+      function (er, stdout, stderr) {
+        var stdoutTrimmed = (stdout + "\n" + stderr).trim()
+        if (er || u !== stdout.trim()) {
+          log.warn( "`git config --get remote.origin.url` returned "
+                  + "wrong result ("+u+")", stdoutTrimmed )
+          return rm(p, function (er){
+            if (er) return cb(er)
+            cloneGitRemote(p, u, co, origUrl, silent, cb)
+          })
+        }
+        log.verbose("git remote.origin.url", stdoutTrimmed)
+        fetchRemote(p, u, co, origUrl, cb)
       }
-      log.verbose("git remote.origin.url", stdoutTrimmed)
-      archiveGitRemote(p, u, co, origUrl, cb)
-    })
+    )
   })
 }
 
@@ -105,66 +115,68 @@ function cloneGitRemote (p, u, co, origUrl, silent, cb) {
   mkdir(p, function (er) {
     if (er) return cb(er)
 
-    var args = [ "clone", "--template=" + path.join(npm.config.get("cache"),
-      "_git_remotes", "_templates"), "--mirror", u, p ]
-    var env = gitEnv()
-
-    // check for git
-    git.whichAndExec(args, {cwd: p, env: env}, function (er, stdout, stderr) {
-      stdout = (stdout + "\n" + stderr).trim()
-      if (er) {
-        if (silent) {
-          log.verbose("git clone " + u, stdout)
-        } else {
-          log.error("git clone " + u, stdout)
+    git.whichAndExec(
+      [ "clone", "--template=" + templates, "--mirror", u, p ],
+      { cwd : p, env : gitEnv() },
+      function (er, stdout, stderr) {
+        stdout = (stdout + "\n" + stderr).trim()
+        if (er) {
+          if (silent) {
+            log.verbose("git clone " + u, stdout)
+          } else {
+            log.error("git clone " + u, stdout)
+          }
+          return cb(er)
         }
-        return cb(er)
+        log.verbose("git clone " + u, stdout)
+        fetchRemote(p, u, co, origUrl, cb)
       }
-      log.verbose("git clone " + u, stdout)
-      archiveGitRemote(p, u, co, origUrl, cb)
-    })
+    )
   })
 }
 
-function archiveGitRemote (p, u, co, origUrl, cb) {
-  var archive = [ "fetch", "-a", "origin" ]
-  var resolve = [ "rev-list", "-n1", co ]
-  var env = gitEnv()
+function fetchRemote (p, u, co, origUrl, cb) {
+  git.whichAndExec(
+    [ "fetch", "-a", "origin" ],
+    { cwd : p, env : gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + "\n" + stderr).trim()
+      if (er) {
+        log.error("git fetch -a origin ("+u+")", stdout)
+        return cb(er)
+      }
+      log.verbose("git fetch -a origin ("+u+")", stdout)
 
-  var resolved = null
-  var tmp
-
-  git.whichAndExec(archive, {cwd: p, env: env}, function (er, stdout, stderr) {
-    stdout = (stdout + "\n" + stderr).trim()
-    if (er) {
-      log.error("git fetch -a origin ("+u+")", stdout)
-      return cb(er)
-    }
-    log.verbose("git fetch -a origin ("+u+")", stdout)
-    tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
-
-    if (process.platform === "win32") {
-      log.silly("verifyOwnership", "skipping for windows")
-      resolveHead()
-    } else {
-      getCacheStat(function(er, cs) {
-        if (er) {
-          log.error("Could not get cache stat")
-          return cb(er)
-        }
-        chownr(p, cs.uid, cs.gid, function(er) {
+      if (process.platform === "win32") {
+        log.silly("verifyOwnership", "skipping for windows")
+        resolveHead(p, u, co, origUrl, cb)
+      }
+      else {
+        getGitDir(function (er, cs) {
           if (er) {
-            log.error("Failed to change folder ownership under npm cache for %s", p)
+            log.error("Could not get cache stat")
             return cb(er)
           }
-          resolveHead()
-        })
-      })
-    }
-  })
 
-  function resolveHead () {
-    git.whichAndExec(resolve, {cwd: p, env: env}, function (er, stdout, stderr) {
+          chownr(p, cs.uid, cs.gid, function (er) {
+            if (er) {
+              log.error("Failed to change folder ownership under npm cache for %s", p)
+              return cb(er)
+            }
+
+            resolveHead(p, u, co, origUrl, cb)
+          })
+        })
+      }
+    }
+  )
+}
+
+function resolveHead (p, u, co, origUrl, cb) {
+  git.whichAndExec(
+    [ "rev-list", "-n1", co ],
+    { cwd : p, env : gitEnv() },
+    function (er, stdout, stderr) {
       stdout = (stdout + "\n" + stderr).trim()
       if (er) {
         log.error("Failed resolving git HEAD (" + u + ")", stderr)
@@ -173,48 +185,73 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
       log.verbose("git rev-list -n1 " + co, stdout)
       var parsed = url.parse(origUrl)
       parsed.hash = stdout
-      resolved = url.format(parsed)
+      var resolved = url.format(parsed)
 
-      if (parsed.protocol !== "git:") {
-        resolved = "git+" + resolved
-      }
+      if (parsed.protocol !== "git:") resolved = "git+" + resolved
 
       // https://github.com/npm/npm/issues/3224
-      // node incorrectly sticks a / at the start of the path
-      // We know that the host won't change, so split and detect this
+      // node incorrectly sticks a / at the start of the path We know that the
+      // host won't change, so split and detect this
       var spo = origUrl.split(parsed.host)
       var spr = resolved.split(parsed.host)
-      if (spo[1].charAt(0) === ":" && spr[1].charAt(0) === "/")
+      if (spo[1].charAt(0) === ":" && spr[1].charAt(0) === "/") {
         spr[1] = spr[1].slice(1)
+      }
       resolved = spr.join(parsed.host)
 
       log.verbose("resolved git url", resolved)
-      next()
-    })
-  }
+      cache(p, u, stdout, resolved, cb)
+    }
+  )
+}
 
-  function next () {
-    mkdir(path.dirname(tmp), function (er) {
-      if (er) return cb(er)
-      var gzip = zlib.createGzip({ level: 9 })
-      var args = ["archive", co, "--format=tar", "--prefix=package/"]
-      var out = writeStream(tmp)
-      var env = gitEnv()
-      cb = once(cb)
-      var cp = git.spawn(args, { env: env, cwd: p })
-      cp.on("error", cb)
-      cp.stderr.on("data", function(chunk) {
-        log.silly(chunk.toString(), "git archive")
-      })
+/**
+ * Make an actual clone from the bare (mirrored) cache. There is no safe way to
+ * do a one-step clone to a treeish that isn't guaranteed to be a branch, so
+ * this has to be two steps.
+ */
+function cache (p, u, treeish, resolved, cb) {
+  var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), treeish)
+  git.whichAndExec(
+    [ "clone", p, tmp ],
+    { cwd : p, env : gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + "\n" + stderr).trim()
+      if (er) {
+        log.error("Failed to clone "+resolved+" from "+u, stderr)
+        return cb(er)
+      }
+      log.verbose("git clone", "from", p)
+      log.verbose("git clone", stdout)
 
-      cp.stdout.pipe(gzip).pipe(out).on("close", function() {
-        addLocalTarball(tmp, null, null, function(er, data) {
-          if (data) data._resolved = resolved
-          cb(er, data)
-        })
-      })
-    })
-  }
+      git.whichAndExec(
+        [ "checkout", treeish ],
+        { cwd : tmp, env : gitEnv() },
+        function (er, stdout, stderr) {
+          stdout = (stdout + "\n" + stderr).trim()
+          if (er) {
+            log.error("Failed to check out "+treeish, stderr)
+            return cb(er)
+          }
+          log.verbose("git checkout", stdout)
+
+          realizePackageSpecifier(tmp, function (er, spec) {
+            if (er) {
+              log.error("Failed to map", tmp, "to a package specifier")
+              return cb(er)
+            }
+
+            // https://github.com/npm/npm/issues/6400
+            // ensure pack logic is applied
+            addLocal(spec, null, function (er, data) {
+              if (data) data._resolved = resolved
+              cb(er, data)
+            })
+          })
+        }
+      )
+    }
+  )
 }
 
 var gitEnv_
@@ -224,7 +261,7 @@ function gitEnv () {
   if (gitEnv_) return gitEnv_
   gitEnv_ = {}
   for (var k in process.env) {
-    if (!~["GIT_PROXY_COMMAND","GIT_SSH","GIT_SSL_NO_VERIFY","GIT_SSL_CAINFO"].indexOf(k) && k.match(/^GIT/)) continue
+    if (!~VALID_VARIABLES.indexOf(k) && k.match(/^GIT/)) continue
     gitEnv_[k] = process.env[k]
   }
   return gitEnv_
