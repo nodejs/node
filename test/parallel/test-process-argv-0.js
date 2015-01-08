@@ -28,7 +28,7 @@ console.error('argv=%j', process.argv);
 console.error('exec=%j', process.execPath);
 
 if (process.argv[2] !== "child") {
-  var child = spawn('./node', [__filename, "child"], {
+  var child = spawn('./iojs', [__filename, "child"], {
     cwd: path.dirname(process.execPath)
   });
 
@@ -44,7 +44,7 @@ if (process.argv[2] !== "child") {
     console.error('CHILD: %s', childErr.trim().split('\n').join('\nCHILD: '));
     if (process.platform === 'win32') {
       // On Windows argv[0] is not expanded into full path
-      assert.equal(childArgv0, './node');
+      assert.equal(childArgv0, './iojs');
     } else {
       assert.equal(childArgv0, process.execPath);
     }

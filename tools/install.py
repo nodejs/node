@@ -108,12 +108,12 @@ def npm_files(action):
     if os.environ.get('PORTABLE'):
       # This crazy hack is necessary to make the shebang execute the copy
       # of node relative to the same directory as the npm script. The precompiled
-      # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
+      # binary tarballs use a prefix of "/" which gets translated to "/bin/iojs"
       # in the regular shebang modifying logic, which is incorrect since the
       # precompiled bundle should be able to be extracted anywhere and "just work"
-      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"'
+      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/iojs" "$0" "$@"'
     else:
-      shebang = os.path.join(node_prefix or '/', 'bin/node')
+      shebang = os.path.join(node_prefix or '/', 'bin/iojs')
     update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
@@ -128,7 +128,7 @@ def subdir_files(path, dest, action):
 
 def files(action):
   exeext = '.exe' if sys.platform == 'win32' else ''
-  action(['out/Release/node' + exeext], 'bin/node' + exeext)
+  action(['out/Release/iojs' + exeext], 'bin/iojs' + exeext)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')

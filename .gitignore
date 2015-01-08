@@ -10,8 +10,8 @@ tags
 doc/api.xml
 tmp/
 test/tmp*/
-node
-node_g
+iojs
+iojs_g
 *.swp
 .benchmark_reports
 /.project
