@@ -49,7 +49,7 @@ var handles = [];
 
   expect(1, 0);
   var conn = net.createConnection(common.PORT);
-  conn.on('lookup', onlookup); 
+  conn.on('lookup', onlookup);
   conn.on('error', function() { assert(false); });
   expect(2, 1);
   conn.destroy();
@@ -65,8 +65,14 @@ var handles = [];
   });
   function onclose() {
     if (++n === handles.length) {
+      // Allow the server handle a few loop iterations to wind down.
+      // This test is highly dependent on the implementation of handle
+      // closing. If this test breaks in the future, it does not
+      // necessarily mean that Node is broken.
       setImmediate(function() {
-        assert.equal(process._getActiveHandles().length, 0);
+        setImmediate(function() {
+          assert.equal(process._getActiveHandles().length, 0);
+        });
       });
     }
   }
