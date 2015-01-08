@@ -112,7 +112,7 @@
 
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="NodeExecutable">
-        <File Id="node.exe" KeyPath="yes" Source="$(var.SourceDir)\node.exe"/>
+        <File Id="iojs.exe" KeyPath="yes" Source="$(var.SourceDir)\iojs.exe"/>
       </Component>
 
       <Component Id="NodeVarsScript">
@@ -130,7 +130,7 @@
       <?if $(var.NoETW) != 1 ?>
       <Component Id="NodeEtwSupport">
         <File Id="node_etw_provider.man" Source="$(var.RepoDir)\src\res\node_etw_provider.man">
-          <util:EventManifest MessageFile="[INSTALLDIR]node.exe" ResourceFile="[INSTALLDIR]node.exe"/>
+          <util:EventManifest MessageFile="[INSTALLDIR]iojs.exe" ResourceFile="[INSTALLDIR]iojs.exe"/>
         </File>
       </Component>
       <?endif?>
@@ -157,7 +157,7 @@
                   WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="NodeExecutableShortcut"
                   Name="Node.js"
-                  Target="[INSTALLDIR]node.exe"
+                  Target="[INSTALLDIR]iojs.exe"
                   WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="UninstallProduct"
                   Name="Uninstall Node.js"
