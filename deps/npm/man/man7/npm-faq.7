@@ -1,9 +1,9 @@
-.TH "NPM\-FAQ" "7" "October 2014" "" ""
+.TH "NPM\-FAQ" "7" "January 2015" "" ""
 .SH "NAME"
 \fBnpm-faq\fR \- Frequently Asked Questions
 .SH Where can I find these docs in HTML?
 .P
-https://www\.npmjs\.org/doc/, or run:
+https://docs\.npmjs\.com/, or run:
 .P
 .RS 2
 .nf
@@ -80,7 +80,7 @@ Usually, no\. Allow npm to resolve dependencies for your packages\.
 For packages you \fBdeploy\fR, such as websites and apps,
 you should use npm shrinkwrap to lock down your full dependency tree:
 .P
-https://www\.npmjs\.org/doc/cli/npm\-shrinkwrap\.html
+https://docs\.npmjs\.com/cli/shrinkwrap
 .P
 If you are paranoid about depending on the npm ecosystem,
 you should run a private npm mirror or a private cache\.
@@ -148,7 +148,7 @@ In those cases, you can do this:
 .P
 .RS 2
 .nf
-curl https://www\.npmjs\.org/install\.sh | sh
+curl https://www\.npmjs\.com/install\.sh | sh
 .fi
 .RE
 .SH What is a \fBpackage\fR?
@@ -332,7 +332,7 @@ See npm help \fBnpm\-link\fR
 See npm help 7 \fBnpm\-registry\fR\|\.
 .SH I forgot my password, and can't publish\.  How do I reset it?
 .P
-Go to https://npmjs\.org/forgot\|\.
+Go to https://npmjs\.com/forgot\|\.
 .SH I get ECONNREFUSED a lot\.  What's up?
 .P
 Either the registry is down, or node's DNS isn't able to reach out\.
@@ -350,20 +350,48 @@ You can also often get a faster response by visiting the #npm channel
 on Freenode IRC\.
 .SH Why no namespaces?
 .P
-Please see this discussion: https://github\.com/npm/npm/issues/798
+npm has only one global namespace\.  If you want to namespace your own packages,
+you may: simply use the \fB\-\fR character to separate the names\.  npm is a mostly
+anarchic system\.  There is not sufficient need to impose namespace rules on
+everyone\.
 .P
-tl;dr \- It doesn't actually make things better, and can make them worse\.
+As of 2\.0, npm supports scoped packages, which allow you to publish a group of
+related modules without worrying about name collisions\.
 .P
-If you want to namespace your own packages, you may: simply use the
-\fB\-\fR character to separate the names\.  npm is a mostly anarchic system\.
-There is not sufficient need to impose namespace rules on everyone\.
+Every npm user owns the scope associated with their username\.  For example, the
+user named \fBnpm\fR owns the scope \fB@npm\fR\|\.  Scoped packages are published inside a
+scope by naming them as if they were files under the scope directory, e\.g\., by
+setting \fBname\fR in \fBpackage\.json\fR to \fB@npm/npm\fR\|\.
+.P
+Scoped packages can coexist with public npm packages in a private npm registry\.
+At present (2014\-11\-04) scoped packages may NOT be published to the public npm
+registry\.
+.P
+Unscoped packages can only depend on other unscoped packages\.  Scoped packages
+can depend on packages from their own scope, a different scope, or the public
+registry (unscoped)\.
+.P
+For the current documentation of scoped packages, see
+https://docs\.npmjs\.com/misc/scope
+.P
+References:
+.RS 0
+.IP 1. 3
+For the reasoning behind the "one global namespace", please see  this
+discussion: https://github\.com/npm/npm/issues/798 (TL;DR: It doesn't
+actually make things better, and can make them worse\.)
+.IP 2. 3
+For the pre\-implementation discussion of the scoped package feature, see
+this discussion: https://github\.com/npm/npm/issues/5239
+
+.RE
 .SH Who does npm?
 .P
 npm was originally written by Isaac Z\. Schlueter, and many others have
 contributed to it, some of them quite substantially\.
 .P
 The npm open source project, The npm Registry, and the community
-website \fIhttps://www\.npmjs\.org\fR are maintained and operated by the
+website \fIhttps://www\.npmjs\.com\fR are maintained and operated by the
 good folks at npm, Inc\. \fIhttp://www\.npmjs\.com\fR
 .SH I have a question or request not addressed here\. Where should I put it?
 .P

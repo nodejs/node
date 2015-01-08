@@ -1,21 +1,17 @@
-var url = require("url")
-
 module.exports = authify
 
-function authify (authed, parsed, headers) {
-  var c = this.conf.getCredentialsByURI(url.format(parsed))
-
-  if (c && c.token) {
+function authify (authed, parsed, headers, credentials) {
+  if (credentials && credentials.token) {
     this.log.verbose("request", "using bearer token for auth")
-    headers.authorization = "Bearer " + c.token
+    headers.authorization = "Bearer " + credentials.token
 
     return null
   }
 
   if (authed) {
-    if (c && c.username && c.password) {
-      var username = encodeURIComponent(c.username)
-      var password = encodeURIComponent(c.password)
+    if (credentials && credentials.username && credentials.password) {
+      var username = encodeURIComponent(credentials.username)
+      var password = encodeURIComponent(credentials.password)
       parsed.auth = username + ":" + password
     }
     else {

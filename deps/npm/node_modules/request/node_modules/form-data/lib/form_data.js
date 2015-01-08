@@ -5,7 +5,7 @@ var http = require('http');
 var https = require('https');
 var parseUrl = require('url').parse;
 var fs = require('fs');
-var mime = require('mime');
+var mime = require('mime-types');
 var async = require('async');
 
 module.exports = FormData;

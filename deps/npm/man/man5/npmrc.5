@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "October 2014" "" ""
+.TH "NPMRC" "5" "January 2015" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SH DESCRIPTION
@@ -38,6 +38,16 @@ prefix = ${HOME}/\.npm\-packages
 Each of these files is loaded, and config options are resolved in
 priority order\.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file\.
+.P
+Array values are specified by adding "[]" after the key name\. For
+example:
+.P
+.RS 2
+.nf
+key[] = "first value"
+key[] = "second value"
+.fi
+.RE
 .SS Per\-project config file
 .P
 When working locally in a project, a \fB\|\.npmrc\fR file in the root of the

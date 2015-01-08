@@ -253,7 +253,7 @@ Put example scripts in here.  Someday, it might be exposed in some clever way.
 ## repository
 
 Specify the place where your code lives. This is helpful for people who
-want to contribute.  If the git repo is on github, then the `npm docs`
+want to contribute.  If the git repo is on GitHub, then the `npm docs`
 command will be able to find you.
 
 Do it like this:
@@ -366,13 +366,16 @@ an argument to `git checkout`.  The default is `master`.
 
 ## GitHub URLs
 
-As of version 1.1.65, you can refer to GitHub urls as just "foo": "user/foo-project". For example:
+As of version 1.1.65, you can refer to GitHub urls as just "foo":
+"user/foo-project".  Just as with git URLs, a `commit-ish` suffix can be
+included.  For example:
 
     {
       "name": "foo",
       "version": "0.0.0",
       "dependencies": {
-        "express": "visionmedia/express"
+        "express": "visionmedia/express",
+        "mocha": "visionmedia/mocha#4727d357ea"
       }
     }
 
@@ -442,7 +445,7 @@ run this script as well, so that you can test it easily.
 
 In some cases, you want to express the compatibility of your package with an
 host tool or library, while not necessarily doing a `require` of this host.
-This is usually refered to as a *plugin*. Notably, your module may be exposing
+This is usually referred to as a *plugin*. Notably, your module may be exposing
 a specific interface, expected and specified by the host documentation.
 
 For example:

@@ -11,12 +11,12 @@ semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
 </code></pre><p>As a command-line utility:</p>
 <pre><code>$ semver -h
 
-Usage: semver &lt;version&gt; [&lt;version&gt; [...]] [-r &lt;range&gt; | -i &lt;inc&gt; | -d &lt;dec&gt;]
+Usage: semver &lt;version&gt; [&lt;version&gt; [...]] [-r &lt;range&gt; | -i &lt;inc&gt; | --preid &lt;identifier&gt; | -l | -rv]
 Test if version(s) satisfy the supplied range(s), and sort them.
 
 Multiple versions or ranges may be supplied, unless increment
-or decrement options are specified.  In that case, only a single
-version may be used, and it is incremented by the specified level
+option is specified.  In that case, only a single version may
+be used, and it is incremented by the specified level
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.
@@ -80,6 +80,20 @@ alpha/beta/rc versions.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the <em>next</em> set of prerelease versions.</p>
+<h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
+<p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
+will append the value of the string as a prerelease identifier:</p>
+<pre><code class="lang-`javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;pre&#39;, &#39;beta&#39;)
+&#39;1.2.4-beta.0&#39;
+</code></pre>
+<p>command-line example:</p>
+<pre><code class="lang-shell">$ semver 1.2.3 -i prerelease --preid beta
+1.2.4-beta.0
+</code></pre>
+<p>Which then can be used to increment further:</p>
+<pre><code class="lang-shell">$ semver 1.2.4-beta.0 -i prerelease
+1.2.4-beta.1
+</code></pre>
 <h3 id="advanced-range-syntax">Advanced Range Syntax</h3>
 <p>Advanced range syntax desugars to primitive comparators in
 deterministic ways.</p>
@@ -134,7 +148,6 @@ equal to <code>beta.2</code>.  So, <code>1.2.3-beta.4</code> would be allowed, b
 <code>1.2.4-beta.2</code> would not, because it is a prerelease of a
 different <code>[major, minor, patch]</code> tuple.</li>
 </ul>
-<p>Note: this is the same as the <code>~&gt;</code> operator in rubygems.</p>
 <h4 id="caret-ranges-1-2-3-0-2-5-0-0-4-">Caret Ranges <code>^1.2.3</code> <code>^0.2.5</code> <code>^0.0.4</code></h4>
 <p>Allows changes that do not modify the left-most non-zero digit in the
 <code>[major, minor, patch]</code> tuple.  In other words, this allows patch and
@@ -214,6 +227,9 @@ invalid comparison string is provided.</li>
 <code>v2</code> is greater.  Sorts in ascending order if passed to <code>Array.sort()</code>.</li>
 <li><code>rcompare(v1, v2)</code>: The reverse of compare.  Sorts an array of versions
 in descending order when passed to <code>Array.sort()</code>.</li>
+<li><code>diff(v1, v2)</code>: Returns difference between two versions by the release type
+(<code>major</code>, <code>premajor</code>, <code>minor</code>, <code>preminor</code>, <code>patch</code>, <code>prepatch</code>, or <code>prerelease</code>),
+or null if the versions are the same.</li>
 </ul>
 <h3 id="ranges">Ranges</h3>
 <ul>

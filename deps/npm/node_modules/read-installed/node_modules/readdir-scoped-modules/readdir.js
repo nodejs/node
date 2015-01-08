@@ -1,4 +1,4 @@
-var fs = require ('fs')
+var fs = require ('graceful-fs')
 var dz = require ('dezalgo')
 var once = require ('once')
 var path = require ('path')

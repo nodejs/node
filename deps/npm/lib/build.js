@@ -43,7 +43,7 @@ function build (args, global, didPre, didRB, cb) {
 
 function build_ (global, didPre, didRB) { return function (folder, cb) {
   folder = path.resolve(folder)
-  if (build._didBuild[folder]) log.error("build", "already built", folder)
+  if (build._didBuild[folder]) log.info("build", "already built", folder)
   build._didBuild[folder] = true
   log.info("build", folder)
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
@@ -212,6 +212,7 @@ function linkMans (pkg, folder, parent, gtop, cb) {
   if (!pkg.man || !gtop || process.platform === "win32") return cb()
 
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
+  log.verbose("linkMans", "man files are", pkg.man, "in", manRoot)
 
   // make sure that the mans are unique.
   // otherwise, if there are dupes, it'll fail with EEXIST
@@ -225,11 +226,20 @@ function linkMans (pkg, folder, parent, gtop, cb) {
 
   asyncMap(pkg.man, function (man, cb) {
     if (typeof man !== "string") return cb()
+    log.silly("linkMans", "preparing to link", man)
     var parseMan = man.match(/(.*\.([0-9]+)(\.gz)?)$/)
-      , stem = parseMan[1]
-      , sxn = parseMan[2]
-      , bn = path.basename(stem)
-      , manDest = path.join(manRoot, "man" + sxn, bn)
+    if (!parseMan) {
+      return cb(new Error(
+        man+" is not a valid name for a man file.  " +
+        "Man files must end with a number, " +
+        "and optionally a .gz suffix if they are compressed."
+      ))
+    }
+
+    var stem = parseMan[1]
+    var sxn = parseMan[2]
+    var bn = path.basename(stem)
+    var manDest = path.join(manRoot, "man" + sxn, bn)
 
     linkIfExists(man, manDest, gtop && folder, cb)
   }, cb)

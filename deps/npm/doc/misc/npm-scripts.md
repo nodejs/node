@@ -19,10 +19,6 @@ following scripts:
   Run BEFORE the package is uninstalled.
 * postuninstall:
   Run AFTER the package is uninstalled.
-* preupdate:
-  Run BEFORE the package is updated with the update command.
-* update, postupdate:
-  Run AFTER the package is updated with the update command.
 * pretest, test, posttest:
   Run by the `npm test` command.
 * prestop, stop, poststop:

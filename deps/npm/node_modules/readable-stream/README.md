@@ -2,8 +2,8 @@
 
 ***Node-core streams for userland***
 
-[![NPM](https://nodei.co/npm/readable-stream.png?downloads=true)](https://nodei.co/npm/readable-stream/)
-[![NPM](https://nodei.co/npm-dl/readable-stream.png)](https://nodei.co/npm/readable-stream/)
+[![NPM](https://nodei.co/npm/readable-stream.png?downloads=true&downloadRank=true)](https://nodei.co/npm/readable-stream/)
+[![NPM](https://nodei.co/npm-dl/readable-stream.png?&months=6&height=3)](https://nodei.co/npm/readable-stream/)
 
 This package is a mirror of the Streams2 and Streams3 implementations in Node-core.
 

@@ -21,7 +21,7 @@ var clone = require('clone');
 
 var a, b;
 
-a = { foo: { bar: 'baz' } };  // inital value of a
+a = { foo: { bar: 'baz' } };  // initial value of a
 
 b = clone(a);                 // clone a -> b
 a.foo.bar = 'foo';            // change a
@@ -52,7 +52,7 @@ can clone dates in arrays in objects, for example.
     Call `clone` with `circular` set to `false` if you are certain that `obj`
     contains no circular references. This will give better performance if needed.
     There is no error if `undefined` or `null` is passed as `obj`.
-  * `depth` -- depth to wich the object is to be cloned (optional,
+  * `depth` -- depth to which the object is to be cloned (optional,
     defaults to infinity)
 
 `clone.clonePrototype(obj)`

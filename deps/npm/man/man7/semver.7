@@ -1,4 +1,4 @@
-.TH "SEMVER" "7" "October 2014" "" ""
+.TH "SEMVER" "7" "January 2015" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Usage
@@ -22,12 +22,12 @@ As a command\-line utility:
 .nf
 $ semver \-h
 
-Usage: semver <version> [<version> [\.\.\.]] [\-r <range> | \-i <inc> | \-d <dec>]
+Usage: semver <version> [<version> [\.\.\.]] [\-r <range> | \-i <inc> | \-\-preid <identifier> | \-l | \-rv]
 Test if version(s) satisfy the supplied range(s), and sort them\.
 
 Multiple versions or ranges may be supplied, unless increment
-or decrement options are specified\.  In that case, only a single
-version may be used, and it is incremented by the specified level
+option is specified\.  In that case, only a single version may
+be used, and it is incremented by the specified level
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions\.
@@ -112,6 +112,35 @@ alpha/beta/rc versions\.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk\.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the \fInext\fR set of prerelease versions\.
+.SS Prerelease Identifiers
+.P
+The method \fB\|\.inc\fR takes an additional \fBidentifier\fR string argument that
+will append the value of the string as a prerelease identifier:
+.P
+.RS 2
+.nf
+> semver\.inc('1\.2\.3', 'pre', 'beta')
+\|'1\.2\.4\-beta\.0'
+.fi
+.RE
+.P
+command\-line example:
+.P
+.RS 2
+.nf
+$ semver 1\.2\.3 \-i prerelease \-\-preid beta
+1\.2\.4\-beta\.0
+.fi
+.RE
+.P
+Which then can be used to increment further:
+.P
+.RS 2
+.nf
+$ semver 1\.2\.4\-beta\.0 \-i prerelease
+1\.2\.4\-beta\.1
+.fi
+.RE
 .SS Advanced Range Syntax
 .P
 Advanced range syntax desugars to primitive comparators in
@@ -197,8 +226,6 @@ equal to \fBbeta\.2\fR\|\.  So, \fB1\.2\.3\-beta\.4\fR would be allowed, but
 different \fB[major, minor, patch]\fR tuple\.
 
 .RE
-.P
-Note: this is the same as the \fB~>\fR operator in rubygems\.
 .SS Caret Ranges \fB^1\.2\.3\fR \fB^0\.2\.5\fR \fB^0\.0\.4\fR
 .P
 Allows changes that do not modify the left\-most non\-zero digit in the
@@ -313,6 +340,10 @@ invalid comparison string is provided\.
 .IP \(bu 2
 \fBrcompare(v1, v2)\fR: The reverse of compare\.  Sorts an array of versions
 in descending order when passed to \fBArray\.sort()\fR\|\.
+.IP \(bu 2
+\fBdiff(v1, v2)\fR: Returns difference between two versions by the release type
+(\fBmajor\fR, \fBpremajor\fR, \fBminor\fR, \fBpreminor\fR, \fBpatch\fR, \fBprepatch\fR, or \fBprerelease\fR),
+or null if the versions are the same\.
 
 .RE
 .SS Ranges

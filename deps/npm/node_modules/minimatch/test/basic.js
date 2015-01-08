@@ -381,7 +381,7 @@ tap.test("basic tests", function (t) {
                 , JSON.stringify(pattern) + " " + JSON.stringify(expect)
                 , tapOpts )
 
-    t.equal(tapOpts.re, expectRe, tapOpts)
+    t.equal(tapOpts.re, expectRe, null, tapOpts)
   })
 
   t.comment("time=" + (Date.now() - start) + "ms")

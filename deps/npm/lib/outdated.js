@@ -22,7 +22,6 @@ outdated.completion = require("./utils/completion/installed-deep.js")
 
 
 var path = require("path")
-  , fs = require("graceful-fs")
   , readJson = require("read-package-json")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
@@ -35,6 +34,7 @@ var path = require("path")
   , os = require("os")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , npa = require("npm-package-arg")
+  , readInstalled = require("read-installed")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -193,11 +193,12 @@ function outdated_ (args, dir, parentHas, depth, cb) {
   })
 
   var has = null
-  fs.readdir(path.resolve(dir, "node_modules"), function (er, pkgs) {
+  readInstalled(path.resolve(dir), { dev : true }, function (er, data) {
     if (er) {
       has = Object.create(parentHas)
       return next()
     }
+    var pkgs = Object.keys(data.dependencies)
     pkgs = pkgs.filter(function (p) {
       return !p.match(/^[\._-]/)
     })
@@ -205,6 +206,7 @@ function outdated_ (args, dir, parentHas, depth, cb) {
       var jsonFile = path.resolve(dir, "node_modules", pkg, "package.json")
       readJson(jsonFile, function (er, d) {
         if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+        if (d && d.name && d.private) delete deps[d.name]
         cb(null, er ? [] : [[d.name, d.version, d._from]])
       })
     }, function (er, pvs) {
@@ -269,10 +271,10 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
     return doIt("git", "git")
 
   // search for the latest package
-  mapToRegistry(dep, npm.config, function (er, uri) {
+  mapToRegistry(dep, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    npm.registry.get(uri, null, updateDeps)
+    npm.registry.get(uri, { auth : auth }, updateDeps)
   })
 
   function updateDeps (er, d) {

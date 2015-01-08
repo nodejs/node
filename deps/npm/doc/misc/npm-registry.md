@@ -57,7 +57,7 @@ effectively implement the entire CouchDB API anyway.
 
 ## Is there a website or something to see package docs and such?
 
-Yes, head over to <https://npmjs.org/>
+Yes, head over to <https://npmjs.com/>
 
 ## SEE ALSO
 

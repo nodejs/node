@@ -7,7 +7,7 @@ help.completion = function (opts, cb) {
 }
 
 var path = require("path")
-  , spawn = require("child_process").spawn
+  , spawn = require("./utils/spawn")
   , npm = require("./npm.js")
   , log = require("npmlog")
   , opener = require("opener")

@@ -27,7 +27,6 @@ var scripts = [
   "prepublish", "publish", "postpublish",
   "preinstall", "install", "postinstall",
   "preuninstall", "uninstall", "postuninstall",
-  "preupdate", "update", "postupdate",
   "pretest", "test", "posttest",
   "prestop", "stop", "poststop",
   "prestart", "start", "poststart",

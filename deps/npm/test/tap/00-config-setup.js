@@ -63,6 +63,6 @@ if (module === require.main) {
   var gcini = "globalconfig = " + exports.globalconfig + "\n"
   fs.writeFileSync(exports.userconfig, gcini + uc)
 
-  console.log("0..1")
+  console.log("1..1")
   console.log("ok 1 setup done")
 }
