@@ -105,7 +105,6 @@
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
-            'ExceptionHandling': '0',
             'AdditionalOptions': [
               '/MP', # compile across multiple CPUs
             ],
@@ -134,7 +133,7 @@
         'DebugInformationFormat': 3, # Generate a PDB
         'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
-        'ExceptionHandling': 1, # /EHsc
+        'ExceptionHandling': 0, # /EHsc
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
       },
