@@ -130,14 +130,14 @@ if errorlevel 1 goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
+signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto msi
 
-%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
+%config%\iojs tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :msi
