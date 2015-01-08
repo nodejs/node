@@ -24,7 +24,6 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"use strict";
 
 // Handle id counters.
 var next_handle_ = 0;
@@ -56,7 +55,7 @@ function MakeMirror(value, opt_transient) {
 
   // Look for non transient mirrors in the mirror cache.
   if (!opt_transient) {
-    for (var id in mirror_cache_) {
+    for (id in mirror_cache_) {
       mirror = mirror_cache_[id];
       if (mirror.value() === value) {
         return mirror;
@@ -1155,11 +1154,11 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    text = %_CallFunction(this.value_, builtins.ErrorToString);
+    str = %_CallFunction(this.value_, builtins.ErrorToString);
   } catch (e) {
-    text = '#<Error>';
+    str = '#<Error>';
   }
-  return text;
+  return str;
 };
 
 
