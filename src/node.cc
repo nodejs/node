@@ -2623,12 +2623,17 @@ void SetupProcessObject(Environment* env,
 #endif
 
   // process.arch
-  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), ARCH));
+  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
 
   // process.platform
-  READONLY_PROPERTY(process,
-                    "platform",
-                    OneByteString(env->isolate(), PLATFORM));
+#ifdef _WIN32
+  // As determined by gyp, NODE_PLATFORM equals 'win' on windows. However
+  // for historic reasons process.platform should be 'win32'.
+  Local<String> platform = OneByteString(env->isolate(), "win32");
+#else
+  Local<String> platform = OneByteString(env->isolate(), NODE_PLATFORM);
+#endif
+  READONLY_PROPERTY(process, "platform", platform);
 
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
