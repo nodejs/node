@@ -1235,8 +1235,6 @@ def BuildOptions():
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
   result.add_option("--special-command", default=None)
-  result.add_option("--use-http1", help="Pass --use-http1 switch to node",
-      default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
@@ -1397,11 +1395,6 @@ def Main():
   buildspace = dirname(shell)
 
   processor = GetSpecialCommandProcessor(options.special_command)
-  if options.use_http1:
-    def wrap(processor):
-      return lambda args: processor(args[:1] + ['--use-http1'] + args[1:])
-    processor = wrap(processor)
-
   context = Context(workspace,
                     buildspace,
                     VERBOSE,
