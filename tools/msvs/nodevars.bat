@@ -7,7 +7,7 @@ setlocal enabledelayedexpansion
 pushd "%~dp0"
 
 rem Figure out the node version.
-set print_version=.\node.exe -p -e "process.versions.node + ' (' + process.arch + ')'"
+set print_version=.\iojs.exe -p -e "process.versions.node + ' (' + process.arch + ')'"
 for /F "usebackq delims=" %%v in (`%print_version%`) do set version=%%v
 
 rem Print message.
