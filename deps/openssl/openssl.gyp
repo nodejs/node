@@ -1108,6 +1108,11 @@
           'WIN32_LEAN_AND_MEAN',
           'OPENSSL_SYSNAME_WIN32',
         ],
+        'msvs_disabled_warnings': [
+          4244, # conversion from 'signed type', possible loss of data
+          4267, # conversion from 'unsigned type', possible loss of data
+          4996, # 'GetVersionExA': was declared deprecated
+        ],
       }, {
         'defines': [
           # ENGINESDIR must be defined if OPENSSLDIR is.
