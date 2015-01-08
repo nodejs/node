@@ -31,5 +31,8 @@ sock.send(buf, 0, buf.length, 12345, '127.0.0.1', common.mustCall(cb));
 function cb(err) {
   assert(err instanceof Error);
   assert.equal(err.code, 'EMSGSIZE');
+  assert.equal(err.address, '127.0.0.1');
+  assert.equal(err.port, 12345);
+  assert.equal(err.message, 'send EMSGSIZE 127.0.0.1:12345');
   sock.close();
 }
