@@ -23,6 +23,7 @@ var common = require('../common'),
     assert = require('assert'),
     dgram = require('dgram'),
     util = require('util'),
+    networkInterfaces = require('os').networkInterfaces(),
     Buffer = require('buffer').Buffer,
     fork = require('child_process').fork,
     LOCAL_BROADCAST_HOST = '255.255.255.255',
@@ -33,6 +34,19 @@ var common = require('../common'),
       new Buffer('Third message to send'),
       new Buffer('Fourth message to send')
     ];
+
+// take the first non-internal interface as the address for binding
+get_bindAddress: for (var name in networkInterfaces) {
+  var interfaces = networkInterfaces[name];
+  for(var i = 0; i < interfaces.length; i++) {
+    var localInterface = interfaces[i];
+    if (!localInterface.internal && localInterface.family === 'IPv4') {
+      var bindAddress = localInterface.address;
+      break get_bindAddress;
+    }
+  }
+}
+assert.ok(bindAddress);
 
 if (process.argv[2] !== 'child') {
   var workers = {},
@@ -150,7 +164,7 @@ if (process.argv[2] !== 'child') {
 
   // bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
-  sendSocket.bind(common.PORT, '127.0.0.1');
+  sendSocket.bind(common.PORT, bindAddress);
   sendSocket.on('listening', function () {
     sendSocket.setBroadcast(true);
   });
@@ -197,7 +211,7 @@ if (process.argv[2] === 'child') {
 
   listenSocket.on('message', function(buf, rinfo) {
     // receive udp messages only sent from parent
-    if (rinfo.address !== '127.0.0.1') return;
+    if (rinfo.address !== bindAddress) return;
 
     console.error('[CHILD] %s received %s from %j',
                   process.pid,
