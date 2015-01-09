@@ -9,7 +9,7 @@ access it with `require('assert')`.
 
 Throws an exception that displays the values for `actual` and `expected` separated by the provided operator.
 
-## assert(value, message), assert.ok(value[, message])
+## assert(value[, message]), assert.ok(value[, message])
 
 Tests if value is truthy, it is equivalent to `assert.equal(true, !!value, message);`
 
