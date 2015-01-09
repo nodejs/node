@@ -71,8 +71,8 @@ class ProgressIndicator(object):
     self.total = len(cases)
     self.failed = [ ]
     self.crashed = 0
-    self.terminate = False
     self.lock = threading.Lock()
+    self.shutdown_event = threading.Event()
 
   def PrintFailureHeader(self, test):
     if test.IsNegative():
@@ -101,17 +101,19 @@ class ProgressIndicator(object):
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
         thread.join(timeout=10000000)
+    except (KeyboardInterrupt, SystemExit), e:
+      self.shutdown_event.set()
     except Exception, e:
       # If there's an exception we schedule an interruption for any
       # remaining threads.
-      self.terminate = True
+      self.shutdown_event.set()
       # ...and then reraise the exception to bail out
       raise
     self.Done()
     return not self.failed
 
   def RunSingle(self, parallel, thread_id):
-    while not self.terminate:
+    while not self.shutdown_event.is_set():
       try:
         test = self.parallel_queue.get_nowait()
       except Empty:
@@ -131,9 +133,8 @@ class ProgressIndicator(object):
         output = case.Run()
         case.duration = (datetime.now() - start)
       except IOError, e:
-        assert self.terminate
         return
-      if self.terminate:
+      if self.shutdown_event.is_set():
         return
       self.lock.acquire()
       if output.UnexpectedOutput():
