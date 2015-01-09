@@ -19,3 +19,13 @@ var args = ['--harmony_classes', '--use_strict', '-p', 'class C {}'];
 var cp = spawnSync(process.execPath, args);
 assert.equal(cp.status, 0);
 assert.equal(cp.stdout.toString('utf8').trim(), '[Function: C]');
+
+// Now do the same for --harmony_object_literals.
+assert.throws(function() { eval('({ f() {} })'); }, SyntaxError);
+v8.setFlagsFromString('--harmony_object_literals');
+eval('({ f() {} })');
+
+var args = ['--harmony_object_literals', '-p', '({ f() {} })'];
+var cp = spawnSync(process.execPath, args);
+assert.equal(cp.status, 0);
+assert.equal(cp.stdout.toString('utf8').trim(), '{ f: [Function: f] }');

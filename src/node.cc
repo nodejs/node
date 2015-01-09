@@ -3360,6 +3360,8 @@ void Init(int* argc,
   // again when we upgrade.
   V8::SetFlagsFromString("--noharmony_classes",
                          sizeof("--noharmony_classes") - 1);
+  V8::SetFlagsFromString("--noharmony_object_literals",
+                         sizeof("--noharmony_object_literals") - 1);
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
