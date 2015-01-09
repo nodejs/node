@@ -325,7 +325,7 @@
           'defines': [
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
-            'PLATFORM="win32"',
+            'NODE_PLATFORM="win32"',
             '_UNICODE=1',
           ],
           'libraries': [ '-lpsapi.lib' ]
@@ -337,11 +337,11 @@
           # like Instruments require it for some features
           'libraries': [ '-framework CoreFoundation' ],
           'defines!': [
-            'PLATFORM="mac"',
+            'NODE_PLATFORM="mac"',
           ],
           'defines': [
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
-            'PLATFORM="darwin"',
+            'NODE_PLATFORM="darwin"',
           ],
         }],
         [ 'OS=="freebsd"', {
@@ -356,12 +356,12 @@
             '-lumem',
           ],
           'defines!': [
-            'PLATFORM="solaris"',
+            'NODE_PLATFORM="solaris"',
           ],
           'defines': [
             # we need to use node's preferred "sunos"
             # rather than gyp's preferred "solaris"
-            'PLATFORM="sunos"',
+            'NODE_PLATFORM="sunos"',
           ],
         }],
         [ 'OS=="freebsd" or OS=="linux"', {
