@@ -1499,8 +1499,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    // FIXME(bnoordhuis) ThrowTypeError?
-    return env->ThrowError("Bad argument.");
+    return env->ThrowTypeError("Bad argument.");
   }
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
