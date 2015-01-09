@@ -3355,6 +3355,12 @@ void Init(int* argc,
                 DispatchDebugMessagesAsyncCallback);
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
+  // TODO(bnoordhuis) V8 3.32 is unshipping Harmony classes for the moment.
+  // We're currently at 3.31, disable classes for feature parity.  Remove
+  // again when we upgrade.
+  V8::SetFlagsFromString("--noharmony_classes",
+                         sizeof("--noharmony_classes") - 1);
+
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
   // so the user can disable a flag --foo at run-time by passing
