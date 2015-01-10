@@ -19,11 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --max_old_space_size=32
+
 var assert = require('assert');
 var common = require('../common');
 
 var start = Date.now();
 var maxMem = 0;
+
+var ok = process.execArgv.some(function(arg) {
+  return arg === '--max_old_space_size=32';
+});
+assert(ok, 'Run this test with --max_old_space_size=32.');
 
 var interval = setInterval(function() {
   try {
@@ -33,7 +40,6 @@ var interval = setInterval(function() {
 
   var rss = process.memoryUsage().rss;
   maxMem = Math.max(rss, maxMem);
-
 
   if (Date.now() - start > 5 * 1000) {
     // wait 10 seconds.
@@ -50,6 +56,5 @@ function testContextLeak() {
 
 process.on('exit', function() {
   console.error('max mem: %dmb', Math.round(maxMem / (1024 * 1024)));
-  // make sure we stay below 100mb
-  assert.ok(maxMem < 50 * 1024 * 1024);
+  assert.ok(maxMem < 64 * 1024 * 1024);
 });
