@@ -293,6 +293,14 @@ exports.getServiceName = function getServiceName(port, protocol) {
   return serviceName;
 }
 
+exports.hasMultiLocalhost = function hasMultiLocalhost() {
+  var TCP = process.binding('tcp_wrap').TCP;
+  var t = new TCP();
+  var ret = t.bind('127.0.0.2', exports.PORT);
+  t.close();
+  return ret === 0;
+};
+
 exports.isValidHostname = function(str) {
   // See http://stackoverflow.com/a/3824105
   var re = new RegExp(
