@@ -944,4 +944,8 @@ else:
 
 gyp_args += args
 
+#print warning when snapshot is enabled and building on armv6
+if (is_arch_armv6()) and (not options.without_snapshot):
+  print '\033[1;33mWarning!! When building on ARMv6 use --without-snapshot\033[1;m'
+
 sys.exit(subprocess.call(gyp_args))
