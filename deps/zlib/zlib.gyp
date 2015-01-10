@@ -13,14 +13,6 @@
           'target_name': 'zlib',
           'type': 'static_library',
           'sources': [
-            'contrib/minizip/ioapi.c',
-            'contrib/minizip/ioapi.h',
-            'contrib/minizip/iowin32.c',
-            'contrib/minizip/iowin32.h',
-            'contrib/minizip/unzip.c',
-            'contrib/minizip/unzip.h',
-            'contrib/minizip/zip.c',
-            'contrib/minizip/zip.h',
             'adler32.c',
             'compress.c',
             'crc32.c',
@@ -50,8 +42,6 @@
           ],
           'include_dirs': [
             '.',
-            # For contrib/minizip
-            './contrib/minizip',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
@@ -62,9 +52,6 @@
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
               'defines': [ 'Z_HAVE_UNISTD_H' ],
-              'sources!': [
-                'contrib/minizip/iowin32.c'
-              ],
             }],
             ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
               # Mac, Android and the BSDs don't have fopen64, ftello64, or
@@ -89,14 +76,6 @@
           },
           'defines': [
             'USE_SYSTEM_ZLIB',
-          ],
-          'sources': [
-            'contrib/minizip/ioapi.c',
-            'contrib/minizip/ioapi.h',
-            'contrib/minizip/unzip.c',
-            'contrib/minizip/unzip.h',
-            'contrib/minizip/zip.c',
-            'contrib/minizip/zip.h',
           ],
           'link_settings': {
             'libraries': [
