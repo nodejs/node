@@ -787,7 +787,60 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
-2014.09.16, Version 0.10.32 (Stable)
+2014.12.22, Version 0.10.35 (Stable)
+
+* tls: re-add 1024-bit SSL certs removed by f9456a2 (Chris Dickinson)
+
+* timers: don't close interval timers when unrefd (Julien Gilli)
+
+* timers: don't mutate unref list while iterating it (Julien Gilli)
+
+
+2014.12.17, Version 0.10.34 (Stable), 52795f8fcc2de77cf997e671ea58614e5e425dfe
+
+* uv: update to v0.10.30
+
+* zlib: upgrade to v1.2.8
+
+* child_process: check execFile args is an array (Sam Roberts)
+
+* child_process: check fork args is an array (Sam Roberts)
+
+* crypto: update root certificates (Ben Noordhuis)
+
+* domains: fix issues with abort on uncaught (Julien Gilli)
+
+* timers: Avoid linear scan in _unrefActive. (Julien Gilli)
+
+* timers: fix unref() memory leak (Trevor Norris)
+
+* v8: add api for aborting on uncaught exception (Julien Gilli)
+
+* debugger: fix when using "use strict" (Julien Gilli)
+
+
+2014.10.20, Version 0.10.33 (Stable), 8d045a30e95602b443eb259a5021d33feb4df079
+
+* openssl: Update to 1.0.1j (Addressing multiple CVEs)
+
+* uv: Update to v0.10.29
+
+* child_process: properly support optional args (cjihrig)
+
+* crypto: Disable autonegotiation for SSLv2/3 by default (Fedor Indutny,
+	Timothy J Fontaine, Alexis Campailla)
+
+	This is a behavior change, by default we will not allow the negotiation to
+	SSLv2 or SSLv3. If you want this behavior, run Node.js with either
+	`--enable-ssl2` or `--enable-ssl3` respectively.
+
+	This does not change the behavior for users specifically requesting
+	`SSLv2_method` or `SSLv3_method`. While this behavior is not advised, it is
+	assumed you know what you're doing since you're specifically asking to use
+	these methods.
+
+
+2014.09.16, Version 0.10.32 (Stable), 0fe0d121551593c23a565db8397f85f17bb0f00e
 
 * npm: Update to 1.4.28
 
