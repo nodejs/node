@@ -53,6 +53,11 @@ function worker() {
   var socket = dgram.createSocket('udp4');
   var buf = new Buffer('hello world');
 
+  // This test is intended to exercise the cluster binding of udp sockets, but
+  // since sockets aren't clustered when implicitly bound by at first call of
+  // send(), explicitly bind them to an ephemeral port.
+  socket.bind(0);
+
   for (var i = 0; i < PACKETS_PER_WORKER; i++)
     socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
 
