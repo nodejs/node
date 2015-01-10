@@ -60,7 +60,6 @@
           },
           'conditions': [
             ['OS!="win"', {
-              'product_name': 'chrome_zlib',
               'cflags!': [ '-ansi' ],
               'defines': [ 'Z_HAVE_UNISTD_H' ],
               'sources!': [
