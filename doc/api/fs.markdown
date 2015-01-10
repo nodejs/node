@@ -270,7 +270,7 @@ Synchronous rmdir(2).
 ## fs.mkdir(path[, mode], callback)
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0777`.
+to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
 
@@ -486,7 +486,7 @@ string. Otherwise it returns a buffer.
 * `data` {String | Buffer}
 * `options` {Object}
   * `encoding` {String | Null} default = `'utf8'`
-  * `mode` {Number} default = `438` (aka `0666` in Octal)
+  * `mode` {Number} default = `0o666`
   * `flag` {String} default = `'w'`
 * `callback` {Function}
 
@@ -513,7 +513,7 @@ The synchronous version of `fs.writeFile`.
 * `data` {String | Buffer}
 * `options` {Object}
   * `encoding` {String | Null} default = `'utf8'`
-  * `mode` {Number} default = `438` (aka `0666` in Octal)
+  * `mode` {Number} default = `0o666`
   * `flag` {String} default = `'a'`
 * `callback` {Function}
 
@@ -770,7 +770,7 @@ Returns a new ReadStream object (See `Readable Stream`).
     { flags: 'r',
       encoding: null,
       fd: null,
-      mode: 0666,
+      mode: 0o666,
       autoClose: true
     }
 
@@ -812,7 +812,7 @@ Returns a new WriteStream object (See `Writable Stream`).
     { flags: 'w',
       encoding: null,
       fd: null,
-      mode: 0666 }
+      mode: 0o666 }
 
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
