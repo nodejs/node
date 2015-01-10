@@ -168,6 +168,17 @@ buffer object.  It does not change when the contents of the buffer are changed.
     // 1234
     // 1234
 
+While the `length` property is not immutable, changing the value of `length`
+can result in undefined and inconsistent behavior. Applications that wish to
+modify the length of a buffer should therefore treat `length` as read-only and
+use `buf.slice` to create a new buffer.
+
+    buf = new Buffer(10);
+    buf.write("abcdefghj", 0, "ascii");
+    console.log(buf.length); // 10
+    buf = buf.slice(0,5);
+    console.log(buf.length); // 5
+
 ### buf.write(string[, offset][, length][, encoding])
 
 * `string` String - data to be written to buffer
@@ -235,9 +246,19 @@ may be beyond the end of the buffer. Defaults to `false`.
 * `start` Number, Optional, Default: 0
 * `end` Number, Optional, Default: `buffer.length`
 
-Decodes and returns a string from buffer data encoded with `encoding`
-(defaults to `'utf8'`) beginning at `start` (defaults to `0`) and ending at
-`end` (defaults to `buffer.length`).
+Decodes and returns a string from buffer data encoded using the specified
+character set encoding. If `encoding` is `undefined` or `null`, then `encoding`
+defaults to `'utf8'. The `start` and `end` parameters default to `0` and
+`buffer.length` when `undefined`.
+
+    buf = new Buffer(26);
+    for (var i = 0 ; i < 26 ; i++) {
+      buf[i] = i + 97; // 97 is ASCII a
+    }
+    buf.toString('ascii'); // outputs: abcdefghijklmnopqrstuvwxyz
+    buf.toString('ascii',0,5); // outputs: abcde
+    buf.toString('utf8',0,5); // outputs: abcde
+    buf.toString(undefined,0,5); // encoding defaults to 'utf8', outputs abcde
 
 See `buffer.write()` example, above.
 
@@ -307,12 +328,10 @@ the same as the `otherBuffer` in sort order.
 * `sourceStart` Number, Optional, Default: 0
 * `sourceEnd` Number, Optional, Default: `buffer.length`
 
-Does copy between buffers. The source and target regions can be overlapped.
-`targetStart` and `sourceStart` default to `0`.
-`sourceEnd` defaults to `buffer.length`.
-
-All values passed that are `undefined`/`NaN` or are out of bounds are set equal
-to their respective defaults.
+Copies data from a region of this buffer to a region in the target buffer even
+if the target memory region overlaps with the source. If `undefined` the
+`targetStart` and `sourceStart` parameters default to `0` while `sourceEnd`
+defaults to `buffer.length`.
 
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
@@ -329,6 +348,20 @@ into `buf2`, starting at the 8th byte in `buf2`.
     console.log(buf2.toString('ascii', 0, 25));
 
     // !!!!!!!!qrst!!!!!!!!!!!!!
+
+Example: Build a single buffer, then copy data from one region to an overlapping
+region in the same buffer
+
+    buf = new Buffer(26);
+
+    for (var i = 0 ; i < 26 ; i++) {
+      buf[i] = i + 97; // 97 is ASCII a
+    }
+
+    buf.copy(buf, 0, 4, 10);
+    console.log(buf.toString());
+
+    // efghijghijklmnopqrstuvwxyz
 
 
 ### buf.slice([start][, end])
