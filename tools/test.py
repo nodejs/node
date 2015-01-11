@@ -41,6 +41,7 @@ import time
 import threading
 import utils
 import multiprocessing
+import errno
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -570,11 +571,18 @@ def PrintError(str):
 
 
 def CheckedUnlink(name):
-  try:
-    os.unlink(name)
-  except OSError, e:
-    PrintError("os.unlink() " + str(e))
-
+  while True:
+    try:
+      os.unlink(name)
+    except OSError, e:
+      # On Windows unlink() fails if another process (typically a virus scanner
+      # or the indexing service) has the file open. Those processes keep a
+      # file open for a short time only, so yield and try again; it'll succeed.
+      if sys.platform == 'win32' and e.errno == errno.EACCES:
+        time.sleep(0)
+        continue
+      PrintError("os.unlink() " + str(e))
+    break
 
 def Execute(args, context, timeout=None, env={}):
   (fd_out, outname) = tempfile.mkstemp()
