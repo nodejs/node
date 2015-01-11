@@ -925,9 +925,8 @@
                 'asm/x64-win32-masm/whrlpool/wp-x86_64.asm',
                 'asm/x64-win32-masm/modes/ghash-x86_64.asm',
                 'asm/x64-win32-masm/x86_64cpuid.asm',
-                # Non-generated asm
-                'openssl/crypto/bn/asm/x86_64-win32-masm.asm',
                 # No asm available
+                'openssl/crypto/bn/bn_asm.c',
                 'openssl/crypto/bf/bf_enc.c',
                 'openssl/crypto/cast/c_enc.c',
                 'openssl/crypto/camellia/cmll_misc.c',
