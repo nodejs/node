@@ -977,7 +977,7 @@ TS_RESP_set_genTime_with_precision(ASN1_GENERALIZEDTIME *asn1_time,
 	if (precision > 0)
 	{
 		/* Add fraction of seconds (leave space for dot and null). */
-		BIO_snprintf(p, 2 + precision, ".%ld", usec);
+		BIO_snprintf(p, 2 + precision, ".%06ld", usec);
 		/* We cannot use the snprintf return value, 
 		   because it might have been truncated. */
 		p += strlen(p);

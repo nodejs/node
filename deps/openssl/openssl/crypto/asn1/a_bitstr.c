@@ -136,11 +136,16 @@ ASN1_BIT_STRING *c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
 
 	p= *pp;
 	i= *(p++);
+	if (i > 7)
+		{
+		i=ASN1_R_INVALID_BIT_STRING_BITS_LEFT;
+		goto err;
+		}
 	/* We do this to preserve the settings.  If we modify
 	 * the settings, via the _set_bit function, we will recalculate
 	 * on output */
 	ret->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07); /* clear */
-	ret->flags|=(ASN1_STRING_FLAG_BITS_LEFT|(i&0x07)); /* set */
+	ret->flags|=(ASN1_STRING_FLAG_BITS_LEFT|i); /* set */
 
 	if (len-- > 1) /* using one because of the bits left byte */
 		{

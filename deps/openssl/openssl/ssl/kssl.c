@@ -954,15 +954,15 @@ print_krb5_data(char *label, krb5_data *kdata)
         {
 	int i;
 
-	printf("%s[%d] ", label, kdata->length);
+	fprintf(stderr,"%s[%d] ", label, kdata->length);
 	for (i=0; i < (int)kdata->length; i++)
                 {
 		if (0 &&  isprint((int) kdata->data[i]))
-                        printf(	"%c ",  kdata->data[i]);
+                        fprintf(stderr,	"%c ",  kdata->data[i]);
 		else
-                        printf(	"%02x ", (unsigned char) kdata->data[i]);
+                        fprintf(stderr,	"%02x ", (unsigned char) kdata->data[i]);
 		}
-	printf("\n");
+	fprintf(stderr,"\n");
         }
 
 
@@ -973,20 +973,20 @@ print_krb5_authdata(char *label, krb5_authdata **adata)
         {
 	if (adata == NULL)
                 {
-		printf("%s, authdata==0\n", label);
+		fprintf(stderr,"%s, authdata==0\n", label);
 		return;
 		}
-	printf("%s [%p]\n", label, (void *)adata);
+	fprintf(stderr,"%s [%p]\n", label, (void *)adata);
 #if 0
 	{
         int 	i;
-	printf("%s[at%d:%d] ", label, adata->ad_type, adata->length);
+	fprintf(stderr,"%s[at%d:%d] ", label, adata->ad_type, adata->length);
 	for (i=0; i < adata->length; i++)
                 {
-                printf((isprint(adata->contents[i]))? "%c ": "%02x",
+                fprintf(stderr,(isprint(adata->contents[i]))? "%c ": "%02x",
                         adata->contents[i]);
 		}
-	printf("\n");
+	fprintf(stderr,"\n");
 	}
 #endif
 	}
@@ -1001,24 +1001,24 @@ print_krb5_keyblock(char *label, krb5_keyblock *keyblk)
 
 	if (keyblk == NULL)
                 {
-		printf("%s, keyblk==0\n", label);
+		fprintf(stderr,"%s, keyblk==0\n", label);
 		return;
 		}
 #ifdef KRB5_HEIMDAL
-	printf("%s\n\t[et%d:%d]: ", label, keyblk->keytype,
+	fprintf(stderr,"%s\n\t[et%d:%d]: ", label, keyblk->keytype,
 					   keyblk->keyvalue->length);
 	for (i=0; i < (int)keyblk->keyvalue->length; i++)
                 {
-		printf("%02x",(unsigned char *)(keyblk->keyvalue->contents)[i]);
+		fprintf(stderr,"%02x",(unsigned char *)(keyblk->keyvalue->contents)[i]);
 		}
-	printf("\n");
+	fprintf(stderr,"\n");
 #else
-	printf("%s\n\t[et%d:%d]: ", label, keyblk->enctype, keyblk->length);
+	fprintf(stderr,"%s\n\t[et%d:%d]: ", label, keyblk->enctype, keyblk->length);
 	for (i=0; i < (int)keyblk->length; i++)
                 {
-		printf("%02x",keyblk->contents[i]);
+		fprintf(stderr,"%02x",keyblk->contents[i]);
 		}
-	printf("\n");
+	fprintf(stderr,"\n");
 #endif
         }
 
@@ -1031,17 +1031,17 @@ print_krb5_princ(char *label, krb5_principal_data *princ)
         {
 	int i, ui, uj;
 
-	printf("%s principal Realm: ", label);
+	fprintf(stderr,"%s principal Realm: ", label);
 	if (princ == NULL)  return;
 	for (ui=0; ui < (int)princ->realm.length; ui++)  putchar(princ->realm.data[ui]);
-	printf(" (nametype %d) has %d strings:\n", princ->type,princ->length);
+	fprintf(stderr," (nametype %d) has %d strings:\n", princ->type,princ->length);
 	for (i=0; i < (int)princ->length; i++)
                 {
-		printf("\t%d [%d]: ", i, princ->data[i].length);
+		fprintf(stderr,"\t%d [%d]: ", i, princ->data[i].length);
 		for (uj=0; uj < (int)princ->data[i].length; uj++)  {
 			putchar(princ->data[i].data[uj]);
 			}
-		printf("\n");
+		fprintf(stderr,"\n");
 		}
 	return;
         }
@@ -1332,7 +1332,7 @@ kssl_sget_tkt(	/* UPDATE */	KSSL_CTX		*kssl_ctx,
 		}
 
 #ifdef KSSL_DEBUG
-	printf("in kssl_sget_tkt(%s)\n", kstring(kssl_ctx->service_name));
+	fprintf(stderr,"in kssl_sget_tkt(%s)\n", kstring(kssl_ctx->service_name));
 #endif	/* KSSL_DEBUG */
 
 	if (!krb5context  &&  (krb5rc = krb5_init_context(&krb5context)))
@@ -1481,18 +1481,18 @@ kssl_sget_tkt(	/* UPDATE */	KSSL_CTX		*kssl_ctx,
 #ifdef KSSL_DEBUG
 		{
 		int i; krb5_address **paddr = krb5ticket->enc_part2->caddrs;
-		printf("Decrypted ticket fields:\n");
-		printf("\tflags: %X, transit-type: %X",
+		fprintf(stderr,"Decrypted ticket fields:\n");
+		fprintf(stderr,"\tflags: %X, transit-type: %X",
 			krb5ticket->enc_part2->flags,
 			krb5ticket->enc_part2->transited.tr_type);
 		print_krb5_data("\ttransit-data: ",
 			&(krb5ticket->enc_part2->transited.tr_contents));
-		printf("\tcaddrs: %p, authdata: %p\n",
+		fprintf(stderr,"\tcaddrs: %p, authdata: %p\n",
 			krb5ticket->enc_part2->caddrs,
 			krb5ticket->enc_part2->authorization_data);
 		if (paddr)
 			{
-			printf("\tcaddrs:\n");
+			fprintf(stderr,"\tcaddrs:\n");
 			for (i=0; paddr[i] != NULL; i++)
 				{
 				krb5_data d;
@@ -1501,7 +1501,7 @@ kssl_sget_tkt(	/* UPDATE */	KSSL_CTX		*kssl_ctx,
 				print_krb5_data("\t\tIP: ", &d);
 				}
 			}
-		printf("\tstart/auth/end times: %d / %d / %d\n",
+		fprintf(stderr,"\tstart/auth/end times: %d / %d / %d\n",
 			krb5ticket->enc_part2->times.starttime,
 			krb5ticket->enc_part2->times.authtime,
 			krb5ticket->enc_part2->times.endtime);
@@ -1976,7 +1976,7 @@ krb5_error_code  kssl_validate_times(	krb5_timestamp atime,
 	if ((now - ttimes->endtime) > skew)  return SSL_R_KRB5_S_TKT_EXPIRED;
 
 #ifdef KSSL_DEBUG
-	printf("kssl_validate_times: %d |<-  | %d - %d | < %d  ->| %d\n",
+	fprintf(stderr,"kssl_validate_times: %d |<-  | %d - %d | < %d  ->| %d\n",
 		start, atime, now, skew, ttimes->endtime);
 #endif	/* KSSL_DEBUG */
 
@@ -2027,10 +2027,10 @@ krb5_error_code  kssl_check_authent(
 #ifdef KSSL_DEBUG
         {
         unsigned int ui;
-	printf("kssl_check_authent: authenticator[%d]:\n",authentp->length);
+	fprintf(stderr,"kssl_check_authent: authenticator[%d]:\n",authentp->length);
 	p = authentp->data; 
-	for (ui=0; ui < authentp->length; ui++)  printf("%02x ",p[ui]);
-	printf("\n");
+	for (ui=0; ui < authentp->length; ui++)  fprintf(stderr,"%02x ",p[ui]);
+	fprintf(stderr,"\n");
         }
 #endif	/* KSSL_DEBUG */
 
@@ -2095,9 +2095,9 @@ krb5_error_code  kssl_check_authent(
 #ifdef KSSL_DEBUG
 	{
 	int padl;
-	printf("kssl_check_authent: decrypted authenticator[%d] =\n", outl);
-	for (padl=0; padl < outl; padl++) printf("%02x ",unenc_authent[padl]);
-	printf("\n");
+	fprintf(stderr,"kssl_check_authent: decrypted authenticator[%d] =\n", outl);
+	for (padl=0; padl < outl; padl++) fprintf(stderr,"%02x ",unenc_authent[padl]);
+	fprintf(stderr,"\n");
 	}
 #endif	/* KSSL_DEBUG */
 
@@ -2132,10 +2132,10 @@ krb5_error_code  kssl_check_authent(
  		}
 
 #ifdef KSSL_DEBUG
-	printf("kssl_check_authent: returns %d for client time ", *atimep);
+	fprintf(stderr,"kssl_check_authent: returns %d for client time ", *atimep);
 	if (auth && auth->ctime && auth->ctime->length && auth->ctime->data)
-		printf("%.*s\n", auth->ctime->length, auth->ctime->data);
-	else	printf("NULL\n");
+		fprintf(stderr,"%.*s\n", auth->ctime->length, auth->ctime->data);
+	else	fprintf(stderr,"NULL\n");
 #endif	/* KSSL_DEBUG */
 
  err:

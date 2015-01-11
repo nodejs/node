@@ -1,4 +1,4 @@
-/* ssl/tls1.h */
+/* ssl/srtp.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -117,6 +117,8 @@
 
 #ifndef HEADER_D1_SRTP_H
 #define HEADER_D1_SRTP_H
+
+#include <openssl/ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {

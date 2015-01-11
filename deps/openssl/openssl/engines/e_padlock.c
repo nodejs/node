@@ -384,6 +384,7 @@ padlock_available(void)
 }
 
 #ifndef OPENSSL_NO_AES
+#ifndef AES_ASM
 /* Our own htonl()/ntohl() */
 static inline void
 padlock_bswapl(AES_KEY *ks)
@@ -396,6 +397,7 @@ padlock_bswapl(AES_KEY *ks)
 		key++;
 	}
 }
+#endif
 #endif
 
 /* Force key reload from memory to the CPU microcode.

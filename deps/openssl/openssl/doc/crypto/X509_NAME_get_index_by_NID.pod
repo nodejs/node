@@ -59,6 +59,10 @@ X509_NAME_get_index_by_OBJ() should be used followed by
 X509_NAME_get_entry() on any matching indices and then the
 various B<X509_NAME_ENTRY> utility functions on the result.
 
+The list of all relevant B<NID_*> and B<OBJ_* codes> can be found in
+the source code header files E<lt>openssl/obj_mac.hE<gt> and/or
+E<lt>openssl/objects.hE<gt>.
+
 =head1 EXAMPLES
 
 Process all entries:

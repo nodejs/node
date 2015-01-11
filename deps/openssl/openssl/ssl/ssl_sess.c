@@ -335,7 +335,21 @@ int ssl_get_new_session(SSL *s, int session)
 			return(0);
 			}
 #ifndef OPENSSL_NO_TLSEXT
-		/* If RFC4507 ticket use empty session ID */
+		/*
+		 * If RFC5077 ticket, use empty session ID (as server).
+		 * Note that:
+		 * (a) ssl_get_prev_session() does lookahead into the
+		 *     ClientHello extensions to find the session ticket.
+		 *     When ssl_get_prev_session() fails, s3_srvr.c calls
+		 *     ssl_get_new_session() in ssl3_get_client_hello().
+		 *     At that point, it has not yet parsed the extensions,
+		 *     however, because of the lookahead, it already knows
+		 *     whether a ticket is expected or not.
+		 *
+		 * (b) s3_clnt.c calls ssl_get_new_session() before parsing
+		 *     ServerHello extensions, and before recording the session
+		 *     ID received from the server, so this block is a noop.
+		 */
 		if (s->tlsext_ticket_expected)
 			{
 			ss->session_id_length = 0;

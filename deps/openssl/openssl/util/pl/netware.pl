@@ -212,7 +212,7 @@ else
    #        Turned off the "possible" warnings ( -w nopossible ).  Metrowerks
    #        complained a lot about various stuff.  May want to turn back
    #        on for further development.
-   $cflags.=" -nostdinc -ir crypto -ir engines -ir apps -I$include_path \\
+   $cflags.=" -nostdinc -ir crypto -ir ssl -ir engines -ir apps -I$include_path \\
          -msgstyle gcc -align 4 -processor pentium -char unsigned \\
          -w on -w nolargeargs -w nopossible -w nounusedarg -w nounusedexpr \\
          -w noimplicitconv -relax_pointers -nosyspath -maxerrors 20";

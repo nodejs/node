@@ -804,6 +804,11 @@ PROCESS_ARGS:
 					{
 					$disabled{"tls1"} = "option(tls)"
 					}
+				elsif ($1 eq "ssl3-method")
+					{
+					$disabled{"ssl3-method"} = "option(ssl)";
+					$disabled{"ssl3"} = "option(ssl)";
+					}
 				else
 					{
 					$disabled{$1} = "option";

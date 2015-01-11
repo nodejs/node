@@ -101,9 +101,9 @@ SSLv23_server_method                    112	EXIST::FUNCTION:RSA
 SSLv2_client_method                     113	EXIST::FUNCTION:RSA,SSL2
 SSLv2_method                            114	EXIST::FUNCTION:RSA,SSL2
 SSLv2_server_method                     115	EXIST::FUNCTION:RSA,SSL2
-SSLv3_client_method                     116	EXIST::FUNCTION:
-SSLv3_method                            117	EXIST::FUNCTION:
-SSLv3_server_method                     118	EXIST::FUNCTION:
+SSLv3_client_method                     116	EXIST::FUNCTION:SSL3_METHOD
+SSLv3_method                            117	EXIST::FUNCTION:SSL3_METHOD
+SSLv3_server_method                     118	EXIST::FUNCTION:SSL3_METHOD
 d2i_SSL_SESSION                         119	EXIST::FUNCTION:
 i2d_SSL_SESSION                         120	EXIST::FUNCTION:
 BIO_f_ssl                               121	EXIST::FUNCTION:BIO
