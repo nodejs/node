@@ -167,6 +167,7 @@ static int pkey_ec_verify(EVP_PKEY_CTX *ctx,
 	return ret;
 	}
 
+#ifndef OPENSSL_NO_ECDH
 static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 	{
 	int ret;
@@ -200,6 +201,7 @@ static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 	*keylen = ret;
 	return 1;
 	}
+#endif
 
 static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 	{
@@ -333,7 +335,11 @@ const EVP_PKEY_METHOD ec_pkey_meth =
 	0,0,
 
 	0,
+#ifndef OPENSSL_NO_ECDH
 	pkey_ec_derive,
+#else
+	0,
+#endif
 
 	pkey_ec_ctrl,
 	pkey_ec_ctrl_str

@@ -158,15 +158,7 @@ temporary/ephemeral DH parameters are used.
 
 =item SSL_OP_EPHEMERAL_RSA
 
-Always use ephemeral (temporary) RSA key when doing RSA operations
-(see L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
-According to the specifications this is only done, when a RSA key
-can only be used for signature operations (namely under export ciphers
-with restricted RSA keylength). By setting this option, ephemeral
-RSA keys are always used. This option breaks compatibility with the
-SSL/TLS specifications and may lead to interoperability problems with
-clients and should therefore never be used. Ciphers with EDH (ephemeral
-Diffie-Hellman) key exchange should be used instead.
+This option is no longer implemented and is treated as no op.
 
 =item SSL_OP_CIPHER_SERVER_PREFERENCE
 

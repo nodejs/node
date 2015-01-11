@@ -255,10 +255,12 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
 
 	if (num <= 0) return NULL;
 
-	allow_customize = 0;
+	if(allow_customize)
+		allow_customize = 0;
 	if (malloc_debug_func != NULL)
 		{
-		allow_customize_debug = 0;
+		if(allow_customize_debug)
+			allow_customize_debug = 0;
 		malloc_debug_func(NULL, num, file, line, 0);
 		}
 	ret = malloc_locked_ex_func(num,file,line);
@@ -299,10 +301,12 @@ void *CRYPTO_malloc(int num, const char *file, int line)
 
 	if (num <= 0) return NULL;
 
-	allow_customize = 0;
+	if(allow_customize)
+		allow_customize = 0;
 	if (malloc_debug_func != NULL)
 		{
-		allow_customize_debug = 0;
+		if(allow_customize_debug)
+			allow_customize_debug = 0;
 		malloc_debug_func(NULL, num, file, line, 0);
 		}
 	ret = malloc_ex_func(num,file,line);

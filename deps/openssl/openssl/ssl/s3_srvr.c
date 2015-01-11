@@ -170,6 +170,7 @@
 #endif
 #include <openssl/md5.h>
 
+#ifndef OPENSSL_NO_SSL3_METHOD
 static const SSL_METHOD *ssl3_get_server_method(int ver);
 
 static const SSL_METHOD *ssl3_get_server_method(int ver)
@@ -179,6 +180,12 @@ static const SSL_METHOD *ssl3_get_server_method(int ver)
 	else
 		return(NULL);
 	}
+
+IMPLEMENT_ssl3_meth_func(SSLv3_server_method,
+			ssl3_accept,
+			ssl_undefined_function,
+			ssl3_get_server_method)
+#endif
 
 #ifndef OPENSSL_NO_SRP
 static int ssl_check_srp_ext_ClientHello(SSL *s, int *al)
@@ -205,11 +212,6 @@ static int ssl_check_srp_ext_ClientHello(SSL *s, int *al)
 	return ret;
 	}
 #endif
-
-IMPLEMENT_ssl3_meth_func(SSLv3_server_method,
-			ssl3_accept,
-			ssl_undefined_function,
-			ssl3_get_server_method)
 
 int ssl3_accept(SSL *s)
 	{
@@ -284,6 +286,7 @@ int ssl3_accept(SSL *s)
 					}
 				if (!BUF_MEM_grow(buf,SSL3_RT_MAX_PLAIN_LENGTH))
 					{
+					BUF_MEM_free(buf);
 					ret= -1;
 					goto end;
 					}
@@ -298,6 +301,9 @@ int ssl3_accept(SSL *s)
 
 			s->init_num=0;
 			s->s3->flags &= ~SSL3_FLAGS_SGC_RESTART_DONE;
+			s->s3->flags &= ~SSL3_FLAGS_CCS_OK;
+			/* Should have been reset by ssl3_get_finished, too. */
+			s->s3->change_cipher_spec = 0;
 
 			if (s->state != SSL_ST_RENEGOTIATE)
 				{
@@ -441,20 +447,11 @@ int ssl3_accept(SSL *s)
 		case SSL3_ST_SW_KEY_EXCH_B:
 			alg_k = s->s3->tmp.new_cipher->algorithm_mkey;
 
-			/* clear this, it may get reset by
-			 * send_server_key_exchange */
-			if ((s->options & SSL_OP_EPHEMERAL_RSA)
-#ifndef OPENSSL_NO_KRB5
-				&& !(alg_k & SSL_kKRB5)
-#endif /* OPENSSL_NO_KRB5 */
-				)
-				/* option SSL_OP_EPHEMERAL_RSA sends temporary RSA key
-				 * even when forbidden by protocol specs
-				 * (handshake may fail as clients are not required to
-				 * be able to handle this) */
-				s->s3->tmp.use_rsa_tmp=1;
-			else
-				s->s3->tmp.use_rsa_tmp=0;
+			/*
+			 * clear this, it may get reset by
+			 * send_server_key_exchange
+			 */
+			s->s3->tmp.use_rsa_tmp=0;
 
 
 			/* only send if a DH key exchange, fortezza or
@@ -468,7 +465,7 @@ int ssl3_accept(SSL *s)
 			 * server certificate contains the server's
 			 * public key for key exchange.
 			 */
-			if (s->s3->tmp.use_rsa_tmp
+			if (0
 			/* PSK: send ServerKeyExchange if PSK identity
 			 * hint if provided */
 #ifndef OPENSSL_NO_PSK
@@ -674,8 +671,14 @@ int ssl3_accept(SSL *s)
 
 		case SSL3_ST_SR_CERT_VRFY_A:
 		case SSL3_ST_SR_CERT_VRFY_B:
-
-			s->s3->flags |= SSL3_FLAGS_CCS_OK;
+			/*
+			 * This *should* be the first time we enable CCS, but be
+			 * extra careful about surrounding code changes. We need
+			 * to set this here because we don't know if we're
+			 * expecting a CertificateVerify or not.
+			 */
+			if (!s->s3->change_cipher_spec)
+				s->s3->flags |= SSL3_FLAGS_CCS_OK;
 			/* we should decide if we expected this one */
 			ret=ssl3_get_cert_verify(s);
 			if (ret <= 0) goto end;
@@ -694,6 +697,19 @@ int ssl3_accept(SSL *s)
 #if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
 		case SSL3_ST_SR_NEXT_PROTO_A:
 		case SSL3_ST_SR_NEXT_PROTO_B:
+			/*
+			 * Enable CCS for resumed handshakes with NPN.
+			 * In a full handshake with NPN, we end up here through
+			 * SSL3_ST_SR_CERT_VRFY_B, where SSL3_FLAGS_CCS_OK was
+			 * already set. Receiving a CCS clears the flag, so make
+			 * sure not to re-enable it to ban duplicates.
+			 * s->s3->change_cipher_spec is set when a CCS is
+			 * processed in s3_pkt.c, and remains set until
+			 * the client's Finished message is read.
+			 */
+			if (!s->s3->change_cipher_spec)
+				s->s3->flags |= SSL3_FLAGS_CCS_OK;
+
 			ret=ssl3_get_next_proto(s);
 			if (ret <= 0) goto end;
 			s->init_num = 0;
@@ -703,7 +719,18 @@ int ssl3_accept(SSL *s)
 
 		case SSL3_ST_SR_FINISHED_A:
 		case SSL3_ST_SR_FINISHED_B:
-			s->s3->flags |= SSL3_FLAGS_CCS_OK;
+			/*
+			 * Enable CCS for resumed handshakes without NPN.
+			 * In a full handshake, we end up here through
+			 * SSL3_ST_SR_CERT_VRFY_B, where SSL3_FLAGS_CCS_OK was
+			 * already set. Receiving a CCS clears the flag, so make
+			 * sure not to re-enable it to ban duplicates.
+			 * s->s3->change_cipher_spec is set when a CCS is
+			 * processed in s3_pkt.c, and remains set until
+			 * the client's Finished message is read.
+			 */
+			if (!s->s3->change_cipher_spec)
+				s->s3->flags |= SSL3_FLAGS_CCS_OK;
 			ret=ssl3_get_finished(s,SSL3_ST_SR_FINISHED_A,
 				SSL3_ST_SR_FINISHED_B);
 			if (ret <= 0) goto end;
@@ -775,7 +802,6 @@ int ssl3_accept(SSL *s)
 #else
 				if (s->s3->next_proto_neg_seen)
 					{
-					s->s3->flags |= SSL3_FLAGS_CCS_OK;
 					s->s3->tmp.next_state=SSL3_ST_SR_NEXT_PROTO_A;
 					}
 				else
@@ -1017,7 +1043,16 @@ int ssl3_get_client_hello(SSL *s)
 	else
 		{
 		i=ssl_get_prev_session(s, p, j, d + n);
-		if (i == 1)
+		/*
+		 * Only resume if the session's version matches the negotiated
+		 * version.
+		 * RFC 5246 does not provide much useful advice on resumption
+		 * with a different protocol version. It doesn't forbid it but
+		 * the sanity of such behaviour would be questionable.
+		 * In practice, clients do not accept a version mismatch and
+		 * will abort the handshake with an error.
+		 */
+		if (i == 1 && s->version == s->session->ssl_version)
 			{ /* previous session */
 			s->hit=1;
 			}
@@ -1112,14 +1147,15 @@ int ssl3_get_client_hello(SSL *s)
 		id=s->session->cipher->id;
 
 #ifdef CIPHER_DEBUG
-		printf("client sent %d ciphers\n",sk_num(ciphers));
+		fprintf(stderr,"client sent %d ciphers\n",sk_SSL_CIPHER_num(ciphers));
 #endif
 		for (i=0; i<sk_SSL_CIPHER_num(ciphers); i++)
 			{
 			c=sk_SSL_CIPHER_value(ciphers,i);
 #ifdef CIPHER_DEBUG
-			printf("client [%2d of %2d]:%s\n",
-				i,sk_num(ciphers),SSL_CIPHER_get_name(c));
+			fprintf(stderr,"client [%2d of %2d]:%s\n",
+				i,sk_SSL_CIPHER_num(ciphers),
+				SSL_CIPHER_get_name(c));
 #endif
 			if (c->id == id)
 				{
@@ -2171,6 +2207,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 		unsigned char rand_premaster_secret[SSL_MAX_MASTER_KEY_LENGTH];
 		int decrypt_len;
 		unsigned char decrypt_good, version_good;
+		size_t j;
 
 		/* FIX THIS UP EAY EAY EAY EAY */
 		if (s->s3->tmp.use_rsa_tmp)
@@ -2209,14 +2246,29 @@ int ssl3_get_client_key_exchange(SSL *s)
 				{
 				if (!(s->options & SSL_OP_TLS_D5_BUG))
 					{
+					al = SSL_AD_DECODE_ERROR;
 					SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG);
-					goto err;
+					goto f_err;
 					}
 				else
 					p-=2;
 				}
 			else
 				n=i;
+			}
+
+		/*
+		 * Reject overly short RSA ciphertext because we want to be sure
+		 * that the buffer size makes it safe to iterate over the entire
+		 * size of a premaster secret (SSL_MAX_MASTER_KEY_LENGTH). The
+		 * actual expected size is larger due to RSA padding, but the
+		 * bound is sufficient to be safe.
+		 */
+		if (n < SSL_MAX_MASTER_KEY_LENGTH)
+			{
+			al = SSL_AD_DECRYPT_ERROR;
+			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE, SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG);
+			goto f_err;
 			}
 
 		/* We must not leak whether a decryption failure occurs because
@@ -2266,19 +2318,23 @@ int ssl3_get_client_key_exchange(SSL *s)
 		 * to remain non-zero (0xff). */
 		decrypt_good &= version_good;
 
-		/* Now copy rand_premaster_secret over p using
-		 * decrypt_good_mask. */
-		for (i = 0; i < (int) sizeof(rand_premaster_secret); i++)
+		/*
+		 * Now copy rand_premaster_secret over from p using
+		 * decrypt_good_mask. If decryption failed, then p does not
+		 * contain valid plaintext, however, a check above guarantees
+		 * it is still sufficiently large to read from.
+		 */
+		for (j = 0; j < sizeof(rand_premaster_secret); j++)
 			{
-			p[i] = constant_time_select_8(decrypt_good, p[i],
-						      rand_premaster_secret[i]);
+			p[j] = constant_time_select_8(decrypt_good, p[j],
+						      rand_premaster_secret[j]);
 			}
 
 		s->session->master_key_length=
 			s->method->ssl3_enc->generate_master_secret(s,
 				s->session->master_key,
-				p,i);
-		OPENSSL_cleanse(p,i);
+				p,sizeof(rand_premaster_secret));
+		OPENSSL_cleanse(p,sizeof(rand_premaster_secret));
 		}
 	else
 #endif
@@ -2420,10 +2476,10 @@ int ssl3_get_client_key_exchange(SSL *s)
 					&kssl_err)) != 0)
 			{
 #ifdef KSSL_DEBUG
-			printf("kssl_sget_tkt rtn %d [%d]\n",
+			fprintf(stderr,"kssl_sget_tkt rtn %d [%d]\n",
 				krb5rc, kssl_err.reason);
 			if (kssl_err.text)
-				printf("kssl_err text= %s\n", kssl_err.text);
+				fprintf(stderr,"kssl_err text= %s\n", kssl_err.text);
 #endif	/* KSSL_DEBUG */
 			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
 				kssl_err.reason);
@@ -2437,10 +2493,10 @@ int ssl3_get_client_key_exchange(SSL *s)
 					&authtime, &kssl_err)) != 0)
 			{
 #ifdef KSSL_DEBUG
-			printf("kssl_check_authent rtn %d [%d]\n",
+			fprintf(stderr,"kssl_check_authent rtn %d [%d]\n",
 				krb5rc, kssl_err.reason);
 			if (kssl_err.text)
-				printf("kssl_err text= %s\n", kssl_err.text);
+				fprintf(stderr,"kssl_err text= %s\n", kssl_err.text);
 #endif	/* KSSL_DEBUG */
 			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
 				kssl_err.reason);
@@ -2958,7 +3014,7 @@ int ssl3_get_cert_verify(SSL *s)
 	if (s->s3->tmp.message_type != SSL3_MT_CERTIFICATE_VERIFY)
 		{
 		s->s3->tmp.reuse_message=1;
-		if ((peer != NULL) && (type & EVP_PKT_SIGN))
+		if (peer != NULL)
 			{
 			al=SSL_AD_UNEXPECTED_MESSAGE;
 			SSLerr(SSL_F_SSL3_GET_CERT_VERIFY,SSL_R_MISSING_VERIFY_MESSAGE);
@@ -3362,6 +3418,11 @@ int ssl3_send_server_certificate(SSL *s)
 			}
 
 		l=ssl3_output_cert_chain(s,x);
+		if (!l)
+			{
+			SSLerr(SSL_F_SSL3_SEND_SERVER_CERTIFICATE,ERR_R_INTERNAL_ERROR);
+			return(0);
+			}
 		s->state=SSL3_ST_SW_CERT_B;
 		s->init_num=(int)l;
 		s->init_off=0;

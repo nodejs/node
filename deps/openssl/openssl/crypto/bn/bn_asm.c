@@ -438,6 +438,10 @@ BN_ULONG bn_sub_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b, int n)
 /* sqr_add_c(a,i,c0,c1,c2)  -- c+=a[i]^2 for three word number c=(c2,c1,c0) */
 /* sqr_add_c2(a,i,c0,c1,c2) -- c+=2*a[i]*a[j] for three word number c=(c2,c1,c0) */
 
+/*
+ * Keep in mind that carrying into high part of multiplication result
+ * can not overflow, because it cannot be all-ones.
+ */
 #ifdef BN_LLONG
 #define mul_add_c(a,b,c0,c1,c2) \
 	t=(BN_ULLONG)a*b; \
@@ -478,10 +482,10 @@ BN_ULONG bn_sub_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b, int n)
 #define mul_add_c2(a,b,c0,c1,c2) {	\
 	BN_ULONG ta=(a),tb=(b),t0;	\
 	BN_UMULT_LOHI(t0,t1,ta,tb);	\
-	t2 = t1+t1; c2 += (t2<t1)?1:0;	\
-	t1 = t0+t0; t2 += (t1<t0)?1:0;	\
-	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c0 += t0; t2 = t1+((c0<t0)?1:0);\
 	c1 += t2; c2 += (c1<t2)?1:0;	\
+	c0 += t0; t1 += (c0<t0)?1:0;	\
+	c1 += t1; c2 += (c1<t1)?1:0;	\
 	}
 
 #define sqr_add_c(a,i,c0,c1,c2)	{	\
@@ -508,10 +512,10 @@ BN_ULONG bn_sub_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b, int n)
 	BN_ULONG ta=(a),tb=(b),t0;	\
 	t1 = BN_UMULT_HIGH(ta,tb);	\
 	t0 = ta * tb;			\
-	t2 = t1+t1; c2 += (t2<t1)?1:0;	\
-	t1 = t0+t0; t2 += (t1<t0)?1:0;	\
-	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c0 += t0; t2 = t1+((c0<t0)?1:0);\
 	c1 += t2; c2 += (c1<t2)?1:0;	\
+	c0 += t0; t1 += (c0<t0)?1:0;	\
+	c1 += t1; c2 += (c1<t1)?1:0;	\
 	}
 
 #define sqr_add_c(a,i,c0,c1,c2)	{	\

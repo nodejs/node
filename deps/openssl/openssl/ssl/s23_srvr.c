@@ -192,6 +192,7 @@ int ssl23_accept(SSL *s)
 					}
 				if (!BUF_MEM_grow(buf,SSL3_RT_MAX_PLAIN_LENGTH))
 					{
+					BUF_MEM_free(buf);
 					ret= -1;
 					goto end;
 					}
@@ -602,12 +603,14 @@ int ssl23_get_client_hello(SSL *s)
 	if ((type == 2) || (type == 3))
 		{
 		/* we have SSLv3/TLSv1 (type 2: SSL2 style, type 3: SSL3/TLS style) */
-                s->method = ssl23_get_server_method(s->version);
-		if (s->method == NULL)
+		const SSL_METHOD *new_method;
+		new_method = ssl23_get_server_method(s->version);
+		if (new_method == NULL)
 			{
 			SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_UNSUPPORTED_PROTOCOL);
 			goto err;
 			}
+		s->method = new_method;
 
 		if (!ssl_init_wbio_buffer(s,1)) goto err;
 

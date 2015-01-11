@@ -129,17 +129,12 @@ static inline int constant_time_select_int(unsigned int mask, int a, int b);
 
 static inline unsigned int constant_time_msb(unsigned int a)
 	{
-	return (unsigned int)((int)(a) >> (sizeof(int) * 8 - 1));
+	return 0-(a >> (sizeof(a) * 8 - 1));
 	}
 
 static inline unsigned int constant_time_lt(unsigned int a, unsigned int b)
 	{
-	unsigned int lt;
-	/* Case 1: msb(a) == msb(b). a < b iff the MSB of a - b is set.*/
-	lt = ~(a ^ b) & (a - b);
-	/* Case 2: msb(a) != msb(b). a < b iff the MSB of b is set. */
-	lt |= ~a & b;
-	return constant_time_msb(lt);
+	return constant_time_msb(a^((a^b)|((a-b)^b)));
 	}
 
 static inline unsigned char constant_time_lt_8(unsigned int a, unsigned int b)
@@ -149,12 +144,7 @@ static inline unsigned char constant_time_lt_8(unsigned int a, unsigned int b)
 
 static inline unsigned int constant_time_ge(unsigned int a, unsigned int b)
 	{
-	unsigned int ge;
-	/* Case 1: msb(a) == msb(b). a >= b iff the MSB of a - b is not set.*/
-	ge = ~((a ^ b) | (a - b));
-	/* Case 2: msb(a) != msb(b). a >= b iff the MSB of a is set. */
-	ge |= a & ~b;
-	return constant_time_msb(ge);
+	return ~constant_time_lt(a, b);
 	}
 
 static inline unsigned char constant_time_ge_8(unsigned int a, unsigned int b)
@@ -204,7 +194,7 @@ static inline unsigned char constant_time_select_8(unsigned char mask,
 	return (unsigned char)(constant_time_select(mask, a, b));
 	}
 
-inline int constant_time_select_int(unsigned int mask, int a, int b)
+static inline int constant_time_select_int(unsigned int mask, int a, int b)
 	{
 	return (int)(constant_time_select(mask, (unsigned)(a), (unsigned)(b)));
 	}
