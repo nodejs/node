@@ -1095,6 +1095,10 @@
       'PURIFY',
       '_REENTRANT',
 
+      # SSLv2 is known broken and has been superseded by SSLv3 for almost
+      # twenty years now.
+      'OPENSSL_NO_SSL2',
+
       # Heartbeat is a TLS extension, that couldn't be turned off or
       # asked to be not advertised. Unfortunately this is unacceptable for
       # Microsoft's IIS, which seems to be ignoring whole ClientHello after

@@ -310,23 +310,11 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_server_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_client_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
       method = SSLv3_method();
@@ -375,6 +363,11 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_ = SSL_CTX_new(method);
+
+  // Disable SSLv2 in the case when method == SSLv23_method() and the
+  // cipher list contains SSLv2 ciphers (not the default, should be rare.)
+  // The bundled OpenSSL doesn't have SSLv2 support but the system OpenSSL may.
+  SSL_CTX_set_options(sc->ctx_, SSL_OP_NO_SSLv2);
 
   // SSL session cache configuration
   SSL_CTX_set_session_cache_mode(sc->ctx_,
