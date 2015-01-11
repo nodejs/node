@@ -130,7 +130,7 @@ if errorlevel 1 goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
+signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
@@ -149,12 +149,12 @@ if not defined NIGHTLY goto msibuild
 set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
 
 :msibuild
-echo Building node-%NODE_VERSION%
+echo Building iojs-%NODE_VERSION%
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto run
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node-v%NODE_VERSION%-%msiplatform%.msi
+signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs-v%NODE_VERSION%-%msiplatform%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
 
 :run
@@ -218,5 +218,5 @@ rem ***************
 :getnodeversion
 set NODE_VERSION=
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
-if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
+if not defined NODE_VERSION echo Cannot determine current version of io.js & exit /b 1
 goto :EOF
