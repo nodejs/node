@@ -189,7 +189,7 @@ website_files = \
 	out/doc/sh_main.js    \
 	out/doc/sh_javascript.min.js
 
-doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ out/doc/changelog.html $(NODE_EXE)
+doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
 
 $(apidoc_dirs):
 	mkdir -p $@
