@@ -439,6 +439,7 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 			goto f_err;
 			}
 		*ok=1;
+		s->state = stn;
 		s->init_msg = s->init_buf->data + 4;
 		s->init_num = (int)s->s3->tmp.message_size;
 		return s->init_num;

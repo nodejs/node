@@ -265,7 +265,11 @@ static int ssl2_read_internal(SSL *s, void *buf, int len, int peek)
 		if ((!s->s2->clear_text) &&
 			(s->s2->rlength >= (unsigned int)mac_size))
 			{
-			ssl2_enc(s,0);
+			if(!ssl2_enc(s,0))
+				{
+				SSLerr(SSL_F_SSL2_READ_INTERNAL,SSL_R_DECRYPTION_FAILED);
+				return(-1);
+				}
 			s->s2->ract_data_length-=mac_size;
 			ssl2_mac(s,mac,0);
 			s->s2->ract_data_length-=s->s2->padding;
@@ -616,7 +620,8 @@ static int n_do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len)
 		s->s2->wact_data_length=len+p;
 		ssl2_mac(s,s->s2->mac_data,1);
 		s->s2->wlength+=p+mac_size;
-		ssl2_enc(s,1);
+		if(ssl2_enc(s,1) < 1)
+			return -1;
 		}
 
 	/* package up the header */

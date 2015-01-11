@@ -290,7 +290,7 @@ extern "C" {
 #    ifdef _WIN64
 #      define strlen(s) _strlen31(s)
 /* cut strings to 2GB */
-static unsigned int _strlen31(const char *str)
+static __inline unsigned int _strlen31(const char *str)
 	{
 	unsigned int len=0;
 	while (*str && len<0x80000000U) str++, len++;
@@ -373,15 +373,6 @@ static unsigned int _strlen31(const char *str)
 #  define check_winnt() (1)
 #else
 #  define check_winnt() (GetVersion() < 0x80000000)
-#endif
-
-/*
- * Visual Studio: inline is available in C++ only, however
- * __inline is available for C, see
- * http://msdn.microsoft.com/en-us/library/z8y1yy88.aspx
- */
-#if defined(_MSC_VER) && !defined(__cplusplus) && !defined(inline)
-#  define inline __inline
 #endif
 
 #else /* The non-microsoft world */
@@ -741,6 +732,22 @@ struct servent *getservbyname(const char *name, const char *proto);
 #include <OS.h>
 #endif
 
+#if !defined(inline) && !defined(__cplusplus)
+# if defined(__STDC_VERSION__) && __STDC_VERSION__>=199901L
+   /* do nothing, inline works */
+# elif defined(__GNUC__) && __GNUC__>=2
+#  define inline __inline__
+# elif defined(_MSC_VER)
+  /*
+   * Visual Studio: inline is available in C++ only, however
+   * __inline is available for C, see
+   * http://msdn.microsoft.com/en-us/library/z8y1yy88.aspx
+   */
+#  define inline __inline
+# else
+#  define inline
+# endif
+#endif
 
 #ifdef  __cplusplus
 }

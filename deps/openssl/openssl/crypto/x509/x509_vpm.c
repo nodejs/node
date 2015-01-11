@@ -89,6 +89,8 @@ X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void)
 	{
 	X509_VERIFY_PARAM *param;
 	param = OPENSSL_malloc(sizeof(X509_VERIFY_PARAM));
+	if (!param)
+		return NULL;
 	memset(param, 0, sizeof(X509_VERIFY_PARAM));
 	x509_verify_param_zero(param);
 	return param;

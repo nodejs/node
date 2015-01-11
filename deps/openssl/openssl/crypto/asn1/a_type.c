@@ -113,7 +113,7 @@ IMPLEMENT_STACK_OF(ASN1_TYPE)
 IMPLEMENT_ASN1_SET_OF(ASN1_TYPE)
 
 /* Returns 0 if they are equal, != 0 otherwise. */
-int ASN1_TYPE_cmp(ASN1_TYPE *a, ASN1_TYPE *b)
+int ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b)
 	{
 	int result = -1;
 

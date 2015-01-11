@@ -1807,6 +1807,7 @@ ASN1_UTCTIME_get                        2350	NOEXIST::FUNCTION:
 X509_REQ_digest                         2362	EXIST::FUNCTION:EVP
 X509_CRL_digest                         2391	EXIST::FUNCTION:EVP
 d2i_ASN1_SET_OF_PKCS7                   2397	NOEXIST::FUNCTION:
+X509_ALGOR_cmp                          2398	EXIST::FUNCTION:
 EVP_CIPHER_CTX_set_key_length           2399	EXIST::FUNCTION:
 EVP_CIPHER_CTX_ctrl                     2400	EXIST::FUNCTION:
 BN_mod_exp_mont_word                    2401	EXIST::FUNCTION:

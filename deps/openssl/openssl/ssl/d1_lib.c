@@ -113,6 +113,9 @@ int dtls1_new(SSL *s)
 		d1->cookie_len = sizeof(s->d1->cookie);
 		}
 
+	d1->link_mtu = 0;
+	d1->mtu = 0;
+
 	if( ! d1->unprocessed_rcds.q || ! d1->processed_rcds.q 
         || ! d1->buffered_messages || ! d1->sent_messages || ! d1->buffered_app_data.q)
 		{
@@ -161,16 +164,14 @@ static void dtls1_clear_queues(SSL *s)
     while( (item = pqueue_pop(s->d1->buffered_messages)) != NULL)
         {
         frag = (hm_fragment *)item->data;
-        OPENSSL_free(frag->fragment);
-        OPENSSL_free(frag);
+        dtls1_hm_fragment_free(frag);
         pitem_free(item);
         }
 
     while ( (item = pqueue_pop(s->d1->sent_messages)) != NULL)
         {
         frag = (hm_fragment *)item->data;
-        OPENSSL_free(frag->fragment);
-        OPENSSL_free(frag);
+        dtls1_hm_fragment_free(frag);
         pitem_free(item);
         }
 
@@ -210,6 +211,7 @@ void dtls1_clear(SSL *s)
 	pqueue sent_messages;
 	pqueue buffered_app_data;
 	unsigned int mtu;
+	unsigned int link_mtu;
 
 	if (s->d1)
 		{
@@ -219,6 +221,7 @@ void dtls1_clear(SSL *s)
 		sent_messages = s->d1->sent_messages;
 		buffered_app_data = s->d1->buffered_app_data.q;
 		mtu = s->d1->mtu;
+		link_mtu = s->d1->link_mtu;
 
 		dtls1_clear_queues(s);
 
@@ -232,6 +235,7 @@ void dtls1_clear(SSL *s)
 		if (SSL_get_options(s) & SSL_OP_NO_QUERY_MTU)
 			{
 			s->d1->mtu = mtu;
+			s->d1->link_mtu = link_mtu;
 			}
 
 		s->d1->unprocessed_rcds.q = unprocessed_rcds;
@@ -276,7 +280,22 @@ long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg)
 		/* Just one protocol version is supported so far;
 		 * fail closed if the version is not as expected. */
 		return s->version == DTLS_MAX_VERSION;
-
+	case DTLS_CTRL_SET_LINK_MTU:
+		if (larg < (long)dtls1_link_min_mtu())
+			return 0;
+		s->d1->link_mtu = larg;
+		return 1;
+	case DTLS_CTRL_GET_LINK_MIN_MTU:
+		return (long)dtls1_link_min_mtu();
+	case SSL_CTRL_SET_MTU:
+		/*
+		 *  We may not have a BIO set yet so can't call dtls1_min_mtu()
+		 *  We'll have to make do with dtls1_link_min_mtu() and max overhead
+		 */
+		if (larg < (long)dtls1_link_min_mtu() - DTLS1_MAX_MTU_OVERHEAD)
+			return 0;
+		s->d1->mtu = larg;
+		return larg;
 	default:
 		ret = ssl3_ctrl(s, cmd, larg, parg);
 		break;
@@ -415,12 +434,17 @@ void dtls1_stop_timer(SSL *s)
 
 int dtls1_check_timeout_num(SSL *s)
 	{
+	unsigned int mtu;
+
 	s->d1->timeout.num_alerts++;
 
 	/* Reduce MTU after 2 unsuccessful retransmissions */
-	if (s->d1->timeout.num_alerts > 2)
+	if (s->d1->timeout.num_alerts > 2
+			&& !(SSL_get_options(s) & SSL_OP_NO_QUERY_MTU))
 		{
-		s->d1->mtu = BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_GET_FALLBACK_MTU, 0, NULL);		
+		mtu = BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_GET_FALLBACK_MTU, 0, NULL);
+		if(mtu < s->d1->mtu)
+			s->d1->mtu = mtu;
 		}
 
 	if (s->d1->timeout.num_alerts > DTLS1_TMO_ALERT_COUNT)

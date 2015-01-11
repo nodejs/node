@@ -273,6 +273,8 @@ int MAIN(int argc, char **argv)
 		BIO_printf(bio_err,"-d              to output debug info\n");
 		BIO_printf(bio_err,"-hex            output as hex dump\n");
 		BIO_printf(bio_err,"-binary         output in binary form\n");
+		BIO_printf(bio_err,"-hmac arg       set the HMAC key to arg\n");
+		BIO_printf(bio_err,"-non-fips-allow allow use of non FIPS digest\n");
 		BIO_printf(bio_err,"-sign   file    sign digest using private key in file\n");
 		BIO_printf(bio_err,"-verify file    verify a signature using public key in file\n");
 		BIO_printf(bio_err,"-prverify file  verify a signature using private key in file\n");
