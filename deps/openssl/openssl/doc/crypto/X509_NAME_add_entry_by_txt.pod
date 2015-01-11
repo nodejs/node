@@ -81,14 +81,14 @@ Create an B<X509_NAME> structure:
  nm = X509_NAME_new();
  if (nm == NULL)
 	/* Some error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"C", "UK", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "C", MBSTRING_ASC, 
+			"UK", -1, -1, 0))
 	/* Error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"O", "Disorganized Organization", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "O", MBSTRING_ASC,
+			"Disorganized Organization", -1, -1, 0))
 	/* Error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"CN", "Joe Bloggs", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "CN", MBSTRING_ASC,
+			"Joe Bloggs", -1, -1, 0))
 	/* Error */
 
 =head1 RETURN VALUES

@@ -107,6 +107,7 @@ int test_mod(BIO *bp,BN_CTX *ctx);
 int test_mod_mul(BIO *bp,BN_CTX *ctx);
 int test_mod_exp(BIO *bp,BN_CTX *ctx);
 int test_mod_exp_mont_consttime(BIO *bp,BN_CTX *ctx);
+int test_mod_exp_mont5(BIO *bp, BN_CTX *ctx);
 int test_exp(BIO *bp,BN_CTX *ctx);
 int test_gf2m_add(BIO *bp);
 int test_gf2m_mod(BIO *bp);
@@ -249,6 +250,7 @@ int main(int argc, char *argv[])
 
 	message(out,"BN_mod_exp_mont_consttime");
 	if (!test_mod_exp_mont_consttime(out,ctx)) goto err;
+	if (!test_mod_exp_mont5(out,ctx)) goto err;
 	(void)BIO_flush(out);
 
 	message(out,"BN_exp");
@@ -676,44 +678,98 @@ int test_mul(BIO *bp)
 
 int test_sqr(BIO *bp, BN_CTX *ctx)
 	{
-	BIGNUM a,c,d,e;
-	int i;
+	BIGNUM *a,*c,*d,*e;
+	int i, ret = 0;
 
-	BN_init(&a);
-	BN_init(&c);
-	BN_init(&d);
-	BN_init(&e);
+	a = BN_new();
+	c = BN_new();
+	d = BN_new();
+	e = BN_new();
+	if (a == NULL || c == NULL || d == NULL || e == NULL)
+		{
+		goto err;
+		}
 
 	for (i=0; i<num0; i++)
 		{
-		BN_bntest_rand(&a,40+i*10,0,0);
-		a.neg=rand_neg();
-		BN_sqr(&c,&a,ctx);
+		BN_bntest_rand(a,40+i*10,0,0);
+		a->neg=rand_neg();
+		BN_sqr(c,a,ctx);
 		if (bp != NULL)
 			{
 			if (!results)
 				{
-				BN_print(bp,&a);
+				BN_print(bp,a);
 				BIO_puts(bp," * ");
-				BN_print(bp,&a);
+				BN_print(bp,a);
 				BIO_puts(bp," - ");
 				}
-			BN_print(bp,&c);
+			BN_print(bp,c);
 			BIO_puts(bp,"\n");
 			}
-		BN_div(&d,&e,&c,&a,ctx);
-		BN_sub(&d,&d,&a);
-		if(!BN_is_zero(&d) || !BN_is_zero(&e))
-		    {
-		    fprintf(stderr,"Square test failed!\n");
-		    return 0;
-		    }
+		BN_div(d,e,c,a,ctx);
+		BN_sub(d,d,a);
+		if(!BN_is_zero(d) || !BN_is_zero(e))
+			{
+			fprintf(stderr,"Square test failed!\n");
+			goto err;
+			}
 		}
-	BN_free(&a);
-	BN_free(&c);
-	BN_free(&d);
-	BN_free(&e);
-	return(1);
+
+	/* Regression test for a BN_sqr overflow bug. */
+	BN_hex2bn(&a,
+		"80000000000000008000000000000001FFFFFFFFFFFFFFFE0000000000000000");
+	BN_sqr(c, a, ctx);
+	if (bp != NULL)
+		{
+		if (!results)
+			{
+			BN_print(bp,a);
+			BIO_puts(bp," * ");
+			BN_print(bp,a);
+			BIO_puts(bp," - ");
+			}
+		BN_print(bp,c);
+		BIO_puts(bp,"\n");
+		}
+	BN_mul(d, a, a, ctx);
+	if (BN_cmp(c, d))
+		{
+		fprintf(stderr, "Square test failed: BN_sqr and BN_mul produce "
+			"different results!\n");
+		goto err;
+		}
+
+	/* Regression test for a BN_sqr overflow bug. */
+	BN_hex2bn(&a,
+		"80000000000000000000000080000001FFFFFFFE000000000000000000000000");
+	BN_sqr(c, a, ctx);
+	if (bp != NULL)
+		{
+		if (!results)
+			{
+			BN_print(bp,a);
+			BIO_puts(bp," * ");
+			BN_print(bp,a);
+			BIO_puts(bp," - ");
+			}
+		BN_print(bp,c);
+		BIO_puts(bp,"\n");
+		}
+	BN_mul(d, a, a, ctx);
+	if (BN_cmp(c, d))
+		{
+		fprintf(stderr, "Square test failed: BN_sqr and BN_mul produce "
+			"different results!\n");
+		goto err;
+		}
+	ret = 1;
+err:
+	if (a != NULL) BN_free(a);
+	if (c != NULL) BN_free(c);
+	if (d != NULL) BN_free(d);
+	if (e != NULL) BN_free(e);
+	return ret;
 	}
 
 int test_mont(BIO *bp, BN_CTX *ctx)
@@ -1007,6 +1063,80 @@ int test_mod_exp_mont_consttime(BIO *bp, BN_CTX *ctx)
 	BN_free(a);
 	BN_free(b);
 	BN_free(c);
+	BN_free(d);
+	BN_free(e);
+	return(1);
+	}
+
+/* Test constant-time modular exponentiation with 1024-bit inputs,
+ * which on x86_64 cause a different code branch to be taken.
+ */
+int test_mod_exp_mont5(BIO *bp, BN_CTX *ctx)
+	{
+	BIGNUM *a,*p,*m,*d,*e;
+
+	BN_MONT_CTX *mont;
+
+	a=BN_new();
+	p=BN_new();
+	m=BN_new();
+	d=BN_new();
+	e=BN_new();
+
+	mont = BN_MONT_CTX_new();
+
+	BN_bntest_rand(m,1024,0,1); /* must be odd for montgomery */
+	/* Zero exponent */
+	BN_bntest_rand(a,1024,0,0);
+	BN_zero(p);
+	if(!BN_mod_exp_mont_consttime(d,a,p,m,ctx,NULL))
+		return 0;
+	if(!BN_is_one(d))
+		{
+		fprintf(stderr, "Modular exponentiation test failed!\n");
+		return 0;
+		}
+	/* Zero input */
+	BN_bntest_rand(p,1024,0,0);
+	BN_zero(a);
+	if(!BN_mod_exp_mont_consttime(d,a,p,m,ctx,NULL))
+		return 0;
+	if(!BN_is_zero(d))
+		{
+		fprintf(stderr, "Modular exponentiation test failed!\n");
+		return 0;
+		}
+	/* Craft an input whose Montgomery representation is 1,
+	 * i.e., shorter than the modulus m, in order to test
+	 * the const time precomputation scattering/gathering.
+	 */
+	BN_one(a);
+	BN_MONT_CTX_set(mont,m,ctx);
+	if(!BN_from_montgomery(e,a,mont,ctx))
+		return 0;
+	if(!BN_mod_exp_mont_consttime(d,e,p,m,ctx,NULL))
+		return 0;
+	if(!BN_mod_exp_simple(a,e,p,m,ctx))
+		return 0;
+	if(BN_cmp(a,d) != 0)
+		{
+		fprintf(stderr,"Modular exponentiation test failed!\n");
+		return 0;
+		}
+	/* Finally, some regular test vectors. */
+	BN_bntest_rand(e,1024,0,0);
+	if(!BN_mod_exp_mont_consttime(d,e,p,m,ctx,NULL))
+		return 0;
+	if(!BN_mod_exp_simple(a,e,p,m,ctx))
+		return 0;
+	if(BN_cmp(a,d) != 0)
+		{
+		fprintf(stderr,"Modular exponentiation test failed!\n");
+		return 0;
+		}
+	BN_free(a);
+	BN_free(p);
+	BN_free(m);
 	BN_free(d);
 	BN_free(e);
 	return(1);

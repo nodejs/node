@@ -133,6 +133,10 @@ if the B<host> option is present then the OCSP request is sent to the host
 B<hostname> on port B<port>. B<path> specifies the HTTP path name to use
 or "/" by default.
 
+=item B<-timeout seconds>
+
+connection timeout to the OCSP responder in seconds
+
 =item B<-CAfile file>, B<-CApath pathname>
 
 file or pathname containing trusted CA certificates. These are used to verify

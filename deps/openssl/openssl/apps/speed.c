@@ -225,7 +225,7 @@
 
 #undef BUFSIZE
 #define BUFSIZE	((long)1024*8+1)
-int run=0;
+static volatile int run=0;
 
 static int mr=0;
 static int usertime=1;
@@ -2717,27 +2717,6 @@ static int do_multi(int multi)
 				sstrsep(&p,sep);
 				for(j=0 ; j < SIZE_NUM ; ++j)
 					results[alg][j]+=atof(sstrsep(&p,sep));
-				}
-			else if(!strncmp(buf,"+F2:",4))
-				{
-				int k;
-				double d;
-				
-				p=buf+4;
-				k=atoi(sstrsep(&p,sep));
-				sstrsep(&p,sep);
-
-				d=atof(sstrsep(&p,sep));
-				if(n)
-					rsa_results[k][0]=1/(1/rsa_results[k][0]+1/d);
-				else
-					rsa_results[k][0]=d;
-
-				d=atof(sstrsep(&p,sep));
-				if(n)
-					rsa_results[k][1]=1/(1/rsa_results[k][1]+1/d);
-				else
-					rsa_results[k][1]=d;
 				}
 			else if(!strncmp(buf,"+F2:",4))
 				{

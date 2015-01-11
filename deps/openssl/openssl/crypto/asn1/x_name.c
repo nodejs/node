@@ -350,6 +350,8 @@ static int x509_name_canon(X509_NAME *a)
 			set = entry->set;
 			}
 		tmpentry = X509_NAME_ENTRY_new();
+		if (!tmpentry)
+			goto err;
 		tmpentry->object = OBJ_dup(entry->object);
 		if (!asn1_string_canon(tmpentry->value, entry->value))
 			goto err;

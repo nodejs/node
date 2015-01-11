@@ -188,13 +188,21 @@ int ssl2_accept(SSL *s)
 			s->version=SSL2_VERSION;
 			s->type=SSL_ST_ACCEPT;
 
-			buf=s->init_buf;
-			if ((buf == NULL) && ((buf=BUF_MEM_new()) == NULL))
-				{ ret= -1; goto end; }
-			if (!BUF_MEM_grow(buf,(int)
-				SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER))
-				{ ret= -1; goto end; }
-			s->init_buf=buf;
+			if(s->init_buf == NULL)
+				{
+				if ((buf=BUF_MEM_new()) == NULL)
+					{
+					ret= -1;
+					goto end;
+					}
+				if (!BUF_MEM_grow(buf,(int) SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER))
+					{
+					BUF_MEM_free(buf);
+					ret= -1;
+					goto end;
+					}
+				s->init_buf=buf;
+				}
 			s->init_num=0;
 			s->ctx->stats.sess_accept++;
 			s->handshake_func=ssl2_accept;
