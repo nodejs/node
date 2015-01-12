@@ -1366,7 +1366,7 @@ static const struct nistp_test_params nistp_tests_params[] =
 		},
 	};
 
-void nistp_single_test(const struct nistp_test_params *test)
+static void nistp_single_test(const struct nistp_test_params *test)
 	{
 	BN_CTX *ctx;
 	BIGNUM *p, *a, *b, *x, *y, *n, *m, *order;
@@ -1469,7 +1469,7 @@ void nistp_single_test(const struct nistp_test_params *test)
 	BN_CTX_free(ctx);
 	}
 
-void nistp_tests()
+static void nistp_tests()
 	{
 	unsigned i;
 

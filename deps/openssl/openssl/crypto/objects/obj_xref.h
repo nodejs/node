@@ -43,9 +43,6 @@ static const nid_triple sigoid_srt[] =
 
 static const nid_triple * const sigoid_srt_xref[] =
 	{
-	&sigoid_srt[29],
-	&sigoid_srt[17],
-	&sigoid_srt[18],
 	&sigoid_srt[0],
 	&sigoid_srt[1],
 	&sigoid_srt[7],

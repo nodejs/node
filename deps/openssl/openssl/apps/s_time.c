@@ -349,13 +349,7 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
-#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	s_time_meth=SSLv23_client_method();
-#elif !defined(OPENSSL_NO_SSL3)
-	s_time_meth=SSLv3_client_method();
-#elif !defined(OPENSSL_NO_SSL2)
-	s_time_meth=SSLv2_client_method();
-#endif
 
 	/* parse the command line arguments */
 	if( parseArgs( argc, argv ) < 0 )
