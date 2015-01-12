@@ -857,6 +857,22 @@ var parseTests = {
     pathname: '%0D%0Ad/e',
     path: '%0D%0Ad/e?f',
     href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+  },
+
+  // git urls used by npm
+  'git+ssh://git@github.com:npm/npm': {
+    protocol: 'git+ssh:',
+    slashes: true,
+    auth: 'git',
+    host: 'github.com',
+    port: null,
+    hostname: 'github.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/:npm/npm',
+    path: '/:npm/npm',
+    href: 'git+ssh://git@github.com/:npm/npm'
   }
 
 };
