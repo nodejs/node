@@ -20,6 +20,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var processIncludes = require('./preprocess.js');
 var marked = require('marked');
 var fs = require('fs');
 var path = require('path');
@@ -52,48 +53,10 @@ console.error('Input file = %s', inputFile);
 fs.readFile(inputFile, 'utf8', function(er, input) {
   if (er) throw er;
   // process the input for @include lines
-  processIncludes(input, next);
+  processIncludes(inputFile, input, next);
 });
 
 
-var includeExpr = /^@include\s+([A-Za-z0-9-_]+)(?:\.)?([a-zA-Z]*)$/gmi;
-var includeData = {};
-function processIncludes(input, cb) {
-  var includes = input.match(includeExpr);
-  if (includes === null) return cb(null, input);
-  var errState = null;
-  console.error(includes);
-  var incCount = includes.length;
-  if (incCount === 0) cb(null, input);
-  includes.forEach(function(include) {
-    var fname = include.replace(/^@include\s+/, '');
-    if (!fname.match(/\.markdown$/)) fname += '.markdown';
-
-    if (includeData.hasOwnProperty(fname)) {
-      input = input.split(include).join(includeData[fname]);
-      incCount--;
-      if (incCount === 0) {
-        return cb(null, input);
-      }
-    }
-
-    var fullFname = path.resolve(path.dirname(inputFile), fname);
-    fs.readFile(fullFname, 'utf8', function(er, inc) {
-      if (errState) return;
-      if (er) return cb(errState = er);
-      processIncludes(inc, function(er, inc) {
-        if (errState) return;
-        if (er) return cb(errState = er);
-        incCount--;
-        includeData[fname] = inc;
-        input = input.split(include+'\n').join(includeData[fname]+'\n');
-        if (incCount === 0) {
-          return cb(null, input);
-        }
-      });
-    });
-  });
-}
 
 
 function next(er, input) {
