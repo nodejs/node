@@ -123,10 +123,12 @@ test-build: all build-addons
 
 test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
-	make test-npm
 
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
+
+test-ci: test-build
+	$(PYTHON) tools/test.py -J parallel sequential message addons
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
