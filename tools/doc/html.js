@@ -22,15 +22,61 @@
 var fs = require('fs');
 var marked = require('marked');
 var path = require('path');
+var preprocess = require('./preprocess.js');
 
 module.exports = toHTML;
 
+// TODO(chrisdickinson): never stop vomitting / fix this.
+var gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
+var gtocLoading = null;
+var gtocData = null;
+
 function toHTML(input, filename, template, cb) {
-  var lexed = marked.lexer(input);
-  fs.readFile(template, 'utf8', function(er, template) {
-    if (er) return cb(er);
-    render(lexed, filename, template, cb);
+  if (gtocData) {
+    return onGtocLoaded();
+  }
+
+  if (gtocLoading === null) {
+    gtocLoading = [onGtocLoaded];
+    return loadGtoc(function(err, data) {
+      if (err) throw err;
+      gtocData = data;
+      gtocLoading.forEach(function(xs) {
+        xs();
+      });
+    });
+  }
+
+  if (gtocLoading) {
+    return gtocLoading.push(onGtocLoaded);
+  }
+
+  function onGtocLoaded() {
+    var lexed = marked.lexer(input);
+    fs.readFile(template, 'utf8', function(er, template) {
+      if (er) return cb(er);
+      render(lexed, filename, template, cb);
+    });
+  }
+}
+
+function loadGtoc(cb) {
+  fs.readFile(gtocPath, 'utf8', function(err, data) {
+    if (err) return cb(err);
+
+    preprocess(gtocPath, data, function(err, data) {
+      if (err) return cb(err);
+
+      data = marked(data).replace(/<a href="(.*?)"/gm, function(a, m) {
+        return '<a class="nav-' + toID(m) + '" href="' + m + '"';
+      });
+      return cb(null, data);
+    });
   });
+}
+
+function toID(filename) {
+  return filename.replace('.html', '').replace(/[^\w\-]/g, '-').replace(/-+/g, '-');
 }
 
 function render(lexed, filename, template, cb) {
@@ -46,10 +92,17 @@ function render(lexed, filename, template, cb) {
   buildToc(lexed, filename, function(er, toc) {
     if (er) return cb(er);
 
+    var id = toID(path.basename(filename));
+
+    template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
     template = template.replace(/__SECTION__/g, section);
     template = template.replace(/__VERSION__/g, process.version);
     template = template.replace(/__TOC__/g, toc);
+    template = template.replace(
+      /__GTOC__/g,
+      gtocData.replace('class="nav-' + id, 'class="nav-' + id + ' active')
+    );
 
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
