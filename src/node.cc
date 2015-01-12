@@ -3426,6 +3426,11 @@ void Init(int* argc,
   if (!use_debug_agent) {
     RegisterDebugSignalHandler();
   }
+
+  // We should set node_is_initialized here instead of in node::Start,
+  // otherwise embedders using node::Init to initialize everything will not be
+  // able to set it and native modules will not load for them.
+  node_is_initialized = true;
 }
 
 
@@ -3634,7 +3639,6 @@ int Start(int argc, char** argv) {
 
   int code;
   V8::Initialize();
-  node_is_initialized = true;
 
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
