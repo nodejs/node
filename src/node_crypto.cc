@@ -288,6 +288,10 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 
+    // Note that SSLv2 and SSLv3 are disallowed but SSLv2_method and friends
+    // are still accepted.  They are OpenSSL's way of saying that all known
+    // protocols are supported unless explicitly disabled (which we do below
+    // for SSLv2 and SSLv3.)
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
       return env->ThrowError("SSLv2 methods disabled");
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
@@ -295,23 +299,11 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
       return env->ThrowError("SSLv2 methods disabled");
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
-#ifndef OPENSSL_NO_SSL3
-      method = SSLv3_method();
-#else
       return env->ThrowError("SSLv3 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
-#ifndef OPENSSL_NO_SSL3
-      method = SSLv3_server_method();
-#else
       return env->ThrowError("SSLv3 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
-#ifndef OPENSSL_NO_SSL3
-      method = SSLv3_client_method();
-#else
       return env->ThrowError("SSLv3 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
@@ -346,7 +338,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // Disable SSLv2 in the case when method == SSLv23_method() and the
   // cipher list contains SSLv2 ciphers (not the default, should be rare.)
   // The bundled OpenSSL doesn't have SSLv2 support but the system OpenSSL may.
+  // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_, SSL_OP_NO_SSLv2);
+  SSL_CTX_set_options(sc->ctx_, SSL_OP_NO_SSLv3);
 
   // SSL session cache configuration
   SSL_CTX_set_session_cache_mode(sc->ctx_,
