@@ -1357,6 +1357,7 @@ BUILT_IN_TESTS = [
   'pummel',
   'message',
   'internet',
+  'addons',
   'gc',
   'debugger',
 ]
