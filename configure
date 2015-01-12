@@ -436,6 +436,10 @@ def configure_arm(o):
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
 
+  # Print warning when snapshot is enabled and building on armv6
+  if is_arch_armv6() and not options.without_snapshot:
+    print '\033[1;33mWarning!! When building on ARMv6 use --without-snapshot\033[1;m'
+
 
 def configure_node(o):
   if options.dest_os == 'android':
@@ -943,9 +947,5 @@ else:
   gyp_args += ['-f', 'make-' + flavor]
 
 gyp_args += args
-
-#print warning when snapshot is enabled and building on armv6
-if (is_arch_armv6()) and (not options.without_snapshot):
-  print '\033[1;33mWarning!! When building on ARMv6 use --without-snapshot\033[1;m'
 
 sys.exit(subprocess.call(gyp_args))
