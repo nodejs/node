@@ -60,6 +60,10 @@
 #endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
 
 namespace node {
+
+extern bool SSL2_ENABLE;
+extern bool SSL3_ENABLE;
+
 namespace crypto {
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);

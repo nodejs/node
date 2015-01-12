@@ -73,9 +73,6 @@
 
 const EC_METHOD *EC_GFp_simple_method(void)
 	{
-#ifdef OPENSSL_FIPS
-	return fips_ec_gfp_simple_method();
-#else
 	static const EC_METHOD ret = {
 		EC_FLAGS_DEFAULT_OCT,
 		NID_X9_62_prime_field,
@@ -115,8 +112,12 @@ const EC_METHOD *EC_GFp_simple_method(void)
 		0 /* field_decode */,
 		0 /* field_set_to_one */ };
 
-	return &ret;
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode())
+		return fips_ec_gfp_simple_method();
 #endif
+
+	return &ret;
 	}
 
 
@@ -1317,8 +1318,8 @@ int ec_GFp_simple_points_make_affine(const EC_GROUP *group, size_t num, EC_POINT
 		{
 		for (i = 0; i < num; i++)
 			{
-			if (prod_Z[i] != NULL)
-				BN_clear_free(prod_Z[i]);
+			if (prod_Z[i] == NULL) break;
+			BN_clear_free(prod_Z[i]);
 			}
 		OPENSSL_free(prod_Z);
 		}

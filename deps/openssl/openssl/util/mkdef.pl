@@ -117,6 +117,8 @@ my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 "SSL_INTERN",
 			 # SCTP
 		 	 "SCTP",
+			 # SRTP
+			 "SRTP",
 			 # Unit testing
 		 	 "UNIT_TEST");
 
@@ -138,7 +140,7 @@ my $no_ec; my $no_ecdsa; my $no_ecdh; my $no_engine; my $no_hw;
 my $no_fp_api; my $no_static_engine=1; my $no_gmp; my $no_deprecated;
 my $no_rfc3779; my $no_psk; my $no_tlsext; my $no_cms; my $no_capieng;
 my $no_jpake; my $no_srp; my $no_ssl2; my $no_ec2m; my $no_nistp_gcc; 
-my $no_nextprotoneg; my $no_sctp;
+my $no_nextprotoneg; my $no_sctp; my $no_srtp;
 my $no_unit_test;
 
 my $fips;
@@ -238,6 +240,7 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-jpake$/)	{ $no_jpake=1; }
 	elsif (/^no-srp$/)	{ $no_srp=1; }
 	elsif (/^no-sctp$/)	{ $no_sctp=1; }
+	elsif (/^no-srtp$/)	{ $no_srtp=1; }
 	elsif (/^no-unit-test$/){ $no_unit_test=1; }
 	}
 
@@ -1209,6 +1212,7 @@ sub is_valid
 			if ($keyword eq "JPAKE" && $no_jpake) { return 0; }
 			if ($keyword eq "SRP" && $no_srp) { return 0; }
 			if ($keyword eq "SCTP" && $no_sctp) { return 0; }
+			if ($keyword eq "SRTP" && $no_srtp) { return 0; }
 			if ($keyword eq "UNIT_TEST" && $no_unit_test) { return 0; }
 			if ($keyword eq "DEPRECATED" && $no_deprecated) { return 0; }
 

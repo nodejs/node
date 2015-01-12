@@ -272,11 +272,6 @@ parser.add_option('--with-perfctr',
     dest='with_perfctr',
     help='build with performance counters (default is true on Windows)')
 
-parser.add_option('--with-sslv2',
-    action='store_true',
-    dest='with_sslv2',
-    help='enable SSL v2')
-
 parser.add_option('--without-dtrace',
     action='store_true',
     dest='without_dtrace',
@@ -307,6 +302,16 @@ parser.add_option('--without-ssl',
     action='store_true',
     dest='without_ssl',
     help='build without SSL')
+
+parser.add_option('--without-ssl2',
+    action='store_true',
+    dest='ssl2',
+    help='Disable SSL v2')
+
+parser.add_option('--without-ssl3',
+    action='store_true',
+    dest='ssl3',
+    help='Disable SSL v3')
 
 parser.add_option('--xcode',
     action='store_true',
@@ -668,10 +673,11 @@ def configure_openssl(o):
   if options.without_ssl:
     return
 
-  # OpenSSL uses `#ifndef OPENSSL_NO_SSL2` checks so only define the
-  # macro when we want to _disable_ SSL2.
-  if not options.with_sslv2:
+  if options.ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
+
+  if options.ssl3:
+    o['defines'] += ['OPENSSL_NO_SSL3=1']
 
   if options.shared_openssl:
     (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
@@ -1035,4 +1041,4 @@ else:
 
 gyp_args += args
 
-subprocess.call(gyp_args)
+sys.exit(subprocess.call(gyp_args))

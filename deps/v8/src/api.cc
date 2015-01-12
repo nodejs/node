@@ -6731,7 +6731,6 @@ void v8::Isolate::LowMemoryNotification() {
   }
 }
 
-
 int v8::Isolate::ContextDisposedNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->heap()->NotifyContextDisposed();

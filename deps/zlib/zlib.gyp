@@ -27,7 +27,11 @@
             'crc32.h',
             'deflate.c',
             'deflate.h',
-            'gzio.c',
+            'gzclose.c',
+            'gzguts.h',
+            'gzlib.c',
+            'gzread.c',
+            'gzwrite.c',
             'infback.c',
             'inffast.c',
             'inffast.h',
@@ -36,7 +40,6 @@
             'inflate.h',
             'inftrees.c',
             'inftrees.h',
-            'mozzconf.h',
             'trees.c',
             'trees.h',
             'uncompr.c',
@@ -61,6 +64,14 @@
               'cflags!': [ '-ansi' ],
               'sources!': [
                 'contrib/minizip/iowin32.c'
+              ],
+            }],
+            ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
+              # Mac, Android and the BSDs don't have fopen64, ftello64, or
+              # fseeko64. We use fopen, ftell, and fseek instead on these
+              # systems.
+              'defines': [
+                'USE_FILE32API'
               ],
             }],
           ],

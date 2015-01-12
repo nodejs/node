@@ -137,8 +137,8 @@ NODE_EXTERN v8::Handle<v8::Value> MakeCallback(
 
 }  // namespace node
 
-#if NODE_WANT_INTERNALS
-#include "node_internals.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# include "node_internals.h"
 #endif
 
 #include <assert.h>

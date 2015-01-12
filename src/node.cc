@@ -85,6 +85,8 @@ typedef int mode_t;
 #include <grp.h>  // getgrnam()
 #endif
 
+#include "node_crypto.h"
+
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
@@ -2927,6 +2929,8 @@ static void PrintHelp() {
          "                       present.\n"
 #endif
 #endif
+         "  --enable-ssl2        enable ssl2\n"
+         "  --enable-ssl3        enable ssl3\n"
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -2994,6 +2998,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
+    } else if (strcmp(arg, "--enable-ssl2") == 0) {
+      SSL2_ENABLE = true;
+    } else if (strcmp(arg, "--enable-ssl3") == 0) {
+      SSL3_ENABLE = true;
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);

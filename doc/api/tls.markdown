@@ -10,14 +10,14 @@ Secure Socket Layer: encrypted stream communication.
 TLS/SSL is a public/private key infrastructure. Each client and each
 server must have a private key. A private key is created like this:
 
-    openssl genrsa -out ryans-key.pem 1024
+    openssl genrsa -out ryans-key.pem 2048
 
 All servers and some clients need to have a certificate. Certificates are public
 keys signed by a Certificate Authority or self-signed. The first step to
 getting a certificate is to create a "Certificate Signing Request" (CSR)
 file. This is done with:
 
-    openssl req -new -key ryans-key.pem -out ryans-csr.pem
+    openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
 
 To create a self-signed certificate with the CSR, do this:
 
@@ -38,6 +38,40 @@ To create .pfx or .p12, do this:
   - `certfile`: all CA certs concatenated in one file like
     `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
 
+## Protocol support
+
+Node.js is compiled with SSLv2 and SSLv3 protocol support by default, but these
+protocols are **disabled**. They are considered insecure and could be easily
+compromised as was shown by [CVE-2014-3566][]. However, in some situations, it
+may cause problems with legacy clients/servers (such as Internet Explorer 6).
+If you wish to enable SSLv2 or SSLv3, run node with the `--enable-ssl2` or
+`--enable-ssl3` flag respectively.  In future versions of Node.js SSLv2 and
+SSLv3 will not be compiled in by default.
+
+There is a way to force node into using SSLv3 or SSLv2 only mode by explicitly
+specifying `secureProtocol` to `'SSLv3_method'` or `'SSLv2_method'`.
+
+The default protocol method Node.js uses is `SSLv23_method` which would be more
+accurately named `AutoNegotiate_method`. This method will try and negotiate
+from the highest level down to whatever the client supports.  To provide a
+secure default, Node.js (since v0.10.33) explicitly disables the use of SSLv3
+and SSLv2 by setting the `secureOptions` to be
+`SSL_OP_NO_SSLv3|SSL_OP_NO_SSLv2` (again, unless you have passed
+`--enable-ssl3`, or `--enable-ssl2`, or `SSLv3_method` as `secureProtocol`).
+
+If you have set `secureOptions` to anything, we will not override your
+options.
+
+The ramifications of this behavior change:
+
+ * If your application is behaving as a secure server, clients who are `SSLv3`
+only will now not be able to appropriately negotiate a connection and will be
+refused. In this case your server will emit a `clientError` event. The error
+message will include `'wrong version number'`.
+ * If your application is behaving as a secure client and communicating with a
+server that doesn't support methods more secure than SSLv3 then your connection
+won't be able to negotiate and will fail. In this case your client will emit a
+an `error` event. The error message will include `'wrong version number'`.
 
 ## Client-initiated renegotiation attack mitigation
 
@@ -228,6 +262,10 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
     SSL version 3. The possible values depend on your installation of
     OpenSSL and are defined in the constant [SSL_METHODS][].
+
+  - `secureOptions`: Set server options. For example, to disable the SSLv3
+    protocol set the `SSL_OP_NO_SSLv3` flag. See [SSL_CTX_set_options]
+    for all available options.
 
 Here is a simple example echo server:
 
@@ -815,3 +853,5 @@ The numeric representation of the local port.
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [asn1.js]: http://npmjs.org/package/asn1.js
 [OCSP request]: http://en.wikipedia.org/wiki/OCSP_stapling
+[SSL_CTX_set_options]: https://www.openssl.org/docs/ssl/SSL_CTX_set_options.html
+[CVE-2014-3566]: https://access.redhat.com/articles/1232123

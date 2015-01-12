@@ -6,29 +6,34 @@
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" href="assets/sh.css">
   <link rel="canonical" href="http://nodejs.org/api/__FILENAME__.html">
+  <script type="text/javascript" src="//use.typekit.net/mse5tqx.js"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
 </head>
-<body class="alt apidoc" id="api-section-__FILENAME__">
-    <div id="intro" class="interior">
-        <a href="/" title="Go back to the home page">
-            <img id="logo" src="http://nodejs.org/images/logo-light.png" alt="node.js">
-        </a>
+<body class="alt apidoc int docs" id="docs">
+    <div id="nav">
+      <img id="logo" src="assets/logo.svg" alt="node.js">
+      <ul>
+        <li><a href="http://nodejs.org">Home</a></li>
+        <li><a href="http://nodejs.org/download/">Downloads</a></li>
+        <li class="active"><a href="http://nodejs.org/documentation/">Docs</a></li>
+        <li><a href="http://nodejs.org/community/">Community</a></li>
+        <li><a href="http://nodejs.org/about/">About</a></li>
+        <li><a href="http://jobs.nodejs.org">Jobs</a></li>
+        <li><a href="http://blog.nodejs.org">Blog</a></li>
+      </ul>
     </div>
+    <div id="content-wrap">
     <div id="content" class="clearfix">
-        <div id="column2" class="interior">
-            <ul>
-                <li><a href="/" class="home">Home</a></li>
-                <li><a href="/download/" class="download">Download</a></li>
-                <li><a href="/about/" class="about">About</a></li>
-                <li><a href="http://npmjs.org/" class="npm">npm Registry</a></li>
-                <li><a href="http://nodejs.org/api/" class="docs current">Docs</a></li>
-                <li><a href="http://blog.nodejs.org" class="blog">Blog</a></li>
-                <li><a href="/community/" class="community">Community</a></li>
-                <li><a href="/logos/" class="logos">Logos</a></li>
-                <li><a href="http://jobs.nodejs.org/" class="jobs">Jobs</a></li>
-            </ul>
-            <p class="twitter"><a href="http://twitter.com/nodejs">@nodejs</a></p>
-        </div>
-
+      <div id="column2" class="interior">
+        <!--<img src="/images/logo-light.svg" alt="node.js" width="170">-->
+        <ul class="docs-nav">
+          <li><a href="http://nodejs.org/documentation/">About Docs</a></li>
+          <li><a href="http://nodejs.org/documentation/tutorials/">Tutorials</a></li>
+          <li><a href="http://nodejs.org/documentation/contributing/">Contributing</a></li>
+          <li><a href="http://nodejs.org/documentation/localization/">Localization</a></li>
+          <li class="active"><a href="http://nodejs.org/api/">API Docs</a></li>
+        </ul>
+      </div>
         <div id="column1" class="interior">
           <header>
             <h1>Node.js __VERSION__ Manual &amp; Documentation</h1>
@@ -52,26 +57,48 @@
           </div>
         </div>
     </div>
+    </div>
     <div id="footer">
-        <a href="http://joyent.com" class="joyent-logo">Joyent</a>
-        <ul class="clearfix">
-            <li><a href="/">Node.js</a></li>
-            <li><a href="/download/">Download</a></li>
-            <li><a href="/about/">About</a></li>
-            <li><a href="http://npmjs.org/">npm Registry</a></li>
-            <li><a href="http://nodejs.org/api/">Docs</a></li>
+      <div class="foot-1">
+        <a href="http://www.joyent.com"><h5>The Node.js Project is Sponsored by</h5>
+        <img src="assets/joyent-footer.svg" width="200">
+        <p class="tag">Production Node +<br>High Performance Infrastructure</p></a>
+        <a href="https://my.joyent.com/landing/signup/701800000015696" class="button getstarted">Get Started</a>
+      </div>
+      <div class="foot-2">
+        <div class="foot-nav">
+          <ul>
+            <li><a href="http://nodejs.org/download/">Downloads</a></li>
+          </ul>
+          <ul>
+            <li><a href="http://nodejs.org/documentation/">Documentation</a></li>
+            <li><a href="http://nodejs.org/api/">API Docs</a></li>
+            <li><a href="http://nodejs.org/documentation/tutorials/">Tutorials</a></li>
+            <li><a href="http://nodejs.org/documentation/localization/">Localization</a></li>
+          </ul>
+          <ul>
+            <li><a href="http://nodejs.org/community/">Community</a></li>
+            <li><a href="https://github.com/joyent/node/issues">Github Issues</a></li>
+            <li><a href="http://groups.google.com/group/nodejs">Mailing List</a></li>
+            <li><a href="http://webchat.freenode.net/?channels=node.js">IRC</a></li>
+            <li><a href="https://twitter.com/nodejs">Twitter</a></li>
+          </ul>
+          <ul>
+            <li><a href="http://nodejs.org/about/">About</a></li>
+            <li><a href="http://nodejs.org/about/organization/">Organization</a></li>
+            <li><a href="http://nodejs.org/about/core-team/">Core Team</a></li>
+            <li><a href="http://nodejs.org/about/resources/">Resources</a></li>
+          </ul>
+          <ul>
             <li><a href="http://blog.nodejs.org">Blog</a></li>
-            <li><a href="/community/">Community</a></li>
-            <li><a href="/logos/">Logos</a></li>
-            <li><a href="http://jobs.nodejs.org/">Jobs</a></li>
-            <li><a href="http://twitter.com/nodejs" class="twitter">@nodejs</a></li>
-        </ul>
-
-        <p>Copyright <a href="http://joyent.com/">Joyent, Inc</a>, Node.js is a <a href="/trademark-policy.pdf">trademark</a> of Joyent, Inc. View <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">license</a>.</p>
+          </ul>
+        </div>
+        <p class="copyright">Copyright 2014 <a href="http://joyent.com/">Joyent, Inc</a>, Node.js is a <a href="https://nodejs.org/images/trademark-policy.pdf">trademark</a> of Joyent, Inc. <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">View license</a>.</p>
+      </div>
     </div>
 
-  <script src="../sh_main.js"></script>
-  <script src="../sh_javascript.min.js"></script>
+  <script src="/sh_main.js"></script>
+  <script src="/sh_javascript.min.js"></script>
   <script>highlight(undefined, undefined, 'pre');</script>
   <script>
     window._gaq = [['_setAccount', 'UA-10874194-2'], ['_trackPageview']];

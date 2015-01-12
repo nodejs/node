@@ -298,3 +298,10 @@ exports.isValidHostname = function(str) {
 
   return !!str.match(re) && str.length <= 255;
 }
+exports.hasMultiLocalhost = function hasMultiLocalhost() {
+  var TCP = process.binding('tcp_wrap').TCP;
+  var t = new TCP();
+  var ret = t.bind('127.0.0.2', exports.PORT);
+  t.close();
+  return ret === 0;
+};

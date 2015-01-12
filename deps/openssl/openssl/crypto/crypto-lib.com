@@ -111,8 +111,8 @@ $ ET_WHIRLPOOL = "WHRLPOOL"
 $ IF ARCH .EQS. "VAX" THEN ET_WHIRLPOOL = ""
 $ ENCRYPT_TYPES = "Basic,"+ -
 		  "OBJECTS,"+ -
-		  "MD2,MD4,MD5,SHA,MDC2,HMAC,RIPEMD,"+ET_WHIRLPOOL+","+ -
-		  "DES,AES,RC2,RC4,RC5,IDEA,BF,CAST,CAMELLIA,SEED,MODES,"+ -
+		  "MD4,MD5,SHA,MDC2,HMAC,RIPEMD,"+ET_WHIRLPOOL+","+ -
+		  "DES,AES,RC2,RC4,IDEA,BF,CAST,CAMELLIA,SEED,MODES,"+ -
 		  "BN,EC,RSA,DSA,ECDSA,DH,ECDH,DSO,ENGINE,"+ -
 		  "BUFFER,BIO,STACK,LHASH,RAND,ERR,"+ -
 		  "EVP,EVP_2,EVP_3,ASN1,ASN1_2,PEM,X509,X509V3,"+ -
@@ -204,11 +204,18 @@ $ GOSUB CHECK_OPT_FILE
 $!
 $! Define The Different Encryption "library" Strings.
 $!
-$ APPS_DES = "DES/DES,CBC3_ENC"
-$ APPS_PKCS7 = "ENC/ENC;DEC/DEC;SIGN/SIGN;VERIFY/VERIFY,EXAMPLE"
+$!!! Test apps disabled, as they aren't supported at all,
+$!!! not even in the unix build
+$!!! APPS_DES = "DES/DES,CBC3_ENC"
+$!!! APPS_PKCS7 = "ENC/ENC;DEC/DEC;SIGN/SIGN;VERIFY/VERIFY,EXAMPLE"
 $
-$ LIB_ = "cryptlib,mem,mem_clr,mem_dbg,cversion,ex_data,cpt_err,"+ -
-	"ebcdic,uid,o_time,o_str,o_dir,o_fips.c,o_init,fips_ers"
+$! These variables are ordered as the SDIRS variable from the top Makefile.org
+$! The contents of these variables are copied from the LIBOBJ variable in the
+$! corresponding Makefile from each corresponding subdirectory, with .o stripped
+$! and spaces replaced with commas.
+$ LIB_ = "cryptlib,mem,mem_dbg,cversion,ex_data,cpt_err,ebcdic,"+ -
+	"uid,o_time,o_str,o_dir,o_fips.c,o_init,fips_ers,mem_clr"
+$ LIB_OBJECTS = "o_names,obj_dat,obj_lib,obj_err,obj_xref"
 $ LIB_MD2 = "md2_dgst,md2_one"
 $ LIB_MD4 = "md4_dgst,md4_one"
 $ LIB_MD5 = "md5_dgst,md5_one"
@@ -225,13 +232,13 @@ $ LIB_DES = "set_key,ecb_enc,cbc_enc,"+ -
 	"fcrypt,xcbc_enc,rpc_enc,cbc_cksm,"+ -
 	"ede_cbcm_enc,des_old,des_old2,read2pwd"
 $ LIB_RC2 = "rc2_ecb,rc2_skey,rc2_cbc,rc2cfb64,rc2ofb64"
-$ LIB_RC4 = "rc4_skey,rc4_enc,rc4_utl"
+$ LIB_RC4 = "rc4_enc,rc4_skey,rc4_utl"
 $ LIB_RC5 = "rc5_skey,rc5_ecb,rc5_enc,rc5cfb64,rc5ofb64"
 $ LIB_IDEA = "i_cbc,i_cfb64,i_ofb64,i_ecb,i_skey"
 $ LIB_BF = "bf_skey,bf_ecb,bf_enc,bf_cfb64,bf_ofb64"
 $ LIB_CAST = "c_skey,c_ecb,c_enc,c_cfb64,c_ofb64"
-$ LIB_CAMELLIA = "camellia,cmll_misc,cmll_ecb,cmll_cbc,cmll_ofb,"+ -
-	"cmll_cfb,cmll_ctr,cmll_utl"
+$ LIB_CAMELLIA = "cmll_ecb,cmll_ofb,cmll_cfb,cmll_ctr,cmll_utl,"+ -
+	"camellia,cmll_misc,cmll_cbc"
 $ LIB_SEED = "seed,seed_ecb,seed_cbc,seed_cfb,seed_ofb"
 $ LIB_MODES = "cbc128,ctr128,cts128,cfb128,ofb128,gcm128,"+ -
 	"ccm128,xts128"
@@ -264,24 +271,23 @@ $ LIB_ENGINE = "eng_err,eng_lib,eng_list,eng_init,eng_ctrl,"+ -
 	"eng_table,eng_pkey,eng_fat,eng_all,"+ -
 	"tb_rsa,tb_dsa,tb_ecdsa,tb_dh,tb_ecdh,tb_rand,tb_store,"+ -
 	"tb_cipher,tb_digest,tb_pkmeth,tb_asnmth,"+ -
-	"eng_openssl,eng_dyn,eng_cnf,eng_cryptodev,"+ -
+	"eng_openssl,eng_cnf,eng_dyn,eng_cryptodev,"+ -
 	"eng_rsax,eng_rdrand"
-$ LIB_AES = "aes_core,aes_misc,aes_ecb,aes_cbc,aes_cfb,aes_ofb,aes_ctr,"+ -
-	"aes_ige,aes_wrap"
+$ LIB_AES = "aes_misc,aes_ecb,aes_cfb,aes_ofb,aes_ctr,aes_ige,aes_wrap,"+ -
+	"aes_core,aes_cbc"
 $ LIB_BUFFER = "buffer,buf_str,buf_err"
 $ LIB_BIO = "bio_lib,bio_cb,bio_err,"+ -
 	"bss_mem,bss_null,bss_fd,"+ -
 	"bss_file,bss_sock,bss_conn,"+ -
 	"bf_null,bf_buff,b_print,b_dump,"+ -
-	"b_sock,bss_acpt,bf_nbio,bss_rtcp,bss_bio,bss_log,"+ -
+	"b_sock,bss_acpt,bf_nbio,bss_log,bss_bio,"+ -
 	"bss_dgram,"+ -
-	"bf_lbuf"
+	"bf_lbuf,bss_rtcp" ! The last two are VMS specific
 $ LIB_STACK = "stack"
 $ LIB_LHASH = "lhash,lh_stats"
 $ LIB_RAND = "md_rand,randfile,rand_lib,rand_err,rand_egd,"+ -
-	"rand_vms"
+	"rand_vms" ! The last one is VMS specific
 $ LIB_ERR = "err,err_all,err_prn"
-$ LIB_OBJECTS = "o_names,obj_dat,obj_lib,obj_err,obj_xref"
 $ LIB_EVP = "encode,digest,evp_enc,evp_key,evp_acnf,evp_cnf,"+ -
 	"e_des,e_bf,e_idea,e_des3,e_camellia,"+ -
 	"e_rc4,e_aes,names,e_seed,"+ -
@@ -345,7 +351,7 @@ $ LIB_TS = "ts_err,ts_req_utils,ts_req_print,ts_rsp_utils,ts_rsp_print,"+ -
 $ LIB_JPAKE = "jpake,jpake_err"
 $ LIB_SRP = "srp_lib,srp_vfy"
 $ LIB_STORE = "str_err,str_lib,str_meth,str_mem"
-$ LIB_CMAC = "cmac,cm_ameth.c,cm_pmeth"
+$ LIB_CMAC = "cmac,cm_ameth,cm_pmeth"
 $!
 $! Setup exceptional compilations
 $!
@@ -381,7 +387,7 @@ $ MODULE_NEXT:
 $!
 $! Extract The Module Name From The Encryption List.
 $!
-$ MODULE_NAME = F$ELEMENT(MODULE_COUNTER,",",ENCRYPT_TYPES)
+$ MODULE_NAME = F$EDIT(F$ELEMENT(MODULE_COUNTER,",",ENCRYPT_TYPES),"COLLAPSE")
 $ IF MODULE_NAME.EQS."Basic" THEN MODULE_NAME = ""
 $ MODULE_NAME1 = MODULE_NAME
 $!
@@ -465,7 +471,7 @@ $ THEN
 $!
 $!   O.K, Extract The File Name From The File List.
 $!
-$   FILE_NAME = F$ELEMENT(FILE_COUNTER,",",'LIB_MODULE')
+$   FILE_NAME = F$EDIT(F$ELEMENT(FILE_COUNTER,",",'LIB_MODULE'),"COLLAPSE")
 $!
 $!   else
 $!
@@ -492,7 +498,7 @@ $!     SHOW SYMBOL APPLICATION*
 $!
 $     IF APPLICATION .NES. ";"
 $     THEN
-$       FILE_NAME = F$ELEMENT(FILE_COUNTER,",",APPLICATION_OBJECTS)
+$       FILE_NAME = F$EDIT(F$ELEMENT(FILE_COUNTER,",",APPLICATION_OBJECTS),"COLLAPSE")
 $       IF FILE_NAME .EQS. ","
 $       THEN
 $         APPLICATION = ""
@@ -1132,9 +1138,12 @@ $ CCDEFS = "TCPIP_TYPE_''P4',DSO_VMS"
 $ IF F$TYPE(USER_CCDEFS) .NES. "" THEN CCDEFS = CCDEFS + "," + USER_CCDEFS
 $ CCEXTRAFLAGS = ""
 $ IF F$TYPE(USER_CCFLAGS) .NES. "" THEN CCEXTRAFLAGS = USER_CCFLAGS
-$ CCDISABLEWARNINGS = "" !!! "LONGLONGTYPE,LONGLONGSUFX,FOUNDCR"
-$ IF F$TYPE(USER_CCDISABLEWARNINGS) .NES. "" THEN -
-	CCDISABLEWARNINGS = CCDISABLEWARNINGS + "," + USER_CCDISABLEWARNINGS
+$ CCDISABLEWARNINGS = "" !!! "MAYLOSEDATA3" !!! "LONGLONGTYPE,LONGLONGSUFX,FOUNDCR"
+$ IF F$TYPE(USER_CCDISABLEWARNINGS) .NES. ""
+$ THEN
+$     IF CCDISABLEWARNINGS .NES. "" THEN CCDISABLEWARNINGS = CCDISABLEWARNINGS + ","
+$     CCDISABLEWARNINGS = CCDISABLEWARNINGS + USER_CCDISABLEWARNINGS
+$ ENDIF
 $!
 $! Check To See If We Have A ZLIB Option.
 $!
@@ -1299,6 +1308,18 @@ $!  Finish up the definition of CC.
 $!
 $   IF COMPILER .EQS. "DECC"
 $   THEN
+$!    Not all compiler versions support MAYLOSEDATA3.
+$     OPT_TEST = "MAYLOSEDATA3"
+$     DEFINE /USER_MODE SYS$ERROR NL:
+$     DEFINE /USER_MODE SYS$OUTPUT NL:
+$     'CC' /NOCROSS_REFERENCE /NOLIST /NOOBJECT -
+       /WARNINGS = DISABLE = ('OPT_TEST', EMPTYFILE) NL:
+$     IF ($SEVERITY)
+$     THEN
+$       IF CCDISABLEWARNINGS .NES. "" THEN -
+         CCDISABLEWARNINGS = CCDISABLEWARNINGS+ ","
+$       CCDISABLEWARNINGS = CCDISABLEWARNINGS+ OPT_TEST
+$     ENDIF
 $     IF CCDISABLEWARNINGS .EQS. ""
 $     THEN
 $       CC4DISABLEWARNINGS = "DOLLARID"

@@ -266,6 +266,16 @@ long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg)
 	case DTLS_CTRL_LISTEN:
 		ret = dtls1_listen(s, parg);
 		break;
+	case SSL_CTRL_CHECK_PROTO_VERSION:
+		/* For library-internal use; checks that the current protocol
+		 * is the highest enabled version (according to s->ctx->method,
+		 * as version negotiation may have changed s->method). */
+#if DTLS_MAX_VERSION != DTLS1_VERSION
+#  error Code needs update for DTLS_method() support beyond DTLS1_VERSION.
+#endif
+		/* Just one protocol version is supported so far;
+		 * fail closed if the version is not as expected. */
+		return s->version == DTLS_MAX_VERSION;
 
 	default:
 		ret = ssl3_ctrl(s, cmd, larg, parg);

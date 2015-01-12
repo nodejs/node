@@ -74,6 +74,10 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | XN_FLAG_FN_SN;
 
 namespace node {
+
+bool SSL2_ENABLE = false;
+bool SSL3_ENABLE = false;
+
 namespace crypto {
 
 using v8::Array;
@@ -98,6 +102,7 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::V8;
 using v8::Value;
+
 
 
 // Forcibly clear OpenSSL's error stack on return. This stops stale errors
@@ -336,11 +341,23 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       return env->ThrowError("SSLv2 methods disabled");
 #endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_server_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
+#ifndef OPENSSL_NO_SSL3
       method = SSLv3_client_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv3 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
@@ -789,7 +806,7 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IntegerValue()) {
+  if (args.Length() != 1 && !args[0]->IsUint32()) {
     return sc->env()->ThrowTypeError("Bad parameter");
   }
 
@@ -5151,6 +5168,9 @@ void InitCrypto(Handle<Object> target,
                   PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
                                           EVP_PKEY_decrypt_init,
                                           EVP_PKEY_decrypt>);
+
+  NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
+  NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
 }
 
 }  // namespace crypto

@@ -1,4 +1,3 @@
-/* $LP: LPlib/source/LPdir_vms.c,v 1.20 2004/08/26 13:36:05 _cvs_levitte Exp $ */
 /*
  * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
  * All rights reserved.
@@ -87,6 +86,12 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
     {
       size_t filespeclen = strlen(directory);
       char *filespec = NULL;
+
+      if (filespeclen == 0)
+	{
+	  errno = ENOENT;
+	  return 0;
+	}
 
       /* MUST be a VMS directory specification!  Let's estimate if it is. */
       if (directory[filespeclen-1] != ']'

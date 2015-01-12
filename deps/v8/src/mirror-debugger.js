@@ -1,6 +1,7 @@
 // Copyright 2006-2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+"use strict";
 
 // Handle id counters.
 var next_handle_ = 0;
@@ -44,7 +45,7 @@ function MakeMirror(value, opt_transient) {
 
   // Look for non transient mirrors in the mirror cache.
   if (!opt_transient && mirror_cache_enabled_) {
-    for (id in mirror_cache_) {
+    for (var id in mirror_cache_) {
       mirror = mirror_cache_[id];
       if (mirror.value() === value) {
         return mirror;
@@ -1246,11 +1247,11 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    str = %_CallFunction(this.value_, builtins.ErrorToString);
+    text = %_CallFunction(this.value_, builtins.ErrorToString);
   } catch (e) {
-    str = '#<Error>';
+    text = '#<Error>';
   }
-  return str;
+  return text;
 };
 
 
