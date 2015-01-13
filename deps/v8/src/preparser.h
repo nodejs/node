@@ -467,7 +467,7 @@ class ParserBase : public Traits {
   void ReportMessageAt(Scanner::Location location, const char* message,
                        bool is_reference_error = false) {
     Traits::ReportMessageAt(location, message,
-                            reinterpret_cast<const char*>(NULL),
+                            reinterpret_cast<const char*>(0),
                             is_reference_error);
   }
 

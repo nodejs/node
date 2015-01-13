@@ -141,7 +141,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (bytes_read < 8) break;
     unsigned end = StringToLong(addr_buffer);
     char buffer[MAP_LENGTH];
-    int bytes_read = -1;
+    bytes_read = -1;
     do {
       bytes_read++;
       if (bytes_read >= MAP_LENGTH - 1)
