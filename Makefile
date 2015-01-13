@@ -155,7 +155,7 @@ test-npm: $(NODE_EXE)
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js install
+	     ../../$(NODE_EXE) cli.js install --ignore-scripts
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
