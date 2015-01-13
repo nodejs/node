@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var assert = require('assert'),
-  child_process = require('child_process');
+  child_process = require('child_process'),
   spawn = child_process.spawn,
   fork = child_process.fork,
   execFile = child_process.execFile,
@@ -107,7 +107,7 @@ assert.throws(function() { spawn(cmd, n, o); }, TypeError);
 assert.throws(function() { spawn(cmd, a, n); }, TypeError);
 
 assert.throws(function() { spawn(cmd, s); }, TypeError);
-assert.doesNotThrow(function() { spawn(cmd, a, s); }, TypeError);
+assert.throws(function() { spawn(cmd, a, s); }, TypeError);
 
 
 // verify that execFile has same argument parsing behaviour as spawn
