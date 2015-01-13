@@ -20,6 +20,7 @@ NODE_G_EXE = iojs_g$(EXEEXT)
 # or set the V environment variable to an empty string.
 V ?= 1
 
+USE_NINJA ?= 0
 ifeq ($(USE_NINJA),1)
 ifneq ($(V),)
 NINJA := $(NINJA) -v
