@@ -1,2 +1,2 @@
 test/fixtures/* -text
-*.bat text eol=crlf
+vcbuild.bat text eol=crlf
