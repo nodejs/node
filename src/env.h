@@ -92,7 +92,6 @@ namespace node {
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
-  V(headers_string, "headers")                                                \
   V(heap_size_limit_string, "heap_size_limit")                                \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
@@ -114,7 +113,6 @@ namespace node {
   V(mark_sweep_compact_string, "mark-sweep-compact")                          \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
-  V(method_string, "method")                                                  \
   V(minttl_string, "minttl")                                                  \
   V(mode_string, "mode")                                                      \
   V(model_string, "model")                                                    \
@@ -176,7 +174,6 @@ namespace node {
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
-  V(should_keep_alive_string, "shouldKeepAlive")                              \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
   V(smalloc_p_string, "_smalloc_p")                                           \
@@ -184,8 +181,6 @@ namespace node {
   V(sni_context_string, "sni_context")                                        \
   V(speed_string, "speed")                                                    \
   V(stack_string, "stack")                                                    \
-  V(status_code_string, "statusCode")                                         \
-  V(status_message_string, "statusMessage")                                   \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
@@ -209,16 +204,12 @@ namespace node {
   V(type_string, "type")                                                      \
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
-  V(upgrade_string, "upgrade")                                                \
-  V(url_string, "url")                                                        \
   V(used_heap_size_string, "used_heap_size")                                  \
   V(user_string, "user")                                                      \
   V(uv_string, "uv")                                                          \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
   V(verify_error_string, "verifyError")                                       \
-  V(version_major_string, "versionMajor")                                     \
-  V(version_minor_string, "versionMinor")                                     \
   V(version_string, "version")                                                \
   V(weight_string, "weight")                                                  \
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
