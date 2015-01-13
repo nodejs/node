@@ -56,6 +56,7 @@ if /i "%1"=="test-uv"       set test=test-uv&goto arg-ok
 if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test=test-pummel&goto arg-ok
 if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
+if /i "%1"=="test-ci"       set test=test-ci&goto arg-ok
 if /i "%1"=="test-message"  set test=test-message&goto arg-ok
 if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
@@ -168,6 +169,7 @@ if "%test%"=="test" set test_args=%test_args% sequential parallel message -J
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% sequential parallel
+if "%test%"=="test-ci" set test_args=%test_args% parallel sequential message addons
 if "%test%"=="test-message" set test_args=%test_args% message
 if "%test%"=="test-gc" set test_args=%test_args% gc
 if "%test%"=="test-all" set test_args=%test_args%
@@ -200,7 +202,7 @@ python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --noj
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-ci/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
