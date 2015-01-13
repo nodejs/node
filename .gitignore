@@ -66,7 +66,7 @@ deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
 
 # build/release artifacts
-/*.tar.gz
+/*.tar.*
 /SHASUMS*.txt*
 
 /tools/wrk/wrk

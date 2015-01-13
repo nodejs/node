@@ -247,9 +247,10 @@ ifdef NIGHTLY
 TAG = nightly-$(NIGHTLY)
 TARNAME=iojs-$(VERSION)-$(TAG)
 endif
-TARBALL=$(TARNAME).tar.gz
+TARBALL=$(TARNAME).tar
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
-BINARYTAR=$(BINARYNAME).tar.gz
+BINARYTAR=$(BINARYNAME).tar
+XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
@@ -314,10 +315,15 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
 	rm -rf $(TARNAME)/deps/v8/test # too big
 	rm -rf $(TARNAME)/doc/images # too big
+	rm -rf $(TARNAME)/deps/zlib/contrib # too big, unused
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
-	gzip -f -9 $(TARNAME).tar
+	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
+ifeq ($(XZ), 0)
+	xz -c -f -9 $(TARNAME).tar > $(TARNAME).tar.xz
+endif
+	rm $(TARNAME).tar
 
 tar: $(TARBALL)
 
@@ -331,7 +337,11 @@ $(BINARYTAR): release-only
 	cp ChangeLog $(BINARYNAME)
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	rm -rf $(BINARYNAME)
-	gzip -f -9 $(BINARYNAME).tar
+	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
+ifeq ($(XZ), 0)
+	xz -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.xz
+endif
+	rm $(BINARYNAME).tar
 
 binary: $(BINARYTAR)
 
