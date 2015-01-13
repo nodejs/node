@@ -1266,8 +1266,14 @@ static void Initialize(Handle<Object> target,
               Integer::New(env->isolate(), AF_UNSPEC));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_ADDRCONFIG"),
               Integer::New(env->isolate(), AI_ADDRCONFIG));
+#ifdef __FreeBSD__
+  // FreeBSD's getaddrinfo does not support AI_V4MAPPED
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
+              Integer::New(env->isolate(), 0));
+#else
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED));
+#endif  // __FreeBSD__
 
   Local<FunctionTemplate> aiw =
       FunctionTemplate::New(env->isolate(), NewGetAddrInfoReqWrap);
