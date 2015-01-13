@@ -108,9 +108,11 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
-build-addons: $(NODE_EXE)
+rebuild-doc-addons: $(NODE_EXE)
 	rm -rf test/addons/doc-*/
 	./$(NODE_EXE) tools/doc/addon-verify.js
+
+build-addons: rebuild-doc-addons
 	$(foreach dir, \
 			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
 			./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
