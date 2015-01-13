@@ -608,9 +608,8 @@ void Thread::Join() {
 
 
 void Thread::YieldCPU() {
-  int result = sched_yield();
-  DCHECK_EQ(0, result);
-  USE(result);
+  const timespec delay = { 0, 1 };
+  nanosleep(&delay, NULL);
 }
 
 

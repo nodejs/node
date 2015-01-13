@@ -1,7 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-"use strict";
 
 // Default number of frames to include in the response to backtrace request.
 var kDefaultBacktraceLength = 10;
@@ -671,7 +670,7 @@ Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
                                                     condition, enabled,
                                                     opt_position_alignment)
 {
-  var break_point = MakeBreakPoint(position);
+  break_point = MakeBreakPoint(position);
   break_point.setCondition(condition);
   if (!enabled) {
     break_point.disable();
@@ -738,7 +737,7 @@ Debug.clearBreakPoint = function(break_point_number) {
 
 Debug.clearAllBreakPoints = function() {
   for (var i = 0; i < break_points.length; i++) {
-    var break_point = break_points[i];
+    break_point = break_points[i];
     %ClearBreakPoint(break_point);
   }
   break_points = [];
