@@ -117,7 +117,7 @@ class Unique {
 
   // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
   static Unique<T> CreateUninitialized(Handle<T> handle) {
-    return Unique<T>(reinterpret_cast<Address>(NULL), handle);
+    return Unique<T>(NULL, handle);
   }
 
   static Unique<T> CreateImmovable(Handle<T> handle) {
