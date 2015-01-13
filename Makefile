@@ -223,8 +223,10 @@ docclean:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+FULLVERSION=$(VERSION)
 RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
 DESTCPU ?= x64
 else
@@ -239,11 +241,11 @@ else
 ARCH=x86
 endif
 endif
-TARNAME=iojs-$(VERSION)
 ifdef NIGHTLY
 TAG = nightly-$(NIGHTLY)
-TARNAME=iojs-$(VERSION)-$(TAG)
+FULLVERSION=$(VERSION)-$(TAG)
 endif
+TARNAME=iojs-$(FULLVERSION)
 TARBALL=$(TARNAME).tar
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar
@@ -299,6 +301,7 @@ $(PKG): release-only
 		-create
 	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
 	rm -rf $(PKGDIR)/32
+	cat tools/osx-pkg.pmdoc/index.xml.tmpl | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > tools/osx-pkg.pmdoc/index.xml
 	$(packagemaker) \
 		--id "org.nodejs.Node" \
 		--doc tools/osx-pkg.pmdoc \
