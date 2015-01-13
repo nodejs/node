@@ -4,7 +4,7 @@ var assert = require('assert');
 var spawnSync = require('child_process').spawnSync;
 
 var TIMER = 200;
-var SLEEP = 1000;
+var SLEEP = 5000;
 
 switch (process.argv[2]) {
   case 'child':
