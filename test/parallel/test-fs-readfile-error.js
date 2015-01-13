@@ -3,6 +3,12 @@ var assert = require('assert');
 var exec = require('child_process').exec;
 var path = require('path');
 
+// `fs.readFile('/')` does not fail on FreeBSD
+if (process.platform === 'freebsd') {
+  console.error('Skipping test, platform not supported.');
+  process.exit();
+}
+
 var callbacks = 0;
 
 function test(env, cb) {
