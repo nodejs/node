@@ -68,6 +68,7 @@ distclean:
 	-rm -rf node_modules
 	-rm -rf deps/icu
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	-rm -f $(BINARYTAR).* $(TARBALL).*
 
 test: all
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
