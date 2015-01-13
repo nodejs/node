@@ -34,6 +34,7 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::Exception;
 using v8::Function;
@@ -46,6 +47,7 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 const uint32_t kOnHeaders = 0;
@@ -218,55 +220,68 @@ class Parser : public BaseObject {
 
 
   HTTP_CB(on_headers_complete) {
+    // Arguments for the on-headers-complete javascript callback. This
+    // list needs to be kept in sync with the actual argument list for
+    // `parserOnHeadersComplete` in lib/_http_common.js.
+    enum on_headers_complete_arg_index {
+      A_VERSION_MAJOR = 0,
+      A_VERSION_MINOR,
+      A_HEADERS,
+      A_METHOD,
+      A_URL,
+      A_STATUS_CODE,
+      A_STATUS_MESSAGE,
+      A_UPGRADE,
+      A_SHOULD_KEEP_ALIVE,
+      A_MAX
+    };
+
+    Local<Value> argv[A_MAX];
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(kOnHeadersComplete);
 
     if (!cb->IsFunction())
       return 0;
 
-    Local<Object> message_info = Object::New(env()->isolate());
+    Local<Value> undefined = Undefined(env()->isolate());
+    for (size_t i = 0; i < ARRAY_SIZE(argv); i++)
+      argv[i] = undefined;
 
     if (have_flushed_) {
       // Slow case, flush remaining headers.
       Flush();
     } else {
       // Fast case, pass headers and URL to JS land.
-      message_info->Set(env()->headers_string(), CreateHeaders());
+      argv[A_HEADERS] = CreateHeaders();
       if (parser_.type == HTTP_REQUEST)
-        message_info->Set(env()->url_string(), url_.ToString(env()));
+        argv[A_URL] = url_.ToString(env());
     }
-    num_fields_ = num_values_ = 0;
+
+    num_fields_ = 0;
+    num_values_ = 0;
 
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
-      message_info->Set(env()->method_string(),
-                        Uint32::NewFromUnsigned(env()->isolate(),
-                                                parser_.method));
+      argv[A_METHOD] =
+          Uint32::NewFromUnsigned(env()->isolate(), parser_.method);
     }
 
     // STATUS
     if (parser_.type == HTTP_RESPONSE) {
-      message_info->Set(env()->status_code_string(),
-                        Integer::New(env()->isolate(), parser_.status_code));
-      message_info->Set(env()->status_message_string(),
-                        status_message_.ToString(env()));
+      argv[A_STATUS_CODE] =
+          Integer::New(env()->isolate(), parser_.status_code);
+      argv[A_STATUS_MESSAGE] = status_message_.ToString(env());
     }
 
     // VERSION
-    message_info->Set(env()->version_major_string(),
-                      Integer::New(env()->isolate(), parser_.http_major));
-    message_info->Set(env()->version_minor_string(),
-                      Integer::New(env()->isolate(), parser_.http_minor));
+    argv[A_VERSION_MAJOR] = Integer::New(env()->isolate(), parser_.http_major);
+    argv[A_VERSION_MINOR] = Integer::New(env()->isolate(), parser_.http_minor);
 
-    message_info->Set(env()->should_keep_alive_string(),
-                      http_should_keep_alive(&parser_) ?
-                          True(env()->isolate()) : False(env()->isolate()));
+    argv[A_SHOULD_KEEP_ALIVE] =
+        Boolean::New(env()->isolate(), http_should_keep_alive(&parser_));
 
-    message_info->Set(env()->upgrade_string(),
-                      parser_.upgrade ? True(env()->isolate())
-                                      : False(env()->isolate()));
+    argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
-    Local<Value> argv[1] = { message_info };
     Local<Value> head_response =
         cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
 
