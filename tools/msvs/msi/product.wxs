@@ -25,7 +25,7 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A later version of io.js is already installed. Setup will now exit."/>
 
-    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
+    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\iojs.ico"/>
     <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
     <Property Id="ApplicationFolderName" Value="iojs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
