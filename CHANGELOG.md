@@ -58,9 +58,9 @@ https://iojs.org/api/console.html
 
 https://iojs.org/api/cluster.html
 
-(**DETAILS TO BE ADDED HERE**)
-
 - Updated `cluster` to use round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
+- `--debug` has been made cluster-aware.
+- Many bug fixes.
 
 ### crypto
 
