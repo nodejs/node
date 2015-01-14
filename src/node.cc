@@ -2570,6 +2570,9 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "zlib",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  READONLY_PROPERTY(versions,
+                    "ares",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
