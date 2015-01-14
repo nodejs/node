@@ -225,7 +225,7 @@
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="io.js documentation"
-                               Target="https://iojs.org/dist/v$(var.ProductVersion)/docs/api/"
+                               Target="https://iojs.org/dist/v$(var.ProductVersion)/doc/api/"
                                Type="url"/>
       </Component>
     </DirectoryRef>
