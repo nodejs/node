@@ -200,7 +200,7 @@ $(apidoc_dirs):
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
-out/doc/changelog.html: ChangeLog doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
+out/doc/changelog.html: CHANGELOG.md doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
 	bash tools/build-changelog.sh
 
 out/doc/%: doc/%
@@ -212,7 +212,7 @@ out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
 out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
 	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
-email.md: ChangeLog tools/email-footer.md
+email.md: CHANGELOG.md tools/email-footer.md
 	bash tools/changelog-head.sh | sed 's|^\* #|* \\#|g' > $@
 	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
 
@@ -335,7 +335,7 @@ $(BINARYTAR): release-only
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
-	cp ChangeLog $(BINARYNAME)
+	cp CHANGELOG.md $(BINARYNAME)
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	rm -rf $(BINARYNAME)
 	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz

@@ -1,5 +1,5 @@
 #!/bin/bash
-cat ChangeLog \
+cat CHANGELOG.md \
   | sed -E 's|([^/ ]+/[^#]+)#([0-9]+)|[\1#\2](https://github.com/\1/issues/\2)|g' \
   | sed -E 's| #([0-9]+)| [#\1](https://github.com/joyent/node/issues/\1)|g' \
   | sed -E 's|([0-9]+\.[0-9]+\.[0-9]+),? Version ([0-9]+\.[0-9]+\.[0-9]+)|<a id="v\2"></a>\
