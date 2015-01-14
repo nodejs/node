@@ -14,7 +14,7 @@ if [ ! -d benchmark/ ]; then
 fi
 
 if [ $SERVER == "127.0.0.1" ]; then
-  ./node benchmark/http_simple.js &
+  ./iojs benchmark/http_simple.js &
   node_pid=$!
   sleep 1
 fi
