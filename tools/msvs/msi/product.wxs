@@ -49,6 +49,13 @@
       <ComponentRef Id="AppData" />
       <ComponentGroupRef Id="Product.Generated"/>
 
+      <Feature Id="NodeAlias"
+               Level="1"
+               Title="Alias node to iojs"
+               Description="Create node.exe as an alias for iojs.exe.">
+        <ComponentRef Id="NodeAlias"/>
+      </Feature>
+
       <Feature Id="NodePerfCtrSupport"
                Level="1"
                Title="Performance counters"
@@ -115,6 +122,12 @@
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="NodeExecutable">
         <File Id="iojs.exe" KeyPath="yes" Source="$(var.SourceDir)\iojs.exe"/>
+      </Component>
+
+      <Component Id="NodeAlias" Guid="fde09cce-a503-4409-a3c4-61ae2a5a5906">
+        <!-- Always remove node.exe. The hard link will be recreated by the
+             `LinkNodeExeToIojsExe` custom action whenever needed. -->
+        <RemoveFile Id="node.exe" Name="node.exe" On="both" />
       </Component>
 
       <Component Id="NodeVarsScript">
@@ -248,6 +261,19 @@
                      Value="[AppDataFolder]npm"/>
       </Component>
     </DirectoryRef>
+
+    <CustomAction Id="LinkNodeExeToIojsExe"
+                  FileKey="iojs.exe"
+                  ExeCommand="-e &quot; require('fs').linkSync(process.execPath, require('path').resolve(process.execPath, '../node.exe')); &quot;"
+                  Impersonate="no"
+                  Execute="deferred"
+                  Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="LinkNodeExeToIojsExe" After="InstallFiles">
+        $NodeAlias = 3
+      </Custom>
+    </InstallExecuteSequence>
 
     <UI Id="NodeInstallUI">
       <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8"/>
