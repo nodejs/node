@@ -16,7 +16,7 @@
            Language="1033"
            Version="$(var.ProductVersion)"
            Manufacturer="$(var.ProductAuthor)"
-           UpgradeCode="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
+           UpgradeCode="47c07a3a-42ef-4213-a85d-8f5a59077c28">
 
     <Package InstallerVersion="200" Compressed="yes"/>
 
