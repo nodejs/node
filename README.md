@@ -60,7 +60,7 @@ $ make doc
 To read the documentation:
 
 ```text
-$ man doc/node.1
+$ man doc/iojs.1
 ```
 
 ### Windows
