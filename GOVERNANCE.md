@@ -20,7 +20,7 @@ experience with the management of the io.js project. Membership is
 expected to evolve over time according to the needs of the project.
 
 For the current list of TC members, see the project
-[README.md](./#current-project-team-members).
+[README.md](./README.md#current-project-team-members).
 
 ## Collaborators
 
