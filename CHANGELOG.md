@@ -1,5 +1,12 @@
 # io.js ChangeLog
 
+## 2015-01-14, Version 1.0.1
+
+Rebuild due to stale build slave git reflogs for 1.0.0 release
+
+* doc: improve write style consistency (Rui Marinho)
+* win,msi: correct doc website link (Bert Belder)
+
 --------------------------------------
 
 Below is a summary of the user-facing changes to be found in the io.js v1.0.0 release as compared to the
