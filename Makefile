@@ -188,11 +188,7 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-website_files = \
-	out/doc/sh_main.js    \
-	out/doc/sh_javascript.min.js
-
-doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
+doc: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
 
 $(apidoc_dirs):
 	mkdir -p $@
