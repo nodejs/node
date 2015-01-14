@@ -14,11 +14,11 @@ repository and therefore can be seen as an extension to v0.11.
 
 - The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5.9 in Node.js v0.10.35 and 3.26.33 in Node.js v0.11.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes and performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
 - Other bundled technologies were upgraded:
-  - libuv: 0.10.30 to 1.2.0
-  - http_parser: 1.0 to 2.3
-  - openssl: 1.0.1j to 1.0.1k
-  - npm: 1.4.28 to 2.1.18
   - c-ares: 1.9.0-DEV to 1.10.0-DEV
+  - http_parser: 1.0 to 2.3
+  - libuv: 0.10.30 to 1.2.0
+  - npm: 1.4.28 to 2.1.18
+  - openssl: 1.0.1j to 1.0.1k
   - punycode: 1.2.0 to 1.3.2.
 - Performance and stability improvements on all platforms.
 
@@ -26,26 +26,26 @@ repository and therefore can be seen as an extension to v0.11.
 
 https://iojs.org/api/buffer.html
 
-- Added `new Buffer(otherBuffer)` constructor.
-- Changed the output of `buffer.toJSON()` to not be the same as an array. Instead it is an object specifically tagged as a buffer, which can be recovered by passing it to (a new overload of) the `Buffer` constructor.
+- Added `buf.writeUIntLE`, `buf.writeUIntBE`, `buf.writeIntLE`, `buf.writeIntBE`, `buf.readUIntLE`, `buf.readUIntBE`, `buf.readIntLE` and `buf.readIntBE` methods that read and write value up to 6 bytes.
 - Added `Buffer.compare()` which does a `memcmp()` on two Buffer instances. Instances themselves also have a `compare()`.
 - Added `buffer.equals()` that checks equality of Buffers by their contents.
-- `SlowBuffer`'s semantics were tweaked.
-- Added `buf.writeUIntLE`, `buf.writeUIntBE`, `buf.writeIntLE`, `buf.writeIntBE`, `buf.readUIntLE`, `buf.readUIntBE`, `buf.readIntLE` and `buf.readIntBE` that read and write value up to 6 bytes.
+- Added `new Buffer(otherBuffer)` constructor.
+- Tweaked `SlowBuffer`'s semantics.
+- Updated the output of `buffer.toJSON()` to not be the same as an array. Instead it is an object specifically tagged as a buffer, which can be recovered by passing it to (a new overload of) the `Buffer` constructor.
 
 ### child_process
 
 https://iojs.org/api/child_process.html
 
-- Added synchronous counterparts for the child process functions: `child_process.spawnSync`, `child_process.execSync`, and `child_process.execFileSync`.
 - Added a `shell` option to `child_process.exec`.
+- Added synchronous counterparts for the child process functions: `child_process.spawnSync`, `child_process.execSync`, and `child_process.execFileSync`.
 - Added the path to any `ENOENT` errors, for easier debugging.
 
 ### console
 
 https://iojs.org/api/console.html
 
-- Added an options parameter to `console.dir`.
+- Added an `options` parameter to `console.dir`.
 
 ### cluster
 
@@ -53,92 +53,92 @@ https://iojs.org/api/cluster.html
 
 (**DETAILS TO BE ADDED HERE**)
 
-- Cluster now uses round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
+- Updated `cluster` to use round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
 
 ### crypto
 
 https://iojs.org/api/crypto.html
 
-- Setting and getting of authentication tags and setting additional authentication data is now possible for use with ciphers such as AES-GCM.
-- `Sign.sign()` now allows you to pass in a passphrase for decrypting the signing key.
-- `DiffieHellman` now supports custom generator values (defaulting to 2 for backwards compatibility).
+- Added support for custom generator values to `DiffieHellman` (defaulting to 2 for backwards compatibility).
+- Added support for custom pbkdf2 digest methods.
 - Added support for elliptic curve-based Diffie-Hellman.
-- Added support for RSA public encryption and private decryption {rephrase this maybe}
-- Custom pbkdf2 digest methods
-- OpenSSL engine support
-- Support for private key passphrase in every method that accepts it
+- Added support for loading and setting the engine for some/all OpenSSL functions.
+- Added support for passing in a passphrase for decrypting the signing key to `Sign.sign()`.
+- Added support for private key passphrase in every method that accepts it.
+- Added support for RSA public/private encryption/decryption functionality.
+- Added support for setting and getting of authentication tags and setting additional authentication data when using ciphers such as AES-GCM.
 
 ### dgram
 
 https://iojs.org/api/dgram.html
 
-- Made it possible to receive empty UDP packets.
+- Added support for receiving empty UDP packets.
 
 ### dns
 
 https://iojs.org/api/dns.html
 
-- Added `dns.resolveSoa`, `dns.getServers`, and `dns.setServers`.
-- Error messages include the hostname when available.
-- More consistent error handling.
+- Added `dns.resolveSoa`, `dns.getServers`, and `dns.setServers` methods.
+- Added `hostname` on error messages when available.
+- Improved error handling consistency.
 
 ### events
 
 https://iojs.org/api/events.html
 
-- `require("events")` now returns the `EventEmitter` constructor. Which means the module could also be used like this `var EventEmitter = require('events')` instead of `var EventEmitter = require('events').EventEmitter`.
-- `ee.setMaxListeners` now returns `this` to support chaining.
+- Added chaining support to `EventEmitter.setMaxListeners`.
+- Updated `require('events')` to return the `EventEmitter` constructor, allowing the module to be used like `var EventEmitter = require('events')` instead of `var EventEmitter = require('events').EventEmitter`.
 
 ### fs
 
 https://iojs.org/api/fs.html
 
-- Missing callbacks will now cause errors to be thrown, instead of just printed.
 - Added `fs.access`, and deprecated `fs.exists`. Please read the documentation carefully.
-- Added option to `fs.watch` for recursive sub-directory support, on OS X only.
-- Setting the `NODE_DEBUG` environment variable will give more informative errors that show the call site of the `fs` call.
+- Added more informative errors and method call site details when the `NODE_DEBUG` environment is set to ease debugging.
+- Added option to `fs.watch` for recursive sub-directory support (OS X only).
+- Fixed missing callbacks errors just being printed instead of thrown.
 
 ### http
 
 https://iojs.org/api/http.html
 
-- Proper Keep-Alive behavior (**DETAILS TO BE ADDED**)
-- Added 308 status code; see RFC 7238.
-- Stopped defaulting `DELETE` and `OPTIONS` to chunked encoding.
+- Added support for `response.write` and `response.end` to receive a callback to know when the operation completes.
+- Added support for 308 status code (see RFC 7238).
+- Added `http.METHODS` array, listing the HTTP methods supported by the parser.
+- Added `request.flush` method.
+- Added `response.getHeader('header')` method that may be used before headers are flushed.
 - Added `response.statusMessage` property.
-- Added `http.METHODS` array, listing the HTTP methods suported by the parser.
-- Added `response.getHeader("header")` method that may be used before headers are flushed.
-- `response.write` and `response.end` now take a callback to know when the operation completes.
-- Added `request.flush()`.
+- Fixed Keep-Alive behavior (**DETAILS TO BE ADDED**)
+- Removed default chunked encoding on `DELETE` and `OPTIONS`.
 
 ### os
 
 https://iojs.org/api/os.html
 
-- `os.networkInterfaces()` now includes MAC addresses and netmasks as well as scope IDs for IPv6 addresses in its output.
-- On Windows, `os.tmpdir()` now uses the `%SystemRoot%` or `%WINDIR%` environment variables instead of the hardcoded value of `c:\windows` when determining the temporary directory location.
+- Added MAC addresses, netmasks and scope IDs for IPv6 addresses to `os.networkInterfaces` method output.
+- Updated `os.tmpdir` on Windows to use the `%SystemRoot%` or `%WINDIR%` environment variables instead of the hard-coded value of `c:\windows` when determining the temporary directory location.
 
 ### path
 
 https://iojs.org/api/path.html
 
-- Added `path.isAbsolute` and `path.parse`.
+- Added `path.isAbsolute` and `path.parse` methods.
 - Added `path.win32` and `path.posix` objects that contain platform-specific versions of the various `path` functions.
-- `path.join` is now faster.
+- Improved `path.join` performance.
 
 ### process
 
 https://iojs.org/api/process.html
 
-- Added `process.mainModule` and `process.exitCode`.
 - Added `beforeExit` event.
+- Added `process.mainModule` and `process.exitCode`.
 
 ### querystring
 
 https://iojs.org/api/querystring.html
 
 - Added the ability to pass custom versions of `encodeURIComponent` and `decodeURIComponent` when stringifying or parsing a querystring.
-- Several bug-fixes to the formatting of query strings in edge cases.
+- Fixed several issues with the formatting of query strings in edge cases.
 
 ### smalloc
 
@@ -157,9 +157,9 @@ unnoticed by the majority of stream consumers and implementers.
 
 #### Readable streams
 
-The distinction between "flowing" and "non-flowing" modes has been refined. Entering "flowing" mode is 
-no longer an irreversible operation&mdash;it is possible to return to "non-flowing" mode from "flowing" mode. 
-Additionally, the two modes now flow through the same machinery instead of replacing methods. Any time 
+The distinction between "flowing" and "non-flowing" modes has been refined. Entering "flowing" mode is
+no longer an irreversible operation&mdash;it is possible to return to "non-flowing" mode from "flowing" mode.
+Additionally, the two modes now flow through the same machinery instead of replacing methods. Any time
 data is returned as a result of a `.read` call that data will *also* be emitted on the `"data"` event.
 
 As before, adding a listener for the `"readable"` or `"data"` event will start flowing the stream; as
@@ -190,48 +190,48 @@ For a detailed overview of how streams3 interact, [see this diagram](https://clo
 
 https://iojs.org/api/timers.html
 
-- `process.maxTickDepth` has been removed, allowing `process.nextTick` to be used recursively without limit.
-- `setImmediate` now processes the full queue each turn of the event loop, instead of one per queue.
+- Removed `process.maxTickDepth`, allowing `process.nextTick` to be used recursively without limit.
+- Updated `setImmediate` to process the full queue each turn of the event loop, instead of one per queue.
 
 ### tls
 
 https://iojs.org/api/tls.html
 
-- Removed SSLv2 and SSLv3 support.
-- Implemented TLS streams in C++, boosting their performance.
-- ECDSA/ECDHE cipher support.
+- Added `detailed` boolean flag to `getPeerCertificate` to return detailed certificate information (with raw DER bytes).
+- Added `renegotiate(options, callback)` method for session renegotiation.
+- Added `setMaxSendFragment` method for varying TLS fragment size.
 - Added a `dhparam` option for DH ciphers.
 - Added a `ticketKeys` option for TLS ticket AES encryption keys setup.
-- Multi-key server support (for example, ECDSA+RSA server).
-- Async SNI callback
-- Async OCSP-stapling callback
-- Async session storage events
-- Optional `checkServerIdentity` callback for manual certificate validation in user-land
-- `.getPeerCertificate(true)` - to return detailed certificate information (with raw DER bytes)
+- Added async OCSP-stapling callback.
+- Added async session storage events.
+- Added async SNI callback.
+- Added multi-key server support (for example, ECDSA+RSA server).
+- Added optional callback to `checkServerIdentity` for manual certificate validation in user-land.
+- Added support for ECDSA/ECDHE cipher.
+- Implemented TLS streams in C++, boosting their performance.
 - Moved `createCredentials` to `tls` and renamed it to `createSecureContext`.
-- `.setMaxSendFragment()` method for varying TLS fragment size
-- `.renegotiate(options, callback)` method for session renegotiation
+- Removed SSLv2 and SSLv3 support.
 
 ### url
 
 https://iojs.org/api/url.html
 
-- Improved parsing speed.
 - Added support for `path` option in `url.format`, which encompasses `pathname`, `query`, and `search`.
-- Better escaping of certain characters.
+- Improved escaping of certain characters.
+- Improved parsing speed.
 
 ### util
 
 https://iojs.org/api/util.html
 
-- `util.format` received several changes:
+- Added `util.debuglog`.
+- Added a plethora of new type-testing methods. See [the docs](https://iojs.org/api/util.html).
+- Updated `util.format` to receive several changes:
   - `-0` is now displayed as such, instead of as `0`.
   - Anything that is `instanceof Error` is now formatted as an error.
+  - Circular references in JavaScript objects are now handled for the `%j` specifier.
   - Custom `inspect` functions are now allowed to return an object.
   - Custom `inspect` functions now receive any arguments passed to `util.inspect`.
-  - Circular references in JavaScript objects are now handled for the `%j` specifier.
-- A plethora of new type-testing methods were added. See [the docs](https://iojs.org/api/util.html).
-- Added `util.debuglog`.
 
 ## v8
 
@@ -243,22 +243,22 @@ https://iojs.org/api/v8.html
 
 https://iojs.org/api/vm.html
 
-The vm module has been rewritten to work better, based on the excellent [Contextify](https://github.com/brianmcd/contextify) native module. All of the functionality of Contextify is now in core, with improvements!
+The `vm` module has been rewritten to work better, based on the excellent [Contextify](https://github.com/brianmcd/contextify) native module. All of the functionality of Contextify is now in core, with improvements!
 
-- There is no longer any error-prone copying of properties back and forth between the supplied sandbox object and the global that appears inside the scripts run by the `vm` module. Instead, the supplied sandbox object is used directly as the global.
-- `vm.createContext(sandbox)` now "contextifies" sandbox, making it suitable for use as a global for `vm` scripts, and then returns it. It no longer creates a separate context object.
-- The new `vm.isContext(obj)` method determines whether `obj` has been contextified.
-- The new `vm.runInDebugContext(code)` method compiles and executes `code` inside the V8 debug context.
-- Most of the `vm` and `vm.Script` methods now take an options object, allowing you to configure a timeout for the script, the error display behavior, and sometimes the filename (for stack traces).
+- Added `vm.isContext(object)` method to determine whether `object` has been contextified.
+- Added `vm.runInDebugContext(code)` method to compile and execute `code` inside the V8 debug context.
+- Updated `vm.createContext(sandbox)` to "contextify" the sandbox, making it suitable for use as a global for `vm` scripts, and then return it. It no longer creates a separate context object.
+- Updated most `vm` and `vm.Script` methods to accept an `options` object, allowing you to configure a timeout for the script, the error display behavior, and sometimes the filename (for stack traces).
+- Updated the supplied sandbox object to be used directly as the global, remove error-prone copying of properties back and forth between the supplied sandbox object and the global that appears inside the scripts run by the `vm` module.
 
-For more information, see the vm documentation linked above.
+For more information, see the `vm` documentation linked above.
 
 ### zlib
 
 https://iojs.org/api/zlib.html
 
-- `zlib.params` allows for dynamically updating the compression level and strategy when deflating.
-- `zlib.flush` allows specifying a particular flush method (defaulting to `Z_FULL_FLUSH`).
+- Added support for `zlib.flush` to specify a particular flush method (defaulting to `Z_FULL_FLUSH`).
+- Added support for `zlib.params` to dynamically update the compression level and strategy when deflating.
 - Added synchronous versions of the zlib methods.
 
 ### C++ API Changes
@@ -269,31 +269,31 @@ In general it is recommended that you use [NAN](https://github.com/rvagg/nan) as
 
 #### V8 highlights
 
-- Exposed method signature has changed from `Handle<Value> Method(const Arguments& args)` to `void Method(const v8::FunctionCallbackInfo<Value>& args)` with the newly introduced `FunctionCallbackInfo` also taking the return value via `args.GetReturnValue().Set(value)` instead of `scope.Close(value)`, `Arguments` has been removed
-- Exposed setter signature has changed from `void Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<void>& args)`
-- Exposed getter signature has changed from `void Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
-- Exposed property setter signature has changed from `Handle<Value> Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
-- Exposed property getter signature has changed from `Handle<Value> Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
-- Similar changes have been made to property enumerators, property deleters, property query, index getter, index setter, index enumerator, index deleter, index query
-- V8 objects instantiated in C++ now require an `Isolate*` argument as the first argument. In most cases it is OK to simply pass `v8::Isolate::GetCurrent()`, e.g. `Date::New(Isolate::GetCurrent(), time)`, or `String::NewFromUtf8(Isolate::GetCurrent(), "foobar")`
-- `HandleScope scope` now requires an `Isolate*` argument, i.e. `HandleScope scope(isolate)`, in most cases `v8::Isolate::GetCurrent()` is OK
-- Similar changes have been made to `Locker` and `Unlocker`
-- V8 objects that need to "escape" a scope should be enclosed in a `EscapableHandleScope` rather than a `HandleScope` and should be returned with `scope.Escape(value)`
-- Exceptions are now thrown from isolates with `isolate->ThrowException(ExceptionObject)`
-- `Context::GetCurrent()` must now be done on an isolate, e.g. `Isolate::GetCurrent()->GetCurrentContext()`
-- `String::NewSymbol()` has been removed, use plain strings instead
-- `String::New()` has been removed, use `String::NewFromUtf8()` instead
-- `Persistent` objects no longer inherit from `Handle` and cannot be instantiated with another object. Instead, the `Persistent` should simply be declared, e.g. `Persistent<Type> handle` and then have a `Local` assigned to it with `handle.Reset(isolate, value)`. To get a `Local` from a `Persistent` you must instantiate it w as the argument, i.e. `Local::New(Isolate*, Persistent)`.
+- Exposed method signature has changed from `Handle<Value> Method(const Arguments& args)` to `void Method(const v8::FunctionCallbackInfo<Value>& args)` with the newly introduced `FunctionCallbackInfo` also taking the return value via `args.GetReturnValue().Set(value)` instead of `scope.Close(value)`, `Arguments` has been removed.
+- Exposed setter signature has changed from `void Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<void>& args)`.
+- Exposed getter signature has changed from `void Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+- Exposed property setter signature has changed from `Handle<Value> Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+- Exposed property getter signature has changed from `Handle<Value> Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+- Similar changes have been made to property enumerators, property deleters, property query, index getter, index setter, index enumerator, index deleter, index query.
+- V8 objects instantiated in C++ now require an `Isolate*` argument as the first argument. In most cases it is OK to simply pass `v8::Isolate::GetCurrent()`, e.g. `Date::New(Isolate::GetCurrent(), time)`, or `String::NewFromUtf8(Isolate::GetCurrent(), "foobar")`.
+- `HandleScope scope` now requires an `Isolate*` argument, i.e. `HandleScope scope(isolate)`, in most cases `v8::Isolate::GetCurrent()` is OK.
+- Similar changes have been made to `Locker` and `Unlocker`.
+- V8 objects that need to "escape" a scope should be enclosed in a `EscapableHandleScope` rather than a `HandleScope` and should be returned with `scope.Escape(value)`.
+- Exceptions are now thrown from isolates with `isolate->ThrowException(ExceptionObject)`.
+- `Context::GetCurrent()` must now be done on an isolate, e.g. `Isolate::GetCurrent()->GetCurrentContext()`.
+- `String::NewSymbol()` has been removed, use plain strings instead.
+- `String::New()` has been removed, use `String::NewFromUtf8()` instead.
+- `Persistent` objects no longer inherit from `Handle` and cannot be instantiated with another object. Instead, the `Persistent` should simply be declared, e.g. `Persistent<Type> handle` and then have a `Local` assigned to it with `handle.Reset(isolate, value)`. To get a `Local` from a `Persistent` you must instantiate it as the argument, i.e. `Local::New(Isolate*, Persistent)`.
 
 #### Node / io.js
 
-- `node::Buffer::New()` now returns a `Handle` directly so you no longer need to fetch the `handle_` property.
-- `node::MakeCallback()` now requires an `Isolate*` as the first argument. Generally `Isolate::GetCurrent()` will be OK for this.
+- Updated `node::Buffer::New()` to return a `Handle` directly so you no longer need to fetch the `handle_` property.
+- Updated `node::MakeCallback()` to require an `Isolate*` as the first argument. Generally `Isolate::GetCurrent()` will be OK for this.
 
 
 --------------------------------------
 
-**The ChangeLog below was inherited from joyent/node prior to the io.js fork.**
+**The changelog below was inherited from joyent/node prior to the io.js fork.**
 
 
 ## 2014.09.24, Version 0.11.14 (Unstable)
@@ -3474,133 +3474,133 @@ https://github.com/iojs/io.js/commit/f711d5343b29d1e72e87107315708e40951a7826
 ## 2010.04.29, Version 0.1.93
 
 https://github.com/iojs/io.js/commit/557ba6bd97bad3afe0f9bd3ac07efac0a39978c1
-  
+
   * Fixed no 'end' event on long chunked HTTP messages
     https://github.com/joyent/node/issues/77
-  
+
   * Remove legacy modules http_old and tcp_old
   * Support DNS MX queries (Jérémy Lal)
-  
+
   * Fix large socket write (tlb@tlb.org)
   * Fix child process exit codes (Felix Geisendörfer)
-  
+
   * Allow callers to disable PHP/Rails style parameter munging in
     querystring.stringify (Thomas Lee)
-  
+
   * Upgrade V8 to 2.2.6
 
 ## 2010.04.23, Version 0.1.92
 
 https://github.com/iojs/io.js/commit/caa828a242f39b6158084ef4376355161c14fe34
-  
+
   * OpenSSL support. Still undocumented (see tests). (Rhys Jones)
   * API: Unhandled 'error' events throw.
-  
+
   * Script class with eval-function-family in binding('evals') plus tests.
     (Herbert Vojcik)
-  
+
   * stream.setKeepAlive (Julian Lamb)
   * Bugfix: Force no body on http 204 and 304
-  
+
   * Upgrade Waf to 1.5.16, V8 to 2.2.4.2
 
 ## 2010.04.15, Version 0.1.91
 
 https://github.com/iojs/io.js/commit/311d7dee19034ff1c6bc9098c36973b8d687eaba
-  
+
   * Add incoming.httpVersion
   * Object.prototype problem with C-Ares binding
-  
+
   * REPL can be run from multiple different streams. (Matt Ranney)
   * After V8 heap is compact, don't use a timer every 2 seconds.
-  
+
   * Improve nextTick implementation.
   * Add primative support for Upgrading HTTP connections.
     (See commit log for docs 760bba5)
-  
+
   * Add timeout and maxBuffer options to child_process.exec
   * Fix bugs.
-  
+
   * Upgrade V8 to 2.2.3.1
 
 ## 2010.04.09, Version 0.1.90
 
 https://github.com/iojs/io.js/commit/07e64d45ffa1856e824c4fa6afd0442ba61d6fd8
-  
+
   * Merge writing of networking system (net2)
    - New Buffer object for binary data.
    - Support UNIX sockets, Pipes
    - Uniform stream API
    - Currently no SSL
    - Legacy modules can be accessed at 'http_old' and 'tcp_old'
-  
+
   * Replace udns with c-ares. (Krishna Rajendran)
   * New documentation system using Markdown and Ronn
     (Tim Caswell, Micheil Smith)
-  
+
   * Better idle-time GC
   * Countless small bug fixes.
-  
+
   * Upgrade V8 to 2.2.X, WAF 1.5.15
 
 ## 2010.03.19, Version 0.1.33
 
 https://github.com/iojs/io.js/commit/618296ef571e873976f608d91a3d6b9e65fe8284
-  
+
   * Include lib/ directory in node executable. Compile on demand.
   * evalcx clean ups (Isaac Z. Schlueter, Tim-Smart)
-  
+
   * Various fixes, clean ups
   * V8 upgraded to 2.1.5
 
 ## 2010.03.12, Version 0.1.32
 
 https://github.com/iojs/io.js/commit/61c801413544a50000faa7f58376e9b33ba6254f
-  
+
   * Optimize event emitter for single listener
   * Add process.evalcx, require.registerExtension (Tim Smart)
-  
+
   * Replace --cflags with --vars
   * Fix bugs in fs.create*Stream (Felix Geisendörfer)
-  
+
   * Deprecate process.mixin, process.unloop
   * Remove the 'Error: (no message)' exceptions, print stack
     trace instead
-  
+
   * INI parser bug fixes (Isaac Schlueter)
   * FreeBSD fixes (Vanilla Hsu)
-  
+
   * Upgrade to V8 2.1.3, WAF 1.5.14a, libev
 
 ## 2010.03.05, Version 0.1.31
 
 https://github.com/iojs/io.js/commit/39b63dfe1737d46a8c8818c92773ef181fd174b3
-  
+
   * API: - Move process.watchFile into fs module
          - Move process.inherits to sys
-  
+
   * Improve Solaris port
   * tcp.Connection.prototype.write now returns boolean to indicate if
     argument was flushed to the kernel buffer.
-  
+
   * Added fs.link, fs.symlink, fs.readlink, fs.realpath
     (Rasmus Andersson)
-  
+
   * Add setgid,getgid (James Duncan)
   * Improve sys.inspect (Benjamin Thomas)
-  
+
   * Allow passing env to child process (Isaac Schlueter)
   * fs.createWriteStream, fs.createReadStream (Felix Geisendörfer)
-  
+
   * Add INI parser (Rob Ellis)
   * Bugfix: fs.readFile handling encoding (Jacek Becela)
-  
+
   * Upgrade V8 to 2.1.2
 
 ## 2010.02.22, Version 0.1.30
 
 https://github.com/iojs/io.js/commit/bb0d1e65e1671aaeb21fac186b066701da0bc33b
-  
+
   * Major API Changes
     - Promises removed. See
       http://groups.google.com/group/nodejs/msg/426f3071f3eec16b
@@ -3619,20 +3619,20 @@ https://github.com/iojs/io.js/commit/bb0d1e65e1671aaeb21fac186b066701da0bc33b
       renamed to pause() and resume()
     - http.ServerResponse.prototype.sendHeader() renamed to
       writeHeader(). Now accepts reasonPhrase.
-  
+
   * Compact garbage on idle.
   * Configurable debug ports, and --debug-brk (Zoran Tomicic)
-  
+
   * Better command line option parsing (Jeremy Ashkenas)
   * Add fs.chmod (Micheil Smith), fs.lstat (Isaac Z. Schlueter)
-  
+
   * Fixes to process.mixin (Rasmus Andersson, Benjamin Thomas)
   * Upgrade V8 to 2.1.1
 
 ## 2010.02.17, Version 0.1.29
 
 https://github.com/iojs/io.js/commit/87d5e5b316a4276bcf881f176971c1a237dcdc7a
-  
+
   * Major API Changes
     - Remove 'file' module
     - require('posix') -----------------> require('fs')
@@ -3649,100 +3649,100 @@ https://github.com/iojs/io.js/commit/87d5e5b316a4276bcf881f176971c1a237dcdc7a
       takes an argument. Add the 'response' listener manually.
     - Allow strings for the flag argument to fs.open
       ("r", "r+", "w", "w+", "a", "a+")
-  
+
   * Added multiple arg support for sys.puts(), print(), etc.
     (tj@vision-media.ca)
-  
+
   * sys.inspect(Date) now shows the date value (Mark Hansen)
   * Calculate page size with getpagesize for armel (Jérémy Lal)
-  
+
   * Bugfix: stderr flushing.
   * Bugfix: Promise late chain (Yuichiro MASUI)
-  
+
   * Bugfix: wait() on fired promises
     (Felix Geisendörfer, Jonas Pfenniger)
-  
+
   * Bugfix: Use InstanceTemplate() instead of PrototypeTemplate() for
     accessor methods. Was causing a crash with Eclipse debugger.
     (Zoran Tomicic)
-  
+
   * Bugfix: Throw from connection.connect if resolving.
     (Reported by James Golick)
 
 ## 2010.02.09, Version 0.1.28
 
 https://github.com/iojs/io.js/commit/49de41ef463292988ddacfb01a20543b963d9669
-  
+
   * Use Google's jsmin.py which can be used for evil.
   * Add posix.truncate()
-  
+
   * Throw errors from server.listen()
   * stdio bugfix (test by Mikeal Rogers)
-  
+
   * Module system refactor (Felix Geisendörfer, Blaine Cook)
   * Add process.setuid(), getuid() (Michael Carter)
-  
+
   * sys.inspect refactor (Tim Caswell)
   * Multipart library rewrite (isaacs)
 
 ## 2010.02.03, Version 0.1.27
 
 https://github.com/iojs/io.js/commit/0cfa789cc530848725a8cb5595224e78ae7b9dd0
-  
+
   * Implemented __dirname (Felix Geisendörfer)
   * Downcase process.ARGV, process.ENV, GLOBAL
     (now process.argv, process.env, global)
-  
+
   * Bug Fix: Late promise promise callbacks firing
     (Felix Geisendörfer, Jonas Pfenniger)
-  
+
   * Make assert.AssertionError instance of Error
   * Removed inline require call for querystring
     (self@cloudhead.net)
-  
+
   * Add support for MX, TXT, and SRV records in DNS module.
     (Blaine Cook)
-  
+
   * Bugfix: HTTP client automatically reconnecting
   * Adding OS X .dmg build scripts. (Standa Opichal)
-  
+
   * Bugfix: ObjectWrap memory leak
   * Bugfix: Multipart handle Content-Type headers with charset
     (Felix Geisendörfer)
-  
+
   * Upgrade http-parser to fix header overflow attack.
   * Upgrade V8 to 2.1.0
-  
+
   * Various other bug fixes, performance improvements.
 
 ## 2010.01.20, Version 0.1.26
 
 https://github.com/iojs/io.js/commit/da00413196e432247346d9e587f8c78ce5ceb087
-  
+
   * Bugfix, HTTP eof causing crash (Ben Williamson)
   * Better error message on SyntaxError
-  
+
   * API: Move Promise and EventEmitter into 'events' module
   * API: Add process.nextTick()
-  
+
   * Allow optional params to setTimeout, setInterval
     (Micheil Smith)
-  
+
   * API: change some Promise behavior (Felix Geisendörfer)
     - Removed Promise.cancel()
     - Support late callback binding
     - Make unhandled Promise errors throw an exception
-  
+
   * Upgrade V8 to 2.0.6.1
   * Solaris port (Erich Ocean)
 
 ## 2010.01.09, Version 0.1.25
 
 https://github.com/iojs/io.js/commit/39ca93549af91575ca9d4cbafd1e170fbcef3dfa
-  
+
   * sys.inspect() improvements (Tim Caswell)
   * path module improvements (isaacs, Benjamin Thomas)
-  
+
   * API: request.uri -> request.url
     It is no longer an object, but a string. The 'url' module
     was addded to parse that string. That is, node no longer
@@ -3750,151 +3750,151 @@ https://github.com/iojs/io.js/commit/39ca93549af91575ca9d4cbafd1e170fbcef3dfa
        require('url').parse(request.url)
     is roughly equivlent to the old request.uri object.
     (isaacs)
-  
+
   * Bugfix: Several libeio related race conditions.
   * Better errors for multipart library (Felix Geisendörfer)
-  
+
   * Bugfix: Update node-waf version to 1.5.10
   * getmem for freebsd (Vanilla Hsu)
 
 ## 2009.12.31, Version 0.1.24
 
 https://github.com/iojs/io.js/commit/642c2773a7eb2034f597af1cd404b9e086b59632
-  
+
   * Bugfix: don't chunk responses to HTTP/1.0 clients, even if
     they send Connection: Keep-Alive (e.g. wget)
-  
+
   * Bugfix: libeio race condition
   * Bugfix: Don't segfault on unknown http method
-  
+
   * Simplify exception reporting
   * Upgrade V8 to 2.0.5.4
 
 ## 2009.12.22, Version 0.1.23
 
 https://github.com/iojs/io.js/commit/f91e347eeeeac1a8bd6a7b462df0321b60f3affc
-  
+
   * Bugfix: require("../blah") issues (isaacs)
   * Bugfix: posix.cat (Jonas Pfenniger)
-  
+
   * Do not pause request for multipart parsing (Felix Geisendörfer)
 
 ## 2009.12.19, Version 0.1.22
 
 https://github.com/iojs/io.js/commit/a2d809fe902f6c4102dba8f2e3e9551aad137c0f
-  
+
   * Bugfix: child modules get wrong id with "index.js" (isaacs)
   * Bugfix: require("../foo") cycles (isaacs)
-  
+
   * Bugfix: require() should throw error if module does.
   * New URI parser stolen from Narwhal (isaacs)
-  
+
   * Bugfix: correctly check kqueue and epoll. (Rasmus Andersson)
   * Upgrade WAF to 1.5.10
-  
+
   * Bugfix: posix.statSync() was crashing
   * Statically define string symbols for performance improvement
-  
+
   * Bugfix: ARGV[0] weirdness
   * Added superCtor to ctor.super_ instead superCtor.prototype.
     (Johan Dahlberg)
-  
+
   * http-parser supports webdav methods
   * API: http.Client.prototype.request() (Christopher Lenz)
 
 ## 2009.12.06, Version 0.1.21
 
 https://github.com/iojs/io.js/commit/c6affb64f96a403a14d20035e7fbd6d0ce089db5
-  
+
   * Feature: Add HTTP client TLS support (Rhys Jones)
   * Bugfix: use --jobs=1 with WAF
-  
+
   * Bugfix: Don't use chunked encoding for 1.0 requests
   * Bugfix: Duplicated header weren't handled correctly
-  
+
   * Improve sys.inspect (Xavier Shay)
   * Upgrade v8 to 2.0.3
-  
+
   * Use CommonJS assert API (Felix Geisendörfer, Karl Guertin)
 
 ## 2009.11.28, Version 0.1.20
 
 https://github.com/iojs/io.js/commit/aa42c6790da8ed2cd2b72051c07f6251fe1724d8
-  
+
   * Add gnutls version to configure script
   * Add V8 heap info to process.memoryUsage()
-  
+
   * process.watchFile callback has 2 arguments with the stat object
     (choonkeat@gmail.com)
 
 ## 2009.11.28, Version 0.1.19
 
 https://github.com/iojs/io.js/commit/633d6be328708055897b72327b88ac88e158935f
-  
+
   * Feature: Initial TLS support for TCP servers and clients.
     (Rhys Jones)
-  
+
   * Add options to process.watchFile()
   * Add process.umask() (Friedemann Altrock)
-  
+
   * Bugfix: only detach timers when active.
   * Bugfix: lib/file.js write(), shouldn't always emit errors or success
     (onne@onnlucky.com)
-  
+
   * Bugfix: Memory leak in fs.write
     (Reported by onne@onnlucky.com)
-  
+
   * Bugfix: Fix regular expressions detecting outgoing message headers.
     (Reported by Elliott Cable)
-  
+
   * Improvements to Multipart parser (Felix Geisendörfer)
   * New HTTP parser
-  
+
   * Upgrade v8 to 2.0.2
 
 ## 2009.11.17, Version 0.1.18
 
 https://github.com/iojs/io.js/commit/027829d2853a14490e6de9fc5f7094652d045ab8
-  
+
   * Feature: process.watchFile() process.unwatchFile()
   * Feature: "uncaughtException" event on process
     (Felix Geisendörfer)
-  
+
   * Feature: 'drain' event to tcp.Connection
   * Bugfix: Promise.timeout() blocked the event loop
     (Felix Geisendörfer)
-  
+
   * Bugfix: sendBody() and chunked utf8 strings
     (Felix Geisendörfer)
-  
+
   * Supply the strerror as a second arg to the tcp.Connection close
     event (Johan Sørensen)
-  
+
   * Add EventEmitter.removeListener (frodenius@gmail.com)
   * Format JSON for inspecting objects (Felix Geisendörfer)
-  
+
   * Upgrade libev to latest CVS
 
 ## 2009.11.07, Version 0.1.17
 
 https://github.com/iojs/io.js/commit/d1f69ef35dac810530df8249d523add168e09f03
-  
+
   * Feature: process.chdir() (Brandon Beacher)
   * Revert http parser upgrade. (b893859c34f05db5c45f416949ebc0eee665cca6)
     Broke keep-alive.
-  
+
   * API: rename process.inherits to sys.inherits
 
 ## 2009.11.03, Version 0.1.16
 
 https://github.com/iojs/io.js/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
-  
+
   * API: Use CommonJS-style module requiring
     - require("/sys.js") becomes require("sys")
     - require("circle.js") becomes require("./circle")
     - process.path.join() becomes require("path").join()
     - __module becomes module
-  
+
   * API: Many namespacing changes
     - Move node.* into process.*
     - Move node.dns into module "dns"
@@ -3903,208 +3903,208 @@ https://github.com/iojs/io.js/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
   For more information on the API changes see:
     http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
     http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14
-  
+
   * Feature: process.platform, process.memoryUsage()
   * Feature: promise.cancel() (Felix Geisendörfer)
-  
+
   * Upgrade V8 to 1.3.18
 
 ## 2009.10.28, Version 0.1.15
 
 https://github.com/iojs/io.js/commit/eca2de73ed786b935507fd1c6faccd8df9938fd3
-  
+
   * Many build system fixes (esp. for OSX users)
   * Feature: promise.timeout() (Felix Geisendörfer)
-  
+
   * Feature: Added external interface for signal handlers, process.pid, and
     process.kill() (Brandon Beacher)
-  
+
   * API: Rename node.libraryPaths to require.paths
   * Bugfix: 'data' event for stdio should emit a string
-  
+
   * Large file support
   * Upgrade http_parser
-  
+
   * Upgrade v8 to 1.3.16
 
 ## 2009.10.09, Version 0.1.14
 
 https://github.com/iojs/io.js/commit/b12c809bb84d1265b6a4d970a5b54ee8a4890513
-  
+
   * Feature: Improved addon builds with node-waf
   * Feature: node.SignalHandler (Brandon Beacher)
-  
+
   * Feature: Enable V8 debugging (but still need to make a debugger)
   * API: Rename library /utils.js to /sys.js
-  
+
   * Clean up Node's build system
   * Don't use parseUri for HTTP server
-  
+
   * Remove node.pc
   * Don't use /bin/sh to create child process except with exec()
-  
+
   * API: Add __module to reference current module
   * API: Remove include() add node.mixin()
-  
+
   * Normalize http headers; "Content-Length" becomes "content-length"
   * Upgrade V8 to 1.3.15
 
 ## 2009.09.30, Version 0.1.13
 
 https://github.com/iojs/io.js/commit/58493bb05b3da3dc8051fabc0bdea9e575c1a107
-  
+
   * Feature: Multipart stream parser (Felix Geisendörfer)
   * API: Move node.puts(), node.exec() and others to /utils.js
-  
+
   * API: Move http, tcp libraries to /http.js and /tcp.js
   * API: Rename node.exit() to process.exit()
-  
+
   * Bugfix: require() and include() should work in callbacks.
   * Pass the Host header in http.cat calls
-  
+
   * Add warning when coroutine stack size grows too large.
   * Enhance repl library (Ray Morgan)
-  
+
   * Bugfix: build script for
       GCC 4.4 (removed -Werror in V8),
       on Linux 2.4,
       and with Python 2.4.4.
-  
+
   * Add read() and write() to /file.js to read and write
     whole files at once.
 
 ## 2009.09.24, Version 0.1.12
 
 https://github.com/iojs/io.js/commit/2f56ccb45e87510de712f56705598b3b4e3548ec
-  
+
   * Feature: System modules, node.libraryPaths
   * API: Remove "raw" encoding, rename "raws" to "binary".
-  
+
   * API: Added connection.setNoDElay() to disable Nagle algo.
   * Decrease default TCP server backlog to 128
-  
+
   * Bugfix: memory leak involving node.fs.* methods.
   * Upgrade v8 to 1.3.13
 
 ## 2009.09.18, Version 0.1.11
 
 https://github.com/iojs/io.js/commit/5ddc4f5d0c002bac0ae3d62fc0dc58f0d2d83ec4
-  
+
   * API: default to utf8 encoding for node.fs.cat()
   * API: add node.exec()
-  
+
   * API: node.fs.read() takes a normal encoding parameter.
   * API: Change arguments of emit(), emitSuccess(), emitError()
-  
+
   * Bugfix: node.fs.write() was stack allocating buffer.
   * Bugfix: ReportException shouldn't forget the top frame.
-  
+
   * Improve buffering for HTTP outgoing messages
   * Fix and reenable x64 macintosh build.
-  
+
   * Upgrade v8 to 1.3.11
 
 ## 2009.09.11, Version 0.1.10
 
 https://github.com/iojs/io.js/commit/12bb0d46ce761e3d00a27170e63b40408c15b558
-  
+
   * Feature: raw string encoding "raws"
   * Feature: access to environ through "ENV"
-  
+
   * Feature: add isDirectory, isFile, isSocket, ... methods
     to stats object.
-  
+
   * Bugfix: Internally use full paths when loading modules
     this fixes a shebang loading problem.
-  
+
   * Bugfix: Add '--' command line argument for seperating v8
     args from program args.
-  
+
   * Add man page.
   * Add node-repl
-  
+
   * Upgrade v8 to 1.3.10
 
 ## 2009.09.05, Version 0.1.9
 
 https://github.com/iojs/io.js/commit/d029764bb32058389ecb31ed54a5d24d2915ad4c
-  
+
   * Bugfix: Compile on Snow Leopard.
   * Bugfix: Malformed URIs raising exceptions.
 ## 2009.09.04, Version 0.1.8
 
 https://github.com/iojs/io.js/commit/e6d712a937b61567e81b15085edba863be16ba96
-  
+
   * Feature: External modules
   * Feature: setTimeout() for node.tcp.Connection
-  
+
   * Feature: add node.cwd(), node.fs.readdir(), node.fs.mkdir()
   * Bugfix: promise.wait() releasing out of order.
-  
+
   * Bugfix: Asyncly do getaddrinfo() on Apple.
   * Disable useless evcom error messages.
-  
+
   * Better stack traces.
   * Built natively on x64.
-  
+
   * Upgrade v8 to 1.3.9
 ## 2009.08.27, Version 0.1.7
 
 https://github.com/iojs/io.js/commit/f7acef9acf8ba8433d697ad5ed99d2e857387e4b
-  
+
   * Feature: global 'process' object. Emits "exit".
   * Feature: promise.wait()
-  
+
   * Feature: node.stdio
   * Feature: EventEmitters emit "newListener" when listeners are
     added
-  
+
   * API:  Use flat object instead of array-of-arrays for HTTP
     headers.
-  
+
   * API: Remove buffered file object (node.File)
   * API: require(), include() are synchronous. (Uses
     continuations.)
-  
+
   * API: Deprecate onLoad and onExit.
   * API: Rename node.Process to node.ChildProcess
-  
+
   * Refactor node.Process to take advantage of evcom_reader/writer.
   * Upgrade v8 to 1.3.7
 ## 2009.08.22, Version 0.1.6
 
 https://github.com/iojs/io.js/commit/9c97b1db3099d61cd292aa59ec2227a619f3a7ab
-  
+
   * Bugfix: Ignore SIGPIPE.
 ## 2009.08.21, Version 0.1.5
 
 https://github.com/iojs/io.js/commit/b0fd3e281cb5f7cd8d3a26bd2b89e1b59998e5ed
-  
+
   * Bugfix: Buggy connections could crash node.js. Now check
     connection before sending data every time (Kevin van Zonneveld)
-  
+
   * Bugfix: stdin fd (0) being ignored by node.File. (Abe Fettig)
   * API: Remove connnection.fullClose()
-  
+
   * API: Return the EventEmitter from addListener for chaining.
   * API: tcp.Connection "disconnect" event renamed to "close"
-  
+
   * Upgrade evcom
     Upgrade v8 to 1.3.6
 ## 2009.08.13, Version 0.1.4
 
 https://github.com/iojs/io.js/commit/0f888ed6de153f68c17005211d7e0f960a5e34f3
-  
+
   * Major refactor to evcom.
   * Enable test-tcp-many-clients.
-  
+
   * Add -m32 gcc flag to udns.
   * Add connection.readPause() and connection.readResume()
     Add IncomingMessage.prototype.pause() and resume().
-  
+
   * Fix http benchmark. Wasn't correctly dispatching.
   * Bugfix: response.setBodyEncoding("ascii") not working.
-  
+
   * Bugfix: Negative ints in HTTP's on_body and node.fs.read()
   * Upgrade v8 to 1.3.4
     Upgrade libev to 3.8
@@ -4112,119 +4112,119 @@ https://github.com/iojs/io.js/commit/0f888ed6de153f68c17005211d7e0f960a5e34f3
 ## 2009.08.06, Version 0.1.3
 
 https://github.com/iojs/io.js/commit/695f0296e35b30cf8322fd1bd934810403cca9f3
-  
+
   * Upgrade v8 to 1.3.2
   * Bugfix: node.http.ServerRequest.setBodyEncoding('ascii') not
     working
-  
+
   * Bugfix: node.encodeUtf8 was broken. (Connor Dunn)
   * Add ranlib to udns Makefile.
-  
+
   * Upgrade evcom - fix accepting too many connections issue.
   * Initial support for shebang
-  
+
   * Add simple command line switches
   * Add node.version API
 
 ## 2009.08.01, Version 0.1.2
 
 https://github.com/iojs/io.js/commit/025a34244d1cea94d6d40ad7bf92671cb909a96c
-  
+
   * Add DNS API
   * node.tcp.Server's backlog option is now an argument to listen()
-  
+
   * Upgrade V8 to 1.3.1
   * Bugfix: Default to chunked for client requests without
     Content-Length.
-  
+
   * Bugfix: Line numbers in stack traces.
   * Bugfix: negative integers in raw encoding stream
-  
+
   * Bugfix: node.fs.File was not passing args to promise callbacks.
 
 ## 2009.07.27, Version 0.1.1
 
 https://github.com/iojs/io.js/commit/77d407df2826b20e9177c26c0d2bb4481e497937
-  
+
   * Simplify and clean up ObjectWrap.
   * Upgrade liboi (which is now called evcom)
     Upgrade libev to 3.7
     Upgrade V8 to 1.2.14
-  
+
   * Array.prototype.encodeUtf8 renamed to node.encodeUtf8(array)
   * Move EventEmitter.prototype.emit() completely into C++.
-  
+
   * Bugfix: Fix memory leak in event emitters.
     http://groups.google.com/group/nodejs/browse_thread/thread/a8d1dfc2fd57a6d1
-  
+
   * Bugfix: Had problems reading scripts with non-ascii characters.
   * Bugfix: Fix Detach() in node::Server
-  
+
   * Bugfix: Sockets not properly reattached if reconnected during
     disconnect event.
-  
+
   * Bugfix: Server-side clients not attached between creation and
     on_connect.
-  
+
   * Add 'close' event to node.tcp.Server
   * Simplify and clean up http.js. (Takes more advantage of event
     infrastructure.)
-  
+
   * Add benchmark scripts. Run with "make benchmark".
 
 ## 2009.06.30, Version 0.1.0
 
 https://github.com/iojs/io.js/commit/0fe44d52fe75f151bceb59534394658aae6ac328
-  
+
   * Update documentation, use asciidoc.
   * EventEmitter and Promise interfaces. (Breaks previous API.)
-  
+
   * Remove node.Process constructor in favor of node.createProcess
   * Add -m32 flags for compiling on x64 platforms.
     (Thanks to András Bártházi)
-  
+
   * Upgrade v8 to 1.2.10 and libev to 3.6
   * Bugfix: Timer::RepeatSetter wasn't working.
-  
+
   * Bugfix: Spawning many processes in a loop
     (reported by Felix Geisendörfer)
 
 ## 2009.06.24, Version 0.0.6
 
 https://github.com/iojs/io.js/commit/fbe0be19ebfb422d8fa20ea5204c1713e9214d5f
-  
+
   * Load modules via HTTP URLs (Urban Hafner)
   * Bugfix: Add HTTPConnection->size() and HTTPServer->size()
-  
+
   * New node.Process API
   * Clean up build tools, use v8's test runner.
-  
+
   * Use ev_unref() instead of starting/stopping the eio thread
     pool watcher.
 
 ## 2009.06.18, Version 0.0.5
 
 https://github.com/iojs/io.js/commit/3a2b41de74b6c343b8464a68eff04c4bfd9aebea
-  
+
   * Support for IPv6
   * Remove namespace node.constants
-  
+
   * Upgrade v8 to 1.2.8.1
   * Accept ports as strings in the TCP client and server.
-  
+
   * Bugfix: HTTP Client race
   * Bugfix: freeaddrinfo() wasn't getting called after
     getaddrinfo() for TCP servers
-  
+
   * Add "opening" to TCP client readyState
   * Add remoteAddress to TCP client
-  
+
   * Add global print() function.
 
 ## 2009.06.13, Version 0.0.4
 
 https://github.com/iojs/io.js/commit/916b9ca715b229b0703f0ed6c2fc065410fb189c
- 
+
  * Add interrupt() method to server-side HTTP requests.
  * Bugfix: onBodyComplete was not getting called on server-side
    HTTP
@@ -4232,14 +4232,14 @@ https://github.com/iojs/io.js/commit/916b9ca715b229b0703f0ed6c2fc065410fb189c
 ## 2009.06.11, Version 0.0.3
 
 https://github.com/iojs/io.js/commit/6e0dfe50006ae4f5dac987f055e0c9338662f40a
- 
+
  * Many bug fixes including the problem with http.Client on
    macintosh
- 
+
  * Upgrades v8 to 1.2.7
  * Adds onExit hook
- 
+
  * Guard against buffer overflow in http parser
  * require() and include() now need the ".js" extension
- 
+
  * http.Client uses identity transfer encoding by default.
