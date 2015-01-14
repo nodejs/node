@@ -169,26 +169,17 @@ function testSetupsCompatible(serverSetup, clientSetup) {
     return false;
   }
 
-  if (isSsl2Protocol(serverSetup.secureProtocol) ||
-      isSsl2Protocol(clientSetup.secureProtocol)) {
-
-      /*
-       * It seems that in order to be able to use SSLv2, at least the server
-       * *needs* to advertise at least one cipher compatible with it.
-       */
-      if (serverSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS) {
-        return false;
-      }
-
-      /*
-       * If only either one of the client or server specify SSLv2 as their
-       * protocol, then *both* of them *need* to advertise at least one cipher
-       * that is compatible with SSLv2.
-       */
-      if ((!isSsl2Protocol(serverSetup.secureProtocol) || !isSsl2Protocol(clientSetup.secureProtocol)) &&
-        (clientSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS || serverSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS)) {
-        return false;
-      }
+  var ssl2Used = isSsl2Protocol(serverSetup.secureProtocol) ||
+                 isSsl2Protocol(clientSetup.secureProtocol);
+  if (ssl2Used &&
+      ((serverSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS) ||
+      (clientSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS))) {
+    /*
+     * Default ciphers are not compatible with SSLv2. Both client *and*
+     * server need to specify a SSLv2 compatible cipher to be able to use
+     * SSLv2.
+     */
+    return false;
   }
 
   return true;
@@ -340,7 +331,8 @@ function runClient(port, secureProtocol, secureOptions, ciphers) {
                         {
                           rejectUnauthorized: false,
                           secureProtocol: secureProtocol,
-                          secureOptions: secureOptions
+                          secureOptions: secureOptions,
+                          ciphers: ciphers
                         },
                         function() {
 
