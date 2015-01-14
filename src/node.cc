@@ -2911,7 +2911,7 @@ static void PrintHelp() {
 #endif
 #endif
          "\n"
-         "Documentation can be found at http://nodejs.org/\n");
+         "Documentation can be found at https://iojs.org/\n");
 }
 
 
