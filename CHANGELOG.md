@@ -6,7 +6,7 @@ Below is a summary of the user-facing changes to be found in the io.js v1.0.0 re
 current _stable_ Node.js release, v0.10.35. At the time of the v1.0.0 release, the latest _unstable_
 Node.js release is v0.11.14 with much progress made towards a v0.11.15 release. The io.js codebase inherits
 the majority of the changes found in the v0.11 branch of the [joyent/node](https://github.com/joyent/node)
-repository and therefore can be seen as an xteension to v0.11.
+repository and therefore can be seen as an extension to v0.11.
 
 ## Summary of changes from Node.js v0.10.35 to io.js v1.0.0
 
