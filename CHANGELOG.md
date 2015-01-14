@@ -1,3 +1,293 @@
+# io.js ChangeLog
+
+--------------------------------------
+
+Below is a summary of the user-facing changes to be found in the io.js v1.0.0 release as compared to the
+current _stable_ Node.js release, v0.10.35. At the time of the v1.0.0 release, the latest _unstable_
+Node.js release is v0.11.14 with much progress made towards a v0.11.15 release. The io.js codebase inherits
+the majority of the changes found in the v0.11 branch of the [joyent/node](https://github.com/joyent/node)
+repository and therefore can be seen as an xteension to v0.11.
+
+## Summary of changes from Node.js v0.10.35 to io.js v1.0.0
+
+### General
+
+- The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5 in Node.js v0.10.45 and 3.26.33 in Node.js v0.10.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes, performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
+- Other bundled technologies were upgraded:
+  - libuv: 0.10.30 to 1.2.0
+  - http_parser: 1.0 to 2.3
+  - openssl: 1.0.1j to 1.0.1k
+  - npm: 1.4.28 to 2.1.18
+  - c-ares: 1.9.0-DEV to 1.10.0-DEV
+  - punycode: 1.2.0 to 1.32.
+- Performance and stability improvements on all platforms.
+
+### buffer
+
+https://iojs.org/api/buffer.html
+
+- Added `new Buffer(otherBuffer)` constructor.
+- Changed the output of `buffer.toJSON()` to not be the same as an array. Instead it is an object specifically tagged as a buffer, which can be recovered by passing it to (a new overload of) the `Buffer` constructor.
+- Added `Buffer.compare()` which does a `memcmp()` on two Buffer instances. Instances themselves also have a `compare()`.
+- Added `buffer.equals()` that checks equality of Buffers by their contents.
+- `SlowBuffer`'s semantics were tweaked.
+
+### child_process
+
+https://iojs.org/api/child_process.html
+
+- Added synchronous counterparts for the child process functions: `child_process.spawnSync`, `child_process.execSync`, and `child_process.execFileSync`.
+- Added a `shell` option to `child_process.exec`.
+- Added the path to any `ENOENT` errors, for easier debugging.
+
+### console
+
+https://iojs.org/api/console.html
+
+- Added an options parameter to `console.dir`.
+
+### cluster
+
+https://iojs.org/api/cluster.html
+
+(**DETAILS TO BE ADDED HERE**)
+
+- Cluster now uses round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
+
+### crypto
+
+https://iojs.org/api/crypto.html
+
+- Setting and getting of authentication tags and setting additional authentication data is now possible for use with ciphers such as AES-GCM.
+- `Sign.sign()` now allows you to pass in a passphrase for decrypting the signing key.
+- `DiffieHellman` now supports custom generator values (defaulting to 2 for backwards compatibility).
+- Added support for elliptic curve-based Diffie-Hellman.
+- Added support for RSA public encryption and private decryption {rephrase this maybe}
+- Custom pbkdf2 digest methods
+- OpenSSL engine support
+- Support for private key passphrase in every method that accepts it
+
+### dgram
+
+https://iojs.org/api/dgram.html
+
+- Made it possible to receive empty UDP packets.
+
+### dns
+
+https://iojs.org/api/dns.html
+
+- Added `dns.resolveSoa`, `dns.getServers`, and `dns.setServers`.
+- Error messages include the hostname when available.
+- More consistent error handling.
+
+### events
+
+https://iojs.org/api/events.html
+
+- `require("events")` now returns the `EventEmitter` constructor. Which means the module could also be used like this `var EventEmitter = require('events')` instead of `var EventEmitter = require('events').EventEmitter`.
+- `ee.setMaxListeners` now returns `this` to support chaining.
+
+### fs
+
+https://iojs.org/api/fs.html
+
+- Missing callbacks will now cause errors to be thrown, instead of just printed.
+- Added `fs.access`, and deprecated `fs.exists`. Please read the documentation carefully.
+- Added option to `fs.watch` for recursive sub-directory support, on OS X only.
+- Setting the `NODE_DEBUG` environment variable will give more informative errors that show the call site of the `fs` call.
+
+### http
+
+https://iojs.org/api/http.html
+
+- Proper Keep-Alive behavior (**DETAILS TO BE ADDED**)
+- Added 308 status code; see RFC 7238.
+- Stopped defaulting `DELETE` and `OPTIONS` to chunked encoding.
+- Added `response.statusMessage` property.
+- Added `http.METHODS` array, listing the HTTP methods suported by the parser.
+- Added `response.getHeader("header")` method that may be used before headers are flushed.
+- `response.write` and `response.end` now take a callback to know when the operation completes.
+- Added `request.flush()`.
+
+### os
+
+https://iojs.org/api/os.html
+
+- `os.networkInterfaces()` now includes MAC addresses and netmasks as well as scope IDs for IPv6 addresses in its output.
+- On Windows, `os.tmpdir()` now uses the `%SystemRoot%` or `%WINDIR%` environment variables instead of the hardcoded value of `c:\windows` when determining the temporary directory location.
+
+### path
+
+https://iojs.org/api/path.html
+
+- Added `path.isAbsolute` and `path.parse`.
+- Added `path.win32` and `path.posix` objects that contain platform-specific versions of the various `path` functions.
+- `path.join` is now faster.
+
+### querystring
+
+https://iojs.org/api/querystring.html
+
+- Added the ability to pass custom versions of `encodeURIComponent` and `decodeURIComponent` when stringifying or parsing a querystring.
+- Several bug-fixes to the formatting of query strings in edge cases.
+
+### smalloc
+
+https://iojs.org/api/smalloc.html
+
+`smalloc` is a new core module for doing (external) raw memory allocation/deallocation/copying in JavaScript.
+
+### streams
+
+https://iojs.org/api/stream.html
+
+The changes to streams are not as drastic as the transition from streams1 to streams2: they are a
+refinement of existing ideas, and should make the API slightly less surprising for humans and faster
+for computers. As a whole the changes are referred to as "streams3", but the changes should largely go
+unnoticed by the majority of stream consumers and implementers.
+
+#### Readable streams
+
+The distinction between "flowing" and "non-flowing" modes has been refined. Entering "flowing" mode is 
+no longer an irreversible operation&mdash;it is possible to return to "non-flowing" mode from "flowing" mode. 
+Additionally, the two modes now flow through the same machinery instead of replacing methods. Any time 
+data is returned as a result of a `.read` call that data will *also* be emitted on the `"data"` event.
+
+As before, adding a listener for the `"readable"` or `"data"` event will start flowing the stream; as
+will piping to another stream.
+
+#### Writable streams
+
+The ability to "bulk write" to underlying resources has been added to `Writable` streams. For stream
+implementers, one can signal that a stream is bulk-writable by specifying a [_writev](https://iojs.org/api/stream.html#stream_writable_writev_chunks_callback) method.
+Bulk writes will occur in two situations:
+
+1. When a bulk-writable stream is clearing its backlog of buffered write requests,
+2. or if an end user has made use of the new `.cork()` and `.uncork()` API methods.
+
+`.cork` and `.uncork` allow the end user to control the buffering behavior of writable streams separate
+from exerting backpressure. `.cork` indicates that the stream should accept new writes (up to `highWaterMark`),
+while `.uncork` resets that behavior and attempts to bulk-write all buffered writes to the underlying resource.
+
+The only core stream API that **currently** implements `_writev` is `net.Socket`.
+
+In addition to the bulk-write changes, the performance of repeated small writes to non-bulk-writable streams
+(such as `fs.WriteStream`) has been drastically improved. Users piping high volume log streams to disk should
+see an improvement.
+
+For a detailed overview of how streams3 interact, [see this diagram](https://cloud.githubusercontent.com/assets/37303/5728694/f9a3e300-9b20-11e4-9e14-a6938b3327f0.png).
+
+### timers
+
+https://iojs.org/api/timers.html
+
+- `process.maxTickDepth` has been removed, allowing `process.nextTick` to be used recursively without limit.
+- `setImmediate` now processes the full queue each turn of the event loop, instead of one per queue.
+
+### tls
+
+https://iojs.org/api/tls.html
+
+- Removed SSLv2 and SSLv3 support.
+- Implemented TLS streams in C++, boosting their performance.
+- ECDSA/ECDHE cipher support.
+- Added a `dhparam` option for DH ciphers.
+- Added a `ticketKeys` option for TLS ticket AES encryption keys setup.
+- Multi-key server support (for example, ECDSA+RSA server).
+- Async SNI callback
+- Async OCSP-stapling callback
+- Async session storage events
+- Optional `checkServerIdentity` callback for manual certificate validation in user-land
+- `.getPeerCertificate(true)` - to return detailed certificate information (with raw DER bytes)
+- Moved `createCredentials` to `tls` and renamed it to `createSecureContext`.
+- `.setMaxSendFragment()` method for varying TLS fragment size
+- `.renegotiate(options, callback)` method for session renegotiation
+
+### url
+
+https://iojs.org/api/url.html
+
+- Improved parsing speed.
+- Added support for `path` option in `url.format`, which encompasses `pathname`, `query`, and `search`.
+- Better escaping of certain characters.
+
+### util
+
+https://iojs.org/api/util.html
+
+- `util.format` received several changes:
+  - `-0` is now displayed as such, instead of as `0`.
+  - Anything that is `instanceof Error` is now formatted as an error.
+  - Custom `inspect` functions are now allowed to return an object.
+  - Custom `inspect` functions now receive any arguments passed to `util.inspect`.
+  - Circular references in JavaScript objects are now handled for the `%j` specifier.
+- A plethora of new type-testing methods were added. See [the docs](https://iojs.org/api/util.html).
+- Added `util.debuglog`.
+
+## v8
+
+https://iojs.org/api/v8.html
+
+`v8` is a new core module for interfacing directly with the V8 engine.
+
+### vm
+
+https://iojs.org/api/vm.html
+
+The vm module has been rewritten to work better, based on the excellent [Contextify](https://github.com/brianmcd/contextify) native module. All of the functionality of Contextify is now in core, with improvements!
+
+- There is no longer any error-prone copying of properties back and forth between the supplied sandbox object and the global that appears inside the scripts run by the `vm` module. Instead, the supplied sandbox object is used directly as the global.
+- `vm.createContext(sandbox)` now "contextifies" sandbox, making it suitable for use as a global for `vm` scripts, and then returns it. It no longer creates a separate context object.
+- The new `vm.isContext(obj)` method determines whether `obj` has been contextified.
+- The new `vm.runInDebugContext(code)` method compiles and executes `code` inside the V8 debug context.
+- Most of the `vm` and `vm.Script` methods now take an options object, allowing you to configure a timeout for the script, the error display behavior, and sometimes the filename (for stack traces).
+
+For more information, see the vm documentation linked above.
+
+### zlib
+
+https://iojs.org/api/zlib.html
+
+- `zlib.params` allows for dynamically updating the compression level and strategy when deflating.
+- `zlib.flush` allows specifying a particular flush method (defaulting to `Z_FULL_FLUSH`).
+- Added synchronous versions of the zlib methods.
+
+### C++ API Changes
+
+https://iojs.org/api/addons.html
+
+In general it is recommended that you use [NAN](https://github.com/rvagg/nan) as a compatibility layer for your addons. This will also help with future changes in the V8 and Node/io.js C++ API. Most of the following changes are already handled by NAN-specific wrappers.
+
+#### V8 highlights
+
+- Exposed method signature has changed from `Handle<Value> Method(const Arguments& args)` to `void Method(const v8::FunctionCallbackInfo<Value>& args)` with the newly introduced `FunctionCallbackInfo` also taking the return value via `args.GetReturnValue().Set(value)` instead of `scope.Close(value)`, `Arguments` has been removed
+- Exposed setter signature has changed from `void Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<void>& args)`
+- Exposed getter signature has changed from `void Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
+- Exposed property setter signature has changed from `Handle<Value> Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
+- Exposed property getter signature has changed from `Handle<Value> Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`
+- Similar changes have been made to property enumerators, property deleters, property query, index getter, index setter, index enumerator, index deleter, index query
+- V8 objects instantiated in C++ now require an `Isolate*` argument as the first argument. In most cases it is OK to simply pass `v8::Isolate::GetCurrent()`, e.g. `Date::New(Isolate::GetCurrent(), time)`, or `String::NewFromUtf8(Isolate::GetCurrent(), "foobar")`
+- `HandleScope scope` now requires an `Isolate*` argument, i.e. `HandleScope scope(isolate)`, in most cases `v8::Isolate::GetCurrent()` is OK
+- Similar changes have been made to `Locker` and `Unlocker`
+- V8 objects that need to "escape" a scope should be enclosed in a `EscapableHandleScope` rather than a `HandleScope` and should be returned with `scope.Escape(value)`
+- Exceptions are now thrown from isolates with `isolate->ThrowException(ExceptionObject)`
+- `Context::GetCurrent()` must now be done on an isolate, e.g. `Isolate::GetCurrent()->GetCurrentContext()`
+- `String::NewSymbol()` has been removed, use plain strings instead
+- `String::New()` has been removed, use `String::NewFromUtf8()` instead
+- `Persistent` objects no longer inherit from `Handle` and cannot be instantiated with another object. Instead, the `Persistent` should simply be declared, e.g. `Persistent<Type> handle` and then have a `Local` assigned to it with `handle.Reset(isolate, value)`. To get a `Local` from a `Persistent` you must instantiate it w as the argument, i.e. `Local::New(Isolate*, Persistent)`.
+
+#### Node / io.js
+
+- `node::Buffer::New()` now returns a `Handle` directly so you no longer need to fetch the `handle_` property.
+- `node::MakeCallback()` now requires an `Isolate*` as the first argument. Generally `Isolate::GetCurrent()` will be OK for this.
+
+
+--------------------------------------
+
+**The ChangeLog below was inherited from joyent/node prior to the io.js fork.**
+
+
 ## 2014.09.24, Version 0.11.14 (Unstable)
 
 * uv: Upgrade to v1.0.0-rc1
