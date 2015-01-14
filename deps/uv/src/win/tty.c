@@ -1878,6 +1878,21 @@ int uv_tty_write(uv_loop_t* loop,
 }
 
 
+int uv__tty_try_write(uv_tty_t* handle,
+                      const uv_buf_t bufs[],
+                      unsigned int nbufs) {
+  DWORD error;
+
+  if (handle->write_reqs_pending > 0)
+    return UV_EAGAIN;
+
+  if (uv_tty_write_bufs(handle, bufs, nbufs, &error))
+    return uv_translate_sys_error(error);
+
+  return uv__count_bufs(bufs, nbufs);
+}
+
+
 void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
   uv_write_t* req) {
   int err;

@@ -1,4 +1,32 @@
-2015.01.06, Version 1.2.0 (Stable)
+2015.01.15, Version 1.2.1 (Stable), 4ca78e989062a1099dc4b9ad182a98e8374134b1
+
+Changes since version 1.2.0:
+
+* unix: remove unused dtrace file (Saúl Ibarra Corretgé)
+
+* test: skip TTY select test if /dev/tty can't be opened (Saúl Ibarra Corretgé)
+
+* doc: clarify the behavior of uv_tty_init (Saúl Ibarra Corretgé)
+
+* doc: clarify how uv_async_send behaves (Saúl Ibarra Corretgé)
+
+* build: make dist now generates a full tarball (Johan Bergström)
+
+* freebsd: make uv_exepath more resilient (Saúl Ibarra Corretgé)
+
+* unix: make setting the tty mode to the same value a no-op (Saúl Ibarra
+  Corretgé)
+
+* win,tcp: support uv_try_write (Bert Belder)
+
+* test: enable test-tcp-try-write on windows (Bert Belder)
+
+* win,tty: support uv_try_write (Bert Belder)
+
+* unix: set non-block mode in uv_{pipe,tcp,udp}_open (Ben Noordhuis)
+
+
+2015.01.06, Version 1.2.0 (Stable), 09f25b13cd149c7981108fc1a75611daf1277f83
 
 Changes since version 1.1.0:
 

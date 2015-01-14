@@ -1243,7 +1243,6 @@ TEST_IMPL(closed_fd_events) {
 
   /* create a pipe and share it with a child process */
   ASSERT(0 == pipe(fd));
-  ASSERT(0 == fcntl(fd[0], F_SETFL, O_NONBLOCK));
 
   /* spawn_helper4 blocks indefinitely. */
   init_process_options("spawn_helper4", exit_cb);

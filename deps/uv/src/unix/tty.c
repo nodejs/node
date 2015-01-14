@@ -108,8 +108,10 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   struct termios tmp;
   int fd;
 
-  fd = uv__stream_fd(tty);
+  if (tty->mode == (int) mode)
+    return 0;
 
+  fd = uv__stream_fd(tty);
   if (tty->mode == UV_TTY_MODE_NORMAL && mode != UV_TTY_MODE_NORMAL) {
     if (tcgetattr(fd, &tty->orig_termios))
       return -errno;
