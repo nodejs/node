@@ -12,7 +12,7 @@ repository and therefore can be seen as an extension to v0.11.
 
 ### General
 
-- The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5 in Node.js v0.10.45 and 3.26.33 in Node.js v0.10.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes, performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
+- The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5 in Node.js v0.10.35 and 3.26.33 in Node.js v0.11.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes and performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
 - Other bundled technologies were upgraded:
   - libuv: 0.10.30 to 1.2.0
   - http_parser: 1.0 to 2.3
