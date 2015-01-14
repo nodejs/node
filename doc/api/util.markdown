@@ -223,6 +223,180 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
       // false
 
 
+## util.isBoolean(object)
+
+Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isBoolean(1)
+      // false
+    util.isBoolean(0)
+      // false
+    util.isBoolean(false)
+      // true
+
+
+## util.isNull(object)
+
+Returns `true` if the given "object" is strictly `null`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isNull(0)
+      // false
+    util.isNull(undefined)
+      // false
+    util.isNull(null)
+      // true
+
+
+## util.isNullOrUndefined(object)
+
+Returns `true` if the given "object" is `null` or `undefined`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isNullOrUndefined(0)
+      // false
+    util.isNullOrUndefined(undefined)
+      // true
+    util.isNullOrUndefined(null)
+      // true
+
+
+## util.isNumber(object)
+
+Returns `true` if the given "object" is a `Number`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isNumber(false)
+      // false
+    util.isNumber(Infinity)
+      // true
+    util.isNumber(0)
+      // true
+    util.isNumber(NaN)
+      // true
+
+
+## util.isString(object)
+
+Returns `true` if the given "object" is a `String`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isString('')
+      // true
+    util.isString('foo')
+      // true
+    util.isString(String('foo'))
+      // true
+    util.isString(5)
+      // false
+
+
+## util.isSymbol(object)
+
+Returns `true` if the given "object" is a `Symbol`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isSymbol(5)
+      // false
+    util.isSymbol('foo')
+      // false
+    util.isSymbol(Symbol('foo'))
+      // true
+
+
+## util.isUndefined(object)
+
+Returns `true` if the given "object" is `undefined`. `false` otherwise.
+
+    var util = require('util');
+
+    var foo;
+    util.isUndefined(5)
+      // false
+    util.isUndefined(foo)
+      // true
+    util.isUndefined(null)
+      // false
+
+
+## util.isObject(object)
+
+Returns `true` if the given "object" is strictly an `Object`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isObject(5)
+      // false
+    util.isObject(null)
+      // false
+    util.isObject({})
+      // true
+
+
+## util.isFunction(object)
+
+Returns `true` if the given "object" is a `Function`. `false` otherwise.
+
+    var util = require('util');
+
+    function Foo() {}
+    var Bar = function() {};
+
+    util.isFunction({})
+      // false
+    util.isFunction(Foo)
+      // true
+    util.isFunction(Bar)
+      // true
+
+
+## util.isPrimitive(object)
+
+Returns `true` if the given "object" is a primitive type. `false` otherwise.
+
+    var util = require('util');
+
+    util.isPrimitive(5)
+      // true
+    util.isPrimitive('foo')
+      // true
+    util.isPrimitive(false)
+      // true
+    util.isPrimitive(null)
+      // true
+    util.isPrimitive(undefined)
+      // true
+    util.isPrimitive({})
+      // false
+    util.isPrimitive(function() {})
+      // false
+    util.isPrimitive(/^$/)
+      // false
+    util.isPrimitive(new Date())
+      // false
+
+
+## util.isBuffer(object)
+
+Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isPrimitive({ length: 0 })
+      // false
+    util.isPrimitive([])
+      // false
+    util.isPrimitive(new Buffer('hello world'))
+      // true
+
+
 ## util.inherits(constructor, superConstructor)
 
 Inherit the prototype methods from one
