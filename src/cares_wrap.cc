@@ -24,6 +24,9 @@
 # include <arpa/nameser.h>
 #endif
 
+#if defined(__OpenBSD__)
+# define AI_V4MAPPED 0
+#endif
 
 namespace node {
 namespace cares_wrap {
