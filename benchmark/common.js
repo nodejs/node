@@ -8,7 +8,7 @@ exports.PORT = process.env.PORT || 12346;
 if (module === require.main) {
   var type = process.argv[2];
   if (!type) {
-    console.error('usage:\n ./node benchmark/common.js <type>');
+    console.error('usage:\n ./iojs benchmark/common.js <type>');
     process.exit(1);
   }
 
