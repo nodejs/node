@@ -31,6 +31,7 @@ https://iojs.org/api/buffer.html
 - Added `Buffer.compare()` which does a `memcmp()` on two Buffer instances. Instances themselves also have a `compare()`.
 - Added `buffer.equals()` that checks equality of Buffers by their contents.
 - `SlowBuffer`'s semantics were tweaked.
+- Added `buf.writeUIntLE`, `buf.writeUIntBE`, `buf.writeIntLE`, `buf.writeIntBE`, `buf.readUIntLE`, `buf.readUIntBE`, `buf.readIntLE` and `buf.readIntBE` that read and write value up to 6 bytes.
 
 ### child_process
 
@@ -124,6 +125,13 @@ https://iojs.org/api/path.html
 - Added `path.isAbsolute` and `path.parse`.
 - Added `path.win32` and `path.posix` objects that contain platform-specific versions of the various `path` functions.
 - `path.join` is now faster.
+
+### process
+
+https://iojs.org/api/process.html
+
+- Added `process.mainModule` and `process.exitCode`.
+- Added `beforeExit` event.
 
 ### querystring
 
