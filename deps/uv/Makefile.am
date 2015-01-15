@@ -108,7 +108,24 @@ libuv_la_SOURCES += src/unix/async.c \
 endif  # WINNT
 
 EXTRA_DIST = test/fixtures/empty_file \
-             test/fixtures/load_error.node
+             test/fixtures/load_error.node \
+             include \
+             test \
+             docs \
+             img \
+             samples \
+             android-configure \
+             CONTRIBUTING.md \
+             LICENSE \
+             README.md \
+             checksparse.sh \
+             vcbuild.bat \
+             Makefile.mingw \
+             common.gypi \
+             gyp_uv.py \
+             uv.gyp
+
+
 
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests

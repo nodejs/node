@@ -54,8 +54,10 @@ TEST_IMPL(osx_select) {
   uv_tty_t tty;
 
   fd = open("/dev/tty", O_RDONLY);
-
-  ASSERT(fd >= 0);
+  if (fd < 0) {
+    LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    return TEST_SKIP;
+  }
 
   r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
   ASSERT(r == 0);
@@ -104,7 +106,10 @@ TEST_IMPL(osx_select_many_fds) {
   }
 
   fd = open("/dev/tty", O_RDONLY);
-  ASSERT(fd >= 0);
+  if (fd < 0) {
+    LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    return TEST_SKIP;
+  }
 
   r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
   ASSERT(r == 0);
