@@ -56,6 +56,7 @@ class SecureContext : public BaseObject {
 
   static void Initialize(Environment* env, v8::Handle<v8::Object> target);
 
+  X509_VERIFY_PARAM* verify_param_;
   X509_STORE* ca_store_;
   SSL_CTX* ctx_;
   X509* cert_;
@@ -92,6 +93,7 @@ class SecureContext : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
+        verify_param_(nullptr),
         ca_store_(nullptr),
         ctx_(nullptr),
         cert_(nullptr),
@@ -113,10 +115,13 @@ class SecureContext : public BaseObject {
         X509_free(cert_);
       if (issuer_ != nullptr)
         X509_free(issuer_);
+      if (verify_param_ != nullptr)
+        X509_VERIFY_PARAM_free(verify_param_);
       ctx_ = nullptr;
       ca_store_ = nullptr;
       cert_ = nullptr;
       issuer_ = nullptr;
+      verify_param_ = nullptr;
     } else {
       CHECK_EQ(ca_store_, nullptr);
     }
