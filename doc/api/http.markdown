@@ -514,6 +514,9 @@ Example:
       res.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
       });
+      res.on('end', function() {
+        console.log('No more data in response.')
+      })
     });
 
     req.on('error', function(e) {
