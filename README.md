@@ -32,7 +32,7 @@ Prerequisites:
 ```text
 $ ./configure
 $ make
-$ make install
+$ [sudo] make install
 ```
 
 If your Python binary is in a non-standard location or has a
@@ -42,7 +42,7 @@ non-standard name, run the following instead:
 $ export PYTHON=/path/to/python
 $ $PYTHON ./configure
 $ make
-$ make install
+$ [sudo] make install
 ```
 
 To run the tests:
