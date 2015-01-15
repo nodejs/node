@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+    Copyright 2012 Google Inc. All rights reserved.
+-->
+<head>
+<meta http-equiv="pragma" content="no-cache">
+<title>Tests</title>
+</head>
+<body>
+<!-- An empty script tag with src.-->
+<script type="text/javascript" src="../../deps_html.js"></script>
+<!-- Missing a require statement and unsorted.-->
+<script type="text/javascript">
+goog.require('goog.testing.MockControl');
+goog.require('goog.SomeTestVar');
+  goog.require('goog.SomeMoreExtra');
+goog.require('goog.SomeExtra');
+</script>
+<script type="text/javascript">
+
+var mc;
+var objectToTest;
+
+function setUp() {
+  mc = new goog.testing.MockControl();
+
+  objectToTest = new goog.AMissingObject();
+}
+<!-- some extra blank lines here-->
+
+
+
+
+function testEnterMeetingId_startsMeeting() {
+  var someTestVar = new goog.SomeTestVar();
+  objectToTest.test();
+}
+
+
+
+/** @private */
+function somePrivateHelper_() {
+
+}
+
+
+</script>
+<!-- An empty script tag with no src.-->
+<script type="text/javascript"></script>
+</body>
+</html>
