@@ -252,10 +252,10 @@
 
     // strip the gyp comment line at the beginning
     config = config.split('\n')
-                   .slice(1)
-                   .join('\n')
-                   .replace(/"/g, '\\"')
-                   .replace(/'/g, '"');
+        .slice(1)
+        .join('\n')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, '"');
 
     process.config = JSON.parse(config, function(key, value) {
       if (value === 'true') return true;
@@ -773,15 +773,15 @@
 
   NativeModule.getCached = function(id) {
     return NativeModule._cache[id];
-  }
+  };
 
   NativeModule.exists = function(id) {
     return NativeModule._source.hasOwnProperty(id);
-  }
+  };
 
   NativeModule.getSource = function(id) {
     return NativeModule._source[id];
-  }
+  };
 
   NativeModule.wrap = function(script) {
     return NativeModule.wrapper[0] + script + NativeModule.wrapper[1];
