@@ -1,3 +1,4 @@
+process.env.NODE_DISABLE_HISTORY = 1;
 var assert = require('assert');
 var common = require('../common.js');
 

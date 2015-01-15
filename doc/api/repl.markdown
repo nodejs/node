@@ -21,6 +21,10 @@ dropped into the REPL. It has simplistic emacs line-editing.
     2
     3
 
+By default, it will save your history to `~/.node_history`. To specify a
+different path, start node with the environment variable 
+`NODE_HISTORY_PATH=<the new history path>`.
+
 For advanced line-editors, start node with the environmental variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
 terminal settings which will allow you to use with `rlwrap`.
@@ -63,6 +67,9 @@ the following values:
  - `writer` - the function to invoke for each command that gets evaluated which
    returns the formatting (including coloring) to display. Defaults to
    `util.inspect`.
+  
+- `useHistory` - a boolean which specifies whether or not to save the history
+   of the current session. Defaults to `false`.
 
 You can use your own `eval` function if it has following signature:
 
