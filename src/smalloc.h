@@ -49,7 +49,7 @@ NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type);
  *        v8::kExternalFloatArray);
  *    v8::Local<v8::Object> obj = v8::Object::New();
  *    char* data = static_cast<char*>(malloc(byte_length * array_length));
- *    node::smalloc::Alloc(obj, data, byte_length, v8::kExternalFloatArray);
+ *    node::smalloc::Alloc(env, obj, data, byte_length, v8::kExternalFloatArray);
  *    obj->Set(v8::String::NewFromUtf8("length"),
  *             v8::Integer::NewFromUnsigned(array_length));
  * \code
