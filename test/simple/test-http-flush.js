@@ -32,6 +32,6 @@ http.createServer(function(req, res) {
     host: '127.0.0.1',
     port: common.PORT,
   });
-  req.flush();  // Flush the request headers.
-  req.flush();  // Should be idempotent.
+  req.flushHeaders();  // Flush the request headers.
+  req.flushHeaders();  // Should be idempotent.
 });
