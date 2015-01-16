@@ -279,11 +279,6 @@ parser.add_option('--without-ssl',
     dest='without_ssl',
     help='build without SSL')
 
-parser.add_option('--xcode',
-    action='store_true',
-    dest='use_xcode',
-    help='generate build files for use with xcode')
-
 (options, args) = parser.parse_args()
 
 # set up auto-download list
@@ -967,7 +962,6 @@ write('config.gypi', do_not_edit +
 
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
-  'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
 }
 
@@ -981,9 +975,7 @@ write('config.mk',
 
 gyp_args = [sys.executable, 'tools/gyp_node.py', '--no-parallel']
 
-if options.use_xcode:
-  gyp_args += ['-f', 'xcode']
-elif flavor == 'win' and sys.platform != 'msys':
+if flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:
   gyp_args += ['-f', 'make-' + flavor]
