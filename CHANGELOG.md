@@ -1,6 +1,38 @@
 # io.js ChangeLog
 
-## 2015-01-14, Version 1.0.1
+## 2015-01-16, Version 1.0.2, @rvagg
+
+### Notable changes
+
+* Windows installer fixes
+* Bundled node-gyp fixes for Windows
+* http_parser v2.4.1 upgrade
+* libuv v1.2.1 upgrade
+
+### Commits
+
+* 265cb76 - build: add new installer config for OS X (Rod Vagg)
+* 8cf6079 - doc: update AUTHORS list (Rod Vagg)
+* c80a944 - doc: Add http keepalive behavior to CHANGELOG.md (Isaac Z. Schlueter)
+* 9b81c3e - doc: fix author attribution (Tom Hughes)
+* fd30eb2 - src: fix jslint errors (Yosuke Furukawa)
+* 946eabd - tools: update closure linter to 2.3.17 (Yosuke Furukawa)
+* 9e62ae4 - _debug_agent: use `readableObjectMode` option (Vladimir Kurchatkin)
+* eec4c81 - doc: fix formatting in LICENSE for RTF generation (Rod Vagg)
+* e789103 - doc: fix 404s for syntax highlighting js (Phil Hughes)
+* ca039b4 - src: define AI_V4MAPPED for OpenBSD (Aaron Bieber)
+* 753fcaa - doc: extend example of http.request by end event (Michal Tehnik)
+* 8440cac - src: fix documentation url in help message (Shigeki Ohtsu)
+* 24def66 - win,msi: warn that older io.js needs manual uninstall (Bert Belder)
+* 59d9361 - win,msi: change UpgradeCode (Bert Belder)
+* 5de334c - deps: make node-gyp work again on windows (Bert Belder)
+* 07bd05b - deps: update libuv to 1.2.1 (Saúl Ibarra Corretgé)
+* e177377 - doc: mention io.js alongside Node in Punycode docs (Mathias Bynens)
+* 598efcb - deps: update http_parser to 2.4.1 (Fedor Indutny)
+* 3dd7ebb - doc: update cluster entry in CHANGELOG (Ben Noordhuis)
+* 0c5de1f - doc: fix double smalloc example (Mathias Buus)
+
+## 2015-01-14, Version 1.0.1, @rvagg
 
 Rebuild due to stale build slave git reflogs for 1.0.0 release
 
