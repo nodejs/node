@@ -92,7 +92,6 @@ namespace node {
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
-  V(heap_size_limit_string, "heap_size_limit")                                \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
   V(hostmaster_string, "hostmaster")                                          \
@@ -198,13 +197,9 @@ namespace node {
   V(tls_sni_string, "tls_sni")                                                \
   V(tls_string, "tls")                                                        \
   V(tls_ticket_string, "tlsTicket")                                           \
-  V(total_heap_size_executable_string, "total_heap_size_executable")          \
-  V(total_heap_size_string, "total_heap_size")                                \
-  V(total_physical_size_string, "total_physical_size")                        \
   V(type_string, "type")                                                      \
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
-  V(used_heap_size_string, "used_heap_size")                                  \
   V(user_string, "user")                                                      \
   V(uv_string, "uv")                                                          \
   V(valid_from_string, "valid_from")                                          \
