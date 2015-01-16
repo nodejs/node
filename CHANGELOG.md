@@ -124,8 +124,8 @@
 
 * Windows installer fixes
 * Bundled node-gyp fixes for Windows
-* http_parser v2.4.1 upgrade
-* libuv v1.2.1 upgrade
+* [http_parser v2.4.1 upgrade](https://github.com/joyent/http-parser/compare/v2.3...v2.4.1)
+* [libuv v1.2.1 upgrade](https://github.com/libuv/libuv/compare/v1.2.0...v1.2.1)
 
 ### Commits
 
