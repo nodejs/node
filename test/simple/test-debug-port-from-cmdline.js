@@ -25,22 +25,21 @@ var spawn = require('child_process').spawn;
 
 var debugPort = common.PORT;
 var args = ['--debug-port=' + debugPort];
-var child = spawn(process.execPath, args);
+var childOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
+var child = spawn(process.execPath, args, childOptions);
+
+child.stdin.end("process.send({ msg: 'childready' });");
 
 child.stderr.on('data', function(data) {
   var lines = data.toString().replace(/\r/g, '').trim().split('\n');
   lines.forEach(processStderrLine);
 });
 
-setTimeout(testTimedOut, 3000);
-function testTimedOut() {
-  assert(false, 'test timed out.');
-}
-
-// Give the child process small amout of time to start
-setTimeout(function() {
-  process._debugProcess(child.pid);
-}, 100);
+child.on('message', function onChildMsg(message) {
+  if (message.msg === 'childready') {
+    process._debugProcess(child.pid);
+  }
+});
 
 process.on('exit', function() {
   child.kill();
