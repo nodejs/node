@@ -115,7 +115,8 @@ https://iojs.org/api/http.html
 - Added `request.flush` method.
 - Added `response.getHeader('header')` method that may be used before headers are flushed.
 - Added `response.statusMessage` property.
-- Fixed Keep-Alive behavior (**DETAILS TO BE ADDED**)
+- Added Client Keep-Alive behavior.  Set `keepAlive:true` in request options to reuse connections indefinitely.
+- Added `rawHeaders` and `rawTrailers` members on incoming message.
 - Removed default chunked encoding on `DELETE` and `OPTIONS`.
 
 ### os
