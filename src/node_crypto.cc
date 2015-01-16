@@ -350,6 +350,12 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_sess_set_get_cb(sc->ctx_, SSLWrap<Connection>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc->ctx_, SSLWrap<Connection>::NewSessionCallback);
 
+  if (sc->verify_param_ == nullptr) {
+    sc->verify_param_ = X509_VERIFY_PARAM_new();
+    X509_VERIFY_PARAM_set_flags(sc->verify_param_, X509_V_FLAG_TRUSTED_FIRST);
+  }
+  SSL_CTX_set1_param(sc->ctx_, sc->verify_param_);
+
   sc->ca_store_ = nullptr;
 }
 
