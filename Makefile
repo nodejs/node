@@ -2,7 +2,6 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python
-NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -20,13 +19,6 @@ NODE_G_EXE = iojs_g$(EXEEXT)
 # or set the V environment variable to an empty string.
 V ?= 1
 
-USE_NINJA ?= 0
-ifeq ($(USE_NINJA),1)
-ifneq ($(V),)
-NINJA := $(NINJA) -v
-endif
-endif
-
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
@@ -39,15 +31,6 @@ endif
 # to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
-ifeq ($(USE_NINJA),1)
-$(NODE_EXE): config.gypi
-	$(NINJA) -C out/Release/
-	ln -fs out/Release/$(NODE_EXE) $@
-
-$(NODE_G_EXE): config.gypi
-	$(NINJA) -C out/Debug/
-	ln -fs out/Debug/$(NODE_EXE) $@
-else
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	ln -fs out/Release/$(NODE_EXE) $@
@@ -55,15 +38,9 @@ $(NODE_EXE): config.gypi out/Makefile
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	ln -fs out/Debug/$(NODE_EXE) $@
-endif
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/toolchain.gypi deps/v8/build/features.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
-ifeq ($(USE_NINJA),1)
-	touch out/Makefile
-	$(PYTHON) tools/gyp_node.py -f ninja
-else
 	$(PYTHON) tools/gyp_node.py -f make
-endif
 
 config.gypi: configure
 	if [ -f $@ ]; then

@@ -51,11 +51,6 @@ parser.add_option('--gdb',
     dest='gdb',
     help='add gdb support')
 
-parser.add_option('--ninja',
-    action='store_true',
-    dest='use_ninja',
-    help='generate files for the ninja build system')
-
 parser.add_option('--no-ifaddrs',
     action='store_true',
     dest='no_ifaddrs',
@@ -972,7 +967,6 @@ write('config.gypi', do_not_edit +
 
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
-  'USE_NINJA': str(int(options.use_ninja or 0)),
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
 }
@@ -987,9 +981,7 @@ write('config.mk',
 
 gyp_args = [sys.executable, 'tools/gyp_node.py', '--no-parallel']
 
-if options.use_ninja:
-  gyp_args += ['-f', 'ninja-' + flavor]
-elif options.use_xcode:
+if options.use_xcode:
   gyp_args += ['-f', 'xcode']
 elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
