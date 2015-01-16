@@ -1,0 +1,26 @@
+Source: python-gflags
+Section: python
+XS-Python-Version: all
+Priority: optional
+Maintainer: Craig Silverstein <google-gflags@googlegroups.com>
+Build-Depends-Indep: python-central (>= 0.5.6), python-setuptools (>= 0.6b3-1), python-all
+Build-Depends: debhelper (>= 5.0.38)
+Standards-Version: 3.7.2
+
+Package: python-gflags
+Architecture: all
+Depends: ${python:Depends}
+XB-Python-Version: ${python:Versions}
+Description: A Python implementation of the Google commandline flags module
+ .
+ GFlags defines a *distributed* command line system, replacing systems like
+ getopt(), optparse and manual argument processing. Rather than an application
+ having to define all flags in or near main(), each Python module defines flags
+ that are useful to it.  When one Python module imports another, it gains
+ access to the other's flags.
+ .
+ It includes the ability to define flag types (boolean, float, interger, list),
+ autogeneration of help (in both human and machine readable format) and reading
+ arguments from a file. It also includes the ability to automatically generate
+ man pages from the help flags.
+

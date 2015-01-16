@@ -1,0 +1,62 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+PYTHON	:= /usr/bin/python
+#PYVER   := $(shell $(PYTHON) -c 'import sys; print sys.version[:3]')
+PYVERS	= $(shell pyversions -vr)
+
+build: $(PYVERS:%=build-python%)
+	touch $@
+
+build-python%:
+	dh_testdir
+	python$* setup.py build
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-python*
+	rm -rf build
+	-find . -name '*.py[co]' | xargs rm -f
+	dh_clean
+
+install: build $(PYVERS:%=install-python%)
+
+install-python%:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	python$* setup.py install --root=$(CURDIR)/debian/python-gflags --prefix=/usr
+	# Scripts should not have a .py on the end of them
+	mv $(CURDIR)/debian/python-gflags/usr/bin/gflags2man.py $(CURDIR)/debian/python-gflags/usr/bin/gflags2man
+	# Generate a man file for gflags2man
+	mkdir -p $(CURDIR)/debian/python-gflags/usr/share/man/man1
+	PYTHONPATH=$(CURDIR)/debian/.. python$* gflags2man.py --dest_dir $(CURDIR)/debian/python-gflags/usr/share/man/man1 $(CURDIR)/debian/python-gflags/usr/bin/gflags2man
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -k ChangeLog
+	dh_installdocs
+	dh_pycentral
+	dh_compress -X.py
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture-dependent files here.
+binary-arch: build install
+# We have nothing to do by default.
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure
