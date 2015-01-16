@@ -2870,8 +2870,8 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
-         "       node debug script.js [arguments] \n"
+  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
+         "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
          "  -v, --version        print node's version\n"
