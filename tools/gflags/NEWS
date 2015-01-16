@@ -1,0 +1,78 @@
+== 18 January 2012 ==
+
+[Prependum:] I just realized I should have named the new version 2.0,
+to reflect the new ownership and status as a community run project.
+Not too late, I guess.  I've just released python-gflags 2.0, which is
+identical to python-gflags 1.8 except for the version number.
+
+I've just released python-gflags 1.8.  This fixes a bug, allowing
+modules defining flags to be re-imported without raising duplicate
+flag errors.
+
+Administrative note: In the coming weeks, I'll be stepping down as
+maintainer for the python-gflags project, and as part of that Google
+is relinquishing ownership of the project; it will now be entirely
+community run.  The remaining
+[http://python-gflags.googlecode.com/svn/tags/python-gflags-1.8/ChangeLog changes]
+in this release reflect that shift.
+
+
+=== 20 December 2011 ===
+
+I've just released python-gflags 1.7.  The major change here is
+improved unicode support, in both flag default values and
+help-strings.  We've also made big steps toward making gflags work
+with python 3.x (while keeping 2.4 compatibility), and improving
+--help output in the common case where output is a tty.
+
+For a full list of changes since last release, see the
+[http://python-gflags.googlecode.com/svn/tags/python-gflags-1.7/ChangeLog ChangeLog].
+
+=== 29 July 2011 ===
+
+I've just released python-gflags 1.6.  This release has only minor
+changes, including support for multi_float flags.  The full list of
+changes is in the
+[http://python-gflags.googlecode.com/svn/tags/python-gflags-1.6/ChangeLog ChangeLog].
+
+The major change with this release is procedural: I've changed the
+internal tools used to integrate Google-supplied patches for gflags
+into the opensource release.  These new tools should result in more
+frequent updates with better change descriptions.  They will also
+result in future `ChangeLog` entries being much more verbose (for
+better or for worse).
+
+=== 26 January 2011 ===
+
+I've just released python-gflags 1.5.1.  I had improperly packaged
+python-gflags 1.5, so it probably doesn't work.  All users who have
+updated to python-gflags 1.5 are encouraged to update again to 1.5.1.
+
+=== 24 January 2011 ===
+
+I've just released python-gflags 1.5.  This release adds support for
+flag verifiers: small functions you can associate with flags, that are
+called whenever the flag value is set or modified, and can verify that
+the new value is legal.  It also has other, minor changes, described
+in the
+[http://python-gflags.googlecode.com/svn/tags/python-gflags-1.5/ChangeLog ChangeLog].
+
+=== 11 October 2010 ===
+
+I've just released python-gflags 1.4.  This release has only minor
+changes from 1.3, including support for printing flags of a specific
+module, allowing key-flags to work with special flags, somewhat better
+error messaging, and
+[http://python-gflags.googlecode.com/svn/tags/python-gflags-1.4/ChangeLog so forth].
+If 1.3 is working well for you, there's no particular reason to upgrade.
+
+=== 4 January 2010 ===
+
+I just released python-gflags 1.3. This is the first python-gflags
+release; it is version 1.3 because this code is forked from the 1.3
+release of google-gflags.
+
+I don't have a tarball or .deb file up quite yet, so for now you will
+have to get the source files by browsing under the 'source'
+tag. Downloadable files will be available soon.
+
