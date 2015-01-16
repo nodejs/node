@@ -85,8 +85,6 @@ typedef int mode_t;
 #include <grp.h>  // getgrnam()
 #endif
 
-#include "node_crypto.h"
-
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
