@@ -7,8 +7,9 @@ exports.PORT = process.env.PORT || 12346;
 // If this is the main module, then run the benchmarks
 if (module === require.main) {
   var type = process.argv[2];
+  var testFilter = process.argv[3];
   if (!type) {
-    console.error('usage:\n ./iojs benchmark/common.js <type>');
+    console.error('usage:\n ./iojs benchmark/common.js <type> [testFilter]');
     process.exit(1);
   }
 
@@ -16,6 +17,19 @@ if (module === require.main) {
   var dir = path.join(__dirname, type);
   var tests = fs.readdirSync(dir);
   var spawn = require('child_process').spawn;
+
+  if (testFilter) {
+    var filteredTests = tests.filter(function(item){
+      if (item.lastIndexOf(testFilter) >= 0) {
+        return item;
+      }
+    });
+    if (filteredTests.length === 0) {
+      console.error(`${testFilter} is not found in \n ${tests.join('  \n')}`);
+      return;
+    }
+    tests = filteredTests;
+  }
 
   runBenchmarks();
 }
