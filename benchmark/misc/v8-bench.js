@@ -12,7 +12,8 @@ global.print = function(s) {
 
 global.load = function (x) {
   var source = fs.readFileSync(path.join(dir, x), 'utf8');
-  vm.runInThisContext(source, x);
-}
+  vm.runInThisContext(source);
+};
 
 load('run.js');
+load('runRegExp.js');
