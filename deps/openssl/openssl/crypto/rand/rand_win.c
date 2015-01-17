@@ -196,12 +196,6 @@ int RAND_poll(void)
 	DWORD w;
 	int good = 0;
 
-	/* Determine the OS version we are on so we can turn off things 
-	 * that do not work properly.
-	 */
-        OSVERSIONINFO osverinfo ;
-        osverinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO) ;
-        GetVersionEx( &osverinfo ) ;
 
 #if defined(OPENSSL_SYS_WINCE)
 # if defined(_WIN32_WCE) && _WIN32_WCE>=300
@@ -281,56 +275,6 @@ int RAND_poll(void)
          * at random times on Windows 2000.  Reported by Jeffrey Altman.  
          * Only use it on NT.
 	 */
-	/* Wolfgang Marczy <WMarczy@topcall.co.at> reports that
-	 * the RegQueryValueEx call below can hang on NT4.0 (SP6).
-	 * So we don't use this at all for now. */
-#if 0
-        if ( osverinfo.dwPlatformId == VER_PLATFORM_WIN32_NT &&
-		osverinfo.dwMajorVersion < 5)
-		{
-		/* Read Performance Statistics from NT/2000 registry
-		 * The size of the performance data can vary from call
-		 * to call so we must guess the size of the buffer to use
-		 * and increase its size if we get an ERROR_MORE_DATA
-		 * return instead of ERROR_SUCCESS.
-		 */
-		LONG   rc=ERROR_MORE_DATA;
-		char * buf=NULL;
-		DWORD bufsz=0;
-		DWORD length;
-
-		while (rc == ERROR_MORE_DATA)
-			{
-			buf = realloc(buf,bufsz+8192);
-			if (!buf)
-				break;
-			bufsz += 8192;
-
-			length = bufsz;
-			rc = RegQueryValueEx(HKEY_PERFORMANCE_DATA, TEXT("Global"),
-				NULL, NULL, buf, &length);
-			}
-		if (rc == ERROR_SUCCESS)
-			{
-                        /* For entropy count assume only least significant
-			 * byte of each DWORD is random.
-			 */
-			RAND_add(&length, sizeof(length), 0);
-			RAND_add(buf, length, length / 4.0);
-
-			/* Close the Registry Key to allow Windows to cleanup/close
-			 * the open handle
-			 * Note: The 'HKEY_PERFORMANCE_DATA' key is implicitly opened
-			 *       when the RegQueryValueEx above is done.  However, if
-			 *       it is not explicitly closed, it can cause disk
-			 *       partition manipulation problems.
-			 */
-			RegCloseKey(HKEY_PERFORMANCE_DATA);
-			}
-		if (buf)
-			free(buf);
-		}
-#endif
 
 	if (advapi)
 		{
@@ -383,7 +327,7 @@ int RAND_poll(void)
         if (advapi)
 		FreeLibrary(advapi);
 
-	if ((osverinfo.dwPlatformId != VER_PLATFORM_WIN32_NT ||
+	if ((!check_winnt() ||
 	     !OPENSSL_isservice()) &&
 	    (user = LoadLibrary(TEXT("USER32.DLL"))))
 		{
@@ -407,8 +351,7 @@ int RAND_poll(void)
 			 * on NT4 even though it exists in SP3 (or SP6) and
 			 * higher.
 			 */
-			if ( osverinfo.dwPlatformId == VER_PLATFORM_WIN32_NT &&
-				osverinfo.dwMajorVersion < 5)
+			if (check_winnt() && !check_win_minplat(5))
 				cursor = 0;
 			}
 		if (cursor)

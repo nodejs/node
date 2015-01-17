@@ -57,7 +57,7 @@
  */
 
 #include "ecs_locl.h"
-#include "cryptlib.h"
+#include <string.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif

@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1k and OpenSSL 1.0.1l [15 Jan 2015]
+
+      o Build fixes for the Windows and OpenVMS platforms
+
   Major changes between OpenSSL 1.0.1j and OpenSSL 1.0.1k [8 Jan 2015]
 
       o Fix for CVE-2014-3571

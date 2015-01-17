@@ -368,11 +368,13 @@ static __inline unsigned int _strlen31(const char *str)
 #    define DEFAULT_HOME  "C:"
 #  endif
 
-/* Avoid Windows 8 SDK GetVersion deprecated problems */
+/* Avoid Visual Studio 13 GetVersion deprecated problems */
 #if defined(_MSC_VER) && _MSC_VER>=1800
 #  define check_winnt() (1)
+#  define check_win_minplat(x) (1)
 #else
 #  define check_winnt() (GetVersion() < 0x80000000)
+#  define check_win_minplat(x) (LOBYTE(LOWORD(GetVersion())) >= (x))
 #endif
 
 #else /* The non-microsoft world */

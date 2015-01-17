@@ -77,7 +77,7 @@ const char *SSLeay_version(int t)
 	if (t == SSLEAY_CFLAGS)
 		{
 #ifdef CFLAGS
-		return(cflags);
+		return(CFLAGS);
 #else
 		return("compiler: information not available");
 #endif
