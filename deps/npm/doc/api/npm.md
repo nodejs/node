@@ -1,5 +1,5 @@
-npm(3) -- node package manager
-==============================
+npm(3) -- javascript package manager
+====================================
 
 ## SYNOPSIS
 

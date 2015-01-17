@@ -33,6 +33,27 @@ npm install \-\-tag <tag>
 This also applies to \fBnpm dedupe\fR\|\.
 .P
 Publishing a package always sets the "latest" tag to the published version\.
+.SH PURPOSE
+.P
+Tags can be used to provide an alias instead of version numbers\.  For
+example, \fBnpm\fR currently uses the tag "next" to identify the upcoming
+version, and the tag "latest" to identify the current version\.
+.P
+A project might choose to have multiple streams of development, e\.g\.,
+"stable", "canary"\.
+.SH CAVEATS
+.P
+Tags must share a namespace with version numbers, because they are
+specified in the same slot: \fBnpm install <pkg>@<version>\fR vs \fBnpm
+install <pkg>@<tag>\fR\|\.
+.P
+Tags that can be interpreted as valid semver ranges will be
+rejected\. For example, \fBv1\.4\fR cannot be used as a tag, because it is
+interpreted by semver as \fB>=1\.4\.0 <1\.5\.0\fR\|\.  See
+https://github\.com/npm/npm/issues/6082\|\.
+.P
+The simplest way to avoid semver problems with tags is to use tags
+that do not begin with a number or the letter \fBv\fR\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
@@ -47,6 +68,8 @@ npm help 7 registry
 npm help config
 .IP \(bu 2
 npm help 7 config
+.IP \(bu 2
+npm apihelp tag
 .IP \(bu 2
 npm help 5 npmrc
 

@@ -36,11 +36,10 @@ function version (args, silent, cb_) {
       data = JSON.parse(data)
     }
     catch (er) {
-      log.error("version", "Bad package.json data", data)
-      return cb_(er)
+      data = null
     }
 
-    if (!args.length && data) return dump(data.name, data.version, cb_)
+    if (!args.length) return dump(data, cb_)
 
     if (er) {
       log.error("version", "No package.json found")
@@ -93,15 +92,12 @@ function updateShrinkwrap (newVersion, cb) {
   })
 }
 
-function dump (name, version, cb) {
-  assert(typeof name === "string", "package name must be passed to version dump")
-  assert(typeof version === "string", "package version must be passed to version dump")
-
+function dump (data, cb) {
   var v = {}
 
-  if (name) v[name] = version
+  if (data && data.name && data.version) v[data.name] = data.version
   v.npm = npm.version
-  Object.keys(process.versions).forEach(function (k) {
+  Object.keys(process.versions).sort().forEach(function (k) {
     v[k] = process.versions[k]
   })
 

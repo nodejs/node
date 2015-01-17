@@ -1,3 +1,34 @@
+### v2.2.0 (2015-01-08):
+
+* [`88c531d`](https://github.com/npm/npm/commit/88c531d1c0b3aced8f2a09632db01b5635e7226a)
+  [#7056](https://github.com/npm/npm/issues/7056) version doesn't need a
+  package.json. ([@othiym23](https://github.com/othiym23))
+* [`2656c19`](https://github.com/npm/npm/commit/2656c19f6b915c3173acc3b6f184cc321563da5f)
+  [#7095](https://github.com/npm/npm/issues/7095) Link to npm website instead
+  of registry. ([@konklone](https://github.com/konklone))
+* [`c76b801`](https://github.com/npm/npm/commit/c76b8013bf1758587565822626171b76cb465c9e)
+  [#7067](https://github.com/npm/npm/issues/7067) Obfuscate secrets, including
+  nerfed URLs. ([@smikes](https://github.com/smikes))
+* [`17f66ce`](https://github.com/npm/npm/commit/17f66ceb1bd421084e4ae82a6b66634a6e272929)
+  [#6849](https://github.com/npm/npm/issues/6849) Explain the tag workflow more
+  clearly. ([@smikes](https://github.com/smikes))
+* [`e309df6`](https://github.com/npm/npm/commit/e309df642de33d10d6dffadaa8a5d214a924d0dc)
+  [#7096](https://github.com/npm/npm/issues/7096) Really, `npm update -g` is
+  almost always a terrible idea. ([@smikes](https://github.com/smikes))
+* [`acf287d`](https://github.com/npm/npm/commit/acf287d2547c8a0a8871652c164019261b666d55)
+  [#6999](https://github.com/npm/npm/issues/6999) `npm run-script env`: add a
+  new default script that will print out environment values.
+  ([@gcb](https://github.com/gcb))
+* [`560c009`](https://github.com/npm/npm/commit/560c00945d4dec926cd29193e336f137c7f3f951)
+  [#6745](https://github.com/npm/npm/issues/6745) Document `npm update --dev`.
+  ([@smikes](https://github.com/smikes))
+* [`226a677`](https://github.com/npm/npm/commit/226a6776a1a9e28570485623b8adc2ec4b041335)
+  [#7046](https://github.com/npm/npm/issues/7046) We have never been the Node
+  package manager. ([@linclark](https://github.com/linclark))
+* [`38eef22`](https://github.com/npm/npm/commit/38eef2248f03bb8ab04cae1833e2a228fb887f3c)
+  `npm-install-checks@1.0.5`: Compatibility with npmlog@^1.
+  ([@iarna](https://github.com/iarna))
+
 ### v2.1.18 (2015-01-01):
 
 * [`bf8640b`](https://github.com/npm/npm/commit/bf8640b0395b5dff71260a0cede7efc699a7bcf5)
