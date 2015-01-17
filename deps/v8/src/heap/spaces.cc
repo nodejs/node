@@ -140,7 +140,8 @@ bool CodeRange::SetUp(size_t requested) {
     base += kReservedCodeRangePages * base::OS::CommitPageSize();
   }
   Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
-  size_t size = code_range_->size() - (aligned_base - base);
+  size_t size = code_range_->size() - (aligned_base - base) -
+                kReservedCodeRangePages * base::OS::CommitPageSize();
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
 

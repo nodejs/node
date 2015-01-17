@@ -15,6 +15,7 @@
 
 using testing::_;
 using testing::AllOf;
+using testing::BitEq;
 using testing::Capture;
 using testing::CaptureEq;
 
@@ -78,7 +79,8 @@ class ChangeLoweringTest : public GraphTest {
                                       const Matcher<Node*>& control_matcher) {
     return IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
                          AllocateHeapNumberStub(isolate()).GetCode())),
-                  IsNumberConstant(0.0), effect_matcher, control_matcher);
+                  IsNumberConstant(BitEq(0.0)), effect_matcher,
+                  control_matcher);
   }
   Matcher<Node*> IsLoadHeapNumber(const Matcher<Node*>& value_matcher,
                                   const Matcher<Node*>& control_matcher) {

@@ -74,7 +74,7 @@ var expectedPropertyNamesSet = {
     "Object": "['arguments', 'caller', 'create', 'defineProperties', 'defineProperty', 'deliverChangeRecords', 'freeze', 'getNotifier', 'getOwnPropertyDescriptor', 'getOwnPropertyNames', 'getOwnPropertySymbols', 'getPrototypeOf', 'is', 'isExtensible', 'isFrozen', 'isSealed', 'keys', 'length', 'name', 'observe', 'preventExtensions', 'prototype', 'seal', 'setPrototypeOf', 'unobserve']",
     "Object.prototype": "['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__', 'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString', 'toString', 'valueOf']",
     "Function": "['arguments', 'caller', 'length', 'name', 'prototype']",
-    "Function.prototype": "['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toMethod', 'toString']",
+    "Function.prototype": "['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toString']",
     "Array": "['arguments', 'caller', 'isArray', 'length', 'name', 'observe', 'prototype', 'unobserve']",
     "Array.prototype": "['concat', 'constructor', 'entries', 'every', 'filter', 'forEach', 'indexOf', 'join', 'keys', 'lastIndexOf', 'length', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'slice', 'some', 'sort', 'splice', 'toLocaleString', 'toString', 'unshift']",
     "String": "['arguments', 'caller', 'fromCharCode', 'fromCodePoint', 'length', 'name', 'prototype', 'raw']",

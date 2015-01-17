@@ -682,6 +682,7 @@ class Parser : public ParserBase<ParserTraits> {
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
   void Internalize();
+  void HandleSourceURLComments();
 
  private:
   friend class ParserTraits;
@@ -878,8 +879,6 @@ class Parser : public ParserBase<ParserTraits> {
   ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* function_name, int pos, Variable* fvar,
       Token::Value fvar_init_op, bool is_generator, bool* ok);
-
-  void HandleSourceURLComments();
 
   void ThrowPendingError();
 

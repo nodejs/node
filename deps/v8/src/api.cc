@@ -1780,6 +1780,7 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
     // Do the parsing tasks which need to be done on the main thread. This will
     // also handle parse errors.
     source->parser->Internalize();
+    source->parser->HandleSourceURLComments();
 
     i::Handle<i::SharedFunctionInfo> result =
         i::Handle<i::SharedFunctionInfo>::null();

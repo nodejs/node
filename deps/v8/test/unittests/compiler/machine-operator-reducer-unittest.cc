@@ -12,6 +12,7 @@
 #include "testing/gmock-support.h"
 
 using testing::AllOf;
+using testing::BitEq;
 using testing::Capture;
 using testing::CaptureEq;
 
@@ -291,7 +292,7 @@ TEST_F(MachineOperatorReducerTest, ChangeFloat64ToFloat32WithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         machine()->ChangeFloat32ToFloat64(), Float32Constant(x)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(x));
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq<double>(x)));
   }
 }
 
@@ -355,7 +356,7 @@ TEST_F(MachineOperatorReducerTest, ChangeInt32ToFloat64WithConstant) {
     Reduction reduction = Reduce(
         graph()->NewNode(machine()->ChangeInt32ToFloat64(), Int32Constant(x)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(FastI2D(x)));
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(FastI2D(x))));
   }
 }
 
@@ -384,7 +385,7 @@ TEST_F(MachineOperatorReducerTest, ChangeUint32ToFloat64WithConstant) {
         Reduce(graph()->NewNode(machine()->ChangeUint32ToFloat64(),
                                 Int32Constant(bit_cast<int32_t>(x))));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(FastUI2D(x)));
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(FastUI2D(x))));
   }
 }
 
@@ -425,7 +426,8 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToFloat32WithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         machine()->TruncateFloat64ToFloat32(), Float64Constant(x)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat32Constant(DoubleToFloat32(x)));
+    EXPECT_THAT(reduction.replacement(),
+                IsFloat32Constant(BitEq(DoubleToFloat32(x))));
   }
 }
 
@@ -1268,13 +1270,15 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
     Reduction r = Reduce(
         graph()->NewNode(machine()->Float64Mul(), p0, Float64Constant(-1.0)));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Sub(IsFloat64Constant(-0.0), p0));
+    EXPECT_THAT(r.replacement(),
+                IsFloat64Sub(IsFloat64Constant(BitEq(-0.0)), p0));
   }
   {
     Reduction r = Reduce(
         graph()->NewNode(machine()->Float64Mul(), Float64Constant(-1.0), p0));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Sub(IsFloat64Constant(-0.0), p0));
+    EXPECT_THAT(r.replacement(),
+                IsFloat64Sub(IsFloat64Constant(BitEq(-0.0)), p0));
   }
 }
 

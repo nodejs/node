@@ -183,16 +183,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_unicode, "harmony unicode escapes")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V) V(harmony_tostring, "harmony toString")
+#define HARMONY_STAGED(V)                                                 \
+  V(harmony_tostring, "harmony toString")                                 \
+  V(harmony_classes,                                                      \
+    "harmony classes (implies block scoping & object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                               \
   V(harmony_numeric_literals, "harmony numeric literals")                 \
   V(harmony_strings, "harmony string methods")                            \
   V(harmony_scoping, "harmony block scoping")                             \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_templates, "harmony template literals")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
@@ -498,7 +499,7 @@ DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, true, "enable caching of toplevel scripts")
-DEFINE_BOOL(serialize_inner, false, "enable caching of inner functions")
+DEFINE_BOOL(serialize_inner, true, "enable caching of inner functions")
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 
 // compiler.cc

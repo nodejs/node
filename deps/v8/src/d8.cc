@@ -1577,7 +1577,7 @@ class StartupDataHandler {
     const char* last_slash = strrchr(exec_path, '/');
     if (last_slash) {
       int after_slash = last_slash - exec_path + 1;
-      int name_length = strlen(name);
+      int name_length = static_cast<int>(strlen(name));
       *buffer =
           reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
       strncpy(*buffer, exec_path, after_slash);

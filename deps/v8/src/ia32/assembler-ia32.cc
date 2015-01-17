@@ -34,7 +34,11 @@
 // significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "src/v8.h"
+#include "src/ia32/assembler-ia32.h"
+
+#if V8_OS_MACOSX
+#include <sys/sysctl.h>
+#endif
 
 #if V8_TARGET_ARCH_IA32
 
@@ -42,13 +46,36 @@
 #include "src/base/cpu.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
+
+namespace {
+
+bool EnableAVX() {
+#if V8_OS_MACOSX
+  // Mac OS X 10.9 has a bug where AVX transitions were indeed being caused by
+  // ISRs, so we detect Mac OS X 10.9 here and disable AVX in that case.
+  char buffer[128];
+  size_t buffer_size = arraysize(buffer);
+  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
+  if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
+    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
+  }
+  // The buffer now contains a string of the form XX.YY.ZZ, where
+  // XX is the major kernel version component. 13.x.x (Mavericks) is
+  // affected by this bug, so disable AVX there.
+  if (memcmp(buffer, "13.", 3) == 0) return false;
+#endif  // V8_OS_MACOSX
+  return FLAG_enable_avx;
+}
+
+}  // namespace
+
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
@@ -60,7 +87,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
-  if (cpu.has_avx() && FLAG_enable_avx) supported_ |= 1u << AVX;
+  if (cpu.has_avx() && EnableAVX()) supported_ |= 1u << AVX;
   if (cpu.has_fma3() && FLAG_enable_fma3) supported_ |= 1u << FMA3;
 }
 

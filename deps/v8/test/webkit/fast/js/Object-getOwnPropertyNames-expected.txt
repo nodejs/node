@@ -47,7 +47,7 @@ PASS getSortedOwnPropertyNames(encodeURIComponent) is ['arguments', 'caller', 'l
 PASS getSortedOwnPropertyNames(Object) is ['arguments', 'caller', 'create', 'defineProperties', 'defineProperty', 'deliverChangeRecords', 'freeze', 'getNotifier', 'getOwnPropertyDescriptor', 'getOwnPropertyNames', 'getOwnPropertySymbols', 'getPrototypeOf', 'is', 'isExtensible', 'isFrozen', 'isSealed', 'keys', 'length', 'name', 'observe', 'preventExtensions', 'prototype', 'seal', 'setPrototypeOf', 'unobserve']
 PASS getSortedOwnPropertyNames(Object.prototype) is ['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__', 'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString', 'toString', 'valueOf']
 PASS getSortedOwnPropertyNames(Function) is ['arguments', 'caller', 'length', 'name', 'prototype']
-PASS getSortedOwnPropertyNames(Function.prototype) is ['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toMethod', 'toString']
+PASS getSortedOwnPropertyNames(Function.prototype) is ['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toString']
 PASS getSortedOwnPropertyNames(Array) is ['arguments', 'caller', 'isArray', 'length', 'name', 'observe', 'prototype', 'unobserve']
 PASS getSortedOwnPropertyNames(Array.prototype) is ['concat', 'constructor', 'entries', 'every', 'filter', 'forEach', 'indexOf', 'join', 'keys', 'lastIndexOf', 'length', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'slice', 'some', 'sort', 'splice', 'toLocaleString', 'toString', 'unshift']
 PASS getSortedOwnPropertyNames(String) is ['arguments', 'caller', 'fromCharCode', 'fromCodePoint', 'length', 'name', 'prototype', 'raw']

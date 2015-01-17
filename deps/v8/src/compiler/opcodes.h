@@ -132,6 +132,7 @@
 
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_OP_LIST(V) \
+  V(AnyToBoolean)             \
   V(BooleanNot)               \
   V(BooleanToNumber)          \
   V(NumberEqual)              \
