@@ -41,7 +41,7 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
-  Reduction ReduceJSToBooleanInput(Node* input);
+  Reduction ReduceJSUnaryNot(Node* node);
   Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
@@ -52,7 +52,6 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 
-  Node* ConvertToBoolean(Node* input);
   Node* ConvertToNumber(Node* input);
   template <IrOpcode::Value>
   Node* FindConversion(Node* input);

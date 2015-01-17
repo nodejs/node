@@ -198,7 +198,8 @@ TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
   CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
-  code_range.SetUp(code_range_size);
+  code_range.SetUp(code_range_size +
+                   kReservedCodeRangePages * v8::base::OS::CommitPageSize());
   size_t current_allocated = 0;
   size_t total_allocated = 0;
   List< ::Block> blocks(1000);

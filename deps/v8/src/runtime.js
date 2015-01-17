@@ -672,7 +672,7 @@ function DefaultString(x) {
 }
 
 function ToPositiveInteger(x, rangeErrorName) {
-  var i = TO_INTEGER(x);
+  var i = TO_INTEGER_MAP_MINUS_ZERO(x);
   if (i < 0) throw MakeRangeError(rangeErrorName);
   return i;
 }

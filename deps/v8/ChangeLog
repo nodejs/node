@@ -1,3 +1,34 @@
+2015-01-07: Version 3.32.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.1
+
+        [turbofan] Don't crash when typing load from a Uint8ClampedArray
+        (Chromium issue 446156).
+
+        [turbofan] Truncation of Bit/Word8/16 to Word32 is a no-op (Chromium
+        issue 445859).
+
+        [x64] Rearrange code for OOB integer loads (Chromium issue 445858).
+
+        Fix %NeverOptimizeFunction() intrinsic (Chromium issue 445732).
+
+        [turbofan] Fix invalid bounds check with overflowing offset (Chromium
+        issue 445267).
+
+        [turbofan] Raise max virtual registers and call parameter limit (issue
+        3786).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-23: Version 3.31.74
 
         [turbofan] Turn DCHECK for fixed slot index into a CHECK (Chromium issue

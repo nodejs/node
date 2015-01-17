@@ -23999,10 +23999,8 @@ TEST(ScriptNameAndLineNumber) {
   CHECK_EQ(13, line_number);
 }
 
-
-void SourceURLHelper(const char* source, const char* expected_source_url,
-                     const char* expected_source_mapping_url) {
-  Local<Script> script = v8_compile(source);
+void CheckMagicComments(Handle<Script> script, const char* expected_source_url,
+                        const char* expected_source_mapping_url) {
   if (expected_source_url != NULL) {
     v8::String::Utf8Value url(script->GetUnboundScript()->GetSourceURL());
     CHECK_EQ(expected_source_url, *url);
@@ -24016,6 +24014,12 @@ void SourceURLHelper(const char* source, const char* expected_source_url,
   } else {
     CHECK(script->GetUnboundScript()->GetSourceMappingURL()->IsUndefined());
   }
+}
+
+void SourceURLHelper(const char* source, const char* expected_source_url,
+                     const char* expected_source_mapping_url) {
+  Local<Script> script = v8_compile(source);
+  CheckMagicComments(script, expected_source_url, expected_source_mapping_url);
 }
 
 
@@ -24209,7 +24213,9 @@ class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
 void RunStreamingTest(const char** chunks,
                       v8::ScriptCompiler::StreamedSource::Encoding encoding =
                           v8::ScriptCompiler::StreamedSource::ONE_BYTE,
-                      bool expected_success = true) {
+                      bool expected_success = true,
+                      const char* expected_source_url = NULL,
+                      const char* expected_source_mapping_url = NULL) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -24238,6 +24244,8 @@ void RunStreamingTest(const char** chunks,
     v8::Handle<Value> result(script->Run());
     // All scripts are supposed to return the fixed value 13 when ran.
     CHECK_EQ(13, result->Int32Value());
+    CheckMagicComments(script, expected_source_url,
+                       expected_source_mapping_url);
   } else {
     CHECK(script.IsEmpty());
     CHECK(try_catch.HasCaught());
@@ -24726,4 +24734,28 @@ TEST(ClassPrototypeCreationContext) {
   Handle<Object> result = Handle<Object>::Cast(
       CompileRun("'use strict'; class Example { }; Example.prototype"));
   CHECK(env.local() == result->CreationContext());
+}
+
+
+TEST(SimpleStreamingScriptWithSourceURL) {
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo();\n",
+                          "//# sourceURL=bar2.js\n", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
+                   "bar2.js");
+}
+
+
+TEST(StreamingScriptWithSplitSourceURL) {
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f",
+                          "oo();\n//# sourceURL=b", "ar2.js\n", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
+                   "bar2.js");
+}
+
+
+TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
+  const char* chunks[] = {"function foo() { ret", "urn 13; }\n//#",
+                          " sourceMappingURL=bar2.js\n", "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true, NULL,
+                   "bar2.js");
 }

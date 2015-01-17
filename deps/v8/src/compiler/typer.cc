@@ -33,10 +33,11 @@ enum LazyCachedType {
   kImulFunc,
   kClz32Func,
   kArrayBufferFunc,
-#define NATIVE_TYPE_CASE(Type) k##Type, k##Type##Array, k##Type##ArrayFunc,
-  NATIVE_TYPES(NATIVE_TYPE_CASE)
-#undef NATIVE_TYPE_CASE
-  kNumLazyCachedTypes
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  k##Type, k##Type##Array, k##Type##ArrayFunc,
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      kNumLazyCachedTypes
 };
 
 
@@ -75,6 +76,8 @@ class LazyTypeCache FINAL : public ZoneObject {
         return CreateNative(Type::Number(), Type::UntaggedFloat32());
       case kFloat64:
         return CreateNative(Type::Number(), Type::UntaggedFloat64());
+      case kUint8Clamped:
+        return Get(kUint8);
       case kNumberFunc0:
         return Type::Function(Type::Number(), zone());
       case kNumberFunc1:
@@ -89,13 +92,13 @@ class LazyTypeCache FINAL : public ZoneObject {
         return Type::Function(CreateRange(0, 32), Type::Number(), zone());
       case kArrayBufferFunc:
         return Type::Function(Type::Object(zone()), Type::Unsigned32(), zone());
-#define NATIVE_TYPE_CASE(Type)        \
-  case k##Type##Array:                \
-    return CreateArray(Get(k##Type)); \
-  case k##Type##ArrayFunc:            \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case k##Type##Array:                                  \
+    return CreateArray(Get(k##Type));                   \
+  case k##Type##ArrayFunc:                              \
     return CreateArrayFunction(Get(k##Type##Array));
-        NATIVE_TYPES(NATIVE_TYPE_CASE)
-#undef NATIVE_TYPE_CASE
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
       case kNumLazyCachedTypes:
         break;
     }
@@ -1438,6 +1441,11 @@ Bounds Typer::Visitor::TypeJSDebugger(Node* node) {
 // Simplified operators.
 
 
+Bounds Typer::Visitor::TypeAnyToBoolean(Node* node) {
+  return TypeUnaryOp(node, ToBoolean);
+}
+
+
 Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
   return Bounds(Type::None(zone()), Type::Boolean(zone()));
 }
@@ -1615,13 +1623,11 @@ Bounds Typer::Visitor::TypeLoadBuffer(Node* node) {
   // TODO(bmeurer): This typing is not yet correct. Since we can still access
   // out of bounds, the type in the general case has to include Undefined.
   switch (BufferAccessOf(node->op()).external_array_type()) {
-#define NATIVE_TYPE_CASE(Type) \
-  case kExternal##Type##Array: \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
     return Bounds(typer_->cache_->Get(k##Type));
-    NATIVE_TYPES(NATIVE_TYPE_CASE)
-#undef NATIVE_TYPE_CASE
-    case kExternalUint8ClampedArray:
-      break;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
   return Bounds();
@@ -2088,14 +2094,11 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     }
   } else if (value->IsJSTypedArray()) {
     switch (JSTypedArray::cast(*value)->type()) {
-#define NATIVE_TYPE_CASE(Type) \
-  case kExternal##Type##Array: \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
     return typer_->cache_->Get(k##Type##Array);
-      NATIVE_TYPES(NATIVE_TYPE_CASE)
-#undef NATIVE_TYPE_CASE
-      case kExternalUint8ClampedArray:
-        // TODO(rossberg): Do we want some ClampedArray type to express this?
-        break;
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
     }
   }
   return Type::Constant(value, zone());

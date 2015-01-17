@@ -196,6 +196,9 @@ class ControlReducerImpl {
       merge = graph()->NewNode(common_->Merge(2), merge, loop);
       end->ReplaceInput(0, merge);
       to_add = merge;
+      // Mark the node as visited so that we can revisit later.
+      EnsureStateSize(merge->id());
+      state_[merge->id()] = kVisited;
     } else {
       // Append a new input to the final merge at the end.
       merge->AppendInput(graph()->zone(), loop);
@@ -293,14 +296,17 @@ class ControlReducerImpl {
     if (replacement != node) Recurse(replacement);
   }
 
+  void EnsureStateSize(size_t id) {
+    if (id >= state_.size()) {
+      state_.resize((3 * id) / 2, kUnvisited);
+    }
+  }
+
   // Push a node onto the stack if its state is {kUnvisited} or {kRevisit}.
   bool Recurse(Node* node) {
     size_t id = static_cast<size_t>(node->id());
-    if (id < state_.size()) {
-      if (state_[id] != kRevisit && state_[id] != kUnvisited) return false;
-    } else {
-      state_.resize((3 * id) / 2, kUnvisited);
-    }
+    EnsureStateSize(id);
+    if (state_[id] != kRevisit && state_[id] != kUnvisited) return false;
     Push(node);
     return true;
   }
@@ -402,6 +408,14 @@ class ControlReducerImpl {
     int n = node->InputCount();
     if (n <= 1) return dead();            // No non-control inputs.
     if (n == 2) return node->InputAt(0);  // Only one non-control input.
+
+    // Never remove an effect phi from a (potentially non-terminating) loop.
+    // Otherwise, we might end up eliminating effect nodes, such as calls,
+    // before the loop.
+    if (node->opcode() == IrOpcode::kEffectPhi &&
+        NodeProperties::GetControlInput(node)->opcode() == IrOpcode::kLoop) {
+      return node;
+    }
 
     Node* replacement = NULL;
     Node::Inputs inputs = node->inputs();

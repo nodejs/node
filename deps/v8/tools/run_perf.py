@@ -529,10 +529,17 @@ class AndroidPlatform(Platform):  # pragma: no cover
     perf.SetDefaultPerfMode()
     self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
 
+  def _SendCommand(self, cmd):
+    logging.info("adb -s %s %s" % (str(self.device), cmd))
+    return self.adb.SendCommand(cmd, timeout_time=60)
+
   def _PushFile(self, host_dir, file_name, target_rel="."):
     file_on_host = os.path.join(host_dir, file_name)
+    file_on_device_tmp = os.path.join(
+        AndroidPlatform.DEVICE_DIR, "_tmp_", file_name)
     file_on_device = os.path.join(
         AndroidPlatform.DEVICE_DIR, target_rel, file_name)
+    folder_on_device = os.path.dirname(file_on_device)
 
     # Only push files not yet pushed in one execution.
     if file_on_host in self.pushed:
@@ -540,8 +547,16 @@ class AndroidPlatform(Platform):  # pragma: no cover
     else:
       self.pushed.add(file_on_host)
 
-    logging.info("adb push %s %s" % (file_on_host, file_on_device))
-    self.adb.Push(file_on_host, file_on_device)
+    # Work-around for "text file busy" errors. Push the files to a temporary
+    # location and then copy them with a shell command.
+    output = self._SendCommand(
+        "push %s %s" % (file_on_host, file_on_device_tmp))
+    # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)".
+    # Errors look like this: "failed to copy  ... ".
+    if output and not re.search('^[0-9]', output.splitlines()[-1]):
+      logging.critical('PUSH FAILED: ' + output)
+    self._SendCommand("shell mkdir -p %s" % folder_on_device)
+    self._SendCommand("shell cp %s %s" % (file_on_device_tmp, file_on_device))
 
   def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))

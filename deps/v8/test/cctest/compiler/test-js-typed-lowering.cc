@@ -507,24 +507,6 @@ TEST(JSToBoolean) {
     CHECK_EQ(IrOpcode::kParameter, r->opcode());
   }
 
-  {  // ToBoolean(ordered-number)
-    Node* r = R.ReduceUnop(op, Type::OrderedNumber());
-    CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
-    Node* i = r->InputAt(0);
-    CHECK_EQ(IrOpcode::kNumberEqual, i->opcode());
-    // ToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x, #0))
-  }
-
-  {  // ToBoolean(string)
-    Node* r = R.ReduceUnop(op, Type::String());
-    CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
-    Node* i = r->InputAt(0);
-    CHECK_EQ(IrOpcode::kNumberEqual, i->opcode());
-    Node* j = i->InputAt(0);
-    CHECK_EQ(IrOpcode::kLoadField, j->opcode());
-    // ToBoolean(x:string) => BooleanNot(NumberEqual(x.length, #0))
-  }
-
   {  // ToBoolean(object)
     Node* r = R.ReduceUnop(op, Type::DetectableObject());
     R.CheckTrue(r);
@@ -537,30 +519,7 @@ TEST(JSToBoolean) {
 
   {  // ToBoolean(object)
     Node* r = R.ReduceUnop(op, Type::Object());
-    CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
-  }
-}
-
-
-TEST(JSToBoolean_replacement) {
-  JSTypedLoweringTester R;
-
-  Type* types[] = {Type::Null(),             Type::Undefined(),
-                   Type::Boolean(),          Type::OrderedNumber(),
-                   Type::DetectableObject(), Type::Undetectable()};
-
-  for (size_t i = 0; i < arraysize(types); i++) {
-    Node* n = R.Parameter(types[i]);
-    Node* c = R.graph.NewNode(R.javascript.ToBoolean(), n, R.context());
-    Node* r = R.reduce(c);
-
-    if (types[i]->Is(Type::Boolean())) {
-      CHECK_EQ(n, r);
-    } else if (types[i]->Is(Type::OrderedNumber())) {
-      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
-    } else {
-      CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());
-    }
+    CHECK_EQ(IrOpcode::kAnyToBoolean, r->opcode());
   }
 }
 

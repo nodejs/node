@@ -1298,7 +1298,7 @@ class Heap {
 
   int gc_count() const { return gc_count_; }
 
-  bool RecentIdleNotifcationHappened();
+  bool RecentIdleNotificationHappened();
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).

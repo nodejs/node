@@ -490,124 +490,34 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
-  if (input->opcode() == IrOpcode::kJSToBoolean) {
-    // Recursively try to reduce the input first.
-    Reduction result = ReduceJSToBoolean(input);
-    if (result.Changed()) return result;
-    return Changed(input);  // JSToBoolean(JSToBoolean(x)) => JSToBoolean(x)
-  }
-  // Check if we have a cached conversion.
-  Node* conversion = FindConversion<IrOpcode::kJSToBoolean>(input);
-  if (conversion) return Replace(conversion);
+Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
+  Node* input = node->InputAt(0);
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Boolean())) {
-    return Changed(input);  // JSToBoolean(x:boolean) => x
+    // JSUnaryNot(x:boolean,context) => BooleanNot(x)
+    node->set_op(simplified()->BooleanNot());
+    node->TrimInputCount(1);
+    return Changed(node);
   }
-  if (input_type->Is(Type::Undefined())) {
-    // JSToBoolean(undefined) => #false
-    return Replace(jsgraph()->FalseConstant());
-  }
-  if (input_type->Is(Type::Null())) {
-    // JSToBoolean(null) => #false
-    return Replace(jsgraph()->FalseConstant());
-  }
-  if (input_type->Is(Type::DetectableReceiver())) {
-    // JSToBoolean(x:detectable) => #true
-    return Replace(jsgraph()->TrueConstant());
-  }
-  if (input_type->Is(Type::Undetectable())) {
-    // JSToBoolean(x:undetectable) => #false
-    return Replace(jsgraph()->FalseConstant());
-  }
-  if (input_type->Is(Type::OrderedNumber())) {
-    // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x, #0))
-    Node* cmp = graph()->NewNode(simplified()->NumberEqual(), input,
-                                 jsgraph()->ZeroConstant());
-    Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
-    return Replace(inv);
-  }
-  if (input_type->Is(Type::String())) {
-    // JSToBoolean(x:string) => BooleanNot(NumberEqual(x.length, #0))
-    FieldAccess access = AccessBuilder::ForStringLength();
-    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
-                                    graph()->start(), graph()->start());
-    Node* cmp = graph()->NewNode(simplified()->NumberEqual(), length,
-                                 jsgraph()->ZeroConstant());
-    Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
-    return Replace(inv);
-  }
-  return NoChange();
+  // JSUnaryNot(x,context) => BooleanNot(AnyToBoolean(x))
+  node->set_op(simplified()->BooleanNot());
+  node->ReplaceInput(0, graph()->NewNode(simplified()->AnyToBoolean(), input));
+  node->TrimInputCount(1);
+  return Changed(node);
 }
 
 
 Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
-  // Try to reduce the input first.
-  Node* const input = node->InputAt(0);
-  Reduction reduction = ReduceJSToBooleanInput(input);
-  if (reduction.Changed()) return reduction;
-  if (input->opcode() == IrOpcode::kPhi) {
-    // JSToBoolean(phi(x1,...,xn,control),context)
-    //   => phi(JSToBoolean(x1,no-context),...,JSToBoolean(xn,no-context))
-    int const input_count = input->InputCount() - 1;
-    Node* const control = input->InputAt(input_count);
-    DCHECK_LE(0, input_count);
-    DCHECK(NodeProperties::IsControl(control));
-    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Boolean()));
-    DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Boolean()));
-    node->set_op(common()->Phi(kMachAnyTagged, input_count));
-    for (int i = 0; i < input_count; ++i) {
-      // We must be very careful not to introduce cycles when pushing
-      // operations into phis. It is safe for {value}, since it appears
-      // as input to the phi that we are replacing, but it's not safe
-      // to simply reuse the context of the {node}. However, ToBoolean()
-      // does not require a context anyways, so it's safe to discard it
-      // here and pass the dummy context.
-      Node* const value = ConvertToBoolean(input->InputAt(i));
-      if (i < node->InputCount()) {
-        node->ReplaceInput(i, value);
-      } else {
-        node->AppendInput(graph()->zone(), value);
-      }
-    }
-    if (input_count < node->InputCount()) {
-      node->ReplaceInput(input_count, control);
-    } else {
-      node->AppendInput(graph()->zone(), control);
-    }
-    node->TrimInputCount(input_count + 1);
-    return Changed(node);
+  Node* input = node->InputAt(0);
+  Type* input_type = NodeProperties::GetBounds(input).upper;
+  if (input_type->Is(Type::Boolean())) {
+    // JSToBoolean(x:boolean,context) => x
+    return Replace(input);
   }
-  if (input->opcode() == IrOpcode::kSelect) {
-    // JSToBoolean(select(c,x1,x2),context)
-    //   => select(c,JSToBoolean(x1,no-context),...,JSToBoolean(x2,no-context))
-    int const input_count = input->InputCount();
-    BranchHint const input_hint = SelectParametersOf(input->op()).hint();
-    DCHECK_EQ(3, input_count);
-    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Boolean()));
-    DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Boolean()));
-    node->set_op(common()->Select(kMachAnyTagged, input_hint));
-    node->InsertInput(graph()->zone(), 0, input->InputAt(0));
-    for (int i = 1; i < input_count; ++i) {
-      // We must be very careful not to introduce cycles when pushing
-      // operations into selects. It is safe for {value}, since it appears
-      // as input to the select that we are replacing, but it's not safe
-      // to simply reuse the context of the {node}. However, ToBoolean()
-      // does not require a context anyways, so it's safe to discard it
-      // here and pass the dummy context.
-      Node* const value = ConvertToBoolean(input->InputAt(i));
-      node->ReplaceInput(i, value);
-    }
-    DCHECK_EQ(3, node->InputCount());
-    return Changed(node);
-  }
-  InsertConversion(node);
-  if (node->InputAt(1) != jsgraph()->NoContextConstant()) {
-    // JSToBoolean(x,context) => JSToBoolean(x,no-context)
-    node->ReplaceInput(1, jsgraph()->NoContextConstant());
-    return Changed(node);
-  }
-  return NoChange();
+  // JSToBoolean(x,context) => AnyToBoolean(x)
+  node->set_op(simplified()->AnyToBoolean());
+  node->TrimInputCount(1);
+  return Changed(node);
 }
 
 
@@ -927,14 +837,36 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
-  // result value and can simply replace the node unless there are effects.
+  // result value and can simply replace the node if it's eliminable.
   if (NodeProperties::IsTyped(node) &&
-      NodeProperties::GetBounds(node).upper->IsConstant() &&
       !IrOpcode::IsLeafOpcode(node->opcode()) &&
-      node->op()->EffectOutputCount() == 0) {
-    return ReplaceEagerly(node, jsgraph()->Constant(
-        NodeProperties::GetBounds(node).upper->AsConstant()->Value()));
-    // TODO(neis): Extend this to Range(x,x), NaN, MinusZero, ...?
+      node->op()->HasProperty(Operator::kEliminatable)) {
+    Type* upper = NodeProperties::GetBounds(node).upper;
+    if (upper->IsConstant()) {
+      Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::MinusZero())) {
+      Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::NaN())) {
+      Node* replacement = jsgraph()->NaNConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::Null())) {
+      Node* replacement = jsgraph()->NullConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::PlainNumber()) && upper->Min() == upper->Max()) {
+      Node* replacement = jsgraph()->Constant(upper->Min());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::Undefined())) {
+      Node* replacement = jsgraph()->UndefinedConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    }
   }
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
@@ -972,18 +904,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceNumberBinop(node, simplified()->NumberDivide());
     case IrOpcode::kJSModulus:
       return ReduceNumberBinop(node, simplified()->NumberModulus());
-    case IrOpcode::kJSUnaryNot: {
-      Reduction result = ReduceJSToBooleanInput(node->InputAt(0));
-      if (result.Changed()) {
-        // JSUnaryNot(x:boolean) => BooleanNot(x)
-        node = result.replacement();
-      } else {
-        // JSUnaryNot(x) => BooleanNot(JSToBoolean(x))
-        node->set_op(javascript()->ToBoolean());
-      }
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node);
-      return Replace(value);
-    }
+    case IrOpcode::kJSUnaryNot:
+      return ReduceJSUnaryNot(node);
     case IrOpcode::kJSToBoolean:
       return ReduceJSToBoolean(node);
     case IrOpcode::kJSToNumber:
@@ -1002,17 +924,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
-}
-
-
-Node* JSTypedLowering::ConvertToBoolean(Node* input) {
-  // Avoid inserting too many eager ToBoolean() operations.
-  Reduction const reduction = ReduceJSToBooleanInput(input);
-  if (reduction.Changed()) return reduction.replacement();
-  Node* const conversion = graph()->NewNode(javascript()->ToBoolean(), input,
-                                            jsgraph()->NoContextConstant());
-  InsertConversion(conversion);
-  return conversion;
 }
 
 
@@ -1043,8 +954,7 @@ Node* JSTypedLowering::FindConversion(Node* input) {
 
 
 void JSTypedLowering::InsertConversion(Node* conversion) {
-  DCHECK(conversion->opcode() == IrOpcode::kJSToBoolean ||
-         conversion->opcode() == IrOpcode::kJSToNumber);
+  DCHECK(conversion->opcode() == IrOpcode::kJSToNumber);
   size_t const input_id = conversion->InputAt(0)->id();
   if (input_id >= conversions_.size()) {
     conversions_.resize(2 * input_id + 1);

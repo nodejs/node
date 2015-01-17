@@ -10,6 +10,7 @@
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
 
+using testing::BitEq;
 using testing::Capture;
 
 namespace v8 {
@@ -83,9 +84,11 @@ TEST_F(JSBuiltinReducerTest, MathAbs) {
     } else {
       Capture<Node*> branch;
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsSelect(kMachNone, IsNumberLessThan(IsNumberConstant(0), p0),
-                           p0, IsNumberSubtract(IsNumberConstant(0), p0)));
+      EXPECT_THAT(
+          r.replacement(),
+          IsSelect(kMachNone,
+                   IsNumberLessThan(IsNumberConstant(BitEq(0.0)), p0), p0,
+                   IsNumberSubtract(IsNumberConstant(BitEq(0.0)), p0)));
     }
   }
 }

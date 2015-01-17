@@ -128,6 +128,8 @@ class SimplifiedOperatorBuilder FINAL {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
+  const Operator* AnyToBoolean();
+
   const Operator* BooleanNot();
   const Operator* BooleanToNumber();
 

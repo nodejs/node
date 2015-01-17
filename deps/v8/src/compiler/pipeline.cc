@@ -441,7 +441,7 @@ struct SimplifiedLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    SimplifiedLowering lowering(data->jsgraph());
+    SimplifiedLowering lowering(data->jsgraph(), temp_zone);
     lowering.LowerAllNodes();
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());

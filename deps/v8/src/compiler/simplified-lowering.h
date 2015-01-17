@@ -20,7 +20,8 @@ class RepresentationChanger;
 
 class SimplifiedLowering FINAL {
  public:
-  explicit SimplifiedLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  SimplifiedLowering(JSGraph* jsgraph, Zone* zone)
+      : jsgraph_(jsgraph), zone_(zone) {}
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
@@ -41,7 +42,8 @@ class SimplifiedLowering FINAL {
   void DoStringLessThanOrEqual(Node* node);
 
  private:
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  Zone* const zone_;
 
   Node* SmiTag(Node* node);
   Node* IsTagged(Node* node);
