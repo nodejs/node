@@ -14,10 +14,13 @@ npm run [command] [\-\- <args>]
 This runs an arbitrary command from a package's \fB"scripts"\fR object\.
 If no package name is provided, it will search for a \fBpackage\.json\fR
 in the current folder and use its \fB"scripts"\fR object\. If no \fB"command"\fR
-is provided, it will list the available top level scripts\.
+is provided, it will list the available top level scripts\. The \fBenv\fR command
+can be used to list environment variables that will be available to the script
+at runtime\. If an "env" command is defined in your package it will have
+precedence instead\.
 .P
-It is used by the test, start, restart, and stop commands, but can be
-called directly, as well\.
+\fBrun[\-script]\fR is used by the test, start, restart, and stop commands, but can
+be called directly, as well\.
 .P
 As of \fBnpm@2\.0\.0\fR \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
 use custom arguments when executing scripts\. The special option \fB\-\-\fR is used by

@@ -84,7 +84,7 @@ function edit (cb) {
                        ]
                      )
               .concat(Object.keys(npmconf.defaults).reduce(function (arr, key) {
-                var obj = {};
+                var obj = {}
                 obj[key] = npmconf.defaults[key]
                 if (key === "logstream") return arr
                 return arr.concat(
@@ -138,7 +138,7 @@ function set (key, val, cb) {
 
 function get (key, cb) {
   if (!key) return list(cb)
-  if (key.charAt(0) === "_") {
+  if (!public(key)) {
     return cb(new Error("---sekretz---"))
   }
   console.log(npm.config.get(key))
@@ -150,7 +150,9 @@ function sort (a, b) {
 }
 
 function public (k) {
-  return !(k.charAt(0) === "_" || types[k] !== types[k])
+  return !(k.charAt(0) === "_" ||
+           k.indexOf(":_") !== -1 ||
+           types[k] !== types[k])
 }
 
 function getKeys (data) {
