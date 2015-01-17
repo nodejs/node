@@ -19,8 +19,8 @@ function testOutput (t, command, er, code, stdout, stderr) {
 
   lines = stdout.trim().split("\n")
   stdout = lines.filter(function(line) {
-    return line.trim() !== "" && line[0] !== '>'
-  }).join(';')
+    return line.trim() !== "" && line[0] !== ">"
+  }).join(";")
 
   t.equal(stdout, command)
   t.end()
@@ -78,25 +78,32 @@ test("npm run-script explicitly call pre script with arg", function (t) {
   common.npm(["run-script", "prewith-pre", "--", "an arg"], opts, testOutput.bind(null, t, "an arg"))
 })
 
-test('npm run-script test', function (t) {
-  common.npm(['run-script', 'test'], opts, function (er, code, stdout, stderr) {
-    if (er)
-      throw er
-    t.notOk(stderr, 'should not generate errors')
+test("npm run-script test", function (t) {
+  common.npm(["run-script", "test"], opts, function (er, code, stdout, stderr) {
+    t.ifError(er, "npm run-script test ran without issue")
+    t.notOk(stderr, "should not generate errors")
     t.end()
   })
 })
 
-test('npm run-script nonexistent-script', function (t) {
-  common.npm(['run-script', 'nonexistent-script'], opts, function (er, code, stdout, stderr) {
-    if (er)
-      throw er
-    t.ok(stderr, 'should generate errors')
+test("npm run-script env", function (t) {
+  common.npm(["run-script", "env"], opts, function (er, code, stdout, stderr) {
+    t.ifError(er, "using default env script")
+    t.notOk(stderr, "should not generate errors")
+    t.ok( stdout.indexOf("npm_config_init_version") > 0, "expected values in var list" )
     t.end()
   })
 })
 
-test('cleanup', function (t) {
+test("npm run-script nonexistent-script", function (t) {
+  common.npm(["run-script", "nonexistent-script"], opts, function (er, code, stdout, stderr) {
+    t.ifError(er, "npm run-script nonexistent-script did not cause npm to explode")
+    t.ok(stderr, "should generate errors")
+    t.end()
+  })
+})
+
+test("cleanup", function (t) {
   cleanup()
   t.end()
 })

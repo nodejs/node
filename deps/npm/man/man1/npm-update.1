@@ -13,7 +13,9 @@ npm update [\-g] [<name> [<name> \.\.\.]]
 This command will update all the packages listed to the latest version
 (specified by the \fBtag\fR config)\.
 .P
-It will also install missing packages\.
+It will also install missing packages\. As with all commands that install
+packages, the \fB\-\-dev\fR flag will cause \fBdevDependencies\fR to be processed
+as well\.
 .P
 If the \fB\-g\fR flag is specified, this command will update globally installed
 packages\.
