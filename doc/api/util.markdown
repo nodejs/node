@@ -389,11 +389,11 @@ Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
 
     var util = require('util');
 
-    util.isPrimitive({ length: 0 })
+    util.isBuffer({ length: 0 })
       // false
-    util.isPrimitive([])
+    util.isBuffer([])
       // false
-    util.isPrimitive(new Buffer('hello world'))
+    util.isBuffer(new Buffer('hello world'))
       // true
 
 
