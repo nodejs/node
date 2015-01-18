@@ -1887,7 +1887,7 @@ DebugCommandProcessor.prototype.resolveFrameFromScopeDescription_ =
   // Get the frame for which the scope or scopes are requested.
   // With no frameNumber argument use the currently selected frame.
   if (scope_description && !IS_UNDEFINED(scope_description.frameNumber)) {
-    frame_index = scope_description.frameNumber;
+    var frame_index = scope_description.frameNumber;
     if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
       throw new Error('Invalid frame number');
     }
@@ -1972,7 +1972,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
     var value_mirror = LookupMirror(value_description.handle);
     if (!value_mirror) {
       throw new Error("Failed to resolve value by handle, ' #" +
-          mapping.handle + "# not found");
+          value_description.handle + "# not found");
     }
     return value_mirror.value();
   } else if ("stringDescription" in value_description) {
@@ -2127,7 +2127,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 
   // Set 'includeSource' option for script lookup.
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
-    includeSource = %ToBoolean(request.arguments.includeSource);
+    var includeSource = %ToBoolean(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
 
