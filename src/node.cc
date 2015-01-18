@@ -2562,6 +2562,9 @@ void SetupProcessObject(Environment* env,
                     "node",
                     OneByteString(env->isolate(), NODE_VERSION + 1));
   READONLY_PROPERTY(versions,
+                    "iojs",
+                    OneByteString(env->isolate(), NODE_VERSION + 1));
+  READONLY_PROPERTY(versions,
                     "v8",
                     OneByteString(env->isolate(), V8::GetVersion()));
   READONLY_PROPERTY(versions,
