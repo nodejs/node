@@ -672,6 +672,33 @@ An example of the possible output looks like:
          target_arch: 'x64',
          v8_use_snapshot: 'true' } }
 
+## process.release
+
+An Object containing metadata related to the current release, including URLs
+for the source tarball and headers-only tarball. This property may not exist in
+custom builds from non-release versions of the source tree.
+
+`process.release` contains the following properties:
+
+* `name`: a string with a value that will always be `"io.js"` for io.js.
+* `sourceUrl`: a complete URL pointing to a _.tar.gz_ file containing the
+  source of the current release.
+* `headersUrl`: a complete URL pointing to a _.tar.gz_ file containing only
+  the header files for the current release. This file is significantly smaller
+  than the full source file and can be used for compiling add-ons against
+  io.js.
+* `libUrl`: a complete URL pointing to an _iojs.lib_ file matching the
+  architecture and version of the current release. This file is used for
+  compiling add-ons against io.js. _This property is only present on Windows
+  builds of io.js and will be missing on all other platforms._
+
+e.g.
+
+    { name: 'io.js',
+      sourceUrl: 'https://iojs.org/download/release/v2.3.5/iojs-v2.3.5.tar.gz',
+      headersUrl: 'https://iojs.org/download/release/v2.3.5/iojs-v2.3.5-headers.tar.gz',
+      libUrl: 'https://iojs.org/download/release/v2.3.5/win-x64/iojs.lib' }
+
 ## process.kill(pid[, signal])
 
 Send a signal to a process. `pid` is the process id and `signal` is the
