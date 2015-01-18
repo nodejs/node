@@ -11,7 +11,7 @@ Using npm on the command line
 
 ### npm(1)
 
-node package manager
+javascript package manager
 
 ### npm-adduser(1)
 
@@ -199,7 +199,7 @@ Using npm in your Node programs
 
 ### npm(3)
 
-node package manager
+javascript package manager
 
 ### npm-bin(3)
 
