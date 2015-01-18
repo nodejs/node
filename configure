@@ -191,6 +191,13 @@ parser.add_option('--tag',
     dest='tag',
     help='custom build tag')
 
+parser.add_option('--release-urlbase',
+    action='store',
+    dest='release_urlbase',
+    help='Provide a custom URL prefix for the `process.release` properties '
+         '`sourceUrl` and `headersUrl`. When compiling a release build, this '
+         'will default to https://iojs.org/download/release/')
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -674,6 +681,8 @@ def configure_node(o):
     o['variables']['node_tag'] = '-' + options.tag
   else:
     o['variables']['node_tag'] = ''
+
+  o['variables']['node_release_urlbase'] = options.release_urlbase or ''
 
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
