@@ -134,16 +134,16 @@ test-npm: $(NODE_EXE)
 	rm -rf npm-cache npm-tmp npm-prefix
 	mkdir npm-cache npm-tmp npm-prefix
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js install --ignore-scripts
+		npm_config_prefix="$(shell pwd)/npm-prefix" \
+		npm_config_tmp="$(shell pwd)/npm-tmp" \
+		../../$(NODE_EXE) cli.js install --ignore-scripts
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js run-script test-all && \
-	     ../../$(NODE_EXE) cli.js prune --prod && \
-	     cd ../.. && \
-	     rm -rf npm-cache npm-tmp npm-prefix
+		npm_config_prefix="$(shell pwd)/npm-prefix" \
+		npm_config_tmp="$(shell pwd)/npm-tmp" \
+		../../$(NODE_EXE) cli.js run-script test-all && \
+		../../$(NODE_EXE) cli.js prune --prod && \
+		cd ../.. && \
+		rm -rf npm-cache npm-tmp npm-prefix
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
@@ -160,7 +160,7 @@ test-timers-clean:
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
-          $(addprefix out/,$(apidoc_sources:.markdown=.json))
+		$(addprefix out/,$(apidoc_sources:.markdown=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
@@ -244,7 +244,7 @@ release-only:
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "The git repository is not clean." >&2 ; \
 		echo "Please commit changes before building release tarball." >&2 ; \
 		echo "" >&2 ; \
@@ -255,10 +255,26 @@ release-only:
 	@if [ "$(NIGHTLY)" != "" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
-	  echo "" >&2 ; \
+		echo "Did you remember to update src/node_version.h?" >&2 ; \
+		echo "" >&2 ; \
+		exit 1 ; \
+	fi
+	@if [ "$(RELEASE_SOURCE_URL)" != "" ]; then \
+		exit 0; \
+	else \
+		echo "" >&2 ; \
+		echo "#RELEASE_SOURCE_URL is not set." >&2 ; \
+		echo "" >&2 ; \
+		exit 1 ; \
+	fi
+	@if [ "$(RELEASE_HEADERS_URL)" != "" ]; then \
+		exit 0; \
+	else \
+		echo "" >&2 ; \
+		echo "#RELEASE_HEADERS_URL is not set." >&2 ; \
+		echo "" >&2 ; \
 		exit 1 ; \
 	fi
 
@@ -267,10 +283,14 @@ pkg: $(PKG)
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --dest-cpu=ia32 --tag=$(TAG)
+	$(PYTHON) ./configure --dest-cpu=ia32 --tag=$(TAG) \
+		--release-source-url=$(RELEASE_SOURCE_URL) \
+		--release-headers-url=$(RELEASE_HEADERS_URL)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
+	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG) \
+		--release-source-url=$(RELEASE_SOURCE_URL) \
+		--release-headers-url=$(RELEASE_HEADERS_URL)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/iojs \
@@ -308,7 +328,10 @@ tar: $(TARBALL)
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-source-url=$(RELEASE_SOURCE_URL) \
+		--release-headers-url=$(RELEASE_HEADERS_URL) $(CONFIG_FLAGS)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
@@ -326,7 +349,9 @@ binary: $(BINARYTAR)
 $(PKGSRC): release-only
 	rm -rf dist out
 	$(PYTHON) configure --prefix=/ \
-		--dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+		--dest-cpu=$(DESTCPU) --tag=$(TAG) \
+		--release-source-url=$(RELEASE_SOURCE_URL) \
+		--release-headers-url=$(RELEASE_HEADERS_URL) $(CONFIG_FLAGS)
 	$(MAKE) install DESTDIR=dist
 	(cd dist; find * -type f | sort) > packlist
 	pkg_info -X pkg_install | \
@@ -380,7 +405,7 @@ bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
 bench: bench-net bench-http bench-fs bench-tls
 
 bench-http-simple:
-	 benchmark/http_simple_bench.sh
+	benchmark/http_simple_bench.sh
 
 bench-idle:
 	./$(NODE_EXE) benchmark/idle_server.js &
