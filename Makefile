@@ -156,7 +156,7 @@ test-timers-clean:
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
-          $(addprefix out/,$(apidoc_sources:.markdown=.json))
+		$(addprefix out/,$(apidoc_sources:.markdown=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
@@ -269,7 +269,7 @@ release-only:
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "The git repository is not clean." >&2 ; \
 		echo "Please commit changes before building release tarball." >&2 ; \
 		echo "" >&2 ; \
@@ -280,17 +280,21 @@ release-only:
 	@if [ "$(DISTTYPE)" != "release" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-	  echo "Did you remember to update src/node_version.h?" >&2 ; \
-	  echo "" >&2 ; \
+		echo "Did you remember to update src/node_version.h?" >&2 ; \
+		echo "" >&2 ; \
 		exit 1 ; \
 	fi
 
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
+	$(PYTHON) ./configure \
+		--dest-cpu=x64 \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
@@ -346,7 +350,12 @@ doc-upload: tar
 	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/doc.done"
 
 $(TARBALL)-headers: config.gypi release-only
-	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS)
 	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
@@ -371,7 +380,12 @@ endif
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
@@ -438,7 +452,7 @@ bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
 bench: bench-net bench-http bench-fs bench-tls
 
 bench-http-simple:
-	 benchmark/http_simple_bench.sh
+	benchmark/http_simple_bench.sh
 
 bench-idle:
 	$(NODE) benchmark/idle_server.js &

@@ -2762,6 +2762,39 @@ void SetupProcessObject(Environment* env,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
 
+  // process.release
+  Local<Object> release = Object::New(env->isolate());
+  READONLY_PROPERTY(process, "release", release);
+  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "io.js"));
+
+// if this is a release build and no explicit base has been set
+// substitute the standard release download URL
+#ifndef NODE_RELEASE_URLBASE
+# if NODE_VERSION_IS_RELEASE
+#  define NODE_RELEASE_URLBASE "https://iojs.org/download/release/"
+# endif
+#endif
+
+#if defined(NODE_RELEASE_URLBASE)
+#  define _RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+#  define _RELEASE_URLFPFX _RELEASE_URLPFX "iojs-v" NODE_VERSION_STRING
+
+  READONLY_PROPERTY(release,
+                    "sourceUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLFPFX ".tar.gz"));
+  READONLY_PROPERTY(release,
+                    "headersUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLFPFX "-headers.tar.gz"));
+#  ifdef _WIN32
+  READONLY_PROPERTY(release,
+                    "libUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLPFX "win-" NODE_ARCH "/iojs.lib"));
+#  endif
+#endif
+
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
   for (int i = 0; i < argc; ++i) {
