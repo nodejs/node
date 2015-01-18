@@ -35,6 +35,7 @@ set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
+set release_urls_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -79,6 +80,7 @@ if "%config%"=="Debug" set debug_arg=--debug
 if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined RELEASE_URLBASE set release_urlbase_arg=--release-urlbase=%RELEASE_URLBASE%
 
 if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu

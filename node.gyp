@@ -194,6 +194,11 @@
             'src/node_main.cc',
           ],
         }],
+        [ 'node_release_urlbase!=""', {
+          'defines': [
+            'NODE_RELEASE_URLBASE="<(node_release_urlbase)"',
+          ]
+        }],
         [ 'v8_enable_i18n_support==1', {
           'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
           'dependencies': [
