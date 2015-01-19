@@ -324,11 +324,6 @@
             ],
         }],
       ],
-      'msvs_settings': {
-        'VCLinkerTool': {
-          'SubSystem': 1, # /subsystem:console
-        },
-      },
     },
     # generate ETW header and resource files
     {
