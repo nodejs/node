@@ -137,11 +137,12 @@ A factory method which returns a new ['net.Socket'](#net_class_net_socket).
 
 This class is used to create a TCP or local server.
 
-### server.listen(port[, host][, backlog][, callback])
+### server.listen(port[, hostname][, backlog][, callback])
 
-Begin accepting connections on the specified `port` and `host`.  If the
-`host` is omitted, the server will accept connections directed to any
-IPv4 address (`INADDR_ANY`). A port value of zero will assign a random port.
+Begin accepting connections on the specified `port` and `hostname`. If the
+`hostname` is omitted, the server will accept connections on any IPv6 address
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. A
+port value of zero will assign a random port.
 
 Backlog is the maximum length of the queue of pending connections.
 The actual length will be determined by your OS through sysctl settings such as

@@ -162,9 +162,10 @@ If a client connection emits an 'error' event, it will be forwarded here.
 
 ### server.listen(port[, hostname][, backlog][, callback])
 
-Begin accepting connections on the specified port and hostname.  If the
-hostname is omitted, the server will accept connections directed to any
-IPv4 address (`INADDR_ANY`).
+Begin accepting connections on the specified `port` and `hostname`. If the
+`hostname` is omitted, the server will accept connections on any IPv6 address
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. A
+port value of zero will assign a random port.
 
 To listen to a unix socket, supply a filename instead of port and hostname.
 
