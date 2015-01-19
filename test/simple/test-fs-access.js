@@ -77,6 +77,13 @@ if (process.platform !== 'win32' && process.getuid() === 0) {
   }
 }
 
+// Check that {F,R,W,X}_OK are read only
+
+fs.F_OK = null;
+fs.R_OK = null;
+fs.W_OK = null;
+fs.X_OK = null;
+
 assert(typeof fs.F_OK === 'number');
 assert(typeof fs.R_OK === 'number');
 assert(typeof fs.W_OK === 'number');
