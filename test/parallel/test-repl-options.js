@@ -25,6 +25,7 @@ assert.equal(r1.terminal, true);
 assert.equal(r1.useColors, r1.terminal);
 assert.equal(r1.useGlobal, false);
 assert.equal(r1.ignoreUndefined, false);
+assert.equal(r1.useHistory, false);
 
 // test r1 for backwards compact
 assert.equal(r1.rli.input, stream);

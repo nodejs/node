@@ -258,7 +258,8 @@ function unix_test() {
       prompt: prompt_unix,
       input: socket,
       output: socket,
-      useGlobal: true
+      useGlobal: true,
+      useHistory: false
     }).context.message = message;
   });
 
