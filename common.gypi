@@ -141,8 +141,21 @@
       },
       'VCLinkerTool': {
         'conditions': [
+          ['target_arch=="ia32"', {
+            'TargetMachine' : 1, # /MACHINE:X86
+            'target_conditions': [
+              ['_type=="executable"', {
+                'AdditionalOptions': [ '/SubSystem:Console,"5.01"' ],
+              }],
+            ],
+          }],
           ['target_arch=="x64"', {
-            'TargetMachine' : 17 # /MACHINE:X64
+            'TargetMachine' : 17, # /MACHINE:AMD64
+            'target_conditions': [
+              ['_type=="executable"', {
+                'AdditionalOptions': [ '/SubSystem:Console,"5.02"' ],
+              }],
+            ],
           }],
         ],
         'GenerateDebugInformation': 'true',
@@ -150,11 +163,6 @@
         'DataExecutionPrevention': 2, # enable DEP
         'AllowIsolation': 'true',
         'SuppressStartupBanner': 'true',
-        'target_conditions': [
-          ['_type=="executable"', {
-            'SubSystem': 1, # console executable
-          }],
-        ],
       },
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
