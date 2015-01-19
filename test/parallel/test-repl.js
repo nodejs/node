@@ -104,6 +104,17 @@ function error_test() {
     // But passing the same string to eval() should throw
     { client: client_unix, send: 'eval("function test_func() {")',
       expect: /^SyntaxError: Unexpected end of input/ },
+    // Can handle multiline template literals
+    { client: client_unix, send: '`io.js',
+      expect: prompt_multiline },
+    // Special REPL commands still available
+    { client: client_unix, send: '.break',
+      expect: prompt_unix },
+    // Template expressions can cross lines
+    { client: client_unix, send: '`io.js ${"1.0"',
+      expect: prompt_multiline },
+    { client: client_unix, send: '+ ".2"}`',
+      expect: `'io.js 1.0.2'\n${prompt_unix}` },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
       expect: '0.1234' },
