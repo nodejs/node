@@ -1963,7 +1963,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() < 2) {
+  if (args.Length() != 2) {
     env->ThrowError("process.dlopen takes exactly 2 arguments.");
     return;
   }
