@@ -842,7 +842,6 @@ def configure_intl(o):
         sys.exit(1)
 
   # ICU mode. (icu-generic.gyp)
-  byteorder = sys.byteorder
   o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
   # ICU source dir relative to root
   o['variables']['icu_path'] = icu_full_path
