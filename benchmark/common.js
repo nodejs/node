@@ -201,7 +201,7 @@ Benchmark.prototype.end = function(operations) {
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
   if (!silent)
-    console.log('%s: %s', heading, value.toFixed(0));
+    console.log('%s: %s', heading, value.toFixed(5));
   process.exit(0);
 };
 
