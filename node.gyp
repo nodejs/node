@@ -322,6 +322,9 @@
           'sources': [
             'src/res/node.rc',
           ],
+          'defines!': [
+            'NODE_PLATFORM="win"',
+          ],
           'defines': [
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
