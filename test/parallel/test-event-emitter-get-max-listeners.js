@@ -6,8 +6,8 @@ var emitter = new EventEmitter();
 
 assert.strictEqual(emitter.getMaxListeners(), EventEmitter.defaultMaxListeners);
 
-emitter.setMaxListeners(0)
-assert.strictEqual(emitter.getMaxListeners(), 0)
+emitter.setMaxListeners(0);
+assert.strictEqual(emitter.getMaxListeners(), 0);
 
-emitter.setMaxListeners(3)
-assert.strictEqual(emitter.getMaxListeners(), 3)
+emitter.setMaxListeners(3);
+assert.strictEqual(emitter.getMaxListeners(), 3);
