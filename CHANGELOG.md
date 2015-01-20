@@ -1,5 +1,55 @@
 # io.js ChangeLog
 
+## 2015-01-20, Version 1.0.3, @rvagg
+
+### Notable changes
+
+* V8 upgrade from 3.31 to 4.1, this is not a major upgrade, the version number "4.1" signifies tracking towards Chrome 41. The 3.31 branch is now not tracking towards a stable release.
+* Re-enable Windows XP / 2003 support
+* npm upgrade to 2.2.0
+* Improved FreeBSD support
+
+### Known issues
+
+* ARMv6 builds still not working, there is a hold-up in V8 on this, issue #283
+* Template strings can cause segfaults in V8 4.1, https://codereview.chromium.org/857433004, also issue #333
+
+### Commits
+
+* 9419e1f - src: fix inconsistency between a check and error (toastynerd)
+* 03ee4d8 - fs: add error code on null byte paths (cjihrig)
+* e2558f0 - net: fix error details in connect() (cjihrig)
+* 4af5746 - win,build: remove duplicate definition (Bert Belder)
+* e8d0850 - win: bring back xp/2k3 support (Bert Belder)
+* 4dd22b9 - cluster: avoid race enabling debugger in worker (Timothy J Fontaine)
+* 6b91c78 - test: reland changes from 11c1bae (Ben Noordhuis)
+* 992a1e7 - test: debug-signal-cluster should not be racey (Timothy J Fontaine)
+* cdf0df1 - test: temporarily back out changes from 11c1bae (Ben Noordhuis)
+* 1ea607c - test: move sequential/test-debug-port-from-cmdline (Ben Noordhuis)
+* 2f33e00 - test: fix test-debug-port-from-cmdline.js (Julien Gilli)
+* b7365c1 - repl: make REPL support multiline template literals (Xiaowei Li)
+* 2253d30 - build: remove unused variable (Johan Bergström)
+* ab04a43 - doc: add optional sudo to make install in README (Glen Keane)
+* 1b1cd1c - build: shorten configurate script print on stdout (Roman Reiss)
+* d566ded - deps: fix V8 debugger bugs (Jay Jaeho Lee)
+* 6f36630 - doc: fix util.isBuffer examples (Thomas Jensen)
+* 3abfb56 - benchmark: fix tcp bench after internal api change (Yosuke Furukawa)
+* 50177fb - benchmark: stop v8 benchmark clobbering RegExp (Ben Noordhuis)
+* 1952219 - deps: make node-gyp work again on windows (Bert Belder)
+* a28de9b - deps: make node-gyp fetch tarballs from iojs.org (Ben Noordhuis)
+* 9dc8f59 - deps: upgrade npm to 2.2.0 (Forrest L Norvell)
+* e8ad773 - src: remove --noharmony_classes again (Ben Noordhuis)
+* 334020e - deps: fix v8 build on FreeBSD (Fedor Indutny)
+* 5e7ebc7 - deps: upgrade v8 to 4.1.0.7 (Ben Noordhuis)
+* ea7750b - benchmark: add filter option for benchmark (Yosuke Furukawa)
+* 4764eef - doc: fixed punctuation (Brenard Cubacub)
+* de224d6 - configure: remove --ninja switch (Ben Noordhuis)
+* 48774ec0 - configure: print warning for old compilers (Ben Noordhuis)
+* daf9562 - doc: change to iojs from node in the usage message (Jongyeol Choi)
+* 3fde649 - build: add tools/gflags to PYTHONPATH (Shigeki Ohtsu)
+* 8b22df1 - doc: add python-gflags LICENSE block (Shigeki Ohtsu)
+* 6242229 - tools: add python-gflags module (Shigeki Ohtsu)
+
 ## 2015-01-16, Version 1.0.2, @rvagg
 
 ### Notable changes
