@@ -53,9 +53,9 @@ class Platform : public v8::Platform {
   virtual ~Platform() override;
 
   void CallOnBackgroundThread(v8::Task* task,
-                              ExpectedRuntime expected_runtime);
-  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task);
-  double MonotonicallyIncreasingTime();
+                              ExpectedRuntime expected_runtime) override;
+  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override;
+  double MonotonicallyIncreasingTime() override;
 
  protected:
   static void WorkerBody(void* arg);
