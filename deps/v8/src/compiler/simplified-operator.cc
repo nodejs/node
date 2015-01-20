@@ -25,6 +25,64 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
 }
 
 
+MachineType BufferAccess::machine_type() const {
+  switch (external_array_type_) {
+    case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
+      return kMachUint8;
+    case kExternalInt8Array:
+      return kMachInt8;
+    case kExternalUint16Array:
+      return kMachUint16;
+    case kExternalInt16Array:
+      return kMachInt16;
+    case kExternalUint32Array:
+      return kMachUint32;
+    case kExternalInt32Array:
+      return kMachInt32;
+    case kExternalFloat32Array:
+      return kMachFloat32;
+    case kExternalFloat64Array:
+      return kMachFloat64;
+  }
+  UNREACHABLE();
+  return kMachNone;
+}
+
+
+bool operator==(BufferAccess lhs, BufferAccess rhs) {
+  return lhs.external_array_type() == rhs.external_array_type();
+}
+
+
+bool operator!=(BufferAccess lhs, BufferAccess rhs) { return !(lhs == rhs); }
+
+
+size_t hash_value(BufferAccess access) {
+  return base::hash<ExternalArrayType>()(access.external_array_type());
+}
+
+
+std::ostream& operator<<(std::ostream& os, BufferAccess access) {
+  switch (access.external_array_type()) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return os << #Type;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+BufferAccess const BufferAccessOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kLoadBuffer ||
+         op->opcode() == IrOpcode::kStoreBuffer);
+  return OpParameter<BufferAccess>(op);
+}
+
+
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
          lhs.machine_type == rhs.machine_type;
@@ -57,18 +115,6 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, BoundsCheckMode bounds_check_mode) {
-  switch (bounds_check_mode) {
-    case kNoBoundsCheck:
-      return os << "no bounds check";
-    case kTypedArrayBoundsCheck:
-      return os << "ignore out of bounds";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged &&
          lhs.header_size == rhs.header_size &&
@@ -90,7 +136,7 @@ size_t hash_value(ElementAccess const& access) {
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.bounds_check;
+  os << ", " << access.machine_type;
   return os;
 }
 
@@ -112,6 +158,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 
 
 #define PURE_OP_LIST(V)                                \
+  V(AnyToBoolean, Operator::kNoProperties, 1)          \
   V(BooleanNot, Operator::kNoProperties, 1)            \
   V(BooleanToNumber, Operator::kNoProperties, 1)       \
   V(NumberEqual, Operator::kCommutative, 2)            \
@@ -150,6 +197,26 @@ struct SimplifiedOperatorGlobalCache FINAL {
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
+
+#define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
+  struct LoadBuffer##Type##Operator FINAL : public Operator1<BufferAccess> {  \
+    LoadBuffer##Type##Operator()                                              \
+        : Operator1<BufferAccess>(IrOpcode::kLoadBuffer,                      \
+                                  Operator::kNoThrow | Operator::kNoWrite,    \
+                                  "LoadBuffer", 3, 1, 1, 1, 1, 0,             \
+                                  BufferAccess(kExternal##Type##Array)) {}    \
+  };                                                                          \
+  struct StoreBuffer##Type##Operator FINAL : public Operator1<BufferAccess> { \
+    StoreBuffer##Type##Operator()                                             \
+        : Operator1<BufferAccess>(IrOpcode::kStoreBuffer,                     \
+                                  Operator::kNoRead | Operator::kNoThrow,     \
+                                  "StoreBuffer", 4, 1, 1, 0, 1, 0,            \
+                                  BufferAccess(kExternal##Type##Array)) {}    \
+  };                                                                          \
+  LoadBuffer##Type##Operator kLoadBuffer##Type;                               \
+  StoreBuffer##Type##Operator kStoreBuffer##Type;
+  TYPED_ARRAYS(BUFFER_ACCESS)
+#undef BUFFER_ACCESS
 };
 
 
@@ -175,11 +242,37 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
 }
 
 
+const Operator* SimplifiedOperatorBuilder::LoadBuffer(BufferAccess access) {
+  switch (access.external_array_type()) {
+#define LOAD_BUFFER(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                     \
+    return &cache_.kLoadBuffer##Type;
+    TYPED_ARRAYS(LOAD_BUFFER)
+#undef LOAD_BUFFER
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
+  switch (access.external_array_type()) {
+#define STORE_BUFFER(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                      \
+    return &cache_.kStoreBuffer##Type;
+    TYPED_ARRAYS(STORE_BUFFER)
+#undef STORE_BUFFER
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
 #define ACCESS_OP_LIST(V)                                    \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \
   V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 0, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 1, 0)
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1) \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)
 
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \

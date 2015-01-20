@@ -1,7 +1,31 @@
-Node's license follows:
+io.js is licensed for use as follows:
 
-====
+"""
+Copyright io.js contributors. All rights reserved.
 
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+"""
+
+This license applies to parts of io.js originating from the
+https://github.com/joyent/node repository:
+
+"""
 Copyright Joyent, Inc. and other Node contributors. All rights reserved.
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -20,11 +44,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
+"""
 
-====
+The io.js license applies to all parts of io.js that are not externally
+maintained libraries.
 
-This license applies to all parts of Node that are not externally
-maintained libraries. The externally maintained libraries used by Node are:
+The externally maintained libraries used by io.js are:
 
 - V8, located at deps/v8. V8's license follows:
   """
@@ -221,6 +246,38 @@ maintained libraries. The externally maintained libraries used by Node are:
     # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
+- python-gflags is located at tools/gflags.  Its license follows:
+  """
+    # Copyright (c) 2006, Google Inc.
+    # All rights reserved.
+    #
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+    #
+    #     * Redistributions of source code must retain the above copyright
+    # notice, this list of conditions and the following disclaimer.
+    #     * Redistributions in binary form must reproduce the above
+    # copyright notice, this list of conditions and the following disclaimer
+    # in the documentation and/or other materials provided with the
+    # distribution.
+    #     * Neither the name of Google Inc. nor the names of its
+    # contributors may be used to endorse or promote products derived from
+    # this software without specific prior written permission.
+    #
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
 - tools/cpplint.py is a C++ linter. Its license follows:
   """
     # Copyright (c) 2009 Google Inc. All rights reserved.
@@ -294,9 +351,9 @@ maintained libraries. The externally maintained libraries used by Node are:
 - Zlib at deps/zlib. zlib's license follows:
   """
     /* zlib.h -- interface of the 'zlib' general purpose compression library
-      version 1.2.4, March 14th, 2010
+      version 1.2.8, April 28th, 2013
 
-      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+      Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
 
       This software is provided 'as-is', without any express or implied
       warranty.  In no event will the authors be held liable for any damages
@@ -314,9 +371,8 @@ maintained libraries. The externally maintained libraries used by Node are:
          misrepresented as being the original software.
       3. This notice may not be removed or altered from any source distribution.
 
-      Jean-loup Gailly
-      Mark Adler
-
+      Jean-loup Gailly        Mark Adler
+      jloup@gzip.org          madler@alumni.caltech.edu
     */
   """
 
@@ -556,7 +612,7 @@ maintained libraries. The externally maintained libraries used by Node are:
     included for use in the npm website and documentation,
     used with permission.
 
-    This program uses several Node modules contained in the node_modules/
+    This program uses several io.js modules contained in the node_modules/
     subdirectory, according to the terms of their respective licenses.
   """
 

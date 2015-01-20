@@ -52,9 +52,6 @@
 # include <CoreServices/CoreServices.h>
 #endif
 
-#define STATIC_ASSERT(expr)                                                   \
-  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
-
 #define ACCESS_ONCE(type, var)                                                \
   (*(volatile type*) &(var))
 
@@ -144,6 +141,11 @@ enum {
   UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
   UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
   UV_HANDLE_IPV6          = 0x10000 /* Handle is bound to a IPv6 socket. */
+};
+
+/* loop flags */
+enum {
+  UV_LOOP_BLOCK_SIGPROF = 1
 };
 
 typedef enum {

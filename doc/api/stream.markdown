@@ -1038,12 +1038,11 @@ initialized.
 
 #### writable.\_write(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be written.  Will always
+* `chunk` {Buffer | String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
-  encoding type.  Ignore if chunk is a buffer.  Note that chunk will
-  **always** be a buffer unless the `decodeStrings` option is
-  explicitly set to `false`.
+  encoding type. If chunk is a buffer, then this is the special
+  value - 'buffer', ignore it in this case.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunk.
 
@@ -1150,12 +1149,13 @@ initialized.
 
 #### transform.\_transform(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be transformed.  Will always
+* `chunk` {Buffer | String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
-  encoding type.  (Ignore if `decodeStrings` chunk is a buffer.)
+  encoding type. If chunk is a buffer, then this is the special
+  value - 'buffer', ignore it in this case.
 * `callback` {Function} Call this function (optionally with an error
-  argument) when you are done processing the supplied chunk.
+  argument and data) when you are done processing the supplied chunk.
 
 Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Transform
@@ -1175,7 +1175,20 @@ as a result of this chunk.
 
 Call the callback function only when the current chunk is completely
 consumed.  Note that there may or may not be output as a result of any
-particular input chunk.
+particular input chunk. If you supply as the second argument to the
+it will be passed to push method, in other words the following are
+equivalent:
+
+```javascript
+transform.prototype._transform = function (data, encoding, callback) {
+  this.push(data);
+  callback();
+}
+
+transform.prototype._transform = function (data, encoding, callback) {
+  callback(null, data);
+}
+```
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user

@@ -413,7 +413,7 @@ void Simulator::ResetState() {
 
   // Reset debug helpers.
   breakpoints_.empty();
-  break_on_next_= false;
+  break_on_next_ = false;
 }
 
 

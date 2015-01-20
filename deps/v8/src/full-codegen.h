@@ -586,6 +586,19 @@ class FullCodeGenerator: public AstVisitor {
   // is expected in the accumulator.
   void EmitAssignment(Expression* expr);
 
+  // Shall an error be thrown if assignment with 'op' operation is perfomed
+  // on this variable in given language mode?
+  static bool IsSignallingAssignmentToConst(Variable* var, Token::Value op,
+                                            StrictMode strict_mode) {
+    if (var->mode() == CONST) return op != Token::INIT_CONST;
+
+    if (var->mode() == CONST_LEGACY) {
+      return strict_mode == STRICT && op != Token::INIT_CONST_LEGACY;
+    }
+
+    return false;
+  }
+
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var,
@@ -613,6 +626,15 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void EmitLoadHomeObject(SuperReference* expr);
+
+  static bool NeedsHomeObject(Expression* expr) {
+    return FunctionLiteral::NeedsHomeObject(expr);
+  }
+
+  // Adds the [[HomeObject]] to |initializer| if it is a FunctionLiteral.
+  // The value of the initializer is expected to be at the top of the stack.
+  // |offset| is the offset in the stack where the home object can be found.
+  void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
 
   void EmitLoadSuperConstructor(SuperReference* expr);
 
@@ -871,6 +893,22 @@ class FullCodeGenerator: public AstVisitor {
                              Label** if_false,
                              Label** fall_through) const;
     virtual bool IsEffect() const { return true; }
+  };
+
+  class EnterBlockScopeIfNeeded {
+   public:
+    EnterBlockScopeIfNeeded(FullCodeGenerator* codegen, Scope* scope,
+                            BailoutId entry_id, BailoutId declarations_id,
+                            BailoutId exit_id);
+    ~EnterBlockScopeIfNeeded();
+
+   private:
+    MacroAssembler* masm() const { return codegen_->masm(); }
+
+    FullCodeGenerator* codegen_;
+    Scope* scope_;
+    Scope* saved_scope_;
+    BailoutId exit_id_;
   };
 
   MacroAssembler* masm_;

@@ -53,6 +53,18 @@ std::ostream& operator<<(std::ostream&, StoreRepresentation);
 StoreRepresentation const& StoreRepresentationOf(Operator const*);
 
 
+// A CheckedLoad needs a MachineType.
+typedef MachineType CheckedLoadRepresentation;
+
+CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const*);
+
+
+// A CheckedStore needs a MachineType.
+typedef MachineType CheckedStoreRepresentation;
+
+CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
+
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -67,13 +79,12 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
     kFloat64RoundTruncate = 1u << 2,
     kFloat64RoundTiesAway = 1u << 3,
     kInt32DivIsSafe = 1u << 4,
-    kInt32ModIsSafe = 1u << 5,
-    kUint32DivIsSafe = 1u << 6,
-    kUint32ModIsSafe = 1u << 7
+    kUint32DivIsSafe = 1u << 5,
+    kWord32ShiftIsSafe = 1u << 6
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
-  explicit MachineOperatorBuilder(MachineType word = kMachPtr,
+  explicit MachineOperatorBuilder(Zone* zone, MachineType word = kMachPtr,
                                   Flags supportedOperators = kNoFlags);
 
   const Operator* Word32And();
@@ -84,6 +95,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Word32Sar();
   const Operator* Word32Ror();
   const Operator* Word32Equal();
+  bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
 
   const Operator* Word64And();
   const Operator* Word64Or();
@@ -110,9 +122,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Uint32Mod();
   const Operator* Uint32MulHigh();
   bool Int32DivIsSafe() const { return flags_ & kInt32DivIsSafe; }
-  bool Int32ModIsSafe() const { return flags_ & kInt32ModIsSafe; }
   bool Uint32DivIsSafe() const { return flags_ & kUint32DivIsSafe; }
-  bool Uint32ModIsSafe() const { return flags_ & kUint32ModIsSafe; }
 
   const Operator* Int64Add();
   const Operator* Int64Sub();
@@ -176,6 +186,11 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   // Access to the machine stack.
   const Operator* LoadStackPointer();
 
+  // checked-load heap, index, length
+  const Operator* CheckedLoad(CheckedLoadRepresentation);
+  // checked-store heap, index, length, value
+  const Operator* CheckedStore(CheckedStoreRepresentation);
+
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == kRepWord32; }
   bool Is64() const { return word() == kRepWord64; }
@@ -211,14 +226,17 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
+  Zone* zone_;
   const MachineOperatorGlobalCache& cache_;
   const MachineType word_;
   const Flags flags_;
+
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };
 
 
 DEFINE_OPERATORS_FOR_FLAGS(MachineOperatorBuilder::Flags)
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

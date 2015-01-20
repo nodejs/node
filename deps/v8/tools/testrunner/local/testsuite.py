@@ -136,6 +136,9 @@ class TestSuite(object):
         t.outcomes = self.rules[testname]
         if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
+        for outcome in t.outcomes:
+          if outcome.startswith('Flags: '):
+            t.flags += outcome[7:].split()
         flaky = statusfile.IsFlaky(t.outcomes)
         slow = statusfile.IsSlow(t.outcomes)
         pass_fail = statusfile.IsPassOrFail(t.outcomes)

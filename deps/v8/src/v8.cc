@@ -18,16 +18,23 @@
 #include "src/hydrogen.h"
 #include "src/isolate.h"
 #include "src/lithium-allocator.h"
+#include "src/natives.h"
 #include "src/objects.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
 #include "src/serialize.h"
+#include "src/snapshot.h"
 
 
 namespace v8 {
 namespace internal {
 
 V8_DECLARE_ONCE(init_once);
+
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+V8_DECLARE_ONCE(init_natives_once);
+V8_DECLARE_ONCE(init_snapshot_once);
+#endif
 
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
@@ -117,4 +124,21 @@ v8::Platform* V8::GetCurrentPlatform() {
   return platform_;
 }
 
+
+void V8::SetNativesBlob(StartupData* natives_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  base::CallOnce(&init_natives_once, &SetNativesFromFile, natives_blob);
+#else
+  CHECK(false);
+#endif
+}
+
+
+void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  base::CallOnce(&init_snapshot_once, &SetSnapshotFromFile, snapshot_blob);
+#else
+  CHECK(false);
+#endif
+}
 } }  // namespace v8::internal

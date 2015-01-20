@@ -46,7 +46,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_details_(NONE, NORMAL, Representation::None()),
+        property_details_(NONE, FIELD, 0),
         isolate_(name->GetIsolate()),
         name_(name),
         receiver_(receiver),
@@ -61,7 +61,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_details_(NONE, NORMAL, Representation::None()),
+        property_details_(NONE, FIELD, 0),
         isolate_(name->GetIsolate()),
         name_(name),
         holder_map_(holder->map(), isolate_),
@@ -136,7 +136,9 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
   Handle<Object> GetDataValue() const;
-  void WriteDataValue(Handle<Object> value);
+  // Usually returns the value that was passed in, but may perform
+  // non-observable modifications on it, such as internalize strings.
+  Handle<Object> WriteDataValue(Handle<Object> value);
 
   // Checks whether the receiver is an indexed exotic object
   // and name is a special numeric index.
@@ -175,7 +177,8 @@ class LookupIterator FINAL BASE_EMBEDDED {
   static Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name) {
     if (name->IsOwn()) {
-      return static_cast<Configuration>(configuration & HIDDEN);
+      return static_cast<Configuration>(configuration &
+                                        HIDDEN_SKIP_INTERCEPTOR);
     } else {
       return configuration;
     }

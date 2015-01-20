@@ -1,4 +1,3 @@
-
 module.exports = runScript
 
 var lifecycle = require("./utils/lifecycle.js")
@@ -124,6 +123,21 @@ function run (pkg, wd, cmd, args, cb) {
       "prestart", "start", "poststart"
     ]
   } else {
+    if (!pkg.scripts[cmd]) {
+      if (cmd === "test") {
+        pkg.scripts.test = "echo \"Error: no test specified\""
+      } else if (cmd === "env") {
+        if (process.platform === "win32") {
+          log.verbose("run-script using default platform env: SET (Windows)")
+          pkg.scripts[cmd] = "SET"
+        } else {
+          log.verbose("run-script using default platform env: env (Unix)")
+          pkg.scripts[cmd] = "env"
+        }
+      } else {
+        return cb(new Error("missing script: " + cmd))
+      }
+    }
     cmds = [cmd]
   }
 
@@ -134,7 +148,9 @@ function run (pkg, wd, cmd, args, cb) {
   log.verbose("run-script", cmds)
   chain(cmds.map(function (c) {
     // pass cli arguments after -- to script.
-    if (pkg.scripts[c] && c === cmd) pkg.scripts[c] = pkg.scripts[c] + joinArgs(args)
+    if (pkg.scripts[c] && c === cmd) {
+      pkg.scripts[c] = pkg.scripts[c] + joinArgs(args)
+    }
 
     // when running scripts explicitly, assume that they're trusted.
     return [lifecycle, pkg, c, wd, true]

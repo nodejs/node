@@ -95,10 +95,14 @@ Messages send by `.send(message, [sendHandle])` are obtained using the
 * {Stream object}
 
 A `Writable Stream` that represents the child process's `stdin`.
-Closing this stream via `end()` often causes the child process to terminate.
+If the child is waiting to read all its input, it will not continue until this
+stream has been closed via `end()`.
 
-If the child stdio streams are shared with the parent, then this will
+If the child was not spawned with `stdio[0]` set to `'pipe'`, then this will
 not be set.
+
+`child.stdin` is shorthand for `child.stdio[0]`. Both properties will refer
+to the same object, or null.
 
 ### child.stdout
 
@@ -106,8 +110,11 @@ not be set.
 
 A `Readable Stream` that represents the child process's `stdout`.
 
-If the child stdio streams are shared with the parent, then this will
+If the child was not spawned with `stdio[1]` set to `'pipe'`, then this will
 not be set.
+
+`child.stdout` is shorthand for `child.stdio[1]`. Both properties will refer
+to the same object, or null.
 
 ### child.stderr
 
@@ -115,8 +122,43 @@ not be set.
 
 A `Readable Stream` that represents the child process's `stderr`.
 
-If the child stdio streams are shared with the parent, then this will
+If the child was not spawned with `stdio[2]` set to `'pipe'`, then this will
 not be set.
+
+`child.stderr` is shorthand for `child.stdio[2]`. Both properties will refer
+to the same object, or null.
+
+### child.stdio
+
+* {Array}
+
+A sparse array of pipes to the child process, corresponding with positions in
+the [stdio](#child_process_options_stdio) option to
+[spawn](#child_process_child_process_spawn_command_args_options) that have been
+set to `'pipe'`.
+Note that streams 0-2 are also available as ChildProcess.stdin,
+ChildProcess.stdout, and ChildProcess.stderr, respectively.
+
+In the following example, only the child's fd `1` is setup as a pipe, so only
+the parent's `child.stdio[1]` is a stream, all other values in the array are
+`null`.
+
+    child = child_process.spawn("ls", {
+        stdio: [
+          0, // use parents stdin for child
+          'pipe', // pipe child's stdout to parent
+          fs.openSync("err.out", "w") // direct child's stderr to a file
+        ]
+    });
+
+    assert.equal(child.stdio[0], null);
+    assert.equal(child.stdio[0], child.stdin);
+
+    assert(child.stdout);
+    assert.equal(child.stdio[1], child.stdout);
+
+    assert.equal(child.stdio[2], null);
+    assert.equal(child.stdio[2], child.stderr);
 
 ### child.pid
 
@@ -309,9 +351,11 @@ callback or returning an EventEmitter).
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `stdio` {Array|String} Child's stdio configuration. (See below)
   * `env` {Object} Environment key-value pairs
-  * `detached` {Boolean} The child will be a process group leader.  (See below)
+  * `stdio` {Array|String} Child's stdio configuration. (See
+    [below](#child_process_options_stdio))
+  * `detached` {Boolean} The child will be a process group leader.  (See
+    [below](#child_process_options_detached))
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * return: {ChildProcess object}
@@ -325,8 +369,11 @@ The third argument is used to specify additional options, with these defaults:
       env: process.env
     }
 
-`cwd` allows you to specify the working directory from which the process is spawned.
-Use `env` to specify environment variables that will be visible to the new process.
+Use `cwd` to specify the working directory from which the process is spawned.
+If not given, the default is to inherit the current working directory.
+
+Use `env` to specify environment variables that will be visible to the new
+process, the default is `process.env`.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
@@ -391,7 +438,15 @@ Example of checking for failed exec:
       console.log('Failed to start child process.');
     });
 
-The 'stdio' option to `child_process.spawn()` is an array where each
+### options.stdio
+
+As a shorthand, the `stdio` argument may be one of the following strings:
+
+* `'pipe'` - `['pipe', 'pipe', 'pipe']`, this is the default value
+* `'ignore'` - `['ignore', 'ignore', 'ignore']`
+* `'inherit'` - `[process.stdin, process.stdout, process.stderr]` or `[0,1,2]`
+
+Otherwise, the 'stdio' option to `child_process.spawn()` is an array where each
 index corresponds to a fd in the child.  The value is one of the following:
 
 1. `'pipe'` - Create a pipe between the child process and the parent process.
@@ -422,13 +477,6 @@ index corresponds to a fd in the child.  The value is one of the following:
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
-As a shorthand, the `stdio` argument may also be one of the following
-strings, rather than an array:
-
-* `ignore` - `['ignore', 'ignore', 'ignore']`
-* `pipe` - `['pipe', 'pipe', 'pipe']`
-* `inherit` - `[process.stdin, process.stdout, process.stderr]` or `[0,1,2]`
-
 Example:
 
     var spawn = require('child_process').spawn;
@@ -442,6 +490,8 @@ Example:
     // Open an extra fd=4, to interact with programs present a
     // startd-style interface.
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
+
+### options.detached
 
 If the `detached` option is set, the child process will be made the leader of a
 new process group.  This makes it possible for the child to continue running 
@@ -564,7 +614,6 @@ leaner than `child_process.exec`. It has the same options.
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `encoding` {String} (Default: 'utf8')
   * `execPath` {String} Executable used to create the child process
   * `execArgv` {Array} List of string arguments passed to the executable
     (Default: `process.execArgv`)

@@ -67,11 +67,5 @@
         'process.cc',
       ],
     },
-    {
-      'target_name': 'lineprocessor',
-      'sources': [
-        'lineprocessor.cc',
-      ],
-    }
   ],
 }

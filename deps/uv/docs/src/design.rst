@@ -8,7 +8,7 @@ libuv is cross-platform support library which was originally written for NodeJS.
 around the event-driven asynchronous I/O model.
 
 The library provides much more than simply abstraction over different I/O polling mechanisms:
-'handles' and 'streams' provde a high level abstraction for sockets and other entities;
+'handles' and 'streams' provide a high level abstraction for sockets and other entities;
 cross-platform file I/O and threading functionality is also provided, amongst other things.
 
 Here is a diagram illustrating the different parts that compose libuv and what subsystem they
@@ -42,7 +42,7 @@ operations, and it's meant to be tied to a single thread. One can run multiple e
 as long as each runs in a different thread. The libuv event loop (or any other API involving
 the loop or handles, for that matter) **is not thread-safe** except stated otherwise.
 
-The event loop follows the rather usual single threaded asynchronous I/O approah: all (network)
+The event loop follows the rather usual single threaded asynchronous I/O approach: all (network)
 I/O is performed on non-blocking sockets which are polled using the best mechanism available
 on the given platform: epoll on Linux, kqueue on OSX and other BSDs, event ports on SunOS and IOCP
 on Windows. As part of a loop iteration the loop will block waiting for I/O activity on sockets
@@ -104,7 +104,7 @@ stages of a loop iteration:
 
 #. Iteration ends. If the loop was run with ``UV_RUN_NOWAIT`` or ``UV_RUN_ONCE`` modes the
    iteration is ended and :c:func:`uv_run` will return. If the loop was run with ``UV_RUN_DEFAULT``
-   it will contionue from the start if it's asill *alive*, otherwise it will also end.
+   it will continue from the start if it's still *alive*, otherwise it will also end.
 
 
 .. important::

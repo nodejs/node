@@ -19,6 +19,12 @@ int Deoptimizer::patch_size() {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // Empty because there is no need for relocation information for the code
+  // patching in Deoptimizer::PatchCodeForDeoptimization below.
+}
+
+
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address code_start_address = code->instruction_start();
   // Invalidate the relocation information, as it will become invalid by the
@@ -101,9 +107,8 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
   int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(s0.code(), params);
-  output_frame->SetRegister(s1.code(), (params - 1) * kPointerSize);
-  output_frame->SetRegister(s2.code(), handler);
+  output_frame->SetRegister(a0.code(), params);
+  output_frame->SetRegister(a1.code(), handler);
 }
 
 

@@ -14,9 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class RepresentationChanger;
+
+
 class SimplifiedLowering FINAL {
  public:
-  explicit SimplifiedLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  SimplifiedLowering(JSGraph* jsgraph, Zone* zone)
+      : jsgraph_(jsgraph), zone_(zone) {}
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
@@ -26,7 +31,10 @@ class SimplifiedLowering FINAL {
   void DoStoreField(Node* node);
   // TODO(turbofan): The output_type can be removed once the result of the
   // representation analysis is stored in the node bounds.
-  void DoLoadElement(Node* node, MachineType output_type);
+  void DoLoadBuffer(Node* node, MachineType output_type,
+                    RepresentationChanger* changer);
+  void DoStoreBuffer(Node* node);
+  void DoLoadElement(Node* node);
   void DoStoreElement(Node* node);
   void DoStringAdd(Node* node);
   void DoStringEqual(Node* node);
@@ -34,7 +42,8 @@ class SimplifiedLowering FINAL {
   void DoStringLessThanOrEqual(Node* node);
 
  private:
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  Zone* const zone_;
 
   Node* SmiTag(Node* node);
   Node* IsTagged(Node* node);

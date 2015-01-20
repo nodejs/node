@@ -259,7 +259,7 @@ class JSOperatorBuilder FINAL : public ZoneObject {
   const Operator* CreateWithContext();
   const Operator* CreateBlockContext();
   const Operator* CreateModuleContext();
-  const Operator* CreateGlobalContext();
+  const Operator* CreateScriptContext();
 
  private:
   Zone* zone() const { return zone_; }

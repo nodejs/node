@@ -147,23 +147,22 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
 
 TEST_IMPL(udp_dual_stack) {
-#if defined(__DragonFly__)  || \
-    defined(__FreeBSD__)    || \
-    defined(__OpenBSD__)    || \
-    defined(__NetBSD__)
-  RETURN_SKIP("dual stack not enabled by default in this OS.");
-#else
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   do_test(ipv6_recv_ok, 0);
 
   ASSERT(recv_cb_called == 1);
   ASSERT(send_cb_called == 1);
 
   return 0;
-#endif
 }
 
 
 TEST_IMPL(udp_ipv6_only) {
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   do_test(ipv6_recv_fail, UV_UDP_IPV6ONLY);
 
   ASSERT(recv_cb_called == 0);

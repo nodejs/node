@@ -20,8 +20,23 @@ function GeneratorObjectNext(value) {
                         ['[Generator].prototype.next', this]);
   }
 
-  if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
-  return %_GeneratorNext(this, value);
+  var continuation = %GeneratorGetContinuation(this);
+  if (continuation > 0) {
+    // Generator is suspended.
+    if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
+    try {
+      return %_GeneratorNext(this, value);
+    } catch (e) {
+      %GeneratorClose(this);
+      throw e;
+    }
+  } else if (continuation == 0) {
+    // Generator is already closed.
+    return { value: void 0, done: true };
+  } else {
+    // Generator is running.
+    throw MakeTypeError('generator_running', []);
+  }
 }
 
 function GeneratorObjectThrow(exn) {
@@ -30,7 +45,22 @@ function GeneratorObjectThrow(exn) {
                         ['[Generator].prototype.throw', this]);
   }
 
-  return %_GeneratorThrow(this, exn);
+  var continuation = %GeneratorGetContinuation(this);
+  if (continuation > 0) {
+    // Generator is suspended.
+    try {
+      return %_GeneratorThrow(this, exn);
+    } catch (e) {
+      %GeneratorClose(this);
+      throw e;
+    }
+  } else if (continuation == 0) {
+    // Generator is already closed.
+    throw exn;
+  } else {
+    // Generator is running.
+    throw MakeTypeError('generator_running', []);
+  }
 }
 
 function GeneratorObjectIterator() {
@@ -44,13 +74,7 @@ function GeneratorFunctionPrototypeConstructor(x) {
 }
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
-  var source = NewFunctionString(arguments, 'function*');
-  var global_proxy = %GlobalProxy(global);
-  // Compile the string in the constructor and not a helper so that errors
-  // appear to come from here.
-  var f = %_CallFunction(global_proxy, %CompileString(source, true));
-  %FunctionMarkNameShouldPrintAsAnonymous(f);
-  return f;
+  return NewFunctionFromString(arguments, 'function*');
 }
 
 
@@ -77,6 +101,8 @@ function SetUpGenerators() {
   %AddNamedProperty(GeneratorObjectPrototype,
       symbolToStringTag, "Generator", DONT_ENUM | READ_ONLY);
   %InternalSetPrototype(GeneratorFunctionPrototype, $Function.prototype);
+  %AddNamedProperty(GeneratorFunctionPrototype,
+      symbolToStringTag, "GeneratorFunction", DONT_ENUM | READ_ONLY);
   %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
   %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
       GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);

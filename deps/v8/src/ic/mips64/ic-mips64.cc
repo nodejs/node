@@ -270,18 +270,35 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 static const Register LoadIC_TempRegister() { return a3; }
 
 
+static void LoadIC_PushArgs(MacroAssembler* masm) {
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
+  if (FLAG_vector_ics) {
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+
+    __ Push(receiver, name, slot, vector);
+  } else {
+    __ Push(receiver, name);
+  }
+}
+
+
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is on the stack.
   Isolate* isolate = masm->isolate();
 
-  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a3, a4);
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(a4, a5, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
+  __ IncrementCounter(isolate->counters()->load_miss(), 1, a4, a5);
 
-  __ mov(LoadIC_TempRegister(), LoadDescriptor::ReceiverRegister());
-  __ Push(LoadIC_TempRegister(), LoadDescriptor::NameRegister());
+  LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
   ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
-  __ TailCallExternalReference(ref, 2, 1);
+  int arg_count = FLAG_vector_ics ? 4 : 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
@@ -410,15 +427,19 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in ra.
   Isolate* isolate = masm->isolate();
 
-  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a3, a4);
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(a4, a5, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
+  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a4, a5);
 
-  __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
+  LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
 
-  __ TailCallExternalReference(ref, 2, 1);
+  int arg_count = FLAG_vector_ics ? 4 : 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
@@ -810,8 +831,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfNotUniqueNameInstanceType(a4, &slow);
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               key, a3, a4, a5, a6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, key, a3, a4, a5, a6);
   // Cache miss.
   __ Branch(&miss);
 
@@ -880,8 +901,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               name, a3, a4, a5, a6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, name, a3, a4, a5, a6);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);

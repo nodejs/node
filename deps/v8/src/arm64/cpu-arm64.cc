@@ -43,6 +43,8 @@ class CacheLineSizes {
 void CpuFeatures::FlushICache(void* address, size_t length) {
   if (length == 0) return;
 
+  if (CpuFeatures::IsSupported(COHERENT_CACHE)) return;
+
 #ifdef USE_SIMULATOR
   // TODO(all): consider doing some cache simulation to ensure every address
   // run has been synced.

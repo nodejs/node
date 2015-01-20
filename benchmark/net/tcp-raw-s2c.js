@@ -14,6 +14,8 @@ var bench = common.createBenchmark(main, {
 });
 
 var TCP = process.binding('tcp_wrap').TCP;
+var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+var WriteWrap = process.binding('stream_wrap').WriteWrap;
 var PORT = common.PORT;
 
 var dur;
@@ -68,7 +70,9 @@ function server() {
       write();
 
     function write() {
-      var writeReq = { async: false, oncomplete: afterWrite };
+      var writeReq = new WriteWrap();
+      writeReq.async = false;
+      writeReq.oncomplete = afterWrite;
       var err;
       switch (type) {
         case 'buf':
@@ -91,7 +95,7 @@ function server() {
       }
     }
 
-    function afterWrite(err, handle, req) {
+    function afterWrite(status, handle, req, err) {
       if (err)
         fail(err, 'write');
 
@@ -105,7 +109,7 @@ function server() {
 
 function client() {
   var clientHandle = new TCP();
-  var connectReq = {};
+  var connectReq = new TCPConnectWrap();
   var err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
 
   if (err)

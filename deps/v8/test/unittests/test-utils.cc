@@ -98,6 +98,11 @@ TestWithIsolate::~TestWithIsolate() {}
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
 
+base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
+  return isolate()->random_number_generator();
+}
+
+
 TestWithZone::~TestWithZone() {}
 
 }  // namespace internal

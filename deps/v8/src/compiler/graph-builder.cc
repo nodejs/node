@@ -4,15 +4,13 @@
 
 #include "src/compiler/graph-builder.h"
 
+#include "src/bit-vector.h"
 #include "src/compiler.h"
-#include "src/compiler/generic-graph.h"
-#include "src/compiler/generic-node.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -45,7 +43,7 @@ Node** StructuredGraphBuilder::EnsureInputBufferSize(int size) {
 Node* StructuredGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
                                        Node** value_inputs, bool incomplete) {
-  DCHECK(op->InputCount() == value_input_count);
+  DCHECK(op->ValueInputCount() == value_input_count);
 
   bool has_context = OperatorProperties::HasContextInput(op);
   bool has_framestate = OperatorProperties::HasFrameStateInput(op);

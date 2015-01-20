@@ -28,6 +28,7 @@
 #define UV_COMMON_H_
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -45,6 +46,9 @@
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
+#define STATIC_ASSERT(expr)                                                   \
+  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
+
 #ifndef _WIN32
 enum {
   UV__HANDLE_INTERNAL = 0x8000,
@@ -58,6 +62,8 @@ enum {
 # define UV__HANDLE_REF       0x20
 # define UV__HANDLE_CLOSING   0x01
 #endif
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
 
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,

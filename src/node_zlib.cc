@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node.h"
 #include "node_buffer.h"
 
@@ -63,11 +42,6 @@ enum node_zlib_mode {
   UNZIP
 };
 
-enum node_zlib_error {
-  kNoError,
-  kFailed,
-  kWritePending
-};
 
 void InitZlib(v8::Handle<v8::Object> target);
 
@@ -178,7 +152,7 @@ class ZCtx : public AsyncWrap {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject();
+      in_buf = args[1]->ToObject(args.GetIsolate());
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
@@ -187,7 +161,7 @@ class ZCtx : public AsyncWrap {
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject();
+    Local<Object> out_buf = args[4]->ToObject(args.GetIsolate());
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
@@ -208,7 +182,7 @@ class ZCtx : public AsyncWrap {
     if (!async) {
       // sync version
       Process(work_req);
-      if (CheckError(ctx) == kNoError)
+      if (CheckError(ctx))
         AfterSync(ctx, args);
       return;
     }
@@ -292,7 +266,7 @@ class ZCtx : public AsyncWrap {
   }
 
 
-  static node_zlib_error CheckError(ZCtx* ctx) {
+  static bool CheckError(ZCtx* ctx) {
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {
     case Z_OK:
@@ -305,18 +279,14 @@ class ZCtx : public AsyncWrap {
         ZCtx::Error(ctx, "Missing dictionary");
       else
         ZCtx::Error(ctx, "Bad dictionary");
-      return kFailed;
+      return false;
     default:
       // something else.
-      if (ctx->strm_.total_out == 0) {
-        ZCtx::Error(ctx, "Zlib error");
-        return kFailed;
-      } else {
-        return kWritePending;
-      }
+      ZCtx::Error(ctx, "Zlib error");
+      return false;
     }
 
-    return kNoError;
+    return true;
   }
 
 
@@ -330,8 +300,7 @@ class ZCtx : public AsyncWrap {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
 
-    node_zlib_error error = CheckError(ctx);
-    if (error == kFailed)
+    if (!CheckError(ctx))
       return;
 
     Local<Integer> avail_out = Integer::New(env->isolate(),
@@ -344,11 +313,6 @@ class ZCtx : public AsyncWrap {
     // call the write() cb
     Local<Value> args[2] = { avail_in, avail_out };
     ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
-
-    if (error == kWritePending) {
-      ZCtx::Error(ctx, "Zlib error");
-      return;
-    }
 
     ctx->Unref();
     if (ctx->pending_close_)
@@ -373,8 +337,9 @@ class ZCtx : public AsyncWrap {
     ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
 
     // no hope of rescue.
+    if (ctx->write_in_progress_)
+      ctx->Unref();
     ctx->write_in_progress_ = false;
-    ctx->Unref();
     if (ctx->pending_close_)
       ctx->Close();
   }
@@ -420,7 +385,7 @@ class ZCtx : public AsyncWrap {
     char* dictionary = nullptr;
     size_t dictionary_len = 0;
     if (args.Length() >= 5 && Buffer::HasInstance(args[4])) {
-      Local<Object> dictionary_ = args[4]->ToObject();
+      Local<Object> dictionary_ = args[4]->ToObject(args.GetIsolate());
 
       dictionary_len = Buffer::Length(dictionary_);
       dictionary = new char[dictionary_len];
@@ -554,12 +519,10 @@ class ZCtx : public AsyncWrap {
     switch (ctx->mode_) {
       case DEFLATE:
       case DEFLATERAW:
-      case GZIP:
         ctx->err_ = deflateReset(&ctx->strm_);
         break;
       case INFLATE:
       case INFLATERAW:
-      case GUNZIP:
         ctx->err_ = inflateReset(&ctx->strm_);
         break;
       default:

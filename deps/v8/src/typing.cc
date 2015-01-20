@@ -394,7 +394,8 @@ void AstTyper::VisitLiteral(Literal* expr) {
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  NarrowType(expr, Bounds(Type::RegExp(zone())));
+  // TODO(rossberg): Reintroduce RegExp type.
+  NarrowType(expr, Bounds(Type::Object(zone())));
 }
 
 
@@ -484,19 +485,38 @@ void AstTyper::VisitThrow(Throw* expr) {
 
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
-  TypeFeedbackId id = expr->PropertyFeedbackId();
-  expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
+  FeedbackVectorICSlot slot(FeedbackVectorICSlot::Invalid());
+  TypeFeedbackId id(TypeFeedbackId::None());
+  if (FLAG_vector_ics) {
+    slot = expr->PropertyFeedbackSlot();
+    expr->set_is_uninitialized(oracle()->LoadIsUninitialized(slot));
+  } else {
+    id = expr->PropertyFeedbackId();
+    expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
+  }
+
   if (!expr->IsUninitialized()) {
     if (expr->key()->IsPropertyName()) {
       Literal* lit_key = expr->key()->AsLiteral();
       DCHECK(lit_key != NULL && lit_key->value()->IsString());
       Handle<String> name = Handle<String>::cast(lit_key->value());
-      oracle()->PropertyReceiverTypes(id, name, expr->GetReceiverTypes());
+      if (FLAG_vector_ics) {
+        oracle()->PropertyReceiverTypes(slot, name, expr->GetReceiverTypes());
+      } else {
+        oracle()->PropertyReceiverTypes(id, name, expr->GetReceiverTypes());
+      }
     } else {
       bool is_string;
-      oracle()->KeyedPropertyReceiverTypes(
-          id, expr->GetReceiverTypes(), &is_string);
+      IcCheckType key_type;
+      if (FLAG_vector_ics) {
+        oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
+                                             &is_string, &key_type);
+      } else {
+        oracle()->KeyedPropertyReceiverTypes(id, expr->GetReceiverTypes(),
+                                             &is_string, &key_type);
+      }
       expr->set_is_string_access(is_string);
+      expr->set_key_type(key_type);
     }
   }
 
@@ -510,14 +530,19 @@ void AstTyper::VisitProperty(Property* expr) {
 void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
-  if (!expr->expression()->IsProperty() &&
-      expr->IsUsingCallFeedbackSlot(isolate()) &&
-      oracle()->CallIsMonomorphic(expr->CallFeedbackSlot())) {
-    expr->set_target(oracle()->GetCallTarget(expr->CallFeedbackSlot()));
-    Handle<AllocationSite> site =
-        oracle()->GetCallAllocationSite(expr->CallFeedbackSlot());
-    expr->set_allocation_site(site);
+  bool is_uninitialized = true;
+  if (expr->IsUsingCallFeedbackSlot(isolate())) {
+    FeedbackVectorICSlot slot = expr->CallFeedbackSlot();
+    is_uninitialized = oracle()->CallIsUninitialized(slot);
+    if (!expr->expression()->IsProperty() &&
+        oracle()->CallIsMonomorphic(slot)) {
+      expr->set_target(oracle()->GetCallTarget(slot));
+      Handle<AllocationSite> site = oracle()->GetCallAllocationSite(slot);
+      expr->set_allocation_site(site);
+    }
   }
+
+  expr->set_is_uninitialized(is_uninitialized);
 
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {

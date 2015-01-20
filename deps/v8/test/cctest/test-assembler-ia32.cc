@@ -589,4 +589,458 @@ TEST(AssemblerIa32SSE) {
 }
 
 
+typedef int (*F9)(double x, double y, double z);
+TEST(AssemblerX64FMA_sd) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(FMA3)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, FMA3);
+    Label exit;
+    __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
+    __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
+    __ movsd(xmm2, Operand(esp, 5 * kPointerSize));
+    // argument in xmm0, xmm1 and xmm2
+    // xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ addsd(xmm3, xmm2);  // Expected result in xmm3
+
+    __ sub(esp, Immediate(kDoubleSize));  // For memory operand
+    // vfmadd132sd
+    __ mov(eax, Immediate(1));  // Test number
+    __ movaps(xmm4, xmm0);
+    __ vfmadd132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmadd213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmadd231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmadd132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfmadd213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmadd231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ subsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfmsub132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmsub213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmsub231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmsub132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfmsub213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmsub231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ Move(xmm4, (uint64_t)1 << 63);
+    __ xorpd(xmm3, xmm4);
+    __ addsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmadd132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmadd213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmadd231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmadd132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfnmadd213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmadd231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ Move(xmm4, (uint64_t)1 << 63);
+    __ xorpd(xmm3, xmm4);
+    __ subsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmsub132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmsub213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmsub231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmsub132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfnmsub213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmsub231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ add(esp, Immediate(kDoubleSize));
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F9 f = FUNCTION_CAST<F9>(code->entry());
+  CHECK_EQ(0, f(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
+}
+
+
+typedef int (*F10)(float x, float y, float z);
+TEST(AssemblerX64FMA_ss) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(FMA3)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, FMA3);
+    Label exit;
+    __ movss(xmm0, Operand(esp, 1 * kPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ movss(xmm2, Operand(esp, 3 * kPointerSize));
+    // arguments in xmm0, xmm1 and xmm2
+    // xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ addss(xmm3, xmm2);  // Expected result in xmm3
+
+    __ sub(esp, Immediate(kDoubleSize));  // For memory operand
+    // vfmadd132ss
+    __ mov(eax, Immediate(1));  // Test number
+    __ movaps(xmm4, xmm0);
+    __ vfmadd132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmadd213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmadd231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmadd132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfmadd213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmadd231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ subss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfmsub132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmsub213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmsub231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmsub132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfmsub213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmsub231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ Move(xmm4, (uint32_t)1 << 31);
+    __ xorps(xmm3, xmm4);
+    __ addss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmadd132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmadd213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmadd231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmadd132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfnmadd213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmadd231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ Move(xmm4, (uint32_t)1 << 31);
+    __ xorps(xmm3, xmm4);
+    __ subss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmsub132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmsub213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmsub231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmsub132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfnmsub213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmsub231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ add(esp, Immediate(kDoubleSize));
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F10 f = FUNCTION_CAST<F10>(code->entry());
+  CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
+}
 #undef __

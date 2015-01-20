@@ -35,6 +35,22 @@
   '11.2.3_b': [FAIL],
   '12.2.3_b': [FAIL],
 
+  ############################### ES6 ###################################
+  # ES6 allows block-local functions.
+  'Sbp_A1_T1': [PASS, FAIL_OK],
+  'Sbp_A2_T1': [PASS, FAIL_OK],
+  'Sbp_A2_T2': [PASS, FAIL_OK],
+  'Sbp_A3_T1': [PASS, FAIL_OK],
+  'Sbp_A3_T2': [PASS, FAIL_OK],
+  'Sbp_A4_T1': [PASS, FAIL_OK],
+  'Sbp_A4_T2': [PASS, FAIL_OK],
+  'Sbp_A5_T1': [PASS], # Test is broken (strict reference to unbound variable)
+  'Sbp_A5_T2': [PASS, FAIL_OK],
+
+  # Passes in ES6 since {__arr} syntax is parsed as object literal.
+  'S12.1_A4_T2': [PASS, FAIL_OK],
+  'S12.6.4_A15': [PASS, FAIL_OK],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

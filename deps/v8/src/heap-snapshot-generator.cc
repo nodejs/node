@@ -1167,13 +1167,10 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          "native_context", global_obj->native_context(),
                          GlobalObject::kNativeContextOffset);
     SetInternalReference(global_obj, entry,
-                         "global_context", global_obj->global_context(),
-                         GlobalObject::kGlobalContextOffset);
-    SetInternalReference(global_obj, entry,
                          "global_proxy", global_obj->global_proxy(),
                          GlobalObject::kGlobalProxyOffset);
     STATIC_ASSERT(GlobalObject::kHeaderSize - JSObject::kHeaderSize ==
-                 4 * kPointerSize);
+                 3 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
     SetInternalReference(view, entry, "buffer", view->buffer(),
@@ -1282,7 +1279,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
                   Context::FIRST_WEAK_SLOT);
     STATIC_ASSERT(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
-    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 5 ==
+    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 4 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }
@@ -1629,53 +1626,32 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
     int real_size = js_obj->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < real_size; i++) {
-      switch (descs->GetType(i)) {
-        case FIELD: {
-          Representation r = descs->GetDetails(i).representation();
+      PropertyDetails details = descs->GetDetails(i);
+      switch (details.location()) {
+        case IN_OBJECT: {
+          Representation r = details.representation();
           if (r.IsSmi() || r.IsDouble()) break;
-          int index = descs->GetFieldIndex(i);
 
           Name* k = descs->GetKey(i);
-          if (index < js_obj->map()->inobject_properties()) {
-            Object* value = js_obj->InObjectPropertyAt(index);
-            if (k != heap_->hidden_string()) {
-              SetPropertyReference(
-                  js_obj, entry,
-                  k, value,
-                  NULL,
-                  js_obj->GetInObjectPropertyOffset(index));
-            } else {
-              TagObject(value, "(hidden properties)");
-              SetInternalReference(
-                  js_obj, entry,
-                  "hidden_properties", value,
-                  js_obj->GetInObjectPropertyOffset(index));
-            }
+          FieldIndex field_index = FieldIndex::ForDescriptor(js_obj->map(), i);
+          Object* value = js_obj->RawFastPropertyAt(field_index);
+          int field_offset =
+              field_index.is_inobject() ? field_index.offset() : -1;
+
+          if (k != heap_->hidden_string()) {
+            SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry, k,
+                                               value, NULL, field_offset);
           } else {
-            FieldIndex field_index =
-                FieldIndex::ForDescriptor(js_obj->map(), i);
-            Object* value = js_obj->RawFastPropertyAt(field_index);
-            if (k != heap_->hidden_string()) {
-              SetPropertyReference(js_obj, entry, k, value);
-            } else {
-              TagObject(value, "(hidden properties)");
-              SetInternalReference(js_obj, entry, "hidden_properties", value);
-            }
+            TagObject(value, "(hidden properties)");
+            SetInternalReference(js_obj, entry, "hidden_properties", value,
+                                 field_offset);
           }
           break;
         }
-        case CONSTANT:
-          SetPropertyReference(
-              js_obj, entry,
-              descs->GetKey(i), descs->GetConstant(i));
-          break;
-        case CALLBACKS:
-          ExtractAccessorPairProperty(
-              js_obj, entry,
-              descs->GetKey(i), descs->GetValue(i));
-          break;
-        case NORMAL:  // only in slow mode
-          UNREACHABLE();
+        case IN_DESCRIPTOR:
+          SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
+                                             descs->GetKey(i),
+                                             descs->GetValue(i));
           break;
       }
     }
@@ -1695,27 +1671,30 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           SetInternalReference(js_obj, entry, "hidden_properties", value);
           continue;
         }
-        if (ExtractAccessorPairProperty(js_obj, entry, k, value)) continue;
-        SetPropertyReference(js_obj, entry, Name::cast(k), value);
+        PropertyDetails details = dictionary->DetailsAt(i);
+        SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
+                                           Name::cast(k), value);
       }
     }
   }
 }
 
 
-bool V8HeapExplorer::ExtractAccessorPairProperty(
-    JSObject* js_obj, int entry, Object* key, Object* callback_obj) {
-  if (!callback_obj->IsAccessorPair()) return false;
+void V8HeapExplorer::ExtractAccessorPairProperty(JSObject* js_obj, int entry,
+                                                 Name* key,
+                                                 Object* callback_obj,
+                                                 int field_offset) {
+  if (!callback_obj->IsAccessorPair()) return;
   AccessorPair* accessors = AccessorPair::cast(callback_obj);
+  SetPropertyReference(js_obj, entry, key, accessors, NULL, field_offset);
   Object* getter = accessors->getter();
   if (!getter->IsOddball()) {
-    SetPropertyReference(js_obj, entry, Name::cast(key), getter, "get %s");
+    SetPropertyReference(js_obj, entry, key, getter, "get %s");
   }
   Object* setter = accessors->setter();
   if (!setter->IsOddball()) {
-    SetPropertyReference(js_obj, entry, Name::cast(key), setter, "set %s");
+    SetPropertyReference(js_obj, entry, key, setter, "set %s");
   }
-  return true;
 }
 
 
@@ -2054,6 +2033,20 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
 }
 
 
+void V8HeapExplorer::SetDataOrAccessorPropertyReference(
+    PropertyKind kind, JSObject* parent_obj, int parent_entry,
+    Name* reference_name, Object* child_obj, const char* name_format_string,
+    int field_offset) {
+  if (kind == ACCESSOR) {
+    ExtractAccessorPairProperty(parent_obj, parent_entry, reference_name,
+                                child_obj, field_offset);
+  } else {
+    SetPropertyReference(parent_obj, parent_entry, reference_name, child_obj,
+                         name_format_string, field_offset);
+  }
+}
+
+
 void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                           int parent_entry,
                                           Name* reference_name,
@@ -2164,6 +2157,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #undef STRING_NAME
 #define SYMBOL_NAME(name) NAME_ENTRY(name)
     PRIVATE_SYMBOL_LIST(SYMBOL_NAME)
+#undef SYMBOL_NAME
+#define SYMBOL_NAME(name, varname, description) NAME_ENTRY(name)
+    PUBLIC_SYMBOL_LIST(SYMBOL_NAME)
 #undef SYMBOL_NAME
 #undef NAME_ENTRY
     CHECK(!strong_gc_subroot_names_.is_empty());

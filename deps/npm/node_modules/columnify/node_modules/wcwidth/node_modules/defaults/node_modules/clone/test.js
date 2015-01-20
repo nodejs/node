@@ -269,3 +269,21 @@ exports['clone object with null children'] = function(test) {
   test.deepEqual(b, a);
   test.done();
 }
+
+exports['clone instance with getter'] = function(test) {
+  test.expect(1);
+  function Ctor() {};
+  Object.defineProperty(Ctor.prototype, 'prop', {
+    configurable: true,
+    enumerable: true,
+    get: function() {
+      return 'value';
+    }
+  });
+
+  var a = new Ctor();
+  var b = clone(a);
+
+  test.strictEqual(b.prop, 'value');
+  test.done();
+};

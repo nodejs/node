@@ -61,6 +61,7 @@ class GraphAndBuilders {
   explicit GraphAndBuilders(Zone* zone)
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
+        main_machine_(zone),
         main_simplified_(zone) {}
 
  protected:

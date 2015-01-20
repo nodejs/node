@@ -33,9 +33,9 @@ on port 8124:
 
     var net = require('net');
     var server = net.createServer(function(c) { //'connection' listener
-      console.log('server connected');
+      console.log('client connected');
       c.on('end', function() {
-        console.log('server disconnected');
+        console.log('client disconnected');
       });
       c.write('hello\r\n');
       c.pipe(c);
@@ -98,7 +98,7 @@ Here is an example of a client of echo server as described previously:
     var net = require('net');
     var client = net.connect({port: 8124},
         function() { //'connect' listener
-      console.log('client connected');
+      console.log('connected to server!');
       client.write('world!\r\n');
     });
     client.on('data', function(data) {
@@ -106,7 +106,7 @@ Here is an example of a client of echo server as described previously:
       client.end();
     });
     client.on('end', function() {
-      console.log('client disconnected');
+      console.log('disconnected from server');
     });
 
 To connect on the socket `/tmp/echo.sock` the second line would just be

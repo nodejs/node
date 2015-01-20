@@ -17,12 +17,16 @@ Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
 }
 
 
-Node* JSGraph::CEntryStubConstant() {
-  if (!c_entry_stub_constant_.is_set()) {
-    c_entry_stub_constant_.set(
-        ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+Node* JSGraph::CEntryStubConstant(int result_size) {
+  if (result_size == 1) {
+    if (!c_entry_stub_constant_.is_set()) {
+      c_entry_stub_constant_.set(
+          ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+    }
+    return c_entry_stub_constant_.get();
   }
-  return c_entry_stub_constant_.get();
+
+  return ImmovableHeapConstant(CEntryStub(isolate(), result_size).GetCode());
 }
 
 
@@ -170,8 +174,11 @@ Node* JSGraph::NumberConstant(double value) {
 
 
 Node* JSGraph::Float32Constant(float value) {
-  // TODO(turbofan): cache float32 constants.
-  return graph()->NewNode(common()->Float32Constant(value));
+  Node** loc = cache_.FindFloat32Constant(value);
+  if (*loc == NULL) {
+    *loc = graph()->NewNode(common()->Float32Constant(value));
+  }
+  return *loc;
 }
 
 

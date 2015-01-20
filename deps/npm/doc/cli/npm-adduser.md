@@ -13,13 +13,14 @@ the default registry will be used (see `npm-config(7)`).
 
 The username, password, and email are read in from prompts.
 
-You may use this command to change your email address, but not username
-or password.
+To reset your password, go to <https://www.npmjs.com/forgot>
 
-To reset your password, go to <https://www.npmjs.org/forgot>
+To change your email address, go to <https://www.npmjs.com/email-edit>
 
 You may use this command multiple times with the same user account to
-authorize on a new machine.
+authorize on a new machine.  When authenticating on a new machine,
+the username, password and email address must all match with
+your existing record.
 
 `npm login` is an alias to `adduser` and behaves exactly the same way.
 
@@ -57,7 +58,7 @@ registries. Can be used with `--registry` and / or `--scope`, e.g.
 
 This will ensure that all requests to that registry (including for tarballs)
 include an authorization header. See `always-auth` in `npm-config(7)` for more
-details on always-auth. Registry-specific configuaration of `always-auth` takes
+details on always-auth. Registry-specific configuration of `always-auth` takes
 precedence over any global configuration.
 
 ## SEE ALSO

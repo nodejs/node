@@ -130,11 +130,8 @@ class ControlReducerTester : HandleAndZoneScope {
   }
 
   Node* SetSelfReferences(Node* node) {
-    Node::Inputs inputs = node->inputs();
-    for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-         ++iter) {
-      Node* input = *iter;
-      if (input == self) node->ReplaceInput(iter.index(), node);
+    for (Edge edge : node->input_edges()) {
+      if (edge.to() == self) node->ReplaceInput(edge.index(), node);
     }
     return node;
   }
@@ -772,7 +769,7 @@ TEST(CMergeReduce_edit_phi1) {
                                 R.leaf[1], R.leaf[2], merge);
     R.ReduceMerge(merge, merge);
     CHECK_EQ(IrOpcode::kPhi, phi->opcode());
-    CHECK_EQ(2, phi->op()->InputCount());
+    CHECK_EQ(2, phi->op()->ValueInputCount());
     CHECK_EQ(3, phi->InputCount());
     CHECK_EQ(R.leaf[i < 1 ? 1 : 0], phi->InputAt(0));
     CHECK_EQ(R.leaf[i < 2 ? 2 : 1], phi->InputAt(1));
@@ -791,7 +788,7 @@ TEST(CMergeReduce_edit_effect_phi1) {
                                 R.leaf[2], merge);
     R.ReduceMerge(merge, merge);
     CHECK_EQ(IrOpcode::kEffectPhi, phi->opcode());
-    CHECK_EQ(0, phi->op()->InputCount());
+    CHECK_EQ(0, phi->op()->ValueInputCount());
     CHECK_EQ(2, phi->op()->EffectInputCount());
     CHECK_EQ(3, phi->InputCount());
     CHECK_EQ(R.leaf[i < 1 ? 1 : 0], phi->InputAt(0));
@@ -883,7 +880,7 @@ TEST(CMergeReduce_exhaustive_4) {
       selector.CheckNode(ephi, IrOpcode::kEffectPhi, effects, merge);
       CHECK_EQ(phi, phi_use->InputAt(0));
       CHECK_EQ(ephi, ephi_use->InputAt(0));
-      CHECK_EQ(count, phi->op()->InputCount());
+      CHECK_EQ(count, phi->op()->ValueInputCount());
       CHECK_EQ(count + 1, phi->InputCount());
       CHECK_EQ(count, ephi->op()->EffectInputCount());
       CHECK_EQ(count + 1, ephi->InputCount());
@@ -909,7 +906,7 @@ TEST(CMergeReduce_edit_many_phis1) {
     for (int j = 0; j < kPhiCount; j++) {
       Node* phi = phis[j];
       CHECK_EQ(IrOpcode::kPhi, phi->opcode());
-      CHECK_EQ(2, phi->op()->InputCount());
+      CHECK_EQ(2, phi->op()->ValueInputCount());
       CHECK_EQ(3, phi->InputCount());
       CHECK_EQ(R.leaf[i < 1 ? 1 : 0], phi->InputAt(0));
       CHECK_EQ(R.leaf[i < 2 ? 2 : 1], phi->InputAt(1));

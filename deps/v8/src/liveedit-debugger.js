@@ -19,6 +19,9 @@
 // All unchanged functions have their positions updated accordingly.
 //
 // LiveEdit namespace is declared inside a single function constructor.
+
+"use strict";
+
 Debug.LiveEdit = new function() {
 
   // Forward declaration for minifier.
@@ -953,7 +956,7 @@ Debug.LiveEdit = new function() {
 
   FunctionPatchabilityStatus.SymbolName = function(code) {
     var enumeration = FunctionPatchabilityStatus;
-    for (name in enumeration) {
+    for (var name in enumeration) {
       if (enumeration[name] == code) {
         return name;
       }

@@ -51,6 +51,9 @@
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
+  # Issue 3784: setters-on-elements is flaky
+  'setters-on-elements': [PASS, FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -58,13 +61,6 @@
   # be accessed indirectly. Either we drop that requirement or wait for support
   # from the deoptimizer to do that.
   'arguments-indirect': [PASS, NO_VARIANTS],
-
-  # TODO(rossberg): Typer doesn't like contexts very much.
-  'harmony/block-conflicts': [PASS, NO_VARIANTS],
-  'harmony/block-for': [PASS, NO_VARIANTS],
-  'harmony/block-leave': [PASS, NO_VARIANTS],
-  'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
-  'harmony/empty-for': [PASS, NO_VARIANTS],
 
   # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
@@ -124,6 +120,9 @@
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
 
+  # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
+  'harmony/object-literals-super': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
@@ -178,7 +177,7 @@
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
-  'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug or dcheck_always_on == True', FAIL]],
 
   ##############################################################################
   # Tests with different versions for release and debug.
@@ -202,7 +201,7 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
   # Too slow for slow variants.
-  'asm/embenchen/*': [PASS, FAST_VARIANTS],
+  'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -217,10 +216,12 @@
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
+  'field-type-tracking': [SKIP],
   'getters-on-elements': [SKIP],
   'harmony/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
+  'regress/regress-crbug-137689': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   # Tests taking too long
@@ -248,6 +249,11 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
+
+  # Issue 3723.
+  'regress/regress-3717': [SKIP],
+  # Issue 3776.
+  'debug-stepframe': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################

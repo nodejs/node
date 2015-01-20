@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/debug.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -63,6 +64,18 @@ RUNTIME_FUNCTION(Runtime_DeliverObservationChangeRecords) {
   // we make a call inside a verbose TryCatch.
   catcher.SetVerbose(true);
   Handle<Object> argv[] = {argument};
+
+  // Allow stepping into the observer callback.
+  Debug* debug = isolate->debug();
+  if (debug->is_active() && debug->IsStepping() &&
+      debug->last_step_action() == StepIn) {
+    // Previous StepIn may have activated a StepOut if it was at the frame exit.
+    // In this case to be able to step into the callback again, we need to clear
+    // the step out first.
+    debug->ClearStepOut();
+    debug->FloodWithOneShot(callback);
+  }
+
   USE(Execution::Call(isolate, callback, isolate->factory()->undefined_value(),
                       arraysize(argv), argv));
   if (isolate->has_pending_exception()) {

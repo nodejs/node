@@ -780,7 +780,9 @@ int RAND_pseudo_bytes(unsigned char *buf,int num);
 #define bn_wcheck_size(bn, words) \
 	do { \
 		const BIGNUM *_bnum2 = (bn); \
-		assert(words <= (_bnum2)->dmax && words >= (_bnum2)->top); \
+		assert((words) <= (_bnum2)->dmax && (words) >= (_bnum2)->top); \
+		/* avoid unused variable warning with NDEBUG */ \
+		(void)(_bnum2); \
 	} while(0)
 
 #else /* !BN_DEBUG */

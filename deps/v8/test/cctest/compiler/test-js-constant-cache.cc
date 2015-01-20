@@ -22,7 +22,7 @@ class JSCacheTesterHelper {
         main_common_(zone),
         main_javascript_(zone),
         main_typer_(&main_graph_, MaybeHandle<Context>()),
-        main_machine_() {}
+        main_machine_(zone) {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
   JSOperatorBuilder main_javascript_;

@@ -7,12 +7,6 @@
 
 #include "src/base/logging.h"
 
-#ifdef DEBUG
-#ifndef OPTIMIZED_DEBUG
-#define ENABLE_SLOW_DCHECKS    1
-#endif
-#endif
-
 namespace v8 {
 
 class Value;

@@ -163,17 +163,13 @@ class LCodeGen;
   V(WrapReceiver)
 
 
-#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)                        \
-  virtual Opcode opcode() const FINAL OVERRIDE {                      \
-    return LInstruction::k##type;                                           \
-  }                                                                         \
-  virtual void CompileToNative(LCodeGen* generator) FINAL OVERRIDE;   \
-  virtual const char* Mnemonic() const FINAL OVERRIDE {               \
-    return mnemonic;                                                        \
-  }                                                                         \
-  static L##type* cast(LInstruction* instr) {                               \
-    DCHECK(instr->Is##type());                                              \
-    return reinterpret_cast<L##type*>(instr);                               \
+#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)            \
+  Opcode opcode() const FINAL { return LInstruction::k##type; } \
+  void CompileToNative(LCodeGen* generator) FINAL;              \
+  const char* Mnemonic() const FINAL { return mnemonic; }       \
+  static L##type* cast(LInstruction* instr) {                   \
+    DCHECK(instr->Is##type());                                  \
+    return reinterpret_cast<L##type*>(instr);                   \
   }
 
 
@@ -292,14 +288,11 @@ class LTemplateResultInstruction : public LInstruction {
  public:
   // Allow 0 or 1 output operands.
   STATIC_ASSERT(R == 0 || R == 1);
-  virtual bool HasResult() const FINAL OVERRIDE {
-    return R != 0 && result() != NULL;
-  }
+  bool HasResult() const FINAL { return R != 0 && result() != NULL; }
   void set_result(LOperand* operand) { results_[0] = operand; }
-  LOperand* result() const { return results_[0]; }
+  LOperand* result() const OVERRIDE { return results_[0]; }
 
-  virtual bool MustSignExtendResult(
-      LPlatformChunk* chunk) const FINAL OVERRIDE;
+  bool MustSignExtendResult(LPlatformChunk* chunk) const FINAL;
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
@@ -317,11 +310,11 @@ class LTemplateInstruction : public LTemplateResultInstruction<R> {
 
  private:
   // Iterator support.
-  virtual int InputCount() FINAL OVERRIDE { return I; }
-  virtual LOperand* InputAt(int i) FINAL OVERRIDE { return inputs_[i]; }
+  int InputCount() FINAL { return I; }
+  LOperand* InputAt(int i) FINAL { return inputs_[i]; }
 
-  virtual int TempCount() FINAL OVERRIDE { return T; }
-  virtual LOperand* TempAt(int i) FINAL OVERRIDE { return temps_[i]; }
+  int TempCount() FINAL { return T; }
+  LOperand* TempAt(int i) FINAL { return temps_[i]; }
 };
 
 
@@ -336,8 +329,8 @@ class LGap : public LTemplateInstruction<0, 0, 0> {
   }
 
   // Can't use the DECLARE-macro here because of sub-classes.
-  virtual bool IsGap() const FINAL OVERRIDE { return true; }
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  bool IsGap() const FINAL { return true; }
+  void PrintDataTo(StringStream* stream) OVERRIDE;
   static LGap* cast(LInstruction* instr) {
     DCHECK(instr->IsGap());
     return reinterpret_cast<LGap*>(instr);
@@ -378,7 +371,7 @@ class LInstructionGap FINAL : public LGap {
  public:
   explicit LInstructionGap(HBasicBlock* block) : LGap(block) { }
 
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
     return !IsRedundant();
   }
 
@@ -390,10 +383,10 @@ class LGoto FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
   explicit LGoto(HBasicBlock* block) : block_(block) { }
 
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE;
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE;
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
-  virtual bool IsControl() const OVERRIDE { return true; }
+  void PrintDataTo(StringStream* stream) OVERRIDE;
+  bool IsControl() const OVERRIDE { return true; }
 
   int block_id() const { return block_->block_id(); }
 
@@ -436,7 +429,7 @@ class LDummyUse FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LDeoptimize FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  virtual bool IsControl() const OVERRIDE { return true; }
+  bool IsControl() const OVERRIDE { return true; }
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
   DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };
@@ -447,12 +440,10 @@ class LLabel FINAL : public LGap {
   explicit LLabel(HBasicBlock* block)
       : LGap(block), replacement_(NULL) { }
 
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
-    return false;
-  }
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE { return false; }
   DECLARE_CONCRETE_INSTRUCTION(Label, "label")
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int block_id() const { return block()->block_id(); }
   bool is_loop_header() const { return block()->IsLoopHeader(); }
@@ -470,9 +461,7 @@ class LLabel FINAL : public LGap {
 
 class LParameter FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
-    return false;
-  }
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE { return false; }
   DECLARE_CONCRETE_INSTRUCTION(Parameter, "parameter")
 };
 
@@ -491,19 +480,23 @@ class LCallStub FINAL : public LTemplateInstruction<1, 1, 0> {
 
 
 class LTailCallThroughMegamorphicCache FINAL
-    : public LTemplateInstruction<0, 3, 0> {
+    : public LTemplateInstruction<0, 5, 0> {
  public:
   explicit LTailCallThroughMegamorphicCache(LOperand* context,
-                                            LOperand* receiver,
-                                            LOperand* name) {
+                                            LOperand* receiver, LOperand* name,
+                                            LOperand* slot, LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = receiver;
     inputs_[2] = name;
+    inputs_[3] = slot;
+    inputs_[4] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* receiver() { return inputs_[1]; }
   LOperand* name() { return inputs_[2]; }
+  LOperand* slot() { return inputs_[3]; }
+  LOperand* vector() { return inputs_[4]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache,
                                "tail-call-through-megamorphic-cache")
@@ -513,9 +506,7 @@ class LTailCallThroughMegamorphicCache FINAL
 
 class LUnknownOSRValue FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
-    return false;
-  }
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE { return false; }
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue, "unknown-osr-value")
 };
 
@@ -525,7 +516,7 @@ class LControlInstruction : public LTemplateInstruction<0, I, T> {
  public:
   LControlInstruction() : false_label_(NULL), true_label_(NULL) { }
 
-  virtual bool IsControl() const FINAL OVERRIDE { return true; }
+  bool IsControl() const FINAL { return true; }
 
   int SuccessorCount() { return hydrogen()->SuccessorCount(); }
   HBasicBlock* SuccessorAt(int i) { return hydrogen()->SuccessorAt(i); }
@@ -614,7 +605,7 @@ class LAccessArgumentsAt FINAL : public LTemplateInstruction<1, 3, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AccessArgumentsAt, "access-arguments-at")
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -855,7 +846,7 @@ class LCompareNumericAndBranch FINAL : public LControlInstruction<2, 0> {
     return hydrogen()->representation().IsDouble();
   }
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1030,7 +1021,7 @@ class LIsObjectAndBranch FINAL : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(IsObjectAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1047,7 +1038,7 @@ class LIsStringAndBranch FINAL : public LControlInstruction<1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch, "is-string-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(IsStringAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1062,7 +1053,7 @@ class LIsSmiAndBranch FINAL : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch, "is-smi-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(IsSmiAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1080,7 +1071,7 @@ class LIsUndetectableAndBranch FINAL : public LControlInstruction<1, 1> {
                                "is-undetectable-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(IsUndetectableAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1102,7 +1093,7 @@ class LStringCompareAndBranch FINAL : public LControlInstruction<3, 0> {
                                "string-compare-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(StringCompareAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   Token::Value op() const { return hydrogen()->token(); }
 };
@@ -1120,7 +1111,7 @@ class LHasInstanceTypeAndBranch FINAL : public LControlInstruction<1, 0> {
                                "has-instance-type-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(HasInstanceTypeAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1150,7 +1141,7 @@ class LHasCachedArrayIndexAndBranch FINAL
                                "has-cached-array-index-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndexAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1170,7 +1161,7 @@ class LClassOfTestAndBranch FINAL : public LControlInstruction<1, 2> {
                                "class-of-test-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(ClassOfTestAndBranch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1376,7 +1367,7 @@ class LBranch FINAL : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(Branch, "branch")
   DECLARE_HYDROGEN_ACCESSOR(Branch)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1528,11 +1519,9 @@ class LArithmeticD FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  virtual Opcode opcode() const OVERRIDE {
-    return LInstruction::kArithmeticD;
-  }
-  virtual void CompileToNative(LCodeGen* generator) OVERRIDE;
-  virtual const char* Mnemonic() const OVERRIDE;
+  Opcode opcode() const OVERRIDE { return LInstruction::kArithmeticD; }
+  void CompileToNative(LCodeGen* generator) OVERRIDE;
+  const char* Mnemonic() const OVERRIDE;
 
  private:
   Token::Value op_;
@@ -1556,11 +1545,9 @@ class LArithmeticT FINAL : public LTemplateInstruction<1, 3, 0> {
   LOperand* left() { return inputs_[1]; }
   LOperand* right() { return inputs_[2]; }
 
-  virtual Opcode opcode() const OVERRIDE {
-    return LInstruction::kArithmeticT;
-  }
-  virtual void CompileToNative(LCodeGen* generator) OVERRIDE;
-  virtual const char* Mnemonic() const OVERRIDE;
+  Opcode opcode() const OVERRIDE { return LInstruction::kArithmeticT; }
+  void CompileToNative(LCodeGen* generator) OVERRIDE;
+  const char* Mnemonic() const OVERRIDE;
 
  private:
   Token::Value op_;
@@ -1686,7 +1673,7 @@ class LLoadKeyed FINAL : public LTemplateInstruction<1, 2, 0> {
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
   uint32_t base_offset() const { return hydrogen()->base_offset(); }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
@@ -1770,7 +1757,7 @@ class LLoadContextSlot FINAL : public LTemplateInstruction<1, 1, 0> {
 
   int slot_index() { return hydrogen()->slot_index(); }
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1791,7 +1778,7 @@ class LStoreContextSlot FINAL : public LTemplateInstruction<0, 2, 1> {
 
   int slot_index() { return hydrogen()->slot_index(); }
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -1830,7 +1817,7 @@ class LStoreCodeEntry FINAL: public LTemplateInstruction<0, 2, 0> {
   LOperand* function() { return inputs_[0]; }
   LOperand* code_object() { return inputs_[1]; }
 
-  virtual void PrintDataTo(StringStream* stream);
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry, "store-code-entry")
   DECLARE_HYDROGEN_ACCESSOR(StoreCodeEntry)
@@ -1847,7 +1834,7 @@ class LInnerAllocatedObject FINAL: public LTemplateInstruction<1, 2, 0> {
   LOperand* base_object() const { return inputs_[0]; }
   LOperand* offset() const { return inputs_[1]; }
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "inner-allocated-object")
 };
@@ -1891,7 +1878,7 @@ class LCallJSFunction FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallJSFunction, "call-js-function")
   DECLARE_HYDROGEN_ACCESSOR(CallJSFunction)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
@@ -1913,18 +1900,18 @@ class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 
   ZoneList<LOperand*> inputs_;
 
   // Iterator support.
-  virtual int InputCount() FINAL OVERRIDE { return inputs_.length(); }
-  virtual LOperand* InputAt(int i) FINAL OVERRIDE { return inputs_[i]; }
+  int InputCount() FINAL { return inputs_.length(); }
+  LOperand* InputAt(int i) FINAL { return inputs_[i]; }
 
-  virtual int TempCount() FINAL OVERRIDE { return 0; }
-  virtual LOperand* TempAt(int i) FINAL OVERRIDE { return NULL; }
+  int TempCount() FINAL { return 0; }
+  LOperand* TempAt(int i) FINAL { return NULL; }
 };
 
 
@@ -1941,7 +1928,7 @@ class LInvokeFunction FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke-function")
   DECLARE_HYDROGEN_ACCESSOR(InvokeFunction)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
@@ -1976,7 +1963,7 @@ class LCallNew FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call-new")
   DECLARE_HYDROGEN_ACCESSOR(CallNew)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
@@ -1995,7 +1982,7 @@ class LCallNewArray FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray, "call-new-array")
   DECLARE_HYDROGEN_ACCESSOR(CallNewArray)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
@@ -2012,7 +1999,7 @@ class LCallRuntime FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const OVERRIDE {
+  bool ClobbersDoubleRegisters(Isolate* isolate) const OVERRIDE {
     return save_doubles() == kDontSaveFPRegs;
   }
 
@@ -2198,7 +2185,7 @@ class LStoreNamedField FINAL : public LTemplateInstruction<0, 2, 1> {
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   Representation representation() const {
     return hydrogen()->field_representation();
@@ -2221,7 +2208,7 @@ class LStoreNamedGeneric FINAL : public LTemplateInstruction<0, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictMode strict_mode() { return hydrogen()->strict_mode(); }
@@ -2251,7 +2238,7 @@ class LStoreKeyed FINAL : public LTemplateInstruction<0, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyed, "store-keyed")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyed)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
   bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
   uint32_t base_offset() const { return hydrogen()->base_offset(); }
 };
@@ -2277,7 +2264,7 @@ class LStoreKeyedGeneric FINAL : public LTemplateInstruction<0, 4, 0> {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   StrictMode strict_mode() { return hydrogen()->strict_mode(); }
 };
@@ -2304,7 +2291,7 @@ class LTransitionElementsKind FINAL : public LTemplateInstruction<0, 2, 2> {
                                "transition-elements-kind")
   DECLARE_HYDROGEN_ACCESSOR(TransitionElementsKind)
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   Handle<Map> original_map() { return hydrogen()->original_map().handle(); }
   Handle<Map> transitioned_map() {
@@ -2593,7 +2580,7 @@ class LTypeofIsAndBranch FINAL : public LControlInstruction<1, 0> {
 
   Handle<String> type_literal() { return hydrogen()->type_literal(); }
 
-  virtual void PrintDataTo(StringStream* stream) OVERRIDE;
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -2615,9 +2602,7 @@ class LOsrEntry FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
   LOsrEntry() {}
 
-  virtual bool HasInterestingComment(LCodeGen* gen) const OVERRIDE {
-    return false;
-  }
+  bool HasInterestingComment(LCodeGen* gen) const OVERRIDE { return false; }
   DECLARE_CONCRETE_INSTRUCTION(OsrEntry, "osr-entry")
 };
 
@@ -2827,7 +2812,7 @@ class LChunkBuilder FINAL : public LChunkBuilderBase {
 
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
-  virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) OVERRIDE;
+  MUST_USE_RESULT LOperand* UseAny(HValue* value) OVERRIDE;
 
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();

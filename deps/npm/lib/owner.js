@@ -1,4 +1,3 @@
-
 module.exports = owner
 
 owner.usage = "npm owner add <username> <pkg>"
@@ -6,7 +5,6 @@ owner.usage = "npm owner add <username> <pkg>"
             + "\nnpm owner ls <pkg>"
 
 var npm = require("./npm.js")
-  , registry = npm.registry
   , log = require("npmlog")
   , readJson = require("read-package-json")
   , mapToRegistry = require("./utils/map-to-registry.js")
@@ -29,21 +27,21 @@ owner.completion = function (opts, cb) {
     switch (argv[2]) {
       case "ls":
         if (argv.length > 3) return cb()
-        return mapToRegistry("-/short", npm.config, function (er, uri) {
+        return mapToRegistry("-/short", npm.config, function (er, uri, auth) {
           if (er) return cb(er)
 
-          registry.get(uri, null, cb)
+          npm.registry.get(uri, { auth : auth }, cb)
         })
 
       case "rm":
         if (argv.length > 3) {
           theUser = encodeURIComponent(argv[3])
           byUser = "-/by-user/" + theUser + "|" + un
-          return mapToRegistry(byUser, npm.config, function (er, uri) {
+          return mapToRegistry(byUser, npm.config, function (er, uri, auth) {
             if (er) return cb(er)
 
             console.error(uri)
-            registry.get(uri, null, function (er, d) {
+            npm.registry.get(uri, { auth : auth }, function (er, d) {
               if (er) return cb(er)
               // return the intersection
               return cb(null, d[theUser].filter(function (p) {
@@ -58,11 +56,11 @@ owner.completion = function (opts, cb) {
         if (argv.length > 3) {
           theUser = encodeURIComponent(argv[3])
           byUser = "-/by-user/" + theUser + "|" + un
-          return mapToRegistry(byUser, npm.config, function (er, uri) {
+          return mapToRegistry(byUser, npm.config, function (er, uri, auth) {
             if (er) return cb(er)
 
             console.error(uri)
-            registry.get(uri, null, function (er, d) {
+            npm.registry.get(uri, { auth : auth }, function (er, d) {
               console.error(uri, er || d)
               // return mine that they're not already on.
               if (er) return cb(er)
@@ -75,10 +73,10 @@ owner.completion = function (opts, cb) {
           })
         }
         // just list all users who aren't me.
-        return mapToRegistry("-/users", npm.config, function (er, uri) {
+        return mapToRegistry("-/users", npm.config, function (er, uri, auth) {
           if (er) return cb(er)
 
-          registry.get(uri, null, function (er, list) {
+          npm.registry.get(uri, { auth : auth }, function (er, list) {
             if (er) return cb()
             return cb(null, Object.keys(list).filter(function (n) {
               return n !== un
@@ -109,10 +107,10 @@ function ls (pkg, cb) {
     ls(pkg, cb)
   })
 
-  mapToRegistry(pkg, npm.config, function (er, uri) {
+  mapToRegistry(pkg, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    registry.get(uri, null, function (er, data) {
+    npm.registry.get(uri, { auth : auth }, function (er, data) {
       var msg = ""
       if (er) {
         log.error("owner ls", "Couldn't get owner data", pkg)
@@ -161,7 +159,7 @@ function rm (user, pkg, cb) {
   })
 
   log.verbose("owner rm", "%s from %s", user, pkg)
-  mutate(pkg, null, function (u, owners) {
+  mutate(pkg, user, function (u, owners) {
     var found = false
       , m = owners.filter(function (o) {
           var match = (o.name === user)
@@ -181,10 +179,10 @@ function rm (user, pkg, cb) {
 function mutate (pkg, user, mutation, cb) {
   if (user) {
     var byUser = "-/user/org.couchdb.user:" + user
-    mapToRegistry(byUser, npm.config, function (er, uri) {
+    mapToRegistry(byUser, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.get(uri, null, mutate_)
+      npm.registry.get(uri, { auth : auth }, mutate_)
     })
   } else {
     mutate_(null, null)
@@ -200,31 +198,52 @@ function mutate (pkg, user, mutation, cb) {
     }
 
     if (u) u = { "name" : u.name, "email" : u.email }
-    mapToRegistry(pkg, npm.config, function (er, uri) {
+    mapToRegistry(pkg, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.get(uri, null, function (er, data) {
+      npm.registry.get(uri, { auth : auth }, function (er, data) {
         if (er) {
           log.error("owner mutate", "Error getting package data for %s", pkg)
           return cb(er)
         }
+
+        // save the number of maintainers before mutation so that we can figure
+        // out if maintainers were added or removed
+        var beforeMutation = data.maintainers.length
+
         var m = mutation(u, data.maintainers)
         if (!m) return cb() // handled
         if (m instanceof Error) return cb(m) // error
-        data = { _id : data._id
-               , _rev : data._rev
-               , maintainers : m
-               }
-        var dataPath = pkg + "/-rev/" + data._rev
-        mapToRegistry(dataPath, npm.config, function (er, uri) {
+
+        data = {
+          _id : data._id,
+          _rev : data._rev,
+          maintainers : m
+        }
+        var dataPath = pkg.replace("/", "%2f") + "/-rev/" + data._rev
+        mapToRegistry(dataPath, npm.config, function (er, uri, auth) {
           if (er) return cb(er)
 
-          registry.request("PUT", uri, { body : data }, function (er, data) {
-            if (!er && data.error) er = new Error(
-              "Failed to update package metadata: " + JSON.stringify(data))
+          var params = {
+            method : "PUT",
+            body : data,
+            auth : auth
+          }
+          npm.registry.request(uri, params, function (er, data) {
+            if (!er && data.error) {
+              er = new Error("Failed to update package metadata: "+JSON.stringify(data))
+            }
+
             if (er) {
               log.error("owner mutate", "Failed to update package metadata")
             }
+            else if (m.length > beforeMutation) {
+              console.log("+ %s (%s)", user, pkg)
+            }
+            else if (m.length < beforeMutation) {
+              console.log("- %s (%s)", user, pkg)
+            }
+
             cb(er, data)
           })
         })

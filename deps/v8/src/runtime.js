@@ -6,9 +6,7 @@
 
 // CAUTION: Some of the functions specified in this file are called
 // directly from compiled code. These are the functions with names in
-// ALL CAPS. The compiled code passes the first argument in 'this' and
-// it does not push the function onto the stack. This means that you
-// cannot use contexts in all these functions.
+// ALL CAPS. The compiled code passes the first argument in 'this'.
 
 
 /* -----------------------------------
@@ -324,8 +322,13 @@ function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsNonNegativeSmi(this) ?
-    %HasElement(x, this) : %HasProperty(x, %ToName(this));
+  if (%_IsNonNegativeSmi(this)) {
+    if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
+      return this < x.length;
+    }
+    return %HasElement(x, this);
+  }
+  return %HasProperty(x, %ToName(this));
 }
 
 
@@ -598,6 +601,15 @@ function SameValue(x, y) {
   return x === y;
 }
 
+// ES6, section 7.2.4
+function SameValueZero(x, y) {
+  if (typeof x != typeof y) return false;
+  if (IS_NUMBER(x)) {
+    if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
+  }
+  return x === y;
+}
+
 
 /* ---------------------------------
    - - -   U t i l i t i e s   - - -
@@ -611,6 +623,15 @@ function IsPrimitive(x) {
   // considered a primitive value. IS_SPEC_OBJECT handles this correctly
   // (i.e., it will return false if x is null).
   return !IS_SPEC_OBJECT(x);
+}
+
+
+// ES6, draft 10-14-14, section 22.1.3.1.1
+function IsConcatSpreadable(O) {
+  if (!IS_SPEC_OBJECT(O)) return false;
+  var spreadable = O[symbolIsConcatSpreadable];
+  if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
+  return ToBoolean(spreadable);
 }
 
 
@@ -651,7 +672,7 @@ function DefaultString(x) {
 }
 
 function ToPositiveInteger(x, rangeErrorName) {
-  var i = TO_INTEGER(x);
+  var i = TO_INTEGER_MAP_MINUS_ZERO(x);
   if (i < 0) throw MakeRangeError(rangeErrorName);
   return i;
 }

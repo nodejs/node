@@ -1375,14 +1375,14 @@ TEST(16) {
   __ pkhtb(r2, r0, Operand(r1, ASR, 8));
   __ str(r2, MemOperand(r4, OFFSET_OF(T, dst1)));
 
-  __ uxtb16(r2, Operand(r0, ROR, 8));
+  __ uxtb16(r2, r0, 8);
   __ str(r2, MemOperand(r4, OFFSET_OF(T, dst2)));
 
-  __ uxtb(r2, Operand(r0, ROR, 8));
+  __ uxtb(r2, r0, 8);
   __ str(r2, MemOperand(r4, OFFSET_OF(T, dst3)));
 
   __ ldr(r0, MemOperand(r4, OFFSET_OF(T, src2)));
-  __ uxtab(r2, r0, Operand(r1, ROR, 8));
+  __ uxtab(r2, r0, r1, 8);
   __ str(r2, MemOperand(r4, OFFSET_OF(T, dst4)));
 
   __ ldm(ia_w, sp, r4.bit() | pc.bit());
@@ -1601,6 +1601,214 @@ TEST(smmul) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
     CHECK_EQ(bits::SignedMulHigh32(x, y), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(sxtb) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ sxtb(r1, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<int8_t>(x)), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(sxtab) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ sxtab(r1, r2, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<int8_t>(x)) + y, r);
+    USE(dummy);
+  }
+}
+
+
+TEST(sxth) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ sxth(r1, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<int16_t>(x)), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(sxtah) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ sxtah(r1, r2, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<int16_t>(x)) + y, r);
+    USE(dummy);
+  }
+}
+
+
+TEST(uxtb) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ uxtb(r1, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<uint8_t>(x)), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(uxtab) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ uxtab(r1, r2, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<uint8_t>(x)) + y, r);
+    USE(dummy);
+  }
+}
+
+
+TEST(uxth) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ uxth(r1, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<uint16_t>(x)), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(uxtah) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ uxtah(r1, r2, r1);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(static_cast<int32_t>(static_cast<uint16_t>(x)) + y, r);
     USE(dummy);
   }
 }

@@ -2629,7 +2629,89 @@ void Simulator::DecodeType3(Instruction* instr) {
               UNIMPLEMENTED();
               break;
             case 1:
-              UNIMPLEMENTED();
+              if (instr->Bits(9, 6) == 1) {
+                if (instr->Bit(20) == 0) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    // Sxtb.
+                    int32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, static_cast<int8_t>(rm_val));
+                  } else {
+                    // Sxtab.
+                    int32_t rn_val = get_register(rn);
+                    int32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, rn_val + static_cast<int8_t>(rm_val));
+                  }
+                } else {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    // Sxth.
+                    int32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, static_cast<int16_t>(rm_val));
+                  } else {
+                    // Sxtah.
+                    int32_t rn_val = get_register(rn);
+                    int32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, rn_val + static_cast<int16_t>(rm_val));
+                  }
+                }
+              } else {
+                UNREACHABLE();
+              }
               break;
             case 2:
               if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
@@ -2650,8 +2732,7 @@ void Simulator::DecodeType3(Instruction* instr) {
                       rm_val = (rm_val >> 24) | (rm_val << 8);
                       break;
                   }
-                  set_register(rd,
-                               (rm_val & 0xFF) | (rm_val & 0xFF0000));
+                  set_register(rd, (rm_val & 0xFF) | (rm_val & 0xFF0000));
                 } else {
                   UNIMPLEMENTED();
                 }
@@ -2660,44 +2741,85 @@ void Simulator::DecodeType3(Instruction* instr) {
               }
               break;
             case 3:
-              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
-                if (instr->Bits(19, 16) == 0xF) {
-                  // Uxtb.
-                  uint32_t rm_val = get_register(instr->RmValue());
-                  int32_t rotate = instr->Bits(11, 10);
-                  switch (rotate) {
-                    case 0:
-                      break;
-                    case 1:
-                      rm_val = (rm_val >> 8) | (rm_val << 24);
-                      break;
-                    case 2:
-                      rm_val = (rm_val >> 16) | (rm_val << 16);
-                      break;
-                    case 3:
-                      rm_val = (rm_val >> 24) | (rm_val << 8);
-                      break;
+              if ((instr->Bits(9, 6) == 1)) {
+                if (instr->Bit(20) == 0) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    // Uxtb.
+                    uint32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, (rm_val & 0xFF));
+                  } else {
+                    // Uxtab.
+                    uint32_t rn_val = get_register(rn);
+                    uint32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, rn_val + (rm_val & 0xFF));
                   }
-                  set_register(rd, (rm_val & 0xFF));
                 } else {
-                  // Uxtab.
-                  uint32_t rn_val = get_register(rn);
-                  uint32_t rm_val = get_register(instr->RmValue());
-                  int32_t rotate = instr->Bits(11, 10);
-                  switch (rotate) {
-                    case 0:
-                      break;
-                    case 1:
-                      rm_val = (rm_val >> 8) | (rm_val << 24);
-                      break;
-                    case 2:
-                      rm_val = (rm_val >> 16) | (rm_val << 16);
-                      break;
-                    case 3:
-                      rm_val = (rm_val >> 24) | (rm_val << 8);
-                      break;
+                  if (instr->Bits(19, 16) == 0xF) {
+                    // Uxth.
+                    uint32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, (rm_val & 0xFFFF));
+                  } else {
+                    // Uxtah.
+                    uint32_t rn_val = get_register(rn);
+                    uint32_t rm_val = get_register(instr->RmValue());
+                    int32_t rotate = instr->Bits(11, 10);
+                    switch (rotate) {
+                      case 0:
+                        break;
+                      case 1:
+                        rm_val = (rm_val >> 8) | (rm_val << 24);
+                        break;
+                      case 2:
+                        rm_val = (rm_val >> 16) | (rm_val << 16);
+                        break;
+                      case 3:
+                        rm_val = (rm_val >> 24) | (rm_val << 8);
+                        break;
+                    }
+                    set_register(rd, rn_val + (rm_val & 0xFFFF));
                   }
-                  set_register(rd, rn_val + (rm_val & 0xFF));
                 }
               } else {
                 UNIMPLEMENTED();

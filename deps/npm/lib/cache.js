@@ -82,6 +82,7 @@ var npm = require("./npm.js")
   , npa = require("npm-package-arg")
   , getStat = require("./cache/get-stat.js")
   , cachedPackageRoot = require("./cache/cached-package-root.js")
+  , mapToRegistry = require("./utils/map-to-registry.js")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -172,6 +173,7 @@ function normalize (args) {
   if (normalized.substr(-1) === "/") {
     normalized = normalized.substr(0, normalized.length - 1)
   }
+  normalized = path.normalize(normalized)
   log.silly("ls", "normalized", normalized)
 
   return normalized
@@ -202,7 +204,7 @@ function clean (args, cb) {
 
   if (!args) args = []
 
-  var f = path.join(npm.cache, path.normalize(normalize(args)))
+  var f = path.join(npm.cache, normalize(args))
   if (f === npm.cache) {
     fs.readdir(npm.cache, function (er, files) {
       if (er) return cb()
@@ -213,7 +215,10 @@ function clean (args, cb) {
                 })
               , rm, cb )
     })
-  } else rm(path.join(npm.cache, path.normalize(normalize(args))), cb)
+  }
+  else {
+    rm(f, cb)
+  }
 }
 
 // npm cache add <tarball-url>
@@ -285,7 +290,12 @@ function add (args, where, cb) {
         addLocal(p, null, cb)
         break
       case "remote":
-        addRemoteTarball(p.spec, {name : p.name}, null, cb)
+        // get auth, if possible
+        mapToRegistry(spec, npm.config, function (err, uri, auth) {
+          if (err) return cb(err)
+
+          addRemoteTarball(p.spec, {name : p.name}, null, auth, cb)
+        })
         break
       case "git":
         addRemoteGit(p.spec, false, cb)

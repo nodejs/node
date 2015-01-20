@@ -1063,7 +1063,7 @@ int uv_spawn(uv_loop_t* loop,
 
   if (options->flags & UV_PROCESS_DETACHED) {
     /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That
-     * means that libuv might not let you create a fully deamonized process
+     * means that libuv might not let you create a fully daemonized process
      * when run under job control. However the type of job control that libuv
      * itself creates doesn't trickle down to subprocesses so they can still
      * daemonize.
@@ -1141,7 +1141,7 @@ int uv_spawn(uv_loop_t* loop,
   assert(!err);
 
   /* Make the handle active. It will remain active until the exit callback */
-  /* iis made or the handle is closed, whichever happens first. */
+  /* is made or the handle is closed, whichever happens first. */
   uv__handle_start(process);
 
   /* Cleanup, whether we succeeded or failed. */
@@ -1177,7 +1177,7 @@ static int uv__kill(HANDLE process_handle, int signum) {
         return 0;
 
       /* If the process already exited before TerminateProcess was called, */
-      /* TerminateProcess will fail with ERROR_ACESS_DENIED. */
+      /* TerminateProcess will fail with ERROR_ACCESS_DENIED. */
       err = GetLastError();
       if (err == ERROR_ACCESS_DENIED &&
           GetExitCodeProcess(process_handle, &status) &&

@@ -71,6 +71,11 @@ class RingBuffer {
     elements_[begin_] = element;
   }
 
+  void reset() {
+    begin_ = 0;
+    end_ = 0;
+  }
+
  private:
   T elements_[MAX_SIZE + 1];
   size_t begin_;
@@ -103,6 +108,7 @@ class GCTracer {
       MC_UPDATE_POINTERS_TO_EVACUATED,
       MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
       MC_UPDATE_MISC_POINTERS,
+      MC_WEAKCLOSURE,
       MC_WEAKCOLLECTION_PROCESS,
       MC_WEAKCOLLECTION_CLEAR,
       MC_WEAKCOLLECTION_ABORT,
@@ -145,9 +151,38 @@ class GCTracer {
     intptr_t allocation_in_bytes_;
   };
 
+
+  class ContextDisposalEvent {
+   public:
+    // Default constructor leaves the event uninitialized.
+    ContextDisposalEvent() {}
+
+    explicit ContextDisposalEvent(double time);
+
+    // Time when context disposal event happened.
+    double time_;
+  };
+
+
+  class SurvivalEvent {
+   public:
+    // Default constructor leaves the event uninitialized.
+    SurvivalEvent() {}
+
+    explicit SurvivalEvent(double survival_rate);
+
+    double survival_rate_;
+  };
+
+
   class Event {
    public:
-    enum Type { SCAVENGER = 0, MARK_COMPACTOR = 1, START = 2 };
+    enum Type {
+      SCAVENGER = 0,
+      MARK_COMPACTOR = 1,
+      INCREMENTAL_MARK_COMPACTOR = 2,
+      START = 3
+    };
 
     // Default constructor leaves the event uninitialized.
     Event() {}
@@ -198,7 +233,8 @@ class GCTracer {
 
     // Incremental marking steps since
     // - last event for SCAVENGER events
-    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
+    // events
     int incremental_marking_steps;
 
     // Bytes marked since creation of tracer (value at start of event).
@@ -206,7 +242,8 @@ class GCTracer {
 
     // Bytes marked since
     // - last event for SCAVENGER events
-    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
+    // events
     intptr_t incremental_marking_bytes;
 
     // Cumulative duration of incremental marking steps since creation of
@@ -215,7 +252,8 @@ class GCTracer {
 
     // Duration of incremental marking steps since
     // - last event for SCAVENGER events
-    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
+    // events
     double incremental_marking_duration;
 
     // Cumulative pure duration of incremental marking steps since creation of
@@ -224,7 +262,8 @@ class GCTracer {
 
     // Duration of pure incremental marking steps since
     // - last event for SCAVENGER events
-    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
+    // events
     double pure_incremental_marking_duration;
 
     // Longest incremental marking step since start of marking.
@@ -235,11 +274,16 @@ class GCTracer {
     double scopes[Scope::NUMBER_OF_SCOPES];
   };
 
-  static const int kRingBufferMaxSize = 10;
+  static const size_t kRingBufferMaxSize = 10;
 
   typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
 
   typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
+
+  typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
+      ContextDisposalEventBuffer;
+
+  typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
 
   explicit GCTracer(Heap* heap);
 
@@ -248,10 +292,14 @@ class GCTracer {
              const char* collector_reason);
 
   // Stop collecting data and print results.
-  void Stop();
+  void Stop(GarbageCollector collector);
 
   // Log an allocation throughput event.
   void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
+
+  void AddContextDisposalTime(double time);
+
+  void AddSurvivalRate(double survival_rate);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -298,6 +346,12 @@ class GCTracer {
     return MaxDuration(mark_compactor_events_);
   }
 
+  // Compute the mean duration of the last incremental mark compactor
+  // events. Returns 0 if no events have been recorded.
+  double MeanIncrementalMarkCompactorDuration() const {
+    return MeanDuration(incremental_mark_compactor_events_);
+  }
+
   // Compute the mean step duration of the last incremental marking round.
   // Returns 0 if no incremental marking round has been completed.
   double MeanIncrementalMarkingDuration() const;
@@ -314,13 +368,35 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t ScavengeSpeedInBytesPerMillisecond() const;
 
-  // Compute the max mark-sweep speed in bytes/millisecond.
+  // Compute the average mark-sweep speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
   intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
+
+  // Compute the average incremental mark-sweep finalize speed in
+  // bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no events have been recorded.
   intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+
+  // Computes the context disposal rate in milliseconds. It takes the time
+  // frame of the first recorded context disposal to the current time and
+  // divides it by the number of recorded events.
+  // Returns 0 if no events have been recorded.
+  double ContextDisposalRateInMilliseconds() const;
+
+  // Computes the average survival rate based on the last recorded survival
+  // events.
+  // Returns 0 if no events have been recorded.
+  double AverageSurvivalRate() const;
+
+  // Returns true if at least one survival event was recorded.
+  bool SurvivalEventsRecorded() const;
+
+  // Discard all recorded survival events.
+  void ResetSurvivalEvents();
 
  private:
   // Print one detailed trace line in name=value format.
@@ -337,6 +413,16 @@ class GCTracer {
   // Compute the max duration of the events in the given ring buffer.
   double MaxDuration(const EventBuffer& events) const;
 
+  void ClearMarkCompactStatistics() {
+    cumulative_incremental_marking_steps_ = 0;
+    cumulative_incremental_marking_bytes_ = 0;
+    cumulative_incremental_marking_duration_ = 0;
+    cumulative_pure_incremental_marking_duration_ = 0;
+    longest_incremental_marking_step_ = 0;
+    cumulative_marking_duration_ = 0;
+    cumulative_sweeping_duration_ = 0;
+  }
+
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
@@ -347,8 +433,8 @@ class GCTracer {
   // Previous tracer event.
   Event previous_;
 
-  // Previous MARK_COMPACTOR event.
-  Event previous_mark_compactor_event_;
+  // Previous INCREMENTAL_MARK_COMPACTOR event.
+  Event previous_incremental_mark_compactor_event_;
 
   // RingBuffers for SCAVENGER events.
   EventBuffer scavenger_events_;
@@ -356,8 +442,17 @@ class GCTracer {
   // RingBuffers for MARK_COMPACTOR events.
   EventBuffer mark_compactor_events_;
 
+  // RingBuffers for INCREMENTAL_MARK_COMPACTOR events.
+  EventBuffer incremental_mark_compactor_events_;
+
   // RingBuffer for allocation events.
   AllocationEventBuffer allocation_events_;
+
+  // RingBuffer for context disposal events.
+  ContextDisposalEventBuffer context_disposal_events_;
+
+  // RingBuffer for survival events.
+  SurvivalEventBuffer survival_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
@@ -392,6 +487,9 @@ class GCTracer {
   // Holds the new space top pointer recorded at the end of the last garbage
   // collection.
   intptr_t new_space_top_after_gc_;
+
+  // Counts how many tracers were started without stopping.
+  int start_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

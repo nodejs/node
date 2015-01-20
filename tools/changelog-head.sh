@@ -1,5 +1,5 @@
 #!/bin/bash
-cat ChangeLog | {
+cat CHANGELOG.md | {
   s=-1
   while read line; do
     if [ "${line:0:1}" == "-" ]; then

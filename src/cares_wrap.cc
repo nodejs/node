@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async-wrap.h"
@@ -45,6 +24,9 @@
 # include <arpa/nameser.h>
 #endif
 
+#if defined(__OpenBSD__)
+# define AI_V4MAPPED 0
+#endif
 
 namespace node {
 namespace cares_wrap {
@@ -884,7 +866,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   Wrap* wrap = new Wrap(env, req_wrap_obj);
 
-  node::Utf8Value name(string);
+  node::Utf8Value name(env->isolate(), string);
   int err = wrap->Send(*name);
   if (err)
     delete wrap;
@@ -1023,7 +1005,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
 
 
 static void IsIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args[0]);
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
   int rc = 0;
@@ -1043,7 +1025,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value hostname(args[1]);
+  node::Utf8Value hostname(env->isolate(), args[1]);
 
   int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
   int family;
@@ -1092,7 +1074,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip(args[1]);
+  node::Utf8Value ip(env->isolate(), args[1]);
   const unsigned port = args[2]->Uint32Value();
   struct sockaddr_storage addr;
 
@@ -1171,7 +1153,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     CHECK(elm->Get(1)->IsString());
 
     int fam = elm->Get(0)->Int32Value();
-    node::Utf8Value ip(elm->Get(1));
+    node::Utf8Value ip(env->isolate(), elm->Get(1));
 
     ares_addr_node* cur = &servers[i];
 

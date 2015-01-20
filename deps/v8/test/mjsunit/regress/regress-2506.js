@@ -46,7 +46,7 @@ for (const x in [1,2,3]) {
 }
 assertEquals("012", s);
 
-assertThrows(function() { for(const x in [1,2,3]) { x++ } }, SyntaxError);
+assertThrows("'use strict'; for (const x in [1,2,3]) { x++ }", TypeError);
 
 // Function scope
 (function() {

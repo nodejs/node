@@ -67,6 +67,13 @@ var lastMicrotaskId = 0;
     return promise;
   }
 
+  function PromiseCreateAndSet(status, value) {
+    var promise = new $Promise(promiseRaw);
+    // If debug is active, notify about the newly created promise first.
+    if (DEBUG_IS_ACTIVE) PromiseSet(promise, 0, UNDEFINED);
+    return PromiseSet(promise, status, value);
+  }
+
   function PromiseInit(promise) {
     return PromiseSet(
         promise, 0, UNDEFINED, new InternalArray, new InternalArray)
@@ -74,7 +81,8 @@ var lastMicrotaskId = 0;
 
   function PromiseDone(promise, status, value, promiseQueue) {
     if (GET_PRIVATE(promise, promiseStatus) === 0) {
-      PromiseEnqueue(value, GET_PRIVATE(promise, promiseQueue), status);
+      var tasks = GET_PRIVATE(promise, promiseQueue);
+      if (tasks.length) PromiseEnqueue(value, tasks, status);
       PromiseSet(promise, status, value);
     }
   }
@@ -103,6 +111,7 @@ var lastMicrotaskId = 0;
   function PromiseHandle(value, handler, deferred) {
     try {
       %DebugPushPromise(deferred.promise);
+      DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
       var result = handler(value);
       if (result === deferred.promise)
         throw MakeTypeError('promise_cyclic', [result]);
@@ -195,7 +204,7 @@ var lastMicrotaskId = 0;
   function PromiseResolved(x) {
     if (this === $Promise) {
       // Optimized case, avoid extra closure.
-      return PromiseSet(new $Promise(promiseRaw), +1, x);
+      return PromiseCreateAndSet(+1, x);
     } else {
       return new this(function(resolve, reject) { resolve(x) });
     }
@@ -205,7 +214,7 @@ var lastMicrotaskId = 0;
     var promise;
     if (this === $Promise) {
       // Optimized case, avoid extra closure.
-      promise = PromiseSet(new $Promise(promiseRaw), -1, r);
+      promise = PromiseCreateAndSet(-1, r);
       // The debug event for this would always be an uncaught promise reject,
       // which is usually simply noise. Do not trigger that debug event.
       %PromiseRejectEvent(promise, r, false);
@@ -270,8 +279,15 @@ var lastMicrotaskId = 0;
       this,
       function(x) {
         x = PromiseCoerce(constructor, x);
-        return x === that ? onReject(MakeTypeError('promise_cyclic', [x])) :
-               IsPromise(x) ? x.then(onResolve, onReject) : onResolve(x);
+        if (x === that) {
+          DEBUG_PREPARE_STEP_IN_IF_STEPPING(onReject);
+          return onReject(MakeTypeError('promise_cyclic', [x]));
+        } else if (IsPromise(x)) {
+          return x.then(onResolve, onReject);
+        } else {
+          DEBUG_PREPARE_STEP_IN_IF_STEPPING(onResolve);
+          return onResolve(x);
+        }
       },
       onReject,
       PromiseChain

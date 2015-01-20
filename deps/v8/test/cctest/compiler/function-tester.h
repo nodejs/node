@@ -216,9 +216,7 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Compiler::Analyze(&info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
-    Pipeline pipeline(&info);
-    Linkage linkage(info.zone(), &info);
-    Handle<Code> code = pipeline.GenerateCodeForMachineGraph(&linkage, graph);
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
     CHECK(!code.is_null());
     function->ReplaceCode(*code);
     return function;

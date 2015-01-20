@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -163,7 +162,8 @@ TEST(BuildMulNodeGraph) {
   Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine;
+  // TODO(titzer): use test operators.
+  MachineOperatorBuilder machine(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);

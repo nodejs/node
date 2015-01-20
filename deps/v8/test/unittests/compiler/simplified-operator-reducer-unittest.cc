@@ -2,27 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/conversions.h"
 #include "src/types.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
+#include "testing/gmock-support.h"
+
+using testing::BitEq;
+
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedOperatorReducerTest : public GraphTest {
+class SimplifiedOperatorReducerTest : public TypedGraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
-      : GraphTest(num_parameters), simplified_(zone()) {}
-  virtual ~SimplifiedOperatorReducerTest() {}
+      : TypedGraphTest(num_parameters), simplified_(zone()) {}
+  ~SimplifiedOperatorReducerTest() OVERRIDE {}
 
  protected:
   Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine;
+    MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(graph(), common(), &javascript, &machine);
     SimplifiedOperatorReducer reducer(&jsgraph);
@@ -43,7 +49,7 @@ class SimplifiedOperatorReducerTestWithParam
  public:
   explicit SimplifiedOperatorReducerTestWithParam(int num_parameters = 1)
       : SimplifiedOperatorReducerTest(num_parameters) {}
-  virtual ~SimplifiedOperatorReducerTestWithParam() {}
+  ~SimplifiedOperatorReducerTestWithParam() OVERRIDE {}
 };
 
 
@@ -114,11 +120,6 @@ static const uint32_t kUint32Values[] = {
     0xbeb15c0d, 0xc171c53d, 0xc743dd38, 0xc8e2af50, 0xc98e2df0, 0xd9d1cdf9,
     0xdcc91049, 0xe46f396d, 0xee991950, 0xef64e521, 0xf7aeefc9, 0xffffffff};
 
-
-MATCHER(IsNaN, std::string(negation ? "isn't" : "is") + " NaN") {
-  return std::isnan(arg);
-}
-
 }  // namespace
 
 
@@ -140,6 +141,7 @@ std::ostream& operator<<(std::ostream& os, const UnaryOperator& unop) {
 
 
 static const UnaryOperator kUnaryOperators[] = {
+    {&SimplifiedOperatorBuilder::AnyToBoolean, "AnyToBoolean"},
     {&SimplifiedOperatorBuilder::BooleanNot, "BooleanNot"},
     {&SimplifiedOperatorBuilder::ChangeBitToBool, "ChangeBitToBool"},
     {&SimplifiedOperatorBuilder::ChangeBoolToBit, "ChangeBoolToBit"},
@@ -161,8 +163,8 @@ typedef SimplifiedOperatorReducerTestWithParam<UnaryOperator>
 
 TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
   const UnaryOperator& unop = GetParam();
-  Reduction reduction = Reduce(
-      graph()->NewNode((simplified()->*unop.constructor)(), Parameter(0)));
+  Reduction reduction = Reduce(graph()->NewNode(
+      (simplified()->*unop.constructor)(), Parameter(Type::Any())));
   EXPECT_FALSE(reduction.Changed());
 }
 
@@ -170,6 +172,39 @@ TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
 INSTANTIATE_TEST_CASE_P(SimplifiedOperatorReducerTest,
                         SimplifiedUnaryOperatorTest,
                         ::testing::ValuesIn(kUnaryOperators));
+
+
+// -----------------------------------------------------------------------------
+// AnyToBoolean
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithBoolean) {
+  Node* p = Parameter(Type::Boolean());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p, r.replacement());
+}
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithOrderedNumber) {
+  Node* p = Parameter(Type::OrderedNumber());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(p, IsNumberConstant(0))));
+}
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithString) {
+  Node* p = Parameter(Type::String());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(
+                  IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(), p,
+                                            graph()->start(), graph()->start()),
+                                IsNumberConstant(0))));
+}
 
 
 // -----------------------------------------------------------------------------
@@ -271,7 +306,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeFloat64ToTaggedWithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeFloat64ToTagged(), Float64Constant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(n));
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(n)));
   }
 }
 
@@ -285,7 +320,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeInt32ToTaggedWithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeInt32ToTagged(), Int32Constant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastI2D(n)));
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(FastI2D(n))));
   }
 }
 
@@ -332,7 +367,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeTaggedToFloat64(), NumberConstant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(n));
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(n)));
   }
 }
 
@@ -342,7 +377,8 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithNaNConstant1) {
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                               NumberConstant(-base::OS::nan_value())));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsFloat64Constant(IsNaN()));
+  EXPECT_THAT(reduction.replacement(),
+              IsFloat64Constant(BitEq(-base::OS::nan_value())));
 }
 
 
@@ -351,7 +387,8 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithNaNConstant2) {
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                               NumberConstant(base::OS::nan_value())));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsFloat64Constant(IsNaN()));
+  EXPECT_THAT(reduction.replacement(),
+              IsFloat64Constant(BitEq(base::OS::nan_value())));
 }
 
 
@@ -474,127 +511,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeUint32ToTagged) {
         Reduce(graph()->NewNode(simplified()->ChangeUint32ToTagged(),
                                 Int32Constant(bit_cast<int32_t>(n))));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastUI2D(n)));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// LoadElement
-
-
-TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
-  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
-                                Type::Any(), kMachAnyTagged};
-  ElementAccess access_nocheck = access;
-  access_nocheck.bounds_check = kNoBoundsCheck;
-  Node* const base = Parameter(0);
-  Node* const effect = graph()->start();
-  {
-    Node* const key = NumberConstant(-42.0);
-    Node* const length = NumberConstant(100.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_FALSE(r.Changed());
-  }
-  {
-    Node* const key = NumberConstant(-0.0);
-    Node* const length = NumberConstant(1.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(0);
-    Node* const length = NumberConstant(1);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(42.2);
-    Node* const length = NumberConstant(128);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(access_nocheck, base, key, length, effect));
-  }
-  {
-    Node* const key = NumberConstant(39.2);
-    Node* const length = NumberConstant(32.0);
-    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
-                                          base, key, length, effect));
-    ASSERT_FALSE(r.Changed());
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// StoreElement
-
-
-TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
-  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
-                                Type::Any(), kMachAnyTagged};
-  ElementAccess access_nocheck = access;
-  access_nocheck.bounds_check = kNoBoundsCheck;
-  Node* const base = Parameter(0);
-  Node* const value = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  {
-    Node* const key = NumberConstant(-72.1);
-    Node* const length = NumberConstant(0.0);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_FALSE(r.Changed());
-  }
-  {
-    Node* const key = NumberConstant(-0.0);
-    Node* const length = NumberConstant(999);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(0);
-    Node* const length = NumberConstant(1);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(42.2);
-    Node* const length = NumberConstant(128);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsStoreElement(access_nocheck, base, key, length, value, effect,
-                               control));
-  }
-  {
-    Node* const key = NumberConstant(39.2);
-    Node* const length = NumberConstant(32.0);
-    Reduction r =
-        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
-                                length, value, effect, control));
-    ASSERT_FALSE(r.Changed());
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(FastUI2D(n))));
   }
 }
 

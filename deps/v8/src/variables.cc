@@ -60,7 +60,7 @@ bool Variable::IsGlobalObjectProperty() const {
   // activation frame.
   return (IsDynamicVariableMode(mode_) ||
           (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)))
-      && scope_ != NULL && scope_->is_global_scope();
+      && scope_ != NULL && scope_->is_script_scope();
 }
 
 

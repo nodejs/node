@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --turbo-deoptimization
+// Flags: --turbo-deoptimization --noharmony-scoping
+// Flags: --noharmony-classes --noharmony-object-literals
 
 function CheckStrictMode(code, exception) {
   assertDoesNotThrow(code);

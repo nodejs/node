@@ -22,8 +22,8 @@ class OFStreamBase : public std::streambuf {
   explicit OFStreamBase(FILE* f);
   virtual ~OFStreamBase();
 
-  virtual int_type sync() FINAL;
-  virtual int_type overflow(int_type c) FINAL;
+  int_type sync() FINAL;
+  int_type overflow(int_type c) FINAL;
 
  private:
   FILE* const f_;

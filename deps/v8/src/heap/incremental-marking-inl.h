@@ -103,13 +103,13 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
     }
   }
 
-  marking_deque_.UnshiftGrey(obj);
+  heap_->mark_compact_collector()->marking_deque()->UnshiftGrey(obj);
 }
 
 
 void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   Marking::WhiteToGrey(mark_bit);
-  marking_deque_.PushGrey(obj);
+  heap_->mark_compact_collector()->marking_deque()->PushGrey(obj);
 }
 }
 }  // namespace v8::internal

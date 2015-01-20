@@ -67,39 +67,24 @@ class Arguments BASE_EMBEDDED {
 // For each type of callback, we have a list of arguments
 // They are used to generate the Call() functions below
 // These aren't included in the list as they have duplicate signatures
-// F(NamedPropertyEnumeratorCallback, ...)
+// F(GenericNamedPropertyEnumeratorCallback, ...)
+// F(GenericNamedPropertyGetterCallback, ...)
 
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_0(F) \
-  F(IndexedPropertyEnumeratorCallback, v8::Array) \
+  F(IndexedPropertyEnumeratorCallback, v8::Array)
 
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_1(F) \
-  F(NamedPropertyGetterCallback, v8::Value, v8::Local<v8::String>) \
-  F(AccessorNameGetterCallback, v8::Value, v8::Local<v8::Name>) \
-  F(NamedPropertyQueryCallback, \
-    v8::Integer, \
-    v8::Local<v8::String>) \
-  F(NamedPropertyDeleterCallback, \
-    v8::Boolean, \
-    v8::Local<v8::String>) \
-  F(IndexedPropertyGetterCallback, \
-    v8::Value, \
-    uint32_t) \
-  F(IndexedPropertyQueryCallback, \
-    v8::Integer, \
-    uint32_t) \
-  F(IndexedPropertyDeleterCallback, \
-    v8::Boolean, \
-    uint32_t) \
+#define FOR_EACH_CALLBACK_TABLE_MAPPING_1(F)                               \
+  F(AccessorNameGetterCallback, v8::Value, v8::Local<v8::Name>)            \
+  F(GenericNamedPropertyQueryCallback, v8::Integer, v8::Local<v8::Name>)   \
+  F(GenericNamedPropertyDeleterCallback, v8::Boolean, v8::Local<v8::Name>) \
+  F(IndexedPropertyGetterCallback, v8::Value, uint32_t)                    \
+  F(IndexedPropertyQueryCallback, v8::Integer, uint32_t)                   \
+  F(IndexedPropertyDeleterCallback, v8::Boolean, uint32_t)
 
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_2(F) \
-  F(NamedPropertySetterCallback, \
-    v8::Value, \
-    v8::Local<v8::String>, \
-    v8::Local<v8::Value>) \
-  F(IndexedPropertySetterCallback, \
-    v8::Value, \
-    uint32_t, \
-    v8::Local<v8::Value>) \
+#define FOR_EACH_CALLBACK_TABLE_MAPPING_2(F)                            \
+  F(GenericNamedPropertySetterCallback, v8::Value, v8::Local<v8::Name>, \
+    v8::Local<v8::Value>)                                               \
+  F(IndexedPropertySetterCallback, v8::Value, uint32_t, v8::Local<v8::Value>)
 
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_2_VOID_RETURN(F) \
   F(AccessorNameSetterCallback, \

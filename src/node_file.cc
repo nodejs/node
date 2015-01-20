@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node.h"
 #include "node_file.h"
 #include "node_buffer.h"
@@ -329,7 +308,7 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
   if (!args[1]->IsInt32())
     return TYPE_ERROR("mode must be an integer");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if (args[2]->IsObject()) {
@@ -462,7 +441,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(stat, args[1], *path)
@@ -481,7 +460,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(lstat, args[1], *path)
@@ -523,12 +502,12 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   if (!args[1]->IsString())
     return TYPE_ERROR("src path must be a string");
 
-  node::Utf8Value dest(args[0]);
-  node::Utf8Value path(args[1]);
+  node::Utf8Value dest(env->isolate(), args[0]);
+  node::Utf8Value path(env->isolate(), args[1]);
   int flags = 0;
 
   if (args[2]->IsString()) {
-    node::Utf8Value mode(args[2]);
+    node::Utf8Value mode(env->isolate(), args[2]);
     if (strcmp(*mode, "dir") == 0) {
       flags |= UV_FS_SYMLINK_DIR;
     } else if (strcmp(*mode, "junction") == 0) {
@@ -558,8 +537,8 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   if (!args[1]->IsString())
     return TYPE_ERROR("src path must be a string");
 
-  node::Utf8Value orig_path(args[0]);
-  node::Utf8Value new_path(args[1]);
+  node::Utf8Value orig_path(env->isolate(), args[0]);
+  node::Utf8Value new_path(env->isolate(), args[1]);
 
   if (args[2]->IsObject()) {
     ASYNC_DEST_CALL(link, args[2], *new_path, *orig_path, *new_path)
@@ -576,7 +555,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(readlink, args[1], *path)
@@ -601,8 +580,8 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   if (!args[1]->IsString())
     return TYPE_ERROR("new path must be a string");
 
-  node::Utf8Value old_path(args[0]);
-  node::Utf8Value new_path(args[1]);
+  node::Utf8Value old_path(env->isolate(), args[0]);
+  node::Utf8Value new_path(env->isolate(), args[1]);
 
   if (args[2]->IsObject()) {
     ASYNC_DEST_CALL(rename, args[2], *new_path, *old_path, *new_path)
@@ -670,7 +649,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(unlink, args[1], *path)
@@ -687,7 +666,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(rmdir, args[1], *path)
@@ -703,7 +682,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
     return THROW_BAD_ARGS;
   }
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if (args[2]->IsObject()) {
@@ -721,7 +700,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(scandir, args[1], *path, 0 /*flags*/)
@@ -767,7 +746,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   if (!args[2]->IsInt32())
     return TYPE_ERROR("mode must be an int");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
   int flags = args[1]->Int32Value();
   int mode = static_cast<int>(args[2]->Int32Value());
 
@@ -927,7 +906,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Second argument needs to be a buffer");
   }
 
-  Local<Object> buffer_obj = args[1]->ToObject();
+  Local<Object> buffer_obj = args[1]->ToObject(env->isolate());
   char *buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
@@ -966,7 +945,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if (args[2]->IsObject()) {
@@ -1017,7 +996,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   if (!args[2]->IsUint32())
     return TYPE_ERROR("gid must be an unsigned int");
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(env->isolate(), args[0]);
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
   uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
 
@@ -1078,7 +1057,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   if (!args[2]->IsNumber())
     return TYPE_ERROR("mtime must be a number");
 
-  const node::Utf8Value path(args[0]);
+  const node::Utf8Value path(env->isolate(), args[0]);
   const double atime = static_cast<double>(args[1]->NumberValue());
   const double mtime = static_cast<double>(args[2]->NumberValue());
 

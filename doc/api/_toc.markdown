@@ -1,3 +1,5 @@
+@// NB(chrisdickinson): if you move this file, be sure to update tools/doc/html.js to
+@// point at the new location.
 * [About these Docs](documentation.html)
 * [Synopsis](synopsis.html)
 * [Assertion Testing](assert.html)
@@ -29,7 +31,6 @@
 * [String Decoder](string_decoder.html)
 * [Timers](timers.html)
 * [TLS/SSL](tls.html)
-* [Tracing](tracing.html)
 * [TTY](tty.html)
 * [UDP/Datagram](dgram.html)
 * [URL](url.html)

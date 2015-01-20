@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "udp_wrap.h"
 #include "env.h"
 #include "env-inl.h"
@@ -170,7 +149,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   // bind(ip, port, flags)
   CHECK_EQ(args.Length(), 3);
 
-  node::Utf8Value address(args[0]);
+  node::Utf8Value address(args.GetIsolate(), args[0]);
   const int port = args[1]->Uint32Value();
   const int flags = args[2]->Uint32Value();
   char addr[sizeof(sockaddr_in6)];
@@ -231,8 +210,8 @@ void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
 
   CHECK_EQ(args.Length(), 2);
 
-  node::Utf8Value address(args[0]);
-  node::Utf8Value iface(args[1]);
+  node::Utf8Value address(args.GetIsolate(), args[0]);
+  node::Utf8Value iface(args.GetIsolate(), args[1]);
 
   const char* iface_cstr = *iface;
   if (args[1]->IsUndefined() || args[1]->IsNull()) {
@@ -276,7 +255,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   size_t offset = args[2]->Uint32Value();
   size_t length = args[3]->Uint32Value();
   const unsigned short port = args[4]->Uint32Value();
-  node::Utf8Value address(args[5]);
+  node::Utf8Value address(env->isolate(), args[5]);
   const bool have_callback = args[6]->IsTrue();
 
   CHECK_LE(length, Buffer::Length(buffer_obj) - offset);

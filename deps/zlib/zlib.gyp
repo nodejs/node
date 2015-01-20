@@ -13,21 +13,17 @@
           'target_name': 'zlib',
           'type': 'static_library',
           'sources': [
-            'contrib/minizip/ioapi.c',
-            'contrib/minizip/ioapi.h',
-            'contrib/minizip/iowin32.c',
-            'contrib/minizip/iowin32.h',
-            'contrib/minizip/unzip.c',
-            'contrib/minizip/unzip.h',
-            'contrib/minizip/zip.c',
-            'contrib/minizip/zip.h',
             'adler32.c',
             'compress.c',
             'crc32.c',
             'crc32.h',
             'deflate.c',
             'deflate.h',
-            'gzio.c',
+            'gzclose.c',
+            'gzguts.h',
+            'gzlib.c',
+            'gzread.c',
+            'gzwrite.c',
             'infback.c',
             'inffast.c',
             'inffast.h',
@@ -36,7 +32,6 @@
             'inflate.h',
             'inftrees.c',
             'inftrees.h',
-            'mozzconf.h',
             'trees.c',
             'trees.h',
             'uncompr.c',
@@ -47,8 +42,6 @@
           ],
           'include_dirs': [
             '.',
-            # For contrib/minizip
-            './contrib/minizip',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
@@ -57,10 +50,15 @@
           },
           'conditions': [
             ['OS!="win"', {
-              'product_name': 'chrome_zlib',
               'cflags!': [ '-ansi' ],
-              'sources!': [
-                'contrib/minizip/iowin32.c'
+              'defines': [ 'Z_HAVE_UNISTD_H' ],
+            }],
+            ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
+              # Mac, Android and the BSDs don't have fopen64, ftello64, or
+              # fseeko64. We use fopen, ftell, and fseek instead on these
+              # systems.
+              'defines': [
+                'USE_FILE32API'
               ],
             }],
           ],
@@ -78,14 +76,6 @@
           },
           'defines': [
             'USE_SYSTEM_ZLIB',
-          ],
-          'sources': [
-            'contrib/minizip/ioapi.c',
-            'contrib/minizip/ioapi.h',
-            'contrib/minizip/unzip.c',
-            'contrib/minizip/unzip.h',
-            'contrib/minizip/zip.c',
-            'contrib/minizip/zip.h',
           ],
           'link_settings': {
             'libraries': [

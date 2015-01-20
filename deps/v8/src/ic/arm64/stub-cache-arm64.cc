@@ -7,7 +7,9 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +25,7 @@ namespace internal {
 //
 // 'receiver', 'name' and 'offset' registers are preserved on miss.
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Flags flags, bool leave_frame,
+                       Code::Kind ic_kind, Code::Flags flags, bool leave_frame,
                        StubCache::Table table, Register receiver, Register name,
                        Register offset, Register scratch, Register scratch2,
                        Register scratch3) {
@@ -90,10 +92,11 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 }
 
 
-void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
-                              bool leave_frame, Register receiver,
-                              Register name, Register scratch, Register extra,
-                              Register extra2, Register extra3) {
+void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
+                              Code::Flags flags, bool leave_frame,
+                              Register receiver, Register name,
+                              Register scratch, Register extra, Register extra2,
+                              Register extra3) {
   Isolate* isolate = masm->isolate();
   Label miss;
 
@@ -107,6 +110,17 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   DCHECK(!extra.is(no_reg));
   DCHECK(!extra2.is(no_reg));
   DCHECK(!extra3.is(no_reg));
+
+#ifdef DEBUG
+  // If vector-based ics are in use, ensure that scratch, extra, extra2 and
+  // extra3 don't conflict with the vector and slot registers, which need
+  // to be preserved for a handler call or miss.
+  if (IC::ICUseVector(ic_kind)) {
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(vector, slot, scratch, extra, extra2, extra3));
+  }
+#endif
 
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->megamorphic_stub_cache_probes(), 1, extra2,
@@ -125,8 +139,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
           CountTrailingZeros(kPrimaryTableSize, 64));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, leave_frame, kPrimary, receiver, name,
-             scratch, extra, extra2, extra3);
+  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kPrimary, receiver,
+             name, scratch, extra, extra2, extra3);
 
   // Primary miss: Compute hash for secondary table.
   __ Sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
@@ -134,8 +148,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   __ And(scratch, scratch, kSecondaryTableSize - 1);
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, leave_frame, kSecondary, receiver, name,
-             scratch, extra, extra2, extra3);
+  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kSecondary, receiver,
+             name, scratch, extra, extra2, extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

@@ -250,8 +250,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   if (data._found === true && data._id) {
     if (npm.color) {
       out.label = color.bgBlack(color.yellow(out.label.trim())) + " "
-    }
-    else {
+    } else {
       out.label = out.label.trim() + " "
     }
   }
@@ -291,10 +290,13 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   }
 
   // now all the children.
-  out.nodes = Object.keys(data.dependencies || {})
-    .sort(alphasort).map(function (d) {
-      return makeArchy_(data.dependencies[d], long, dir, depth + 1, data, d)
-    })
+  out.nodes = []
+  if (depth <= npm.config.get("depth")) {
+    out.nodes = Object.keys(data.dependencies || {})
+      .sort(alphasort).map(function (d) {
+        return makeArchy_(data.dependencies[d], long, dir, depth + 1, data, d)
+      })
+  }
 
   if (out.nodes.length === 0 && data.path === dir) {
     out.nodes = ["(empty)"]

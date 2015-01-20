@@ -28,8 +28,10 @@ class SelectLowering FINAL : public Reducer {
   Reduction Reduce(Node* node) OVERRIDE;
 
  private:
-  typedef std::map<Node*, Node*, std::less<Node*>,
-                   zone_allocator<std::pair<Node* const, Node*>>> Merges;
+  typedef std::multimap<Node*, Node*, std::less<Node*>,
+                        zone_allocator<std::pair<Node* const, Node*>>> Merges;
+
+  bool ReachableFrom(Node* const sink, Node* const source);
 
   CommonOperatorBuilder* common() const { return common_; }
   Graph* graph() const { return graph_; }

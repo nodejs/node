@@ -65,13 +65,14 @@ namespace compiler {
   V(Arm64Ror)                      \
   V(Arm64Ror32)                    \
   V(Arm64Mov32)                    \
+  V(Arm64Sxtb32)                   \
+  V(Arm64Sxth32)                   \
   V(Arm64Sxtw)                     \
   V(Arm64Ubfx)                     \
   V(Arm64Ubfx32)                   \
-  V(Arm64Tbz)                      \
-  V(Arm64Tbz32)                    \
-  V(Arm64Tbnz)                     \
-  V(Arm64Tbnz32)                   \
+  V(Arm64TestAndBranch32)          \
+  V(Arm64TestAndBranch)            \
+  V(Arm64CompareAndBranch32)       \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \

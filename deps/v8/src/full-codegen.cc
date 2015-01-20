@@ -136,21 +136,19 @@ void BreakableStatementChecker::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void BreakableStatementChecker::VisitForStatement(ForStatement* stmt) {
-  // Mark for statements breakable if the condition expression is.
-  if (stmt->cond() != NULL) {
-    Visit(stmt->cond());
-  }
+  // We set positions for both init and condition, if they exist.
+  if (stmt->cond() != NULL || stmt->init() != NULL) is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForInStatement(ForInStatement* stmt) {
-  // Mark for in statements breakable if the enumerable expression is.
-  Visit(stmt->enumerable());
+  // For-in is breakable because we set the position for the enumerable.
+  is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForOfStatement(ForOfStatement* stmt) {
-  // For-of is breakable because of the next() call.
+  // For-of is breakable because we set the position for the next() call.
   is_breakable_ = true;
 }
 
@@ -308,6 +306,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
 
+  // Ensure that the feedback vector is large enough.
+  info->EnsureFeedbackVector();
+
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -337,6 +338,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
+  code->set_has_reloc_info_for_serialization(info->will_serialize());
   code->set_handler_table(*cgen.handler_table());
   code->set_compiled_optimizable(info->IsOptimizable());
   code->set_allow_osr_at_loop_nesting_level(0);
@@ -603,7 +605,7 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 
 void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
-  DCHECK(scope_->is_global_scope());
+  DCHECK(scope_->is_script_scope());
 
   for (int i = 0; i < declarations->length(); i++) {
     ModuleDeclaration* declaration = declarations->at(i)->AsModuleDeclaration();
@@ -644,8 +646,8 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 // modules themselves, however, are simple data properties.)
 //
 // All modules have a _hosting_ scope/context, which (currently) is the
-// (innermost) enclosing global scope. To deal with recursion, nested modules
-// are hosted by the same scope as global ones.
+// enclosing script scope. To deal with recursion, nested modules are hosted
+// by the same scope as global ones.
 //
 // For every (global or nested) module literal, the hosting context has an
 // internal slot that points directly to the respective module context. This
@@ -675,7 +677,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 //
 // To deal with arbitrary recursion and aliases between modules,
 // they are created and initialized in several stages. Each stage applies to
-// all modules in the hosting global scope, including nested ones.
+// all modules in the hosting script scope, including nested ones.
 //
 // 1. Allocate: for each module _literal_, allocate the module contexts and
 //    respective instance object and wire them up. This happens in the
@@ -710,7 +712,7 @@ void FullCodeGenerator::VisitDeclarations(
     // This is a scope hosting modules. Allocate a descriptor array to pass
     // to the runtime for initialization.
     Comment cmnt(masm_, "[ Allocate modules");
-    DCHECK(scope_->is_global_scope());
+    DCHECK(scope_->is_script_scope());
     modules_ =
         isolate()->factory()->NewFixedArray(scope_->num_modules(), TENURED);
     module_index_ = 0;
@@ -1072,41 +1074,12 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   NestedBlock nested_block(this, stmt);
   SetStatementPosition(stmt);
 
-  Scope* saved_scope = scope();
-  // Push a block context when entering a block with block scoped variables.
-  if (stmt->scope() == NULL) {
-    PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-  } else {
-    scope_ = stmt->scope();
-    DCHECK(!scope_->is_module_scope());
-    { Comment cmnt(masm_, "[ Extend block context");
-      __ Push(scope_->GetScopeInfo());
-      PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
-
-      // Replace the context stored in the frame.
-      StoreToFrameField(StandardFrameConstants::kContextOffset,
-                        context_register());
-      PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-    }
-    { Comment cmnt(masm_, "[ Declarations");
-      VisitDeclarations(scope_->declarations());
-      PrepareForBailoutForId(stmt->DeclsId(), NO_REGISTERS);
-    }
+  {
+    EnterBlockScopeIfNeeded block_scope_state(
+        this, stmt->scope(), stmt->EntryId(), stmt->DeclsId(), stmt->ExitId());
+    VisitStatements(stmt->statements());
+    __ bind(nested_block.break_label());
   }
-
-  VisitStatements(stmt->statements());
-  scope_ = saved_scope;
-  __ bind(nested_block.break_label());
-
-  // Pop block context if necessary.
-  if (stmt->scope() != NULL) {
-    LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-    // Update local stack frame context field.
-    StoreToFrameField(StandardFrameConstants::kContextOffset,
-                      context_register());
-  }
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
 
@@ -1345,6 +1318,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   SetStatementPosition(stmt);
 
   if (stmt->init() != NULL) {
+    SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
 
@@ -1359,6 +1333,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   __ bind(loop_statement.continue_label());
   if (stmt->next() != NULL) {
+    SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
 
@@ -1371,6 +1346,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   __ bind(&test);
   if (stmt->cond() != NULL) {
+    SetExpressionPosition(stmt->cond());
     VisitForControl(stmt->cond(),
                     &body,
                     loop_statement.break_label(),
@@ -1379,6 +1355,47 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
     __ jmp(&body);
   }
 
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_label());
+  decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+  Comment cmnt(masm_, "[ ForOfStatement");
+  SetStatementPosition(stmt);
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // var iterator = iterable[Symbol.iterator]();
+  VisitForEffect(stmt->assign_iterator());
+
+  // Loop entry.
+  __ bind(loop_statement.continue_label());
+
+  // result = iterator.next()
+  SetExpressionPosition(stmt->next_result());
+  VisitForEffect(stmt->next_result());
+
+  // if (result.done) break;
+  Label result_not_done;
+  VisitForControl(stmt->result_done(), loop_statement.break_label(),
+                  &result_not_done, &result_not_done);
+  __ bind(&result_not_done);
+
+  // each = result.value
+  VisitForEffect(stmt->assign_each());
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
+  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
+  __ jmp(loop_statement.continue_label());
+
+  // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
@@ -1563,30 +1580,38 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   Comment cmnt(masm_, "[ ClassLiteral");
 
-  if (lit->raw_name() != NULL) {
-    __ Push(lit->name());
-  } else {
-    __ Push(isolate()->factory()->undefined_value());
-  }
+  {
+    EnterBlockScopeIfNeeded block_scope_state(
+        this, lit->scope(), BailoutId::None(), BailoutId::None(),
+        BailoutId::None());
 
-  if (lit->extends() != NULL) {
-    VisitForStackValue(lit->extends());
-  } else {
-    __ Push(isolate()->factory()->the_hole_value());
-  }
+    if (lit->raw_name() != NULL) {
+      __ Push(lit->name());
+    } else {
+      __ Push(isolate()->factory()->undefined_value());
+    }
 
-  if (lit->constructor() != NULL) {
+    if (lit->extends() != NULL) {
+      VisitForStackValue(lit->extends());
+    } else {
+      __ Push(isolate()->factory()->the_hole_value());
+    }
+
     VisitForStackValue(lit->constructor());
-  } else {
-    __ Push(isolate()->factory()->undefined_value());
+
+    __ Push(script());
+    __ Push(Smi::FromInt(lit->start_position()));
+    __ Push(Smi::FromInt(lit->end_position()));
+
+    __ CallRuntime(Runtime::kDefineClass, 6);
+    EmitClassDefineProperties(lit);
+
+    if (lit->scope() != NULL) {
+      DCHECK_NOT_NULL(lit->class_variable_proxy());
+      EmitVariableAssignment(lit->class_variable_proxy()->var(),
+                             Token::INIT_CONST);
+    }
   }
-
-  __ Push(script());
-  __ Push(Smi::FromInt(lit->start_position()));
-  __ Push(Smi::FromInt(lit->end_position()));
-
-  __ CallRuntime(Runtime::kDefineClass, 6);
-  EmitClassDefineProperties(lit);
 
   context()->Plug(result_register());
 }
@@ -1752,6 +1777,49 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
   return true;
 }
 #endif  // DEBUG
+
+
+FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
+    FullCodeGenerator* codegen, Scope* scope, BailoutId entry_id,
+    BailoutId declarations_id, BailoutId exit_id)
+    : codegen_(codegen), scope_(scope), exit_id_(exit_id) {
+  saved_scope_ = codegen_->scope();
+
+  if (scope == NULL) {
+    codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+  } else {
+    codegen_->scope_ = scope;
+    {
+      Comment cmnt(masm(), "[ Extend block context");
+      __ Push(scope->GetScopeInfo());
+      codegen_->PushFunctionArgumentForContextAllocation();
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
+
+      // Replace the context stored in the frame.
+      codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                  codegen_->context_register());
+      codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+    }
+    {
+      Comment cmnt(masm(), "[ Declarations");
+      codegen_->VisitDeclarations(scope->declarations());
+      codegen_->PrepareForBailoutForId(declarations_id, NO_REGISTERS);
+    }
+  }
+}
+
+
+FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
+  if (scope_ != NULL) {
+    codegen_->LoadContextField(codegen_->context_register(),
+                               Context::PREVIOUS_INDEX);
+    // Update local stack frame context field.
+    codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                codegen_->context_register());
+  }
+  codegen_->PrepareForBailoutForId(exit_id_, NO_REGISTERS);
+  codegen_->scope_ = saved_scope_;
+}
 
 
 #undef __

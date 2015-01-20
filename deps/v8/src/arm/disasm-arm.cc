@@ -1027,7 +1027,75 @@ void Decoder::DecodeType3(Instruction* instr) {
               UNREACHABLE();
               break;
             case 1:
-              UNREACHABLE();
+              if (instr->Bits(9, 6) == 1) {
+                if (instr->Bit(20) == 0) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtb'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
+                  }
+                } else {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxth'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
+                  }
+                }
+              } else {
+                UNREACHABLE();
+              }
               break;
             case 2:
               if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
@@ -1054,36 +1122,70 @@ void Decoder::DecodeType3(Instruction* instr) {
               }
               break;
             case 3:
-              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
-                if (instr->Bits(19, 16) == 0xF) {
-                  switch (instr->Bits(11, 10)) {
-                    case 0:
-                      Format(instr, "uxtb'cond 'rd, 'rm");
-                      break;
-                    case 1:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
-                      break;
-                    case 2:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #16");
-                      break;
-                    case 3:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #24");
-                      break;
+              if ((instr->Bits(9, 6) == 1)) {
+                if ((instr->Bit(20) == 0)) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtb'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
                   }
                 } else {
-                  switch (instr->Bits(11, 10)) {
-                    case 0:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
-                      break;
-                    case 1:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
-                      break;
-                    case 2:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #16");
-                      break;
-                    case 3:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #24");
-                      break;
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxth'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
                   }
                 }
               } else {

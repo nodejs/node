@@ -41,10 +41,7 @@ function assertIteratorIsClosed(iter) {
 }
 
 function assertThrownIteratorIsClosed(iter) {
-  // TODO(yusukesuzuki): Since status of a thrown generator is "executing",
-  // following tests are failed.
-  // https://code.google.com/p/v8/issues/detail?id=3096
-  // assertIteratorIsClosed(iter);
+  assertIteratorIsClosed(iter);
 }
 
 function TestGeneratorResultPrototype() {

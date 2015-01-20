@@ -33,6 +33,29 @@ enum BaseTaggedness { kUntaggedBase, kTaggedBase };
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
 
+// An access descriptor for loads/stores of array buffers.
+class BufferAccess FINAL {
+ public:
+  explicit BufferAccess(ExternalArrayType external_array_type)
+      : external_array_type_(external_array_type) {}
+
+  ExternalArrayType external_array_type() const { return external_array_type_; }
+  MachineType machine_type() const;
+
+ private:
+  ExternalArrayType const external_array_type_;
+};
+
+bool operator==(BufferAccess, BufferAccess);
+bool operator!=(BufferAccess, BufferAccess);
+
+size_t hash_value(BufferAccess);
+
+std::ostream& operator<<(std::ostream&, BufferAccess);
+
+BufferAccess const BufferAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -53,11 +76,7 @@ size_t hash_value(FieldAccess const&);
 
 std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
-
-// The bound checking mode for ElementAccess below.
-enum BoundsCheckMode { kNoBoundsCheck, kTypedArrayBoundsCheck };
-
-std::ostream& operator<<(std::ostream&, BoundsCheckMode);
+FieldAccess const& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
 
 // An access descriptor for loads/stores of indexed structures like characters
@@ -65,7 +84,6 @@ std::ostream& operator<<(std::ostream&, BoundsCheckMode);
 // untagged base pointers are supported; untagging is done automatically during
 // lowering.
 struct ElementAccess {
-  BoundsCheckMode bounds_check;   // specifies the bounds checking mode.
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
@@ -81,13 +99,7 @@ size_t hash_value(ElementAccess const&);
 
 std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
-
-// If the accessed object is not a heap object, add this to the header_size.
-static const int kNonHeapObjectHeaderSize = kHeapObjectTag;
-
-
-const FieldAccess& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
-const ElementAccess& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
 
 // Interface for building simplified operators, which represent the
@@ -115,6 +127,8 @@ const ElementAccess& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 class SimplifiedOperatorBuilder FINAL {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
+
+  const Operator* AnyToBoolean();
 
   const Operator* BooleanNot();
   const Operator* BooleanToNumber();
@@ -149,8 +163,14 @@ class SimplifiedOperatorBuilder FINAL {
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsNonNegativeSmi();
 
-  const Operator* LoadField(const FieldAccess&);
-  const Operator* StoreField(const FieldAccess&);
+  const Operator* LoadField(FieldAccess const&);
+  const Operator* StoreField(FieldAccess const&);
+
+  // load-buffer buffer, offset, length
+  const Operator* LoadBuffer(BufferAccess);
+
+  // store-buffer buffer, offset, length, value
+  const Operator* StoreBuffer(BufferAccess);
 
   // load-element [base + index], length
   const Operator* LoadElement(ElementAccess const&);

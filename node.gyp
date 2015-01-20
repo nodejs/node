@@ -43,6 +43,7 @@
       'lib/net.js',
       'lib/os.js',
       'lib/path.js',
+      'lib/process.js',
       'lib/punycode.js',
       'lib/querystring.js',
       'lib/readline.js',
@@ -72,7 +73,7 @@
 
   'targets': [
     {
-      'target_name': 'node',
+      'target_name': 'iojs',
       'type': 'executable',
 
       'dependencies': [
@@ -163,11 +164,11 @@
       ],
 
       'defines': [
-        'NODE_WANT_INTERNALS=1',
-        'ARCH="<(target_arch)"',
-        'PLATFORM="<(OS)"',
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
         'NODE_TAG="<(node_tag)"',
         'NODE_V8_OPTIONS="<(node_v8_options)"',
+        'NODE_WANT_INTERNALS=1',
       ],
 
       'conditions': [
@@ -248,8 +249,7 @@
           'conditions': [
             [ 'OS=="linux"', {
               'sources': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o',
-                '<(SHARED_INTERMEDIATE_DIR)/libuv_dtrace_provider.o',
+                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
               ],
             }],
             [ 'OS!="mac" and OS!="linux"', {
@@ -322,10 +322,13 @@
           'sources': [
             'src/res/node.rc',
           ],
+          'defines!': [
+            'NODE_PLATFORM="win"',
+          ],
           'defines': [
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
-            'PLATFORM="win32"',
+            'NODE_PLATFORM="win32"',
             '_UNICODE=1',
           ],
           'libraries': [ '-lpsapi.lib' ]
@@ -337,11 +340,11 @@
           # like Instruments require it for some features
           'libraries': [ '-framework CoreFoundation' ],
           'defines!': [
-            'PLATFORM="mac"',
+            'NODE_PLATFORM="mac"',
           ],
           'defines': [
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
-            'PLATFORM="darwin"',
+            'NODE_PLATFORM="darwin"',
           ],
         }],
         [ 'OS=="freebsd"', {
@@ -356,12 +359,12 @@
             '-lumem',
           ],
           'defines!': [
-            'PLATFORM="solaris"',
+            'NODE_PLATFORM="solaris"',
           ],
           'defines': [
             # we need to use node's preferred "sunos"
             # rather than gyp's preferred "solaris"
-            'PLATFORM="sunos"',
+            'NODE_PLATFORM="sunos"',
           ],
         }],
         [ 'OS=="freebsd" or OS=="linux"', {
@@ -378,9 +381,6 @@
         }],
       ],
       'msvs_settings': {
-        'VCLinkerTool': {
-          'SubSystem': 1, # /subsystem:console
-        },
         'VCManifestTool': {
           'EmbedManifest': 'true',
           'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
@@ -526,15 +526,13 @@
             {
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
-                '<(OBJ_DIR)/libuv/deps/uv/src/unix/core.o',
                 '<(OBJ_DIR)/node/src/node_dtrace.o',
               ],
               'outputs': [
                 '<(OBJ_DIR)/node/src/node_dtrace_provider.o'
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
-                '-s', 'deps/uv/src/unix/uv-dtrace.d', '<@(_inputs)',
-                '-o', '<@(_outputs)' ]
+                '<@(_inputs)', '-o', '<@(_outputs)' ]
             }
           ]
         }],
@@ -549,17 +547,7 @@
               'action': [
                 'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
               ],
-            },
-            {
-              'action_name': 'libuv_dtrace_provider_o',
-              'inputs': [ 'deps/uv/src/unix/uv-dtrace.d' ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/libuv_dtrace_provider.o'
-              ],
-              'action': [
-                'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
-              ],
-            },
+            }
           ],
         }],
       ]

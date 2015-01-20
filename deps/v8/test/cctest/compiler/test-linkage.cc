@@ -8,7 +8,6 @@
 #include "src/zone.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -65,8 +64,8 @@ TEST(TestLinkageJSFunctionIncoming) {
     CallDescriptor* descriptor = linkage.GetIncomingDescriptor();
     CHECK_NE(NULL, descriptor);
 
-    CHECK_EQ(1 + i, descriptor->JSParameterCount());
-    CHECK_EQ(1, descriptor->ReturnCount());
+    CHECK_EQ(1 + i, static_cast<int>(descriptor->JSParameterCount()));
+    CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
     CHECK_EQ(Operator::kNoProperties, descriptor->properties());
     CHECK_EQ(true, descriptor->IsJSFunctionCall());
   }
@@ -93,8 +92,8 @@ TEST(TestLinkageJSCall) {
     CallDescriptor* descriptor =
         linkage.GetJSCallDescriptor(i, CallDescriptor::kNoFlags);
     CHECK_NE(NULL, descriptor);
-    CHECK_EQ(i, descriptor->JSParameterCount());
-    CHECK_EQ(1, descriptor->ReturnCount());
+    CHECK_EQ(i, static_cast<int>(descriptor->JSParameterCount()));
+    CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
     CHECK_EQ(Operator::kNoProperties, descriptor->properties());
     CHECK_EQ(true, descriptor->IsJSFunctionCall());
   }

@@ -1,3 +1,244 @@
+2015.01.15, Version 1.2.1 (Stable), 4ca78e989062a1099dc4b9ad182a98e8374134b1
+
+Changes since version 1.2.0:
+
+* unix: remove unused dtrace file (Saúl Ibarra Corretgé)
+
+* test: skip TTY select test if /dev/tty can't be opened (Saúl Ibarra Corretgé)
+
+* doc: clarify the behavior of uv_tty_init (Saúl Ibarra Corretgé)
+
+* doc: clarify how uv_async_send behaves (Saúl Ibarra Corretgé)
+
+* build: make dist now generates a full tarball (Johan Bergström)
+
+* freebsd: make uv_exepath more resilient (Saúl Ibarra Corretgé)
+
+* unix: make setting the tty mode to the same value a no-op (Saúl Ibarra
+  Corretgé)
+
+* win,tcp: support uv_try_write (Bert Belder)
+
+* test: enable test-tcp-try-write on windows (Bert Belder)
+
+* win,tty: support uv_try_write (Bert Belder)
+
+* unix: set non-block mode in uv_{pipe,tcp,udp}_open (Ben Noordhuis)
+
+
+2015.01.06, Version 1.2.0 (Stable), 09f25b13cd149c7981108fc1a75611daf1277f83
+
+Changes since version 1.1.0:
+
+* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)
+
+* tty: implement binary I/O terminal mode (Yuri D'Elia)
+
+* test: fix spawn test with autotools build (Ben Noordhuis)
+
+* test: skip ipv6 tests when ipv6 is not supported (Ben Noordhuis)
+
+* common: move STATIC_ASSERT to uv-common.h (Alexey Melnichuk)
+
+* win/thread: store thread handle in a TLS slot (Alexey Melnichuk)
+
+* unix: fix ttl, multicast ttl and loop options on IPv6 (Saúl Ibarra Corretgé)
+
+* linux: fix support for preadv/pwritev-less kernels (Ben Noordhuis)
+
+* unix: make uv_exepath(size=0) return UV_EINVAL (Ben Noordhuis)
+
+* darwin: fix uv_exepath(smallbuf) UV_EPERM error (Ben Noordhuis)
+
+* openbsd: fix uv_exepath(smallbuf) UV_EINVAL error (Ben Noordhuis)
+
+* linux: fix uv_exepath(size=1) UV_EINVAL error (Ben Noordhuis)
+
+* sunos: preemptively fix uv_exepath(size=1) (Ben Noordhuis)
+
+* win: fix and clarify comments in winapi.h (Bert Belder)
+
+* win: make available NtQueryDirectoryFile (Bert Belder)
+
+* win: add definitions for directory information types (Bert Belder)
+
+* win: use NtQueryDirectoryFile to implement uv_fs_scandir (Bert Belder)
+
+* unix: don't unlink unix socket on bind error (Ben Noordhuis)
+
+* build: fix bad comment in autogen.sh (Ben Noordhuis)
+
+* build: add AC_PROG_LIBTOOL to configure.ac (Ben Noordhuis)
+
+* test: skip udp_options6 if there no IPv6 support (Saúl Ibarra Corretgé)
+
+* win: add definitions for MUI errors mingw lacks (Bert Belder)
+
+* build: enable warnings in autotools build (Ben Noordhuis)
+
+* build: remove -Wno-dollar-in-identifier-extension (Ben Noordhuis)
+
+* build: move flags from Makefile.am to configure.ac (Ben Noordhuis)
+
+
+2015.01.06, Version 0.10.32 (Stable), 378de30c59aef5fdb6d130fa5cfcb0a68fce571c
+
+Changes since version 0.10.31:
+
+* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)
+
+
+2014.12.25, Version 1.1.0 (Stable), 9572f3e74a167f59a8017e57ca3ebe91ffd88e18
+
+Changes since version 1.0.2:
+
+* test: test that closing a poll handle doesn't corrupt the stack (Bert Belder)
+
+* win: fix compilation of tests (Marc Schlaich)
+
+* Revert "win: keep a reference to AFD_POLL_INFO in cancel poll" (Bert Belder)
+
+* win: avoid stack corruption when closing a poll handle (Bert Belder)
+
+* test: fix test-fs-file-loop on Windows (Bert Belder)
+
+* test: fix test-cwd-and-chdir (Bert Belder)
+
+* doc: indicate what version uv_loop_configure was added on (Saúl Ibarra
+  Corretgé)
+
+* doc: fix sphinx warning (Saúl Ibarra Corretgé)
+
+* test: skip spawn_setuid_setgid if we get EACCES (Saúl Ibarra Corretgé)
+
+* test: silence some Clang warnings (Saúl Ibarra Corretgé)
+
+* test: relax osx_select_many_fds (Saúl Ibarra Corretgé)
+
+* test: fix compilation warnings when building with Clang (Saúl Ibarra
+  Corretgé)
+
+* win: fix autotools build of tests (Luis Lavena)
+
+* gitignore: ignore Visual Studio files (Marc Schlaich)
+
+* win: set fallback message if FormatMessage fails (Marc Schlaich)
+
+* win: fall back to default language in uv_dlerror (Marc Schlaich)
+
+* test: improve compatibility for dlerror test (Marc Schlaich)
+
+* test: check dlerror is "no error" in no error case (Marc Schlaich)
+
+* unix: change uv_cwd not to return a trailing slash (Saúl Ibarra Corretgé)
+
+* test: fix cwd_and_chdir test on Unix (Saúl Ibarra Corretgé)
+
+* test: add uv_cwd output to platform_output test (Saúl Ibarra Corretgé)
+
+* build: fix dragonflybsd autotools build (John Marino)
+
+* win: scandir use 'ls' for formatting long strings (Kenneth Perry)
+
+* build: remove clang and gcc_version gyp defines (Ben Noordhuis)
+
+* unix, windows: don't treat uv_run_mode as a bitmask (Saúl Ibarra Corretgé)
+
+* unix, windows: fix UV_RUN_ONCE mode if progress was made (Saúl Ibarra
+  Corretgé)
+
+
+2014.12.25, Version 0.10.31 (Stable), 4dbd27e2219069a6daa769fb37f98673b77b4261
+
+Changes since version 0.10.30:
+
+* test: test that closing a poll handle doesn't corrupt the stack (Bert Belder)
+
+* win: fix compilation of tests (Marc Schlaich)
+
+* Revert "win: keep a reference to AFD_POLL_INFO in cancel poll" (Bert Belder)
+
+* win: avoid stack corruption when closing a poll handle (Bert Belder)
+
+* gitignore: ignore Visual Studio files (Marc Schlaich)
+
+* win: set fallback message if FormatMessage fails (Marc Schlaich)
+
+* win: fall back to default language in uv_dlerror (Marc Schlaich)
+
+* test: improve compatibility for dlerror test (Marc Schlaich)
+
+* test: check dlerror is "no error" in no error case (Marc Schlaich)
+
+* build: link against -pthread (Logan Rosen)
+
+* win: scandir use 'ls' for formatting long strings (Kenneth Perry)
+
+
+2014.12.10, Version 1.0.2 (Stable), eec671f0059953505f9a3c9aeb7f9f31466dd7cd
+
+Changes since version 1.0.1:
+
+* linux: fix sigmask size arg in epoll_pwait() call (Ben Noordhuis)
+
+* linux: handle O_NONBLOCK != SOCK_NONBLOCK case (Helge Deller)
+
+* doc: fix spelling (Joey Geralnik)
+
+* unix, windows: fix typos in comments (Joey Geralnik)
+
+* test: canonicalize test runner path (Ben Noordhuis)
+
+* test: fix compilation warnings (Saúl Ibarra Corretgé)
+
+* test: skip tty test if detected width and height are 0 (Saúl Ibarra Corretgé)
+
+* doc: update README with IRC channel (Saúl Ibarra Corretgé)
+
+* Revert "unix: use cfmakeraw() for setting raw TTY mode" (Ben Noordhuis)
+
+* doc: document how to get result of uv_fs_mkdtemp (Tim Caswell)
+
+* unix: add flag for blocking SIGPROF during poll (Ben Noordhuis)
+
+* unix, windows: add uv_loop_configure() function (Ben Noordhuis)
+
+* win: keep a reference to AFD_POLL_INFO in cancel poll (Marc Schlaich)
+
+* test: raise fd limit for OSX select test (Saúl Ibarra Corretgé)
+
+* unix: remove overzealous assert in uv_read_stop (Saúl Ibarra Corretgé)
+
+* unix: reset the reading flag when a stream gets EOF (Saúl Ibarra Corretgé)
+
+* unix: stop reading if an error is produced (Saúl Ibarra Corretgé)
+
+* cleanup: remove all dead assignments (Maciej Małecki)
+
+* linux: return early if we have no interfaces (Maciej Małecki)
+
+* cleanup: remove a dead increment (Maciej Małecki)
+
+
+2014.12.10, Version 0.10.30 (Stable), 5a63f5e9546dca482eeebc3054139b21f509f21f
+
+Changes since version 0.10.29:
+
+* linux: fix sigmask size arg in epoll_pwait() call (Ben Noordhuis)
+
+* linux: handle O_NONBLOCK != SOCK_NONBLOCK case (Helge Deller)
+
+* doc: update project links (Ben Noordhuis)
+
+* windows: fix compilation of tests (Marc Schlaich)
+
+* unix: add flag for blocking SIGPROF during poll (Ben Noordhuis)
+
+* unix, windows: add uv_loop_configure() function (Ben Noordhuis)
+
+* win: keep a reference to AFD_POLL_INFO in cancel poll (Marc Schlaich)
+
+
 2014.11.27, Version 1.0.1 (Stable), 0a8e81374e861d425b56c45c8599595d848911d2
 
 Changes since version 1.0.0:
@@ -83,6 +324,17 @@ Changes since version 1.0.0-rc1:
 * unix, windows: add uv_thread_equal (Tomasz Kołodziejski)
 
 * windows: fix fs_write with nbufs > 1 and offset (Unknown W. Brackets)
+
+
+2014.10.21, Version 0.10.29 (Stable), 2d728542d3790183417f8f122a110693cd85db14
+
+Changes since version 0.10.28:
+
+* darwin: allocate enough space for select() hack (Fedor Indutny)
+
+* linux: try epoll_pwait if epoll_wait is missing (Michael Hudson-Doyle)
+
+* windows: map ERROR_INVALID_DRIVE to UV_ENOENT (Saúl Ibarra Corretgé)
 
 
 2014.09.18, Version 1.0.0-rc1 (Unstable), 0c28bbf7b42882853d1799ab96ff68b07f7f8d49
@@ -271,6 +523,20 @@ Changes since version 0.11.26:
   Kelman)
 
 * windows: relay TCP bind errors via ipc (Alexis Campailla)
+
+
+2014.07.32, Version 0.10.28 (Stable), 9c14b616f5fb84bfd7d45707bab4bbb85894443e
+
+Changes since version 0.10.27:
+
+* windows: fix handling closed socket while poll handle is closing (Saúl Ibarra
+  Corretgé)
+
+* unix: return system error on EAI_SYSTEM (Saúl Ibarra Corretgé)
+
+* unix: fix bogus structure field name (Saúl Ibarra Corretgé)
+
+* darwin: invoke `mach_timebase_info` only once (Fedor Indutny)
 
 
 2014.06.28, Version 0.11.26 (Unstable), 115281a1058c4034d5c5ccedacb667fe3f6327ea

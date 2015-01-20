@@ -362,6 +362,72 @@ void InstructionSelector::VisitStore(Node* node) {
 }
 
 
+void InstructionSelector::VisitCheckedLoad(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  Arm64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt8 : kCheckedLoadUint8;
+      break;
+    case kRepWord16:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt16 : kCheckedLoadUint16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedLoadWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedLoadFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedLoadFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+       g.UseRegister(offset), g.UseOperand(length, kArithmeticImm));
+}
+
+
+void InstructionSelector::VisitCheckedStore(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  Arm64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  Node* const value = node->InputAt(3);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = kCheckedStoreWord8;
+      break;
+    case kRepWord16:
+      opcode = kCheckedStoreWord16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedStoreWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedStoreFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedStoreFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+       g.UseOperand(length, kArithmeticImm), g.UseRegister(value));
+}
+
+
 template <typename Matcher>
 static void VisitLogical(InstructionSelector* selector, Node* node, Matcher* m,
                          ArchOpcode opcode, bool left_can_cover,
@@ -542,6 +608,17 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 
 
 void InstructionSelector::VisitWord64Shl(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if ((m.left().IsChangeInt32ToInt64() || m.left().IsChangeUint32ToUint64()) &&
+      m.right().IsInRange(32, 63)) {
+    // There's no need to sign/zero-extend to 64-bit if we shift out the upper
+    // 32 bits anyway.
+    Emit(kArm64Lsl, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseImmediate(m.right().node()));
+    return;
+  }
   VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
 
@@ -597,6 +674,21 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  // Select Sxth/Sxtb for (x << K) >> K where K is 16 or 24.
+  if (CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kArm64Sxth32, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()));
+      return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kArm64Sxtb32, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()));
+      return;
+    }
+  }
   VisitRRO(this, kArm64Asr32, node, kShift32Imm);
 }
 
@@ -871,7 +963,41 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  Node* value = node->InputAt(0);
+  switch (value->opcode()) {
+    case IrOpcode::kWord32And:
+    case IrOpcode::kWord32Or:
+    case IrOpcode::kWord32Xor:
+    case IrOpcode::kWord32Shl:
+    case IrOpcode::kWord32Shr:
+    case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Ror:
+    case IrOpcode::kWord32Equal:
+    case IrOpcode::kInt32Add:
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32Sub:
+    case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kInt32Mul:
+    case IrOpcode::kInt32MulHigh:
+    case IrOpcode::kInt32Div:
+    case IrOpcode::kInt32Mod:
+    case IrOpcode::kInt32LessThan:
+    case IrOpcode::kInt32LessThanOrEqual:
+    case IrOpcode::kUint32Div:
+    case IrOpcode::kUint32LessThan:
+    case IrOpcode::kUint32LessThanOrEqual:
+    case IrOpcode::kUint32Mod:
+    case IrOpcode::kUint32MulHigh: {
+      // 32-bit operations will write their result in a W register (implicitly
+      // clearing the top 32-bit of the corresponding X register) so the
+      // zero-extension is a no-op.
+      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      return;
+    }
+    default:
+      break;
+  }
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
 
@@ -884,6 +1010,18 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  if (CanCover(node, value)) {
+    Int64BinopMatcher m(value);
+    if ((m.IsWord64Sar() && m.right().HasValue() &&
+         (m.right().Value() == 32)) ||
+        (m.IsWord64Shr() && m.right().IsInRange(32, 63))) {
+      Emit(kArm64Lsr, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseImmediate(m.right().node()));
+      return;
+    }
+  }
+
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
@@ -943,7 +1081,7 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 void InstructionSelector::VisitCall(Node* node) {
   Arm64OperandGenerator g(this);
-  CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
+  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
   FrameStateDescriptor* frame_state_descriptor = NULL;
   if (descriptor->NeedsFrameState()) {
@@ -1097,12 +1235,6 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
 
-  // If we can fall through to the true block, invert the branch.
-  if (IsNextInAssemblyOrder(tbranch)) {
-    cont.Negate();
-    cont.SwapBlocks();
-  }
-
   // Try to combine with comparisons against 0 by simply inverting the branch.
   while (CanCover(user, value)) {
     if (value->opcode() == IrOpcode::kWord32Equal) {
@@ -1211,9 +1343,8 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          ArchOpcode opcode =
-              (cont.condition() == kEqual) ? kArm64Tbz32 : kArm64Tbnz32;
-          Emit(opcode, NULL, g.UseRegister(m.left().node()),
+          Emit(cont.Encode(kArm64TestAndBranch32), NULL,
+               g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros32(m.right().Value())),
                g.Label(cont.true_block()),
@@ -1230,9 +1361,8 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          ArchOpcode opcode =
-              (cont.condition() == kEqual) ? kArm64Tbz : kArm64Tbnz;
-          Emit(opcode, NULL, g.UseRegister(m.left().node()),
+          Emit(cont.Encode(kArm64TestAndBranch), NULL,
+               g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros64(m.right().Value())),
                g.Label(cont.true_block()),
@@ -1247,8 +1377,10 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
     }
   }
 
-  // Branch could not be combined with a compare, emit compare against 0.
-  VisitWord32Test(this, value, &cont);
+  // Branch could not be combined with a compare, compare against 0 and branch.
+  Emit(cont.Encode(kArm64CompareAndBranch32), NULL, g.UseRegister(value),
+       g.Label(cont.true_block()),
+       g.Label(cont.false_block()))->MarkAsControl();
 }
 
 
@@ -1388,7 +1520,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat64Floor |
          MachineOperatorBuilder::kFloat64Ceil |
          MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTiesAway;
+         MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kWord32ShiftIsSafe |
+         MachineOperatorBuilder::kInt32DivIsSafe |
+         MachineOperatorBuilder::kUint32DivIsSafe;
 }
 }  // namespace compiler
 }  // namespace internal

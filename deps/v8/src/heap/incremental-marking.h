@@ -28,8 +28,6 @@ class IncrementalMarking {
 
   static void Initialize();
 
-  void TearDown();
-
   State state() {
     DCHECK(state_ == STOPPED || FLAG_incremental_marking);
     return state_;
@@ -50,6 +48,8 @@ class IncrementalMarking {
 
   bool ShouldActivate();
 
+  bool WasActivated();
+
   enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
 
   void Start(CompactionFlag flag = ALLOW_COMPACTION);
@@ -67,6 +67,8 @@ class IncrementalMarking {
   void Abort();
 
   void MarkingComplete(CompletionAction action);
+
+  void Epilogue();
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -144,8 +146,6 @@ class IncrementalMarking {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
-  MarkingDeque* marking_deque() { return &marking_deque_; }
-
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);
@@ -167,8 +167,6 @@ class IncrementalMarking {
   void EnterNoMarkingScope() { no_marking_scope_depth_++; }
 
   void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
-
-  void UncommitMarkingDeque();
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -200,8 +198,6 @@ class IncrementalMarking {
 
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
-  void EnsureMarkingDequeIsCommitted();
-
   INLINE(void ProcessMarkingDeque());
 
   INLINE(intptr_t ProcessMarkingDeque(intptr_t bytes_to_process));
@@ -214,10 +210,6 @@ class IncrementalMarking {
 
   State state_;
   bool is_compacting_;
-
-  base::VirtualMemory* marking_deque_memory_;
-  bool marking_deque_memory_committed_;
-  MarkingDeque marking_deque_;
 
   int steps_count_;
   int64_t old_generation_space_available_at_start_of_incremental_;
@@ -233,6 +225,8 @@ class IncrementalMarking {
   int no_marking_scope_depth_;
 
   int unscanned_bytes_of_large_object_;
+
+  bool was_activated_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

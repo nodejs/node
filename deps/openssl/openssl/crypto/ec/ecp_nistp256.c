@@ -113,7 +113,6 @@ typedef u64 smallfelem[NLIMBS];
 
 /* This is the value of the prime as four 64-bit words, little-endian. */
 static const u64 kPrime[4] = { 0xfffffffffffffffful, 0xffffffff, 0, 0xffffffff00000001ul };
-static const limb bottom32bits = 0xffffffff;
 static const u64 bottom63bits = 0x7ffffffffffffffful;
 
 /* bin32_to_felem takes a little-endian byte array and converts it into felem

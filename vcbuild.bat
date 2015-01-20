@@ -26,7 +26,6 @@ set test=
 set test_args=
 set msi=
 set licensertf=
-set upload=
 set jslint=
 set buildnodeweak=
 set noetw=
@@ -36,6 +35,7 @@ set noperfctr=
 set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
+set download_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -61,10 +61,11 @@ if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test"          set test=test&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
-if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
+if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
+if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -74,7 +75,6 @@ shift
 goto next-arg
 
 :args-done
-if defined upload goto upload
 if defined jslint goto jslint
 
 if "%config%"=="Debug" set debug_arg=--debug
@@ -85,6 +85,7 @@ if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=
 
 if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
+if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 
 :project-gen
 @rem Skip project generation if requested.
@@ -95,7 +96,7 @@ if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 @rem Generate the VS project.
 SETLOCAL
   if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  python configure %download_arg% %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
   if errorlevel 1 goto create-msvs-files-failed
   if not exist node.sln goto create-msvs-files-failed
   echo Project files generated.
@@ -129,14 +130,14 @@ if errorlevel 1 goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
+signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto msi
 
-%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
+%config%\iojs tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :msi
@@ -148,12 +149,12 @@ if not defined NIGHTLY goto msibuild
 set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
 
 :msibuild
-echo Building node-%NODE_VERSION%
+echo Building iojs-%NODE_VERSION%
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto run
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node-v%NODE_VERSION%-%msiplatform%.msi
+signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs-v%NODE_VERSION%-%msiplatform%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
 
 :run
@@ -192,25 +193,14 @@ goto exit
 echo Failed to create vc project files. 
 goto exit
 
-:upload
-echo uploading .exe .msi .pdb to nodejs.org
-call :getnodeversion
-@echo on
-ssh node@nodejs.org mkdir -p web/nodejs.org/dist/v%NODE_VERSION%
-scp Release\node.msi node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%.msi
-scp Release\node.exe node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.exe
-scp Release\node.pdb node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.pdb
-@echo off
-goto exit
-
 :jslint
 echo running jslint
-set PYTHONPATH=tools/closure_linter/
+set PYTHONPATH=tools/closure_linter/;tools/gflags/
 python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [nobuild] [nosign] [x86/x64]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
@@ -228,5 +218,5 @@ rem ***************
 :getnodeversion
 set NODE_VERSION=
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
-if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
+if not defined NODE_VERSION echo Cannot determine current version of io.js & exit /b 1
 goto :EOF

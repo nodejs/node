@@ -154,75 +154,89 @@ namespace internal {
 // Values for bitset types
 
 #define MASK_BITSET_TYPE_LIST(V) \
-  V(Representation, 0xff800000u) \
-  V(Semantic,       0x007ffffeu)
+  V(Representation, 0xfff00000u) \
+  V(Semantic,       0x000ffffeu)
 
 #define REPRESENTATION(k) ((k) & BitsetType::kRepresentation)
 #define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
 
-#define REPRESENTATION_BITSET_TYPE_LIST(V) \
-  V(None,             0)                   \
-  V(UntaggedInt1,     1u << 23 | kSemantic) \
-  V(UntaggedInt8,     1u << 24 | kSemantic) \
-  V(UntaggedInt16,    1u << 25 | kSemantic) \
-  V(UntaggedInt32,    1u << 26 | kSemantic) \
-  V(UntaggedFloat32,  1u << 27 | kSemantic) \
-  V(UntaggedFloat64,  1u << 28 | kSemantic) \
-  V(UntaggedPtr,      1u << 29 | kSemantic) \
-  V(TaggedInt,        1u << 30 | kSemantic) \
-  V(TaggedPtr,        1u << 31 | kSemantic) \
+#define REPRESENTATION_BITSET_TYPE_LIST(V)    \
+  V(None,               0)                    \
+  V(UntaggedBit,        1u << 20 | kSemantic) \
+  V(UntaggedSigned8,    1u << 21 | kSemantic) \
+  V(UntaggedSigned16,   1u << 22 | kSemantic) \
+  V(UntaggedSigned32,   1u << 23 | kSemantic) \
+  V(UntaggedUnsigned8,  1u << 24 | kSemantic) \
+  V(UntaggedUnsigned16, 1u << 25 | kSemantic) \
+  V(UntaggedUnsigned32, 1u << 26 | kSemantic) \
+  V(UntaggedFloat32,    1u << 27 | kSemantic) \
+  V(UntaggedFloat64,    1u << 28 | kSemantic) \
+  V(UntaggedPointer,    1u << 29 | kSemantic) \
+  V(TaggedSigned,       1u << 30 | kSemantic) \
+  V(TaggedPointer,      1u << 31 | kSemantic) \
   \
-  V(UntaggedInt,      kUntaggedInt1 | kUntaggedInt8 |      \
-                      kUntaggedInt16 | kUntaggedInt32)     \
-  V(UntaggedFloat,    kUntaggedFloat32 | kUntaggedFloat64) \
-  V(UntaggedNumber,   kUntaggedInt | kUntaggedFloat)       \
-  V(Untagged,         kUntaggedNumber | kUntaggedPtr)      \
-  V(Tagged,           kTaggedInt | kTaggedPtr)
+  V(UntaggedSigned,     kUntaggedSigned8 | kUntaggedSigned16 |              \
+                        kUntaggedSigned32)                                  \
+  V(UntaggedUnsigned,   kUntaggedUnsigned8 | kUntaggedUnsigned16 |          \
+                        kUntaggedUnsigned32)                                \
+  V(UntaggedIntegral8,  kUntaggedSigned8 | kUntaggedUnsigned8)              \
+  V(UntaggedIntegral16, kUntaggedSigned16 | kUntaggedUnsigned16)            \
+  V(UntaggedIntegral32, kUntaggedSigned32 | kUntaggedUnsigned32)            \
+  V(UntaggedIntegral,   kUntaggedBit | kUntaggedSigned | kUntaggedUnsigned) \
+  V(UntaggedFloat,      kUntaggedFloat32 | kUntaggedFloat64)                \
+  V(UntaggedNumber,     kUntaggedIntegral | kUntaggedFloat)                 \
+  V(Untagged,           kUntaggedNumber | kUntaggedPointer)                 \
+  V(Tagged,             kTaggedSigned | kTaggedPointer)
+
+#define INTERNAL_BITSET_TYPE_LIST(V)                                      \
+  V(OtherUnsigned31, 1u << 1 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned32, 1u << 2 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,   1u << 3 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherNumber,     1u << 4 | REPRESENTATION(kTagged | kUntaggedNumber))
 
 #define SEMANTIC_BITSET_TYPE_LIST(V) \
-  V(Null,                1u << 1  | REPRESENTATION(kTaggedPtr)) \
-  V(Undefined,           1u << 2  | REPRESENTATION(kTaggedPtr)) \
-  V(Boolean,             1u << 3  | REPRESENTATION(kTaggedPtr)) \
-  V(UnsignedSmall,       1u << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSignedSmall,    1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned31,     1u << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned32,     1u << 7  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,       1u << 8  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(MinusZero,           1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(NaN,                 1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherNumber,         1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPtr)) \
-  V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPtr)) \
-  V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPtr)) \
-  V(Undetectable,        1u << 15 | REPRESENTATION(kTaggedPtr)) \
-  V(Array,               1u << 16 | REPRESENTATION(kTaggedPtr)) \
-  V(Buffer,              1u << 17 | REPRESENTATION(kTaggedPtr)) \
-  V(Function,            1u << 18 | REPRESENTATION(kTaggedPtr)) \
-  V(RegExp,              1u << 19 | REPRESENTATION(kTaggedPtr)) \
-  V(OtherObject,         1u << 20 | REPRESENTATION(kTaggedPtr)) \
-  V(Proxy,               1u << 21 | REPRESENTATION(kTaggedPtr)) \
-  V(Internal,            1u << 22 | REPRESENTATION(kTagged | kUntagged)) \
+  V(NegativeSignedSmall, 1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Null,                1u << 6  | REPRESENTATION(kTaggedPointer)) \
+  V(Undefined,           1u << 7  | REPRESENTATION(kTaggedPointer)) \
+  V(Boolean,             1u << 8  | REPRESENTATION(kTaggedPointer)) \
+  V(UnsignedSmall,       1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(MinusZero,           1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NaN,                 1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPointer)) \
+  V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
+  V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
+  V(Undetectable,        1u << 15 | REPRESENTATION(kTaggedPointer)) \
+  V(Array,               1u << 16 | REPRESENTATION(kTaggedPointer)) \
+  V(OtherObject,         1u << 17 | REPRESENTATION(kTaggedPointer)) \
+  V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
+  V(Internal,            1u << 19 | REPRESENTATION(kTagged | kUntagged)) \
   \
-  V(SignedSmall,         kUnsignedSmall | kOtherSignedSmall) \
+  V(SignedSmall,         kUnsignedSmall | kNegativeSignedSmall) \
   V(Signed32,            kSignedSmall | kOtherUnsigned31 | kOtherSigned32) \
+  V(NegativeSigned32,    kNegativeSignedSmall | kOtherSigned32) \
+  V(NonNegativeSigned32, kUnsignedSmall | kOtherUnsigned31) \
   V(Unsigned32,          kUnsignedSmall | kOtherUnsigned31 | kOtherUnsigned32) \
   V(Integral32,          kSigned32 | kUnsigned32) \
-  V(OrderedNumber,       kIntegral32 | kMinusZero | kOtherNumber) \
+  V(PlainNumber,         kIntegral32 | kOtherNumber) \
+  V(OrderedNumber,       kPlainNumber | kMinusZero) \
   V(Number,              kOrderedNumber | kNaN) \
   V(String,              kInternalizedString | kOtherString) \
   V(UniqueName,          kSymbol | kInternalizedString) \
   V(Name,                kSymbol | kString) \
   V(NumberOrString,      kNumber | kString) \
-  V(Primitive,           kNumber | kName | kBoolean | kNull | kUndefined) \
-  V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject) \
+  V(PlainPrimitive,      kNumberOrString | kBoolean | kNull | kUndefined) \
+  V(Primitive,           kSymbol | kPlainPrimitive) \
+  V(DetectableObject,    kArray | kOtherObject) \
   V(DetectableReceiver,  kDetectableObject | kProxy) \
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
+  V(StringOrReceiver,    kString | kReceiver) \
   V(Unique,              kBoolean | kUniqueName | kNull | kUndefined | \
                          kReceiver) \
   V(NonNumber,           kUnique | kString | kInternal) \
   V(Any,                 0xfffffffeu)
+
 
 /*
  * The following diagrams show how integers (in the mathematical sense) are
@@ -252,9 +266,11 @@ namespace internal {
   REPRESENTATION_BITSET_TYPE_LIST(V) \
   SEMANTIC_BITSET_TYPE_LIST(V)
 
-#define BITSET_TYPE_LIST(V) \
-  MASK_BITSET_TYPE_LIST(V) \
-  PROPER_BITSET_TYPE_LIST(V)
+#define BITSET_TYPE_LIST(V)          \
+  MASK_BITSET_TYPE_LIST(V)           \
+  REPRESENTATION_BITSET_TYPE_LIST(V) \
+  INTERNAL_BITSET_TYPE_LIST(V)       \
+  SEMANTIC_BITSET_TYPE_LIST(V)
 
 
 // -----------------------------------------------------------------------------
@@ -464,6 +480,11 @@ class TypeImpl : public Config::Base {
   double Min();
   double Max();
 
+  // Extracts a range from the type. If the type is a range, it just
+  // returns it; if it is a union, it returns the range component.
+  // Note that it does not contain range for constants.
+  RangeType* GetRange();
+
   int NumClasses();
   int NumConstants();
 
@@ -551,7 +572,6 @@ class TypeImpl : public Config::Base {
   static bool Contains(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* range, i::Object* val);
 
-  RangeType* GetRange();
   static int UpdateRange(
       RangeHandle type, UnionHandle result, int size, Region* region);
 
@@ -587,6 +607,20 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   static TypeImpl* New(bitset bits) {
     DCHECK(bits == kNone || IsInhabited(bits));
+
+    if (FLAG_enable_slow_asserts) {
+      // Check that the bitset does not contain any holes in number ranges.
+      bitset mask = kSemantic;
+      if (!i::SmiValuesAre31Bits()) {
+        mask &= ~(kOtherUnsigned31 | kOtherSigned32);
+      }
+      bitset number_bits = bits & kPlainNumber & mask;
+      if (number_bits != 0) {
+        bitset lub = Lub(Min(number_bits), Max(number_bits)) & mask;
+        CHECK(lub == number_bits);
+      }
+    }
+
     return Config::from_bitset(bits);
   }
   static TypeHandle New(bitset bits, Region* region) {
@@ -1031,7 +1065,7 @@ struct BoundsImpl {
     TypeHandle lower = Type::Union(b1.lower, b2.lower, region);
     TypeHandle upper = Type::Intersect(b1.upper, b2.upper, region);
     // Lower bounds are considered approximate, correct as necessary.
-    lower = Type::Intersect(lower, upper, region);
+    if (!lower->Is(upper)) lower = upper;
     return BoundsImpl(lower, upper);
   }
 
@@ -1043,14 +1077,16 @@ struct BoundsImpl {
   }
 
   static BoundsImpl NarrowLower(BoundsImpl b, TypeHandle t, Region* region) {
-    // Lower bounds are considered approximate, correct as necessary.
-    t = Type::Intersect(t, b.upper, region);
     TypeHandle lower = Type::Union(b.lower, t, region);
+    // Lower bounds are considered approximate, correct as necessary.
+    if (!lower->Is(b.upper)) lower = b.upper;
     return BoundsImpl(lower, b.upper);
   }
   static BoundsImpl NarrowUpper(BoundsImpl b, TypeHandle t, Region* region) {
-    TypeHandle lower = Type::Intersect(b.lower, t, region);
+    TypeHandle lower = b.lower;
     TypeHandle upper = Type::Intersect(b.upper, t, region);
+    // Lower bounds are considered approximate, correct as necessary.
+    if (!lower->Is(upper)) lower = upper;
     return BoundsImpl(lower, upper);
   }
 

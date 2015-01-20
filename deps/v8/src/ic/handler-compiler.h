@@ -38,9 +38,20 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }
 
-  Register Frontend(Register object_reg, Handle<Name> name);
+  // Frontend loads from receiver(), returns holder register which may be
+  // different.
+  Register Frontend(Handle<Name> name);
   void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
                                  Register scratch1, Register scratch2);
+
+  // When FLAG_vector_ics is true, handlers that have the possibility of missing
+  // will need to save and pass these to miss handlers.
+  void PushVectorAndSlot() { PushVectorAndSlot(vector(), slot()); }
+  void PushVectorAndSlot(Register vector, Register slot);
+  void PopVectorAndSlot() { PopVectorAndSlot(vector(), slot()); }
+  void PopVectorAndSlot(Register vector, Register slot);
+
+  void DiscardVectorAndSlot();
 
   // TODO(verwaest): Make non-static.
   static void GenerateFastApiCall(MacroAssembler* masm,
@@ -170,6 +181,12 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                             Handle<ExecutableAccessorInfo> callback);
   void GenerateLoadCallback(const CallOptimization& call_optimization,
                             Handle<Map> receiver_map);
+
+  // Helper emits no code if vector-ics are disabled.
+  void InterceptorVectorSlotPush(Register holder_reg);
+  enum PopMode { POP, DISCARD };
+  void InterceptorVectorSlotPop(Register holder_reg, PopMode mode = POP);
+
   void GenerateLoadInterceptor(Register holder_reg);
   void GenerateLoadInterceptorWithFollowup(LookupIterator* it,
                                            Register holder_reg);
@@ -230,9 +247,12 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateRestoreNameAndMap(Handle<Name> name, Handle<Map> transition);
+  void GenerateRestoreName(Handle<Name> name);
+  void GenerateRestoreMap(Handle<Map> transition, Register scratch,
+                          Label* miss);
 
-  void GenerateConstantCheck(Object* constant, Register value_reg,
+  void GenerateConstantCheck(Register map_reg, int descriptor,
+                             Register value_reg, Register scratch,
                              Label* miss_label);
 
   void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,

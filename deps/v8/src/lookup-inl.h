@@ -63,12 +63,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
         property_details_ = descriptors->GetDetails(number_);
       }
       has_property_ = true;
-      switch (property_details_.type()) {
-        case v8::internal::CONSTANT:
-        case v8::internal::FIELD:
-        case v8::internal::NORMAL:
+      switch (property_details_.kind()) {
+        case v8::internal::DATA:
           return DATA;
-        case v8::internal::CALLBACKS:
+        case v8::internal::ACCESSOR:
           return ACCESSOR;
       }
     case ACCESSOR:

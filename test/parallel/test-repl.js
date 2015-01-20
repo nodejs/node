@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 var common = require('../common');
 var assert = require('assert');
 
@@ -125,6 +104,17 @@ function error_test() {
     // But passing the same string to eval() should throw
     { client: client_unix, send: 'eval("function test_func() {")',
       expect: /^SyntaxError: Unexpected end of input/ },
+    // Can handle multiline template literals
+    { client: client_unix, send: '`io.js',
+      expect: prompt_multiline },
+    // Special REPL commands still available
+    { client: client_unix, send: '.break',
+      expect: prompt_unix },
+    // Template expressions can cross lines
+    { client: client_unix, send: '`io.js ${"1.0"',
+      expect: prompt_multiline },
+    { client: client_unix, send: '+ ".2"}`',
+      expect: `'io.js 1.0.2'\n${prompt_unix}` },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
       expect: '0.1234' },
@@ -166,7 +156,7 @@ function error_test() {
       expect: /^SyntaxError: Delete of an unqualified identifier in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
       expect: /^SyntaxError: Unexpected eval or arguments in strict mode/ },
-    { client: client_unix, send: '(function() { "use strict"; if (true){ function f() { } } })()',
+    { client: client_unix, send: '(function() { "use strict"; if (true) function f() { } })()',
       expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or immediately within another function/ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',

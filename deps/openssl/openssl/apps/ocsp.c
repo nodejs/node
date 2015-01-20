@@ -583,51 +583,52 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "OCSP utility\n");
 		BIO_printf (bio_err, "Usage ocsp [options]\n");
 		BIO_printf (bio_err, "where options are\n");
-		BIO_printf (bio_err, "-out file          output filename\n");
-		BIO_printf (bio_err, "-issuer file       issuer certificate\n");
-		BIO_printf (bio_err, "-cert file         certificate to check\n");
-		BIO_printf (bio_err, "-serial n          serial number to check\n");
-		BIO_printf (bio_err, "-signer file       certificate to sign OCSP request with\n");
-		BIO_printf (bio_err, "-signkey file      private key to sign OCSP request with\n");
-		BIO_printf (bio_err, "-sign_other file   additional certificates to include in signed request\n");
-		BIO_printf (bio_err, "-no_certs          don't include any certificates in signed request\n");
-		BIO_printf (bio_err, "-req_text          print text form of request\n");
-		BIO_printf (bio_err, "-resp_text         print text form of response\n");
-		BIO_printf (bio_err, "-text              print text form of request and response\n");
-		BIO_printf (bio_err, "-reqout file       write DER encoded OCSP request to \"file\"\n");
-		BIO_printf (bio_err, "-respout file      write DER encoded OCSP reponse to \"file\"\n");
-		BIO_printf (bio_err, "-reqin file        read DER encoded OCSP request from \"file\"\n");
-		BIO_printf (bio_err, "-respin file       read DER encoded OCSP reponse from \"file\"\n");
-		BIO_printf (bio_err, "-nonce             add OCSP nonce to request\n");
-		BIO_printf (bio_err, "-no_nonce          don't add OCSP nonce to request\n");
-		BIO_printf (bio_err, "-url URL           OCSP responder URL\n");
-		BIO_printf (bio_err, "-host host:n       send OCSP request to host on port n\n");
-		BIO_printf (bio_err, "-path              path to use in OCSP request\n");
-		BIO_printf (bio_err, "-CApath dir        trusted certificates directory\n");
-		BIO_printf (bio_err, "-CAfile file       trusted certificates file\n");
-		BIO_printf (bio_err, "-VAfile file       validator certificates file\n");
-		BIO_printf (bio_err, "-validity_period n maximum validity discrepancy in seconds\n");
-		BIO_printf (bio_err, "-status_age n      maximum status age in seconds\n");
-		BIO_printf (bio_err, "-noverify          don't verify response at all\n");
-		BIO_printf (bio_err, "-verify_other file additional certificates to search for signer\n");
-		BIO_printf (bio_err, "-trust_other       don't verify additional certificates\n");
-		BIO_printf (bio_err, "-no_intern         don't search certificates contained in response for signer\n");
+		BIO_printf (bio_err, "-out file            output filename\n");
+		BIO_printf (bio_err, "-issuer file         issuer certificate\n");
+		BIO_printf (bio_err, "-cert file           certificate to check\n");
+		BIO_printf (bio_err, "-serial n            serial number to check\n");
+		BIO_printf (bio_err, "-signer file         certificate to sign OCSP request with\n");
+		BIO_printf (bio_err, "-signkey file        private key to sign OCSP request with\n");
+		BIO_printf (bio_err, "-sign_other file     additional certificates to include in signed request\n");
+		BIO_printf (bio_err, "-no_certs            don't include any certificates in signed request\n");
+		BIO_printf (bio_err, "-req_text            print text form of request\n");
+		BIO_printf (bio_err, "-resp_text           print text form of response\n");
+		BIO_printf (bio_err, "-text                print text form of request and response\n");
+		BIO_printf (bio_err, "-reqout file         write DER encoded OCSP request to \"file\"\n");
+		BIO_printf (bio_err, "-respout file        write DER encoded OCSP reponse to \"file\"\n");
+		BIO_printf (bio_err, "-reqin file          read DER encoded OCSP request from \"file\"\n");
+		BIO_printf (bio_err, "-respin file         read DER encoded OCSP reponse from \"file\"\n");
+		BIO_printf (bio_err, "-nonce               add OCSP nonce to request\n");
+		BIO_printf (bio_err, "-no_nonce            don't add OCSP nonce to request\n");
+		BIO_printf (bio_err, "-url URL             OCSP responder URL\n");
+		BIO_printf (bio_err, "-host host:n         send OCSP request to host on port n\n");
+		BIO_printf (bio_err, "-path                path to use in OCSP request\n");
+		BIO_printf (bio_err, "-CApath dir          trusted certificates directory\n");
+		BIO_printf (bio_err, "-CAfile file         trusted certificates file\n");
+		BIO_printf (bio_err, "-VAfile file         validator certificates file\n");
+		BIO_printf (bio_err, "-validity_period n   maximum validity discrepancy in seconds\n");
+		BIO_printf (bio_err, "-status_age n        maximum status age in seconds\n");
+		BIO_printf (bio_err, "-noverify            don't verify response at all\n");
+		BIO_printf (bio_err, "-verify_other file   additional certificates to search for signer\n");
+		BIO_printf (bio_err, "-trust_other         don't verify additional certificates\n");
+		BIO_printf (bio_err, "-no_intern           don't search certificates contained in response for signer\n");
 		BIO_printf (bio_err, "-no_signature_verify don't check signature on response\n");
-		BIO_printf (bio_err, "-no_cert_verify    don't check signing certificate\n");
-		BIO_printf (bio_err, "-no_chain          don't chain verify response\n");
-		BIO_printf (bio_err, "-no_cert_checks    don't do additional checks on signing certificate\n");
-		BIO_printf (bio_err, "-port num		 port to run responder on\n");
-		BIO_printf (bio_err, "-index file	 certificate status index file\n");
-		BIO_printf (bio_err, "-CA file		 CA certificate\n");
-		BIO_printf (bio_err, "-rsigner file	 responder certificate to sign responses with\n");
-		BIO_printf (bio_err, "-rkey file	 responder key to sign responses with\n");
-		BIO_printf (bio_err, "-rother file	 other certificates to include in response\n");
-		BIO_printf (bio_err, "-resp_no_certs     don't include any certificates in response\n");
-		BIO_printf (bio_err, "-nmin n	 	 number of minutes before next update\n");
-		BIO_printf (bio_err, "-ndays n	 	 number of days before next update\n");
-		BIO_printf (bio_err, "-resp_key_id       identify reponse by signing certificate key ID\n");
-		BIO_printf (bio_err, "-nrequest n        number of requests to accept (default unlimited)\n");
-		BIO_printf (bio_err, "-<dgst alg>     use specified digest in the request\n");
+		BIO_printf (bio_err, "-no_cert_verify      don't check signing certificate\n");
+		BIO_printf (bio_err, "-no_chain            don't chain verify response\n");
+		BIO_printf (bio_err, "-no_cert_checks      don't do additional checks on signing certificate\n");
+		BIO_printf (bio_err, "-port num            port to run responder on\n");
+		BIO_printf (bio_err, "-index file          certificate status index file\n");
+		BIO_printf (bio_err, "-CA file             CA certificate\n");
+		BIO_printf (bio_err, "-rsigner file        responder certificate to sign responses with\n");
+		BIO_printf (bio_err, "-rkey file           responder key to sign responses with\n");
+		BIO_printf (bio_err, "-rother file         other certificates to include in response\n");
+		BIO_printf (bio_err, "-resp_no_certs       don't include any certificates in response\n");
+		BIO_printf (bio_err, "-nmin n              number of minutes before next update\n");
+		BIO_printf (bio_err, "-ndays n             number of days before next update\n");
+		BIO_printf (bio_err, "-resp_key_id         identify reponse by signing certificate key ID\n");
+		BIO_printf (bio_err, "-nrequest n          number of requests to accept (default unlimited)\n");
+		BIO_printf (bio_err, "-<dgst alg>          use specified digest in the request\n");
+		BIO_printf (bio_err, "-timeout n           timeout connection to OCSP responder after n seconds\n");
 		goto end;
 		}
 
@@ -1398,16 +1399,7 @@ OCSP_RESPONSE *process_responder(BIO *err, OCSP_REQUEST *req,
 	if (use_ssl == 1)
 		{
 		BIO *sbio;
-#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 		ctx = SSL_CTX_new(SSLv23_client_method());
-#elif !defined(OPENSSL_NO_SSL3)
-		ctx = SSL_CTX_new(SSLv3_client_method());
-#elif !defined(OPENSSL_NO_SSL2)
-		ctx = SSL_CTX_new(SSLv2_client_method());
-#else
-		BIO_printf(err, "SSL is disabled\n");
-			goto end;
-#endif
 		if (ctx == NULL)
 			{
 			BIO_printf(err, "Error creating SSL context.\n");

@@ -1,6 +1,7 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+"use strict";
 
 // Default number of frames to include in the response to backtrace request.
 var kDefaultBacktraceLength = 10;
@@ -432,7 +433,7 @@ ScriptBreakPoint.prototype.set = function (script) {
   if (IS_NULL(position)) return;
 
   // Create a break point object and set the break point.
-  break_point = MakeBreakPoint(position, this);
+  var break_point = MakeBreakPoint(position, this);
   break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position,
                                              this.position_alignment_,
@@ -672,7 +673,7 @@ Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
                                                     condition, enabled,
                                                     opt_position_alignment)
 {
-  break_point = MakeBreakPoint(position);
+  var break_point = MakeBreakPoint(position);
   break_point.setCondition(condition);
   if (!enabled) {
     break_point.disable();
@@ -739,7 +740,7 @@ Debug.clearBreakPoint = function(break_point_number) {
 
 Debug.clearAllBreakPoints = function() {
   for (var i = 0; i < break_points.length; i++) {
-    break_point = break_points[i];
+    var break_point = break_points[i];
     %ClearBreakPoint(break_point);
   }
   break_points = [];
@@ -1886,7 +1887,7 @@ DebugCommandProcessor.prototype.resolveFrameFromScopeDescription_ =
   // Get the frame for which the scope or scopes are requested.
   // With no frameNumber argument use the currently selected frame.
   if (scope_description && !IS_UNDEFINED(scope_description.frameNumber)) {
-    frame_index = scope_description.frameNumber;
+    var frame_index = scope_description.frameNumber;
     if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
       throw new Error('Invalid frame number');
     }
@@ -1971,7 +1972,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
     var value_mirror = LookupMirror(value_description.handle);
     if (!value_mirror) {
       throw new Error("Failed to resolve value by handle, ' #" +
-          mapping.handle + "# not found");
+          value_description.handle + "# not found");
     }
     return value_mirror.value();
   } else if ("stringDescription" in value_description) {
@@ -2126,7 +2127,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 
   // Set 'includeSource' option for script lookup.
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
-    includeSource = %ToBoolean(request.arguments.includeSource);
+    var includeSource = %ToBoolean(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
 

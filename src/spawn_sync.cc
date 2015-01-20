@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "spawn_sync.h"
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -958,7 +937,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   if (js_value->IsString())
     js_string = js_value.As<String>();
   else
-    js_string = js_value->ToString();
+    js_string = js_value->ToString(env()->isolate());
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -992,7 +971,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // needed - it's okay since we cloned the original object.
   for (uint32_t i = 0; i < length; i++) {
     if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString());
+      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
   }
 
   // Index has a pointer to every string element, plus one more for a final

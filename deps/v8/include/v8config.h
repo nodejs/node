@@ -142,13 +142,12 @@
 // -----------------------------------------------------------------------------
 // Compiler detection
 //
-//  V8_CC_CLANG   - Clang
-//  V8_CC_GNU     - GNU C++
+//  V8_CC_GNU     - GCC, or clang in gcc mode
 //  V8_CC_INTEL   - Intel C++
 //  V8_CC_MINGW   - Minimalist GNU for Windows
 //  V8_CC_MINGW32 - Minimalist GNU for Windows (mingw32)
 //  V8_CC_MINGW64 - Minimalist GNU for Windows (mingw-w64)
-//  V8_CC_MSVC    - Microsoft Visual C/C++
+//  V8_CC_MSVC    - Microsoft Visual C/C++, or clang in cl.exe mode
 //
 // C++11 feature detection
 //
@@ -193,7 +192,11 @@
 
 #if defined(__clang__)
 
-# define V8_CC_CLANG 1
+#if defined(__GNUC__)  // Clang in gcc mode.
+# define V8_CC_GNU 1
+#elif defined(_MSC_VER)  // Clang in cl mode.
+# define V8_CC_MSVC 1
+#endif
 
 // Clang defines __alignof__ as alias for __alignof
 # define V8_HAS___ALIGNOF 1

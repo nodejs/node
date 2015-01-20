@@ -5,6 +5,8 @@
 #ifndef V8_VERSION_H_
 #define V8_VERSION_H_
 
+#include "src/base/functional.h"
+
 namespace v8 {
 namespace internal {
 
@@ -16,7 +18,9 @@ class Version {
   static int GetBuild() { return build_; }
   static int GetPatch() { return patch_; }
   static bool IsCandidate() { return candidate_; }
-  static int Hash() { return (major_ << 20) ^ (minor_ << 10) ^ patch_; }
+  static int Hash() {
+    return static_cast<int>(base::hash_combine(major_, minor_, build_, patch_));
+  }
 
   // Calculate the V8 version string.
   static void GetString(Vector<char> str);

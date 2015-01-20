@@ -22,36 +22,33 @@ class CommonOperatorBuilder;
 class MachineOperatorBuilder;
 class Linkage;
 
+
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering : public Reducer {
+class JSGenericLowering FINAL : public Reducer {
  public:
   JSGenericLowering(CompilationInfo* info, JSGraph* graph);
-  virtual ~JSGenericLowering() {}
+  ~JSGenericLowering() FINAL {}
 
-  virtual Reduction Reduce(Node* node);
+  Reduction Reduce(Node* node) FINAL;
 
  protected:
 #define DECLARE_LOWER(x) void Lower##x(Node* node);
   // Dispatched depending on opcode.
-  ALL_OP_LIST(DECLARE_LOWER)
+  JS_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
-
-  // Helpers to create new constant nodes.
-  Node* SmiConstant(int immediate);
-  Node* Int32Constant(int immediate);
-  Node* CodeConstant(Handle<Code> code);
-  Node* FunctionConstant(Handle<JSFunction> function);
-  Node* ExternalConstant(ExternalReference ref);
 
   // Helpers to patch existing nodes in the graph.
   void PatchOperator(Node* node, const Operator* new_op);
   void PatchInsertInput(Node* node, int index, Node* input);
 
   // Helpers to replace existing nodes with a generic call.
-  void ReplaceWithCompareIC(Node* node, Token::Value token, bool pure);
+  void ReplaceWithCompareIC(Node* node, Token::Value token);
   void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
+
+  // Helper for optimization of JSCallFunction.
+  bool TryLowerDirectJSCall(Node* node);
 
   Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return zone()->isolate(); }
@@ -66,8 +63,6 @@ class JSGenericLowering : public Reducer {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Linkage* linkage_;
-
-  bool TryLowerDirectJSCall(Node* node);
 };
 
 }  // namespace compiler

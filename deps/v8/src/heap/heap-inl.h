@@ -587,7 +587,7 @@ bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
 

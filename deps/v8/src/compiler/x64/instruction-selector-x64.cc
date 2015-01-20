@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 
@@ -34,6 +33,71 @@ class X64OperandGenerator FINAL : public OperandGenerator {
     }
   }
 
+  AddressingMode GenerateMemoryOperandInputs(Node* index, int scale_exponent,
+                                             Node* base, Node* displacement,
+                                             InstructionOperand* inputs[],
+                                             size_t* input_count) {
+    AddressingMode mode = kMode_MRI;
+    if (base != NULL) {
+      inputs[(*input_count)++] = UseRegister(base);
+      if (index != NULL) {
+        DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
+        inputs[(*input_count)++] = UseRegister(index);
+        if (displacement != NULL) {
+          inputs[(*input_count)++] = UseImmediate(displacement);
+          static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
+                                                       kMode_MR4I, kMode_MR8I};
+          mode = kMRnI_modes[scale_exponent];
+        } else {
+          static const AddressingMode kMRn_modes[] = {kMode_MR1, kMode_MR2,
+                                                      kMode_MR4, kMode_MR8};
+          mode = kMRn_modes[scale_exponent];
+        }
+      } else {
+        if (displacement == NULL) {
+          mode = kMode_MR;
+        } else {
+          inputs[(*input_count)++] = UseImmediate(displacement);
+          mode = kMode_MRI;
+        }
+      }
+    } else {
+      DCHECK(index != NULL);
+      DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
+      inputs[(*input_count)++] = UseRegister(index);
+      if (displacement != NULL) {
+        inputs[(*input_count)++] = UseImmediate(displacement);
+        static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
+                                                    kMode_M4I, kMode_M8I};
+        mode = kMnI_modes[scale_exponent];
+      } else {
+        static const AddressingMode kMn_modes[] = {kMode_MR, kMode_MR1,
+                                                   kMode_M4, kMode_M8};
+        mode = kMn_modes[scale_exponent];
+        if (mode == kMode_MR1) {
+          // [%r1 + %r1*1] has a smaller encoding than [%r1*2+0]
+          inputs[(*input_count)++] = UseRegister(index);
+        }
+      }
+    }
+    return mode;
+  }
+
+  AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
+                                                  InstructionOperand* inputs[],
+                                                  size_t* input_count) {
+    BaseWithIndexAndDisplacement64Matcher m(operand, true);
+    DCHECK(m.matches());
+    if ((m.displacement() == NULL || CanBeImmediate(m.displacement()))) {
+      return GenerateMemoryOperandInputs(m.index(), m.scale(), m.base(),
+                                         m.displacement(), inputs, input_count);
+    } else {
+      inputs[(*input_count)++] = UseRegister(operand->InputAt(0));
+      inputs[(*input_count)++] = UseRegister(operand->InputAt(1));
+      return kMode_MR1;
+    }
+  }
+
   bool CanBeBetterLeftOperand(Node* node) const {
     return !selector()->IsLive(node);
   }
@@ -44,8 +108,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
   X64OperandGenerator g(this);
-  Node* const base = node->InputAt(0);
-  Node* const index = node->InputAt(1);
 
   ArchOpcode opcode;
   switch (rep) {
@@ -73,19 +135,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    // load [#base + %index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
-  } else if (g.CanBeImmediate(index)) {
-    // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else {
-    // load [%base + %index*1]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
-  }
+
+  InstructionOperand* outputs[1];
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand* inputs[3];
+  size_t input_count = 0;
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
+  Emit(code, 1, outputs, input_count, inputs);
 }
 
 
@@ -135,21 +193,112 @@ void InstructionSelector::VisitStore(Node* node) {
       UNREACHABLE();
       return;
   }
+  InstructionOperand* inputs[4];
+  size_t input_count = 0;
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
   InstructionOperand* value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  if (g.CanBeImmediate(base)) {
-    // store [#base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-         g.UseRegister(index), g.UseImmediate(base), value_operand);
-  } else if (g.CanBeImmediate(index)) {
-    // store [%base + #index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-         g.UseRegister(base), g.UseImmediate(index), value_operand);
-  } else {
-    // store [%base + %index*1], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr,
-         g.UseRegister(base), g.UseRegister(index), value_operand);
+  inputs[input_count++] = value_operand;
+  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
+}
+
+
+void InstructionSelector::VisitCheckedLoad(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  X64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt8 : kCheckedLoadUint8;
+      break;
+    case kRepWord16:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt16 : kCheckedLoadUint16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedLoadWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedLoadFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedLoadFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
   }
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+           g.UseRegister(moffset.left().node()),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length));
+      return;
+    }
+  }
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+       g.UseRegister(offset), g.TempImmediate(0), length_operand);
+}
+
+
+void InstructionSelector::VisitCheckedStore(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  X64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  Node* const value = node->InputAt(3);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = kCheckedStoreWord8;
+      break;
+    case kRepWord16:
+      opcode = kCheckedStoreWord16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedStoreWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedStoreFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedStoreFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  InstructionOperand* value_operand =
+      g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, nullptr, g.UseRegister(buffer),
+           g.UseRegister(moffset.left().node()),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           value_operand);
+      return;
+    }
+  }
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+       g.TempImmediate(0), length_operand, value_operand);
 }
 
 
@@ -275,12 +424,6 @@ void VisitWord32Shift(InstructionSelector* selector, Node* node,
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
-    if (m.right().IsWord32And()) {
-      Int32BinopMatcher mright(right);
-      if (mright.right().Is(0x1F)) {
-        right = mright.left().node();
-      }
-    }
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, rcx));
   }
@@ -311,10 +454,39 @@ void VisitWord64Shift(InstructionSelector* selector, Node* node,
   }
 }
 
+
+void EmitLea(InstructionSelector* selector, InstructionCode opcode,
+             Node* result, Node* index, int scale, Node* base,
+             Node* displacement) {
+  X64OperandGenerator g(selector);
+
+  InstructionOperand* inputs[4];
+  size_t input_count = 0;
+  AddressingMode mode = g.GenerateMemoryOperandInputs(
+      index, scale, base, displacement, inputs, &input_count);
+
+  DCHECK_NE(0, static_cast<int>(input_count));
+  DCHECK_GE(arraysize(inputs), input_count);
+
+  InstructionOperand* outputs[1];
+  outputs[0] = g.DefineAsRegister(result);
+
+  opcode = AddressingModeField::encode(mode) | opcode;
+
+  selector->Emit(opcode, 1, outputs, input_count, inputs);
+}
+
 }  // namespace
 
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
+  Int32ScaleMatcher m(node, true);
+  if (m.matches()) {
+    Node* index = node->InputAt(0);
+    Node* base = m.power_of_two_plus_one() ? index : NULL;
+    EmitLea(this, kX64Lea32, node, index, m.scale(), base, NULL);
+    return;
+  }
   VisitWord32Shift(this, node, kX64Shl32);
 }
 
@@ -346,6 +518,18 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  X64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kX64Movsxwl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
+      return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kX64Movsxbl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
+      return;
+    }
+  }
   VisitWord32Shift(this, node, kX64Sar32);
 }
 
@@ -366,6 +550,18 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
+  X64OperandGenerator g(this);
+
+  // Try to match the Add to a leal pattern
+  BaseWithIndexAndDisplacement32Matcher m(node);
+  if (m.matches() &&
+      (m.displacement() == NULL || g.CanBeImmediate(m.displacement()))) {
+    EmitLea(this, kX64Lea32, node, m.index(), m.scale(), m.base(),
+            m.displacement());
+    return;
+  }
+
+  // No leal pattern match, use addl
   VisitBinop(this, node, kX64Add32);
 }
 
@@ -381,6 +577,14 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
+    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+      // Turn subtractions of constant values into immediate "leal" instructions
+      // by negating the value.
+      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.TempImmediate(-m.right().Value()));
+      return;
+    }
     VisitBinop(this, node, kX64Sub32);
   }
 }
@@ -452,6 +656,13 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
 
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
+  Int32ScaleMatcher m(node, true);
+  if (m.matches()) {
+    Node* index = node->InputAt(0);
+    Node* base = m.power_of_two_plus_one() ? index : NULL;
+    EmitLea(this, kX64Lea32, node, index, m.scale(), base, NULL);
+    return;
+  }
   VisitMul(this, node, kX64Imul32);
 }
 
@@ -615,29 +826,49 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Add, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Sub, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Mul, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Div, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
@@ -693,7 +924,7 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 void InstructionSelector::VisitCall(Node* node) {
   X64OperandGenerator g(this);
-  CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
+  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
   FrameStateDescriptor* frame_state_descriptor = NULL;
   if (descriptor->NeedsFrameState()) {
@@ -811,12 +1042,6 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   Node* value = branch->InputAt(0);
 
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
-
-  // If we can fall through to the true block, invert the branch.
-  if (IsNextInAssemblyOrder(tbranch)) {
-    cont.Negate();
-    cont.SwapBlocks();
-  }
 
   // Try to combine with comparisons against 0 by simply inverting the branch.
   while (CanCover(user, value)) {
@@ -1083,10 +1308,12 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(SSE4_1)) {
     return MachineOperatorBuilder::kFloat64Floor |
            MachineOperatorBuilder::kFloat64Ceil |
-           MachineOperatorBuilder::kFloat64RoundTruncate;
+           MachineOperatorBuilder::kFloat64RoundTruncate |
+           MachineOperatorBuilder::kWord32ShiftIsSafe;
   }
   return MachineOperatorBuilder::kNoFlags;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

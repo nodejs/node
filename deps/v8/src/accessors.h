@@ -21,6 +21,7 @@ namespace internal {
   V(FunctionName)                 \
   V(FunctionLength)               \
   V(FunctionPrototype)            \
+  V(RegExpSource)                 \
   V(ScriptColumnOffset)           \
   V(ScriptCompilationType)        \
   V(ScriptContextData)            \

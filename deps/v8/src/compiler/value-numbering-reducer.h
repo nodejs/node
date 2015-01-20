@@ -16,7 +16,7 @@ class ValueNumberingReducer FINAL : public Reducer {
   explicit ValueNumberingReducer(Zone* zone);
   ~ValueNumberingReducer();
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   enum { kInitialCapacity = 256u, kCapacityToSizeRatio = 2u };

@@ -44,22 +44,27 @@ namespace internal {
 // CpuFeatures implementation.
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  if (cross_compile) {
-    // Always align csp in cross compiled code - this is safe and ensures that
-    // csp will always be aligned if it is enabled by probing at runtime.
-    if (FLAG_enable_always_align_csp) supported_ |= 1u << ALWAYS_ALIGN_CSP;
-  } else {
-    base::CPU cpu;
-    if (FLAG_enable_always_align_csp &&
-        (cpu.implementer() == base::CPU::NVIDIA || FLAG_debug_code)) {
-      supported_ |= 1u << ALWAYS_ALIGN_CSP;
-    }
+  // AArch64 has no configuration options, no further probing is required.
+  supported_ = 0;
+
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
+
+  // Probe for runtime features
+  base::CPU cpu;
+  if (cpu.implementer() == base::CPU::NVIDIA &&
+      cpu.variant() == base::CPU::NVIDIA_DENVER) {
+    supported_ |= 1u << COHERENT_CACHE;
   }
 }
 
 
 void CpuFeatures::PrintTarget() { }
-void CpuFeatures::PrintFeatures() { }
+
+
+void CpuFeatures::PrintFeatures() {
+  printf("COHERENT_CACHE=%d\n", CpuFeatures::IsSupported(COHERENT_CACHE));
+}
 
 
 // -----------------------------------------------------------------------------
@@ -612,9 +617,12 @@ void Assembler::Align(int m) {
 void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
   if (label->is_linked()) {
+    static const int kMaxLinksToCheck = 64;  // Avoid O(n2) behaviour.
+    int links_checked = 0;
     int linkoffset = label->pos();
     bool end_of_chain = false;
     while (!end_of_chain) {
+      if (++links_checked > kMaxLinksToCheck) break;
       Instruction * link = InstructionAt(linkoffset);
       int linkpcoffset = link->ImmPCOffset();
       int prevlinkoffset = linkoffset + linkpcoffset;

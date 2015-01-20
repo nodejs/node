@@ -14,14 +14,14 @@ function whoami (args, silent, cb) {
   var registry = npm.config.get("registry")
   if (!registry) return cb(new Error("no default registry set"))
 
-  var credentials = npm.config.getCredentialsByURI(registry)
-  if (credentials) {
-    if (credentials.username) {
-      if (!silent) console.log(credentials.username)
-      return process.nextTick(cb.bind(this, null, credentials.username))
+  var auth = npm.config.getCredentialsByURI(registry)
+  if (auth) {
+    if (auth.username) {
+      if (!silent) console.log(auth.username)
+      return process.nextTick(cb.bind(this, null, auth.username))
     }
-    else if (credentials.token) {
-      return npm.registry.whoami(registry, function (er, username) {
+    else if (auth.token) {
+      return npm.registry.whoami(registry, { auth : auth }, function (er, username) {
         if (er) return cb(er)
 
         if (!silent) console.log(username)

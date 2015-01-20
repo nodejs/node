@@ -7,11 +7,21 @@
 
 #include "src/base/functional.h"
 #include "src/base/macros.h"
-#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Zone;
+template <typename>
+class ZoneVector;
+
+
 namespace compiler {
+
+// Forward declarations.
+class Node;
+
 
 // A cache for nodes based on a key. Useful for implementing canonicalization of
 // nodes such as constants, parameters, etc.
@@ -19,8 +29,9 @@ template <typename Key, typename Hash = base::hash<Key>,
           typename Pred = std::equal_to<Key> >
 class NodeCache FINAL {
  public:
-  explicit NodeCache(size_t max = 256)
+  explicit NodeCache(unsigned max = 256)
       : entries_(nullptr), size_(0), max_(max) {}
+  ~NodeCache() {}
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
@@ -31,11 +42,10 @@ class NodeCache FINAL {
   // too full or encounters too many hash collisions.
   Node** Find(Zone* zone, Key key);
 
-  void GetCachedNodes(NodeVector* nodes);
+  // Appends all nodes from this cache to {nodes}.
+  void GetCachedNodes(ZoneVector<Node*>* nodes);
 
  private:
-  enum { kInitialSize = 16u, kLinearProbe = 5u };
-
   struct Entry;
 
   Entry* entries_;  // lazily-allocated hash entries.
@@ -45,12 +55,18 @@ class NodeCache FINAL {
   Pred pred_;
 
   bool Resize(Zone* zone);
+
+  DISALLOW_COPY_AND_ASSIGN(NodeCache);
 };
 
 // Various default cache types.
-typedef NodeCache<int64_t> Int64NodeCache;
 typedef NodeCache<int32_t> Int32NodeCache;
-typedef NodeCache<void*> PtrNodeCache;
+typedef NodeCache<int64_t> Int64NodeCache;
+#if V8_HOST_ARCH_32_BIT
+typedef Int32NodeCache IntPtrNodeCache;
+#else
+typedef Int64NodeCache IntPtrNodeCache;
+#endif
 
 }  // namespace compiler
 }  // namespace internal

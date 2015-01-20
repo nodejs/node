@@ -74,13 +74,13 @@
         ],
       },  # Release
     },  # configurations
-    'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter',
-                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
-                # Note: Using -std=c++0x will define __STRICT_ANSI__, which in
-                # turn will leave out some template stuff for 'long long'. What
-                # we want is -std=c++11, but this is not supported by GCC 4.6 or
-                # Xcode 4.2
-                '-std=gnu++0x' ],
+    'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter'],
+    'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
+                   # Note: Using -std=c++0x will define __STRICT_ANSI__, which
+                   # in turn will leave out some template stuff for 'long
+                   # long'.  What we want is -std=c++11, but this is not
+                   # supported by GCC 4.6 or Xcode 4.2
+                   '-std=gnu++0x' ],
     'target_conditions': [
       ['_toolset=="target"', {
         'cflags!': [
@@ -93,10 +93,12 @@
           '-fno-short-enums',
           '-finline-limit=64',
           '-Wa,--noexecstack',
-          '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
           # Note: This include is in cflags to ensure that it comes after
           # all of the includes.
           '-I<(android_include)',
+        ],
+        'cflags_cc': [
+          '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
         ],
         'defines': [
           'ANDROID',
@@ -213,8 +215,7 @@
               '-fno-stack-protector',
             ],
           }],
-          ['target_arch=="arm64" or target_arch=="x64"', {
-            # TODO(ulan): Enable PIE for other architectures (crbug.com/373219).
+          ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64") and component!="shared_library"', {
             'cflags': [
               '-fPIE',
             ],

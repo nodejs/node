@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "pipe_wrap.h"
 
 #include "async-wrap.h"
@@ -177,7 +156,7 @@ PipeWrap::PipeWrap(Environment* env,
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-  node::Utf8Value name(args[0]);
+  node::Utf8Value name(args.GetIsolate(), args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
 }
@@ -300,7 +279,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value name(args[1]);
+  node::Utf8Value name(env->isolate(), args[1]);
 
   PipeConnectWrap* req_wrap = new PipeConnectWrap(env, req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,

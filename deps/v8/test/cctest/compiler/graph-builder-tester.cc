@@ -35,11 +35,9 @@ byte* MachineCallHelper::Generate() {
   if (!Pipeline::SupportedBackend()) return NULL;
   if (code_.is_null()) {
     Zone* zone = graph_->zone();
-    CompilationInfo info(zone->isolate(), zone);
-    Linkage linkage(zone,
-                    Linkage::GetSimplifiedCDescriptor(zone, machine_sig_));
-    Pipeline pipeline(&info);
-    code_ = pipeline.GenerateCodeForMachineGraph(&linkage, graph_);
+    CallDescriptor* desc =
+        Linkage::GetSimplifiedCDescriptor(zone, machine_sig_);
+    code_ = Pipeline::GenerateCodeForTesting(desc, graph_);
   }
   return code_.ToHandleChecked()->entry();
 }

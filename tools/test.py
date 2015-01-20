@@ -41,6 +41,7 @@ import time
 import threading
 import utils
 import multiprocessing
+import errno
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -71,8 +72,8 @@ class ProgressIndicator(object):
     self.total = len(cases)
     self.failed = [ ]
     self.crashed = 0
-    self.terminate = False
     self.lock = threading.Lock()
+    self.shutdown_event = threading.Event()
 
   def PrintFailureHeader(self, test):
     if test.IsNegative():
@@ -101,17 +102,19 @@ class ProgressIndicator(object):
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
         thread.join(timeout=10000000)
+    except (KeyboardInterrupt, SystemExit), e:
+      self.shutdown_event.set()
     except Exception, e:
       # If there's an exception we schedule an interruption for any
       # remaining threads.
-      self.terminate = True
+      self.shutdown_event.set()
       # ...and then reraise the exception to bail out
       raise
     self.Done()
     return not self.failed
 
   def RunSingle(self, parallel, thread_id):
-    while not self.terminate:
+    while not self.shutdown_event.is_set():
       try:
         test = self.parallel_queue.get_nowait()
       except Empty:
@@ -131,9 +134,8 @@ class ProgressIndicator(object):
         output = case.Run()
         case.duration = (datetime.now() - start)
       except IOError, e:
-        assert self.terminate
         return
-      if self.terminate:
+      if self.shutdown_event.is_set():
         return
       self.lock.acquire()
       if output.UnexpectedOutput():
@@ -569,11 +571,18 @@ def PrintError(str):
 
 
 def CheckedUnlink(name):
-  try:
-    os.unlink(name)
-  except OSError, e:
-    PrintError("os.unlink() " + str(e))
-
+  while True:
+    try:
+      os.unlink(name)
+    except OSError, e:
+      # On Windows unlink() fails if another process (typically a virus scanner
+      # or the indexing service) has the file open. Those processes keep a
+      # file open for a short time only, so yield and try again; it'll succeed.
+      if sys.platform == 'win32' and e.errno == errno.EACCES:
+        time.sleep(0)
+        continue
+      PrintError("os.unlink() " + str(e))
+    break
 
 def Execute(args, context, timeout=None, env={}):
   (fd_out, outname) = tempfile.mkstemp()
@@ -742,20 +751,20 @@ class Context(object):
 
   def GetVm(self, arch, mode):
     if arch == 'none':
-      name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
+      name = 'out/Debug/iojs' if mode == 'debug' else 'out/Release/iojs'
     else:
-      name = 'out/%s.%s/node' % (arch, mode)
+      name = 'out/%s.%s/iojs' % (arch, mode)
 
     # Currently GYP does not support output_dir for MSVS.
     # http://code.google.com/p/gyp/issues/detail?id=40
-    # It will put the builds into Release/node.exe or Debug/node.exe
+    # It will put the builds into Release/iojs.exe or Debug/iojs.exe
     if utils.IsWindows():
       out_dir = os.path.join(dirname(__file__), "..", "out")
       if not exists(out_dir):
         if mode == 'debug':
-          name = os.path.abspath('Debug/node.exe')
+          name = os.path.abspath('Debug/iojs.exe')
         else:
-          name = os.path.abspath('Release/node.exe')
+          name = os.path.abspath('Release/iojs.exe')
       else:
         name = os.path.abspath(name + '.exe')
 
@@ -1235,8 +1244,6 @@ def BuildOptions():
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
   result.add_option("--special-command", default=None)
-  result.add_option("--use-http1", help="Pass --use-http1 switch to node",
-      default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
@@ -1350,6 +1357,7 @@ BUILT_IN_TESTS = [
   'pummel',
   'message',
   'internet',
+  'addons',
   'gc',
   'debugger',
 ]
@@ -1397,11 +1405,6 @@ def Main():
   buildspace = dirname(shell)
 
   processor = GetSpecialCommandProcessor(options.special_command)
-  if options.use_http1:
-    def wrap(processor):
-      return lambda args: processor(args[:1] + ['--use-http1'] + args[1:])
-    processor = wrap(processor)
-
   context = Context(workspace,
                     buildspace,
                     VERBOSE,

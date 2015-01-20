@@ -3,7 +3,6 @@ module.exports = unpublish
 
 var log = require("npmlog")
   , npm = require("./npm.js")
-  , registry = npm.registry
   , readJson = require("read-package-json")
   , path = require("path")
   , mapToRegistry = require("./utils/map-to-registry.js")
@@ -19,10 +18,10 @@ unpublish.completion = function (opts, cb) {
     var un = encodeURIComponent(username)
     if (!un) return cb()
     var byUser = "-/by-user/" + un
-    mapToRegistry(byUser, npm.config, function (er, uri) {
+    mapToRegistry(byUser, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.get(uri, null, function (er, pkgs) {
+      npm.registry.get(uri, { auth : auth }, function (er, pkgs) {
         // do a bit of filtering at this point, so that we don't need
         // to fetch versions for more than one thing, but also don't
         // accidentally a whole project.
@@ -33,10 +32,10 @@ unpublish.completion = function (opts, cb) {
           return p.indexOf(pp) === 0
         })
         if (pkgs.length > 1) return cb(null, pkgs)
-        mapToRegistry(pkgs[0], npm.config, function (er, uri) {
+        mapToRegistry(pkgs[0], npm.config, function (er, uri, auth) {
           if (er) return cb(er)
 
-          registry.get(uri, null, function (er, d) {
+          npm.registry.get(uri, { auth : auth }, function (er, d) {
             if (er) return cb(er)
             var vers = Object.keys(d.versions)
             if (!vers.length) return cb(null, pkgs)
@@ -92,10 +91,14 @@ function gotProject (project, version, cb_) {
       return cb(er)
     }
 
-    mapToRegistry(project, npm.config, function (er, uri) {
+    mapToRegistry(project, npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
-      registry.unpublish(uri, version, cb)
+      var params = {
+        version : version,
+        auth    : auth
+      }
+      npm.registry.unpublish(uri, params, cb)
     })
   })
 }

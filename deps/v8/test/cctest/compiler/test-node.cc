@@ -7,7 +7,6 @@
 #include "src/v8.h"
 
 #include "graph-tester.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 
@@ -93,10 +92,8 @@ TEST(NodeInputIteratorOne) {
 TEST(NodeUseIteratorEmpty) {
   GraphTester graph;
   Node* n1 = graph.NewNode(&dummy_operator);
-  Node::Uses::iterator i(n1->uses().begin());
   int use_count = 0;
-  for (; i != n1->uses().end(); ++i) {
-    Node::Edge edge(i.edge());
+  for (Edge const edge : n1->use_edges()) {
     USE(edge);
     use_count++;
   }
@@ -366,31 +363,31 @@ TEST(AppendInputsAndIterator) {
   Node* n1 = graph.NewNode(&dummy_operator, n0);
   Node* n2 = graph.NewNode(&dummy_operator, n0, n1);
 
-  Node::Inputs inputs(n2->inputs());
-  Node::Inputs::iterator current = inputs.begin();
+  Node::InputEdges inputs(n2->input_edges());
+  Node::InputEdges::iterator current = inputs.begin();
   CHECK(current != inputs.end());
-  CHECK(*current == n0);
+  CHECK((*current).to() == n0);
   ++current;
   CHECK(current != inputs.end());
-  CHECK(*current == n1);
+  CHECK((*current).to() == n1);
   ++current;
   CHECK(current == inputs.end());
 
   Node* n3 = graph.NewNode(&dummy_operator);
   n2->AppendInput(graph.zone(), n3);
-  inputs = n2->inputs();
+  inputs = n2->input_edges();
   current = inputs.begin();
   CHECK(current != inputs.end());
-  CHECK(*current == n0);
-  CHECK_EQ(0, current.index());
+  CHECK((*current).to() == n0);
+  CHECK_EQ(0, (*current).index());
   ++current;
   CHECK(current != inputs.end());
-  CHECK(*current == n1);
-  CHECK_EQ(1, current.index());
+  CHECK((*current).to() == n1);
+  CHECK_EQ(1, (*current).index());
   ++current;
   CHECK(current != inputs.end());
-  CHECK(*current == n3);
-  CHECK_EQ(2, current.index());
+  CHECK((*current).to() == n3);
+  CHECK_EQ(2, (*current).index());
   ++current;
   CHECK(current == inputs.end());
 }

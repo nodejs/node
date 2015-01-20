@@ -380,13 +380,14 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
   for (int i = 0; i < local_count; ++i) {
     if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
     int context_index = Context::MIN_CONTEXT_SLOTS + i;
+    Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
+    // Do not reflect variables under TDZ in scope object.
+    if (value->IsTheHole()) continue;
     RETURN_ON_EXCEPTION_VALUE(
-        isolate,
-        Runtime::DefineObjectProperty(
-            scope_object,
-            Handle<String>(String::cast(scope_info->get(i + start))),
-            Handle<Object>(context->get(context_index), isolate),
-            ::NONE),
+        isolate, Runtime::DefineObjectProperty(
+                     scope_object,
+                     Handle<String>(String::cast(scope_info->get(i + start))),
+                     value, ::NONE),
         false);
   }
   return true;

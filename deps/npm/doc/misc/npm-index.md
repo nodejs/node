@@ -3,7 +3,7 @@ npm-index(7) -- Index of all npm documentation
 
 ### README(1)
 
-node package manager
+a JavaScript package manager
 
 ## Command Line Documentation
 
@@ -11,7 +11,7 @@ Using npm on the command line
 
 ### npm(1)
 
-node package manager
+javascript package manager
 
 ### npm-adduser(1)
 
@@ -123,7 +123,7 @@ Open package repository page in the browser
 
 ### npm-restart(1)
 
-Start a package
+Restart a package
 
 ### npm-rm(1)
 
@@ -199,7 +199,7 @@ Using npm in your Node programs
 
 ### npm(3)
 
-node package manager
+javascript package manager
 
 ### npm-bin(3)
 
@@ -295,7 +295,7 @@ Open package repository page in the browser
 
 ### npm-restart(3)
 
-Start a package
+Restart a package
 
 ### npm-root(3)
 

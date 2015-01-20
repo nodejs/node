@@ -127,14 +127,12 @@ class SimplifiedGraphBuilder : public GraphBuilder {
   Node* StoreField(const FieldAccess& access, Node* object, Node* value) {
     return NewNode(simplified()->StoreField(access), object, value);
   }
-  Node* LoadElement(const ElementAccess& access, Node* object, Node* index,
-                    Node* length) {
-    return NewNode(simplified()->LoadElement(access), object, index, length);
+  Node* LoadElement(const ElementAccess& access, Node* object, Node* index) {
+    return NewNode(simplified()->LoadElement(access), object, index);
   }
   Node* StoreElement(const ElementAccess& access, Node* object, Node* index,
-                     Node* length, Node* value) {
-    return NewNode(simplified()->StoreElement(access), object, index, length,
-                   value);
+                     Node* value) {
+    return NewNode(simplified()->StoreElement(access), object, index, value);
   }
 
  protected:

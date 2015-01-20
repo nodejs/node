@@ -47,6 +47,10 @@ void HeapObject::HeapObjectVerify() {
     return;
   }
 
+  // TODO(yangguo): Use this check once crbug/436911 has been fixed.
+  //  DCHECK(!NeedsToEnsureDoubleAlignment() ||
+  //         IsAligned(OffsetFrom(address()), kDoubleAlignment));
+
   switch (instance_type) {
     case SYMBOL_TYPE:
       Symbol::cast(this)->SymbolVerify();
@@ -275,6 +279,10 @@ void JSObject::JSObjectVerify() {
       if (descriptors->GetDetails(i).type() == FIELD) {
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        if (IsUnboxedDoubleField(index)) {
+          DCHECK(r.IsDouble());
+          continue;
+        }
         Object* value = RawFastPropertyAt(index);
         if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized()) continue;
@@ -316,6 +324,8 @@ void Map::MapVerify() {
     SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
     SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
+  SLOW_DCHECK(!FLAG_unbox_double_fields ||
+              layout_descriptor()->IsConsistentWithMap(this));
 }
 
 
@@ -325,8 +335,7 @@ void Map::DictionaryMapVerify() {
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, pre_allocated_property_fields());
   CHECK_EQ(0, unused_property_fields());
-  CHECK_EQ(StaticVisitorBase::GetVisitorId(instance_type(), instance_size()),
-      visitor_id());
+  CHECK_EQ(StaticVisitorBase::GetVisitorId(this), visitor_id());
 }
 
 
@@ -675,9 +684,8 @@ void Code::VerifyEmbeddedObjectsDependency() {
     if (IsWeakObject(obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
-        DependentCode::DependencyGroup group = is_optimized_code() ?
-            DependentCode::kWeakCodeGroup : DependentCode::kWeakICGroup;
-        CHECK(map->dependent_code()->Contains(group, this));
+        CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
+                                              this));
       } else if (obj->IsJSObject()) {
         Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
         WeakHashTable* table = WeakHashTable::cast(raw_table);
@@ -922,6 +930,7 @@ void InterceptorInfo::InterceptorInfoVerify() {
   VerifyPointer(deleter());
   VerifyPointer(enumerator());
   VerifyPointer(data());
+  VerifySmiField(kFlagsOffset);
 }
 
 
@@ -1179,30 +1188,50 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 }
 
 
+bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
+  if (FLAG_unbox_double_fields) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    int nof_descriptors = map->NumberOfOwnDescriptors();
+    for (int i = 0; i < nof_descriptors; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.type() != FIELD) continue;
+      FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
+      bool tagged_expected =
+          !field_index.is_inobject() || !details.representation().IsDouble();
+      for (int bit = 0; bit < details.field_width_in_words(); bit++) {
+        bool tagged_actual = IsTagged(details.field_index() + bit);
+        DCHECK_EQ(tagged_expected, tagged_actual);
+        if (tagged_actual != tagged_expected) return false;
+      }
+    }
+  }
+  return true;
+}
+
+
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK(valid_entries == -1);
   Name* prev_key = NULL;
-  bool prev_is_data_property = false;
+  PropertyKind prev_kind = DATA;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
     uint32_t hash = key->Hash();
-    bool is_data_property = false;
+    PropertyKind kind = DATA;
     PropertyAttributes attributes = NONE;
     if (!IsSpecialTransition(key)) {
       Map* target = GetTarget(i);
       PropertyDetails details = GetTargetDetails(key, target);
-      is_data_property = details.type() == FIELD || details.type() == CONSTANT;
+      kind = details.kind();
       attributes = details.attributes();
     } else {
       // Duplicate entries are not allowed for non-property transitions.
       CHECK_NE(prev_key, key);
     }
 
-    int cmp =
-        CompareKeys(prev_key, prev_hash, prev_is_data_property, prev_attributes,
-                    key, hash, is_data_property, attributes);
+    int cmp = CompareKeys(prev_key, prev_hash, prev_kind, prev_attributes, key,
+                          hash, kind, attributes);
     if (cmp >= 0) {
       Print();
       return false;
@@ -1210,7 +1239,7 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
     prev_key = key;
     prev_hash = hash;
     prev_attributes = attributes;
-    prev_is_data_property = is_data_property;
+    prev_kind = kind;
   }
   return true;
 }

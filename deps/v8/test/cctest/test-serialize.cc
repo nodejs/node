@@ -114,7 +114,7 @@ TEST(ExternalReferenceDecoder) {
 }
 
 
-void WritePayload(const List<byte>& payload, const char* file_name) {
+void WritePayload(const Vector<const byte>& payload, const char* file_name) {
   FILE* file = v8::base::OS::FOpen(file_name, "wb");
   if (file == NULL) {
     PrintF("Unable to write to snapshot file \"%s\"\n", file_name);
@@ -129,50 +129,12 @@ void WritePayload(const List<byte>& payload, const char* file_name) {
 }
 
 
-void WriteSpaceUsed(Serializer* ser, const char* file_name) {
-  int file_name_length = StrLength(file_name) + 10;
-  Vector<char> name = Vector<char>::New(file_name_length + 1);
-  SNPrintF(name, "%s.size", file_name);
-  FILE* fp = v8::base::OS::FOpen(name.start(), "w");
-  name.Dispose();
-
-  Vector<const uint32_t> chunks = ser->FinalAllocationChunks(NEW_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "new %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(OLD_POINTER_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "pointer %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(OLD_DATA_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "data %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(CODE_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "code %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(MAP_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "map %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(CELL_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "cell %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(PROPERTY_CELL_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "property cell %d\n", chunks[0]);
-  chunks = ser->FinalAllocationChunks(LO_SPACE);
-  CHECK_EQ(1, chunks.length());
-  fprintf(fp, "lo %d\n", chunks[0]);
-  fclose(fp);
-}
-
-
 static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   SnapshotByteSink sink;
   StartupSerializer ser(isolate, &sink);
   ser.Serialize();
-  ser.FinalizeAllocation();
-
-  WritePayload(sink.data(), snapshot_file);
-  WriteSpaceUsed(&ser, snapshot_file);
-
+  SnapshotData snapshot_data(sink, ser);
+  WritePayload(snapshot_data.RawData(), snapshot_file);
   return true;
 }
 
@@ -220,53 +182,14 @@ UNINITIALIZED_TEST(SerializeTwice) {
 //----------------------------------------------------------------------------
 // Tests that the heap can be deserialized.
 
-
-static void ReserveSpaceForSnapshot(Deserializer* deserializer,
-                                    const char* file_name) {
-  int file_name_length = StrLength(file_name) + 10;
-  Vector<char> name = Vector<char>::New(file_name_length + 1);
-  SNPrintF(name, "%s.size", file_name);
-  FILE* fp = v8::base::OS::FOpen(name.start(), "r");
-  name.Dispose();
-  int new_size, pointer_size, data_size, code_size, map_size, cell_size,
-      property_cell_size, lo_size;
-#if V8_CC_MSVC
-  // Avoid warning about unsafe fscanf from MSVC.
-  // Please note that this is only fine if %c and %s are not being used.
-#define fscanf fscanf_s
-#endif
-  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
-  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
-  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
-  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
-  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
-  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
-  CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
-  CHECK_EQ(1, fscanf(fp, "lo %d\n", &lo_size));
-#if V8_CC_MSVC
-#undef fscanf
-#endif
-  fclose(fp);
-  deserializer->AddReservation(NEW_SPACE, new_size);
-  deserializer->AddReservation(OLD_POINTER_SPACE, pointer_size);
-  deserializer->AddReservation(OLD_DATA_SPACE, data_size);
-  deserializer->AddReservation(CODE_SPACE, code_size);
-  deserializer->AddReservation(MAP_SPACE, map_size);
-  deserializer->AddReservation(CELL_SPACE, cell_size);
-  deserializer->AddReservation(PROPERTY_CELL_SPACE, property_cell_size);
-  deserializer->AddReservation(LO_SPACE, lo_size);
-}
-
-
 v8::Isolate* InitializeFromFile(const char* snapshot_file) {
   int len;
   byte* str = ReadBytes(snapshot_file, &len);
   if (!str) return NULL;
   v8::Isolate* v8_isolate = NULL;
   {
-    SnapshotByteSource source(str, len);
-    Deserializer deserializer(&source);
-    ReserveSpaceForSnapshot(&deserializer, snapshot_file);
+    SnapshotData snapshot_data(Vector<const byte>(str, len));
+    Deserializer deserializer(&snapshot_data);
     Isolate* isolate = Isolate::NewForTesting();
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -436,14 +359,11 @@ UNINITIALIZED_TEST(PartialSerialization) {
 
       startup_serializer.SerializeWeakReferences();
 
-      partial_serializer.FinalizeAllocation();
-      startup_serializer.FinalizeAllocation();
+      SnapshotData startup_snapshot(startup_sink, startup_serializer);
+      SnapshotData partial_snapshot(partial_sink, partial_serializer);
 
-      WritePayload(partial_sink.data(), FLAG_testing_serialization_file);
-      WritePayload(startup_sink.data(), startup_name.start());
-
-      WriteSpaceUsed(&partial_serializer, FLAG_testing_serialization_file);
-      WriteSpaceUsed(&startup_serializer, startup_name.start());
+      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+      WritePayload(startup_snapshot.RawData(), startup_name.start());
 
       startup_name.Dispose();
     }
@@ -473,9 +393,8 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
       Object* root;
       {
-        SnapshotByteSource source(snapshot, snapshot_size);
-        Deserializer deserializer(&source);
-        ReserveSpaceForSnapshot(&deserializer, file_name);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root);
         CHECK(root->IsString());
       }
@@ -485,9 +404,8 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 
       Object* root2;
       {
-        SnapshotByteSource source(snapshot, snapshot_size);
-        Deserializer deserializer(&source);
-        ReserveSpaceForSnapshot(&deserializer, file_name);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root2);
         CHECK(root2->IsString());
         CHECK(*root_handle == root2);
@@ -552,14 +470,11 @@ UNINITIALIZED_TEST(ContextSerialization) {
       partial_serializer.Serialize(&raw_context);
       startup_serializer.SerializeWeakReferences();
 
-      partial_serializer.FinalizeAllocation();
-      startup_serializer.FinalizeAllocation();
+      SnapshotData startup_snapshot(startup_sink, startup_serializer);
+      SnapshotData partial_snapshot(partial_sink, partial_serializer);
 
-      WritePayload(partial_sink.data(), FLAG_testing_serialization_file);
-      WritePayload(startup_sink.data(), startup_name.start());
-
-      WriteSpaceUsed(&partial_serializer, FLAG_testing_serialization_file);
-      WriteSpaceUsed(&startup_serializer, startup_name.start());
+      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+      WritePayload(startup_snapshot.RawData(), startup_name.start());
 
       startup_name.Dispose();
     }
@@ -588,9 +503,8 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
       Object* root;
       {
-        SnapshotByteSource source(snapshot, snapshot_size);
-        Deserializer deserializer(&source);
-        ReserveSpaceForSnapshot(&deserializer, file_name);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root);
         CHECK(root->IsContext());
       }
@@ -600,9 +514,8 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 
       Object* root2;
       {
-        SnapshotByteSource source(snapshot, snapshot_size);
-        Deserializer deserializer(&source);
-        ReserveSpaceForSnapshot(&deserializer, file_name);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root2);
         CHECK(root2->IsContext());
         CHECK(*root_handle != root2);
@@ -946,12 +859,15 @@ TEST(SerializeToplevelThreeBigStrings) {
   CHECK_EQ(600000 + 700000, CompileRun("(a + b).length")->Int32Value());
   CHECK_EQ(500000 + 600000, CompileRun("(b + c).length")->Int32Value());
   Heap* heap = isolate->heap();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("a")->ToString()),
-                      OLD_DATA_SPACE));
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("b")->ToString()),
-                      OLD_DATA_SPACE));
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("c")->ToString()),
-                      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("a")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("b")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("c")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
 
   delete cache;
   source_a.Dispose();
@@ -1208,7 +1124,7 @@ TEST(SerializeToplevelIsolates) {
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("abcdef")));
+    CHECK(result->ToString(isolate1)->Equals(v8_str("abcdef")));
   }
   isolate1->Dispose();
 
@@ -1231,15 +1147,16 @@ TEST(SerializeToplevelIsolates) {
       script = v8::ScriptCompiler::CompileUnbound(
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
     }
+    CHECK(!cache->rejected);
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("abcdef")));
+    CHECK(result->ToString(isolate2)->Equals(v8_str("abcdef")));
   }
   DCHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
 }
 
 
-TEST(Bug3628) {
+TEST(SerializeWithHarmonyScoping) {
   FLAG_serialize_toplevel = true;
   FLAG_harmony_scoping = true;
 
@@ -1273,7 +1190,7 @@ TEST(Bug3628) {
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("XY")));
+    CHECK(result->ToString(isolate1)->Equals(v8_str("XY")));
   }
   isolate1->Dispose();
 
@@ -1298,7 +1215,7 @@ TEST(Bug3628) {
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
     }
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("XY")));
+    CHECK(result->ToString(isolate2)->Equals(v8_str("XY")));
   }
   isolate2->Dispose();
 }

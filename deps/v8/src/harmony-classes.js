@@ -7,26 +7,29 @@
 // var $Function = global.Function;
 // var $Array = global.Array;
 
+"use strict";
 
-(function() {
-  function FunctionToMethod(homeObject) {
-    if (!IS_SPEC_FUNCTION(this)) {
-      throw MakeTypeError('toMethod_non_function',
-                          [%ToString(this), typeof this]);
+function FunctionToMethod(homeObject) {
+  if (!IS_SPEC_FUNCTION(this)) {
+    throw MakeTypeError('toMethod_non_function',
+                        [%ToString(this), typeof this]);
 
-    }
-
-    if (!IS_SPEC_OBJECT(homeObject)) {
-      throw MakeTypeError('toMethod_non_object',
-                          [%ToString(homeObject)]);
-    }
-
-    return %ToMethod(this, homeObject);
   }
 
+  if (!IS_SPEC_OBJECT(homeObject)) {
+    throw MakeTypeError('toMethod_non_object',
+                        [%ToString(homeObject)]);
+  }
+
+  return %ToMethod(this, homeObject);
+}
+
+function SetupHarmonyClasses() {
   %CheckIsBootstrapping();
 
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
       "toMethod", FunctionToMethod
   ));
-}());
+}
+
+SetupHarmonyClasses();

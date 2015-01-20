@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 var common = require('../common');
 var assert = require('assert');
 
@@ -857,6 +836,22 @@ var parseTests = {
     pathname: '%0D%0Ad/e',
     path: '%0D%0Ad/e?f',
     href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+  },
+
+  // git urls used by npm
+  'git+ssh://git@github.com:npm/npm': {
+    protocol: 'git+ssh:',
+    slashes: true,
+    auth: 'git',
+    host: 'github.com',
+    port: null,
+    hostname: 'github.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/:npm/npm',
+    path: '/:npm/npm',
+    href: 'git+ssh://git@github.com/:npm/npm'
   }
 
 };
@@ -1097,7 +1092,7 @@ var formatTests = {
 
   // `#`,`?` in path
   '/path/to/%%23%3F+=&.txt?foo=theA1#bar' : {
-    href: '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
+    href : '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'theA1'
@@ -1107,7 +1102,7 @@ var formatTests = {
 
   // `#`,`?` in path + `#` in query
   '/path/to/%%23%3F+=&.txt?foo=the%231#bar' : {
-    href: '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
+    href : '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'the#1'
@@ -1122,7 +1117,7 @@ var formatTests = {
     hostname: 'ex.com',
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
-    pathname: '/foo?100%m#r'
+    pathname: '/foo?100%m#r',
   },
 
   // `?` and `#` in search only
@@ -1132,77 +1127,8 @@ var formatTests = {
     hostname: 'ex.com',
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
-    pathname: '/fooA100%mBr'
-  },
-
-  // path
-  'http://github.com/joyent/node#js1': {
-    href: 'http://github.com/joyent/node#js1',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js1',
-    path: '/joyent/node'
-  },
-
-  // pathname vs. path, path wins
-  'http://github.com/joyent/node2#js1': {
-    href: 'http://github.com/joyent/node2#js1',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js1',
-    path: '/joyent/node2',
-    pathname: '/joyent/node'
-  },
-
-  // pathname with query/search
-  'http://github.com/joyent/node?foo=bar#js2': {
-    href: 'http://github.com/joyent/node?foo=bar#js2',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js2',
-    path: '/joyent/node?foo=bar'
-  },
-
-  // path vs. query, path wins
-  'http://github.com/joyent/node?foo=bar2#js3': {
-    href: 'http://github.com/joyent/node?foo=bar2#js3',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js3',
-    path: '/joyent/node?foo=bar2',
-    query: {foo: 'bar'}
-  },
-
-  // path vs. search, path wins
-  'http://github.com/joyent/node?foo=bar3#js4': {
-    href: 'http://github.com/joyent/node?foo=bar3#js4',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js4',
-    path: '/joyent/node?foo=bar3',
-    search: '?foo=bar'
-  },
-
-  // path is present without ? vs. query given
-  'http://github.com/joyent/node#js5': {
-    href: 'http://github.com/joyent/node#js5',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js5',
-    path: '/joyent/node',
-    query: {foo: 'bar'}
-  },
-
-  // path is present without ? vs. search given
-  'http://github.com/joyent/node#js6': {
-    href: 'http://github.com/joyent/node#js6',
-    protocol: 'http:',
-    hostname: 'github.com',
-    hash: '#js6',
-    path: '/joyent/node',
-    search: '?foo=bar'
+    pathname: '/fooA100%mBr',
   }
-
 };
 for (var u in formatTests) {
   var expect = formatTests[u].href;

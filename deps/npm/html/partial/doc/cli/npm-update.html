@@ -4,7 +4,9 @@
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command will update all the packages listed to the latest version
 (specified by the <code>tag</code> config).</p>
-<p>It will also install missing packages.</p>
+<p>It will also install missing packages. As with all commands that install
+packages, the <code>--dev</code> flag will cause <code>devDependencies</code> to be processed
+as well.</p>
 <p>If the <code>-g</code> flag is specified, this command will update globally installed
 packages.</p>
 <p>If no package name is specified, all packages in the specified location (global

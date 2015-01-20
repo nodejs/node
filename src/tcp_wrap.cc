@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "tcp_wrap.h"
 
 #include "env.h"
@@ -279,7 +258,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
 void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip_address(args[0]);
+  node::Utf8Value ip_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
@@ -294,7 +273,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip6_address(args[0]);
+  node::Utf8Value ip6_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
@@ -391,7 +370,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Uint32Value();
 
   sockaddr_in addr;
@@ -422,7 +401,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->Uint32Value());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Int32Value();
 
   sockaddr_in6 addr;

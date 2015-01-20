@@ -114,7 +114,7 @@
   V(JSCreateWithContext)      \
   V(JSCreateBlockContext)     \
   V(JSCreateModuleContext)    \
-  V(JSCreateGlobalContext)
+  V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V) \
   V(JSCallConstruct)        \
@@ -132,6 +132,7 @@
 
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_OP_LIST(V) \
+  V(AnyToBoolean)             \
   V(BooleanNot)               \
   V(BooleanToNumber)          \
   V(NumberEqual)              \
@@ -158,8 +159,10 @@
   V(ChangeBoolToBit)          \
   V(ChangeBitToBool)          \
   V(LoadField)                \
+  V(LoadBuffer)               \
   V(LoadElement)              \
   V(StoreField)               \
+  V(StoreBuffer)              \
   V(StoreElement)             \
   V(ObjectIsSmi)              \
   V(ObjectIsNonNegativeSmi)
@@ -232,7 +235,9 @@
   V(Float64Ceil)              \
   V(Float64RoundTruncate)     \
   V(Float64RoundTiesAway)     \
-  V(LoadStackPointer)
+  V(LoadStackPointer)         \
+  V(CheckedLoad)              \
+  V(CheckedStore)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \
@@ -264,18 +269,7 @@ class IrOpcode {
   };
 
   // Returns the mnemonic name of an opcode.
-  static const char* Mnemonic(Value val) {
-    // TODO(turbofan): make this a table lookup.
-    switch (val) {
-#define RETURN_NAME(x) \
-  case k##x:           \
-    return #x;
-      ALL_OP_LIST(RETURN_NAME)
-#undef RETURN_NAME
-      default:
-        return "UnknownOpcode";
-    }
-  }
+  static char const* Mnemonic(Value value);
 
   static bool IsJsOpcode(Value val) {
     switch (val) {

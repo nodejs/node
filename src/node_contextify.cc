@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
@@ -144,7 +123,8 @@ class ContextifyContext {
     HandleScope scope(env()->isolate());
 
     Local<Context> context = PersistentToLocal(env()->isolate(), context_);
-    Local<Object> global = context->Global()->GetPrototype()->ToObject();
+    Local<Object> global =
+        context->Global()->GetPrototype()->ToObject(env()->isolate());
     Local<Object> sandbox = PersistentToLocal(env()->isolate(), sandbox_);
 
     Local<Function> clone_property_method;
@@ -152,7 +132,7 @@ class ContextifyContext {
     Local<Array> names = global->GetOwnPropertyNames();
     int length = names->Length();
     for (int i = 0; i < length; i++) {
-      Local<String> key = names->Get(i)->ToString();
+      Local<String> key = names->Get(i)->ToString(env()->isolate());
       bool has = sandbox->HasOwnProperty(key);
       if (!has) {
         // Could also do this like so:
@@ -253,7 +233,7 @@ class ContextifyContext {
 
 
   static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
-    Local<String> script_source(args[0]->ToString());
+    Local<String> script_source(args[0]->ToString(args.GetIsolate()));
     if (script_source.IsEmpty())
       return;  // Exception pending.
     Context::Scope context_scope(Debug::GetDebugContext());
@@ -476,7 +456,7 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     TryCatch try_catch;
-    Local<String> code = args[0]->ToString();
+    Local<String> code = args[0]->ToString(env->isolate());
     Local<String> filename = GetFilenameArg(args, 1);
     bool display_errors = GetDisplayErrorsArg(args, 1);
     if (try_catch.HasCaught()) {
@@ -643,7 +623,9 @@ class ContextifyScript : public BaseObject {
     Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "filename");
     Local<Value> value = args[i].As<Object>()->Get(key);
 
-    return value->IsUndefined() ? defaultFilename : value->ToString();
+    if (value->IsUndefined())
+      return defaultFilename;
+    return value->ToString(args.GetIsolate());
   }
 
 

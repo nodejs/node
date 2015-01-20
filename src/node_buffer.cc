@@ -1,25 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 #include "node.h"
 #include "node_buffer.h"
 
@@ -336,7 +314,7 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> target = args[0]->ToObject();
+  Local<Object> target = args[0]->ToObject(env->isolate());
 
   if (!HasInstance(target))
     return env->ThrowTypeError("first arg should be a Buffer");
@@ -386,7 +364,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  node::Utf8Value str(args[1]);
+  node::Utf8Value str(args.GetIsolate(), args[1]);
   size_t str_length = str.length();
   size_t in_there = str_length;
   char* ptr = obj_data + start + str_length;
@@ -421,7 +399,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> str = args[0]->ToString();
+  Local<String> str = args[0]->ToString(env->isolate());
 
   if (encoding == HEX && str->Length() % 2 != 0)
     return env->ThrowTypeError("Invalid hex string");
@@ -583,7 +561,7 @@ void ByteLength(const FunctionCallbackInfo<Value> &args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> s = args[0]->ToString();
+  Local<String> s = args[0]->ToString(env->isolate());
   enum encoding e = ParseEncoding(env->isolate(), args[1], UTF8);
 
   uint32_t size = StringBytes::Size(env->isolate(), s, e);

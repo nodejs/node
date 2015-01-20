@@ -2,7 +2,6 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python
-NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -11,20 +10,14 @@ PREFIX ?= /usr/local
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
-NODE ?= ./node$(EXEEXT)
-NODE_EXE = node$(EXEEXT)
-NODE_G_EXE = node_g$(EXEEXT)
+NODE ?= ./iojs$(EXEEXT)
+NODE_EXE = iojs$(EXEEXT)
+NODE_G_EXE = iojs_g$(EXEEXT)
 
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
 # or set the V environment variable to an empty string.
 V ?= 1
-
-ifeq ($(USE_NINJA),1)
-ifneq ($(V),)
-NINJA := $(NINJA) -v
-endif
-endif
 
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
@@ -38,15 +31,6 @@ endif
 # to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
-ifeq ($(USE_NINJA),1)
-$(NODE_EXE): config.gypi
-	$(NINJA) -C out/Release/
-	ln -fs out/Release/$(NODE_EXE) $@
-
-$(NODE_G_EXE): config.gypi
-	$(NINJA) -C out/Debug/
-	ln -fs out/Debug/$(NODE_EXE) $@
-else
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	ln -fs out/Release/$(NODE_EXE) $@
@@ -54,15 +38,9 @@ $(NODE_EXE): config.gypi out/Makefile
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	ln -fs out/Debug/$(NODE_EXE) $@
-endif
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/toolchain.gypi deps/v8/build/features.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
-ifeq ($(USE_NINJA),1)
-	touch out/Makefile
-	$(PYTHON) tools/gyp_node.py -f ninja
-else
 	$(PYTHON) tools/gyp_node.py -f make
-endif
 
 config.gypi: configure
 	if [ -f $@ ]; then
@@ -84,10 +62,12 @@ clean:
 
 distclean:
 	-rm -rf out
-	-rm -f config.gypi
+	-rm -f config.gypi icu_config.gypi
 	-rm -f config.mk
 	-rm -rf $(NODE_EXE) $(NODE_G_EXE) blog.html email.md
 	-rm -rf node_modules
+	-rm -rf deps/icu
+	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 
 test: all
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
@@ -97,25 +77,20 @@ test: all
 test-parallel: all
 	$(PYTHON) tools/test.py --mode=release parallel -J
 
-test-http1: all
-	$(PYTHON) tools/test.py --mode=release --use-http1 sequential parallel message
-
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
-test/gc/node_modules/weak/build/Release/weakref.node:
-	@if [ ! -f $(NODE_EXE) ]; then make all; fi
+test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 	./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
-build-addons:
-	@if [ ! -f node ]; then make all; fi
+build-addons: $(NODE_EXE)
 	rm -rf test/addons/doc-*/
-	./node tools/doc/addon-verify.js
+	./$(NODE_EXE) tools/doc/addon-verify.js
 	$(foreach dir, \
 			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
-			./node deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+			./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 					--directory="$(shell pwd)/$(dir)" \
 					--nodedir="$(shell pwd)" && ) echo "build done"
 
@@ -126,13 +101,12 @@ test-build: all build-addons
 
 test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
-	make test-npm
-
-test-all-http1: test-build
-	$(PYTHON) tools/test.py --mode=debug,release --use-http1
 
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
+
+test-ci: test-build
+	$(PYTHON) tools/test.py -J parallel sequential message addons
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -161,7 +135,7 @@ test-npm: $(NODE_EXE)
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js install
+	     ../../$(NODE_EXE) cli.js install --ignore-scripts
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
@@ -191,11 +165,7 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-website_files = \
-	out/doc/sh_main.js    \
-	out/doc/sh_javascript.min.js
-
-doc: $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/ out/doc/changelog.html $(NODE_EXE)
+doc: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -203,7 +173,7 @@ $(apidoc_dirs):
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
-out/doc/changelog.html: ChangeLog doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
+out/doc/changelog.html: CHANGELOG.md doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
 	bash tools/build-changelog.sh
 
 out/doc/%: doc/%
@@ -215,22 +185,12 @@ out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
 out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
 	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
-email.md: ChangeLog tools/email-footer.md
+email.md: CHANGELOG.md tools/email-footer.md
 	bash tools/changelog-head.sh | sed 's|^\* #|* \\#|g' > $@
 	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
 
 blog.html: email.md
 	cat $< | ./$(NODE_EXE) tools/doc/node_modules/.bin/marked > $@
-
-website-upload: doc
-	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
-	ssh node@nodejs.org '\
-    rm -f ~/web/nodejs.org/dist/latest &&\
-    ln -s $(VERSION) ~/web/nodejs.org/dist/latest &&\
-    rm -f ~/web/nodejs.org/docs/latest &&\
-    ln -s $(VERSION) ~/web/nodejs.org/docs/latest &&\
-    rm -f ~/web/nodejs.org/dist/node-latest.tar.gz &&\
-    ln -s $(VERSION)/node-$(VERSION).tar.gz ~/web/nodejs.org/dist/node-latest.tar.gz'
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
@@ -240,8 +200,10 @@ docclean:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+FULLVERSION=$(VERSION)
 RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
 DESTCPU ?= x64
 else
@@ -256,20 +218,21 @@ else
 ARCH=x86
 endif
 endif
-TARNAME=node-$(VERSION)
 ifdef NIGHTLY
 TAG = nightly-$(NIGHTLY)
-TARNAME=node-$(VERSION)-$(TAG)
+FULLVERSION=$(VERSION)-$(TAG)
 endif
-TARBALL=$(TARNAME).tar.gz
+TARNAME=iojs-$(FULLVERSION)
+TARBALL=$(TARNAME).tar
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
-BINARYTAR=$(BINARYNAME).tar.gz
+BINARYTAR=$(BINARYNAME).tar
+XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
 ifdef NIGHTLY
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
+PKGSRC=iojs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
 endif
 
 dist: doc $(TARBALL) $(PKG)
@@ -309,12 +272,13 @@ $(PKG): release-only
 	$(PYTHON) ./configure --without-snapshot --dest-cpu=x64 --tag=$(TAG)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	lipo $(PKGDIR)/32/usr/local/bin/node \
-		$(PKGDIR)/usr/local/bin/node \
-		-output $(PKGDIR)/usr/local/bin/node-universal \
+	lipo $(PKGDIR)/32/usr/local/bin/iojs \
+		$(PKGDIR)/usr/local/bin/iojs \
+		-output $(PKGDIR)/usr/local/bin/iojs-universal \
 		-create
-	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
+	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
 	rm -rf $(PKGDIR)/32
+	cat tools/osx-pkg.pmdoc/index.xml.tmpl | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > tools/osx-pkg.pmdoc/index.xml
 	$(packagemaker) \
 		--id "org.nodejs.Node" \
 		--doc tools/osx-pkg.pmdoc \
@@ -324,14 +288,19 @@ $(PKG): release-only
 $(TARBALL): release-only $(NODE_EXE) doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc/api
-	cp doc/node.1 $(TARNAME)/doc/node.1
+	cp doc/iojs.1 $(TARNAME)/doc/iojs.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
 	rm -rf $(TARNAME)/deps/v8/test # too big
 	rm -rf $(TARNAME)/doc/images # too big
+	rm -rf $(TARNAME)/deps/zlib/contrib # too big, unused
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
-	gzip -f -9 $(TARNAME).tar
+	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
+ifeq ($(XZ), 0)
+	xz -c -f -9 $(TARNAME).tar > $(TARNAME).tar.xz
+endif
+	rm $(TARNAME).tar
 
 tar: $(TARBALL)
 
@@ -342,10 +311,14 @@ $(BINARYTAR): release-only
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
-	cp ChangeLog $(BINARYNAME)
+	cp CHANGELOG.md $(BINARYNAME)
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	rm -rf $(BINARYNAME)
-	gzip -f -9 $(BINARYNAME).tar
+	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
+ifeq ($(XZ), 0)
+	xz -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.xz
+endif
+	rm $(BINARYNAME).tar
 
 binary: $(BINARYTAR)
 
@@ -361,11 +334,6 @@ $(PKGSRC): release-only
 		-f packlist -I /opt/local -p dist -U $(PKGSRC)
 
 pkgsrc: $(PKGSRC)
-
-dist-upload: $(TARBALL) $(PKG)
-	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
-	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
-	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
 wrkclean:
 	$(MAKE) -C tools/wrk/ clean
@@ -413,10 +381,10 @@ bench-idle:
 	./$(NODE_EXE) benchmark/idle_clients.js &
 
 jslintfix:
-	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
 jslint:
-	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_dtrace.cc

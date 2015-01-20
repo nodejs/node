@@ -261,7 +261,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'libuv', u'libuv API documentation',
-   u'libuv contributors', 'libuv', 'Cross-platform asychronous I/O',
+   u'libuv contributors', 'libuv', 'Cross-platform asynchronous I/O',
    'Miscellaneous'),
 ]
 

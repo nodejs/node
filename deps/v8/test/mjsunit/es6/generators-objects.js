@@ -67,6 +67,8 @@ function TestGeneratorObject() {
   assertEquals("Generator", %_ClassOf(iter));
   assertEquals("[object Generator]", String(iter));
   assertEquals("[object Generator]", Object.prototype.toString.call(iter));
+  var gf = iter.__proto__.constructor;
+  assertEquals("[object GeneratorFunction]", Object.prototype.toString.call(gf));
   assertEquals([], Object.getOwnPropertyNames(iter));
   assertTrue(iter !== new g());
 }

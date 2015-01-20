@@ -925,9 +925,8 @@
                 'asm/x64-win32-masm/whrlpool/wp-x86_64.asm',
                 'asm/x64-win32-masm/modes/ghash-x86_64.asm',
                 'asm/x64-win32-masm/x86_64cpuid.asm',
-                # Non-generated asm
-                'openssl/crypto/bn/asm/x86_64-win32-masm.asm',
                 # No asm available
+                'openssl/crypto/bn/bn_asm.c',
                 'openssl/crypto/bf/bf_enc.c',
                 'openssl/crypto/cast/c_enc.c',
                 'openssl/crypto/camellia/cmll_misc.c',
@@ -1095,6 +1094,13 @@
       'PURIFY',
       '_REENTRANT',
 
+      # SSLv2 is known broken and has been superseded by SSLv3 for almost
+      # twenty years now.
+      'OPENSSL_NO_SSL2',
+
+      # SSLv3 is susceptible to downgrade attacks (POODLE.)
+      'OPENSSL_NO_SSL3',
+
       # Heartbeat is a TLS extension, that couldn't be turned off or
       # asked to be not advertised. Unfortunately this is unacceptable for
       # Microsoft's IIS, which seems to be ignoring whole ClientHello after
@@ -1107,6 +1113,11 @@
           'MK1MF_BUILD',
           'WIN32_LEAN_AND_MEAN',
           'OPENSSL_SYSNAME_WIN32',
+        ],
+        'msvs_disabled_warnings': [
+          4244, # conversion from 'signed type', possible loss of data
+          4267, # conversion from 'unsigned type', possible loss of data
+          4996, # 'GetVersionExA': was declared deprecated
         ],
       }, {
         'defines': [

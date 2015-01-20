@@ -10,12 +10,13 @@ tags
 doc/api.xml
 tmp/
 test/tmp*/
-node
-node_g
+iojs
+iojs_g
 *.swp
 .benchmark_reports
 /.project
 /.cproject
+icu_config.gypi
 
 /out
 
@@ -43,10 +44,14 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+/tools/osx-pkg.pmdoc/index.xml
 /test/addons/doc-*/
 email.md
 deps/v8-*
 deps/icu
+deps/icu*.zip
+deps/icu*.tgz
+deps/icu-tmp
 ./node_modules
 .svn/
 
@@ -62,7 +67,7 @@ deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
 
 # build/release artifacts
-/*.tar.gz
+/*.tar.*
 /SHASUMS*.txt*
 
 /tools/wrk/wrk

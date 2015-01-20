@@ -119,9 +119,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
       NameDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   const int kTypeAndReadOnlyMask =
-      (PropertyDetails::TypeField::kMask |
-       PropertyDetails::AttributesField::encode(READ_ONLY))
-      << kSmiTagSize;
+      PropertyDetails::TypeField::kMask |
+      PropertyDetails::AttributesField::encode(READ_ONLY);
   __ Test(Operand(elements, scratch1, times_pointer_size,
                   kDetailsOffset - kHeapObjectTag),
           Smi::FromInt(kTypeAndReadOnlyMask));
@@ -590,8 +589,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfNotUniqueNameInstanceType(r9, &slow_with_tagged_index);
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               key, rbx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, key, rbx, no_reg);
   // Cache miss.
   __ jmp(&miss);
 
@@ -763,11 +762,30 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-// A register that isn't one of the parameters to the load ic.
-static const Register LoadIC_TempRegister() { return rbx; }
+static void LoadIC_PushArgs(MacroAssembler* masm) {
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
+  if (FLAG_vector_ics) {
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    DCHECK(!rdi.is(receiver) && !rdi.is(name) && !rdi.is(slot) &&
+           !rdi.is(vector));
 
+    __ PopReturnAddressTo(rdi);
+    __ Push(receiver);
+    __ Push(name);
+    __ Push(slot);
+    __ Push(vector);
+    __ PushReturnAddressFrom(rdi);
+  } else {
+    DCHECK(!rbx.is(receiver) && !rbx.is(name));
 
-static const Register KeyedLoadIC_TempRegister() { return rbx; }
+    __ PopReturnAddressTo(rbx);
+    __ Push(receiver);
+    __ Push(name);
+    __ PushReturnAddressFrom(rbx);
+  }
+}
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
@@ -776,25 +794,26 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->load_miss(), 1);
 
-  __ PopReturnAddressTo(LoadIC_TempRegister());
-  __ Push(LoadDescriptor::ReceiverRegister());  // receiver
-  __ Push(LoadDescriptor::NameRegister());      // name
-  __ PushReturnAddressFrom(LoadIC_TempRegister());
+  LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kLoadIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
+  int arg_count = FLAG_vector_ics ? 4 : 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is on the stack.
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
+  DCHECK(!rbx.is(receiver) && !rbx.is(name));
 
-  __ PopReturnAddressTo(LoadIC_TempRegister());
-  __ Push(LoadDescriptor::ReceiverRegister());  // receiver
-  __ Push(LoadDescriptor::NameRegister());      // name
-  __ PushReturnAddressFrom(LoadIC_TempRegister());
+  __ PopReturnAddressTo(rbx);
+  __ Push(receiver);
+  __ Push(name);
+  __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
@@ -806,25 +825,26 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->keyed_load_miss(), 1);
 
-  __ PopReturnAddressTo(KeyedLoadIC_TempRegister());
-  __ Push(LoadDescriptor::ReceiverRegister());  // receiver
-  __ Push(LoadDescriptor::NameRegister());      // name
-  __ PushReturnAddressFrom(KeyedLoadIC_TempRegister());
+  LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
+  int arg_count = FLAG_vector_ics ? 4 : 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is on the stack.
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
+  DCHECK(!rbx.is(receiver) && !rbx.is(name));
 
-  __ PopReturnAddressTo(KeyedLoadIC_TempRegister());
-  __ Push(LoadDescriptor::ReceiverRegister());  // receiver
-  __ Push(LoadDescriptor::NameRegister());      // name
-  __ PushReturnAddressFrom(KeyedLoadIC_TempRegister());
+  __ PopReturnAddressTo(rbx);
+  __ Push(receiver);
+  __ Push(name);
+  __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
   __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
@@ -838,7 +858,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, flags, false, StoreDescriptor::ReceiverRegister(),
+      masm, Code::STORE_IC, flags, false, StoreDescriptor::ReceiverRegister(),
       StoreDescriptor::NameRegister(), rbx, no_reg);
 
   // Cache miss: Jump to runtime.

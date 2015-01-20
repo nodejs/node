@@ -24,7 +24,7 @@ MirrorRefCache.prototype.lookup = function(handle) {
   return this.refs_[handle];
 }
 
-function TestGeneratorMirror(g, test) {
+function TestGeneratorMirror(g, status, line, column, receiver) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(g);
   var serializer = debug.MakeMirrorSerializer();
@@ -44,41 +44,69 @@ function TestGeneratorMirror(g, test) {
   assertFalse(mirror.isPrimitive());
   assertEquals('Generator', mirror.className());
 
-  assertTrue(mirror.receiver().isUndefined());
+  assertEquals(receiver, mirror.receiver().value());
   assertEquals(generator, mirror.func().value());
 
-  test(mirror);
+  assertEquals(status, mirror.status());
+
+  // Note that line numbers are 0-based, not 1-based.
+  var loc = mirror.sourceLocation();
+  if (status === 'suspended') {
+    assertTrue(!!loc);
+    assertEquals(line, loc.line);
+    assertEquals(column, loc.column);
+  } else {
+    assertEquals(undefined, loc);
+  }
+
+  TestInternalProperties(mirror, status, receiver);
 }
 
-var iter = generator(function () {
-  assertEquals('running', debug.MakeMirror(iter).status());
-})
-
-// Note that line numbers are 0-based, not 1-based.
-function assertSourceLocation(loc, line, column) {
-  assertEquals(line, loc.line);
-  assertEquals(column, loc.column);
+function TestInternalProperties(mirror, status, receiver) {
+  var properties = mirror.internalProperties();
+  assertEquals(3, properties.length);
+  assertEquals("[[GeneratorStatus]]", properties[0].name());
+  assertEquals(status, properties[0].value().value());
+  assertEquals("[[GeneratorFunction]]", properties[1].name());
+  assertEquals(generator, properties[1].value().value());
+  assertEquals("[[GeneratorReceiver]]", properties[2].name());
+  assertEquals(receiver, properties[2].value().value());
 }
 
-TestGeneratorMirror(iter, function (mirror) {
-  assertEquals('suspended', mirror.status())
-  assertSourceLocation(mirror.sourceLocation(), 7, 19);
-});
-
-iter.next();
-TestGeneratorMirror(iter, function (mirror) {
-  assertEquals('suspended', mirror.status())
-  assertSourceLocation(mirror.sourceLocation(), 9, 2);
-});
-
-iter.next();
-TestGeneratorMirror(iter, function (mirror) {
-  assertEquals('suspended', mirror.status())
-  assertSourceLocation(mirror.sourceLocation(), 11, 2);
-});
-
-iter.next();
-TestGeneratorMirror(iter, function (mirror) {
-  assertEquals('closed', mirror.status())
+var iter = generator(function() {
+  var mirror = debug.MakeMirror(iter);
+  assertEquals('running', mirror.status());
   assertEquals(undefined, mirror.sourceLocation());
+  TestInternalProperties(mirror, 'running');
 });
+
+TestGeneratorMirror(iter, 'suspended', 7, 19);
+
+iter.next();
+TestGeneratorMirror(iter, 'suspended', 9, 2);
+
+iter.next();
+TestGeneratorMirror(iter, 'suspended', 11, 2);
+
+iter.next();
+TestGeneratorMirror(iter, 'closed');
+
+// Test generator with receiver.
+var obj = {foo: 42};
+var iter2 = generator.call(obj, function() {
+  var mirror = debug.MakeMirror(iter2);
+  assertEquals('running', mirror.status());
+  assertEquals(undefined, mirror.sourceLocation());
+  TestInternalProperties(mirror, 'running', obj);
+});
+
+TestGeneratorMirror(iter2, 'suspended', 7, 19, obj);
+
+iter2.next();
+TestGeneratorMirror(iter2, 'suspended', 9, 2, obj);
+
+iter2.next();
+TestGeneratorMirror(iter2, 'suspended', 11, 2, obj);
+
+iter2.next();
+TestGeneratorMirror(iter2, 'closed', 0, 0, obj);

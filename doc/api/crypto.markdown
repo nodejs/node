@@ -191,6 +191,16 @@ written data is used to compute the hash.  Once the writable side of
 the stream is ended, use the `read()` method to get the enciphered
 contents.  The legacy `update` and `final` methods are also supported.
 
+Note: `createCipher` derives keys with the OpenSSL function [EVP_BytesToKey][]
+with the digest algorithm set to MD5, one iteration, and no salt. The lack of
+salt allows dictionary attacks as the same password always creates the same key.
+The low iteration count and non-cryptographically secure hash algorithm allow
+passwords to be tested very rapidly.
+
+In line with OpenSSL's recommendation to use pbkdf2 instead of EVP_BytesToKey it
+is recommended you derive a key and iv yourself with [crypto.pbkdf2][] and to
+then use [createCipheriv()][] to create the cipher stream.
+
 ## crypto.createCipheriv(algorithm, key, iv)
 
 Creates and returns a cipher object, with the given algorithm, key and
@@ -756,3 +766,5 @@ temporary measure.
 [diffieHellman.setPublicKey()]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [RFC 2412]: http://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
+[crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_callback
+[EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html

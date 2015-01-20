@@ -288,8 +288,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 
     __ bind(&loop);
     __ ldr(temp1, MemOperand(src, 4, PostIndex));
-    __ uxtb16(temp3, Operand(temp1, ROR, 0));
-    __ uxtb16(temp4, Operand(temp1, ROR, 8));
+    __ uxtb16(temp3, temp1);
+    __ uxtb16(temp4, temp1, 8);
     __ pkhbt(temp1, temp3, Operand(temp4, LSL, 16));
     __ str(temp1, MemOperand(dest));
     __ pkhtb(temp1, temp4, Operand(temp3, ASR, 16));
@@ -301,9 +301,9 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     __ mov(chars, Operand(chars, LSL, 31), SetCC);  // bit0 => ne, bit1 => cs
     __ b(&not_two, cc);
     __ ldrh(temp1, MemOperand(src, 2, PostIndex));
-    __ uxtb(temp3, Operand(temp1, ROR, 8));
+    __ uxtb(temp3, temp1, 8);
     __ mov(temp3, Operand(temp3, LSL, 16));
-    __ uxtab(temp3, temp3, Operand(temp1, ROR, 0));
+    __ uxtab(temp3, temp3, temp1);
     __ str(temp3, MemOperand(dest, 4, PostIndex));
     __ bind(&not_two);
     __ ldrb(temp1, MemOperand(src), ne);

@@ -43,7 +43,7 @@
 
 
 /* Do platform-specific initialization. */
-void platform_init(int argc, char **argv) {
+int platform_init(int argc, char **argv) {
   const char* tap;
 
   tap = getenv("UV_TAP_OUTPUT");
@@ -66,6 +66,8 @@ void platform_init(int argc, char **argv) {
   setvbuf(stderr, NULL, _IONBF, 0);
 
   strcpy(executable_path, argv[0]);
+
+  return 0;
 }
 
 

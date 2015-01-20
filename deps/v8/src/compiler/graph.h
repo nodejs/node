@@ -8,7 +8,6 @@
 #include <map>
 #include <set>
 
-#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/source-position.h"
@@ -17,10 +16,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class GraphDecorator;
 
 
-class Graph : public GenericGraph<Node> {
+class Graph : public ZoneObject {
  public:
   explicit Graph(Zone* zone);
 
@@ -30,7 +30,7 @@ class Graph : public GenericGraph<Node> {
 
   // Factories for nodes with static input counts.
   Node* NewNode(const Operator* op) {
-    return NewNode(op, 0, static_cast<Node**>(NULL));
+    return NewNode(op, 0, static_cast<Node**>(nullptr));
   }
   Node* NewNode(const Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
   Node* NewNode(const Operator* op, Node* n1, Node* n2) {
@@ -62,13 +62,17 @@ class Graph : public GenericGraph<Node> {
   }
 
   template <class Visitor>
-  void VisitNodeUsesFrom(Node* node, Visitor* visitor);
+  inline void VisitNodeInputsFromEnd(Visitor* visitor);
 
-  template <class Visitor>
-  void VisitNodeUsesFromStart(Visitor* visitor);
+  Zone* zone() const { return zone_; }
+  Node* start() const { return start_; }
+  Node* end() const { return end_; }
 
-  template <class Visitor>
-  void VisitNodeInputsFromEnd(Visitor* visitor);
+  void SetStart(Node* start) { start_ = start; }
+  void SetEnd(Node* end) { end_ = end; }
+
+  NodeId NextNodeID() { return next_node_id_++; }
+  NodeId NodeCount() const { return next_node_id_; }
 
   void Decorate(Node* node);
 
@@ -84,10 +88,56 @@ class Graph : public GenericGraph<Node> {
   }
 
  private:
+  template <typename State>
+  friend class NodeMarker;
+
+  Zone* zone_;
+  Node* start_;
+  Node* end_;
+  Mark mark_max_;
+  NodeId next_node_id_;
   ZoneVector<GraphDecorator*> decorators_;
+
+  DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 
 
+// A NodeMarker uses monotonically increasing marks to assign local "states"
+// to nodes. Only one NodeMarker per graph is valid at a given time.
+template <typename State>
+class NodeMarker BASE_EMBEDDED {
+ public:
+  NodeMarker(Graph* graph, uint32_t num_states)
+      : mark_min_(graph->mark_max_), mark_max_(graph->mark_max_ += num_states) {
+    DCHECK(num_states > 0);         // user error!
+    DCHECK(mark_max_ > mark_min_);  // check for wraparound.
+  }
+
+  State Get(Node* node) {
+    Mark mark = node->mark();
+    if (mark < mark_min_) {
+      mark = mark_min_;
+      node->set_mark(mark_min_);
+    }
+    DCHECK_LT(mark, mark_max_);
+    return static_cast<State>(mark - mark_min_);
+  }
+
+  void Set(Node* node, State state) {
+    Mark local = static_cast<Mark>(state);
+    DCHECK(local < (mark_max_ - mark_min_));
+    DCHECK_LT(node->mark(), mark_max_);
+    node->set_mark(local + mark_min_);
+  }
+
+ private:
+  Mark mark_min_;
+  Mark mark_max_;
+};
+
+
+// A graph decorator can be used to add behavior to the creation of nodes
+// in a graph.
 class GraphDecorator : public ZoneObject {
  public:
   virtual ~GraphDecorator() {}

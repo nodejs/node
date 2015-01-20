@@ -287,6 +287,7 @@ Instruction::Type Instruction::InstructionType() const {
       switch (FunctionFieldRaw()) {
         case INS:
         case EXT:
+        case DEXT:
           return kRegisterType;
         default:
           return kUnsupported;

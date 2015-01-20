@@ -86,7 +86,7 @@ class StructuredGraphBuilder : public GraphBuilder {
  public:
   StructuredGraphBuilder(Zone* zone, Graph* graph,
                          CommonOperatorBuilder* common);
-  virtual ~StructuredGraphBuilder() {}
+  ~StructuredGraphBuilder() OVERRIDE {}
 
   // Creates a new Phi node having {count} input values.
   Node* NewPhi(int count, Node* input, Node* control);
@@ -114,8 +114,8 @@ class StructuredGraphBuilder : public GraphBuilder {
   // The following method creates a new node having the specified operator and
   // ensures effect and control dependencies are wired up. The dependencies
   // tracked by the environment might be mutated.
-  virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs, bool incomplete) FINAL;
+  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
+                 bool incomplete) FINAL;
 
   Environment* environment() const { return environment_; }
   void set_environment(Environment* env) { environment_ = env; }

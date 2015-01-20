@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -130,7 +109,7 @@ class ProcessWrap : public HandleWrap {
 
     ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
 
-    Local<Object> js_options = args[0]->ToObject();
+    Local<Object> js_options = args[0]->ToObject(env->isolate());
 
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
@@ -167,7 +146,8 @@ class ProcessWrap : public HandleWrap {
 
     // options.file
     Local<Value> file_v = js_options->Get(env->file_string());
-    node::Utf8Value file(file_v->IsString() ? file_v : Local<Value>());
+    node::Utf8Value file(env->isolate(),
+                         file_v->IsString() ? file_v : Local<Value>());
     if (file.length() > 0) {
       options.file = *file;
     } else {
@@ -182,7 +162,7 @@ class ProcessWrap : public HandleWrap {
       // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
-        node::Utf8Value arg(js_argv->Get(i));
+        node::Utf8Value arg(env->isolate(), js_argv->Get(i));
         options.args[i] = strdup(*arg);
       }
       options.args[argc] = nullptr;
@@ -190,7 +170,8 @@ class ProcessWrap : public HandleWrap {
 
     // options.cwd
     Local<Value> cwd_v = js_options->Get(env->cwd_string());
-    node::Utf8Value cwd(cwd_v->IsString() ? cwd_v : Local<Value>());
+    node::Utf8Value cwd(env->isolate(),
+                        cwd_v->IsString() ? cwd_v : Local<Value>());
     if (cwd.length() > 0) {
       options.cwd = *cwd;
     }
@@ -198,11 +179,11 @@ class ProcessWrap : public HandleWrap {
     // options.env
     Local<Value> env_v = js_options->Get(env->env_pairs_string());
     if (!env_v.IsEmpty() && env_v->IsArray()) {
-      Local<Array> env = Local<Array>::Cast(env_v);
-      int envc = env->Length();
+      Local<Array> env_opt = Local<Array>::Cast(env_v);
+      int envc = env_opt->Length();
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
-        node::Utf8Value pair(env->Get(i));
+        node::Utf8Value pair(env->isolate(), env_opt->Get(i));
         options.env[i] = strdup(*pair);
       }
       options.env[envc] = nullptr;

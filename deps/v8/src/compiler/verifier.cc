@@ -11,8 +11,6 @@
 
 #include "src/bit-vector.h"
 #include "src/compiler/generic-algorithm.h"
-#include "src/compiler/generic-node-inl.h"
-#include "src/compiler/generic-node.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
@@ -178,11 +176,11 @@ void Verifier::Visitor::Pre(Node* node) {
 
   // Verify all successors are projections if multiple value outputs exist.
   if (node->op()->ValueOutputCount() > 1) {
-    Node::Uses uses = node->uses();
-    for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
-      CHECK(!NodeProperties::IsValueEdge(it.edge()) ||
-            (*it)->opcode() == IrOpcode::kProjection ||
-            (*it)->opcode() == IrOpcode::kParameter);
+    for (Edge edge : node->use_edges()) {
+      Node* use = edge.from();
+      CHECK(!NodeProperties::IsValueEdge(edge) ||
+            use->opcode() == IrOpcode::kProjection ||
+            use->opcode() == IrOpcode::kParameter);
     }
   }
 
@@ -291,7 +289,7 @@ void Verifier::Visitor::Pre(Node* node) {
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
       // Type can be anything represented as a heap pointer.
-      CheckUpperIs(node, Type::TaggedPtr());
+      CheckUpperIs(node, Type::TaggedPointer());
       break;
     case IrOpcode::kExternalConstant:
       // Constants have no inputs.
@@ -460,7 +458,7 @@ void Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSCreateBlockContext:
     case IrOpcode::kJSCreateModuleContext:
-    case IrOpcode::kJSCreateGlobalContext: {
+    case IrOpcode::kJSCreateScriptContext: {
       // Type is Context, and operand is Internal.
       Node* context = NodeProperties::GetContextInput(node);
       // TODO(rossberg): This should really be Is(Internal), but the typer
@@ -484,6 +482,10 @@ void Verifier::Visitor::Pre(Node* node) {
 
     // Simplified operators
     // -------------------------------
+    case IrOpcode::kAnyToBoolean:
+      // Type is Boolean.
+      CheckUpperIs(node, Type::Boolean());
+      break;
     case IrOpcode::kBooleanNot:
       // Boolean -> Boolean
       CheckValueInputIs(node, 0, Type::Boolean());
@@ -635,6 +637,8 @@ void Verifier::Visitor::Pre(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckUpperIs(node, Field(node).type));
       break;
+    case IrOpcode::kLoadBuffer:
+      break;
     case IrOpcode::kLoadElement:
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
@@ -647,6 +651,8 @@ void Verifier::Visitor::Pre(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckValueInputIs(node, 1, Field(node).type));
       CheckNotTyped(node);
+      break;
+    case IrOpcode::kStoreBuffer:
       break;
     case IrOpcode::kStoreElement:
       // (Object, elementtype) -> _|_
@@ -725,6 +731,8 @@ void Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
     case IrOpcode::kLoadStackPointer:
+    case IrOpcode::kCheckedLoad:
+    case IrOpcode::kCheckedStore:
       // TODO(rossberg): Check.
       break;
   }

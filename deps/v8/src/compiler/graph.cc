@@ -5,7 +5,6 @@
 #include "src/compiler/graph.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-aux-data-inl.h"
@@ -13,13 +12,18 @@
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
+Graph::Graph(Zone* zone)
+    : zone_(zone),
+      start_(NULL),
+      end_(NULL),
+      mark_max_(0),
+      next_node_id_(0),
+      decorators_(zone) {}
 
 
 void Graph::Decorate(Node* node) {
@@ -32,7 +36,7 @@ void Graph::Decorate(Node* node) {
 
 Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
                      bool incomplete) {
-  DCHECK_LE(op->InputCount(), input_count);
+  DCHECK_LE(op->ValueInputCount(), input_count);
   Node* result = Node::New(this, input_count, inputs, incomplete);
   result->Initialize(op);
   if (!incomplete) {

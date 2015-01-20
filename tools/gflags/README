@@ -1,0 +1,23 @@
+This repository contains a python implementation of the Google commandline
+flags module.
+
+ GFlags defines a *distributed* command line system, replacing systems like
+ getopt(), optparse and manual argument processing. Rather than an application
+ having to define all flags in or near main(), each python module defines flags
+ that are useful to it.  When one python module imports another, it gains
+ access to the other's flags.
+
+ It includes the ability to define flag types (boolean, float, interger, list),
+ autogeneration of help (in both human and machine readable format) and reading
+ arguments from a file. It also includes the ability to automatically generate
+ man pages from the help flags.
+
+Documentation for implementation is at the top of gflags.py file.
+
+To install the python module, run
+   python ./setup.py install
+
+When you install this library, you also get a helper application,
+gflags2man.py, installed into /usr/local/bin.  You can run gflags2man.py to
+create an instant man page, with all the commandline flags and their docs, for
+any C++ or python program you've written using the gflags library.

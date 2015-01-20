@@ -310,10 +310,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   int expected_slots = 0;
-  int expected_ic_slots = FLAG_vector_ics ? 2 : 1;
+  int expected_ic_slots = 1;
   CHECK_EQ(expected_slots, feedback_vector->Slots());
   CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
-  FeedbackVectorICSlot slot_for_a(FLAG_vector_ics ? 1 : 0);
+  FeedbackVectorICSlot slot_for_a(0);
   CHECK(feedback_vector->Get(slot_for_a)->IsJSFunction());
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
@@ -348,20 +348,19 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("morphing_call"))));
 
+  // Not compiled, and so no feedback vector allocated yet.
+  CHECK(!f->shared()->is_compiled());
+  CHECK_EQ(0, f->shared()->feedback_vector()->Slots());
+  CHECK_EQ(0, f->shared()->feedback_vector()->ICSlots());
+
+  CompileRun("morphing_call();");
+
+  // Now a feedback vector is allocated.
+  CHECK(f->shared()->is_compiled());
   int expected_slots = 0;
   int expected_ic_slots = FLAG_vector_ics ? 2 : 1;
   CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
   CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
-
-  // And yet it's not compiled.
-  CHECK(!f->shared()->is_compiled());
-
-  CompileRun("morphing_call();");
-
-  // The vector should have the same size despite the new scoping.
-  CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
-  CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
-  CHECK(f->shared()->is_compiled());
 }
 
 

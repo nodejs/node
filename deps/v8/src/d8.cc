@@ -8,10 +8,6 @@
 #define V8_SHARED
 #endif
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#include <bzlib.h>
-#endif
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -617,7 +613,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int exit_code = args[0]->Int32Value();
-  OnExit();
+  OnExit(args.GetIsolate());
   exit(exit_code);
 }
 
@@ -855,7 +851,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
   i::Vector<const char> shell_source =
-      i::NativesCollection<i::D8>::GetRawScriptSource(source_index);
+      i::NativesCollection<i::D8>::GetScriptSource(source_index);
   i::Vector<const char> shell_source_name =
       i::NativesCollection<i::D8>::GetScriptName(source_index);
   Handle<String> source =
@@ -881,34 +877,6 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   if (i::FLAG_debugger) v8::Debug::SetDebugEventListener(HandleDebugEvent);
 }
 #endif  // !V8_SHARED
-
-
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-class BZip2Decompressor : public v8::StartupDataDecompressor {
- public:
-  virtual ~BZip2Decompressor() { }
-
- protected:
-  virtual int DecompressData(char* raw_data,
-                             int* raw_data_size,
-                             const char* compressed_data,
-                             int compressed_data_size) {
-    DCHECK_EQ(v8::StartupData::kBZip2,
-              v8::V8::GetCompressedStartupDataAlgorithm());
-    unsigned int decompressed_size = *raw_data_size;
-    int result =
-        BZ2_bzBuffToBuffDecompress(raw_data,
-                                   &decompressed_size,
-                                   const_cast<char*>(compressed_data),
-                                   compressed_data_size,
-                                   0, 1);
-    if (result == BZ_OK) {
-      *raw_data_size = decompressed_size;
-    }
-    return result;
-  }
-};
-#endif
 
 
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
@@ -967,15 +935,6 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 
 
 void Shell::Initialize(Isolate* isolate) {
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-  BZip2Decompressor startup_data_decompressor;
-  int bz2_result = startup_data_decompressor.Decompress();
-  if (bz2_result != BZ_OK) {
-    fprintf(stderr, "bzip error code: %d\n", bz2_result);
-    Exit(1);
-  }
-#endif
-
 #ifndef V8_SHARED
   Shell::counter_map_ = new CounterMap();
   // Set up counters
@@ -1054,10 +1013,11 @@ inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
 #endif  // !V8_SHARED
 
 
-void Shell::OnExit() {
+void Shell::OnExit(v8::Isolate* isolate) {
   LineEditor* line_editor = LineEditor::Get();
   if (line_editor) line_editor->Close();
 #ifndef V8_SHARED
+  reinterpret_cast<i::Isolate*>(isolate)->DumpAndResetCompilationStats();
   if (i::FLAG_dump_counters) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1579,25 +1539,30 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  virtual void* Allocate(size_t) OVERRIDE {
-    return malloc(0);
-  }
-  virtual void* AllocateUninitialized(size_t length) OVERRIDE {
-    return malloc(0);
-  }
-  virtual void Free(void* p, size_t) OVERRIDE {
-    free(p);
-  }
+  void* Allocate(size_t) OVERRIDE { return malloc(0); }
+  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(0); }
+  void Free(void* p, size_t) OVERRIDE { free(p); }
 };
 
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 class StartupDataHandler {
  public:
-  StartupDataHandler(const char* natives_blob,
+  StartupDataHandler(const char* exec_path, const char* natives_blob,
                      const char* snapshot_blob) {
-    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
-    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
+    // If we have (at least one) explicitly given blob, use those.
+    // If not, use the default blob locations next to the d8 binary.
+    if (natives_blob || snapshot_blob) {
+      LoadFromFiles(natives_blob, snapshot_blob);
+    } else {
+      char* natives;
+      char* snapshot;
+      LoadFromFiles(RelativePath(&natives, exec_path, "natives_blob.bin"),
+                    RelativePath(&snapshot, exec_path, "snapshot_blob.bin"));
+
+      free(natives);
+      free(snapshot);
+    }
   }
 
   ~StartupDataHandler() {
@@ -1606,11 +1571,32 @@ class StartupDataHandler {
   }
 
  private:
+  static char* RelativePath(char** buffer, const char* exec_path,
+                            const char* name) {
+    DCHECK(exec_path);
+    const char* last_slash = strrchr(exec_path, '/');
+    if (last_slash) {
+      int after_slash = last_slash - exec_path + 1;
+      int name_length = static_cast<int>(strlen(name));
+      *buffer =
+          reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
+      strncpy(*buffer, exec_path, after_slash);
+      strncat(*buffer, name, name_length);
+    } else {
+      *buffer = strdup(name);
+    }
+    return *buffer;
+  }
+
+  void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
+    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
+    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
+  }
+
   void Load(const char* blob_file,
             v8::StartupData* startup_data,
             void (*setter_fn)(v8::StartupData*)) {
     startup_data->data = NULL;
-    startup_data->compressed_size = 0;
     startup_data->raw_size = 0;
 
     if (!blob_file)
@@ -1625,13 +1611,12 @@ class StartupDataHandler {
     rewind(file);
 
     startup_data->data = new char[startup_data->raw_size];
-    startup_data->compressed_size = fread(
-        const_cast<char*>(startup_data->data), 1, startup_data->raw_size,
-        file);
+    int read_size =
+        static_cast<int>(fread(const_cast<char*>(startup_data->data), 1,
+                               startup_data->raw_size, file));
     fclose(file);
 
-    if (startup_data->raw_size == startup_data->compressed_size)
-      (*setter_fn)(startup_data);
+    if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
   }
 
   v8::StartupData natives_;
@@ -1666,7 +1651,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  StartupDataHandler startup_data(options.natives_blob, options.snapshot_blob);
+  StartupDataHandler startup_data(argv[0], options.natives_blob,
+                                  options.snapshot_blob);
 #endif
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
@@ -1746,6 +1732,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  OnExit(isolate);
 #ifndef V8_SHARED
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
@@ -1758,8 +1745,6 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete platform;
-
-  OnExit();
 
   return result;
 }

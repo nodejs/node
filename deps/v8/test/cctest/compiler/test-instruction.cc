@@ -33,9 +33,8 @@ class InstructionTester : public HandleAndZoneScope {
         info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
         linkage(zone(), &info),
         common(zone()),
+        machine(zone()),
         code(NULL) {}
-
-  ~InstructionTester() { delete code; }
 
   Isolate* isolate;
   Graph graph;
@@ -51,13 +50,12 @@ class InstructionTester : public HandleAndZoneScope {
   void allocCode() {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
-      ZonePool zone_pool(isolate);
-      Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
+      Scheduler::ComputeSpecialRPO(main_zone(), &schedule);
       DCHECK(schedule.rpo_order()->size() > 0);
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new TestInstrSeq(main_zone(), instruction_blocks);
+    code = new (main_zone()) TestInstrSeq(main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {

@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node.h"
 #include "node_buffer.h"
 #include "node_constants.h"
@@ -757,7 +736,7 @@ Local<Value> ErrnoException(Isolate* isolate,
     e = Exception::Error(cons2);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
@@ -819,7 +798,7 @@ Local<Value> UVException(Isolate* isolate,
     e = Exception::Error(cons2);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   // TODO(piscisaureus) errno should probably go
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
@@ -899,7 +878,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     e = Exception::Error(message);
   }
 
-  Local<Object> obj = e->ToObject();
+  Local<Object> obj = e->ToObject(env->isolate());
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
   if (path != nullptr) {
@@ -1177,7 +1156,7 @@ enum encoding ParseEncoding(Isolate* isolate,
   if (!encoding_v->IsString())
     return _default;
 
-  node::Utf8Value encoding(encoding_v);
+  node::Utf8Value encoding(isolate, encoding_v);
 
   if (strcasecmp(*encoding, "utf8") == 0) {
     return UTF8;
@@ -1275,11 +1254,11 @@ void AppendExceptionLine(Environment* env,
   char arrow[1024];
 
   // Print (filename):(line number): (message).
-  node::Utf8Value filename(message->GetScriptResourceName());
+  node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber();
   // Print line of source code.
-  node::Utf8Value sourceline(message->GetSourceLine());
+  node::Utf8Value sourceline(env->isolate(), message->GetSourceLine());
   const char* sourceline_string = *sourceline;
 
   // Because of how node modules work, all scripts are wrapped with a
@@ -1350,9 +1329,9 @@ void AppendExceptionLine(Environment* env,
     goto print;
 
   err_obj->Set(env->message_string(),
-               String::Concat(arrow_str, msg->ToString()));
+               String::Concat(arrow_str, msg->ToString(env->isolate())));
   err_obj->Set(env->stack_string(),
-               String::Concat(arrow_str, stack->ToString()));
+               String::Concat(arrow_str, stack->ToString(env->isolate())));
   return;
 
  print:
@@ -1376,9 +1355,9 @@ static void ReportException(Environment* env,
   if (er->IsUndefined() || er->IsNull())
     trace_value = Undefined(env->isolate());
   else
-    trace_value = er->ToObject()->Get(env->stack_string());
+    trace_value = er->ToObject(env->isolate())->Get(env->stack_string());
 
-  node::Utf8Value trace(trace_value);
+  node::Utf8Value trace(env->isolate(), trace_value);
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
@@ -1401,11 +1380,11 @@ static void ReportException(Environment* env,
         name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
-      node::Utf8Value message(er);
+      node::Utf8Value message(env->isolate(), er);
       fprintf(stderr, "%s\n", *message);
     } else {
-      node::Utf8Value name_string(name);
-      node::Utf8Value message_string(message);
+      node::Utf8Value name_string(env->isolate(), name);
+      node::Utf8Value message_string(env->isolate(), message);
       fprintf(stderr, "%s: %s\n", *name_string, *message_string);
     }
   }
@@ -1499,11 +1478,10 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    // FIXME(bnoordhuis) ThrowTypeError?
-    return env->ThrowError("Bad argument.");
+    return env->ThrowTypeError("Bad argument.");
   }
 
-  node::Utf8Value path(args[0]);
+  node::Utf8Value path(args.GetIsolate(), args[0]);
   int err = uv_chdir(*path);
   if (err) {
     return env->ThrowUVException(err, "uv_chdir");
@@ -1549,7 +1527,7 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
       oct = args[0]->Uint32Value();
     } else {
       oct = 0;
-      node::Utf8Value str(args[0]);
+      node::Utf8Value str(env->isolate(), args[0]);
 
       // Parse the octal string.
       for (size_t i = 0; i < str.length(); i++) {
@@ -1656,7 +1634,8 @@ static uid_t uid_by_name(Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<uid_t>(value->Uint32Value());
   } else {
-    node::Utf8Value name(value);
+    // TODO(trevnorris): Fix to not use GetCurrent().
+    node::Utf8Value name(Isolate::GetCurrent(), value);
     return uid_by_name(*name);
   }
 }
@@ -1666,7 +1645,8 @@ static gid_t gid_by_name(Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<gid_t>(value->Uint32Value());
   } else {
-    node::Utf8Value name(value);
+    // TODO(trevnorris): Fix to not use GetCurrent().
+    node::Utf8Value name(Isolate::GetCurrent(), value);
     return gid_by_name(*name);
   }
 }
@@ -1802,7 +1782,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("argument 2 must be a number or a string");
   }
 
-  node::Utf8Value arg0(args[0]);
+  node::Utf8Value arg0(env->isolate(), args[0]);
   gid_t extra_group;
   bool must_free;
   char* user;
@@ -1983,13 +1963,13 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() < 2) {
+  if (args.Length() != 2) {
     env->ThrowError("process.dlopen takes exactly 2 arguments.");
     return;
   }
 
-  Local<Object> module = args[0]->ToObject();  // Cast
-  node::Utf8Value filename(args[1]);  // Cast
+  Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
+  node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   const bool is_dlopen_error = uv_dlopen(*filename, &lib);
 
   // Objects containing v14 or later modules will have registered themselves
@@ -2002,7 +1982,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
-    errmsg = String::Concat(errmsg, args[1]->ToString());
+    errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
 #endif  // _WIN32
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
@@ -2031,7 +2011,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   modlist_addon = mp;
 
   Local<String> exports_string = env->exports_string();
-  Local<Object> exports = module->Get(exports_string)->ToObject();
+  Local<Object> exports = module->Get(exports_string)->ToObject(env->isolate());
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
@@ -2123,14 +2103,14 @@ void OnMessage(Handle<Message> message, Handle<Value> error) {
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module = args[0]->ToString();
-  node::Utf8Value module_v(module);
+  Local<String> module = args[0]->ToString(env->isolate());
+  node::Utf8Value module_v(env->isolate(), module);
 
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
 
   if (cache->Has(module)) {
-    exports = cache->Get(module)->ToObject();
+    exports = cache->Get(module)->ToObject(env->isolate());
     args.GetReturnValue().Set(exports);
     return;
   }
@@ -2176,7 +2156,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module = args[0]->ToString();
+  Local<String> module = args[0]->ToString(env->isolate());
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module);
@@ -2184,7 +2164,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   if (exports_v->IsObject())
     return args.GetReturnValue().Set(exports_v.As<Object>());
 
-  node::Utf8Value module_v(module);
+  node::Utf8Value module_v(env->isolate(), module);
   node_module* mod = get_linked_module(*module_v);
 
   if (mod == nullptr) {
@@ -2229,7 +2209,7 @@ static void ProcessTitleSetter(Local<String> property,
                                const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
-  node::Utf8Value title(value);
+  node::Utf8Value title(env->isolate(), value);
   // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
 }
@@ -2240,7 +2220,7 @@ static void EnvGetter(Local<String> property,
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
-  node::Utf8Value key(property);
+  node::Utf8Value key(env->isolate(), property);
   const char* val = getenv(*key);
   if (val) {
     return info.GetReturnValue().Set(String::NewFromUtf8(env->isolate(), val));
@@ -2273,8 +2253,8 @@ static void EnvSetter(Local<String> property,
   Environment* env = Environment::GetCurrent(info.GetIsolate());
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
-  node::Utf8Value key(property);
-  node::Utf8Value val(value);
+  node::Utf8Value key(env->isolate(), property);
+  node::Utf8Value val(env->isolate(), value);
   setenv(*key, *val, 1);
 #else  // _WIN32
   String::Value key(property);
@@ -2296,7 +2276,7 @@ static void EnvQuery(Local<String> property,
   HandleScope scope(env->isolate());
   int32_t rc = -1;  // Not found unless proven otherwise.
 #ifdef __POSIX__
-  node::Utf8Value key(property);
+  node::Utf8Value key(env->isolate(), property);
   if (getenv(*key))
     rc = 0;
 #else  // _WIN32
@@ -2324,7 +2304,7 @@ static void EnvDeleter(Local<String> property,
   HandleScope scope(env->isolate());
   bool rc = true;
 #ifdef __POSIX__
-  node::Utf8Value key(property);
+  node::Utf8Value key(env->isolate(), property);
   rc = getenv(*key) != nullptr;
   if (rc)
     unsetenv(*key);
@@ -2590,6 +2570,9 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "zlib",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  READONLY_PROPERTY(versions,
+                    "ares",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
@@ -2621,12 +2604,12 @@ void SetupProcessObject(Environment* env,
 #endif
 
   // process.arch
-  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), ARCH));
+  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
 
   // process.platform
   READONLY_PROPERTY(process,
                     "platform",
-                    OneByteString(env->isolate(), PLATFORM));
+                    OneByteString(env->isolate(), NODE_PLATFORM));
 
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
@@ -2783,7 +2766,7 @@ static void SignalExit(int signo) {
 static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
-  node::Utf8Value message(args[0]);
+  node::Utf8Value message(args.GetIsolate(), args[0]);
   fprintf(stderr, "%s\n", *message);
   fflush(stderr);
 }
@@ -2792,8 +2775,8 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
-  V8::SetFatalErrorHandler(node::OnFatalError);
-  V8::AddMessageListener(OnMessage);
+  env->isolate()->SetFatalErrorHandler(node::OnFatalError);
+  env->isolate()->AddMessageListener(OnMessage);
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
@@ -2887,8 +2870,8 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
-         "       node debug script.js [arguments] \n"
+  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
+         "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
          "  -v, --version        print node's version\n"
@@ -2928,7 +2911,7 @@ static void PrintHelp() {
 #endif
 #endif
          "\n"
-         "Documentation can be found at http://nodejs.org/\n");
+         "Documentation can be found at https://iojs.org/\n");
 }
 
 
@@ -3485,7 +3468,7 @@ void EmitBeforeExit(Environment* env) {
   Local<String> exit_code = FIXED_ONE_BYTE_STRING(env->isolate(), "exitCode");
   Local<Value> args[] = {
     FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
-    process_object->Get(exit_code)->ToInteger()
+    process_object->Get(exit_code)->ToInteger(env->isolate())
   };
   MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
 }
