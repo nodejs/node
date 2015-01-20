@@ -28,13 +28,15 @@
 #define OPENSSL_CONST
 #endif
 
-#define ASSERT_IS_STRING_OR_BUFFER(val) do {                  \
+#define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val)         \
+  do {                                                        \
     if (!Buffer::HasInstance(val) && !val->IsString()) {      \
       return env->ThrowTypeError("Not a string or buffer");   \
     }                                                         \
   } while (0)
 
-#define ASSERT_IS_BUFFER(val) do {                            \
+#define THROW_AND_RETURN_IF_NOT_BUFFER(val)                   \
+  do {                                                        \
     if (!Buffer::HasInstance(val)) {                          \
       return env->ThrowTypeError("Not a buffer");             \
     }                                                         \
@@ -834,7 +836,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() >= 2) {
-    ASSERT_IS_BUFFER(args[1]);
+    THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
     size_t passlen = Buffer::Length(args[1]);
     pass = new char[passlen + 1];
     memcpy(pass, Buffer::Data(args[1]), passlen);
@@ -1432,7 +1434,7 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("Bad argument");
   }
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
   size_t slen = Buffer::Length(args[0]);
   char* sbuf = new char[slen];
   memcpy(sbuf, Buffer::Data(args[0]), slen);
@@ -2608,8 +2610,8 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Must give cipher-type, key, and iv as argument");
   }
 
-  ASSERT_IS_BUFFER(args[1]);
-  ASSERT_IS_BUFFER(args[2]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[2]);
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
@@ -2699,7 +2701,7 @@ bool CipherBase::SetAAD(const char* data, unsigned int len) {
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
@@ -2740,7 +2742,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
-  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0]);
 
   unsigned char* out = nullptr;
   bool r;
@@ -2900,7 +2902,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Must give hashtype string, key as arguments");
   }
 
-  ASSERT_IS_BUFFER(args[1]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
   const char* buffer_data = Buffer::Data(args[1]);
@@ -2922,7 +2924,7 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
 
   Hmac* hmac = Unwrap<Hmac>(args.Holder());
 
-  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0]);
 
   // Only copy the data if we have to, because it's a string
   bool r;
@@ -3046,7 +3048,7 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
 
   Hash* hash = Unwrap<Hash>(args.Holder());
 
-  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0]);
 
   // Only copy the data if we have to, because it's a string
   bool r;
@@ -3207,7 +3209,7 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
 
   Sign* sign = Unwrap<Sign>(args.Holder());
 
-  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0]);
 
   // Only copy the data if we have to, because it's a string
   Error err;
@@ -3296,7 +3298,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value passphrase(env->isolate(), args[2]);
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
   size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
@@ -3388,7 +3390,7 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
 
   Verify* verify = Unwrap<Verify>(args.Holder());
 
-  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0]);
 
   // Only copy the data if we have to, because it's a string
   Error err;
@@ -3496,11 +3498,12 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   Verify* verify = Unwrap<Verify>(args.Holder());
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
   char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
 
-  ASSERT_IS_STRING_OR_BUFFER(args[1]);
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1]);
+
   // BINARY works for both buffers and binary strings.
   enum encoding encoding = BINARY;
   if (args.Length() >= 3) {
@@ -3628,11 +3631,11 @@ template <PublicKeyCipher::Operation operation,
 void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
   char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
 
-  ASSERT_IS_BUFFER(args[1]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
   char* buf = Buffer::Data(args[1]);
   ssize_t len = Buffer::Length(args[1]);
 
@@ -3939,7 +3942,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 0) {
     return env->ThrowError("First argument must be other party's public key");
   } else {
-    ASSERT_IS_BUFFER(args[0]);
+    THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
         Buffer::Length(args[0]),
@@ -4005,7 +4008,7 @@ void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 0) {
     return env->ThrowError("First argument must be public key");
   } else {
-    ASSERT_IS_BUFFER(args[0]);
+    THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     diffieHellman->dh->pub_key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
         Buffer::Length(args[0]), 0);
@@ -4024,7 +4027,7 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 0) {
     return env->ThrowError("First argument must be private key");
   } else {
-    ASSERT_IS_BUFFER(args[0]);
+    THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     diffieHellman->dh->priv_key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
         Buffer::Length(args[0]),
@@ -4137,7 +4140,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
@@ -4233,7 +4236,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   BIGNUM* priv = BN_bin2bn(
       reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
@@ -4252,7 +4255,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
@@ -4429,14 +4432,14 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
   passlen = Buffer::Length(args[0]);
   if (passlen < 0) {
     type_error = "Bad password";
     goto err;
   }
 
-  ASSERT_IS_BUFFER(args[1]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
 
   pass = static_cast<char*>(malloc(passlen));
   if (pass == nullptr) {
@@ -4816,7 +4819,7 @@ void Certificate::VerifySpkac(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return env->ThrowTypeError("Missing argument");
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   size_t length = Buffer::Length(args[0]);
   if (length == 0)
@@ -4880,7 +4883,7 @@ void Certificate::ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return env->ThrowTypeError("Missing argument");
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   size_t length = Buffer::Length(args[0]);
   if (length == 0)
@@ -4923,7 +4926,7 @@ void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return env->ThrowTypeError("Missing argument");
 
-  ASSERT_IS_BUFFER(args[0]);
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
   size_t len = Buffer::Length(args[0]);
   if (len == 0)
