@@ -44,6 +44,8 @@ using v8::Value;
 
 #define THROW_BAD_ARGS TYPE_ERROR("Bad argument")
 
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   void* operator new(size_t size) { return new char[size]; }
@@ -84,17 +86,6 @@ static void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
-
-#define ASSERT_OFFSET(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return env->ThrowTypeError("Not an integer"); \
-  }
-#define ASSERT_TRUNCATE_LENGTH(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return env->ThrowTypeError("Not an integer"); \
-  }
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
-#define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
 
 static inline bool IsInt64(double x) {
   return x == static_cast<double>(static_cast<int64_t>(x));
@@ -599,8 +590,17 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 
   int fd = args[0]->Int32Value();
 
-  ASSERT_TRUNCATE_LENGTH(args[1]);
-  int64_t len = GET_TRUNCATE_LENGTH(args[1]);
+  // FIXME(bnoordhuis) It's questionable to reject non-ints here but still
+  // allow implicit coercion from null or undefined to zero.  Probably best
+  // handled in lib/fs.js.
+  Local<Value> len_v(args[1]);
+  if (!len_v->IsUndefined() &&
+      !len_v->IsNull() &&
+      !IsInt64(len_v->NumberValue())) {
+    return env->ThrowTypeError("Not an integer");
+  }
+
+  const int64_t len = len_v->IntegerValue();
 
   if (args[2]->IsObject()) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
