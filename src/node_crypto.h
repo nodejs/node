@@ -639,7 +639,7 @@ class ECDH : public BaseObject {
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
     MakeWeak<ECDH>(this);
-    ASSERT(group_ != nullptr);
+    ASSERT_NE(group_, nullptr);
   }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

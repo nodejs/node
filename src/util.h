@@ -29,6 +29,13 @@ namespace node {
 # define CHECK(expression)   assert(expression)
 #endif
 
+#define ASSERT_EQ(a, b) ASSERT((a) == (b))
+#define ASSERT_GE(a, b) ASSERT((a) >= (b))
+#define ASSERT_GT(a, b) ASSERT((a) > (b))
+#define ASSERT_LE(a, b) ASSERT((a) <= (b))
+#define ASSERT_LT(a, b) ASSERT((a) < (b))
+#define ASSERT_NE(a, b) ASSERT((a) != (b))
+
 #define CHECK_EQ(a, b) CHECK((a) == (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
 #define CHECK_GT(a, b) CHECK((a) > (b))
