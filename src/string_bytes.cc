@@ -32,11 +32,11 @@ class ExternString: public ResourceType {
       isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     }
 
-    const TypeName* data() const {
+    const TypeName* data() const override {
       return data_;
     }
 
-    size_t length() const {
+    size_t length() const override {
       return length_;
     }
 
