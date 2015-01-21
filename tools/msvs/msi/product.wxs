@@ -9,7 +9,6 @@
   <?define RegistryKeyPath = "SOFTWARE\io.js" ?>
 
   <?define RepoDir="$(var.ProjectDir)..\..\..\" ?>
-  <?define SourceDir="$(var.RepoDir)\$(var.Configuration)\" ?>
 
   <Product Id="*"
            Name="$(var.ProductName)"
@@ -47,7 +46,6 @@
       <ComponentRef Id="NodeVarsScript"/>
       <ComponentRef Id="NodeStartMenuAndRegistryEntries"/>
       <ComponentRef Id="AppData" />
-      <ComponentGroupRef Id="Product.Generated"/>
 
       <Feature Id="NodeAlias"
                Level="1"

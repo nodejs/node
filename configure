@@ -671,6 +671,15 @@ def configure_winsdk(o):
   print('ctrpp not found in WinSDK path--using pre-gen files '
         'from tools/msvs/genfiles.')
 
+
+def configure_wix(o):
+  if flavor != 'win':
+    return
+
+  o['variables']['wix_bin_dir'] = os.path.abspath(os.path.join(
+      os.environ.get('WIX'), 'bin'));
+
+
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
   print 'creating ', filename
@@ -949,6 +958,7 @@ configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
+configure_wix(output)
 configure_intl(output)
 configure_fullystatic(output)
 
