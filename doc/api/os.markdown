@@ -159,6 +159,9 @@ Get a list of network interfaces:
            mac: '01:02:03:0a:0b:0c',
            internal: false } ] }
 
+Note that due to the underlying implementation this will only return network
+interfaces that have been assigned an address.
+
 ## os.EOL
 
 A constant defining the appropriate End-of-line marker for the operating system.
