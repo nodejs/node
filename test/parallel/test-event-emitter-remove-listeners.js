@@ -61,3 +61,6 @@ e4.on('removeListener', common.mustCall(function(name, cb) {
 e4.on('quux', remove1);
 e4.on('quux', remove2);
 e4.removeListener('quux', remove1);
+
+var e5 = new events.EventEmitter();
+assert.equal(e5.removeListener, e5.off);
