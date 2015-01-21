@@ -4549,6 +4549,28 @@ TEST(ScanUnterminatedTemplateLiterals) {
 }
 
 
+TEST(TemplateLiteralsIllegalTokens) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';"
+                                    "  var a, b, c; return ", "}"},
+                                   {NULL, NULL}};
+  const char* data[] = {
+      "`hello\\x`",
+      "`hello\\x${1}`",
+      "`hello${1}\\x`",
+      "`hello${1}\\x${2}`",
+      "`hello\\x\n`",
+      "`hello\\x\n${1}`",
+      "`hello${1}\\x\n`",
+      "`hello${1}\\x\n${2}`",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(LexicalScopingSloppyMode) {
   const char* context_data[][2] = {
       {"", ""},
