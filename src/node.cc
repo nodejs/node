@@ -2874,7 +2874,7 @@ static void PrintHelp() {
          "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version        print node's version\n"
+         "  -v, --version        print io.js version\n"
          "  -e, --eval script    evaluate script\n"
          "  -p, --print          evaluate script and print result\n"
          "  -i, --interactive    always enter the REPL even if stdin\n"
