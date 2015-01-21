@@ -2875,9 +2875,15 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
 
   do {
     next = peek();
-    if (!next) {
+    if (next == Token::EOS) {
       ReportMessageAt(Scanner::Location(start, peek_position()),
                       "unterminated_template");
+      *ok = false;
+      return Traits::EmptyExpression();
+    } else if (next == Token::ILLEGAL) {
+      Traits::ReportMessageAt(
+          Scanner::Location(position() + 1, peek_position()),
+          "unexpected_token", "ILLEGAL", false);
       *ok = false;
       return Traits::EmptyExpression();
     }
@@ -2898,9 +2904,15 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
     next = scanner()->ScanTemplateContinuation();
     Next();
 
-    if (!next) {
-      ReportMessageAt(Scanner::Location(start, position()),
+    if (next == Token::EOS) {
+      ReportMessageAt(Scanner::Location(start, peek_position()),
                       "unterminated_template");
+      *ok = false;
+      return Traits::EmptyExpression();
+    } else if (next == Token::ILLEGAL) {
+      Traits::ReportMessageAt(
+          Scanner::Location(position() + 1, peek_position()),
+          "unexpected_token", "ILLEGAL", false);
       *ok = false;
       return Traits::EmptyExpression();
     }
