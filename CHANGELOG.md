@@ -306,7 +306,6 @@ https://iojs.org/api/tls.html
 
 https://iojs.org/api/url.html
 
-- Added support for `path` option in `url.format`, which encompasses `pathname`, `query`, and `search`.
 - Improved escaping of certain characters.
 - Improved parsing speed.
 
