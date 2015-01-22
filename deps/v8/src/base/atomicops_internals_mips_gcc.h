@@ -36,7 +36,7 @@ inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                        "2:\n"
                        ".set pop\n"
                        : "=&r" (prev), "=&r" (tmp)
-                       : "Ir" (old_value), "r" (new_value), "r" (ptr)
+                       : "r" (old_value), "r" (new_value), "r" (ptr)
                        : "memory");
   return prev;
 }
