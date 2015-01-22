@@ -2,6 +2,7 @@
   'variables': {
     'v8_use_snapshot%': 'false',
     'node_use_dtrace%': 'false',
+    'node_use_lttng%': 'false',
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_has_winsdk%': 'false',
@@ -260,6 +261,14 @@
             }
           ] ]
         } ],
+        [ 'node_use_lttng=="true"', {
+          'defines': [ 'HAVE_LTTNG=1' ],
+          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
+          'libraries': [ '-llttng-ust' ],
+          'sources': [
+            'src/node_lttng.cc'
+          ],
+        } ],
         [ 'node_use_mdb=="true"', {
           'dependencies': [ 'node_mdb' ],
           'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
@@ -449,6 +458,9 @@
           'conditions': [
             [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
               'inputs': [ 'src/notrace_macros.py' ]
+            }],
+            ['node_use_lttng=="false"', {
+              'inputs': [ 'src/nolttng_macros.py' ]
             }],
             [ 'node_use_perfctr=="false"', {
               'inputs': [ 'src/perfctr_macros.py' ]
