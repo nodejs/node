@@ -4589,25 +4589,18 @@ class RandomBytesRequest : public AsyncWrap {
 };
 
 
-template <bool pseudoRandom>
 void RandomBytesWork(uv_work_t* work_req) {
   RandomBytesRequest* req =
       ContainerOf(&RandomBytesRequest::work_req_, work_req);
-  int r;
 
   // Ensure that OpenSSL's PRNG is properly seeded.
   CheckEntropy();
 
-  if (pseudoRandom == true) {
-    r = RAND_pseudo_bytes(reinterpret_cast<unsigned char*>(req->data()),
-                          req->size());
-  } else {
-    r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data()), req->size());
-  }
+  const int r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data()),
+                           req->size());
 
-  // RAND_bytes() returns 0 on error. RAND_pseudo_bytes() returns 0 when the
-  // result is not cryptographically strong - but that's not an error.
-  if (r == 0 && pseudoRandom == false) {
+  // RAND_bytes() returns 0 on error.
+  if (r == 0) {
     req->set_error(ERR_get_error());
   } else if (r == -1) {
     req->set_error(static_cast<unsigned long>(-1));
@@ -4650,7 +4643,6 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 }
 
 
-template <bool pseudoRandom>
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -4675,12 +4667,12 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
     uv_queue_work(env->event_loop(),
                   req->work_req(),
-                  RandomBytesWork<pseudoRandom>,
+                  RandomBytesWork,
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesWork<pseudoRandom>(req->work_req());
+    RandomBytesWork(req->work_req());
     RandomBytesCheck(req, argv);
     delete req;
 
@@ -5041,8 +5033,7 @@ void InitCrypto(Handle<Object> target,
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
   env->SetMethod(target, "PBKDF2", PBKDF2);
-  env->SetMethod(target, "randomBytes", RandomBytes<false>);
-  env->SetMethod(target, "pseudoRandomBytes", RandomBytes<true>);
+  env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
