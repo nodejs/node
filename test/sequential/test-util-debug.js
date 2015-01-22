@@ -26,7 +26,7 @@ function test(environ, shouldWrite) {
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
-    env: { NODE_DEBUG: environ }
+    env: { NODE_DEBUG: environ, HOME: process.env.HOME }
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
