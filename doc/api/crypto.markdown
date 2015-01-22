@@ -647,16 +647,10 @@ Generates cryptographically strong pseudo-random data. Usage:
       // most likely, entropy sources are drained
     }
 
-NOTE: Will throw error or invoke callback with error, if there is not enough
-accumulated entropy to generate cryptographically strong data. In other words,
-`crypto.randomBytes` without callback will not block even if all entropy sources
-are drained.
-
-## crypto.pseudoRandomBytes(size[, callback])
-
-Identical to `crypto.randomBytes` except that, instead of throwing an error when
-there is not enough accumulated entropy to generate cryptographically strong
-data, it will silently return **non**-cryptographically strong data.
+NOTE: This will block if there is insufficient entropy, although it should
+normally never take longer than a few milliseconds. The only time when this
+may conceivably block is right after boot, when the whole system is still
+low on entropy.
 
 ## Class: Certificate
 
