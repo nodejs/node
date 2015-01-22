@@ -438,13 +438,22 @@ CPU::CPU()
     //
     // See http://code.google.com/p/android/issues/detail?id=10812
     //
-    // We try to correct this by looking at the 'elf_format'
+    // We try to correct this by looking at the 'elf_platform'
     // field reported by the 'Processor' field, which is of the
     // form of "(v7l)" for an ARMv7-based CPU, and "(v6l)" for
     // an ARMv6-one. For example, the Raspberry Pi is one popular
     // ARMv6 device that reports architecture 7.
     if (architecture_ == 7) {
       char* processor = cpu_info.ExtractField("Processor");
+      if (HasListItem(processor, "(v6l)")) {
+        architecture_ = 6;
+      }
+      delete[] processor;
+    }
+
+    // elf_platform moved to the model name field in Linux v3.8.
+    if (architecture_ == 7) {
+      char* processor = cpu_info.ExtractField("model name");
       if (HasListItem(processor, "(v6l)")) {
         architecture_ = 6;
       }
