@@ -85,59 +85,58 @@ site, set the NODE_DEBUG environment variable:
         <etc.>
 
 
-## fs.rename(oldPath, newPath, callback)
+## fs.access(path[, mode], callback)
 
-Asynchronous rename(2). No arguments other than a possible exception are given
-to the completion callback.
+Tests a user's permissions for the file specified by `path`. `mode` is an
+optional integer that specifies the accessibility checks to be performed. The
+following constants define the possible values of `mode`. It is possible to
+create a mask consisting of the bitwise OR of two or more values.
 
-## fs.renameSync(oldPath, newPath)
+- `fs.F_OK` - File is visible to the calling process. This is useful for
+determining if a file exists, but says nothing about `rwx` permissions.
+Default if no `mode` is specified.
+- `fs.R_OK` - File can be read by the calling process.
+- `fs.W_OK` - File can be written by the calling process.
+- `fs.X_OK` - File can be executed by the calling process. This has no effect
+on Windows (will behave like `fs.F_OK`).
 
-Synchronous rename(2).
+The final argument, `callback`, is a callback function that is invoked with
+a possible error argument. If any of the accessibility checks fail, the error
+argument will be populated. The following example checks if the file
+`/etc/passwd` can be read and written by the current process.
 
-## fs.ftruncate(fd, len, callback)
+    fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function(err) {
+      util.debug(err ? 'no access!' : 'can read/write');
+    });
 
-Asynchronous ftruncate(2). No arguments other than a possible exception are
-given to the completion callback.
+## fs.accessSync(path[, mode])
 
-## fs.ftruncateSync(fd, len)
+Synchronous version of `fs.access`. This throws if any accessibility checks
+fail, and does nothing otherwise.
 
-Synchronous ftruncate(2).
+## fs.appendFile(filename, data[, options], callback)
 
-## fs.truncate(path, len, callback)
+* `filename` {String}
+* `data` {String | Buffer}
+* `options` {Object}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Number} default = `0o666`
+  * `flag` {String} default = `'a'`
+* `callback` {Function}
 
-Asynchronous truncate(2). No arguments other than a possible exception are
-given to the completion callback.
+Asynchronously append data to a file, creating the file if it not yet exists.
+`data` can be a string or a buffer.
 
-## fs.truncateSync(path, len)
+Example:
 
-Synchronous truncate(2).
+    fs.appendFile('message.txt', 'data to append', function (err) {
+      if (err) throw err;
+      console.log('The "data to append" was appended to file!');
+    });
 
-## fs.chown(path, uid, gid, callback)
+## fs.appendFileSync(filename, data[, options])
 
-Asynchronous chown(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.chownSync(path, uid, gid)
-
-Synchronous chown(2).
-
-## fs.fchown(fd, uid, gid, callback)
-
-Asynchronous fchown(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.fchownSync(fd, uid, gid)
-
-Synchronous fchown(2).
-
-## fs.lchown(path, uid, gid, callback)
-
-Asynchronous lchown(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.lchownSync(path, uid, gid)
-
-Synchronous lchown(2).
+The synchronous version of `fs.appendFile`.
 
 ## fs.chmod(path, mode, callback)
 
@@ -148,6 +147,99 @@ to the completion callback.
 
 Synchronous chmod(2).
 
+## fs.chown(path, uid, gid, callback)
+
+Asynchronous chown(2). No arguments other than a possible exception are given
+to the completion callback.
+
+## fs.chownSync(path, uid, gid)
+
+Synchronous chown(2).
+
+## fs.close(fd, callback)
+
+Asynchronous close(2).  No arguments other than a possible exception are given
+to the completion callback.
+
+## fs.closeSync(fd)
+
+Synchronous close(2).
+
+## fs.createReadStream(path[, options])
+
+Returns a new ReadStream object (See `Readable Stream`).
+
+`options` is an object with the following defaults:
+
+    { flags: 'r',
+      encoding: null,
+      fd: null,
+      mode: 0o666,
+      autoClose: true
+    }
+
+`options` can include `start` and `end` values to read a range of bytes from
+the file instead of the entire file.  Both `start` and `end` are inclusive and
+start at 0. The `encoding` can be `'utf8'`, `'ascii'`, or `'base64'`.
+
+If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
+the specified file descriptor. This means that no `open` event will be emitted.
+
+If `autoClose` is false, then the file descriptor won't be closed, even if
+there's an error.  It is your responsibility to close it and make sure
+there's no file descriptor leak.  If `autoClose` is set to true (default
+behavior), on `error` or `end` the file descriptor will be closed
+automatically.
+
+An example to read the last 10 bytes of a file which is 100 bytes long:
+
+    fs.createReadStream('sample.txt', {start: 90, end: 99});
+
+## fs.createWriteStream(path[, options])
+
+Returns a new WriteStream object (See `Writable Stream`).
+
+`options` is an object with the following defaults:
+
+    { flags: 'w',
+      encoding: null,
+      fd: null,
+      mode: 0o666 }
+
+`options` may also include a `start` option to allow writing data at
+some position past the beginning of the file.  Modifying a file rather
+than replacing it may require a `flags` mode of `r+` rather than the
+default mode `w`.
+
+Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
+`path` argument and will use the specified file descriptor. This means that no
+`open` event will be emitted.
+
+## fs.exists(path, callback)
+
+Test whether or not the given path exists by checking with the file system.
+Then call the `callback` argument with either true or false.  Example:
+
+    fs.exists('/etc/passwd', function (exists) {
+      util.debug(exists ? "it's there" : "no passwd!");
+    });
+
+`fs.exists()` is an anachronism and exists only for historical reasons.
+There should almost never be a reason to use it in your own code.
+
+In particular, checking if a file exists before opening it is an anti-pattern
+that leaves you vulnerable to race conditions: another process may remove the
+file between the calls to `fs.exists()` and `fs.open()`.  Just open the file
+and handle the error when it's not there.
+
+`fs.exists()` is **deprecated**.
+
+## fs.existsSync(path)
+
+Synchronous version of `fs.exists`.
+
+`fs.existsSync()` is **deprecated**.
+
 ## fs.fchmod(fd, mode, callback)
 
 Asynchronous fchmod(2). No arguments other than a possible exception
@@ -156,6 +248,49 @@ are given to the completion callback.
 ## fs.fchmodSync(fd, mode)
 
 Synchronous fchmod(2).
+
+## fs.fchown(fd, uid, gid, callback)
+
+Asynchronous fchown(2). No arguments other than a possible exception are given
+to the completion callback.
+
+## fs.fchownSync(fd, uid, gid)
+
+Synchronous fchown(2).
+
+## fs.fstat(fd, callback)
+
+Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
+`stats` is a `fs.Stats` object. `fstat()` is identical to `stat()`, except that
+the file to be stat-ed is specified by the file descriptor `fd`.
+
+## fs.fstatSync(fd)
+
+Synchronous fstat(2). Returns an instance of `fs.Stats`.
+
+## fs.fsync(fd, callback)
+
+Asynchronous fsync(2). No arguments other than a possible exception are given
+to the completion callback.
+
+## fs.fsyncSync(fd)
+
+Synchronous fsync(2).
+
+## fs.ftruncate(fd, len, callback)
+
+Asynchronous ftruncate(2). No arguments other than a possible exception are
+given to the completion callback.
+
+## fs.ftruncateSync(fd, len)
+
+Synchronous ftruncate(2).
+
+## fs.futimes(fd, atime, mtime, callback)
+## fs.futimesSync(fd, atime, mtime)
+
+Change the file timestamps of a file referenced by the supplied file
+descriptor.
 
 ## fs.lchmod(path, mode, callback)
 
@@ -168,36 +303,14 @@ Only available on Mac OS X.
 
 Synchronous lchmod(2).
 
-## fs.stat(path, callback)
+## fs.lchown(path, uid, gid, callback)
 
-Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [fs.Stats](#fs_class_fs_stats) object.  See the [fs.Stats](#fs_class_fs_stats)
-section below for more information.
+Asynchronous lchown(2). No arguments other than a possible exception are given
+to the completion callback.
 
-## fs.lstat(path, callback)
+## fs.lchownSync(path, uid, gid)
 
-Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. `lstat()` is identical to `stat()`, except that if
-`path` is a symbolic link, then the link itself is stat-ed, not the file that it
-refers to.
-
-## fs.fstat(fd, callback)
-
-Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. `fstat()` is identical to `stat()`, except that
-the file to be stat-ed is specified by the file descriptor `fd`.
-
-## fs.statSync(path)
-
-Synchronous stat(2). Returns an instance of `fs.Stats`.
-
-## fs.lstatSync(path)
-
-Synchronous lstat(2). Returns an instance of `fs.Stats`.
-
-## fs.fstatSync(fd)
-
-Synchronous fstat(2). Returns an instance of `fs.Stats`.
+Synchronous lchown(2).
 
 ## fs.link(srcpath, dstpath, callback)
 
@@ -208,64 +321,16 @@ the completion callback.
 
 Synchronous link(2).
 
-## fs.symlink(srcpath, dstpath[, type], callback)
+## fs.lstat(path, callback)
 
-Asynchronous symlink(2). No arguments other than a possible exception are given
-to the completion callback.
-The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
-is `'file'`) and is only available on Windows (ignored on other platforms).
-Note that Windows junction points require the destination path to be absolute.  When using
-`'junction'`, the `destination` argument will automatically be normalized to absolute path.
+Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
+`stats` is a `fs.Stats` object. `lstat()` is identical to `stat()`, except that if
+`path` is a symbolic link, then the link itself is stat-ed, not the file that it
+refers to.
 
-## fs.symlinkSync(srcpath, dstpath[, type])
+## fs.lstatSync(path)
 
-Synchronous symlink(2).
-
-## fs.readlink(path, callback)
-
-Asynchronous readlink(2). The callback gets two arguments `(err,
-linkString)`.
-
-## fs.readlinkSync(path)
-
-Synchronous readlink(2). Returns the symbolic link's string value.
-
-## fs.realpath(path[, cache], callback)
-
-Asynchronous realpath(2). The `callback` gets two arguments `(err,
-resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
-object literal of mapped paths that can be used to force a specific path
-resolution or avoid additional `fs.stat` calls for known real paths.
-
-Example:
-
-    var cache = {'/etc':'/private/etc'};
-    fs.realpath('/etc/passwd', cache, function (err, resolvedPath) {
-      if (err) throw err;
-      console.log(resolvedPath);
-    });
-
-## fs.realpathSync(path[, cache])
-
-Synchronous realpath(2). Returns the resolved path.
-
-## fs.unlink(path, callback)
-
-Asynchronous unlink(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.unlinkSync(path)
-
-Synchronous unlink(2).
-
-## fs.rmdir(path, callback)
-
-Asynchronous rmdir(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.rmdirSync(path)
-
-Synchronous rmdir(2).
+Synchronous lstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.mkdir(path[, mode], callback)
 
@@ -275,26 +340,6 @@ to the completion callback. `mode` defaults to `0o777`.
 ## fs.mkdirSync(path[, mode])
 
 Synchronous mkdir(2).
-
-## fs.readdir(path, callback)
-
-Asynchronous readdir(3).  Reads the contents of a directory.
-The callback gets two arguments `(err, files)` where `files` is an array of
-the names of the files in the directory excluding `'.'` and `'..'`.
-
-## fs.readdirSync(path)
-
-Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
-`'..'`.
-
-## fs.close(fd, callback)
-
-Asynchronous close(2).  No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.closeSync(fd)
-
-Synchronous close(2).
 
 ## fs.open(path, flags[, mode], callback)
 
@@ -357,81 +402,6 @@ the end of the file.
 
 Synchronous version of `fs.open()`.
 
-## fs.utimes(path, atime, mtime, callback)
-## fs.utimesSync(path, atime, mtime)
-
-Change file timestamps of the file referenced by the supplied path.
-
-## fs.futimes(fd, atime, mtime, callback)
-## fs.futimesSync(fd, atime, mtime)
-
-Change the file timestamps of a file referenced by the supplied file
-descriptor.
-
-## fs.fsync(fd, callback)
-
-Asynchronous fsync(2). No arguments other than a possible exception are given
-to the completion callback.
-
-## fs.fsyncSync(fd)
-
-Synchronous fsync(2).
-
-## fs.write(fd, buffer, offset, length[, position], callback)
-
-Write `buffer` to the file specified by `fd`.
-
-`offset` and `length` determine the part of the buffer to be written.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
-
-The callback will be given three arguments `(err, written, buffer)` where
-`written` specifies how many _bytes_ were written from `buffer`.
-
-Note that it is unsafe to use `fs.write` multiple times on the same file
-without waiting for the callback. For this scenario,
-`fs.createWriteStream` is strongly recommended.
-
-On Linux, positional writes don't work when the file is opened in append mode.
-The kernel ignores the position argument and always appends the data to
-the end of the file.
-
-## fs.write(fd, data[, position[, encoding]], callback)
-
-Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
-then the value will be coerced to a string.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'` the data will be written at
-the current position. See pwrite(2).
-
-`encoding` is the expected string encoding.
-
-The callback will receive the arguments `(err, written, string)` where `written`
-specifies how many _bytes_ the passed string required to be written. Note that
-bytes written is not the same as string characters. See
-[Buffer.byteLength](buffer.html#buffer_class_method_buffer_bytelength_string_encoding).
-
-Unlike when writing `buffer`, the entire string must be written. No substring
-may be specified. This is because the byte offset of the resulting data may not
-be the same as the string offset.
-
-Note that it is unsafe to use `fs.write` multiple times on the same file
-without waiting for the callback. For this scenario,
-`fs.createWriteStream` is strongly recommended.
-
-On Linux, positional writes don't work when the file is opened in append mode.
-The kernel ignores the position argument and always appends the data to
-the end of the file.
-
-## fs.writeSync(fd, buffer, offset, length[, position])
-
-## fs.writeSync(fd, data[, position[, encoding]])
-
-Synchronous versions of `fs.write()`. Returns the number of bytes written.
-
 ## fs.read(fd, buffer, offset, length, position, callback)
 
 Read data from the file specified by `fd`.
@@ -450,6 +420,17 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 ## fs.readSync(fd, buffer, offset, length, position)
 
 Synchronous version of `fs.read`. Returns the number of `bytesRead`.
+
+## fs.readdir(path, callback)
+
+Asynchronous readdir(3).  Reads the contents of a directory.
+The callback gets two arguments `(err, files)` where `files` is an array of
+the names of the files in the directory excluding `'.'` and `'..'`.
+
+## fs.readdirSync(path)
+
+Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
+`'..'`.
 
 ## fs.readFile(filename[, options], callback)
 
@@ -480,82 +461,92 @@ If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
 
-## fs.writeFile(filename, data[, options], callback)
+## fs.readlink(path, callback)
 
-* `filename` {String}
-* `data` {String | Buffer}
-* `options` {Object}
-  * `encoding` {String | Null} default = `'utf8'`
-  * `mode` {Number} default = `0o666`
-  * `flag` {String} default = `'w'`
-* `callback` {Function}
+Asynchronous readlink(2). The callback gets two arguments `(err,
+linkString)`.
 
-Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string or a buffer.
+## fs.readlinkSync(path)
 
-The `encoding` option is ignored if `data` is a buffer. It defaults
-to `'utf8'`.
+Synchronous readlink(2). Returns the symbolic link's string value.
 
-Example:
+## fs.realpath(path[, cache], callback)
 
-    fs.writeFile('message.txt', 'Hello Node', function (err) {
-      if (err) throw err;
-      console.log('It\'s saved!');
-    });
-
-## fs.writeFileSync(filename, data[, options])
-
-The synchronous version of `fs.writeFile`.
-
-## fs.appendFile(filename, data[, options], callback)
-
-* `filename` {String}
-* `data` {String | Buffer}
-* `options` {Object}
-  * `encoding` {String | Null} default = `'utf8'`
-  * `mode` {Number} default = `0o666`
-  * `flag` {String} default = `'a'`
-* `callback` {Function}
-
-Asynchronously append data to a file, creating the file if it not yet exists.
-`data` can be a string or a buffer.
+Asynchronous realpath(2). The `callback` gets two arguments `(err,
+resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
+object literal of mapped paths that can be used to force a specific path
+resolution or avoid additional `fs.stat` calls for known real paths.
 
 Example:
 
-    fs.appendFile('message.txt', 'data to append', function (err) {
+    var cache = {'/etc':'/private/etc'};
+    fs.realpath('/etc/passwd', cache, function (err, resolvedPath) {
       if (err) throw err;
-      console.log('The "data to append" was appended to file!');
+      console.log(resolvedPath);
     });
 
-## fs.appendFileSync(filename, data[, options])
+## fs.realpathSync(path[, cache])
 
-The synchronous version of `fs.appendFile`.
+Synchronous realpath(2). Returns the resolved path.
 
-## fs.watchFile(filename[, options], listener)
+## fs.rename(oldPath, newPath, callback)
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
+Asynchronous rename(2). No arguments other than a possible exception are given
+to the completion callback.
 
-Watch for changes on `filename`. The callback `listener` will be called each
-time the file is accessed.
+## fs.renameSync(oldPath, newPath)
 
-The second argument is optional. The `options` if provided should be an object
-containing two members a boolean, `persistent`, and `interval`. `persistent`
-indicates whether the process should continue to run as long as files are
-being watched. `interval` indicates how often the target should be polled,
-in milliseconds. The default is `{ persistent: true, interval: 5007 }`.
+Synchronous rename(2).
 
-The `listener` gets two arguments the current stat object and the previous
-stat object:
+## fs.rmdir(path, callback)
 
-    fs.watchFile('message.text', function (curr, prev) {
-      console.log('the current mtime is: ' + curr.mtime);
-      console.log('the previous mtime was: ' + prev.mtime);
-    });
+Asynchronous rmdir(2). No arguments other than a possible exception are given
+to the completion callback.
 
-These stat objects are instances of `fs.Stat`.
+## fs.rmdirSync(path)
 
-If you want to be notified when the file was modified, not just accessed
-you need to compare `curr.mtime` and `prev.mtime`.
+Synchronous rmdir(2).
+
+## fs.stat(path, callback)
+
+Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
+`stats` is a [fs.Stats](#fs_class_fs_stats) object.  See the [fs.Stats](#fs_class_fs_stats)
+section below for more information.
+
+## fs.statSync(path)
+
+Synchronous stat(2). Returns an instance of `fs.Stats`.
+
+## fs.symlink(srcpath, dstpath[, type], callback)
+
+Asynchronous symlink(2). No arguments other than a possible exception are given
+to the completion callback.
+The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
+is `'file'`) and is only available on Windows (ignored on other platforms).
+Note that Windows junction points require the destination path to be absolute.  When using
+`'junction'`, the `destination` argument will automatically be normalized to absolute path.
+
+## fs.symlinkSync(srcpath, dstpath[, type])
+
+Synchronous symlink(2).
+
+## fs.truncate(path, len, callback)
+
+Asynchronous truncate(2). No arguments other than a possible exception are
+given to the completion callback.
+
+## fs.truncateSync(path, len)
+
+Synchronous truncate(2).
+
+## fs.unlink(path, callback)
+
+Asynchronous unlink(2). No arguments other than a possible exception are given
+to the completion callback.
+
+## fs.unlinkSync(path)
+
+Synchronous unlink(2).
 
 ## fs.unwatchFile(filename[, listener])
 
@@ -567,6 +558,11 @@ have effectively stopped watching `filename`.
 
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
+
+## fs.utimes(path, atime, mtime, callback)
+## fs.utimesSync(path, atime, mtime)
+
+Change file timestamps of the file referenced by the supplied path.
 
 ## fs.watch(filename[, options][, listener])
 
@@ -639,59 +635,137 @@ callback, and have some fallback logic if it is null.
       }
     });
 
-## fs.exists(path, callback)
+## fs.watchFile(filename[, options], listener)
 
-Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
 
-    fs.exists('/etc/passwd', function (exists) {
-      util.debug(exists ? "it's there" : "no passwd!");
+Watch for changes on `filename`. The callback `listener` will be called each
+time the file is accessed.
+
+The second argument is optional. The `options` if provided should be an object
+containing two members a boolean, `persistent`, and `interval`. `persistent`
+indicates whether the process should continue to run as long as files are
+being watched. `interval` indicates how often the target should be polled,
+in milliseconds. The default is `{ persistent: true, interval: 5007 }`.
+
+The `listener` gets two arguments the current stat object and the previous
+stat object:
+
+    fs.watchFile('message.text', function (curr, prev) {
+      console.log('the current mtime is: ' + curr.mtime);
+      console.log('the previous mtime was: ' + prev.mtime);
     });
 
-`fs.exists()` is an anachronism and exists only for historical reasons.
-There should almost never be a reason to use it in your own code.
+These stat objects are instances of `fs.Stat`.
 
-In particular, checking if a file exists before opening it is an anti-pattern
-that leaves you vulnerable to race conditions: another process may remove the
-file between the calls to `fs.exists()` and `fs.open()`.  Just open the file
-and handle the error when it's not there.
+If you want to be notified when the file was modified, not just accessed
+you need to compare `curr.mtime` and `prev.mtime`.
 
-`fs.exists()` is **deprecated**.
+## fs.write(fd, buffer, offset, length[, position], callback)
 
-## fs.existsSync(path)
+Write `buffer` to the file specified by `fd`.
 
-Synchronous version of `fs.exists`.
+`offset` and `length` determine the part of the buffer to be written.
 
-`fs.existsSync()` is **deprecated**.
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'`, the data will be written
+at the current position. See pwrite(2).
 
-## fs.access(path[, mode], callback)
+The callback will be given three arguments `(err, written, buffer)` where
+`written` specifies how many _bytes_ were written from `buffer`.
 
-Tests a user's permissions for the file specified by `path`. `mode` is an
-optional integer that specifies the accessibility checks to be performed. The
-following constants define the possible values of `mode`. It is possible to
-create a mask consisting of the bitwise OR of two or more values.
+Note that it is unsafe to use `fs.write` multiple times on the same file
+without waiting for the callback. For this scenario,
+`fs.createWriteStream` is strongly recommended.
 
-- `fs.F_OK` - File is visible to the calling process. This is useful for
-determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-- `fs.R_OK` - File can be read by the calling process.
-- `fs.W_OK` - File can be written by the calling process.
-- `fs.X_OK` - File can be executed by the calling process. This has no effect
-on Windows (will behave like `fs.F_OK`).
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
 
-The final argument, `callback`, is a callback function that is invoked with
-a possible error argument. If any of the accessibility checks fail, the error
-argument will be populated. The following example checks if the file
-`/etc/passwd` can be read and written by the current process.
+## fs.write(fd, data[, position[, encoding]], callback)
 
-    fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function(err) {
-      util.debug(err ? 'no access!' : 'can read/write');
+Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
+then the value will be coerced to a string.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'` the data will be written at
+the current position. See pwrite(2).
+
+`encoding` is the expected string encoding.
+
+The callback will receive the arguments `(err, written, string)` where `written`
+specifies how many _bytes_ the passed string required to be written. Note that
+bytes written is not the same as string characters. See
+[Buffer.byteLength](buffer.html#buffer_class_method_buffer_bytelength_string_encoding).
+
+Unlike when writing `buffer`, the entire string must be written. No substring
+may be specified. This is because the byte offset of the resulting data may not
+be the same as the string offset.
+
+Note that it is unsafe to use `fs.write` multiple times on the same file
+without waiting for the callback. For this scenario,
+`fs.createWriteStream` is strongly recommended.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+## fs.writeSync(fd, buffer, offset, length[, position])
+
+## fs.writeSync(fd, data[, position[, encoding]])
+
+Synchronous versions of `fs.write()`. Returns the number of bytes written.
+
+## fs.writeFile(filename, data[, options], callback)
+
+* `filename` {String}
+* `data` {String | Buffer}
+* `options` {Object}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Number} default = `0o666`
+  * `flag` {String} default = `'w'`
+* `callback` {Function}
+
+Asynchronously writes data to a file, replacing the file if it already exists.
+`data` can be a string or a buffer.
+
+The `encoding` option is ignored if `data` is a buffer. It defaults
+to `'utf8'`.
+
+Example:
+
+    fs.writeFile('message.txt', 'Hello Node', function (err) {
+      if (err) throw err;
+      console.log('It\'s saved!');
     });
 
-## fs.accessSync(path[, mode])
+## fs.writeFileSync(filename, data[, options])
 
-Synchronous version of `fs.access`. This throws if any accessibility checks
-fail, and does nothing otherwise.
+The synchronous version of `fs.writeFile`.
+
+
+## Class: fs.FSWatcher
+
+Objects returned from `fs.watch()` are of this type.
+
+### watcher.close()
+
+Stop watching for changes on the given `fs.FSWatcher`.
+
+### Event: 'change'
+
+* `event` {String} The type of fs change
+* `filename` {String} The filename that changed (if relevant/available)
+
+Emitted when something changes in a watched directory or file.
+See more details in [fs.watch](#fs_fs_watch_filename_options_listener).
+
+### Event: 'error'
+
+* `error` {Error object}
+
+Emitted when an error occurs.
+
 
 ## Class: fs.Stats
 
@@ -761,36 +835,6 @@ Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
-## fs.createReadStream(path[, options])
-
-Returns a new ReadStream object (See `Readable Stream`).
-
-`options` is an object with the following defaults:
-
-    { flags: 'r',
-      encoding: null,
-      fd: null,
-      mode: 0o666,
-      autoClose: true
-    }
-
-`options` can include `start` and `end` values to read a range of bytes from
-the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0. The `encoding` can be `'utf8'`, `'ascii'`, or `'base64'`.
-
-If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
-the specified file descriptor. This means that no `open` event will be emitted.
-
-If `autoClose` is false, then the file descriptor won't be closed, even if
-there's an error.  It is your responsibility to close it and make sure
-there's no file descriptor leak.  If `autoClose` is set to true (default
-behavior), on `error` or `end` the file descriptor will be closed
-automatically.
-
-An example to read the last 10 bytes of a file which is 100 bytes long:
-
-    fs.createReadStream('sample.txt', {start: 90, end: 99});
-
 
 ## Class: fs.ReadStream
 
@@ -801,27 +845,6 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 * `fd` {Integer} file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
-
-
-## fs.createWriteStream(path[, options])
-
-Returns a new WriteStream object (See `Writable Stream`).
-
-`options` is an object with the following defaults:
-
-    { flags: 'w',
-      encoding: null,
-      fd: null,
-      mode: 0o666 }
-
-`options` may also include a `start` option to allow writing data at
-some position past the beginning of the file.  Modifying a file rather
-than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`.
-
-Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
-`path` argument and will use the specified file descriptor. This means that no
-`open` event will be emitted.
 
 
 ## Class: fs.WriteStream
@@ -838,25 +861,3 @@ Emitted when the WriteStream's file is opened.
 
 The number of bytes written so far. Does not include data that is still queued
 for writing.
-
-## Class: fs.FSWatcher
-
-Objects returned from `fs.watch()` are of this type.
-
-### watcher.close()
-
-Stop watching for changes on the given `fs.FSWatcher`.
-
-### Event: 'change'
-
-* `event` {String} The type of fs change
-* `filename` {String} The filename that changed (if relevant/available)
-
-Emitted when something changes in a watched directory or file.
-See more details in [fs.watch](#fs_fs_watch_filename_options_listener).
-
-### Event: 'error'
-
-* `error` {Error object}
-
-Emitted when an error occurs.
