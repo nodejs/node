@@ -98,7 +98,7 @@ Its implementation can have subtle but important consequences on the behavior
 of any Node.js program. Please take some time to consult the [Implementation
 considerations section](#dns_implementation_considerations) before using it.
 
-# dns.lookupService(address, port, callback)
+## dns.lookupService(address, port, callback)
 
 Resolves the given address and port into a hostname and service using
 `getnameinfo`.
