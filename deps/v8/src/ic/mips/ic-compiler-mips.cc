@@ -62,12 +62,13 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
       // Separate compare from branch, to provide path for above JumpIfSmi().
       Handle<WeakCell> cell = Map::WeakCellForMap(map);
       __ GetWeakValue(match, cell);
+      __ Subu(match, match, Operand(map_reg));
       if (type->Is(HeapType::Number())) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
       }
       __ Jump(handlers->at(current), RelocInfo::CODE_TARGET, eq, match,
-              Operand(map_reg));
+              Operand(zero_reg));
     }
   }
   DCHECK(number_of_handled_maps != 0);

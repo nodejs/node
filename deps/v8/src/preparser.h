@@ -2905,7 +2905,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
     Next();
 
     if (next == Token::EOS) {
-      ReportMessageAt(Scanner::Location(start, peek_position()),
+      ReportMessageAt(Scanner::Location(start, position()),
                       "unterminated_template");
       *ok = false;
       return Traits::EmptyExpression();

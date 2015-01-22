@@ -382,9 +382,9 @@ void Accessors::RegExpSourceGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
-  Handle<Object> receiver =
-      Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
-  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(receiver);
+  Handle<Object> holder =
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.Holder()));
+  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(holder);
   Handle<String> result;
   if (regexp->TypeTag() == JSRegExp::NOT_COMPILED) {
     result = isolate->factory()->empty_string();
