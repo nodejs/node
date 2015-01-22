@@ -9,8 +9,10 @@ var pep = path.dirname(process.argv[1])+'/chunky_http_client.js';
 var PIPE = test.PIPE;
 
 var server;
+try {
+  fs.unlinkSync(PIPE);
+} catch (e) { /* ignore */ }
 
-fs.unlinkSync(PIPE);
 server = http.createServer(function(req, res) {
   res.writeHead(200, { 'content-type': 'text/plain',
                        'content-length': '2' });
@@ -18,21 +20,21 @@ server = http.createServer(function(req, res) {
 });
 
 server.on('error', function(err) {
-  console.log("Error:");
-  console.log(err);
+  console.error('Error:');
+  console.error(err);
 });
 
 try {
   server.listen(PIPE, 'localhost');
 } catch(e) {
-  console.log("oops!");
-  console.log(e);
+  console.error('Error:');
+  console.error(e);
 }
 
 var child = spawn(process.execPath, [pep], { });
 child.on('error', function(err) {
-  console.log('spawn error.');
-  console.log(err);
+  console.error('spawn error.');
+  console.error(err);
 });
 
 child.stdout.on('data', function (data) {
@@ -40,6 +42,6 @@ child.stdout.on('data', function (data) {
 });
 
 child.on('exit', function (exitCode) {
-  console.log("Child exited with code: " + exitCode);
+  console.error('Child exited with code: ' + exitCode);
   process.exit(0);
 });
