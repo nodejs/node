@@ -392,6 +392,19 @@ byte from the original Buffer.
     // abc
     // !bc
 
+
+### buf.indexOf(value[, byteOffset])
+
+* `value` String, Buffer or Number
+* `byteOffset` Number, Optional, Default: 0
+* Return: Number
+
+Operates similar to
+[Array#indexOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf).
+Accepts a String, Buffer or Number. Strings are interpreted as UTF8. Buffers
+will use the entire buffer. So in order to compare a partial Buffer use
+`Buffer#slice()`. Numbers can range from 0 to 255.
+
 ### buf.readUInt8(offset[, noAssert])
 
 * `offset` Number

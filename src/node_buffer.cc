@@ -602,6 +602,119 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 }
 
 
+int32_t IndexOf(const char* haystack,
+                size_t h_length,
+                const char* needle,
+                size_t n_length) {
+  CHECK_GE(h_length, n_length);
+  // TODO(trevnorris): Implement Boyer-Moore string search algorithm.
+  for (size_t i = 0; i < h_length - n_length + 1; i++) {
+    if (haystack[i] == needle[0]) {
+      if (memcmp(haystack + i, needle, n_length) == 0)
+        return i;
+    }
+  }
+  return -1;
+}
+
+
+void IndexOfString(const FunctionCallbackInfo<Value>& args) {
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[1]->IsString());
+  ASSERT(args[2]->IsNumber());
+
+  ARGS_THIS(args[0].As<Object>());
+  node::Utf8Value str(args.GetIsolate(), args[1]);
+  int32_t offset_i32 = args[2]->Int32Value();
+  uint32_t offset;
+
+  if (offset_i32 < 0) {
+    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+      offset = 0;
+    else
+      offset = static_cast<uint32_t>(obj_length + offset_i32);
+  } else {
+    offset = static_cast<uint32_t>(offset_i32);
+  }
+
+  if (str.length() == 0 ||
+      obj_length == 0 ||
+      (offset != 0 && str.length() + offset <= str.length()) ||
+      str.length() + offset > obj_length)
+    return args.GetReturnValue().Set(-1);
+
+  int32_t r =
+      IndexOf(obj_data + offset, obj_length - offset, *str, str.length());
+  args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
+}
+
+
+void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[1]->IsObject());
+  ASSERT(args[2]->IsNumber());
+
+  ARGS_THIS(args[0].As<Object>());
+  Local<Object> buf = args[1].As<Object>();
+  int32_t offset_i32 = args[2]->Int32Value();
+  size_t buf_length = buf->GetIndexedPropertiesExternalArrayDataLength();
+  char* buf_data =
+      static_cast<char*>(buf->GetIndexedPropertiesExternalArrayData());
+  uint32_t offset;
+
+  if (buf_length > 0)
+    CHECK_NE(buf_data, nullptr);
+
+  if (offset_i32 < 0) {
+    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+      offset = 0;
+    else
+      offset = static_cast<uint32_t>(obj_length + offset_i32);
+  } else {
+    offset = static_cast<uint32_t>(offset_i32);
+  }
+
+  if (buf_length == 0 ||
+      obj_length == 0 ||
+      (offset != 0 && buf_length + offset <= buf_length) ||
+      buf_length + offset > obj_length)
+    return args.GetReturnValue().Set(-1);
+
+  int32_t r =
+    IndexOf(obj_data + offset, obj_length - offset, buf_data, buf_length);
+  args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
+}
+
+
+void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[1]->IsNumber());
+  ASSERT(args[2]->IsNumber());
+
+  ARGS_THIS(args[0].As<Object>());
+  uint32_t needle = args[1]->Uint32Value();
+  int32_t offset_i32 = args[2]->Int32Value();
+  uint32_t offset;
+
+  if (offset_i32 < 0) {
+    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+      offset = 0;
+    else
+      offset = static_cast<uint32_t>(obj_length + offset_i32);
+  } else {
+    offset = static_cast<uint32_t>(offset_i32);
+  }
+
+  if (obj_length == 0 || offset + 1 > obj_length)
+    return args.GetReturnValue().Set(-1);
+
+  void* ptr = memchr(obj_data + offset, needle, obj_length - offset);
+  char* ptr_char = static_cast<char*>(ptr);
+  args.GetReturnValue().Set(
+      ptr ? static_cast<int32_t>(ptr_char - obj_data) : -1);
+}
+
+
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -650,6 +763,9 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "byteLength", ByteLength);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
+  env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
+  env->SetMethod(target, "indexOfNumber", IndexOfNumber);
+  env->SetMethod(target, "indexOfString", IndexOfString);
 
   env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
