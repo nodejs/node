@@ -26,7 +26,12 @@ function test(environ, shouldWrite) {
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
-    env: { NODE_DEBUG: environ }
+    // Lttng requires the HOME env variable or it prints to stderr,
+    // This is not really ideal, as it breaks this test, so the HOME
+    // env variable is passed to the child to make the test pass.
+    // this is fixed in the next version of lttng (2.7+), so we can
+    // remove it at sometime in the future.
+    env: { NODE_DEBUG: environ, HOME: process.env.HOME }
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
