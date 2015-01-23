@@ -11,12 +11,12 @@ var client = common.freshClient({
   }
 })
 
-var TEST_URL = "http://localhost:1337/some-package-gzip/1.2.3"
+var TEST_URL = common.registry+"/some-package-gzip/1.2.3"
 
 var pkg = {
-  _id: "some-package-gzip@1.2.3",
-  name: "some-package-gzip",
-  version: "1.2.3"
+  _id : "some-package-gzip@1.2.3",
+  name : "some-package-gzip",
+  version : "1.2.3"
 }
 
 zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
@@ -32,21 +32,24 @@ zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
 
     client.get(TEST_URL, {}, function (er, data) {
       if (er) throw er
-      t.deepEqual(data, pkg)
+      t.deepEqual(data, pkg, "some-package-gzip version 1.2.3")
       t.end()
     })
   })
 
   tap.test("request wrong gzip package content", function (t) {
-    server.expect("GET", "/some-package-gzip-error/1.2.3", function (req, res) {
-      res.statusCode = 200
-      res.setHeader("Content-Encoding", "gzip")
-      res.setHeader("Content-Type", "application/json")
-      res.end(new Buffer("wrong gzip content"))
-    })
+    // will retry 3 times
+    for (var i = 0; i < 3; i++) {
+      server.expect("GET", "/some-package-gzip-error/1.2.3", function (req, res) {
+        res.statusCode = 200
+        res.setHeader("Content-Encoding", "gzip")
+        res.setHeader("Content-Type", "application/json")
+        res.end(new Buffer("wrong gzip content"))
+      })
+    }
 
     client.get(TEST_URL, {}, function (er) {
-      t.ok(er)
+      t.ok(er, "ungzip error")
       t.end()
     })
   })

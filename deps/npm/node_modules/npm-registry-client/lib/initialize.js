@@ -1,6 +1,11 @@
 var crypto = require("crypto")
+var HttpAgent = require("http").Agent
+var HttpsAgent = require("https").Agent
 
 var pkg = require("../package.json")
+
+var httpAgent = new HttpAgent({ keepAlive : true })
+var httpsAgent = new HttpsAgent({ keepAlive : true })
 
 module.exports = initialize
 
@@ -24,11 +29,13 @@ function initialize (uri, method, accept, headers) {
   // request will not pay attention to the NOPROXY environment variable if a
   // config value named proxy is passed in, even if it's set to null.
   var proxy
-  if (uri.protocol === "https") {
+  if (uri.protocol === "https:") {
     proxy = this.config.proxy.https
+    opts.agent = httpsAgent
   }
   else {
     proxy = this.config.proxy.http
+    opts.agent = httpAgent
   }
   if (typeof proxy === "string") opts.proxy = proxy
 

@@ -93,7 +93,7 @@ Deprecate a version of a package in the registry.
 * `cb` {Function}
 
 Fetches data from the registry via a GET request, saving it in the cache folder
-with the ETag.
+with the ETag or the "Last Modified" timestamp.
 
 ### client.publish(uri, params, cb)
 
@@ -182,6 +182,7 @@ caching logic directly.
     that are not Buffers or Streams are encoded as JSON. Optional – body
     only used for write operations.
   * `etag` {String} The cached ETag. Optional.
+  * `lastModified` {String} The cached Last-Modified timestamp. Optional.
   * `follow` {Boolean} Follow 302/301 responses. Optional (default: true).
   * `auth` {Credentials} Optional.
 * `cb` {Function}

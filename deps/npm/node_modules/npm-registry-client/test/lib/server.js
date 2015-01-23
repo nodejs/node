@@ -27,7 +27,7 @@ function handler (req, res) {
   if (!k) throw Error('unexpected request: ' + req.method + ' ' + req.url)
 
   var fn = server._expect[k].shift()
-  if (!fn) throw Error('unexpected request' + req.method + ' ' + req.url)
+  if (!fn) throw Error('unexpected request: ' + req.method + ' ' + req.url)
 
 
   var remain = (Object.keys(server._expect).reduce(function (s, k) {

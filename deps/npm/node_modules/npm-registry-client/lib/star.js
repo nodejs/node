@@ -11,38 +11,42 @@ function star (uri, params, cb) {
 
   var auth = params.auth
   assert(auth && typeof auth === "object", "must pass auth to star")
-  if (auth.token) {
-    return cb(new Error("This operation is unsupported for token-based auth"))
-  }
-  else if (!(auth.username && auth.password)) {
-    return cb(new Error("Must be logged in to star/unstar packages"))
+  if (!(auth.token || (auth.password && auth.username && auth.email))) {
+    var er = new Error("Must be logged in to star/unstar packages")
+    er.code = "ENEEDAUTH"
+    return cb(er)
   }
 
   var client = this
   this.request(uri+"?write=true", { auth : auth }, function (er, fullData) {
     if (er) return cb(er)
 
-    fullData = {
-      _id   : fullData._id,
-      _rev  : fullData._rev,
-      users : fullData.users || {}
-    }
+    client.whoami(uri, params, function (er, username) {
+      if (er) return cb(er)
 
-    if (starred) {
-      client.log.info("starring", fullData._id)
-      fullData.users[auth.username] = true
-      client.log.verbose("starring", fullData)
-    } else {
-      delete fullData.users[auth.username]
-      client.log.info("unstarring", fullData._id)
-      client.log.verbose("unstarring", fullData)
-    }
+      var data = {
+        _id : fullData._id,
+        _rev : fullData._rev,
+        users : fullData.users || {}
+      }
 
-    var options = {
-      method : "PUT",
-      body : fullData,
-      auth : auth
-    }
-    return client.request(uri, options, cb)
+      if (starred) {
+        client.log.info("starring", data._id)
+        data.users[username] = true
+        client.log.verbose("starring", data)
+      }
+      else {
+        delete data.users[username]
+        client.log.info("unstarring", data._id)
+        client.log.verbose("unstarring", data)
+      }
+
+      var options = {
+        method : "PUT",
+        body : data,
+        auth : auth
+      }
+      return client.request(uri, options, cb)
+    })
   })
 }
