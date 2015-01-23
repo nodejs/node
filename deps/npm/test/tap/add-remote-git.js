@@ -14,6 +14,7 @@ var pkg = resolve(__dirname, "add-remote-git")
 var repo = resolve(__dirname, "add-remote-git-repo")
 
 var daemon
+var daemonPID
 var git
 
 test("setup", function (t) {
@@ -21,14 +22,16 @@ test("setup", function (t) {
   setup(function (er, r) {
     t.ifError(er, "git started up successfully")
 
-    if (!er) daemon = r[r.length - 1]
+    if (!er) {
+      daemon = r[r.length - 2]
+      daemonPID = r[r.length - 1]
+    }
 
     t.end()
   })
 })
 
-test("install from repo on 'OS X'", function (t) {
-  process.platform = "darwin"
+test("install from repo", function (t) {
   process.chdir(pkg)
   npm.commands.install(".", [], function (er) {
     t.ifError(er, "npm installed via git")
@@ -42,19 +45,19 @@ test("clean", function (t) {
     cleanup()
     t.end()
   })
-  daemon.kill("SIGINT")
+  process.kill(daemonPID)
 })
 
 var pjParent = JSON.stringify({
-  name         : "parent",
-  version      : "1.2.3",
+  name : "parent",
+  version : "1.2.3",
   dependencies : {
     "child" : "git://localhost:1234/child.git"
   }
 }, null, 2) + "\n"
 
 var pjChild = JSON.stringify({
-  name    : "child",
+  name : "child",
   version : "1.0.3"
 }, null, 2) + "\n"
 
@@ -74,19 +77,27 @@ function setup (cb) {
       var d = git.spawn(
         [
           "daemon",
+          "--verbose",
           "--listen=localhost",
           "--export-all",
           "--base-path=.",
           "--port=1234"
         ],
         {
-          cwd   : pkg,
-          env   : process.env,
+          cwd : pkg,
+          env : process.env,
           stdio : ["pipe", "pipe", "pipe"]
         }
       )
+      d.stderr.on("data", childFinder)
 
-      cb(null, d)
+      function childFinder (c) {
+        var cpid = c.toString().match(/^\[(\d+)\]/)
+        if (cpid[1]) {
+          this.removeListener("data", childFinder)
+          cb(null, [d, cpid[1]])
+        }
+      }
     }
 
     var opts = {

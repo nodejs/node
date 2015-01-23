@@ -8,8 +8,9 @@ var fs = require("fs")
 var path = require("path")
 var nopt = require("nopt")
 var ini = require("ini")
-var Octal = configDefs.Octal
+var Umask = configDefs.Umask
 var mkdirp = require("mkdirp")
+var umask = require("../utils/umask")
 
 exports.load = load
 exports.Conf = Conf
@@ -362,8 +363,8 @@ function parseField (f, k) {
   var isPath = -1 !== typeList.indexOf(path)
   var isBool = -1 !== typeList.indexOf(Boolean)
   var isString = -1 !== typeList.indexOf(String)
-  var isOctal = -1 !== typeList.indexOf(Octal)
-  var isNumber = isOctal || (-1 !== typeList.indexOf(Number))
+  var isUmask = -1 !== typeList.indexOf(Umask)
+  var isNumber = -1 !== typeList.indexOf(Number)
 
   f = (""+f).trim()
 
@@ -396,8 +397,11 @@ function parseField (f, k) {
     f = path.resolve(f)
   }
 
+  if (isUmask)
+    f = umask.fromString(f)
+
   if (isNumber && !isNaN(f))
-    f = isOctal ? parseInt(f, 8) : +f
+    f = +f
 
   return f
 }

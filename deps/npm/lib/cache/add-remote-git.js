@@ -14,6 +14,7 @@ var mkdir = require("mkdirp")
   , addLocal = require("./add-local.js")
   , realizePackageSpecifier = require("realize-package-specifier")
   , normalizeGitUrl = require("normalize-git-url")
+  , randomBytes = require("crypto").pseudoRandomBytes // only need uniqueness
 
 var remotes = path.resolve(npm.config.get("cache"), "_git-remotes")
 var templates = path.join(remotes, "_templates")
@@ -211,11 +212,23 @@ function resolveHead (p, u, co, origUrl, cb) {
  * this has to be two steps.
  */
 function cache (p, u, treeish, resolved, cb) {
-  var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), treeish)
-  git.whichAndExec(
-    [ "clone", p, tmp ],
-    { cwd : p, env : gitEnv() },
-    function (er, stdout, stderr) {
+  // generate a unique filename
+  randomBytes(6, function (er, random) {
+    if (er) return cb(er)
+
+    var tmp = path.join(
+      npm.tmp,
+      "git-cache-"+random.toString("hex"),
+      treeish
+    )
+
+    mkdir(tmp, function (er) {
+      if (er) return cb(er)
+
+      git.whichAndExec(["clone", p, tmp], { cwd : p, env : gitEnv() }, clone)
+    })
+
+    function clone (er, stdout, stderr) {
       stdout = (stdout + "\n" + stderr).trim()
       if (er) {
         log.error("Failed to clone "+resolved+" from "+u, stderr)
@@ -224,34 +237,32 @@ function cache (p, u, treeish, resolved, cb) {
       log.verbose("git clone", "from", p)
       log.verbose("git clone", stdout)
 
-      git.whichAndExec(
-        [ "checkout", treeish ],
-        { cwd : tmp, env : gitEnv() },
-        function (er, stdout, stderr) {
-          stdout = (stdout + "\n" + stderr).trim()
-          if (er) {
-            log.error("Failed to check out "+treeish, stderr)
-            return cb(er)
-          }
-          log.verbose("git checkout", stdout)
-
-          realizePackageSpecifier(tmp, function (er, spec) {
-            if (er) {
-              log.error("Failed to map", tmp, "to a package specifier")
-              return cb(er)
-            }
-
-            // https://github.com/npm/npm/issues/6400
-            // ensure pack logic is applied
-            addLocal(spec, null, function (er, data) {
-              if (data) data._resolved = resolved
-              cb(er, data)
-            })
-          })
-        }
-      )
+      git.whichAndExec(["checkout", treeish], { cwd : tmp, env : gitEnv() }, checkout)
     }
-  )
+
+    function checkout (er, stdout, stderr) {
+      stdout = (stdout + "\n" + stderr).trim()
+      if (er) {
+        log.error("Failed to check out "+treeish, stderr)
+        return cb(er)
+      }
+      log.verbose("git checkout", stdout)
+
+      realizePackageSpecifier(tmp, function (er, spec) {
+        if (er) {
+          log.error("Failed to map", tmp, "to a package specifier")
+          return cb(er)
+        }
+
+        // https://github.com/npm/npm/issues/6400
+        // ensure pack logic is applied
+        addLocal(spec, null, function (er, data) {
+          if (data) data._resolved = resolved
+          cb(er, data)
+        })
+      })
+    }
+  })
 }
 
 var gitEnv_

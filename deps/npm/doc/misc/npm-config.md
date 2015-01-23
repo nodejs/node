@@ -829,7 +829,7 @@ The location of user-level configuration settings.
 ### umask
 
 * Default: 022
-* Type: Octal numeric string
+* Type: Octal numeric string in range 0000..0777 (0..511)
 
 The "umask" value to use when setting the file creation mode on files
 and folders.

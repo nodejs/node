@@ -1,9 +1,9 @@
 var test = require("tap").test
-
 var server = require("./lib/server.js")
 var common = require("./lib/common.js")
 var client = common.freshClient()
 var cache = require("./fixtures/underscore/cache.json")
+var nock = require("nock")
 
 function nop () {}
 
@@ -19,7 +19,7 @@ var AUTH     = {
 }
 var PARAMS  = {
   starred : STARRED,
-  auth    : AUTH
+  auth : AUTH
 }
 
 test("star call contract", function (t) {
@@ -58,22 +58,6 @@ test("star call contract", function (t) {
     "params must include auth"
   )
 
-  t.test("token auth disallowed in star", function (t) {
-    var params = {
-      auth : {
-        token : "lol"
-      }
-    }
-    client.star(URI, params, function (err) {
-      t.equal(
-        err && err.message,
-        "This operation is unsupported for token-based auth",
-        "star doesn't support token-based auth"
-      )
-      t.end()
-    })
-  })
-
   t.end()
 })
 
@@ -96,7 +80,7 @@ test("star a package", function (t) {
     req.on("end", function () {
       var updated = JSON.parse(b)
 
-      var already  = [
+      var already = [
         "vesln", "mvolkmann", "lancehunt", "mikl", "linus", "vasc", "bat",
         "dmalam", "mbrevoort", "danielr", "rsimoes", "thlorenz"
       ]
@@ -110,7 +94,7 @@ test("star a package", function (t) {
       t.ok(updated.users[USERNAME], "user is in the starred list")
 
       res.statusCode = 201
-      res.json({starred:true})
+      res.json({ starred : true })
     })
   })
 
@@ -118,10 +102,80 @@ test("star a package", function (t) {
     starred : STARRED,
     auth : AUTH
   }
-  client.star("http://localhost:1337/underscore", params, function (error, data) {
-    t.ifError(error, "no errors")
+
+  client.star("http://localhost:1337/underscore", params, function (er, data) {
+    t.ifError(er, "no errors")
     t.ok(data.starred, "was starred")
 
+    t.end()
+  })
+})
+
+test("if password auth, only sets authorization on put", function (t) {
+  var starGet = nock("http://localhost:1010")
+    .get("/underscore?write=true")
+    .reply(200, {})
+
+  var starPut = nock("http://localhost:1010", {
+      reqheaders : {
+        authorization : "Basic " + new Buffer(AUTH.username+":"+
+                                              AUTH.password).toString("base64")
+      }
+    })
+    .put("/underscore")
+    .reply(200)
+
+  var params = {
+    starred : STARRED,
+    auth : AUTH
+  }
+
+  client.star("http://localhost:1010/underscore", params, function (er) {
+    t.ifError(er, "starred without issues")
+    starGet.done()
+    starPut.done()
+    t.end()
+  })
+})
+
+test("if token auth, sets bearer on get and put", function (t) {
+  var starGet = nock("http://localhost:1010", {
+      reqheaders : {
+        authorization : "Bearer foo"
+      }
+    })
+    .get("/underscore?write=true")
+    .reply(200, {})
+
+  var getUser = nock("http://localhost:1010", {
+      reqheaders : {
+        authorization : "Bearer foo"
+      }
+    })
+    .get("/-/whoami")
+    .reply(200, {
+      username : "bcoe"
+    })
+
+  var starPut = nock("http://localhost:1010", {
+      reqheaders : {
+        authorization : "Bearer foo"
+      }
+    })
+    .put("/underscore")
+    .reply(200)
+
+  var params = {
+    starred : STARRED,
+    auth : {
+      token : "foo"
+    }
+  }
+  client.star("http://localhost:1010/underscore", params, function (er) {
+    t.ifError(er, "starred without error")
+    starGet.done()
+    starPut.done()
+    getUser.done()
     t.end()
   })
 })
