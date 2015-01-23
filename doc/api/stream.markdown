@@ -328,6 +328,24 @@ readable.resume()
 readable.isPaused() // === false
 ```
 
+#### readable.isFlowing()
+
+* Return: `Boolean`
+
+This method returns whether or not the `readable` is in flowing mode.
+
+```javascript
+var readable = new stream.Readable
+
+readable.isFlowing() // === false
+readable.resume()
+readable.isFlowing() // === true
+readable.pause()
+readable.isFlowing() // === false
+```
+
+
+
 #### readable.pipe(destination[, options])
 
 * `destination` {[Writable][] Stream} The destination for writing data
