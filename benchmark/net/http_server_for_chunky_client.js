@@ -1,11 +1,12 @@
-"use strict";
+'use strict';
+
 var path = require('path');
 var http = require('http');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 var common = require('../common.js')
 var test = require('../../test/common.js')
-var pep = path.dirname(process.argv[1])+'/chunky_http_client.js';
+var pep = path.dirname(process.argv[1]) + '/chunky_http_client.js';
 var PIPE = test.PIPE;
 
 var server;
@@ -20,28 +21,27 @@ server = http.createServer(function(req, res) {
 });
 
 server.on('error', function(err) {
-  console.error('Error:');
-  console.error(err);
+  throw new Error('server error: ' + err);
 });
 
 try {
-  server.listen(PIPE, 'localhost');
+  var child;
+
+  server.listen(PIPE);
+
+  child = spawn(process.execPath, [pep], { });
+
+  child.on('error', function(err) {
+    throw new Error('spawn error: ' + err );
+  });
+
+  child.stdout.pipe(process.stdout);
+
+  child.on('exit', function (exitCode) {
+    console.error('Child exited with code: ' + exitCode);
+  });
+
 } catch(e) {
-  console.error('Error:');
-  console.error(e);
+  throw new Error('error: ' + e );
 }
 
-var child = spawn(process.execPath, [pep], { });
-child.on('error', function(err) {
-  console.error('spawn error.');
-  console.error(err);
-});
-
-child.stdout.on('data', function (data) {
-  process.stdout.write(data);
-});
-
-child.on('exit', function (exitCode) {
-  console.error('Child exited with code: ' + exitCode);
-  process.exit(0);
-});
