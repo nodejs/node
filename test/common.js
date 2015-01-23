@@ -97,6 +97,17 @@ exports.spawnCat = function(options) {
 };
 
 
+exports.spawnSyncCat = function(options) {
+  var spawnSync = require('child_process').spawnSync;
+
+  if (process.platform === 'win32') {
+    return spawnSync('more', [], options);
+  } else {
+    return spawnSync('cat', [], options);
+  }
+};
+
+
 exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
