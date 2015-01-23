@@ -212,6 +212,7 @@ information about the governance of the io.js project, see
 * **Thorsten Lorenz** ([@thlorenz](https://github.com/thlorenz)) &lt;thlorenz@gmx.de&gt;
 * **Stephen Belanger** ([@qard](https://github.com/qard)) &lt;admin@stephenbelanger.com&gt;
 * **Jeremiah Senkpiel** ([@fishrock123](https://github.com/fishrock123)) &lt;fishrock123@rocketmail.com&gt;
+* **Evan Lucas** ([@evanlucas](https://github.com/evanlucas)) &lt;evanlucas@me.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
