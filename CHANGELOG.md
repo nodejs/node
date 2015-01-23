@@ -201,6 +201,12 @@ https://iojs.org/api/http.html
 - Added `rawHeaders` and `rawTrailers` members on incoming message.
 - Removed default chunked encoding on `DELETE` and `OPTIONS`.
 
+### net
+
+https://iojs.org/api/net.html
+
+- Changed `net.Server.listen` such that, when the bind address is omitted, IPv6 is tried first, and IPv4 is used as a fallback.
+
 ### os
 
 https://iojs.org/api/os.html
