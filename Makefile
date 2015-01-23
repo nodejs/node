@@ -369,7 +369,13 @@ bench-array: all
 bench-buffer: all
 	@$(NODE) benchmark/common.js buffers
 
-bench-all: bench bench-misc bench-array bench-buffer
+bench-url: all
+	@$(NODE) benchmark/common.js url
+
+bench-events: all
+	@$(NODE) benchmark/common.js events
+
+bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
 
 bench: bench-net bench-http bench-fs bench-tls
 
