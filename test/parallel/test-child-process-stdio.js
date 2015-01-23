@@ -13,3 +13,7 @@ child = common.spawnPwd(options);
 
 assert.equal(child.stdout, null);
 assert.equal(child.stderr, null);
+
+options = {stdio: 'ignore'};
+child = common.spawnSyncCat(options);
+assert.deepEqual(options, {stdio: 'ignore'});
