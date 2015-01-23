@@ -11,7 +11,9 @@ function whoami (uri, params, cb) {
   var auth = params.auth
   assert(auth && typeof auth === "object", "must pass auth to whoami")
 
-  this.request(url.resolve(uri, "whoami"), { auth : auth }, function (er, userdata) {
+  if (auth.username) return process.nextTick(cb.bind(this, null, auth.username))
+
+  this.request(url.resolve(uri, "-/whoami"), { auth : auth }, function (er, userdata) {
     if (er) return cb(er)
 
     cb(null, userdata.username)

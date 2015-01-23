@@ -6,11 +6,13 @@ var pkg = path.resolve(__dirname, "lifecycle-path")
 var fs = require("fs")
 var link = path.resolve(pkg, "node-bin")
 
-// Without the path to the shell, nothing works usually.
 var PATH
 if (process.platform === "win32") {
-  PATH = "C:\\Windows\\system32;C:\\Windows"
+  // On Windows the 'comspec' environment variable is used,
+  // so cmd.exe does not need to be on the path.
+  PATH = "C:\\foo\\bar"
 } else {
+  // On non-Windows, without the path to the shell, nothing usually works.
   PATH = "/bin:/usr/bin"
 }
 

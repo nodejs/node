@@ -22,11 +22,18 @@ module.exports = function getCacheStat (cb) {
 
 function makeCacheDir (cb) {
   cb = inflight("makeCacheDir", cb)
-  if (!cb) return log.verbose("getCacheStat", "cache creation already in flight; waiting")
+  if (!cb) {
+    return log.verbose(
+      "getCacheStat",
+      "cache creation already in flight; waiting"
+    )
+  }
   log.verbose("getCacheStat", "cache creation not in flight; initializing")
 
   if (!process.getuid) return mkdir(npm.cache, function (er) {
-    return cb(er, {})
+    log.verbose("makeCacheDir", "UID & GID are irrelevant on", process.platform)
+    cacheStat = { uid : 0, gid : 0 }
+    return cb(er, cacheStat)
   })
 
   var uid = +process.getuid()
@@ -36,8 +43,9 @@ function makeCacheDir (cb) {
     if (process.env.SUDO_UID) uid = +process.env.SUDO_UID
     if (process.env.SUDO_GID) gid = +process.env.SUDO_GID
   }
+
   if (uid !== 0 || !process.env.HOME) {
-    cacheStat = {uid: uid, gid: gid}
+    cacheStat = { uid : uid, gid : gid }
     return mkdir(npm.cache, afterMkdir)
   }
 

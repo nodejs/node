@@ -37,9 +37,9 @@ CachingRegistryClient.prototype._invalidatingRequest = function (uri, params, cb
       var invalidated = client._mapToCache(uri)
       // invalidate cache
       //
-      // This is irrelevant for commands that do etag caching, but ls and
-      // view also have a timed cache, so this keeps the user from thinking
-      // that it didn't work when it did.
+      // This is irrelevant for commands that do etag / last-modified caching,
+      // but ls and view also have a timed cache, so this keeps the user from
+      // thinking that it didn't work when it did.
       // Note that failure is an acceptable option here, since the only
       // result will be a stale cache for some helper commands.
       client.log.verbose("request", "invalidating", invalidated, "on", method)
@@ -99,6 +99,7 @@ function get_ (uri, cachePath, params, cb) {
     , data    = params.data
     , stat    = params.stat
     , etag
+    , lastModified
 
   timeout = Math.min(timeout, npm.config.get("cache-max") || 0)
   timeout = Math.max(timeout, npm.config.get("cache-min") || -Infinity)
@@ -110,17 +111,20 @@ function get_ (uri, cachePath, params, cb) {
 
   if (data) {
     if (data._etag) etag = data._etag
+    if (data._lastModified) lastModified = data._lastModified
 
     if (stat && timeout && timeout > 0) {
       if ((Date.now() - stat.mtime.getTime())/1000 < timeout) {
         log.verbose("get", uri, "not expired, no request")
         delete data._etag
+        delete data._lastModified
         return cb(null, data, JSON.stringify(data), { statusCode : 304 })
       }
 
       if (staleOk) {
         log.verbose("get", uri, "staleOk, background update")
         delete data._etag
+        delete data._lastModified
         process.nextTick(
           cb.bind(null, null, data, JSON.stringify(data), { statusCode : 304 } )
         )
@@ -130,9 +134,10 @@ function get_ (uri, cachePath, params, cb) {
   }
 
   var options = {
-    etag   : etag,
-    follow : params.follow,
-    auth   : params.auth
+    etag         : etag,
+    lastModified : lastModified,
+    follow       : params.follow,
+    auth         : params.auth
   }
   this.request(uri, options, function (er, remoteData, raw, response) {
     // if we get an error talking to the registry, but we have it
@@ -144,9 +149,9 @@ function get_ (uri, cachePath, params, cb) {
 
     if (response) {
       log.silly("get", "cb", [response.statusCode, response.headers])
-      if (response.statusCode === 304 && etag) {
+      if (response.statusCode === 304 && (etag || lastModified)) {
         remoteData = data
-        log.verbose("etag", uri+" from cache")
+        log.verbose(etag ? "etag" : "lastModified", uri+" from cache")
       }
     }
 
@@ -160,6 +165,7 @@ function get_ (uri, cachePath, params, cb) {
     // just give the write the old college try.  if it fails, whatever.
     function saved () {
       delete data._etag
+      delete data._lastModified
       cb(er, data, raw, response)
     }
 
@@ -169,7 +175,7 @@ function get_ (uri, cachePath, params, cb) {
           if (er) return saved()
 
           writeFile(cachePath, JSON.stringify(data), function (er) {
-            if (er || st.uid === null || st.gid === null) return saved()
+            if (er) return saved()
 
             chownr(made || cachePath, st.uid, st.gid, saved)
           })
