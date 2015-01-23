@@ -24,10 +24,12 @@ var family_ipv6 = 'IPv6';
 socket_ipv6.on('listening', assert.fail);
 
 socket_ipv6.on('error', common.mustCall(function(e) {
-  assert.equal(e.message, 'bind EADDRNOTAVAIL 111::1:' + common.PORT);
+  // EAFNOSUPPORT means IPv6 is disabled on this system.
+  var code = (e.code === 'EADDRNOTAVAIL' ? e.code : 'EAFNOSUPPORT');
+  assert.equal(e.message, 'bind ' + code + ' 111::1:' + common.PORT);
   assert.equal(e.address, '111::1');
   assert.equal(e.port, common.PORT);
-  assert.equal(e.code, 'EADDRNOTAVAIL');
+  assert.equal(e.code, code);
   socket_ipv6.close();
 }));
 
