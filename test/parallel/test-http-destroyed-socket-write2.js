@@ -19,7 +19,7 @@ server.listen(common.PORT, function() {
     method: 'POST'
   });
 
-  var timer = setImmediate(write);
+  var timer = setTimeout(write, 50);
   var writes = 0;
 
   function write() {
@@ -28,7 +28,7 @@ server.listen(common.PORT, function() {
       req.end();
       test();
     } else {
-      timer = setImmediate(write);
+      timer = setTimeout(write, 50);
       req.write('hello');
     }
   }
@@ -45,6 +45,9 @@ server.listen(common.PORT, function() {
       case 'ECONNRESET':
       // On windows this sometimes manifests as ECONNABORTED
       case 'ECONNABORTED':
+      // This test is timing sensitive so an EPIPE is not out of the question.
+      // It should be infrequent, given the 50 ms timeout, but not impossible.
+      case 'EPIPE':
         break;
       default:
         assert.strictEqual(er.code,
