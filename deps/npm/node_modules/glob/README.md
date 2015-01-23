@@ -249,10 +249,6 @@ filesystem.
   flag to disable that behavior.
 * `nonull` Set to never return an empty set, instead returning a set
   containing the pattern itself.  This is the default in glob(3).
-* `nocase` Perform a case-insensitive match.  Note that
-  case-insensitive filesystems will sometimes result in glob returning
-  results that are case-insensitively matched anyway, since readdir
-  and stat will not raise an error.
 * `debug` Set to enable debug logging in minimatch and glob.
 * `nobrace` Do not expand `{a,b}` and `{1..3}` brace sets.
 * `noglobstar` Do not match `**` against multiple filenames.  (Ie,

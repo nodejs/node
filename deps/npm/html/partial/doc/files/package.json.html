@@ -104,10 +104,10 @@ feature to install the &quot;npm&quot; executable.)</p>
 command name to local file name. On install, npm will symlink that file into
 <code>prefix/bin</code> for global installs, or <code>./node_modules/.bin/</code> for local
 installs.</p>
-<p>For example, npm has this:</p>
-<pre><code>{ &quot;bin&quot; : { &quot;npm&quot; : &quot;./cli.js&quot; } }
-</code></pre><p>So, when you install npm, it&#39;ll create a symlink from the <code>cli.js</code> script to
-<code>/usr/local/bin/npm</code>.</p>
+<p>For example, myapp could have this:</p>
+<pre><code>{ &quot;bin&quot; : { &quot;myapp&quot; : &quot;./cli.js&quot; } }
+</code></pre><p>So, when you install myapp, it&#39;ll create a symlink from the <code>cli.js</code> script to
+<code>/usr/local/bin/myapp</code>.</p>
 <p>If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string.  For example:</p>
 <pre><code>{ &quot;name&quot;: &quot;my-program&quot;

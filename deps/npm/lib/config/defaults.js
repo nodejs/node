@@ -9,6 +9,7 @@ var path = require("path")
   , nopt = require("nopt")
   , os = require("os")
   , osenv = require("osenv")
+  , umask = require("../utils/umask")
 
 var log
 try {
@@ -20,19 +21,10 @@ try {
   } }
 }
 
-exports.Octal = Octal
-function Octal () {}
-function validateOctal (data, k, val) {
-  // must be either an integer or an octal string.
-  if (typeof val === "number") {
-    data[k] = val
-    return true
-  }
-
-  if (typeof val === "string") {
-    if (val.charAt(0) !== "0" || isNaN(val)) return false
-    data[k] = parseInt(val, 8).toString(8)
-  }
+exports.Umask = Umask
+function Umask () {}
+function validateUmask (data, k, val) {
+  return umask.validate (data, k, val)
 }
 
 function validateSemver (data, k, val) {
@@ -52,8 +44,8 @@ function validateStream (data, k, val) {
 }
 
 nopt.typeDefs.semver = { type: semver, validate: validateSemver }
-nopt.typeDefs.Octal = { type: Octal, validate: validateOctal }
 nopt.typeDefs.Stream = { type: Stream, validate: validateStream }
+nopt.typeDefs.Umask = { type: Umask, validate: validateUmask }
 
 // Don't let --tag=1.2.3 ever be a thing
 var tag = {}
@@ -71,8 +63,8 @@ nopt.invalidHandler = function (k, val, type) {
     case tag:
       log.warn("invalid config", "Tag must not be a SemVer range")
       break
-    case Octal:
-      log.warn("invalid config", "Must be octal number, starting with 0")
+    case Umask:
+      log.warn("invalid config", "Must be umask, octal number in range 0000..0777")
       break
     case url:
       log.warn("invalid config", "Must be a full url with 'http://'")
@@ -224,7 +216,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , usage : false
     , user : process.platform === "win32" ? 0 : "nobody"
     , userconfig : path.resolve(home, ".npmrc")
-    , umask: process.umask ? process.umask() : parseInt("022", 8)
+    , umask: process.umask ? process.umask() : umask.fromString("022")
     , version : false
     , versions : false
     , viewer: process.platform === "win32" ? "browser" : "man"
@@ -322,7 +314,7 @@ exports.types =
   , usage : Boolean
   , user : [Number, String]
   , userconfig : path
-  , umask: Octal
+  , umask: Umask
   , version : Boolean
   , versions : Boolean
   , viewer: String

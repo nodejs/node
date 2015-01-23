@@ -164,16 +164,16 @@ command name to local file name\. On install, npm will symlink that file into
 \fBprefix/bin\fR for global installs, or \fB\|\./node_modules/\.bin/\fR for local
 installs\.
 .P
-For example, npm has this:
+For example, myapp could have this:
 .P
 .RS 2
 .nf
-{ "bin" : { "npm" : "\./cli\.js" } }
+{ "bin" : { "myapp" : "\./cli\.js" } }
 .fi
 .RE
 .P
-So, when you install npm, it'll create a symlink from the \fBcli\.js\fR script to
-\fB/usr/local/bin/npm\fR\|\.
+So, when you install myapp, it'll create a symlink from the \fBcli\.js\fR script to
+\fB/usr/local/bin/myapp\fR\|\.
 .P
 If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string\.  For example:

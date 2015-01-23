@@ -154,12 +154,12 @@ command name to local file name. On install, npm will symlink that file into
 installs.
 
 
-For example, npm has this:
+For example, myapp could have this:
 
-    { "bin" : { "npm" : "./cli.js" } }
+    { "bin" : { "myapp" : "./cli.js" } }
 
-So, when you install npm, it'll create a symlink from the `cli.js` script to
-`/usr/local/bin/npm`.
+So, when you install myapp, it'll create a symlink from the `cli.js` script to
+`/usr/local/bin/myapp`.
 
 If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string.  For example:
