@@ -589,9 +589,9 @@ certificates.
 ### server.listen(port[, hostname][, callback])
 
 Begin accepting connections on the specified `port` and `hostname`. If the
-`hostname` is omitted, the server will accept connections on `::` when IPv6
-is available, or on `0.0.0.0` otherwise. A port value of zero will assign a
-random port.
+`hostname` is omitted, the server will accept connections on any IPv6 address
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. A
+port value of zero will assign a random port.
 
 This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
