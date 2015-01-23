@@ -2,6 +2,8 @@ Aaron Heckmann <aaron.heckmann@gmail.com> <aaron.heckmann+github@gmail.com>
 Abe Fettig <abefettig@gmail.com> <abe@fettig.net>
 Alex Kocharin <rlidwka@kocharin.ru>
 Alex Kocharin <rlidwka@kocharin.ru> <alex@kocharin.ru>
+Alexey Kupershtokh <wicked@alawar.com>
+Alexis Campailla <orangemocha@github.com>
 Alexis Sellier <self@cloudhead.net>
 Alexis Sellier <self@cloudhead.net> <alexis@cloudhead.io>
 Arlo Breault <arlolra@gmail.com>
@@ -13,10 +15,12 @@ Bert Belder <bertbelder@gmail.com> <bert@piscisaureus2.(none)>
 Bert Belder <bertbelder@gmail.com> <info@2bs.nl>
 Bert Belder <bertbelder@gmail.com> <piscisaureus@Berts-MacBook-Pro.local>
 Brandon Benvie <brandon@bbenvie.com> <brandon@brandonbenvie.com>
+Brandon Cheng <bcheng.gt@gmail.com>
 Brian White <mscdex@mscdex.net>
 Brian White <mscdex@mscdex.net> <mscdex@gmail.com>
 Chew Choon Keat <choonkeat@gmail.com>
 Christopher Lenz <cmlenz@gmail.com> <chris@lamech.local>
+Colin Ihrig <cjihrig@gmail.com>
 Daniel Berger <code+node@dpbis.net>
 Daniel Chcouri <333222@gmail.com>
 Daniel Gröber <darklord@darkboxed.org>
@@ -25,6 +29,7 @@ Daniel Pihlström <sciolist.se@gmail.com>
 Dave Pacheco <dap@joyent.com> <dap@cs.brown.edu>
 David Siegel <david@artcom.de> <david.siegel@artcom.de>
 Domenic Denicola <domenic@domenicdenicola.com>
+Doron Pagot <doronpagot@gmail.com>
 Eduard Burtescu <eddy_me08@yahoo.com>
 Einar Otto Stangvik <einaros@gmail.com>
 Elliott Cable <me@ell.io>
@@ -38,6 +43,7 @@ Friedemann Altrock <frodenius@gmail.com>
 Fuji Goro <gfuji@cpan.org>
 Gabriel de Perthuis <g2p.code@gmail.com>
 Gil Pedersen <git@gpost.dk> <github@gpost.dk>
+Guillaume Goussard <guillaume.goussard@mgo.com>
 Henry Chin <hheennrryy@gmail.com>
 Herbert Vojčík <herby@mailbox.sk>
 Igor Soarez <igorsoarez@gmail.com>
@@ -46,6 +52,7 @@ Isaac Z. Schlueter <i@izs.me>
 Isaac Z. Schlueter <i@izs.me> <i@foohack.com>
 Jake Verbaten <raynos2@gmail.com>
 Jered Schmidt <tr@nslator.jp>
+Jochen Eisinger <jochen@chromium.org>
 Joe Shaw <joe@joeshaw.org> <joeshaw@litl.com>
 Johan Bergström <bugs@bergstroem.nu>
 Johan Dahlberg <jfd@distrop.com> <dahlberg.johan@gmail.com>
@@ -69,6 +76,7 @@ Micheil Smith <micheil@brandedcode.com> <micheil@yettobebranded.net>
 Mikael Bourges-Sevenier <mikeseven@gmail.com> <msevenier@motorola.com>
 Nebu Pookins<nebu@nebupookins.net>
 Nicholas Kinsey <pyrotechnick@feistystudios.com>
+Nicholas Vavilov <vvnicholas@gmail.com>
 Onne Gorter <onne@onnlucky.com>
 Paul Querna <pquerna@apache.org> <paul@querna.org>
 Ray Morgan <rmorgan@zappos.com>
@@ -104,8 +112,10 @@ Trevor Burnham <trevor@databraid.com> <trevorburnham@gmail.com>
 Tyler Larson <talltyler@gmail.com>
 Vincent Voyer <v@fasterize.com>
 Willi Eggeling <email@wje-online.de>
+Yiyu He <dead_horse@qq.com>
 Yoshihiro KIKUCHI <yknetg@gmail.com>
 Yuichiro MASUI <masui@masuidrive.jp>
+Yunsong Guo <eilian.yunsong@gmail.com>
 Zachary Scott <zachary@zacharyscott.net> <zachary.s.scott@gmail.com>
 Zoran Tomicic <ztomicic@gmail.com>
 
@@ -120,3 +130,5 @@ Michael Starzinger <mstarzinger@chromium.org>
 Toon Verwaest <verwaest@chromium.org>
 Vyacheslav Egorov <vegorov@chromium.org>
 Yang Guo <yangguo@chromium.org>
+Dan Carney <dcarney@chromium.org>
+Sven Panne <svenpanne@chromium.org>
