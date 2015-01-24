@@ -215,6 +215,7 @@ information about the governance of the io.js project, see
 * **Evan Lucas** ([@evanlucas](https://github.com/evanlucas)) &lt;evanlucas@me.com&gt;
 * **Brendan Ashworth** ([@brendanashworth](https://github.com/brendanashworth)) &lt;brendan.ashworth@me.com&gt;
 * **Vladimir Kurchatkin** ([@vkurchatkin](https://github.com/vkurchatkin)) &lt;vladimir.kurchatkin@gmail.com&gt;
+* **Nikolai Vavilov** ([@seishun](https://github.com/seishun)) &lt;vvnicholas@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
