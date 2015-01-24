@@ -14,6 +14,5 @@ export CXX=arm-linux-androideabi-g++
 export LINK=arm-linux-androideabi-g++
 
 ./configure \
-    --without-snapshot \
     --dest-cpu=arm \
     --dest-os=android

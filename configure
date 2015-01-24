@@ -269,11 +269,16 @@ parser.add_option('--without-perfctr',
     dest='without_perfctr',
     help='build without performance counters')
 
+parser.add_option('--with-snapshot',
+    action='store_true',
+    dest='with_snapshot',
+    help=optparse.SUPPRESS_HELP)
+
+# Dummy option for backwards compatibility.
 parser.add_option('--without-snapshot',
     action='store_true',
-    dest='without_snapshot',
-    help='build without snapshotting V8 libraries. You might want to set'
-         ' this for cross-compiling. [Default: False]')
+    dest='unused_without_snapshot',
+    help=optparse.SUPPRESS_HELP)
 
 parser.add_option('--without-ssl',
     action='store_true',
@@ -289,6 +294,12 @@ parser.add_option('--xcode',
 
 # set up auto-download list
 auto_downloads = nodedownload.parse(options.download_list)
+
+
+def warn(msg):
+  prefix = '\033[1m\033[91mWARNING\033[0m' if os.isatty(1) else 'WARNING'
+  print('%s: %s' % (prefix, msg))
+
 
 def b(value):
   """Returns the string 'true' if value is truthy, 'false' otherwise."""
@@ -337,10 +348,6 @@ def try_check_compiler(cc, lang):
 def check_compiler():
   if sys.platform == 'win32':
     return
-
-  def warn(msg):
-    prefix = '\033[1m\033[91mWARNING\033[0m' if os.isatty(1) else 'WARNING'
-    print('%s: %s' % (prefix, msg))
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
   if not ok:
@@ -473,8 +480,8 @@ def configure_arm(o):
   o['variables']['arm_float_abi'] = arm_float_abi
 
   # Print warning when snapshot is enabled and building on armv6
-  if is_arch_armv6() and not options.without_snapshot:
-    print '\033[1;33mWarning!! When building on ARMv6 use --without-snapshot\033[1;m'
+  if is_arch_armv6() and options.with_snapshot:
+    warn('when building on ARMv6, don\'t use --with-snapshot')
 
 
 def configure_node(o):
@@ -489,7 +496,7 @@ def configure_node(o):
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
-  if target_arch != host_arch and not options.without_snapshot:
+  if target_arch != host_arch and options.with_snapshot:
     o['variables']['want_separate_host_toolset'] = 1
   else:
     o['variables']['want_separate_host_toolset'] = 0
@@ -601,7 +608,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
-  o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
+  o['variables']['v8_use_snapshot'] = b(options.with_snapshot)
 
   # assume shared_v8 if one of these is set?
   if options.shared_v8_libpath:
