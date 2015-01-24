@@ -24,7 +24,7 @@ For example, to show the dependencies of the `ronn` package at version
 
     npm view ronn@0.3.5 dependencies
 
-You can view child field by separating them with a period.
+You can view child fields by separating them with a period.
 To view the git repository URL for the latest version of npm, you could
 do this:
 

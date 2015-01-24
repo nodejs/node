@@ -3,14 +3,15 @@ exports.cmd = cmd
 exports.makeEnv = makeEnv
 
 var log = require("npmlog")
-  , spawn = require("child_process").spawn
-  , npm = require("../npm.js")
-  , path = require("path")
-  , fs = require("graceful-fs")
-  , chain = require("slide").chain
-  , Stream = require("stream").Stream
-  , PATH = "PATH"
-  , uidNumber = require("uid-number")
+var spawn = require("./spawn")
+var npm = require("../npm.js")
+var path = require("path")
+var fs = require("graceful-fs")
+var chain = require("slide").chain
+var Stream = require("stream").Stream
+var PATH = "PATH"
+var uidNumber = require("uid-number")
+var umask = require("./umask")
 
 // windows calls it's path "Path" usually, but this is not guaranteed.
 if (process.platform === "win32") {
@@ -198,7 +199,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   var shFlag = "-c"
 
   if (process.platform === "win32") {
-    sh = "cmd"
+    sh = process.env.comspec || "cmd"
     shFlag = "/c"
     conf.windowsVerbatimArguments = true
   }
@@ -316,6 +317,7 @@ function makeEnv (data, prefix, env) {
     }
     var value = npm.config.get(i)
     if (value instanceof Stream || Array.isArray(value)) return
+    if (i.match(/umask/)) value = umask.toString(value)
     if (!value) value = ""
     else if (typeof value === "number") value = "" + value
     else if (typeof value !== "string") value = JSON.stringify(value)

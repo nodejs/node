@@ -1,0 +1,95 @@
+.TH "NPM\-DIST\-TAG" "1" "January 2015" "" ""
+.SH "NAME"
+\fBnpm-dist-tag\fR \- Modify package distribution tags
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm dist\-tag add <pkg>@<version> [<tag>]
+npm dist\-tag rm <pkg> <tag>
+npm dist\-tag ls [<pkg>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Add, remove, and enumerate distribution tags on a package:
+.RS 0
+.IP \(bu 2
+add:
+Tags the specified version of the package with the specified tag, or the
+\fB\-\-tag\fR config if not specified\.
+.IP \(bu 2
+rm:
+Clear a tag that is no longer in use from the package\.
+.IP \(bu 2
+ls:
+Show all of the dist\-tags for a package, defaulting to the package in
+the curren prefix\.
+
+.RE
+.P
+A tag can be used when installing packages as a reference to a version instead
+of using a specific version number:
+.P
+.RS 2
+.nf
+npm install <name>@<tag>
+.fi
+.RE
+.P
+When installing dependencies, a preferred tagged version may be specified:
+.P
+.RS 2
+.nf
+npm install \-\-tag <tag>
+.fi
+.RE
+.P
+This also applies to \fBnpm dedupe\fR\|\.
+.P
+Publishing a package always sets the "latest" tag to the published version\.
+.SH PURPOSE
+.P
+Tags can be used to provide an alias instead of version numbers\.  For
+example, \fBnpm\fR currently uses the tag "next" to identify the upcoming
+version, and the tag "latest" to identify the current version\.
+.P
+A project might choose to have multiple streams of development, e\.g\.,
+"stable", "canary"\.
+.SH CAVEATS
+.P
+This command used to be known as \fBnpm tag\fR, which only created new tags, and so
+had a different syntax\.
+.P
+Tags must share a namespace with version numbers, because they are specified in
+the same slot: \fBnpm install <pkg>@<version>\fR vs \fBnpm install <pkg>@<tag>\fR\|\.
+.P
+Tags that can be interpreted as valid semver ranges will be rejected\. For
+example, \fBv1\.4\fR cannot be used as a tag, because it is interpreted by semver as
+\fB>=1\.4\.0 <1\.5\.0\fR\|\.  See https://github\.com/npm/npm/issues/6082\|\.
+.P
+The simplest way to avoid semver problems with tags is to use tags that do not
+begin with a number or the letter \fBv\fR\|\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help tag
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help dedupe
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm apihelp tag
+.IP \(bu 2
+npm help 5 npmrc
+
+.RE
+

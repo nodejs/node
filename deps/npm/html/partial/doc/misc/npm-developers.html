@@ -83,6 +83,14 @@ no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code>
 ignore the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to
 include something that is excluded by your <code>.gitignore</code> file, you can
 create an empty <code>.npmignore</code> file to override it.</p>
+<p><code>.npmignore</code> files follow the <a href="http://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files">same pattern rules</a>
+as <code>.gitignore</code> files:</p>
+<ul>
+<li>Blank lines or lines starting with <code>#</code> are ignored.</li>
+<li>Standard glob patterns work.</li>
+<li>You can end patterns with a forward slash <code>/</code> to specify a directory.</li>
+<li>You can negate a pattern by starting it with an exclamation point <code>!</code>.</li>
+</ul>
 <p>By default, the following paths and files are ignored, so there&#39;s no
 need to add them to <code>.npmignore</code> explicitly:</p>
 <ul>

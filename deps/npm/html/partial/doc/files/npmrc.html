@@ -20,7 +20,11 @@ parameters.  Environment variables can be replaced using
 </code></pre><p>Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.</p>
-<h3 id="per-project-config-file">Per-project config file</h3>
+<p>Array values are specified by adding &quot;[]&quot; after the key name. For
+example:</p>
+<pre><code>key[] = &quot;first value&quot;
+key[] = &quot;second value&quot;
+</code></pre><h3 id="per-project-config-file">Per-project config file</h3>
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>

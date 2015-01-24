@@ -1,6 +1,6 @@
-.TH "NPM" "1" "October 2014" "" ""
+.TH "NPM" "1" "January 2015" "" ""
 .SH "NAME"
-\fBnpm\fR \- node package manager
+\fBnpm\fR \- a JavaScript package manager
 .P
 Build Status \fIhttps://img\.shields\.io/travis/npm/npm/master\.svg\fR \fIhttps://travis\-ci\.org/npm/npm\fR
 .SH SYNOPSIS
@@ -32,13 +32,13 @@ paths, etc\.) then read on\.
 .SH Fancy Install (Unix)
 .P
 There's a pretty robust install script at
-https://www\.npmjs\.org/install\.sh\|\.  You can download that and run it\.
+https://www\.npmjs\.com/install\.sh\|\.  You can download that and run it\.
 .P
 Here's an example using curl:
 .P
 .RS 2
 .nf
-curl \-L https://npmjs\.org/install\.sh | sh
+curl \-L https://npmjs\.com/install\.sh | sh
 .fi
 .RE
 .SS Slightly Fancier
@@ -67,47 +67,21 @@ If you've got the npm source code, you can also semi\-permanently set
 arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fR, and then
 run npm commands by doing \fBnode cli\.js <cmd> <args>\fR\|\.  (This is helpful
 for testing, or running stuff without actually installing npm itself\.)
-.SH Fancy Windows Install
+.SH Windows Install or Upgrade
 .P
-You can download a zip file from https://npmjs\.org/dist/, and unpack it
+You can download a zip file from https://github\.com/npm/npm/releases, and unpack it
 in the same folder where node\.exe lives\.
+.P
+The latest version in a zip file is 1\.4\.12\.  To upgrade to npm 2, follow the
+Windows upgrade instructions in the npm Troubleshooting Guide:
+.P
+https://github\.com/npm/npm/wiki/Troubleshooting#upgrading\-on\-windows
 .P
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly\.
 .SH Installing on Cygwin
 .P
 No\.
-.SH Permissions when Using npm to Install Other Stuff
-.P
-\fBtl;dr\fR
-.RS 0
-.IP \(bu 2
-Use \fBsudo\fR for greater safety\.  Or don't, if you prefer not to\.
-.IP \(bu 2
-npm will downgrade permissions if it's root before running any build
-scripts that package authors specified\.
-
-.RE
-.SS More details\.\.\.
-.P
-As of version 0\.3, it is recommended to run npm as root\.
-This allows npm to change the user identifier to the \fBnobody\fR user prior
-to running any package build or test commands\.
-.P
-If you are not the root user, or if you are on a platform that does not
-support uid switching, then npm will not attempt to change the userid\.
-.P
-If you would like to ensure that npm \fBalways\fR runs scripts as the
-"nobody" user, and have it fail if it cannot downgrade permissions, then
-set the following configuration param:
-.P
-.RS 2
-.nf
-npm config set unsafe\-perm false
-.fi
-.RE
-.P
-This will prevent running in unsafe mode, even as non\-root users\.
 .SH Uninstalling
 .P
 So sad to see you go\.
@@ -199,13 +173,13 @@ command line arguments using nopt\.  You may also want to check out \fBnpm
 help config\fR to learn about all the options you can set there\.
 .SH More Docs
 .P
-Check out the docs \fIhttps://www\.npmjs\.org/doc/\fR,
-especially the faq \fIhttps://www\.npmjs\.org/doc/faq\.html\fR\|\.
+Check out the docs \fIhttps://docs\.npmjs\.com/\fR,
+especially the faq \fIhttps://docs\.npmjs\.com/misc/faq\fR\|\.
 .P
 You can use the \fBnpm help\fR command to read any of them\.
 .P
 If you're a developer, and you want to use npm to publish your program,
-you should read this \fIhttps://www\.npmjs\.org/doc/developers\.html\fR
+you should read this \fIhttps://docs\.npmjs\.com/misc/developers\fR
 .SH Legal Stuff
 .P
 "npm" and "The npm Registry" are owned by npm, Inc\.
@@ -224,7 +198,7 @@ specific purpose, or lack of malice in any given npm package\.
 .P
 If you have a complaint about a package in the public npm registry,
 and cannot resolve it with the package
-owner \fIhttps://www\.npmjs\.org/doc/misc/npm\-disputes\.html\fR, please email
+owner \fIhttps://docs\.npmjs\.com/misc/disputes\fR, please email
 support@npmjs\.com and explain the situation\.
 .P
 Any data published to The npm Registry (including user account
@@ -252,9 +226,6 @@ When you find issues, please report them:
 .IP \(bu 2
 web:
 https://github\.com/npm/npm/issues
-.IP \(bu 2
-email:
-npm\-@googlegroups\.com
 
 .RE
 .P

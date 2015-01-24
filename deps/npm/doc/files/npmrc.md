@@ -30,6 +30,12 @@ Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.
 
+Array values are specified by adding "[]" after the key name. For
+example:
+
+    key[] = "first value"
+    key[] = "second value"
+
 ### Per-project config file
 
 When working locally in a project, a `.npmrc` file in the root of the

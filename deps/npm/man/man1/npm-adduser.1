@@ -1,4 +1,4 @@
-.TH "NPM\-ADDUSER" "1" "October 2014" "" ""
+.TH "NPM\-ADDUSER" "1" "January 2015" "" ""
 .SH "NAME"
 \fBnpm-adduser\fR \- Add a registry user account
 .SH SYNOPSIS
@@ -16,13 +16,14 @@ the default registry will be used (see npm help 7 \fBnpm\-config\fR)\.
 .P
 The username, password, and email are read in from prompts\.
 .P
-You may use this command to change your email address, but not username
-or password\.
+To reset your password, go to https://www\.npmjs\.com/forgot
 .P
-To reset your password, go to https://www\.npmjs\.org/forgot
+To change your email address, go to https://www\.npmjs\.com/email\-edit
 .P
 You may use this command multiple times with the same user account to
-authorize on a new machine\.
+authorize on a new machine\.  When authenticating on a new machine,
+the username, password and email address must all match with
+your existing record\.
 .P
 \fBnpm login\fR is an alias to \fBadduser\fR and behaves exactly the same way\.
 .SH CONFIGURATION
@@ -64,7 +65,7 @@ npm adduser \-\-registry=http://private\-registry\.example\.com \-\-always\-auth
 .P
 This will ensure that all requests to that registry (including for tarballs)
 include an authorization header\. See \fBalways\-auth\fR in npm help 7 \fBnpm\-config\fR for more
-details on always\-auth\. Registry\-specific configuaration of \fBalways\-auth\fR takes
+details on always\-auth\. Registry\-specific configuration of \fBalways\-auth\fR takes
 precedence over any global configuration\.
 .SH SEE ALSO
 .RS 0

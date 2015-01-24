@@ -1,17 +1,17 @@
 
 module.exports = publish
 
-var url = require("url")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
   , log = require("npmlog")
   , path = require("path")
   , readJson = require("read-package-json")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
   , Conf = require("./config/core.js").Conf
-  , RegClient = require("npm-registry-client")
+  , CachingRegClient = require("./cache/caching-client.js")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , cachedPackageRoot = require("./cache/cached-package-root.js")
+  , createReadStream = require("graceful-fs").createReadStream
 
 publish.usage = "npm publish <tarball>"
               + "\nnpm publish <folder>"
@@ -87,7 +87,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       s[k] = data.publishConfig[k]
       return s
     }, {}))
-    registry = new RegClient(config)
+    registry = new CachingRegClient(config)
   }
 
   data._npmVersion  = npm.version
@@ -101,21 +101,29 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     )
   )
 
-  mapToRegistry(data.name, config, function (er, registryURI) {
+  mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
     if (er) return cb(er)
 
-    var tarball = cachedir + ".tgz"
+    var tarballPath = cachedir + ".tgz"
 
     // we just want the base registry URL in this case
-    var registryBase = url.resolve(registryURI, ".")
     log.verbose("publish", "registryBase", registryBase)
+    log.silly("publish", "uploading", tarballPath)
 
-    var c = config.getCredentialsByURI(registryBase)
-    data._npmUser = {name: c.username, email: c.email}
+    data._npmUser = {
+      name  : auth.username,
+      email : auth.email
+    }
 
-    registry.publish(registryBase, data, tarball, function (er) {
-      if (er && er.code === "EPUBLISHCONFLICT"
-          && npm.config.get("force") && !isRetry) {
+    var params = {
+      metadata : data,
+      body     : createReadStream(tarballPath),
+      auth     : auth
+    }
+
+    registry.publish(registryBase, params, function (er) {
+      if (er && er.code === "EPUBLISHCONFLICT" &&
+          npm.config.get("force") && !isRetry) {
         log.warn("publish", "Forced publish over " + data._id)
         return npm.commands.unpublish([data._id], function (er) {
           // ignore errors.  Use the force.  Reach out with your feelings.

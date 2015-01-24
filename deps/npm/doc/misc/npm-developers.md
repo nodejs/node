@@ -102,6 +102,14 @@ ignore the stuff matched by the `.gitignore` file.  If you *want* to
 include something that is excluded by your `.gitignore` file, you can
 create an empty `.npmignore` file to override it.
 
+`.npmignore` files follow the [same pattern rules](http://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
+as `.gitignore` files:
+
+* Blank lines or lines starting with `#` are ignored.
+* Standard glob patterns work.
+* You can end patterns with a forward slash `/` to specify a directory.
+* You can negate a pattern by starting it with an exclamation point `!`.
+
 By default, the following paths and files are ignored, so there's no
 need to add them to `.npmignore` explicitly:
 

@@ -52,5 +52,5 @@ List packages in the global install prefix instead of in the current
 project.
 
 Note, if parseable is set or long isn't set, then duplicates will be trimmed.
-This means that if a submodule a same dependency as a parent module, then the
+This means that if a submodule has the same dependency as a parent module, then the
 dependency will only be output once.

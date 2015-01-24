@@ -18,6 +18,7 @@ var log = require("npmlog")
   , ini = require("ini")
   , editor = require("editor")
   , os = require("os")
+  , umask = require("./utils/umask")
 
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -84,7 +85,7 @@ function edit (cb) {
                        ]
                      )
               .concat(Object.keys(npmconf.defaults).reduce(function (arr, key) {
-                var obj = {};
+                var obj = {}
                 obj[key] = npmconf.defaults[key]
                 if (key === "logstream") return arr
                 return arr.concat(
@@ -132,16 +133,19 @@ function set (key, val, cb) {
   val = val.trim()
   log.info("config", "set %j %j", key, val)
   var where = npm.config.get("global") ? "global" : "user"
+  if (key.match(/umask/)) val = umask.fromString(val)
   npm.config.set(key, val, where)
   npm.config.save(where, cb)
 }
 
 function get (key, cb) {
   if (!key) return list(cb)
-  if (key.charAt(0) === "_") {
+  if (!public(key)) {
     return cb(new Error("---sekretz---"))
   }
-  console.log(npm.config.get(key))
+  var val = npm.config.get(key)
+  if (key.match(/umask/)) val = umask.toString(val)
+  console.log(val)
   cb()
 }
 
@@ -150,7 +154,9 @@ function sort (a, b) {
 }
 
 function public (k) {
-  return !(k.charAt(0) === "_" || types[k] !== types[k])
+  return !(k.charAt(0) === "_" ||
+           k.indexOf(":_") !== -1 ||
+           types[k] !== types[k])
 }
 
 function getKeys (data) {

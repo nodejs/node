@@ -12,6 +12,7 @@ var assert = require("assert")
   , cachedPackageRoot = require("./cached-package-root.js")
   , addLocalTarball = require("./add-local-tarball.js")
   , sha = require("sha")
+  , inflight = require("inflight")
 
 module.exports = addLocal
 
@@ -28,6 +29,8 @@ function addLocal (p, pkgData, cb_) {
     }
     if (data && !data._fromGithub) {
       data._from = path.relative(npm.prefix, p.spec) || "."
+      var resolved = path.relative(npm.prefix, p.spec)
+      if (resolved) data._resolved = "file:"+resolved
     }
     return cb_(er, data)
   }
@@ -79,20 +82,24 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
     var root = cachedPackageRoot(data)
     var tgz = path.resolve(root, "package.tgz")
     var pj = path.resolve(root, "package/package.json")
+
+    var wrapped = inflight(tgz, next)
+    if (!wrapped) return log.verbose("addLocalDirectory", tgz, "already in flight; waiting")
+    log.verbose("addLocalDirectory", tgz, "not in flight; packing")
+
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(pj), function (er, made) {
         if (er) return cb(er)
         var fancy = !pathIsInside(p, npm.tmp)
         tar.pack(tgz, p, data, fancy, function (er) {
           if (er) {
-            log.error( "addLocalDirectory", "Could not pack %j to %j"
-                     , p, tgz )
+            log.error("addLocalDirectory", "Could not pack", p, "to", tgz)
             return cb(er)
           }
 
-          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) next()
+          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) wrapped()
 
-          chownr(made || tgz, cs.uid, cs.gid, next)
+          chownr(made || tgz, cs.uid, cs.gid, wrapped)
         })
       })
     })
