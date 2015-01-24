@@ -1,5 +1,73 @@
 # io.js ChangeLog
 
+## 2015-01-24, Version 1.0.4, @rvagg
+
+### Notable changes
+
+* npm upgrade to 2.3.0 fixes Windows "uid is undefined" errors
+* crypto.pseudoRandomBytes() is now an alias for crypto.randomBytes()
+  and will block if there is insufficient entropy to produce secure
+  values. See https://github.com/iojs/io.js/commit/e5e5980 for details.
+* Patch for V8 to properly detect ARMv6; binaries now work again on
+  ARMv6 (Raspberry Pi etc.)
+* Minor V8 upgrade from 4.1.0.7 to 4.1.0.12
+* 'punycode' core module bumped from stability level 2-Unstable,
+  to 3-Stable
+* Added new collaborators:
+  - Thorsten Lorenz (@thlorenz)
+  - Stephen Belanger (@qard)
+  - Jeremiah Senkpiel (@fishrock123)
+  - Evan Lucas (@evanlucas)
+  - Brendan Ashworth (@brendanashworth)
+
+### Commits
+
+* bb766d2 - doc: update "net" section in node to io.js changes (Andres Suarez)
+* 73ddaa6 - tools: remove old updateAuthors.awk script (Rod Vagg)
+* 6230bf9 - doc: update AUTHORS list (Rod Vagg)
+* 33186fa - doc: adds brendanashworth as collaborator (Brendan Ashworth)
+* 8f9502a - doc: add evanlucas to collaborators (Evan Lucas)
+* 35a4f11 - doc: alphabetize all.markdown (Brendan Ashworth)
+* a0831c5 - doc: add Fishrock123 to collaborators (Fishrock123)
+* 5412487 - doc: add qard to collaborators (Stephen Belanger)
+* 8b55048 - deps: make node-gyp work again on windows (Bert Belder)
+* 82227f3 - deps: make node-gyp fetch tarballs from iojs.org (Ben Noordhuis)
+* f5b35db - deps: upgrade npm to 2.3.0 (Forrest L Norvell)
+* f3fed51 - doc: adding thlorenz to list of collaborators (Thorsten Lorenz)
+* 8de89ec - lib: move default address logic to `net._listen2` (Vladimir Kurchatkin)
+* 3143d73 - test: delete parallel/test-process-active-wraps (Ben Noordhuis)
+* 4f95b5d - test: fix parallel/test-http-destroyed-socket-write2 (Ben Noordhuis)
+* 5ba307a - test: fix parallel/test-dgram-error-message-address (Ben Noordhuis)
+* f4c536b - debugger: don't override module binding (Vladimir Kurchatkin)
+* 40ffed8 - stream: use nop as write() callback if omitted (cjihrig)
+* df0d790 - doc: dns.lookupService has wrong header level (Icer Liang)
+* 8b1db9c - doc: note in docs about missing interfaces (Todd Kennedy)
+* 2928ac6 - doc: bump punycode api stability to 'stable' (Ben Noordhuis)
+* 328e67b - doc: add TC meeting 2015-01-21 minutes (Rod Vagg)
+* e5e5980 - lib,src: make pseudoRandomBytes alias randomBytes (Calvin Metcalf)
+* c6cd460 - configure: remove unused arm_neon variable (Ben Noordhuis)
+* 7d9d756 - configure: disable vfpv3 on armv6 (Ben Noordhuis)
+* 297cadb - deps: fix v8 armv6 run-time detection (Ben Noordhuis)
+* d481bb6 - doc: more explicit crypto.pseudoRandomBytes docs (Calvin Metcalf)
+* 7d46247 - src: s/node/io.js/ in `iojs --help` message (Ben Noordhuis)
+* 069c0df - deps: upgrade v8 to 4.1.0.12 (Ben Noordhuis)
+* ada2a43 - doc: add TC meeting 2015-01-13 minutes (Rod Vagg)
+* 60402b9 - docs: remove incorrect entry from changelog (Bert Belder)
+* 8b98096 - fs: make fs.access() flags read only (Jackson Tian)
+* 804e7aa - lib: use const to define constants (cjihrig)
+* 803883b - v8: fix template literal NULL pointer deref (Ben Noordhuis)
+* 5435cf2 - v8: optimize `getHeapStatistics` (Vladimir Kurchatkin)
+* 5d01463 - benchmark: print score to five decimal places (Yosuke Furukawa)
+* 752585d - src: silence clang warnings (Trevor Norris)
+* 22e1aea - src: set node_is_initialized in node::Init (Cheng Zhao)
+* 668420d - src: clean up unused macros in node_file.cc (Ben Noordhuis)
+* 52f624e - src: rename ASSERT macros in node_crypto.cc (Ben Noordhuis)
+* e95cfe1 - src: add ASSERT_EQ style macros (Ben Noordhuis)
+* ee9cd00 - lib: fix TypeError with EventEmitter#on() abuse (Ben Noordhuis)
+* 77d6807 - test: fix event-emitter-get-max-listeners style (Ben Noordhuis)
+* 767ee73 - test: strip copyright boilerplate (Ben Noordhuis)
+* 86eda17 - fs: define constants with const (cjihrig)
+
 ## 2015-01-20, Version 1.0.3, @rvagg
 
 ### Notable changes
