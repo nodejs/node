@@ -17,11 +17,11 @@ set msiplatform=x86
 set target=Build
 set target_arch=ia32
 set debug_arg=
-set nosnapshot_arg=
+set snapshot_arg=
 set noprojgen=
 set nobuild=
 set nosign=
-set nosnapshot=
+set snapshot=
 set test=
 set test_args=
 set msi=
@@ -48,7 +48,7 @@ if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set nosign=1&goto arg-ok
-if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="snapshot"      set snapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
@@ -79,7 +79,7 @@ if defined jslint goto jslint
 
 if "%config%"=="Debug" set debug_arg=--debug
 if "%target_arch%"=="x64" set msiplatform=x64
-if defined nosnapshot set nosnapshot_arg=--without-snapshot
+if defined snapshot set snapshot_arg=--with-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 
@@ -96,7 +96,7 @@ if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 @rem Generate the VS project.
 SETLOCAL
   if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
   if errorlevel 1 goto create-msvs-files-failed
   if not exist node.sln goto create-msvs-files-failed
   echo Project files generated.
