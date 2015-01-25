@@ -986,6 +986,55 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define CONNECTION_MULTI_LWS 36
+, {.name = "multiple connection header values with folding and lws"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Connection: keep-alive, upgrade\r\n"
+         "Upgrade: WebSocket\r\n"
+         "\r\n"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 2
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Connection", "keep-alive, upgrade" }
+             , { "Upgrade", "WebSocket" }
+             }
+  ,.body= ""
+  }
+
+#define CONNECTION_MULTI_LWS_CRLF 37
+, {.name = "multiple connection header values with folding and lws"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Connection: keep-alive, \r\n upgrade\r\n"
+         "Upgrade: WebSocket\r\n"
+         "\r\n"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 2
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Connection", "keep-alive,  upgrade" }
+             , { "Upgrade", "WebSocket" }
+             }
+  ,.body= ""
+  }
 
 , {.name= NULL } /* sentinel */
 };
