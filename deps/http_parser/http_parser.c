@@ -1618,6 +1618,8 @@ size_t http_parser_execute (http_parser *parser,
                 h_state = h_matching_connection_upgrade;
               } else if (STRICT_TOKEN(c)) {
                 h_state = h_matching_connection_token;
+              } else if (c == ' ' || c == '\t') {
+                /* Skip lws */
               } else {
                 h_state = h_general;
               }
