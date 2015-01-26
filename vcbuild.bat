@@ -69,6 +69,7 @@ if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
+if /i "%1"=="build-release" set nosnapshot=1&set config=Release&set msi=1&set licensertf=1&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -243,6 +244,7 @@ echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
+echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 goto exit
 
 :exit

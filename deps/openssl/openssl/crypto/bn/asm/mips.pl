@@ -1872,6 +1872,41 @@ ___
 
 ($a_4,$a_5,$a_6,$a_7)=($b_0,$b_1,$b_2,$b_3);
 
+sub add_c2 () {
+my ($hi,$lo,$c0,$c1,$c2,
+    $warm,      # !$warm denotes first call with specific sequence of
+                # $c_[XYZ] when there is no Z-carry to accumulate yet;
+    $an,$bn     # these two are arguments for multiplication which
+                # result is used in *next* step [which is why it's
+                # commented as "forward multiplication" below];
+    )=@_;
+$code.=<<___;
+	mflo	$lo
+	mfhi	$hi
+	$ADDU	$c0,$lo
+	sltu	$at,$c0,$lo
+	 $MULTU	$an,$bn			# forward multiplication
+	$ADDU	$c0,$lo
+	$ADDU	$at,$hi
+	sltu	$lo,$c0,$lo
+	$ADDU	$c1,$at
+	$ADDU	$hi,$lo
+___
+$code.=<<___	if (!$warm);
+	sltu	$c2,$c1,$at
+	$ADDU	$c1,$hi
+	sltu	$hi,$c1,$hi
+	$ADDU	$c2,$hi
+___
+$code.=<<___	if ($warm);
+	sltu	$at,$c1,$at
+	$ADDU	$c1,$hi
+	$ADDU	$c2,$at
+	sltu	$hi,$c1,$hi
+	$ADDU	$c2,$hi
+___
+}
+
 $code.=<<___;
 
 .align	5
@@ -1920,21 +1955,10 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_1
 	$ADDU	$c_3,$t_2,$at
 	$ST	$c_2,$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_1		# mul_add_c(a[1],b[1],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_1,$a_1);		# mul_add_c(a[1],b[1],c3,c1,c2);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_3,$t_1
@@ -1945,67 +1969,19 @@ $code.=<<___;
 	sltu	$at,$c_1,$t_2
 	$ADDU	$c_2,$at
 	$ST	$c_3,2*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_3,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_2		# mul_add_c2(a[1],b[2],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	 $MULTU	$a_4,$a_0		# mul_add_c2(a[4],b[0],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
+___
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,0,
+		$a_1,$a_2);		# mul_add_c2(a[1],b[2],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_4,$a_0);		# mul_add_c2(a[4],b[0],c2,c3,c1);
+$code.=<<___;
 	$ST	$c_1,3*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_1,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_3,$a_1		# mul_add_c2(a[3],b[1],c2,c3,c1);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_1,$at
-	$MULTU	$a_2,$a_2		# mul_add_c(a[2],b[2],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
+___
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,0,
+		$a_3,$a_1);		# mul_add_c2(a[3],b[1],c2,c3,c1);
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,1,
+		$a_2,$a_2);		# mul_add_c(a[2],b[2],c2,c3,c1);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_2,$t_1
@@ -2016,97 +1992,23 @@ $code.=<<___;
 	sltu	$at,$c_3,$t_2
 	$ADDU	$c_1,$at
 	$ST	$c_2,4*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_4		# mul_add_c2(a[1],b[4],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_2,$at
-	$MULTU	$a_2,$a_3		# mul_add_c2(a[2],b[3],c3,c1,c2);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	 $MULTU	$a_6,$a_0		# mul_add_c2(a[6],b[0],c1,c2,c3);
-	$ADDU	$c_2,$at
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_1,$a_4);		# mul_add_c2(a[1],b[4],c3,c1,c2);
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,1,
+		$a_2,$a_3);		# mul_add_c2(a[2],b[3],c3,c1,c2);
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,1,
+		$a_6,$a_0);		# mul_add_c2(a[6],b[0],c1,c2,c3);
+$code.=<<___;
 	$ST	$c_3,5*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_3,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_5,$a_1		# mul_add_c2(a[5],b[1],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	$MULTU	$a_4,$a_2		# mul_add_c2(a[4],b[2],c1,c2,c3);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	$MULTU	$a_3,$a_3		# mul_add_c(a[3],b[3],c1,c2,c3);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
+___
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,0,
+		$a_5,$a_1);		# mul_add_c2(a[5],b[1],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_4,$a_2);		# mul_add_c2(a[4],b[2],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_3,$a_3);		# mul_add_c(a[3],b[3],c1,c2,c3);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_1,$t_1
@@ -2117,112 +2019,25 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_2
 	$ADDU	$c_3,$at
 	$ST	$c_1,6*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_1,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_6		# mul_add_c2(a[1],b[6],c2,c3,c1);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_1,$at
-	$MULTU	$a_2,$a_5		# mul_add_c2(a[2],b[5],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_1,$at
-	$MULTU	$a_3,$a_4		# mul_add_c2(a[3],b[4],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_1,$at
-	 $MULTU	$a_7,$a_1		# mul_add_c2(a[7],b[1],c3,c1,c2);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
+___
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,0,
+		$a_1,$a_6);		# mul_add_c2(a[1],b[6],c2,c3,c1);
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,1,
+		$a_2,$a_5);		# mul_add_c2(a[2],b[5],c2,c3,c1);
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,1,
+		$a_3,$a_4);		# mul_add_c2(a[3],b[4],c2,c3,c1);
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,1,
+		$a_7,$a_1);		# mul_add_c2(a[7],b[1],c3,c1,c2);
+$code.=<<___;
 	$ST	$c_2,7*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_6,$a_2		# mul_add_c2(a[6],b[2],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_2,$at
-	$MULTU	$a_5,$a_3		# mul_add_c2(a[5],b[3],c3,c1,c2);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_2,$at
-	$MULTU	$a_4,$a_4		# mul_add_c(a[4],b[4],c3,c1,c2);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_6,$a_2);		# mul_add_c2(a[6],b[2],c3,c1,c2);
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,1,
+		$a_5,$a_3);		# mul_add_c2(a[5],b[3],c3,c1,c2);
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,1,
+		$a_4,$a_4);		# mul_add_c(a[4],b[4],c3,c1,c2);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_3,$t_1
@@ -2233,82 +2048,21 @@ $code.=<<___;
 	sltu	$at,$c_1,$t_2
 	$ADDU	$c_2,$at
 	$ST	$c_3,8*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_3,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_3,$a_6		# mul_add_c2(a[3],b[6],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	$MULTU	$a_4,$a_5		# mul_add_c2(a[4],b[5],c1,c2,c3);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	 $MULTU	$a_7,$a_3		# mul_add_c2(a[7],b[3],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
+___
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,0,
+		$a_3,$a_6);		# mul_add_c2(a[3],b[6],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_4,$a_5);		# mul_add_c2(a[4],b[5],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_7,$a_3);		# mul_add_c2(a[7],b[3],c2,c3,c1);
+$code.=<<___;
 	$ST	$c_1,9*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_1,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_6,$a_4		# mul_add_c2(a[6],b[4],c2,c3,c1);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_1,$at
-	$MULTU	$a_5,$a_5		# mul_add_c(a[5],b[5],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
+___
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,0,
+		$a_6,$a_4);		# mul_add_c2(a[6],b[4],c2,c3,c1);
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,1,
+		$a_5,$a_5);		# mul_add_c(a[5],b[5],c2,c3,c1);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_2,$t_1
@@ -2319,52 +2073,17 @@ $code.=<<___;
 	sltu	$at,$c_3,$t_2
 	$ADDU	$c_1,$at
 	$ST	$c_2,10*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_5,$a_6		# mul_add_c2(a[5],b[6],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_2,$at
-	 $MULTU	$a_7,$a_5		# mul_add_c2(a[7],b[5],c1,c2,c3);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_5,$a_6);		# mul_add_c2(a[5],b[6],c3,c1,c2);
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,1,
+		$a_7,$a_5);		# mul_add_c2(a[7],b[5],c1,c2,c3);
+$code.=<<___;
 	$ST	$c_3,11*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_3,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_6,$a_6		# mul_add_c(a[6],b[6],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
+___
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,0,
+		$a_6,$a_6);		# mul_add_c(a[6],b[6],c1,c2,c3);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_1,$t_1
@@ -2375,21 +2094,10 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_2
 	$ADDU	$c_3,$at
 	$ST	$c_1,12*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_1,$t_2,$zero
-	$SLL	$t_2,1
-	 $MULTU	$a_7,$a_7		# mul_add_c(a[7],b[7],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
+___
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,0,
+		$a_7,$a_7);		# mul_add_c(a[7],b[7],c3,c1,c2);
+$code.=<<___;
 	$ST	$c_2,13*$BNSZ($a0)
 
 	mflo	$t_1
@@ -2457,21 +2165,10 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_1
 	$ADDU	$c_3,$t_2,$at
 	$ST	$c_2,$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_1		# mul_add_c(a[1],b[1],c3,c1,c2);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_1,$a_1);		# mul_add_c(a[1],b[1],c3,c1,c2);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_3,$t_1
@@ -2482,52 +2179,17 @@ $code.=<<___;
 	sltu	$at,$c_1,$t_2
 	$ADDU	$c_2,$at
 	$ST	$c_3,2*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_3,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_1,$a_2		# mul_add_c(a2[1],b[2],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$at,$t_2,$zero
-	$ADDU	$c_3,$at
-	 $MULTU	$a_3,$a_1		# mul_add_c2(a[3],b[1],c2,c3,c1);
-	$SLL	$t_2,1
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_1,$t_1
-	sltu	$at,$c_1,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_2,$t_2
-	sltu	$at,$c_2,$t_2
-	$ADDU	$c_3,$at
+___
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,0,
+		$a_1,$a_2);		# mul_add_c2(a2[1],b[2],c1,c2,c3);
+	&add_c2($t_2,$t_1,$c_1,$c_2,$c_3,1,
+		$a_3,$a_1);		# mul_add_c2(a[3],b[1],c2,c3,c1);
+$code.=<<___;
 	$ST	$c_1,3*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_1,$t_2,$zero
-	$SLL	$t_2,1
-	$MULTU	$a_2,$a_2		# mul_add_c(a[2],b[2],c2,c3,c1);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_2,$t_1
-	sltu	$at,$c_2,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_3,$t_2
-	sltu	$at,$c_3,$t_2
-	$ADDU	$c_1,$at
+___
+	&add_c2($t_2,$t_1,$c_2,$c_3,$c_1,0,
+		$a_2,$a_2);		# mul_add_c(a[2],b[2],c2,c3,c1);
+$code.=<<___;
 	mflo	$t_1
 	mfhi	$t_2
 	$ADDU	$c_2,$t_1
@@ -2538,21 +2200,10 @@ $code.=<<___;
 	sltu	$at,$c_3,$t_2
 	$ADDU	$c_1,$at
 	$ST	$c_2,4*$BNSZ($a0)
-
-	mflo	$t_1
-	mfhi	$t_2
-	slt	$c_2,$t_2,$zero
-	$SLL	$t_2,1
-	 $MULTU	$a_3,$a_3		# mul_add_c(a[3],b[3],c1,c2,c3);
-	slt	$a2,$t_1,$zero
-	$ADDU	$t_2,$a2
-	$SLL	$t_1,1
-	$ADDU	$c_3,$t_1
-	sltu	$at,$c_3,$t_1
-	$ADDU	$t_2,$at
-	$ADDU	$c_1,$t_2
-	sltu	$at,$c_1,$t_2
-	$ADDU	$c_2,$at
+___
+	&add_c2($t_2,$t_1,$c_3,$c_1,$c_2,0,
+		$a_3,$a_3);		# mul_add_c(a[3],b[3],c1,c2,c3);
+$code.=<<___;
 	$ST	$c_3,5*$BNSZ($a0)
 
 	mflo	$t_1

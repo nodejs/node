@@ -225,8 +225,7 @@
 #define HOST_c2l(c,l)	(l =(((unsigned long)(*((c)++)))<<24),		\
 			 l|=(((unsigned long)(*((c)++)))<<16),		\
 			 l|=(((unsigned long)(*((c)++)))<< 8),		\
-			 l|=(((unsigned long)(*((c)++)))    ),		\
-			 l)
+			 l|=(((unsigned long)(*((c)++)))    )		)
 #endif
 #ifndef HOST_l2c
 #define HOST_l2c(l,c)	(*((c)++)=(unsigned char)(((l)>>24)&0xff),	\
@@ -262,8 +261,7 @@
 #define HOST_c2l(c,l)	(l =(((unsigned long)(*((c)++)))    ),		\
 			 l|=(((unsigned long)(*((c)++)))<< 8),		\
 			 l|=(((unsigned long)(*((c)++)))<<16),		\
-			 l|=(((unsigned long)(*((c)++)))<<24),		\
-			 l)
+			 l|=(((unsigned long)(*((c)++)))<<24)		)
 #endif
 #ifndef HOST_l2c
 #define HOST_l2c(l,c)	(*((c)++)=(unsigned char)(((l)    )&0xff),	\

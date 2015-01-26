@@ -68,7 +68,7 @@
 
 #include "ec_lcl.h"
 
-static const char EC_version[] = "EC" OPENSSL_VERSION_PTEXT;
+const char EC_version[] = "EC" OPENSSL_VERSION_PTEXT;
 
 
 /* functions for EC_GROUP objects */

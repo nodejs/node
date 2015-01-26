@@ -115,7 +115,7 @@ writes the encrypted version to B<out>. This function can be called
 multiple times to encrypt successive blocks of data. The amount
 of data written depends on the block alignment of the encrypted data:
 as a result the amount of data written may be anything from zero bytes
-to (inl + cipher_block_size - 1) so B<outl> should contain sufficient
+to (inl + cipher_block_size - 1) so B<out> should contain sufficient
 room. The actual number of bytes written is placed in B<outl>.
 
 If padding is enabled (the default) then EVP_EncryptFinal_ex() encrypts

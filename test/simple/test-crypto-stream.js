@@ -70,7 +70,7 @@ var key = new Buffer('48fb56eb10ffeb13fc0ef551bbca3b1b', 'hex'),
 
 cipher.pipe(decipher)
   .on('error', common.mustCall(function end(err) {
-    assert(/Unsupported/.test(err));
+    assert(/bad decrypt/.test(err));
   }));
 
 cipher.end('Papaya!');  // Should not cause an unhandled exception.

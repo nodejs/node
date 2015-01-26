@@ -703,7 +703,7 @@ bad:
 		ERR_clear_error();
 #ifdef RL_DEBUG
 	if (!p)
-		BIO_printf(bio_err, "DEBUG: unique_subject undefined\n", p);
+		BIO_printf(bio_err, "DEBUG: unique_subject undefined\n");
 #endif
 #ifdef RL_DEBUG
 	BIO_printf(bio_err, "DEBUG: configured unique_subject is %d\n",
