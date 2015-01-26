@@ -1,4 +1,13 @@
-2014.12.22, Version 0.10.35 (Stable)
+2015.01.26, Version 0.10.36 (Stable)
+
+* openssl: update to 1.0.1l
+
+* v8: Fix debugger and strict mode regression (Julien Gilli)
+
+* v8: don't busy loop in cpu profiler thread (Ben Noordhuis)
+
+
+2014.12.22, Version 0.10.35 (Stable), a363f61ca839e817eb6853c5dc5af8c3b9b9226b
 
 * tls: re-add 1024-bit SSL certs removed by f9456a2 (Chris Dickinson)
 
