@@ -61,7 +61,7 @@ class TCPConnectWrap : public ReqWrap<uv_connect_t> {
 
 
 TCPConnectWrap::TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPWRAP) {
+    : ReqWrap<uv_connect_t>(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPWRAP) {
   Wrap(req_wrap_obj, this);
 }
 

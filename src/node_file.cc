@@ -75,7 +75,7 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
             Local<Object> req,
             const char* syscall,
             char* data = NULL)
-    : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
+    : ReqWrap<uv_fs_t>(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
       syscall_(syscall),
       data_(data),
       dest_len_(0) {

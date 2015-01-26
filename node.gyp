@@ -168,6 +168,12 @@
       ],
 
       'conditions': [
+        [ 'gcc_version<=44', {
+          # GCC versions <= 4.4 do not handle the aliasing in the queue
+          # implementation, so disable aliasing on these platforms
+          # to avoid subtle bugs
+          'cflags': [ '-fno-strict-aliasing' ],
+        }],
         [ 'v8_enable_i18n_support==1', {
           'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
           'dependencies': [

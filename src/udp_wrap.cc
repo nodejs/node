@@ -64,7 +64,7 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
 SendWrap::SendWrap(Environment* env,
                    Local<Object> req_wrap_obj,
                    bool have_callback)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
+    : ReqWrap<uv_udp_send_t>(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
       have_callback_(have_callback) {
   Wrap(req_wrap_obj, this);
 }

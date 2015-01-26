@@ -36,7 +36,9 @@ class StreamWrap;
 class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
  public:
   ShutdownWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj)
-      : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
+      : ReqWrap<uv_shutdown_t>(env,
+                               req_wrap_obj,
+                               AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
     Wrap(req_wrap_obj, this);
   }
 
@@ -50,7 +52,7 @@ class WriteWrap: public ReqWrap<uv_write_t> {
   // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
   // into the same provider. How should these be broken apart?
   WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
-      : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
+      : ReqWrap<uv_write_t>(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
         wrap_(wrap) {
     Wrap(obj, this);
   }

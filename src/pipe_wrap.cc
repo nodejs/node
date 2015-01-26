@@ -61,7 +61,7 @@ class PipeConnectWrap : public ReqWrap<uv_connect_t> {
 
 
 PipeConnectWrap::PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPEWRAP) {
+    : ReqWrap<uv_connect_t>(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPEWRAP) {
   Wrap(req_wrap_obj, this);
 }
 
