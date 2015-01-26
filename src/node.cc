@@ -2552,7 +2552,9 @@ void SetupProcessObject(Environment* env,
 
   const char http_parser_version[] = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
                                      "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR);
+                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+                                     "."
+                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
