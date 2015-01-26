@@ -3322,6 +3322,36 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+inline void PlatformInit() {
+#ifdef __POSIX__
+  // Raise the open file descriptor limit.
+  struct rlimit lim;
+  if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
+    // Do a binary search for the limit.
+    rlim_t min = lim.rlim_cur;
+    rlim_t max = 1 << 20;
+    // But if there's a defined upper bound, don't search, just set it.
+    if (lim.rlim_max != RLIM_INFINITY) {
+      min = lim.rlim_max;
+      max = lim.rlim_max;
+    }
+    do {
+      lim.rlim_cur = min + (max - min) / 2;
+      if (setrlimit(RLIMIT_NOFILE, &lim)) {
+        max = lim.rlim_cur;
+      } else {
+        min = lim.rlim_cur;
+      }
+    } while (min + 1 < max);
+  }
+  // Ignore SIGPIPE
+  RegisterSignalHandler(SIGPIPE, SIG_IGN);
+  RegisterSignalHandler(SIGINT, SignalExit, true);
+  RegisterSignalHandler(SIGTERM, SignalExit, true);
+#endif  // __POSIX__
+}
+
+
 void Init(int* argc,
           const char** argv,
           int* exec_argc,
@@ -3395,35 +3425,6 @@ void Init(int* argc,
   }
 
   V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
-
-#ifdef __POSIX__
-  // Raise the open file descriptor limit.
-  {  // NOLINT (whitespace/braces)
-    struct rlimit lim;
-    if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
-      // Do a binary search for the limit.
-      rlim_t min = lim.rlim_cur;
-      rlim_t max = 1 << 20;
-      // But if there's a defined upper bound, don't search, just set it.
-      if (lim.rlim_max != RLIM_INFINITY) {
-        min = lim.rlim_max;
-        max = lim.rlim_max;
-      }
-      do {
-        lim.rlim_cur = min + (max - min) / 2;
-        if (setrlimit(RLIMIT_NOFILE, &lim)) {
-          max = lim.rlim_cur;
-        } else {
-          min = lim.rlim_cur;
-        }
-      } while (min + 1 < max);
-    }
-  }
-  // Ignore SIGPIPE
-  RegisterSignalHandler(SIGPIPE, SIG_IGN);
-  RegisterSignalHandler(SIGINT, SignalExit, true);
-  RegisterSignalHandler(SIGTERM, SignalExit, true);
-#endif  // __POSIX__
 
   if (!use_debug_agent) {
     RegisterDebugSignalHandler();
@@ -3610,6 +3611,8 @@ Environment* CreateEnvironment(Isolate* isolate,
 
 
 int Start(int argc, char** argv) {
+  PlatformInit();
+
   const char* replaceInvalid = secure_getenv("NODE_INVALID_UTF8");
 
   if (replaceInvalid == nullptr)
