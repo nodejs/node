@@ -37,6 +37,7 @@ set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
+set build_release=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -69,7 +70,7 @@ if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
-if /i "%1"=="build-release" set nosnapshot=1&set config=Release&set msi=1&set licensertf=1&goto arg-ok
+if /i "%1"=="build-release" set build_release=1&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -81,6 +82,15 @@ goto next-arg
 :args-done
 if defined upload goto upload
 if defined jslint goto jslint
+
+if defined build_release (
+  set nosnapshot=1
+  set config=Release
+  set msi=1
+  set licensertf=1
+  set download_arg="--download=all"
+  set i18n_arg=small-icu
+)
 
 if "%config%"=="Debug" set debug_arg=--debug
 if "%target_arch%"=="x64" set msiplatform=x64
