@@ -64,7 +64,7 @@ It can be constructed in a variety of ways.
 
 Allocates a new buffer of `size` octets. Note, `size` must be no more than
 [kMaxLength](smalloc.html#smalloc_smalloc_kmaxlength). Otherwise, a `RangeError`
-will be thrown here.
+will be thrown here. Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So the contents of a newly created `Buffer` is unknown. Use `buf.fill(0)`to initialize a buffer to zeroes.
 
 ### new Buffer(array)
 
