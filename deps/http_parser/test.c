@@ -950,91 +950,6 @@ const struct message requests[] =
   ,.body= ""
   }
 
-#define CONNECTION_MULTI 35
-, {.name = "multiple connection header values with folding"
-  ,.type= HTTP_REQUEST
-  ,.raw= "GET /demo HTTP/1.1\r\n"
-         "Host: example.com\r\n"
-         "Connection: Something,\r\n"
-         " Upgrade, ,Keep-Alive\r\n"
-         "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-         "Sec-WebSocket-Protocol: sample\r\n"
-         "Upgrade: WebSocket\r\n"
-         "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
-         "Origin: http://example.com\r\n"
-         "\r\n"
-         "Hot diggity dogg"
-  ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
-  ,.http_major= 1
-  ,.http_minor= 1
-  ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/demo"
-  ,.request_url= "/demo"
-  ,.num_headers= 7
-  ,.upgrade="Hot diggity dogg"
-  ,.headers= { { "Host", "example.com" }
-             , { "Connection", "Something, Upgrade, ,Keep-Alive" }
-             , { "Sec-WebSocket-Key2", "12998 5 Y3 1  .P00" }
-             , { "Sec-WebSocket-Protocol", "sample" }
-             , { "Upgrade", "WebSocket" }
-             , { "Sec-WebSocket-Key1", "4 @1  46546xW%0l 1 5" }
-             , { "Origin", "http://example.com" }
-             }
-  ,.body= ""
-  }
-
-#define CONNECTION_MULTI_LWS 36
-, {.name = "multiple connection header values with folding and lws"
-  ,.type= HTTP_REQUEST
-  ,.raw= "GET /demo HTTP/1.1\r\n"
-         "Connection: keep-alive, upgrade\r\n"
-         "Upgrade: WebSocket\r\n"
-         "\r\n"
-         "Hot diggity dogg"
-  ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
-  ,.http_major= 1
-  ,.http_minor= 1
-  ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/demo"
-  ,.request_url= "/demo"
-  ,.num_headers= 2
-  ,.upgrade="Hot diggity dogg"
-  ,.headers= { { "Connection", "keep-alive, upgrade" }
-             , { "Upgrade", "WebSocket" }
-             }
-  ,.body= ""
-  }
-
-#define CONNECTION_MULTI_LWS_CRLF 37
-, {.name = "multiple connection header values with folding and lws"
-  ,.type= HTTP_REQUEST
-  ,.raw= "GET /demo HTTP/1.1\r\n"
-         "Connection: keep-alive, \r\n upgrade\r\n"
-         "Upgrade: WebSocket\r\n"
-         "\r\n"
-         "Hot diggity dogg"
-  ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
-  ,.http_major= 1
-  ,.http_minor= 1
-  ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/demo"
-  ,.request_url= "/demo"
-  ,.num_headers= 2
-  ,.upgrade="Hot diggity dogg"
-  ,.headers= { { "Connection", "keep-alive,  upgrade" }
-             , { "Upgrade", "WebSocket" }
-             }
-  ,.body= ""
-  }
 
 , {.name= NULL } /* sentinel */
 };
@@ -2292,6 +2207,7 @@ print_error (const char *raw, size_t error_location)
         break;
 
       case '\n':
+        char_len = 2;
         fprintf(stderr, "\\n\n");
 
         if (this_line) goto print;
@@ -2994,11 +2910,15 @@ test_simple (const char *buf, enum http_errno err_expected)
 {
   parser_init(HTTP_REQUEST);
 
+  size_t parsed;
+  int pass;
   enum http_errno err;
 
-  parse(buf, strlen(buf));
+  parsed = parse(buf, strlen(buf));
+  pass = (parsed == strlen(buf));
   err = HTTP_PARSER_ERRNO(parser);
-  parse(NULL, 0);
+  parsed = parse(NULL, 0);
+  pass &= (parsed == 0);
 
   parser_free();
 
@@ -3555,13 +3475,6 @@ main (void)
     sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
     test_simple(buf, HPE_INVALID_METHOD);
   }
-
-  // illegal header field name line folding
-  test_simple("GET / HTTP/1.1\r\n"
-              "name\r\n"
-              " : value\r\n"
-              "\r\n",
-              HPE_INVALID_HEADER_TOKEN);
 
   const char *dumbfuck2 =
     "GET / HTTP/1.1\r\n"
