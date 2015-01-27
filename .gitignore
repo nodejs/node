@@ -28,6 +28,7 @@ Release/
 *.suo
 *.vcproj
 *.vcxproj
+!custom_actions.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 UpgradeLog*.XML

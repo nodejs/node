@@ -56,6 +56,16 @@
   <ItemGroup>
     <EmbeddedResource Include="WixUI_en-us.wxl" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="custom_actions.vcxproj">
+      <Name>custom_actions</Name>
+      <Project>{b70585f8-dab7-40fa-9904-13cf53a73a06}</Project>
+      <Private>True</Private>
+      <DoNotHarvest>True</DoNotHarvest>
+      <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
+      <RefTargetDir>INSTALLFOLDER</RefTargetDir>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
   <Target Name="BeforeBuild">
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs" RunAsSeparateProcess="true">

@@ -237,7 +237,17 @@
       </Component>
     </DirectoryRef>
 
+    <Binary Id='BroadcastEnvironmentUpdate'
+            SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
+
+    <CustomAction Id="BroadcastEnvironmentUpdate"
+                  BinaryKey="BroadcastEnvironmentUpdate"
+                  DllEntry="BroadcastEnvironmentUpdate"
+                  Execute="immediate"
+                  Return="check" />
+
     <InstallExecuteSequence>
+      <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
     <UI Id="NodeInstallUI">
