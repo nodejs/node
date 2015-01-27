@@ -157,6 +157,15 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
+dash:
+	out/Release/$(NODE_EXE) tools/doc/dash.js $(shell find out/doc/api/*.json)
+	cp -r tools/doc/iojs.docset out/doc
+	rm -rf tools/doc/iojs.docset/Contents/Resources/docSet.dsidx
+	mkdir -p out/doc/iojs.docset/Contents/Resources/Documents/iojs.org/api
+	cp -r out/doc/api/* out/doc/iojs.docset/Contents/Resources/Documents/iojs.org/api/
+	tar --exclude='.DS_Store' -cvzf out/doc/iojs.tgz out/doc/iojs.docset
+
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))
@@ -402,4 +411,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
+.PHONY: dash lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
