@@ -87,8 +87,9 @@ void Watchdog::Destroy() {
 void Watchdog::Run(void* arg) {
   Watchdog* wd = static_cast<Watchdog*>(arg);
 
-  // UV_RUN_ONCE so async_ or timer_ wakeup exits uv_run() call.
-  uv_run(wd->loop_, UV_RUN_ONCE);
+  // UV_RUN_DEFAULT the loop will be stopped either by the async or the
+  // timer handle.
+  uv_run(wd->loop_, UV_RUN_DEFAULT);
 
   // Loop ref count reaches zero when both handles are closed.
   // Close the timer handle on this side and let Destroy() close async_
@@ -97,11 +98,14 @@ void Watchdog::Run(void* arg) {
 
 
 void Watchdog::Async(uv_async_t* async) {
+  Watchdog* w = ContainerOf(&Watchdog::async_, async);
+  uv_stop(w->loop_);
 }
 
 
 void Watchdog::Timer(uv_timer_t* timer) {
   Watchdog* w = ContainerOf(&Watchdog::timer_, timer);
+  uv_stop(w->loop_);
   V8::TerminateExecution(w->env()->isolate());
 }
 
