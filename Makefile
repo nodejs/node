@@ -68,6 +68,7 @@ distclean:
 	-rm -rf node_modules
 	-rm -rf deps/icu
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	-rm -rf test/addons/doc-*/
 
 test: all
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
@@ -85,14 +86,33 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
-build-addons: $(NODE_EXE)
-	rm -rf test/addons/doc-*/
-	./$(NODE_EXE) tools/doc/addon-verify.js
-	$(foreach dir, \
-			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
-			./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-					--directory="$(shell pwd)/$(dir)" \
-					--nodedir="$(shell pwd)" && ) echo "build done"
+ADDONS_TESTS = \
+	async-hello-world \
+	at-exit \
+	hello-world-function-export \
+	hello-world \
+	repl-domain-abort \
+
+# Note: don't depend on $(NODE_EXE) here, that unconditionally forces a rebuild.
+test/addons/%/build/Release/binding.node: \
+		test/addons/%/binding.cc test/addons/%/binding.gyp
+	./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--nodedir="$(PWD)" --directory="$(dir $<)"
+
+build-static-addons: \
+	$(NODE_EXE) $(ADDONS_TESTS:%=test/addons/%/build/Release/binding.node)
+
+# Note: don't depend on $(NODE_EXE) here, that unconditionally forces a rebuild.
+test/addons/.stamp: tools/doc/addon-verify.js doc/api/addons.markdown
+	./$(NODE_EXE) $<
+	$(foreach dir, $(dir $(wildcard test/addons/doc-*/*.gyp)), \
+		./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+			rebuild --nodedir="$(PWD)" --directory="$(dir)")
+	touch $@
+
+build-doc-addons: $(NODE_EXE) test/addons/.stamp
+
+build-addons: build-doc-addons build-static-addons
 
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=release gc
@@ -148,7 +168,7 @@ test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
 
 test-addons: test-build
-	$(PYTHON) tools/test.py --mode=release addons
+	$(PYTHON) tools/test.py -J addons
 
 test-timers:
 	$(MAKE) --directory=tools faketime
