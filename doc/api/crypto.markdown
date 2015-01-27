@@ -707,6 +707,14 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 
 NOTE: All paddings are defined in `constants` module.
 
+## crypto.privateEncrypt(private_key, buffer)
+
+See above for details. Has the same API as `crypto.privateDecrypt`.
+
+## crypto.publicDecrypt(public_key, buffer)
+
+See above for details. Has the same API as `crypto.publicEncrypt`.
+
 ## crypto.DEFAULT_ENCODING
 
 The default encoding to use for functions that can take either strings
