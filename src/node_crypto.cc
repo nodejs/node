@@ -3603,12 +3603,6 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   if (EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0)
     goto exit;
 
-  /* Reset md for signatures, we are doing raw RSA ops anyway */
-  if (EVP_PKEY_CTX_get_operation(ctx) == EVP_PKEY_OP_SIGN) {
-    if (EVP_PKEY_CTX_set_signature_md(ctx, nullptr) <= 0)
-      goto exit;
-  }
-
   if (EVP_PKEY_cipher(ctx, nullptr, out_len, data, len) <= 0)
     goto exit;
 
