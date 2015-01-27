@@ -19,25 +19,20 @@
 # IN THE SOFTWARE.
 
 PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
-SONAME ?= libhttp_parser.so.2.4.2
+SONAME ?= libhttp_parser.so.2.3
 
 CC?=gcc
 AR?=ar
-
-CPPFLAGS ?=
-LDFLAGS ?=
 
 CPPFLAGS += -I.
 CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1
 CPPFLAGS_DEBUG += $(CPPFLAGS_DEBUG_EXTRA)
 CPPFLAGS_FAST = $(CPPFLAGS) -DHTTP_PARSER_STRICT=0
 CPPFLAGS_FAST += $(CPPFLAGS_FAST_EXTRA)
-CPPFLAGS_BENCH = $(CPPFLAGS_FAST)
 
 CFLAGS += -Wall -Wextra -Werror
 CFLAGS_DEBUG = $(CFLAGS) -O0 -g $(CFLAGS_DEBUG_EXTRA)
 CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
-CFLAGS_BENCH = $(CFLAGS_FAST) -Wno-unused-parameter
 CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
 
 LDFLAGS_LIB = $(LDFLAGS) -shared
@@ -65,12 +60,6 @@ test_fast: http_parser.o test.o http_parser.h
 
 test.o: test.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c test.c -o $@
-
-bench: http_parser.o bench.o
-	$(CC) $(CFLAGS_BENCH) $(LDFLAGS) http_parser.o bench.o -o $@
-
-bench.o: bench.c http_parser.h Makefile
-	$(CC) $(CPPFLAGS_BENCH) $(CFLAGS_BENCH) -c bench.c -o $@
 
 http_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c http_parser.c
