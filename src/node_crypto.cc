@@ -3561,12 +3561,12 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
 
   // Check if this is a PKCS#8 or RSA public key before trying as X.509 and
   // private key.
-  if (operation == kEncrypt &&
+  if (operation == kPublic &&
       strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
     pkey = PEM_read_bio_PUBKEY(bp, nullptr, nullptr, nullptr);
     if (pkey == nullptr)
       goto exit;
-  } else if (operation == kEncrypt &&
+  } else if (operation == kPublic &&
              strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
     RSA* rsa = PEM_read_bio_RSAPublicKey(bp, nullptr, nullptr, nullptr);
     if (rsa) {
@@ -3577,7 +3577,7 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
     }
     if (pkey == nullptr)
       goto exit;
-  } else if (operation == kEncrypt &&
+  } else if (operation == kPublic &&
              strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
     x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
     if (x509 == nullptr)
@@ -3602,6 +3602,12 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
     goto exit;
   if (EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0)
     goto exit;
+
+  /* Reset md for signatures, we are doing raw RSA ops anyway */
+  if (EVP_PKEY_CTX_get_operation(ctx) == EVP_PKEY_OP_SIGN) {
+    if (EVP_PKEY_CTX_set_signature_md(ctx, nullptr) <= 0)
+      goto exit;
+  }
 
   if (EVP_PKEY_cipher(ctx, nullptr, out_len, data, len) <= 0)
     goto exit;
@@ -5038,13 +5044,21 @@ void InitCrypto(Handle<Object> target,
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
   env->SetMethod(target, "publicEncrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kEncrypt,
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,
                                          EVP_PKEY_encrypt>);
   env->SetMethod(target, "privateDecrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kDecrypt,
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
                                          EVP_PKEY_decrypt_init,
                                          EVP_PKEY_decrypt>);
+  env->SetMethod(target, "privateEncrypt",
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                         EVP_PKEY_sign_init,
+                                         EVP_PKEY_sign>);
+  env->SetMethod(target, "publicDecrypt",
+                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                         EVP_PKEY_verify_recover_init,
+                                         EVP_PKEY_verify_recover>);
 }
 
 }  // namespace crypto
