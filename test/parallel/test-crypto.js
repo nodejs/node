@@ -831,6 +831,28 @@ assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
   }, encryptedBuffer);
   assert.equal(input, decryptedBufferWithPassword.toString());
 
+  encryptedBuffer = crypto.publicEncrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: 'password'
+  }, bufferToEncrypt);
+
+  decryptedBufferWithPassword = crypto.privateDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: 'password'
+  }, encryptedBuffer);
+  assert.equal(input, decryptedBufferWithPassword.toString());
+
+  encryptedBuffer = crypto.privateEncrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: new Buffer('password')
+  }, bufferToEncrypt);
+
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: new Buffer('password')
+  }, encryptedBuffer);
+  assert.equal(input, decryptedBufferWithPassword.toString());
+
   encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
 
   decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
@@ -850,6 +872,25 @@ assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
     crypto.privateDecrypt({
       key: rsaKeyPemEncrypted,
       passphrase: 'wrong'
+    }, bufferToEncrypt);
+  });
+
+  assert.throws(function() {
+    crypto.publicEncrypt({
+      key: rsaKeyPemEncrypted,
+      passphrase: 'wrong'
+    }, encryptedBuffer);
+  });
+
+  encryptedBuffer = crypto.privateEncrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: new Buffer('password')
+  }, bufferToEncrypt);
+
+  assert.throws(function() {
+    crypto.publicDecrypt({
+      key: rsaKeyPemEncrypted,
+      passphrase: [].concat.apply([], new Buffer('password'))
     }, encryptedBuffer);
   });
 })();
