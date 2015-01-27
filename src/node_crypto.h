@@ -553,8 +553,8 @@ class PublicKeyCipher {
                                    const unsigned char *in, size_t inlen);
 
   enum Operation {
-    kEncrypt,
-    kDecrypt
+    kPublic,
+    kPrivate
   };
 
   template <Operation operation,
