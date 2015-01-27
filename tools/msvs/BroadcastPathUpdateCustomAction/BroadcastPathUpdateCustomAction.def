@@ -1,5 +1,0 @@
-LIBRARY "BroadcastPathUpdateCustomAction"
-
-EXPORTS
-
-BroadcastPathUpdate

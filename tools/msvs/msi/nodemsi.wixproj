@@ -57,8 +57,8 @@
     <EmbeddedResource Include="WixUI_en-us.wxl" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\BroadcastPathUpdateCustomAction\BroadcastPathUpdateCustomAction.vcxproj">
-      <Name>BroadcastPathUpdateCustomAction</Name>
+    <ProjectReference Include="CustomExtension.vcxproj">
+      <Name>CustomExtension</Name>
       <Project>{b70585f8-dab7-40fa-9904-13cf53a73a06}</Project>
       <Private>True</Private>
       <DoNotHarvest>True</DoNotHarvest>

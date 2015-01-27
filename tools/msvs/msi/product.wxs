@@ -269,12 +269,12 @@
                   Execute="deferred"
                   Return="check" />
 
-    <Binary Id='BroadcastPathUpdateCustomAction'
-            SourceFile='$(var.BroadcastPathUpdateCustomAction.TargetDir)$(var.BroadcastPathUpdateCustomAction.TargetName).dll' />
+    <Binary Id='CustomExtensionBinary'
+            SourceFile='$(var.CustomExtension.TargetDir)$(var.CustomExtension.TargetName).dll' />
 
-    <CustomAction Id="BroadcastPathUpdate"
-                  BinaryKey="BroadcastPathUpdateCustomAction"
-                  DllEntry="BroadcastPathUpdate"
+    <CustomAction Id="BroadcastEnvironmentUpdate"
+                  BinaryKey="CustomExtensionBinary"
+                  DllEntry="BroadcastEnvironmentUpdate"
                   Execute="immediate"
                   Return="check" />
 
@@ -282,7 +282,7 @@
       <Custom Action="LinkNodeExeToIojsExe" After="InstallFiles">
         $NodeAlias = 3
       </Custom>
-      <Custom Action='BroadcastPathUpdate' After='InstallFinalize'/>
+      <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
     <UI Id="NodeInstallUI">

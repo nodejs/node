@@ -29,7 +29,7 @@ Release/
 *.suo
 *.vcproj
 *.vcxproj
-!BroadcastPathUpdateCustomAction.vcxproj
+!CustomExtension.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 UpgradeLog*.XML

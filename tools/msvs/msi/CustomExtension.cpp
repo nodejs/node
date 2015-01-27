@@ -1,10 +1,15 @@
-#include "stdafx.h"
 
-UINT __stdcall BroadcastPathUpdate(MSIHANDLE hInstall) {
+#define WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+#include <msiquery.h>
+#include <wcautil.h>
+
+UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
 
-  hr = WcaInitialize(hInstall, "BroadcastPathUpdateCustomAction");
+  hr = WcaInitialize(hInstall, "BroadcastEnvironmentUpdate");
   ExitOnFailure(hr, "Failed to initialize");
 
   WcaLog(LOGMSG_STANDARD, "Initialized.");
@@ -22,11 +27,7 @@ LExit:
   return WcaFinalize(er);
 }
 
-
-// DllMain - Initialize and cleanup WiX custom action utils.
-extern "C" BOOL WINAPI DllMain(__in HINSTANCE hInst,
-                               __in ULONG ulReason,
-                               __in LPVOID) {
+extern "C" BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, LPVOID) {
   switch (ulReason) {
     case DLL_PROCESS_ATTACH:
       WcaGlobalInitialize(hInst);
