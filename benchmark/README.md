@@ -3,6 +3,14 @@
 This folder contains benchmark tests to measure the performance for certain
 io.js APIs.
 
+## prerequisites
+
+Most of the http benchmarks require `wrk` to be compiled beforehand.
+
+```sh
+make wrk
+```
+
 ## How to run tests
 
 There are two ways to run benchmark tests:
@@ -78,6 +86,20 @@ buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 246.79
 buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 240.11
 buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 245.91
 ...
+```
+
+3. Run tests with options
+
+This example will run only the first type of url test, with one iteration.
+(Note: benchmarks require __many__ iterations to be statistically accurate.)
+
+
+```sh
+iojs benchmark/url/url-parse.js type=one n=1
+```
+Output:
+```
+url/url-parse.js type=one n=1: 1663.74402
 ```
 
 ## How to write a benchmark test
