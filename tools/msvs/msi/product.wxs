@@ -269,10 +269,20 @@
                   Execute="deferred"
                   Return="check" />
 
+    <Binary Id='BroadcastEnvironmentUpdate'
+            SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
+
+    <CustomAction Id="BroadcastEnvironmentUpdate"
+                  BinaryKey="BroadcastEnvironmentUpdate"
+                  DllEntry="BroadcastEnvironmentUpdate"
+                  Execute="immediate"
+                  Return="check" />
+
     <InstallExecuteSequence>
       <Custom Action="LinkNodeExeToIojsExe" After="InstallFiles">
         $NodeAlias = 3
       </Custom>
+      <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
     <UI Id="NodeInstallUI">
