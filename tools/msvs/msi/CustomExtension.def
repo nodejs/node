@@ -1,0 +1,5 @@
+LIBRARY "CustomExtension"
+
+EXPORTS
+
+BroadcastEnvironmentUpdate
