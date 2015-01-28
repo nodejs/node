@@ -57,6 +57,7 @@ it is removed.
 Returns emitter, so calls can be chained.
 
 ### emitter.removeListener(event, listener)
+### emitter.off(event, listener)
 
 Remove a listener from the listener array for the specified event.
 **Caution**: changes array indices in the listener array behind the listener.
