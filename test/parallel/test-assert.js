@@ -130,7 +130,7 @@ assert.doesNotThrow(makeBlock(a.deepEqual, nb1, nb2));
 
 nameBuilder2.prototype = Object;
 nb2 = new nameBuilder2('Ryan', 'Dahl');
-assert.throws(makeBlock(a.deepEqual, nb1, nb2), a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, nb1, nb2));
 
 // primitives and object
 assert.throws(makeBlock(a.deepEqual, null, {}), a.AssertionError);
