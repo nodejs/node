@@ -154,12 +154,12 @@ test-npm: node
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../node cli.js install
+	     PATH="../../:${PATH}" node cli.js install
 	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
 	     npm_config_prefix="$(shell pwd)/npm-prefix" \
 	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../node cli.js run-script test-all && \
-	     ../../node cli.js prune --prod && \
+	     PATH="../../:${PATH}" node cli.js run-script test-all && \
+	     PATH="../../:${PATH}" node cli.js prune --prod && \
 	     cd ../.. && \
 	     rm -rf npm-cache npm-tmp npm-prefix
 
