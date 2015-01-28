@@ -184,19 +184,7 @@ void uv__once_init(void) {
 }
 
 
-uv_loop_t* uv_default_loop(void) {
-  if (default_loop_ptr != NULL)
-    return default_loop_ptr;
-
-  if (uv_loop_init(&default_loop_struct))
-    return NULL;
-
-  default_loop_ptr = &default_loop_struct;
-  return default_loop_ptr;
-}
-
-
-static void uv__loop_close(uv_loop_t* loop) {
+void uv__loop_close(uv_loop_t* loop) {
   size_t i;
 
   /* close the async handle without needing an extra loop iteration */
@@ -218,57 +206,6 @@ static void uv__loop_close(uv_loop_t* loop) {
   uv_mutex_destroy(&loop->wq_mutex);
 
   CloseHandle(loop->iocp);
-}
-
-
-int uv_loop_close(uv_loop_t* loop) {
-  QUEUE* q;
-  uv_handle_t* h;
-  if (!QUEUE_EMPTY(&(loop)->active_reqs))
-    return UV_EBUSY;
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-    if (!(h->flags & UV__HANDLE_INTERNAL))
-      return UV_EBUSY;
-  }
-
-  uv__loop_close(loop);
-
-#ifndef NDEBUG
-  memset(loop, -1, sizeof(*loop));
-#endif
-  if (loop == default_loop_ptr)
-    default_loop_ptr = NULL;
-
-  return 0;
-}
-
-
-uv_loop_t* uv_loop_new(void) {
-  uv_loop_t* loop;
-
-  loop = (uv_loop_t*)malloc(sizeof(uv_loop_t));
-  if (loop == NULL) {
-    return NULL;
-  }
-
-  if (uv_loop_init(loop)) {
-    free(loop);
-    return NULL;
-  }
-
-  return loop;
-}
-
-
-void uv_loop_delete(uv_loop_t* loop) {
-  uv_loop_t* default_loop;
-  int err;
-  default_loop = default_loop_ptr;
-  err = uv_loop_close(loop);
-  assert(err == 0);
-  if (loop != default_loop)
-    free(loop);
 }
 
 

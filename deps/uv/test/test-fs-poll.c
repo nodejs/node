@@ -172,6 +172,7 @@ TEST_IMPL(fs_poll_getpath) {
   ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb_fail, FIXTURE, 100));
   len = sizeof buf;
   ASSERT(0 == uv_fs_poll_getpath(&poll_handle, buf, &len));
+  ASSERT(buf[len - 1] != 0);
   ASSERT(0 == memcmp(buf, FIXTURE, len));
 
   uv_close((uv_handle_t*) &poll_handle, close_cb);

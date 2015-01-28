@@ -44,6 +44,7 @@ static void getnameinfo_req(uv_getnameinfo_t* handle,
   ASSERT(service != NULL);
 }
 
+
 TEST_IMPL(getnameinfo_basic_ip4) {
   int r;
 
@@ -62,6 +63,23 @@ TEST_IMPL(getnameinfo_basic_ip4) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(getnameinfo_basic_ip4_sync) {
+  ASSERT(0 == uv_ip4_addr(address_ip4, port, &addr4));
+
+  ASSERT(0 == uv_getnameinfo(uv_default_loop(),
+                             &req,
+                             NULL,
+                             (const struct sockaddr*)&addr4,
+                             0));
+  ASSERT(req.host != NULL);
+  ASSERT(req.service != NULL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 
 TEST_IMPL(getnameinfo_basic_ip6) {
   int r;

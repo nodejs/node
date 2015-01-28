@@ -675,8 +675,11 @@ UV_EXTERN void uv_pipe_connect(uv_connect_t* req,
                                const char* name,
                                uv_connect_cb cb);
 UV_EXTERN int uv_pipe_getsockname(const uv_pipe_t* handle,
-                                  char* buf,
-                                  size_t* len);
+                                  char* buffer,
+                                  size_t* size);
+UV_EXTERN int uv_pipe_getpeername(const uv_pipe_t* handle,
+                                  char* buffer,
+                                  size_t* size);
 UV_EXTERN void uv_pipe_pending_instances(uv_pipe_t* handle, int count);
 UV_EXTERN int uv_pipe_pending_count(uv_pipe_t* handle);
 UV_EXTERN uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle);
@@ -772,6 +775,7 @@ struct uv_getaddrinfo_s {
   UV_REQ_FIELDS
   /* read-only */
   uv_loop_t* loop;
+  /* struct addrinfo* addrinfo is marked as private, but it really isn't. */
   UV_GETADDRINFO_PRIVATE_FIELDS
 };
 
@@ -1260,7 +1264,9 @@ UV_EXTERN int uv_fs_poll_start(uv_fs_poll_t* handle,
                                const char* path,
                                unsigned int interval);
 UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
-UV_EXTERN int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buf, size_t* len);
+UV_EXTERN int uv_fs_poll_getpath(uv_fs_poll_t* handle,
+                                 char* buffer,
+                                 size_t* size);
 
 
 struct uv_signal_s {
@@ -1317,8 +1323,8 @@ UV_EXTERN int uv_fs_event_start(uv_fs_event_t* handle,
                                 unsigned int flags);
 UV_EXTERN int uv_fs_event_stop(uv_fs_event_t* handle);
 UV_EXTERN int uv_fs_event_getpath(uv_fs_event_t* handle,
-                                  char* buf,
-                                  size_t* len);
+                                  char* buffer,
+                                  size_t* size);
 
 UV_EXTERN int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr);
 UV_EXTERN int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr);
