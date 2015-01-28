@@ -62,7 +62,7 @@
 #endif
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   int err;
   int fd;
 

@@ -49,7 +49,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 

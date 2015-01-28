@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.2.1], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.3.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -24,6 +24,7 @@ AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
+CC_CHECK_CFLAGS_APPEND([-fvisibility=hidden])
 CC_CHECK_CFLAGS_APPEND([-g])
 CC_CHECK_CFLAGS_APPEND([-std=gnu89])
 CC_CHECK_CFLAGS_APPEND([-pedantic])

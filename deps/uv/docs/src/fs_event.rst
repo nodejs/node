@@ -87,16 +87,22 @@ API
     Start the handle with the given callback, which will watch the specified
     `path` for changes. `flags` can be an ORed mask of :c:type:`uv_fs_event_flags`.
 
+    .. note:: Currently the only supported flag is ``UV_FS_EVENT_RECURSIVE`` and
+              only on OSX.
+
 .. c:function:: int uv_fs_event_stop(uv_fs_event_t* handle)
 
     Stop the handle, the callback will no longer be called.
 
-.. c:function:: int uv_fs_event_getpath(uv_fs_event_t* handle, char* buf, size_t* len)
+.. c:function:: int uv_fs_event_getpath(uv_fs_event_t* handle, char* buffer, size_t* size)
 
     Get the path being monitored by the handle. The buffer must be preallocated
     by the user. Returns 0 on success or an error code < 0 in case of failure.
-    On success, `buf` will contain the path and `len` its length. If the buffer
+    On success, `buffer` will contain the path and `size` its length. If the buffer
     is not big enough UV_ENOBUFS will be returned and len will be set to the
     required size.
+
+    .. versionchanged:: 1.3.0 the returned length no longer includes the terminating null byte,
+                        and the buffer is not null terminated.
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.
