@@ -149,6 +149,121 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), {0: 'a'}), a.Asserti
 assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}), a.AssertionError);
 assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}), a.AssertionError);
 
+//deepStrictEqual
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
+                    new Date(2000, 3, 14)), 'deepStrictEqual date');
+
+assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
+              a.AssertionError,
+              'deepStrictEqual date');
+
+// 7.3 - strict
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/g, /a/g));
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/i, /a/i));
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/m, /a/m));
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/igm, /a/igm));
+assert.throws(makeBlock(a.deepStrictEqual, /ab/, /a/));
+assert.throws(makeBlock(a.deepStrictEqual, /a/g, /a/));
+assert.throws(makeBlock(a.deepStrictEqual, /a/i, /a/));
+assert.throws(makeBlock(a.deepStrictEqual, /a/m, /a/));
+assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
+
+var re1 = /a/;
+re1.lastIndex = 3;
+assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+
+
+// 7.4 - strict
+assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
+              a.AssertionError,
+              'deepStrictEqual === check');
+
+assert.throws(makeBlock(a.deepStrictEqual, true, 1),
+              a.AssertionError,
+              'deepStrictEqual === check');
+
+assert.throws(makeBlock(a.deepStrictEqual, 4, '5'),
+              a.AssertionError,
+              'deepStrictEqual === check');
+
+// 7.5 - strict
+// having the same number of owned properties && the same set of keys
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, {a: 4}, {a: 4}));
+assert.doesNotThrow(makeBlock(a.deepStrictEqual,
+                              {a: 4, b: '2'},
+                              {a: 4, b: '2'}));
+assert.throws(makeBlock(a.deepStrictEqual, [4], ['4']));
+assert.throws(makeBlock(a.deepStrictEqual, {a: 4}, {a: 4, b: true}),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, ['a'], {0: 'a'}));
+//(although not necessarily the same order),
+assert.doesNotThrow(makeBlock(a.deepStrictEqual,
+                              {a: 4, b: '1'},
+                              {b: '1', a: 4}));
+
+assert.throws(makeBlock(a.deepStrictEqual,
+                        [0, 1, 2, 'a', 'b'],
+                        [0, 1, 2, 'b', 'a']),
+              a.AssertionError);
+
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, a1, a2));
+
+// Prototype check
+function Constructor1(first, last) {
+  this.first = first;
+  this.last = last;
+}
+
+function Constructor2(first, last) {
+  this.first = first;
+  this.last = last;
+}
+
+var obj1 = new Constructor1('Ryan', 'Dahl');
+var obj2 = new Constructor2('Ryan', 'Dahl');
+
+assert.throws(makeBlock(a.deepStrictEqual, obj1, obj2), a.AssertionError);
+
+Constructor2.prototype = Constructor1.prototype;
+obj2 = new Constructor2('Ryan', 'Dahl');
+
+assert.doesNotThrow(makeBlock(a.deepStrictEqual, obj1, obj2));
+
+// primitives
+assert.throws(makeBlock(assert.deepStrictEqual, 4, '4'),
+              a.AssertionError);
+assert.throws(makeBlock(assert.deepStrictEqual, true, 1),
+              a.AssertionError);
+assert.throws(makeBlock(assert.deepStrictEqual, Symbol(), Symbol()),
+              a.AssertionError);
+
+var s = Symbol();
+assert.doesNotThrow(makeBlock(assert.deepStrictEqual, s, s));
+
+
+// primitives and object
+assert.throws(makeBlock(a.deepStrictEqual, null, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, undefined, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, 'a', ['a']), a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, 'a', {0: 'a'}), a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, 1, {}), a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, true, {}), a.AssertionError);
+assert.throws(makeBlock(assert.deepStrictEqual, Symbol(), {}),
+              a.AssertionError);
+
+
+// primitive wrappers and object
+assert.throws(makeBlock(a.deepStrictEqual, new String('a'), ['a']),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, new String('a'), {0: 'a'}),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, new Number(1), {}),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepStrictEqual, new Boolean(true), {}),
+              a.AssertionError);
+
+
 // Testing the throwing
 function thrower(errorConstructor) {
   throw new errorConstructor('test');
