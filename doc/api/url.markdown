@@ -98,7 +98,6 @@ Here's how the formatting process works:
 * `port` will only be used if `host` is absent.
 * `host` will be used in place of `hostname` and `port`
 * `pathname` is treated the same with or without the leading `/` (slash).
-* `path` is treated the same with `pathname` but able to contain `query` as well.
 * `search` will be used in place of `query`.
   * It is treated the same with or without the leading `?` (question mark)
 * `query` (object; see `querystring`) will only be used if `search` is absent.
