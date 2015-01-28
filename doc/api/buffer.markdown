@@ -797,6 +797,19 @@ buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### buffer.values()
+
+Creates iterator for buffer values (bytes). This function is called automatically
+when `buffer` is used in a `for..of` statement.
+
+### buffer.keys()
+
+Creates iterator for buffer keys (indices).
+
+### buffer.entries()
+
+Creates iterator for `[index, byte]` arrays.
+
 ## buffer.INSPECT_MAX_BYTES
 
 * Number, Default: 50
@@ -806,6 +819,22 @@ be overridden by user modules.
 
 Note that this is a property on the buffer module returned by
 `require('buffer')`, not on the Buffer global, or a buffer instance.
+
+## ES6 iteration
+
+Buffers can be iterated over using `for..of` syntax:
+
+    var buf = new Buffer([1, 2, 3]);
+
+    for (var b of buf)
+      console.log(b)
+
+    // 1
+    // 2
+    // 3
+
+Additionally, `buffer.values()`, `buffer.keys()` and `buffer.entries()`
+methods can be used to create iterators.
 
 ## Class: SlowBuffer
 
