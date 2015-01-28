@@ -11,7 +11,7 @@ ENV LC_ALL en_US.UTF-8
 
 RUN locale
 
-RUN apt-get install -y build-essential python-software-properties man
+RUN apt-get install -y curl build-essential python-software-properties man
 ADD . /io.js
 RUN cd /io.js && ./configure && make && make test && make doc && make install
 RUN iojs -v
