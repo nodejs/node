@@ -8,7 +8,6 @@ import subprocess
 import sys
 import shutil
 import string
-import textwrap
 
 CC = os.environ.get('CC', 'cc')
 CXX = os.environ.get('CXX', 'c++')
@@ -297,9 +296,12 @@ auto_downloads = nodedownload.parse(options.download_list)
 
 
 def warn(msg):
-  prefix = '\033[1m\033[91mWARNING\033[0m' if os.isatty(1) else 'WARNING'
+  warn.warned = True
+  prefix = '\033[1m\033[93mWARNING\033[0m' if os.isatty(1) else 'WARNING'
   print('%s: %s' % (prefix, msg))
 
+# track if warnings occured
+warn.warned = False
 
 def b(value):
   """Returns the string 'true' if value is truthy, 'false' otherwise."""
@@ -960,7 +962,7 @@ output = {
   'variables': variables,
   'target_defaults': output
 }
-print textwrap.fill(str(output), 78)
+pprint.pprint(output, indent=2)
 
 write('config.gypi', do_not_edit +
       pprint.pformat(output, indent=2) + '\n')
@@ -989,5 +991,8 @@ else:
   gyp_args += ['-f', 'make-' + flavor]
 
 gyp_args += args
+
+if warn.warned:
+  warn('warnings were emitted in the configure phase')
 
 sys.exit(subprocess.call(gyp_args))
