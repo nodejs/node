@@ -1,6 +1,6 @@
 # console
 
-    Stability: 4 - API Frozen
+    Stability: 3 - Stable
 
 * {Object}
 
