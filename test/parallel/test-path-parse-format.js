@@ -30,7 +30,7 @@ var unixPaths = [
 ];
 
 var errors = [
-  {method: 'parse', input: [null], message: /Parameter 'pathString' must be a string, not/},
+  {method: 'parse', input: [null], message: /Parameter 'pathString' must be a string, not null/},
   {method: 'parse', input: [{}], message: /Parameter 'pathString' must be a string, not object/},
   {method: 'parse', input: [true], message: /Parameter 'pathString' must be a string, not boolean/},
   {method: 'parse', input: [1], message: /Parameter 'pathString' must be a string, not number/},
