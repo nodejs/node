@@ -91,7 +91,7 @@ assert.doesNotThrow(makeBlock(a.deepEqual, {a: 4, b: '2'}, {a: 4, b: '2'}));
 assert.doesNotThrow(makeBlock(a.deepEqual, [4], ['4']));
 assert.throws(makeBlock(a.deepEqual, {a: 4}, {a: 4, b: true}),
               a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, ['a'], {0: 'a'}));
+assert.throws(makeBlock(a.deepEqual, ['a'], {0: 'a'}));
 //(although not necessarily the same order),
 assert.doesNotThrow(makeBlock(a.deepEqual, {a: 4, b: '1'}, {b: '1', a: 4}));
 var a1 = [1, 2, 3];
@@ -144,10 +144,16 @@ if (typeof Symbol === 'symbol') {
 }
 
 // primitive wrappers and object
-assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), {0: 'a'}), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, new String('a'), ['a']),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, new String('a'),{0: 'a'}),
+              a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, new Number(1), {}), a.AssertionError);
+assert.throws(makeBlock(a.deepEqual, new Boolean(true), {}), a.AssertionError);
+
+// prototypes
+assert.throws(makeBlock(assert.deepEqual, Object.create({}), {}),
+              a.AssertionError);
 
 // Testing the throwing
 function thrower(errorConstructor) {

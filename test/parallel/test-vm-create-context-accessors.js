@@ -23,4 +23,5 @@ Object.defineProperty(ctx, 'setter', {
 ctx = vm.createContext(ctx);
 
 var result = vm.runInContext('setter = "test";[getter,setter]', ctx);
-assert.deepEqual(result, ['ok', 'ok=test']);
+assert.equal(result[0], 'ok');
+assert.equal(result[1], 'ok=test');

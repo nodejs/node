@@ -867,8 +867,8 @@ for (var u in parseTests) {
     }
   });
 
-  assert.deepEqual(actual, expected);
-  assert.deepEqual(spaced, expected);
+  assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
+  assert.deepEqual(JSON.parse(JSON.stringify(spaced)), expected);
 
   var expected = parseTests[u].href,
       actual = url.format(parseTests[u]);
@@ -937,7 +937,7 @@ for (var u in parseTestsWithQueryString) {
     }
   }
 
-  assert.deepEqual(actual, expected);
+  assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 }
 
 // some extra formatting tests, just to verify
