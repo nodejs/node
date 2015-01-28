@@ -14,6 +14,6 @@ RUN locale
 RUN apt-get install -y curl build-essential python-software-properties man
 ADD . /io.js
 RUN cd /io.js && ./configure && make && make doc && make install
-RUN iojs -v
+RUN iojs -e 'console.log(process)'
 ENV HOME /home
 WORKDIR /home
