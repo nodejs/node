@@ -36,7 +36,7 @@ var errors = [
   {method: 'parse', input: [1], message: /Parameter 'pathString' must be a string, not number/},
   {method: 'parse', input: [], message: /Parameter 'pathString' must be a string, not undefined/},
   // {method: 'parse', input: [''], message: /Invalid path/}, // omitted because it's hard to trigger!
-  {method: 'format', input: [null], message: /Parameter 'pathObject' must be an object, not/},
+  {method: 'format', input: [null], message: /Parameter 'pathObject' must be an object, not null/},
   {method: 'format', input: [''], message: /Parameter 'pathObject' must be an object, not string/},
   {method: 'format', input: [true], message: /Parameter 'pathObject' must be an object, not boolean/},
   {method: 'format', input: [1], message: /Parameter 'pathObject' must be an object, not number/},
