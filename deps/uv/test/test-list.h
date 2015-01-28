@@ -180,9 +180,12 @@ TEST_DECLARE   (get_memory)
 TEST_DECLARE   (handle_fileno)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_fail)
+TEST_DECLARE   (getaddrinfo_fail_sync)
 TEST_DECLARE   (getaddrinfo_basic)
+TEST_DECLARE   (getaddrinfo_basic_sync)
 TEST_DECLARE   (getaddrinfo_concurrent)
 TEST_DECLARE   (getnameinfo_basic_ip4)
+TEST_DECLARE   (getnameinfo_basic_ip4_sync)
 TEST_DECLARE   (getnameinfo_basic_ip6)
 TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
@@ -524,11 +527,14 @@ TASK_LIST_START
   TEST_ENTRY  (hrtime)
 
   TEST_ENTRY_CUSTOM (getaddrinfo_fail, 0, 0, 10000)
+  TEST_ENTRY  (getaddrinfo_fail_sync)
 
   TEST_ENTRY  (getaddrinfo_basic)
+  TEST_ENTRY  (getaddrinfo_basic_sync)
   TEST_ENTRY  (getaddrinfo_concurrent)
 
   TEST_ENTRY  (getnameinfo_basic_ip4)
+  TEST_ENTRY  (getnameinfo_basic_ip4_sync)
   TEST_ENTRY  (getnameinfo_basic_ip6)
 
   TEST_ENTRY  (getsockname_tcp)

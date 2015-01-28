@@ -505,6 +505,11 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
   int len;
   SOCKET peer_socket, base_socket;
   DWORD bytes;
+  DWORD yes = 1;
+
+  /* Set the socket to nonblocking mode */
+  if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR)
+    return uv_translate_sys_error(WSAGetLastError());
 
   /* Try to obtain a base handle for the socket. This increases this chances */
   /* that we find an AFD handle and are able to use the fast poll mechanism. */

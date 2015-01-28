@@ -77,10 +77,13 @@ int uv__getaddrinfo_translate_error(int sys_err) {
 
 static void uv__getaddrinfo_work(struct uv__work* w) {
   uv_getaddrinfo_t* req;
+  struct addrinfoW* hints;
   int err;
 
   req = container_of(w, uv_getaddrinfo_t, work_req);
-  err = GetAddrInfoW(req->node, req->service, req->hints, &req->res);
+  hints = req->addrinfow;
+  req->addrinfow = NULL;
+  err = GetAddrInfoW(req->node, req->service, hints, &req->addrinfow);
   req->retcode = uv__getaddrinfo_translate_error(err);
 }
 
@@ -115,17 +118,13 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   if (status == UV_ECANCELED) {
     assert(req->retcode == 0);
     req->retcode = UV_EAI_CANCELED;
-    if (req->res != NULL) {
-        FreeAddrInfoW(req->res);
-        req->res = NULL;
-    }
     goto complete;
   }
 
   if (req->retcode == 0) {
     /* convert addrinfoW to addrinfo */
     /* first calculate required length */
-    addrinfow_ptr = req->res;
+    addrinfow_ptr = req->addrinfow;
     while (addrinfow_ptr != NULL) {
       addrinfo_len += addrinfo_struct_len +
           ALIGNED_SIZE(addrinfow_ptr->ai_addrlen);
@@ -146,7 +145,7 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
     /* do conversions */
     if (alloc_ptr != NULL) {
       cur_ptr = alloc_ptr;
-      addrinfow_ptr = req->res;
+      addrinfow_ptr = req->addrinfow;
 
       while (addrinfow_ptr != NULL) {
         /* copy addrinfo struct data */
@@ -196,22 +195,24 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
           addrinfo_ptr->ai_next = (struct addrinfo*)cur_ptr;
         }
       }
+      req->addrinfo = (struct addrinfo*)alloc_ptr;
     } else {
       req->retcode = UV_EAI_MEMORY;
     }
   }
 
   /* return memory to system */
-  if (req->res != NULL) {
-    FreeAddrInfoW(req->res);
-    req->res = NULL;
+  if (req->addrinfow != NULL) {
+    FreeAddrInfoW(req->addrinfow);
+    req->addrinfow = NULL;
   }
 
 complete:
   uv__req_unregister(req->loop, req);
 
   /* finally do callback with converted result */
-  req->getaddrinfo_cb(req, req->retcode, (struct addrinfo*)alloc_ptr);
+  if (req->getaddrinfo_cb)
+    req->getaddrinfo_cb(req, req->retcode, req->addrinfo);
 }
 
 
@@ -250,8 +251,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   char* alloc_ptr = NULL;
   int err;
 
-  if (req == NULL || getaddrinfo_cb == NULL ||
-     (node == NULL && service == NULL)) {
+  if (req == NULL || (node == NULL && service == NULL)) {
     err = WSAEINVAL;
     goto error;
   }
@@ -259,7 +259,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   uv_req_init(loop, (uv_req_t*)req);
 
   req->getaddrinfo_cb = getaddrinfo_cb;
-  req->res = NULL;
+  req->addrinfo = NULL;
   req->type = UV_GETADDRINFO;
   req->loop = loop;
   req->retcode = 0;
@@ -327,27 +327,32 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   /* copy hints to allocated memory and save pointer in req */
   if (hints != NULL) {
-    req->hints = (struct addrinfoW*)alloc_ptr;
-    req->hints->ai_family = hints->ai_family;
-    req->hints->ai_socktype = hints->ai_socktype;
-    req->hints->ai_protocol = hints->ai_protocol;
-    req->hints->ai_flags = hints->ai_flags;
-    req->hints->ai_addrlen = 0;
-    req->hints->ai_canonname = NULL;
-    req->hints->ai_addr = NULL;
-    req->hints->ai_next = NULL;
+    req->addrinfow = (struct addrinfoW*)alloc_ptr;
+    req->addrinfow->ai_family = hints->ai_family;
+    req->addrinfow->ai_socktype = hints->ai_socktype;
+    req->addrinfow->ai_protocol = hints->ai_protocol;
+    req->addrinfow->ai_flags = hints->ai_flags;
+    req->addrinfow->ai_addrlen = 0;
+    req->addrinfow->ai_canonname = NULL;
+    req->addrinfow->ai_addr = NULL;
+    req->addrinfow->ai_next = NULL;
   } else {
-    req->hints = NULL;
+    req->addrinfow = NULL;
   }
-
-  uv__work_submit(loop,
-                  &req->work_req,
-                  uv__getaddrinfo_work,
-                  uv__getaddrinfo_done);
 
   uv__req_register(loop, req);
 
-  return 0;
+  if (getaddrinfo_cb) {
+    uv__work_submit(loop,
+                    &req->work_req,
+                    uv__getaddrinfo_work,
+                    uv__getaddrinfo_done);
+    return 0;
+  } else {
+    uv__getaddrinfo_work(&req->work_req);
+    uv__getaddrinfo_done(&req->work_req, 0);
+    return req->retcode;
+  }
 
 error:
   if (req != NULL && req->alloc != NULL) {

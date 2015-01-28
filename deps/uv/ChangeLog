@@ -1,3 +1,51 @@
+2015.01.29, Version 1.3.0 (Stable), 165685b2a9a42cf96501d79cd6d48a18aaa16e3b
+
+Changes since version 1.2.1:
+
+* unix, windows: set non-block mode in uv_poll_init (Saúl Ibarra Corretgé)
+
+* doc: clarify which flags are supported in uv_fs_event_start (Saúl Ibarra
+  Corretgé)
+
+* win,unix: move loop functions which have identical implementations (Andrius
+  Bentkus)
+
+* doc: explain how the threadpool is allocated (Alex Mo)
+
+* doc: clarify uv_default_loop (Saúl Ibarra Corretgé)
+
+* unix: fix implicit declaration compiler warning (Ben Noordhuis)
+
+* unix: fix long line introduced in commit 94e628fa (Ben Noordhuis)
+
+* unix, win: add synchronous uv_get{addr,name}info (Saúl Ibarra Corretgé)
+
+* linux: fix epoll_pwait() regression with < 2.6.19 (Ben Noordhuis)
+
+* build: compile -D_GNU_SOURCE on linux (Ben Noordhuis)
+
+* build: use -fvisibility=hidden in autotools build (Ben Noordhuis)
+
+* fs, pipe: no trailing terminator in exact sized buffers (Andrius Bentkus)
+
+* style: rename buf to buffer and len to size for consistency (Andrius Bentkus)
+
+* test: fix test-spawn on MinGW32 (Luis Martinez de Bartolome)
+
+* win, pipe: fix assertion when destroying timer (Andrius Bentkus)
+
+* win, unix: add pipe_peername implementation (Andrius Bentkus)
+
+
+2015.01.29, Version 0.10.33 (Stable), 7a2253d33ad8215a26c1b34f1952aee7242dd687
+
+Changes since version 0.10.32:
+
+* linux: fix epoll_pwait() regression with < 2.6.19 (Ben Noordhuis)
+
+* test: back-port uv_loop_configure() test (Ben Noordhuis)
+
+
 2015.01.15, Version 1.2.1 (Stable), 4ca78e989062a1099dc4b9ad182a98e8374134b1
 
 Changes since version 1.2.0:
