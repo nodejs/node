@@ -31,6 +31,15 @@ assert.ok(process.stderr.writable);
 assert.equal('number', typeof process.stdout.fd);
 assert.equal('number', typeof process.stderr.fd);
 
+assert.throws(function () {
+  console.timeEnd('no such label');
+});
+
+assert.doesNotThrow(function () {
+  console.time('label');
+  console.timeEnd('label');
+});
+
 // an Object with a custom .inspect() function
 var custom_inspect = { foo: 'bar', inspect: function () { return 'inspect'; } };
 
@@ -57,6 +66,17 @@ console.dir({ foo : { bar : { baz : true } } }, { depth: 1 });
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
+// test console.time() and console.timeEnd() output
+console.time('label');
+console.timeEnd('label');
+
+// verify that Object.prototype properties can be used as labels
+console.time('__proto__');
+console.timeEnd('__proto__');
+console.time('constructor');
+console.timeEnd('constructor');
+console.time('hasOwnProperty');
+console.timeEnd('hasOwnProperty');
 
 global.process.stdout.write = stdout_write;
 
@@ -71,12 +91,8 @@ assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
              strings.shift().split('\n').shift());
-
-assert.throws(function () {
-  console.timeEnd('no such label');
-});
-
-assert.doesNotThrow(function () {
-  console.time('label');
-  console.timeEnd('label');
-});
+assert.ok(/^label: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^__proto__: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^constructor: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^hasOwnProperty: \d+ms$/.test(strings.shift().trim()));
+assert.equal(strings.length, 0);
