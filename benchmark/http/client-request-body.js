@@ -7,7 +7,7 @@ var bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
   bytes: [32, 256, 1024],
-  method: ['write', 'end  '] // two spaces added to line up each row
+  method: ['write', 'end']
 });
 
 function main(conf) {
