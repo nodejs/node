@@ -710,10 +710,12 @@ NOTE: All paddings are defined in `constants` module.
 ## crypto.privateEncrypt(private_key, buffer)
 
 See above for details. Has the same API as `crypto.privateDecrypt`.
+Default padding is `RSA_PKCS1_PADDING`.
 
 ## crypto.publicDecrypt(public_key, buffer)
 
-See above for details. Has the same API as `crypto.publicEncrypt`.
+See above for details. Has the same API as `crypto.publicEncrypt`. Default
+padding is `RSA_PKCS1_PADDING`.
 
 ## crypto.DEFAULT_ENCODING
 
