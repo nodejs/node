@@ -14,7 +14,7 @@ var bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   kb: [64, 128, 256, 1024],
   c: [100],
-  method: ['write', 'end  '] // two spaces added to line up each row
+  method: ['write', 'end']
 });
 
 function main(conf) {
