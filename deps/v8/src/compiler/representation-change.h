@@ -296,6 +296,13 @@ class RepresentationChanger {
         if (value == 0 || value == 1) return node;
         return jsgraph()->Int32Constant(1);  // value != 0
       }
+      case IrOpcode::kNumberConstant: {
+        double value = OpParameter<double>(node);
+        if (std::isnan(value) || value == 0.0) {
+          return jsgraph()->Int32Constant(0);
+        }
+        return jsgraph()->Int32Constant(1);
+      }
       case IrOpcode::kHeapConstant: {
         Handle<Object> handle = OpParameter<Unique<Object> >(node).handle();
         DCHECK(*handle == isolate()->heap()->true_value() ||
