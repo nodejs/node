@@ -1,3 +1,18 @@
+2015.01.29, Version 0.11.16 (Unstable)
+
+* openssl: Upgrade to 1.0.1l
+
+* npm: Upgrade to 2.3.0
+
+* url: revert support of `path` for url.format" (Julien Gilli)
+
+* assert: use util.inspect() to create error messages (cjihrig)
+
+* net: throw on invalid socket timeouts (cjihrig)
+
+* url: fix parsing of ssh urls (Evan Lucas)
+
+
 2015.01.20, Version 0.11.15 (Unstable), 8a9f263a82089814e69f277f9fecd2888705101b
 
 * v8: Upgrade to 3.28.73
