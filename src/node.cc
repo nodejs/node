@@ -1157,7 +1157,7 @@ enum encoding ParseEncoding(const char* encoding, enum encoding _default) {
         encoding += encoding[3] == '-' ? 4 : 3;
         if (encoding[0] == '8' && encoding[1] == '\0')
           return UTF8;
-        if (strncasecmp(encoding, "16le", 4) == 0)
+        if (strncmp(encoding, "16le", 4) == 0)
           return UCS2;
 
       // ucs2
