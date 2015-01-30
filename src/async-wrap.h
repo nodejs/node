@@ -2,7 +2,6 @@
 #define SRC_ASYNC_WRAP_H_
 
 #include "base-object.h"
-#include "env.h"
 #include "v8.h"
 
 namespace node {
@@ -30,6 +29,8 @@ namespace node {
   V(UDPWRAP)                                                                  \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
+
+class Environment;
 
 class AsyncWrap : public BaseObject {
  public:

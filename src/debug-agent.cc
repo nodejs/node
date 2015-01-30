@@ -29,7 +29,6 @@
 #include "v8-debug.h"
 #include "util.h"
 #include "util-inl.h"
-#include "queue.h"
 
 #include <string.h>
 
@@ -64,8 +63,6 @@ Agent::Agent(Environment* env) : state_(kNone),
 
   err = uv_mutex_init(&message_mutex_);
   CHECK_EQ(err, 0);
-
-  QUEUE_INIT(&messages_);
 }
 
 
@@ -75,13 +72,8 @@ Agent::~Agent() {
   uv_sem_destroy(&start_sem_);
   uv_mutex_destroy(&message_mutex_);
 
-  // Clean-up messages
-  while (!QUEUE_EMPTY(&messages_)) {
-    QUEUE* q = QUEUE_HEAD(&messages_);
-    QUEUE_REMOVE(q);
-    AgentMessage* msg = ContainerOf(&AgentMessage::member, q);
+  while (AgentMessage* msg = messages_.PopFront())
     delete msg;
-  }
 }
 
 
@@ -281,13 +273,9 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
   Local<Object> api = PersistentToLocal(isolate, a->api_);
 
   uv_mutex_lock(&a->message_mutex_);
-  while (!QUEUE_EMPTY(&a->messages_)) {
-    QUEUE* q = QUEUE_HEAD(&a->messages_);
-    AgentMessage* msg = ContainerOf(&AgentMessage::member, q);
-
+  while (AgentMessage* msg = a->messages_.PopFront()) {
     // Time to close everything
     if (msg->data() == nullptr) {
-      QUEUE_REMOVE(q);
       delete msg;
 
       MakeCallback(isolate, api, "onclose", 0, nullptr);
@@ -296,10 +284,11 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
 
     // Waiting for client, do not send anything just yet
     // TODO(indutny): move this to js-land
-    if (a->wait_)
+    if (a->wait_) {
+      a->messages_.PushFront(msg);  // Push message back into the ready queue.
       break;
+    }
 
-    QUEUE_REMOVE(q);
     Local<Value> argv[] = {
       String::NewFromTwoByte(isolate,
                              msg->data(),
@@ -321,7 +310,7 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
 
 void Agent::EnqueueMessage(AgentMessage* message) {
   uv_mutex_lock(&message_mutex_);
-  QUEUE_INSERT_TAIL(&messages_, &message->member);
+  messages_.PushBack(message);
   uv_mutex_unlock(&message_mutex_);
   uv_async_send(&child_signal_);
 }

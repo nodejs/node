@@ -57,10 +57,6 @@ TLSCallbacks::TLSCallbacks(Environment* env,
   node::Wrap(object(), this);
   MakeWeak(this);
 
-  // Initialize queue for clearIn writes
-  QUEUE_INIT(&write_item_queue_);
-  QUEUE_INIT(&pending_write_items_);
-
   // We've our own session callbacks
   SSL_CTX_sess_set_get_cb(sc_->ctx_, SSLWrap<TLSCallbacks>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc_->ctx_, SSLWrap<TLSCallbacks>::NewSessionCallback);
@@ -87,47 +83,26 @@ TLSCallbacks::~TLSCallbacks() {
   MakePending();
 
   // And destroy
-  while (!QUEUE_EMPTY(&pending_write_items_)) {
-    QUEUE* q = QUEUE_HEAD(&pending_write_items_);
-    QUEUE_REMOVE(q);
-
-    WriteItem* wi = ContainerOf(&WriteItem::member_, q);
+  while (WriteItem* wi = pending_write_items_.PopFront())
     delete wi;
-  }
 
   ClearError();
 }
 
 
 void TLSCallbacks::MakePending() {
-  // Aliases
-  QUEUE* from = &write_item_queue_;
-  QUEUE* to = &pending_write_items_;
-
-  if (QUEUE_EMPTY(from))
-    return;
-
-  // Add items to pending
-  QUEUE_ADD(to, from);
-
-  // Empty original queue
-  QUEUE_INIT(from);
+  write_item_queue_.MoveBack(&pending_write_items_);
 }
 
 
 bool TLSCallbacks::InvokeQueued(int status) {
-  if (QUEUE_EMPTY(&pending_write_items_))
+  if (pending_write_items_.IsEmpty())
     return false;
 
   // Process old queue
-  QUEUE queue;
-  QUEUE* q = QUEUE_HEAD(&pending_write_items_);
-  QUEUE_SPLIT(&pending_write_items_, q, &queue);
-  while (QUEUE_EMPTY(&queue) == false) {
-    q = QUEUE_HEAD(&queue);
-    QUEUE_REMOVE(q);
-
-    WriteItem* wi = ContainerOf(&WriteItem::member_, q);
+  WriteItemList queue;
+  pending_write_items_.MoveBack(&queue);
+  while (WriteItem* wi = queue.PopFront()) {
     wi->cb_(&wi->w_->req_, status);
     delete wi;
   }
@@ -300,7 +275,7 @@ void TLSCallbacks::EncOut() {
     return;
 
   // Split-off queue
-  if (established_ && !QUEUE_EMPTY(&write_item_queue_))
+  if (established_ && !write_item_queue_.IsEmpty())
     MakePending();
 
   // No data to write
@@ -533,8 +508,7 @@ int TLSCallbacks::DoWrite(WriteWrap* w,
   }
 
   // Queue callback to execute it on next tick
-  WriteItem* wi = new WriteItem(w, cb);
-  QUEUE_INSERT_TAIL(&write_item_queue_, &wi->member_);
+  write_item_queue_.PushBack(new WriteItem(w, cb));
 
   // Write queued data
   if (empty) {

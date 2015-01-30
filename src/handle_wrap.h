@@ -2,13 +2,13 @@
 #define SRC_HANDLE_WRAP_H_
 
 #include "async-wrap.h"
-#include "env.h"
-#include "node.h"
-#include "queue.h"
+#include "util.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
 
 // Rules:
 //
@@ -51,9 +51,10 @@ class HandleWrap : public AsyncWrap {
   virtual ~HandleWrap() override;
 
  private:
+  friend class Environment;
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
   static void OnClose(uv_handle_t* handle);
-  QUEUE handle_wrap_queue_;
+  ListNode<HandleWrap> handle_wrap_queue_;
   unsigned int flags_;
   // Using double underscore due to handle_ member in tcp_wrap. Probably
   // tcp_wrap should rename it's member to 'handle'.
