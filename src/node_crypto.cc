@@ -3058,14 +3058,22 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
     if (!StringBytes::IsValidString(env->isolate(), string, encoding))
       return env->ThrowTypeError("Bad input string");
     size_t buflen = StringBytes::StorageSize(env->isolate(), string, encoding);
-    char* buf = new char[buflen];
+    char storage[1024];
+    char* buf;
+
+    if (buflen <= sizeof(storage))
+      buf = storage;
+    else
+      buf = new char[buflen];
+
     size_t written = StringBytes::Write(env->isolate(),
                                         buf,
                                         buflen,
                                         string,
                                         encoding);
     r = hash->HashUpdate(buf, written);
-    delete[] buf;
+    if (buf != storage)
+      delete[] buf;
   } else {
     char* buf = Buffer::Data(args[0]);
     size_t buflen = Buffer::Length(args[0]);
