@@ -144,7 +144,6 @@
         'src/node_wrap.h',
         'src/node_i18n.h',
         'src/pipe_wrap.h',
-        'src/queue.h',
         'src/smalloc.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',
