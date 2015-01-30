@@ -151,6 +151,19 @@ npm config set foo:port 80
 .P
 See npm help 5 package\.json for more information\.
 .SH Config Settings
+.SS access
+.RS 0
+.IP \(bu 2
+Default: \fBrestricted\fR
+.IP \(bu 2
+Type: Access
+
+.RE
+.P
+When publishing scoped packages, the access level defaults to \fBrestricted\fR\|\.  If
+you want your scoped package to be publicly viewable (and installable) set
+\fB\-\-access=public\fR\|\. The only valid values for \fBaccess\fR are \fBpublic\fR and
+\fBrestricted\fR\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fR\|\.
 .SS always\-auth
 .RS 0
 .IP \(bu 2

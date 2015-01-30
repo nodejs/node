@@ -107,6 +107,16 @@ See package.json(5) for more information.
 
 ## Config Settings
 
+### access
+
+* Default: `restricted`
+* Type: Access
+
+When publishing scoped packages, the access level defaults to `restricted`.  If
+you want your scoped package to be publicly viewable (and installable) set
+`--access=public`. The only valid values for `access` are `public` and
+`restricted`. Unscoped packages _always_ have an access level of `public`.
+
 ### always-auth
 
 * Default: false

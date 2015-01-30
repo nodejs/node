@@ -53,6 +53,8 @@ function mocks (server) {
     .reply(200, {_id:"underscore",_rev:2,maintainers:[jashkenas,othiym23]})
 
   // test 4
+  server.get("/underscore")
+    .reply(200, {_id:"underscore",_rev:2,maintainers:[jashkenas,othiym23]})
   server.put(
     "/underscore/-rev/2",
     {_id:"underscore",_rev:2,maintainers:[jashkenas]},
