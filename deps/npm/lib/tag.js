@@ -9,6 +9,7 @@ var npm = require("./npm.js")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , npa = require("npm-package-arg")
   , semver = require("semver")
+  , log = require("npmlog")
 
 function tag (args, cb) {
   var thing = npa(args.shift() || "")
@@ -24,6 +25,8 @@ function tag (args, cb) {
     var er = new Error("Tag name must not be a valid SemVer range: " + t)
     return cb(er)
   }
+
+  log.warn("tag", "This command is deprecated. Use `npm dist-tag` instead.")
 
   mapToRegistry(project, npm.config, function (er, uri, auth) {
     if (er) return cb(er)

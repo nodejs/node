@@ -17,6 +17,13 @@ function publish (uri, params, cb) {
   assert(params && typeof params === "object", "must pass params to publish")
   assert(typeof cb === "function", "must pass callback to publish")
 
+  var access = params.access
+  assert(access && typeof access === "string", "must pass access for package")
+  assert(
+    ["public", "restricted"].indexOf(access) !== -1,
+    "access level must be either 'public' or 'restricted'"
+  )
+
   var auth = params.auth
   assert(auth && typeof auth === "object", "must pass auth to publish")
   if (!(auth.token ||
@@ -46,13 +53,13 @@ function publish (uri, params, cb) {
   assert(body instanceof Stream, "package body passed to publish must be a stream")
   var client = this
   var sink = concat(function (tarbuffer) {
-    putFirst.call(client, uri, metadata, tarbuffer, auth, cb)
+    putFirst.call(client, uri, metadata, tarbuffer, access, auth, cb)
   })
   sink.on("error", cb)
   body.pipe(sink)
 }
 
-function putFirst (registry, data, tarbuffer, auth, cb) {
+function putFirst (registry, data, tarbuffer, access, auth, cb) {
   // optimistically try to PUT all in one single atomic thing.
   // If 409, then GET and merge, try again.
   // If other error, then fail.
@@ -61,6 +68,7 @@ function putFirst (registry, data, tarbuffer, auth, cb) {
     { _id : data.name
     , name : data.name
     , description : data.description
+    , access : access
     , "dist-tags" : {}
     , versions : {}
     , readme: data.readme || ""

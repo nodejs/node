@@ -57,7 +57,7 @@ test("tag call contract", function (t) {
       client.tag(URI, params, nop)
     },
     { name : "AssertionError", message : "must pass version to tag" },
-    "auth must include username"
+    "tag must include version"
   )
 
   t.throws(
@@ -69,7 +69,7 @@ test("tag call contract", function (t) {
       client.tag(URI, params, nop)
     },
     { name : "AssertionError", message : "must pass tag name to tag" },
-    "auth must include username"
+    "tag must include name"
   )
 
   t.throws(
@@ -81,7 +81,7 @@ test("tag call contract", function (t) {
       client.tag(URI, params, nop)
     },
     { name : "AssertionError", message : "must pass auth to tag" },
-    "auth must include username"
+    "params must include auth"
   )
 
   t.end()
