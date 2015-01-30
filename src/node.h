@@ -231,12 +231,12 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
 enum encoding ParseEncoding(v8::Isolate* isolate,
                             v8::Handle<v8::Value> encoding_v,
-                            enum encoding _default = BINARY);
+                            enum encoding default_encoding = BINARY);
 NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
                 inline enum encoding ParseEncoding(
       v8::Handle<v8::Value> encoding_v,
-      enum encoding _default = BINARY) {
-  return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, _default);
+      enum encoding default_encoding = BINARY) {
+  return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, default_encoding);
 })
 
 NODE_EXTERN void FatalException(v8::Isolate* isolate,
