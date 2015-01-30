@@ -110,7 +110,8 @@ class Utf8Value {
     explicit Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
 
     ~Utf8Value() {
-      free(str_);
+      if (str_ != str_st_)
+        free(str_);
     }
 
     char* operator*() {
@@ -126,7 +127,9 @@ class Utf8Value {
     };
 
   private:
+    static const int kStorageSize = 1024;
     size_t length_;
+    char str_st_[kStorageSize];
     char* str_;
 };
 
