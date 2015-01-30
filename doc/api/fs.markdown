@@ -385,7 +385,7 @@ Write `buffer` to the file specified by `fd`.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
+at the current position. See [pwrite(2)](http://pubs.opengroup.org/onlinepubs/007908799/xsh/pwrite.html).
 
 The callback will be given three arguments `(err, written, buffer)` where
 `written` specifies how many _bytes_ were written from `buffer`.
@@ -405,7 +405,7 @@ then the value will be coerced to a string.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
-the current position. See pwrite(2).
+the current position. See [pwrite(2)](http://pubs.opengroup.org/onlinepubs/007908799/xsh/pwrite.html).
 
 `encoding` is the expected string encoding.
 
