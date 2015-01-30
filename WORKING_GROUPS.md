@@ -34,36 +34,32 @@ The current members can be found in their
 
 ### Streams
 
-The streams working group's purpose is to improve the existing Stream
-implementation, in accordance with the communities needs and feedback.
+The Streams WG is dedicated to the support and improvement of the Streams API
+as used in io.js and the npm ecosystem. We seek to create a composable API that
+solves the problem of representing multiple occurrences of an event over time
+in a humane, low-overhead fashion. Improvements to the API will be driven by
+the needs of the ecosystem; interoperability and backwards compatibility with
+other solutions and prior versions are paramount in importance. Our
+responsibilities include:
 
-Its responsibilities are:
-* Produce a living `Stream` standard.
-* Create a reference implementation as `readable-stream`.
-* Recommend versions of `readable-stream` to be included in `io.js`
-* Collaborate with the WHATWG Stream standard to ensure an optimal level
-of compatibility between the two standards.
+* Addressing stream issues on the io.js issue tracker.
+* Authoring and editing stream documentation within the io.js project.
+* Reviewing changes to stream subclasses within the io.js project.
+* Redirecting changes to streams from the io.js project to this project.
+* Assisting in the implementation of stream providers within io.js.
+* Recommending versions of readable-stream to be included in io.js.
+* Messaging about the future of streams to give the community advance notice of changes.
 
 Initial members are:
 * @chrisdickinson
 * @isaacs
 * @rvagg
-* @TooTallNate
 * @Raynos
 * @calvinmetcalf
-* @substack
 * @sonewman
 * @mafintosh
 * @timgestson
-* @deoxxa
-* @maxogden
-* @feross
-* @mafintosh
-* @calvinmetcalf
-* @sonewman
 * @domenic
-* @timgestson
-
 
 ### Build
 
