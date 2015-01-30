@@ -1148,53 +1148,93 @@ Handle<Value> MakeCallback(Isolate* isolate,
 }
 
 
-enum encoding ParseEncoding(Isolate* isolate,
-                            Handle<Value> encoding_v,
-                            enum encoding _default) {
-  HandleScope scope(isolate);
+enum encoding ParseEncoding(const char* encoding,
+                            enum encoding default_encoding) {
+  switch (encoding[0]) {
+    case 'u':
+      // utf8, utf16le
+      if (encoding[1] == 't' && encoding[2] == 'f') {
+        // Skip `-`
+        encoding += encoding[3] == '-' ? 4 : 3;
+        if (encoding[0] == '8' && encoding[1] == '\0')
+          return UTF8;
+        if (strncmp(encoding, "16le", 4) == 0)
+          return UCS2;
 
-  if (!encoding_v->IsString())
-    return _default;
+      // ucs2
+      } else if (encoding[1] == 'c' && encoding[2] == 's') {
+        encoding += encoding[3] == '-' ? 4 : 3;
+        if (encoding[0] == '2' && encoding[1] == '\0')
+          return UCS2;
+      }
+      break;
+    case 'b':
+      // binary
+      if (encoding[1] == 'i') {
+        if (strncmp(encoding + 2, "nary", 4) == 0)
+          return BINARY;
 
-  node::Utf8Value encoding(isolate, encoding_v);
+      // buffer
+      } else if (encoding[1] == 'u') {
+        if (strncmp(encoding + 2, "ffer", 4) == 0)
+          return BUFFER;
+      }
+      break;
+    case '\0':
+      return default_encoding;
+    default:
+      break;
+  }
 
-  if (strcasecmp(*encoding, "utf8") == 0) {
+  if (strcasecmp(encoding, "utf8") == 0) {
     return UTF8;
-  } else if (strcasecmp(*encoding, "utf-8") == 0) {
+  } else if (strcasecmp(encoding, "utf-8") == 0) {
     return UTF8;
-  } else if (strcasecmp(*encoding, "ascii") == 0) {
+  } else if (strcasecmp(encoding, "ascii") == 0) {
     return ASCII;
-  } else if (strcasecmp(*encoding, "base64") == 0) {
+  } else if (strcasecmp(encoding, "base64") == 0) {
     return BASE64;
-  } else if (strcasecmp(*encoding, "ucs2") == 0) {
+  } else if (strcasecmp(encoding, "ucs2") == 0) {
     return UCS2;
-  } else if (strcasecmp(*encoding, "ucs-2") == 0) {
+  } else if (strcasecmp(encoding, "ucs-2") == 0) {
     return UCS2;
-  } else if (strcasecmp(*encoding, "utf16le") == 0) {
+  } else if (strcasecmp(encoding, "utf16le") == 0) {
     return UCS2;
-  } else if (strcasecmp(*encoding, "utf-16le") == 0) {
+  } else if (strcasecmp(encoding, "utf-16le") == 0) {
     return UCS2;
-  } else if (strcasecmp(*encoding, "binary") == 0) {
+  } else if (strcasecmp(encoding, "binary") == 0) {
     return BINARY;
-  } else if (strcasecmp(*encoding, "buffer") == 0) {
+  } else if (strcasecmp(encoding, "buffer") == 0) {
     return BUFFER;
-  } else if (strcasecmp(*encoding, "hex") == 0) {
+  } else if (strcasecmp(encoding, "hex") == 0) {
     return HEX;
-  } else if (strcasecmp(*encoding, "raw") == 0) {
+  } else if (strcasecmp(encoding, "raw") == 0) {
     if (!no_deprecation) {
       fprintf(stderr, "'raw' (array of integers) has been removed. "
                       "Use 'binary'.\n");
     }
     return BINARY;
-  } else if (strcasecmp(*encoding, "raws") == 0) {
+  } else if (strcasecmp(encoding, "raws") == 0) {
     if (!no_deprecation) {
       fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
                       "Please update your code.\n");
     }
     return BINARY;
   } else {
-    return _default;
+    return default_encoding;
   }
+}
+
+
+enum encoding ParseEncoding(Isolate* isolate,
+                            Handle<Value> encoding_v,
+                            enum encoding default_encoding) {
+  if (!encoding_v->IsString())
+    return default_encoding;
+
+  node::Utf8Value encoding(isolate, encoding_v);
+
+  return ParseEncoding(*encoding, default_encoding);
 }
 
 Local<Value> Encode(Isolate* isolate,
