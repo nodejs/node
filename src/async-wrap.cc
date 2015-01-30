@@ -104,7 +104,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     }
   }
 
-  if (has_async_queue_) {
+  if (has_async_queue()) {
     try_catch.SetVerbose(false);
     env()->async_hooks_pre_function()->Call(context, 0, nullptr);
     if (try_catch.HasCaught())
@@ -118,7 +118,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     return Undefined(env()->isolate());
   }
 
-  if (has_async_queue_) {
+  if (has_async_queue()) {
     try_catch.SetVerbose(false);
     env()->async_hooks_post_function()->Call(context, 0, nullptr);
     if (try_catch.HasCaught())
