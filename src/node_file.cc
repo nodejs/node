@@ -6,7 +6,8 @@
 
 #include "env.h"
 #include "env-inl.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "util.h"
 

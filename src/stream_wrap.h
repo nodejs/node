@@ -3,7 +3,8 @@
 
 #include "env.h"
 #include "handle_wrap.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "v8.h"
 

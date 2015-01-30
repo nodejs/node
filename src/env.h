@@ -3,11 +3,12 @@
 
 #include "ares.h"
 #include "debug-agent.h"
+#include "handle_wrap.h"
+#include "req-wrap.h"
 #include "tree.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
-#include "queue.h"
 
 #include <stdint.h>
 
@@ -333,13 +334,12 @@ class Environment {
         : handle_(handle),
           cb_(cb),
           arg_(arg) {
-      QUEUE_INIT(&handle_cleanup_queue_);
     }
 
     uv_handle_t* handle_;
     HandleCleanupCb cb_;
     void* arg_;
-    QUEUE handle_cleanup_queue_;
+    ListNode<HandleCleanup> handle_cleanup_queue_;
   };
 
   static inline Environment* GetCurrent(v8::Isolate* isolate);
@@ -453,8 +453,12 @@ class Environment {
     return &debugger_agent_;
   }
 
-  inline QUEUE* handle_wrap_queue() { return &handle_wrap_queue_; }
-  inline QUEUE* req_wrap_queue() { return &req_wrap_queue_; }
+  typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
+  typedef ListHead<ReqWrap<uv_req_t>, &ReqWrap<uv_req_t>::req_wrap_queue_>
+          ReqWrapQueue;
+
+  inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
+  inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
  private:
   static const int kIsolateSlot = NODE_ISOLATE_SLOT;
@@ -486,9 +490,10 @@ class Environment {
   bool printed_error_;
   debugger::Agent debugger_agent_;
 
-  QUEUE handle_wrap_queue_;
-  QUEUE req_wrap_queue_;
-  QUEUE handle_cleanup_queue_;
+  HandleWrapQueue handle_wrap_queue_;
+  ReqWrapQueue req_wrap_queue_;
+  ListHead<HandleCleanup,
+           &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
 
   v8::Persistent<v8::External> external_;
