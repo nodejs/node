@@ -5,6 +5,8 @@
 
 #include "v8.h"
 #include "node.h"
+#include "env.h"
+#include "env-inl.h"
 
 namespace node {
 
@@ -12,6 +14,51 @@ extern int WRITE_UTF8_FLAGS;
 
 class StringBytes {
  public:
+  class InlineDecoder {
+   public:
+    InlineDecoder() : out_(nullptr) {
+    }
+
+    ~InlineDecoder() {
+      if (out_ != out_st_)
+        delete[] out_;
+      out_ = nullptr;
+    }
+
+    inline bool Decode(Environment* env,
+                       v8::Handle<v8::String> string,
+                       v8::Handle<v8::Value> encoding,
+                       enum encoding _default) {
+      enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
+      if (!StringBytes::IsValidString(env->isolate(), string, enc)) {
+        env->ThrowTypeError("Bad input string");
+        return false;
+      }
+
+      size_t buflen = StringBytes::StorageSize(env->isolate(), string, enc);
+      if (buflen > sizeof(out_st_))
+        out_ = new char[buflen];
+      else
+        out_ = out_st_;
+      size_ = StringBytes::Write(env->isolate(),
+                                 out_,
+                                 buflen,
+                                 string,
+                                 enc);
+      return true;
+    }
+
+    inline const char* out() const { return out_; }
+    inline size_t size() const { return size_; }
+
+   private:
+    static const int kStorageSize = 1024;
+
+    char out_st_[kStorageSize];
+    char* out_;
+    size_t size_;
+  };
+
   // Does the string match the encoding? Quick but non-exhaustive.
   // Example: a HEX string must have a length that's a multiple of two.
   // FIXME(bnoordhuis) IsMaybeValidString()? Naming things is hard...
