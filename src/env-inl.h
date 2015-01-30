@@ -55,7 +55,6 @@ inline v8::Isolate* Environment::IsolateData::isolate() const {
 }
 
 inline Environment::AsyncHooks::AsyncHooks() {
-  enabled = false;
   for (int i = 0; i < kFieldsCount; i++) fields_[i] = 0;
 }
 
@@ -69,6 +68,14 @@ inline int Environment::AsyncHooks::fields_count() const {
 
 inline bool Environment::AsyncHooks::call_init_hook() {
   return fields_[kCallInitHook] != 0;
+}
+
+inline bool Environment::AsyncHooks::is_enabled() const {
+  return fields_[kEnabled] != 0;
+}
+
+inline void Environment::AsyncHooks::set_enabled(bool enabled) {
+  fields_[kEnabled] = (uint32_t)enabled;
 }
 
 inline Environment::DomainFlag::DomainFlag() {
@@ -217,7 +224,7 @@ inline v8::Isolate* Environment::isolate() const {
 
 inline bool Environment::use_async_hook() const {
   // The const_cast is okay, it doesn't violate conceptual const-ness.
-  return const_cast<Environment*>(this)->async_hooks()->enabled;
+  return const_cast<Environment*>(this)->async_hooks()->is_enabled();
 }
 
 inline bool Environment::call_async_init_hook() const {

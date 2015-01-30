@@ -255,7 +255,8 @@ class Environment {
     inline uint32_t* fields();
     inline int fields_count() const;
     inline bool call_init_hook();
-    bool enabled;
+    inline bool is_enabled() const;
+    inline void set_enabled(bool enabled);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -264,6 +265,9 @@ class Environment {
     enum Fields {
       // Set this to not zero if the init hook should be called.
       kCallInitHook,
+      // Set this to not zero if async wrap should be enabled. This is
+      // automatically set when SetupHooks is called.
+      kEnabled,
       kFieldsCount
     };
 
