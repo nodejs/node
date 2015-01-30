@@ -255,6 +255,7 @@ class Environment {
     inline uint32_t* fields();
     inline int fields_count() const;
     inline bool call_init_hook();
+    bool enabled;
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -358,6 +359,7 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
+  inline bool use_async_hook() const;
   inline bool call_async_init_hook() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;

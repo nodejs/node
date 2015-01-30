@@ -55,6 +55,7 @@ inline v8::Isolate* Environment::IsolateData::isolate() const {
 }
 
 inline Environment::AsyncHooks::AsyncHooks() {
+  enabled = false;
   for (int i = 0; i < kFieldsCount; i++) fields_[i] = 0;
 }
 
@@ -212,6 +213,11 @@ inline void Environment::Dispose() {
 
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
+}
+
+inline bool Environment::use_async_hook() const {
+  // The const_cast is okay, it doesn't violate conceptual const-ness.
+  return const_cast<Environment*>(this)->async_hooks()->enabled;
 }
 
 inline bool Environment::call_async_init_hook() const {

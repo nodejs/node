@@ -20,8 +20,8 @@ inline AsyncWrap::AsyncWrap(Environment* env,
     : BaseObject(env, object),
       has_async_queue_(false),
       provider_type_(provider) {
-  // Check user controlled flag to see if the init callback should run.
-  if (!env->call_async_init_hook())
+  // Check user controlled flag to see if the async hooks should be called.
+  if (!env->use_async_hook())
     return;
 
   // TODO(trevnorris): Until it's verified all passed object's are not weak,
@@ -42,11 +42,13 @@ inline AsyncWrap::AsyncWrap(Environment* env,
       FatalError("node::AsyncWrap::AsyncWrap", "parent pre hook threw");
   }
 
-  env->async_hooks_init_function()->Call(object, 0, nullptr);
+  // Check user controlled flag to see if the init callback should run.
+  if (env->call_async_init_hook()) {
+    env->async_hooks_init_function()->Call(object, 0, nullptr);
 
-  if (try_catch.HasCaught())
-    FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
-
+    if (try_catch.HasCaught())
+      FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
+  }
   has_async_queue_ = true;
 
   if (parent != nullptr) {

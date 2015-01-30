@@ -45,6 +45,8 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
       kExternalUint32Array,
       async_hooks->fields_count());
 
+  async_hooks->enabled = true;
+
   env->set_async_hooks_init_function(args[1].As<Function>());
   env->set_async_hooks_pre_function(args[2].As<Function>());
   env->set_async_hooks_post_function(args[3].As<Function>());
