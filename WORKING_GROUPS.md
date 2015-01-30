@@ -1,6 +1,7 @@
 # io.js Working Groups
 
-io.js Working Groups are autonomous projects created by the TC.
+io.js Working Groups are autonomous projects created by the
+[Technical Committee (TC)](https://github.com/iojs/io.js/blob/v1.x/GOVERNANCE.md#technical-committee).
 
 Working Groups can be formed at any time but must be ratified by the TC.
 Once formed the work defined in the Working Group charter is the
@@ -73,6 +74,8 @@ Its responsibilities are:
 * Produce Packages for all target platforms.
 * Run tests.
 * Run performance testing and comparisons.
+* Creates and manages official docker images.
+* Creates and manages build-containers.
 
 The current members can be found in their
 [README](https://github.com/iojs/build#people).
@@ -83,19 +86,21 @@ A Working Group is established by first defining a charter  that can be
 ratified by the TC. A charter is a *statement of purpose*, a
 *list of responsibilities* and a *list of initial membership*.
 
-A working group needs 5 initial members. These should be individuals
+A working group needs 3 initial members. These should be individuals
 already undertaking the work described in the charter.
 
 The list of responsibilities should be specific. Once established these
 responsibilities are no longer governed by the TC and therefor should
-not be broad or subjective.
+not be broad or subjective. The only recourse the TC has over the working
+group is to revoke the entire charter and take on the work previously
+done by the working group themselves.
 
 If the responsibilities described in the charter are currently
 undertaken by another WG then the charter will additionally have to be
 ratified by that WG.
 
 You can submit the WG charter for ratification by sending
-a Pull Request to this document which adds the it to the
+a Pull Request to this document which adds it to the
 list of current Working Groups. Once ratified the list of
 members should be maintained in the Working Group's
 README.
