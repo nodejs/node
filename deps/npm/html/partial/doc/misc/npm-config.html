@@ -81,6 +81,15 @@ this:</p>
 <pre><code>npm config set foo:port 80
 </code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
+<h3 id="access">access</h3>
+<ul>
+<li>Default: <code>restricted</code></li>
+<li>Type: Access</li>
+</ul>
+<p>When publishing scoped packages, the access level defaults to <code>restricted</code>.  If
+you want your scoped package to be publicly viewable (and installable) set
+<code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
+<code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
 <h3 id="always-auth">always-auth</h3>
 <ul>
 <li>Default: false</li>

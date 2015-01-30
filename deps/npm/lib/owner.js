@@ -6,8 +6,8 @@ owner.usage = "npm owner add <username> <pkg>"
 
 var npm = require("./npm.js")
   , log = require("npmlog")
-  , readJson = require("read-package-json")
   , mapToRegistry = require("./utils/map-to-registry.js")
+  , readLocalPkg = require("./utils/read-local-package.js")
 
 owner.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -250,14 +250,6 @@ function mutate (pkg, user, mutation, cb) {
       })
     })
   }
-}
-
-function readLocalPkg (cb) {
-  if (npm.config.get("global")) return cb()
-  var path = require("path")
-  readJson(path.resolve(npm.prefix, "package.json"), function (er, d) {
-    return cb(er, d && d.name)
-  })
 }
 
 function unknown (action, cb) {

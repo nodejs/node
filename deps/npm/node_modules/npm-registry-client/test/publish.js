@@ -13,6 +13,7 @@ var USERNAME  = "username"
 var PASSWORD  = "%1234@asdf%"
 var EMAIL     = "i@izs.me"
 var METADATA  = require("../package.json")
+var ACCESS    = "public"
 // not really a tarball, but doesn't matter
 var BODY_PATH = require.resolve("../package.json")
 var BODY      = fs.createReadStream(BODY_PATH, "base64")
@@ -23,6 +24,7 @@ var AUTH      = {
 }
 var PARAMS  = {
   metadata : METADATA,
+  access   : ACCESS,
   body     : BODY,
   auth     : AUTH
 }
@@ -55,6 +57,7 @@ test("publish call contract", function (t) {
   t.throws(
     function () {
       var params = {
+        access : ACCESS,
         body : BODY,
         auth : AUTH
       }
@@ -68,6 +71,20 @@ test("publish call contract", function (t) {
     function () {
       var params = {
         metadata : METADATA,
+        body : BODY,
+        auth : AUTH
+      }
+      client.publish(URI, params, nop)
+    },
+    { name : "AssertionError", message : "must pass access for package" },
+    "params must include access for package"
+  )
+
+  t.throws(
+    function () {
+      var params = {
+        metadata : METADATA,
+        access : ACCESS,
         auth : AUTH
       }
       client.publish(URI, params, nop)
@@ -80,6 +97,7 @@ test("publish call contract", function (t) {
     function () {
       var params = {
         metadata : METADATA,
+        access : ACCESS,
         body : BODY
       }
       client.publish(URI, params, nop)
@@ -92,6 +110,7 @@ test("publish call contract", function (t) {
     function () {
       var params = {
         metadata : -1,
+        access : ACCESS,
         body : BODY,
         auth : AUTH
       }
@@ -105,6 +124,24 @@ test("publish call contract", function (t) {
     function () {
       var params = {
         metadata : METADATA,
+        access : "hamchunx",
+        body : BODY,
+        auth : AUTH
+      }
+      client.publish(URI, params, nop)
+    },
+    {
+      name    : "AssertionError",
+      message : "access level must be either 'public' or 'restricted'"
+    },
+    "access level must be 'public' or 'restricted'"
+  )
+
+  t.throws(
+    function () {
+      var params = {
+        metadata : METADATA,
+        access : ACCESS,
         body : -1,
         auth : AUTH
       }
@@ -122,6 +159,7 @@ test("publish call contract", function (t) {
     metadata.version = "%!@#$"
     var params = {
       metadata : metadata,
+      access : ACCESS,
       message : BODY,
       auth : AUTH
     }
@@ -153,6 +191,7 @@ test("publish", function (t) {
       var o = JSON.parse(b)
       t.equal(o._id, "npm-registry-client")
       t.equal(o["dist-tags"].latest, METADATA.version)
+      t.equal(o.access, ACCESS)
       t.has(o.versions[METADATA.version], METADATA)
       t.same(o.maintainers, [{ name : "username", email : "i@izs.me" }])
       t.same(o.maintainers, o.versions[METADATA.version].maintainers)

@@ -12,6 +12,7 @@ var USERNAME  = "username"
 var PASSWORD  = "%1234@asdf%"
 var EMAIL     = "i@izs.me"
 var METADATA  = require("../package.json")
+var ACCESS    = "public"
 // not really a tarball, but doesn't matter
 var BODY_PATH = require.resolve("../package.json")
 var BODY      = createReadStream(BODY_PATH, "base64")
@@ -22,6 +23,7 @@ var AUTH      = {
 }
 var PARAMS  = {
   metadata : METADATA,
+  access   : ACCESS,
   body     : BODY,
   auth     : AUTH
 }

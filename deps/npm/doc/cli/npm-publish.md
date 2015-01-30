@@ -4,8 +4,8 @@ npm-publish(1) -- Publish a package
 
 ## SYNOPSIS
 
-    npm publish <tarball> [--tag <tag>]
-    npm publish <folder> [--tag <tag>]
+    npm publish <tarball> [--tag <tag>] [--access <public|restricted>]
+    npm publish <folder> [--tag <tag>] [--access <public|restricted>]
 
 ## DESCRIPTION
 
@@ -29,6 +29,12 @@ specifying a different default registry or using a `npm-scope(7)` in the name
   <name>@<tag>` will install this version.  By default, `npm publish` updates
   and `npm install` installs the `latest` tag.
 
+* `[--access <public|restricted>]`
+  Tells the registry whether this package should be published as public or
+  restricted. Only applies to scoped packages, which default to `restricted`.
+  If you don't have a paid account, you must publish with `--access public`
+  to publish scoped packages.
+
 Fails if the package name and version combination already exists in
 the specified registry.
 
@@ -39,6 +45,7 @@ it is removed with npm-unpublish(1).
 ## SEE ALSO
 
 * npm-registry(7)
+* npm-scope(7)
 * npm-adduser(1)
 * npm-owner(1)
 * npm-deprecate(1)

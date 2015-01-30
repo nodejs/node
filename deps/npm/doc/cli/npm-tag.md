@@ -7,6 +7,8 @@ npm-tag(1) -- Tag a published version
 
 ## DESCRIPTION
 
+THIS COMMAND IS DEPRECATED. See npm-dist-tag(1) for details.
+
 Tags the specified version of the package with the specified tag, or the
 `--tag` config if not specified.
 

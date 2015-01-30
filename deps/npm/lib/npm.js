@@ -67,6 +67,7 @@ var commandCache = {}
               , "isntall" : "install"
               , "up" : "update"
               , "c" : "config"
+              , "dist-tags" : "dist-tag"
               , "info" : "view"
               , "show" : "view"
               , "find" : "search"
@@ -111,6 +112,7 @@ var commandCache = {}
               , "adduser"
               , "unpublish"
               , "owner"
+              , "access"
               , "deprecate"
               , "shrinkwrap"
 
@@ -131,6 +133,7 @@ var commandCache = {}
               , "prefix"
               , "bin"
               , "whoami"
+              , "dist-tag"
 
               , "test"
               , "stop"
