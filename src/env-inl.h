@@ -75,7 +75,7 @@ inline bool Environment::AsyncHooks::is_enabled() const {
 }
 
 inline void Environment::AsyncHooks::set_enabled(bool enabled) {
-  fields_[kEnabled] = (uint32_t)enabled;
+  fields_[kEnabled] = static_cast<uint32_t>(enabled);
 }
 
 inline Environment::DomainFlag::DomainFlag() {
