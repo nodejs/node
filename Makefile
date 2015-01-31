@@ -174,9 +174,6 @@ $(apidoc_dirs):
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
-out/doc/changelog.html: CHANGELOG.md doc/changelog-head.html doc/changelog-foot.html tools/build-changelog.sh $(NODE_EXE)
-	bash tools/build-changelog.sh
-
 out/doc/%: doc/%
 	cp -r $< $@
 
@@ -185,13 +182,6 @@ out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
 
 out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
 	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
-
-email.md: CHANGELOG.md tools/email-footer.md
-	bash tools/changelog-head.sh | sed 's|^\* #|* \\#|g' > $@
-	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
-
-blog.html: email.md
-	cat $< | ./$(NODE_EXE) tools/doc/node_modules/.bin/marked > $@
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
