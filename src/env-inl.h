@@ -377,9 +377,10 @@ inline void Environment::ThrowErrnoException(int errorno,
 inline void Environment::ThrowUVException(int errorno,
                                           const char* syscall,
                                           const char* message,
-                                          const char* path) {
+                                          const char* path,
+                                          const char* dest) {
   isolate()->ThrowException(
-      UVException(isolate(), errorno, syscall, message, path));
+      UVException(isolate(), errorno, syscall, message, path, dest));
 }
 
 inline v8::Local<v8::FunctionTemplate>

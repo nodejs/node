@@ -160,7 +160,8 @@ void ThrowUVException(v8::Isolate* isolate,
                       int errorno,
                       const char* syscall = nullptr,
                       const char* message = nullptr,
-                      const char* path = nullptr);
+                      const char* path = nullptr,
+                      const char* dest = nullptr);
 
 NODE_DEPRECATED("Use ThrowError(isolate)",
                 inline void ThrowError(const char* errmsg) {

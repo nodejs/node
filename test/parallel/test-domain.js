@@ -48,7 +48,7 @@ d.on('error', function(er) {
       assert.equal(er.domainThrown, true);
       break;
 
-    case "ENOENT, open 'this file does not exist'":
+    case "ENOENT: no such file or directory, open 'this file does not exist'":
       assert.equal(er.domain, d);
       assert.equal(er.domainThrown, false);
       assert.equal(typeof er.domainBound, 'function');
@@ -58,7 +58,7 @@ d.on('error', function(er) {
       assert.equal(typeof er.errno, 'number');
       break;
 
-    case "ENOENT, open 'stream for nonexistent file'":
+    case "ENOENT: no such file or directory, open 'stream for nonexistent file'":
       assert.equal(typeof er.errno, 'number');
       assert.equal(er.code, 'ENOENT');
       assert.equal(er_path, 'stream for nonexistent file');

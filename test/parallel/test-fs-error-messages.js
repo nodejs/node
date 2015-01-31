@@ -29,10 +29,12 @@ fs.link(fn, 'foo', function(err) {
 });
 
 fs.link(existingFile, existingFile2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
   assert.ok(0 <= err.message.indexOf(existingFile2));
 });
 
 fs.symlink(existingFile, existingFile2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
   assert.ok(0 <= err.message.indexOf(existingFile2));
 });
 
@@ -45,6 +47,7 @@ fs.rename(fn, 'foo', function(err) {
 });
 
 fs.rename(existingDir, existingDir2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingDir));
   assert.ok(0 <= err.message.indexOf(existingDir2));
 });
 
@@ -130,6 +133,7 @@ try {
   fs.linkSync(existingFile, existingFile2);
 } catch (err) {
   errors.push('link');
+  assert.ok(0 <= err.message.indexOf(existingFile));
   assert.ok(0 <= err.message.indexOf(existingFile2));
 }
 
@@ -138,6 +142,7 @@ try {
   fs.symlinkSync(existingFile, existingFile2);
 } catch (err) {
   errors.push('symlink');
+  assert.ok(0 <= err.message.indexOf(existingFile));
   assert.ok(0 <= err.message.indexOf(existingFile2));
 }
 
@@ -186,6 +191,7 @@ try {
   fs.renameSync(existingDir, existingDir2);
 } catch (err) {
   errors.push('rename');
+  assert.ok(0 <= err.message.indexOf(existingDir));
   assert.ok(0 <= err.message.indexOf(existingDir2));
 }
 

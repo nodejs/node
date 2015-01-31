@@ -61,6 +61,7 @@ namespace node {
   V(cwd_string, "cwd")                                                        \
   V(debug_port_string, "debugPort")                                           \
   V(debug_string, "debug")                                                    \
+  V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
   V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
@@ -407,7 +408,8 @@ class Environment {
   inline void ThrowUVException(int errorno,
                                const char* syscall = nullptr,
                                const char* message = nullptr,
-                               const char* path = nullptr);
+                               const char* path = nullptr,
+                               const char* dest = nullptr);
 
   // Convenience methods for contextify
   inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);
