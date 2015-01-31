@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <limits.h>
 
+#include <string>
+
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <io.h>
 #endif
@@ -92,6 +94,18 @@ static inline bool IsInt64(double x) {
 }
 
 
+static std::string srcdestError(const char *syscall, const char *source,
+                                const char *destination) {
+  std::string errmsg(syscall);
+  return errmsg.
+      append(" '").
+      append(source).
+      append("' -> '").
+      append(destination).
+      append("'");
+}
+
+
 static void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   CHECK_EQ(&req_wrap->req_, req);
@@ -112,14 +126,10 @@ static void After(uv_fs_t *req) {
     // If the request doesn't have a path parameter set.
     if (req->path == nullptr) {
       argv[0] = UVException(req->result, nullptr, req_wrap->syscall());
-    } else if ((req->result == UV_EEXIST ||
-                req->result == UV_ENOTEMPTY ||
-                req->result == UV_EPERM) &&
-               req_wrap->dest_len() > 0) {
-      argv[0] = UVException(req->result,
-                            nullptr,
-                            req_wrap->syscall(),
-                            req_wrap->dest());
+    } else if (req_wrap->dest_len() > 0) {
+      const char* syscall = req_wrap->syscall();
+      std::string errmsg = srcdestError(syscall, req->path, req_wrap->dest());
+      argv[0] = UVException(req->result, nullptr, errmsg.c_str());
     } else {
       argv[0] = UVException(req->result,
                             nullptr,
@@ -270,11 +280,9 @@ struct fs_req_wrap {
                          __VA_ARGS__,                                         \
                          nullptr);                                            \
   if (err < 0) {                                                              \
-    if (dest != nullptr &&                                                    \
-        (err == UV_EEXIST ||                                                  \
-         err == UV_ENOTEMPTY ||                                               \
-         err == UV_EPERM)) {                                                  \
-      return env->ThrowUVException(err, #func, "", dest);                     \
+    if (dest != nullptr) {                                                    \
+      std::string errmsg = srcdestError(#func, path, dest);                   \
+      return env->ThrowUVException(err, nullptr, errmsg.c_str());             \
     } else {                                                                  \
       return env->ThrowUVException(err, #func, "", path);                     \
     }                                                                         \
