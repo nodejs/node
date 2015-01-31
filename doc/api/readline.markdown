@@ -13,7 +13,8 @@ program to gracefully exit:
 
     var rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      history: ['foo', 'bar', ...]
     });
 
     rl.question("What do you think of node.js? ", function(answer) {
@@ -38,6 +39,8 @@ the following values:
  - `terminal` - pass `true` if the `input` and `output` streams should be
    treated like a TTY, and have ANSI/VT100 escape codes written to it.
    Defaults to checking `isTTY` on the `output` stream upon instantiation.
+   
+ - `history` - pass history(Array) to start the cli with previous history (Optional).
 
 The `completer` function is given the current line entered by the user, and
 is supposed to return an Array with 2 entries:
@@ -70,11 +73,24 @@ Also `completer` can be run in async mode if it accepts two arguments:
     var readline = require('readline');
     var rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      // start the cli with previous history
+      history: ['foo', 'bar', ...]
     });
 
 Once you have a readline instance, you most commonly listen for the
-`"line"` event.
+`"line"` and `"close"` events:
+
+    rl
+      .on('line', function(line) {
+        // ...
+        lr.pause();
+        fs.appendFile('path/to/history', line, rl.resume.bind(rl));
+      })
+      .on('close', function() {
+        var history = rl.history;
+        // save history and exit()
+      });
 
 If `terminal` is `true` for this instance then the `output` stream will get
 the best compatibility if it defines an `output.columns` property, and fires
@@ -90,6 +106,10 @@ stream.
 
 Sets the prompt, for example when you run `node` on the command line, you see
 `> `, which is node's prompt.
+
+### rl.setHistorySize(size)
+
+Sets the length of history size, the default is 30.
 
 ### rl.prompt([preserveCursor])
 
