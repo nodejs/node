@@ -1,5 +1,6 @@
 io.js
-===
+=====
+
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/iojs/io.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 This repository began as a GitHub fork of
@@ -8,7 +9,8 @@ This repository began as a GitHub fork of
 io.js contributions, releases, and contributorship are under an
 [open governance model](./GOVERNANCE.md).
 We intend to land, with increasing regularity, releases which are
-compatible with the npm ecosystem that has been built to date for Node.js.
+compatible with the npm ecosystem that has been built to date for
+Node.js.
 
 ## Is it io.js or IO.js or iojs or IOjs or iOjS?
 
@@ -17,7 +19,61 @@ especially not at the start of a sentence, unless it is being
 displayed in a location that is customarily all-caps (such as
 the title of man pages).
 
-## To build:
+## Download
+
+Binaries, installers and source tarballs are available at
+<https://iojs.org>.
+
+**Releases** are available at <https://iojs.org/dist/>, listed under
+their version string. The <https://iojs.org/dist/latest/> symlink
+will point to the latest release directory.
+
+**Nightly** builds are available at
+<https://iojs.org/download/nightly/>, listed under their version
+string which includes their date (in UTC time) and the commit SHA at
+the HEAD of the release.
+
+**API documentation** is available in each release and nightly
+directory under _docs_. <http://iojs.org/api/> points to the the
+latest version.
+
+### Verifying Binaries
+
+Release and nightly download directories all contain a *SHASUM256.txt*
+file that lists the SHA checksums for each file available for
+download. To check that a downloaded file matches the checksum, run
+it through `sha256sum` with a command such as:
+
+```
+$ grep iojs-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
+```
+
+_(Where "iojs-vx.y.z.tar.gz" is the name of the file you have
+downloaded)_
+
+Additionally, releases (not nightlies) have GPG signed copies of
+SHASUM256.txt files available as SHASUM256.txt.asc. You can use `gpg`
+to verify that the file has not been tampered with.
+
+To verify a SHASUM256.txt.asc, you will first need to import all of
+the GPG keys of individuals authorized to create releases. They are
+listed at the bottom of this README. Use a command such as this to
+import the keys:
+
+```
+$ gpg --keyserver pool.sks-keyservers.net \
+  --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+```
+
+_(Include each of the key fingerprints at the end of this command.)_
+
+You can then use `gpg --verify SHASUMS256.txt.asc` to verify that the
+file has been signed by an authorized member of the io.js team.
+
+Once verified, use the SHASUMS256.txt.asc file to get the checksum for
+the binary verification command above.
+
+## Build
 
 ### Unix / Macintosh
 
@@ -209,6 +265,7 @@ information about the governance of the io.js project, see
 * **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt; (Technical Committee)
 * **Mikeal Rogers** ([@mikeal](https://github.com/mikeal)) &lt;mikeal.rogers@gmail.com&gt;
 * **Rod Vagg** ([@rvagg](https://github.com/rvagg)) &lt;rod@vagg.org&gt;
+<br>Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 * **Thorsten Lorenz** ([@thlorenz](https://github.com/thlorenz)) &lt;thlorenz@gmx.de&gt;
 * **Stephen Belanger** ([@qard](https://github.com/qard)) &lt;admin@stephenbelanger.com&gt;
 * **Jeremiah Senkpiel** ([@fishrock123](https://github.com/fishrock123)) &lt;fishrock123@rocketmail.com&gt;
