@@ -1,3 +1,55 @@
+### v2.4.1 (2015-01-23):
+
+![bridge that doesn't meet in the middle](http://www.static-18.themodernnomad.com/wp-content/uploads/2011/08/bridge-fail.jpg)
+
+Let's accentuate the positive: the `dist-tag` endpoints for `npm dist-tag
+{add,rm,ls}` are now live on the public npm registry.
+
+* [`f70272b`](https://github.com/npm/npm/commit/f70272bed7d77032d1e21553371dd5662fef32f2)
+  `npm-registry-client@6.0.3`: Properly escape JSON tag version strings and
+  filter `_etag` from CouchDB docs. ([@othiym23](https://github.com/othiym23))
+
+### v2.4.0 (2015-01-22):
+
+#### REGISTRY 2: ACCESS AND DIST-TAGS
+
+NOTE: This week's registry-2 commands are leading the implementation on
+registry.npmjs.org a little bit, so some of the following may not work for
+another week or so. Also note that `npm access` has documentation and
+subcommands that are not yet finished, because they depend on incompletely
+specified registry API endpoints. Things are coming together very quickly,
+though, so expect the missing pieces to be filled in the coming weeks.
+
+* [`c963eb2`](https://github.com/npm/npm/commit/c963eb295cf766921b1680f4a71fd0ed3e1bcad8)
+  [#7181](https://github.com/npm/npm/issues/7181) NEW `npm access public` and
+  `npm access restricted`: Toggle visibility of scoped packages.
+  ([@othiym23](https://github.com/othiym23))
+* [`dc51810`](https://github.com/npm/npm/commit/dc51810e08c0f104259146c9c035d255de4f7d1d)
+  [#6243](https://github.com/npm/npm/issues/6243) /
+  [#6854](https://github.com/npm/npm/issues/6854) NEW `npm dist-tags`: Directly
+  manage `dist-tags` on packages. Most notably, `dist-tags` can now be deleted.
+  ([@othiym23](https://github.com/othiym23))
+* [`4c7c132`](https://github.com/npm/npm/commit/4c7c132a6b8305dca2974943226c39c0cdc64ff9)
+  [#7181](https://github.com/npm/npm/issues/7181) /
+  [#6854](https://github.com/npm/npm/issues/6854) `npm-registry-client@6.0.1`:
+  Add new `access` and `dist-tags` endpoints
+  ([@othiym23](https://github.com/othiym23))
+
+#### NOT EXACTLY SELF-DEPRECATING
+
+* [`10d5c77`](https://github.com/npm/npm/commit/10d5c77653487f15759ac7de262a97e9c655240c)
+  [#6274](https://github.com/npm/npm/issues/6274) Deprecate `npm tag` in favor
+  of `npm dist-tag`. ([@othiym23](https://github.com/othiym23))
+
+#### BUG FIX AND TINY FEATURE
+
+* [`29a6ef3`](https://github.com/npm/npm/commit/29a6ef38ef86ac318c5d9ea4bee28ce614672fa6)
+  [#6850](https://github.com/npm/npm/issues/6850) Be smarter about determining
+  base of file deletion when unbuilding. ([@phated](https://github.com/phated))
+* [`4ad01ea`](https://github.com/npm/npm/commit/4ad01ea2930a7a1cf88be121cc5ce9eba40c6807)
+  `init-package-json@1.2.0`: Support `--save-exact` in `npm init`.
+  ([@gustavnikolaj](https://github.com/gustavnikolaj))
+
 ### v2.3.0 (2015-01-15):
 
 #### REGISTRY 2: OH MY STARS! WHO AM I?

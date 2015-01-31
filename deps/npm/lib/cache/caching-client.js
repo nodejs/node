@@ -24,6 +24,7 @@ function CachingRegistryClient (config) {
   // swizzle in our custom cache invalidation logic
   this._request = this.request
   this.request  = this._invalidatingRequest
+  this.get      = get
 }
 inherits(CachingRegistryClient, RegistryClient)
 
@@ -42,7 +43,7 @@ CachingRegistryClient.prototype._invalidatingRequest = function (uri, params, cb
       // thinking that it didn't work when it did.
       // Note that failure is an acceptable option here, since the only
       // result will be a stale cache for some helper commands.
-      client.log.verbose("request", "invalidating", invalidated, "on", method)
+      log.verbose("request", "invalidating", invalidated, "on", method)
       return rimraf(invalidated, function () {
         cb.apply(undefined, args)
       })
@@ -52,7 +53,7 @@ CachingRegistryClient.prototype._invalidatingRequest = function (uri, params, cb
   })
 }
 
-CachingRegistryClient.prototype.get = function get (uri, params, cb) {
+function get (uri, params, cb) {
   assert(typeof uri === "string", "must pass registry URI to get")
   assert(params && typeof params === "object", "must pass params to get")
   assert(typeof cb === "function", "must pass callback to get")
@@ -68,7 +69,10 @@ CachingRegistryClient.prototype.get = function get (uri, params, cb) {
 
   // If the GET is part of a write operation (PUT or DELETE), then
   // skip past the cache entirely, but still save the results.
-  if (uri.match(/\?write=true$/)) return get_.call(this, uri, cachePath, params, cb)
+  if (uri.match(/\?write=true$/)) {
+    log.verbose("get", "GET as part of write; not caching result")
+    return get_.call(this, uri, cachePath, params, cb)
+  }
 
   var client = this
   fs.stat(cachePath, function (er, stat) {
@@ -170,6 +174,7 @@ function get_ (uri, cachePath, params, cb) {
     }
 
     function saveToCache (cachePath, data, saved) {
+      log.verbose("get", "saving", data.name, "to", cachePath)
       getCacheStat(function (er, st) {
         mkdirp(path.dirname(cachePath), function (er, made) {
           if (er) return saved()

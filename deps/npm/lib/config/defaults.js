@@ -24,7 +24,7 @@ try {
 exports.Umask = Umask
 function Umask () {}
 function validateUmask (data, k, val) {
-  return umask.validate (data, k, val)
+  return umask.validate(data, k, val)
 }
 
 function validateSemver (data, k, val) {
@@ -119,7 +119,9 @@ Object.defineProperty(exports, "defaults", {get: function () {
   }
 
   defaults = {
-    "always-auth" : false
+    access : "restricted"
+    , "always-auth" : false
+
     , "bin-links" : true
     , browser : null
 
@@ -228,7 +230,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
 }})
 
 exports.types =
-  { "always-auth" : Boolean
+  { access : ["restricted", "public"]
+  , "always-auth" : Boolean
   , "bin-links": Boolean
   , browser : [null, String]
   , ca: [null, String, Array]
@@ -272,7 +275,7 @@ exports.types =
   // local-address must be listed as an IP for a local network interface
   // must be IPv4 due to node bug
   , "local-address" : getLocalAddresses()
-  , loglevel : ["silent","error","warn","http","info","verbose","silly"]
+  , loglevel : ["silent", "error", "warn", "http", "info", "verbose", "silly"]
   , logstream : Stream
   , long : Boolean
   , message: String

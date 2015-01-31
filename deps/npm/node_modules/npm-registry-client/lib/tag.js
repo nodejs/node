@@ -9,7 +9,10 @@ function tag (uri, params, cb) {
 
   assert(typeof params.version === "string", "must pass version to tag")
   assert(typeof params.tag === "string", "must pass tag name to tag")
-  assert(params.auth && typeof params.auth === "object", "must pass auth to tag")
+  assert(
+    params.auth && typeof params.auth === "object",
+    "must pass auth to tag"
+  )
 
   var options = {
     method : "PUT",
