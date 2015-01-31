@@ -109,23 +109,14 @@ static void After(uv_fs_t *req) {
   Local<Value> argv[2];
 
   if (req->result < 0) {
-    // If the request doesn't have a path parameter set.
-    if (req->path == nullptr) {
-      argv[0] = UVException(req->result, nullptr, req_wrap->syscall());
-    } else if ((req->result == UV_EEXIST ||
-                req->result == UV_ENOTEMPTY ||
-                req->result == UV_EPERM) &&
-               req_wrap->dest_len() > 0) {
-      argv[0] = UVException(req->result,
-                            nullptr,
-                            req_wrap->syscall(),
-                            req_wrap->dest());
-    } else {
-      argv[0] = UVException(req->result,
-                            nullptr,
-                            req_wrap->syscall(),
-                            static_cast<const char*>(req->path));
-    }
+    // An error happened.
+    const char* dest = req_wrap->dest_len() > 0 ? req_wrap->dest() : nullptr;
+    argv[0] = UVException(env->isolate(),
+                          req->result,
+                          req_wrap->syscall(),
+                          nullptr,
+                          req->path,
+                          dest);
   } else {
     // error value is empty or null for non-error.
     argv[0] = Null(env->isolate());
@@ -270,14 +261,7 @@ struct fs_req_wrap {
                          __VA_ARGS__,                                         \
                          nullptr);                                            \
   if (err < 0) {                                                              \
-    if (dest != nullptr &&                                                    \
-        (err == UV_EEXIST ||                                                  \
-         err == UV_ENOTEMPTY ||                                               \
-         err == UV_EPERM)) {                                                  \
-      return env->ThrowUVException(err, #func, "", dest);                     \
-    } else {                                                                  \
-      return env->ThrowUVException(err, #func, "", path);                     \
-    }                                                                         \
+    return env->ThrowUVException(err, #func, nullptr, path, dest);            \
   }                                                                           \
 
 #define SYNC_CALL(func, path, ...)                                            \
