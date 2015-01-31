@@ -71,10 +71,10 @@ make decisions efficiently.
 There is no specific set of requirements or qualifications for TC
 membership beyond these rules.
 
-The TC may add additional members to the TC by unanimous consensus.
+The TC may add additional members to the TC by a standard TC motion.
 
 A TC member may be removed from the TC by voluntary resignation, or by
-unanimous consensus of all other TC members.
+a standard TC motion.
 
 Changes to TC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "TC Meetings" below).
