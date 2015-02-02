@@ -57,3 +57,15 @@ e3.on('removeListener', listener);
 // there exists a removeListener listener, but there exists
 // no listeners for the provided event type
 assert.doesNotThrow(e3.removeAllListeners.bind(e3, 'foo'));
+
+var e4 = new events.EventEmitter();
+var expectLength = 2;
+e4.on('removeListener', function(name, listener) {
+  assert.equal(expectLength--, this.listeners('baz').length);
+});
+e4.on('baz', function(){});
+e4.on('baz', function(){});
+e4.on('baz', function(){});
+assert.equal(e4.listeners('baz').length, expectLength+1);
+e4.removeAllListeners('baz');
+assert.equal(e4.listeners('baz').length, 0);
