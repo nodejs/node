@@ -45,12 +45,20 @@ assert.deepEqual([listener1], e2.listeners('hello'));
 var e3 = new events.EventEmitter();
 e3.on('hello', listener1);
 e3.on('hello', listener2);
-e3.on('removeListener', common.mustCall(function(name, cb) {
+e3.once('removeListener', common.mustCall(function(name, cb) {
   assert.equal(name, 'hello');
   assert.equal(cb, listener1);
+  assert.deepEqual([listener2], e3.listeners('hello'));
 }));
 e3.removeListener('hello', listener1);
 assert.deepEqual([listener2], e3.listeners('hello'));
+e3.once('removeListener', common.mustCall(function(name, cb) {
+  assert.equal(name, 'hello');
+  assert.equal(cb, listener2);
+  assert.deepEqual([], e3.listeners('hello'));
+}));
+e3.removeListener('hello', listener2);
+assert.deepEqual([], e3.listeners('hello'));
 
 var e4 = new events.EventEmitter();
 e4.on('removeListener', common.mustCall(function(name, cb) {
@@ -61,3 +69,21 @@ e4.on('removeListener', common.mustCall(function(name, cb) {
 e4.on('quux', remove1);
 e4.on('quux', remove2);
 e4.removeListener('quux', remove1);
+
+var e5 = new events.EventEmitter();
+e5.on('hello', listener1);
+e5.on('hello', listener2);
+e5.once('removeListener', common.mustCall(function(name, cb) {
+  assert.equal(name, 'hello');
+  assert.equal(cb, listener1);
+  assert.deepEqual([listener2], e5.listeners('hello'));
+  e5.once('removeListener', common.mustCall(function(name, cb) {
+    assert.equal(name, 'hello');
+    assert.equal(cb, listener2);
+    assert.deepEqual([], e5.listeners('hello'));
+  }));
+  e5.removeListener('hello', listener2);
+  assert.deepEqual([], e5.listeners('hello'));
+}));
+e5.removeListener('hello', listener1);
+assert.deepEqual([], e5.listeners('hello'));
