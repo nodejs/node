@@ -12,6 +12,8 @@ var times_hello_emited = 0;
 assert.equal(e.addListener, e.on);
 
 e.on('newListener', function(event, listener) {
+  if (event === 'newListener')
+    return; // Don't track our adding of newListener listeners.
   console.log('newListener: ' + event);
   events_new_listener_emited.push(event);
   listeners_new_listener_emited.push(listener);
@@ -23,6 +25,11 @@ function hello(a, b) {
   assert.equal('a', a);
   assert.equal('b', b);
 }
+e.once('newListener', function(name, listener) {
+  assert.equal(name, 'hello');
+  assert.equal(listener, hello);
+  assert.deepEqual(this.listeners('hello'), []);
+});
 e.on('hello', hello);
 
 var foo = function() {};
@@ -44,4 +51,17 @@ process.on('exit', function() {
   assert.equal(1, times_hello_emited);
 });
 
-
+var listen1 = function listen1() {};
+var listen2 = function listen2() {};
+var e1 = new events.EventEmitter;
+e1.once('newListener', function() {
+  assert.deepEqual(e1.listeners('hello'), []);
+  e1.once('newListener', function() {
+    assert.deepEqual(e1.listeners('hello'), []);
+  });
+  e1.on('hello', listen2);
+});
+e1.on('hello', listen1);
+// The order of listeners on an event is not always the order in which the
+// listeners were added.
+assert.deepEqual(e1.listeners('hello'), [listen2, listen1]);

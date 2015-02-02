@@ -143,8 +143,11 @@ Return the number of listeners for a given event.
 * `event` {String} The event name
 * `listener` {Function} The event handler function
 
-This event is emitted any time a listener is added. When this event is triggered,
-the listener may not yet have been added to the array of listeners for the `event`.
+This event is emitted *before* a listener is added. When this event is
+triggered, the listener has not been added to the array of listeners for the
+`event`. Any listeners added to the event `name` in the newListener event
+callback will be added *before* the listener that is in the process of being
+added.
 
 
 ### Event: 'removeListener'
@@ -152,5 +155,6 @@ the listener may not yet have been added to the array of listeners for the `even
 * `event` {String} The event name
 * `listener` {Function} The event handler function
 
-This event is emitted any time someone removes a listener.  When this event is triggered,
-the listener may not yet have been removed from the array of listeners for the `event`.
+This event is emitted *after* a listener is removed.  When this event is
+triggered, the listener has been removed from the array of listeners for the
+`event`.
