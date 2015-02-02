@@ -24,36 +24,6 @@ probe node_net_stream_end = process("node").mark("net__stream__end")
     fd);
 }
 
-probe node_net_socket_write = process("node").mark("net__socket__write")
-{
-  bytes = $arg2;
-  remote = user_string($arg3);
-  port = $arg4;
-  fd = $arg5;
-
-  probestr = sprintf("%s(bytes=%d, remote=%s, port=%d, fd=%d)",
-    $$name,
-    bytes,
-    remote,
-    port,
-    fd);
-}
-
-probe node_net_socket_read = process("node").mark("net__socket__read")
-{
-  bytes = $arg2;
-  remote = user_string($arg3);
-  port = $arg4;
-  fd = $arg5;
-
-  probestr = sprintf("%s(bytes=%d, remote=%s, port=%d, fd=%d)",
-    $$name,
-    bytes,
-    remote,
-    port,
-    fd);
-}
-
 probe node_http_server_request = process("node").mark("http__server__request")
 {
   remote = user_string($arg3);

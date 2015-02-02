@@ -22,10 +22,6 @@
 #define NODE_NET_SERVER_CONNECTION_ENABLED() (0)
 #define NODE_NET_STREAM_END(arg0)
 #define NODE_NET_STREAM_END_ENABLED() (0)
-#define NODE_NET_SOCKET_READ(arg0, arg1, arg2, arg3, arg4)
-#define NODE_NET_SOCKET_READ_ENABLED() (0)
-#define NODE_NET_SOCKET_WRITE(arg0, arg1, arg2, arg3, arg4)
-#define NODE_NET_SOCKET_WRITE_ENABLED() (0)
 #define NODE_GC_START(arg0, arg1, arg2)
 #define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
@@ -138,37 +134,6 @@ void DTRACE_NET_STREAM_END(const FunctionCallbackInfo<Value>& args) {
   SLURP_CONNECTION(args[0], conn);
   NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
 }
-
-
-void DTRACE_NET_SOCKET_READ(const FunctionCallbackInfo<Value>& args) {
-  if (!NODE_NET_SOCKET_READ_ENABLED())
-    return;
-  Environment* env = Environment::GetCurrent(args);
-  SLURP_CONNECTION(args[0], conn);
-
-  if (!args[1]->IsNumber()) {
-    return env->ThrowError("expected argument 1 to be number of bytes");
-  }
-
-  int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port, conn.fd);
-}
-
-
-void DTRACE_NET_SOCKET_WRITE(const FunctionCallbackInfo<Value>& args) {
-  if (!NODE_NET_SOCKET_WRITE_ENABLED())
-    return;
-  Environment* env = Environment::GetCurrent(args);
-  SLURP_CONNECTION(args[0], conn);
-
-  if (!args[1]->IsNumber()) {
-    return env->ThrowError("expected argument 1 to be number of bytes");
-  }
-
-  int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port, conn.fd);
-}
-
 
 void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_dtrace_http_server_request_t req;
@@ -286,8 +251,6 @@ void InitDTrace(Environment* env, Handle<Object> target) {
 #define NODE_PROBE(name) #name, name
     { NODE_PROBE(DTRACE_NET_SERVER_CONNECTION) },
     { NODE_PROBE(DTRACE_NET_STREAM_END) },
-    { NODE_PROBE(DTRACE_NET_SOCKET_READ) },
-    { NODE_PROBE(DTRACE_NET_SOCKET_WRITE) },
     { NODE_PROBE(DTRACE_HTTP_SERVER_REQUEST) },
     { NODE_PROBE(DTRACE_HTTP_SERVER_RESPONSE) },
     { NODE_PROBE(DTRACE_HTTP_CLIENT_REQUEST) },
