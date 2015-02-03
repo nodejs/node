@@ -7062,6 +7062,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kUniqueIdOffset = kFeedbackVectorOffset + kPointerSize;
   static const int kLastPointerFieldOffset = kUniqueIdOffset;
 #else
+  // Just to not break the postmortem support with conditional offsets
+  static const int kUniqueIdOffset = kFeedbackVectorOffset;
   static const int kLastPointerFieldOffset = kFeedbackVectorOffset;
 #endif
 
