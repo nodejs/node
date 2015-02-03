@@ -1315,71 +1315,13 @@ for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
 
-## Simplified API Via Revealing Constructor Pattern
+## Simplified Constructor API 
 
 <!--type=misc-->
 
-To implement any sort of stream you can now pass that streams specific methods as parameters to the constructors options:
+In simple cases there is now the added benefit of being able to construct a stream without the need of inheritance.
 
-<table>
-  <thead>
-    <tr>
-      <th>
-        <p>Use-case</p>
-      </th>
-      <th>
-        <p>Class</p>
-      </th>
-      <th>
-        <p>Method(s) to implement</p>
-      </th>
-    </tr>
-  </thead>
-  <tr>
-    <td>
-      <p>Reading only</p>
-    </td>
-    <td>
-      <p>[Readable](#stream_class_stream_readable_1)</p>
-    </td>
-    <td>
-      <p><code>[read][_read]</code></p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Writing only</p>
-    </td>
-    <td>
-      <p>[Writable](#stream_class_stream_writable_1)</p>
-    </td>
-    <td>
-      <p><code>[write][_write]</code></p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Reading and writing</p>
-    </td>
-    <td>
-      <p>[Duplex](#stream_class_stream_duplex_1)</p>
-    </td>
-    <td>
-      <p><code>[read][_read]</code>, <code>[write][_write]</code>, <code>writev</code></p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Operate on written data, then read the result</p>
-    </td>
-    <td>
-      <p>[Transform](#stream_class_stream_transform_1)</p>
-    </td>
-    <td>
-      <p><code>transform</code>, <code>flush</code></p>
-    </td>
-  </tr>
-</table>
+This can be done simply by passing the necessary streams specific methods as parameters to the constructors options:
 
 Examples:
 
