@@ -371,7 +371,7 @@ def gyp_main(args):
     if options.use_environment:
       generate_formats = os.environ.get('GYP_GENERATORS', [])
     if generate_formats:
-      generate_formats = re.split('[\s,]', generate_formats)
+      generate_formats = re.split(r'[\s,]', generate_formats)
     if generate_formats:
       options.formats = generate_formats
     else:
@@ -496,11 +496,9 @@ def gyp_main(args):
               'root_targets': options.root_targets}
 
     # Start with the default variables from the command line.
-    [generator, flat_list, targets, data] = Load(build_files, format,
-                                                 cmdline_default_variables,
-                                                 includes, options.depth,
-                                                 params, options.check,
-                                                 options.circular_check)
+    [generator, flat_list, targets, data] = Load(
+        build_files, format, cmdline_default_variables, includes, options.depth,
+        params, options.check, options.circular_check)
 
     # TODO(mark): Pass |data| for now because the generator needs a list of
     # build files that came in.  In the future, maybe it should just accept

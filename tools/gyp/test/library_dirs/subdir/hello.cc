@@ -1,0 +1,11 @@
+// Copyright (c) 2013 Google Inc. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include <iostream>
+#include "mylib.h"
+
+int main() {
+  std::cout << "Hello " << my_foo(99) << std::endl;
+  return 0;
+}
