@@ -1,5 +1,102 @@
 # io.js ChangeLog
 
+## 2015-02-03, Version 1.1.0, @chrisdickinson
+
+### Notable changes
+
+* debug: fix v8 post-mortem debugging.
+* crypto: publicEncrypt now supports password-protected private keys.
+* crypto: ~30% speedup on hashing functions.
+* errors
+  - better formatting via util.inspect
+  - more descriptive errors from fs. This necessitated a `NODE_MODULE_VERSION` bump.
+  - more descriptive errors from http.setHeader
+* dep updates:
+  - npm: upgrade to 2.4.1
+  - http-parser: rollback to 2.3.0
+  - libuv: update to 1.3.0
+  - v8: update to 4.1.0.14
+* http.request: inherited properties on options are now respected
+* add iterable interface to buffers (`for (let byte of buffer.values()) { }`)
+* fs: fix fd leak on `fs.createReadStream`. See 497fd72 for details.
+* installer: on Windows, emit WM_SETTINGCHANGE after install to make other running
+  processes aware of the PATH changes.
+* Added new collaborators:
+  - Vladimir Kurchatkin (@vkurchatkin)
+  - Micleușanu Nicu (@micnic)
+
+### Known issues
+
+* Surrogate pair in REPL can freeze terminal (https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library (https://github.com/iojs/io.js/issues/686)
+
+### Commits
+
+* df48faf - tools: add release tool and docs, remove old tools (Rod Vagg)
+* 14684d3 - v8abbr: ASCIISTRINGTAG => ONEBYTESTRINGTAG (Fedor Indutny)
+* 6a5d731 - gyp: enable postmortem support, fix dtrace paths (Fedor Indutny)
+* 8b88ff8 - deps: fix postmortem support in v8 (Fedor Indutny)
+* d0b0bb4 - dtrace: fix removal of unused probes (Glen Keane)
+* 3e67d7e - http: replace util.\_extend() with [].slice() (Jonathan Ong)
+* 89dd8e0 - benchmark: clean up common.js (Brendan Ashworth)
+* 6561274 - crypto: support passwords in publicEncrypt (Calvin Metcalf)
+* e9eb2ec - process: fix regression in unlistening signals (Sam Roberts)
+* 233e333 - events: remove indeterminancy from event ordering (Sam Roberts)
+* d75fecf - src: remove unused dtrace probes (Glen Keane)
+* 8c0742f - net: check close callback is function (Yosuke Furukawa)
+* 207e48c - dgram: check close callback is function (Yosuke Furukawa)
+* 6ac8bdc - lib: reduce util.is*() usage (cjihrig)
+* bce7a26 - deps: make node-gyp work again on windows (Bert Belder)
+* 1bdd74d - deps: make node-gyp fetch tarballs from iojs.org (Ben Noordhuis)
+* faf34ff - deps: upgrade npm to 2.4.1 (Forrest L Norvell)
+* 40e29dc - assert: use util.inspect() to create error messages (cjihrig)
+* bc2c85c - fs: improve error messages (Bert Belder)
+* 0767c2f - lib: fix max size check in Buffer constructor (Ben Noordhuis)
+* 65b1e4f - dgram: implicit binds should be exclusive (Sam Roberts)
+* 083c421 - benchmark: remove extra spacing in http options (Brendan Ashworth)
+* e17e6fb - util: use on-stack buffer for Utf8Value (Fedor Indutny)
+* 3d4e96f - crypto: use on-stack storage in HashUpdate (Fedor Indutny)
+* aca2011 - string_bytes: introduce InlineDecoder (Fedor Indutny)
+* c6367e7 - node: speed up ParseEncoding (Fedor Indutny)
+* 7604e6d - docs: add note about default padding in crypto (Calvin Metcalf)
+* cf3e908 - http: more descriptive setHeader errors (Qasim Zaidi)
+* cbc1262 - deps: upgrade v8 to 4.1.0.14 (Ben Noordhuis)
+* 00f822f - doc: add micnic as collaborator (Micleusanu Nicu)
+* 514b1d9 - doc: add more info to benchmark/README.md (Fishrock123)
+* 097fde7 - deps: update libuv to 1.3.0 (Saúl Ibarra Corretgé)
+* 6ad236c - build: configure formatting, add final message (Roman Reiss)
+* dd47a8c - src: set default signal dispositions at start-up (Ben Noordhuis)
+* 63ae1d2 - src: rework early debug signal handling (Ben Noordhuis)
+* 5756f92 - src: do platform-specific initialization earlier (Ben Noordhuis)
+* 24bd4e0 - test: add http upgrade header regression test (Ben Noordhuis)
+* 6605096 - deps: roll back http_parser to 2.3.0 (Ben Noordhuis)
+* 90ddb46 - crypto: remove use of this.\_readableState (Calvin Metcalf)
+* 45d8d9f - buffer: implement `iterable` interface (Vladimir Kurchatkin)
+* 3cbb5cd - console: allow Object.prototype fields as labels (cjihrig)
+* 87e62bd - crypto: implement privateEncrypt/publicDecrypt (Fedor Indutny)
+* b50fea4 - watchdog: fix timeout for early polling return (Saúl Ibarra Corretgé)
+* b5166cb - benchmark: add bench-(url & events) make targets (Yosuke Furukawa)
+* 5843ae8 - Revert "doc: clarify fs.symlink and fs.symlinkSync parameters" (Bert Belder)
+* 668bde8 - win,msi: broadcast WM_SETTINGCHANGE after install (Mathias Küsel)
+* 69ce064 - build: remove artefacts on distclean (Johan Bergström)
+* 1953886 - test: fs.createReadStream().destroy() fd leak (Rod Vagg)
+* 497fd72 - fs: fix fd leak in ReadStream.destroy() (Alex Kocharin)
+* 8b09ae7 - doc: add links for http_parser/libuv upgrades (Michael Hart)
+* 683e096 - src: remove excessive license boilerplate (Aleksey Smolenchuk)
+* 5c7ab96 - doc: fix net.Server.listen bind behavior (Andres Suarez)
+* 84b05d4 - doc: update writable streams default encoding (Johnny Ray Austin)
+* 1855267 - doc: fix minor grammar mistake in streams docs (ttrfwork)
+* 4f68369 - build: disable v8 snapshots (Ben Noordhuis)
+* c0a9d1b - versions: add http-parser patchlevel (Johan Bergström)
+* 7854811 - child_process: clone spawn options argument (cjihrig)
+* 88aaff9 - deps: update http_parser to 2.4.2 (Fedor Indutny)
+* 804ab7e - doc: add seishun as a collaborator (Nikolai Vavilov)
+* 301a968 - child_process: remove redundant condition (Vladimir Kurchatkin)
+* 06cfff9 - http: don't bother making a copy of the options (Jonathan Ong)
+* 55c222c - doc: add vkurchatkin as collaborator (Vladimir Kurchatkin)
+* 50ac4b7 - Working on 1.0.5 (Rod Vagg)
+* d1fc9c6 - 2015-01-24 io.js v1.0.4 Release (Rod Vagg)
+
 ## 2015-01-24, Version 1.0.4, @rvagg
 
 ### Notable changes
