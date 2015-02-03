@@ -257,8 +257,6 @@ bool NODE_HTTP_CLIENT_REQUEST_ENABLED() { return events_enabled > 0; }
 bool NODE_HTTP_CLIENT_RESPONSE_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_SERVER_CONNECTION_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_STREAM_END_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_READ_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_WRITE_ENABLED() { return events_enabled > 0; }
 bool NODE_V8SYMBOL_ENABLED() { return events_enabled > 0; }
 
 }  // namespace node
