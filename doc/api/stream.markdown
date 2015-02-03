@@ -718,7 +718,7 @@ of stream class you are writing:
       <p>[Writable](#stream_class_stream_writable_1)</p>
     </td>
     <td>
-      <p><code>[_write][]</code></p>
+      <p><code>[_write][]</code>, <code>_writev</code></p>
     </td>
   </tr>
   <tr>
@@ -729,7 +729,7 @@ of stream class you are writing:
       <p>[Duplex](#stream_class_stream_duplex_1)</p>
     </td>
     <td>
-      <p><code>[_read][]</code>, <code>[_write][]</code></p>
+      <p><code>[_read][]</code>, <code>[_write][]</code>, <code>_writev</code></p>
     </td>
   </tr>
   <tr>
@@ -1314,6 +1314,135 @@ passes the input bytes across to the output.  Its purpose is mainly
 for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
+
+## Simplified API Via Revealing Constructor Pattern
+
+<!--type=misc-->
+
+To implement any sort of stream you can now pass that streams specific methods as parameters to the constructors options:
+
+<table>
+  <thead>
+    <tr>
+      <th>
+        <p>Use-case</p>
+      </th>
+      <th>
+        <p>Class</p>
+      </th>
+      <th>
+        <p>Method(s) to implement</p>
+      </th>
+    </tr>
+  </thead>
+  <tr>
+    <td>
+      <p>Reading only</p>
+    </td>
+    <td>
+      <p>[Readable](#stream_class_stream_readable_1)</p>
+    </td>
+    <td>
+      <p><code>[read][_read]</code></p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p>Writing only</p>
+    </td>
+    <td>
+      <p>[Writable](#stream_class_stream_writable_1)</p>
+    </td>
+    <td>
+      <p><code>[write][_write]</code></p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p>Reading and writing</p>
+    </td>
+    <td>
+      <p>[Duplex](#stream_class_stream_duplex_1)</p>
+    </td>
+    <td>
+      <p><code>[read][_read]</code>, <code>[write][_write]</code>, <code>writev</code></p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p>Operate on written data, then read the result</p>
+    </td>
+    <td>
+      <p>[Transform](#stream_class_stream_transform_1)</p>
+    </td>
+    <td>
+      <p><code>transform</code>, <code>flush</code></p>
+    </td>
+  </tr>
+</table>
+
+Examples:
+
+### Readable
+```javascript
+var readable = new stream.Readable({
+  read: function(n) {
+    // sets this._read under the hood
+  }
+});
+```
+
+### Writable
+```javascript
+var writable = new stream.Writable({
+  write: function(chunk, encoding, next) {
+    // sets this._write under the hood
+  }
+});
+
+// or
+
+var writable = new stream.Writable({
+  writev: function(chunks, next) {
+    // sets this._writev under the hood
+  }
+});
+```
+
+### Duplex
+```javascript
+var duplex = new stream.Duplex({
+  read: function(n) {
+    // sets this._read under the hood
+  },
+  write: function(chunk, encoding, next) {
+    // sets this._write under the hood
+  }
+});
+
+// or
+
+var duplex = new stream.Duplex({
+  read: function(n) {
+    // sets this._read under the hood
+  },
+  writev: function(chunks, next) {
+    // sets this._writev under the hood
+  }
+});
+```
+
+### Transform
+```javascript
+var transform = new stream.Transform({
+  transform: function(chunk, encoding, next) {
+    // sets this._transform under the hood
+  },
+  flush: function(done) {
+    // sets this._flush under the hood
+  }
+});
+```
 
 ## Streams: Under the Hood
 
