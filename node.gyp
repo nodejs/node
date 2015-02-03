@@ -526,10 +526,10 @@
             {
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
-                '<(OBJ_DIR)/node/src/node_dtrace.o',
+                '<(OBJ_DIR)/iojs/src/node_dtrace.o',
               ],
               'outputs': [
-                '<(OBJ_DIR)/node/src/node_dtrace_provider.o'
+                '<(OBJ_DIR)/iojs/src/node_dtrace_provider.o'
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
                 '<@(_inputs)', '-o', '<@(_outputs)' ]
@@ -579,7 +579,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
               ],
               'outputs': [
-                '<(OBJ_DIR)/node/src/node_dtrace_ustack.o'
+                '<(OBJ_DIR)/iojs/src/node_dtrace_ustack.o'
               ],
               'conditions': [
                 [ 'target_arch=="ia32"', {
