@@ -28,5 +28,4 @@ process.on('exit', function () {
   assert.equal(t._flush, _flush);
   assert(_transformCalled);
   assert(_flushCalled);
-  console.log('ok');
 });

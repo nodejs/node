@@ -3,42 +3,32 @@ var assert = require('assert');
 
 var Writable = require('stream').Writable;
 
-(function one() {
-  var _writeCalled = false;
-  function _write(d, e, n) {
-    _writeCalled = true;
-  }
+var _writeCalled = false;
+function _write(d, e, n) {
+  _writeCalled = true;
+}
 
-  var w = new Writable({ write: _write });
-  w.end(new Buffer('blerg'));
+var w = new Writable({ write: _write });
+w.end(new Buffer('blerg'));
 
-  process.on('exit', function () {
-    assert.equal(w._write, _write);
-    assert(_writeCalled);
-    console.log('ok 1');
-  });
-}());
+var _writevCalled = false;
+var dLength = 0;
+function _writev(d, n) {
+  dLength = d.length;
+  _writevCalled = true;
+}
 
-(function two() {
-  var _writevCalled = false;
-  var dLength = 0;
+var w2 = new Writable({ writev: _writev });
+w2.cork();
 
-  function _writev(d, n) {
-    dLength = d.length;
-    _writevCalled = true;
-  }
+w2.write(new Buffer('blerg'));
+w2.write(new Buffer('blerg'));
+w2.end();
 
-  var w = new Writable({ writev: _writev });
-  w.cork();
-
-  w.write(new Buffer('blerg'));
-  w.write(new Buffer('blerg'));
-  w.end();
-
-  process.on('exit', function () {
-    assert.equal(w._writev, _writev);
-    assert.equal(dLength, 2);
-    assert(_writevCalled);
-    console.log('ok 2');
-  });
-}());
+process.on('exit', function () {
+  assert.equal(w._write, _write);
+  assert(_writeCalled);
+  assert.equal(w._writev, _writev);
+  assert.equal(dLength, 2);
+  assert(_writevCalled);
+});

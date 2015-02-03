@@ -15,5 +15,4 @@ r.resume();
 process.on('exit', function () {
   assert.equal(r._read, _read);
   assert(_readCalled);
-  console.log('ok');
 });
