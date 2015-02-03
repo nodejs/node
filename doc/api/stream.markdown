@@ -718,7 +718,7 @@ of stream class you are writing:
       <p>[Writable](#stream_class_stream_writable_1)</p>
     </td>
     <td>
-      <p><code>[_write][]</code></p>
+      <p><code>[_write][]</code>, <code>_writev</code></p>
     </td>
   </tr>
   <tr>
@@ -729,7 +729,7 @@ of stream class you are writing:
       <p>[Duplex](#stream_class_stream_duplex_1)</p>
     </td>
     <td>
-      <p><code>[_read][]</code>, <code>[_write][]</code></p>
+      <p><code>[_read][]</code>, <code>[_write][]</code>, <code>_writev</code></p>
     </td>
   </tr>
   <tr>
@@ -1314,6 +1314,77 @@ passes the input bytes across to the output.  Its purpose is mainly
 for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
+
+## Simplified Constructor API 
+
+<!--type=misc-->
+
+In simple cases there is now the added benefit of being able to construct a stream without inheritance.
+
+This can be done by passing the appropriate methods as constructor options:
+
+Examples:
+
+### Readable
+```javascript
+var readable = new stream.Readable({
+  read: function(n) {
+    // sets this._read under the hood
+  }
+});
+```
+
+### Writable
+```javascript
+var writable = new stream.Writable({
+  write: function(chunk, encoding, next) {
+    // sets this._write under the hood
+  }
+});
+
+// or
+
+var writable = new stream.Writable({
+  writev: function(chunks, next) {
+    // sets this._writev under the hood
+  }
+});
+```
+
+### Duplex
+```javascript
+var duplex = new stream.Duplex({
+  read: function(n) {
+    // sets this._read under the hood
+  },
+  write: function(chunk, encoding, next) {
+    // sets this._write under the hood
+  }
+});
+
+// or
+
+var duplex = new stream.Duplex({
+  read: function(n) {
+    // sets this._read under the hood
+  },
+  writev: function(chunks, next) {
+    // sets this._writev under the hood
+  }
+});
+```
+
+### Transform
+```javascript
+var transform = new stream.Transform({
+  transform: function(chunk, encoding, next) {
+    // sets this._transform under the hood
+  },
+  flush: function(done) {
+    // sets this._flush under the hood
+  }
+});
+```
 
 ## Streams: Under the Hood
 
