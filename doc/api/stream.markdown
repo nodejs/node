@@ -1319,9 +1319,9 @@ it can come in handy as a building block for novel sorts of streams.
 
 <!--type=misc-->
 
-In simple cases there is now the added benefit of being able to construct a stream without the need of inheritance.
+In simple cases there is now the added benefit of being able to construct a stream without inheritance.
 
-This can be done simply by passing the necessary streams specific methods as parameters to the constructors options:
+This can be done by passing the appropriate methods as constructor options:
 
 Examples:
 
