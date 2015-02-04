@@ -27,7 +27,7 @@ if (module === require.main) {
     });
 
     if (filteredTests.length === 0) {
-      console.error(`${testFilter} is not found in \n ${tests.join('  \n')}`);
+      console.error('%s is not found in \n %j', testFilter, tests);
       return;
     }
     tests = filteredTests;
