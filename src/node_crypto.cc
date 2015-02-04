@@ -587,6 +587,8 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() != 1) {
     return env->ThrowTypeError("Bad parameter");
@@ -647,6 +649,8 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   CHECK_EQ(sc->ca_store_, nullptr);
 
@@ -682,6 +686,8 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     return sc->env()->ThrowTypeError("Bad parameter");
@@ -721,6 +727,8 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.This());
   Environment* env = sc->env();
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   // Auto DH is not supported in openssl 1.0.1, so dhparam needs
   // to be specifed explicitly
@@ -825,6 +833,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   bool ret = false;
 
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() < 1) {
     return env->ThrowTypeError("Bad parameter");
