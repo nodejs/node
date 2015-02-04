@@ -883,5 +883,147 @@
       'openssl/apps/version.c',
       'openssl/apps/x509.c',
     ],
+    'openssl_defines_asm': [
+      'AES_ASM',
+      'CPUID_ASM',
+      'OPENSSL_BN_ASM_MONT',
+      'OPENSSL_CPUID_OBJ',
+      'SHA1_ASM',
+      'SHA256_ASM',
+      'SHA512_ASM',
+      'GHASH_ASM',
+    ],
+    'openssl_defines_non_arm': [
+      'VPAES_ASM',
+      'BN_ASM',
+      'BF_ASM',
+      'BNCO_ASM',
+      'DES_ASM',
+      'LIB_BN_ASM',
+      'MD5_ASM',
+      'OPENSSL_BN_ASM',
+      'RIP_ASM',
+      'RMD160_ASM',
+      'WHIRLPOOL_ASM',
+      'WP_ASM',
+    ],
+    'openssl_defines_all_win': [
+      'DSO_WIN32',
+    ],
+    'openssl_defines_all_non_win': [
+      'DSO_DLFCN',
+      'HAVE_DLFCN_H',
+    ],
+    'openssl_defines_x86_elf': [
+      '<@(openssl_defines_non_arm)',
+
+    ],
+    'openssl_defines_x86_mac': [
+      '<@(openssl_defines_non_arm)',
+    ],
+    'openssl_defines_x86_win': [
+      '<@(openssl_defines_non_arm)',
+    ],
+    'openssl_defines_x64_elf': [
+      '<@(openssl_defines_non_arm)',
+      'OPENSSL_BN_ASM_MONT5',
+      'OPENSSL_BN_ASM_GF2m',
+      'OPENSSL_IA32_SSE2',
+      'BSAES_ASM',
+    ],
+    'openssl_defines_x64_mac': [
+      '<@(openssl_defines_non_arm)',
+      'OPENSSL_BN_ASM_MONT5',
+      'OPENSSL_BN_ASM_GF2m',
+      'OPENSSL_IA32_SSE2',
+      'BSAES_ASM',
+    ],
+    'openssl_defines_x64_win': [
+      '<@(openssl_defines_non_arm)',
+      'OPENSSL_BN_ASM_MONT5',
+      'OPENSSL_BN_ASM_GF2m',
+      'OPENSSL_IA32_SSE2',
+      'BSAES_ASM',
+    ],
+    'openssl_include_dirs': [
+      '.',
+      'openssl',
+      'openssl/crypto',
+      'openssl/crypto/asn1',
+      'openssl/crypto/evp',
+      'openssl/crypto/md2',
+      'openssl/crypto/modes',
+      'openssl/crypto/store',
+      'openssl/include',
+    ],
+#### Variables for openssl-cli  ####
+    'openssl_cli_libraries_solaris': [
+      '-lsocket',
+      '-lnsl',
+    ],
+    'openssl_cli_libraries_win': [
+      '-lws2_32.lib',
+      '-lgdi32.lib',
+      '-ladvapi32.lib',
+      '-lcrypt32.lib',
+      '-luser32.lib',
+    ],
+#### Variables for Target Defaults  ####
+    'openssl_default_include_dirs': [
+      '.',
+      'openssl',
+      'openssl/crypto',
+      'openssl/crypto/asn1',
+      'openssl/crypto/evp',
+      'openssl/crypto/md2',
+      'openssl/crypto/modes',
+      'openssl/crypto/store',
+      'openssl/include',
+    ],
+    'openssl_default_defines_all': [
+      # No clue what these are for.
+      'L_ENDIAN',
+      'PURIFY',
+      '_REENTRANT',
+
+      # SSLv2 is known broken and has been superseded by SSLv3 for almost
+      # twenty years now.
+      'OPENSSL_NO_SSL2',
+
+      # SSLv3 is susceptible to downgrade attacks (POODLE.)
+      'OPENSSL_NO_SSL3',
+
+      # Heartbeat is a TLS extension, that couldn't be turned off or
+      # asked to be not advertised. Unfortunately this is unacceptable for
+      # Microsoft's IIS, which seems to be ignoring whole ClientHello after
+      # seeing this extension.
+      'OPENSSL_NO_HEARTBEATS',
+    ],
+    'openssl_default_defines_win': [
+      'MK1MF_BUILD',
+      'WIN32_LEAN_AND_MEAN',
+      'OPENSSL_SYSNAME_WIN32',
+    ],
+    'openssl_default_libraries_win': [
+      '-lgdi32.lib',
+      '-luser32.lib',
+    ],
+    'openssl_default_defines_not_win': [
+      # ENGINESDIR must be defined if OPENSSLDIR is.
+      'ENGINESDIR="/dev/null"',
+      'TERMIOS',
+    ],
+    'openssl_default_defines_mac': [
+      # Set to ubuntu default path for convenience. If necessary,
+      # override this at runtime with the SSL_CERT_DIR environment
+      # variable.
+      'OPENSSLDIR="/System/Library/OpenSSL/"',
+    ],
+    'openssl_default_defines_linux_others': [
+      # Set to ubuntu default path for convenience. If necessary,
+      # override this at runtime with the SSL_CERT_DIR environment
+      # variable.
+      'OPENSSLDIR="/etc/ssl"',
+    ]
   }
 }
