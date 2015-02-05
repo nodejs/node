@@ -27,6 +27,10 @@ Its responsibilities are:
 * Develop and maintain a build and automation system for `iojs.org`.
 * Ensure the site is regularly updated with changes made to `io.js` like
 releases and features.
+* Documentation: maintain the docs build process and publish to `iojs.org`. See https://github.com/iojs/doc-tool (the source API docs are maintained and managed in core, not through this WG.)
+* General marketing and social media initiatives (proposed sub-WG)
+* Fostering io.js evangelism efforts (empowering speakers with materials, maintaining a list of interested speakers/interviewees, education, etc.)
+
 * Foster and enable a community of translators.
 
 The current members can be found in their
