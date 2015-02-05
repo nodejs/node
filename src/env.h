@@ -395,6 +395,9 @@ class Environment {
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
 
+  inline bool using_asyncwrap() const;
+  inline void set_using_asyncwrap(bool value);
+
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
 
@@ -479,6 +482,7 @@ class Environment {
   ares_task_list cares_task_list_;
   bool using_smalloc_alloc_cb_;
   bool using_domains_;
+  bool using_asyncwrap_;
   bool printed_error_;
   debugger::Agent debugger_agent_;
 
