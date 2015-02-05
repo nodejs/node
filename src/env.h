@@ -256,6 +256,8 @@ class Environment {
     inline uint32_t* fields();
     inline int fields_count() const;
     inline bool call_init_hook();
+    inline bool is_enabled() const;
+    inline void set_enabled(bool enabled);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -264,6 +266,9 @@ class Environment {
     enum Fields {
       // Set this to not zero if the init hook should be called.
       kCallInitHook,
+      // Set this to not zero if async wrap should be enabled. This is
+      // automatically set when SetupHooks is called.
+      kEnabled,
       kFieldsCount
     };
 
@@ -359,6 +364,7 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
+  inline bool use_async_hook() const;
   inline bool call_async_init_hook() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;

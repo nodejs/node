@@ -38,12 +38,16 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   //   non-zero to have those callbacks called. This only affects the init
   //   callback. If the init callback was called, then the pre/post callbacks
   //   will automatically be called.
+  // - kEnabled (1): Tells the AsyncWrap constructor whether it should
+  //   make any calls to the JS hook functions.
   Local<Object> async_hooks_obj = args[0].As<Object>();
   Environment::AsyncHooks* async_hooks = env->async_hooks();
   async_hooks_obj->SetIndexedPropertiesToExternalArrayData(
       async_hooks->fields(),
       kExternalUint32Array,
       async_hooks->fields_count());
+
+  async_hooks->set_enabled(true);
 
   env->set_async_hooks_init_function(args[1].As<Function>());
   env->set_async_hooks_pre_function(args[2].As<Function>());
