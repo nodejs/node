@@ -210,6 +210,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       using_smalloc_alloc_cb_(false),
       using_domains_(false),
+      using_asyncwrap_(false),
       printed_error_(false),
       debugger_agent_(this),
       context_(context->GetIsolate(), context) {
@@ -341,6 +342,14 @@ inline bool Environment::using_domains() const {
 
 inline void Environment::set_using_domains(bool value) {
   using_domains_ = value;
+}
+
+inline bool Environment::using_asyncwrap() const {
+  return using_asyncwrap_;
+}
+
+inline void Environment::set_using_asyncwrap(bool value) {
+  using_asyncwrap_ = value;
 }
 
 inline bool Environment::printed_error() const {

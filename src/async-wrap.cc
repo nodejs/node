@@ -69,6 +69,8 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   env->set_async_hooks_init_function(args[1].As<Function>());
   env->set_async_hooks_pre_function(args[2].As<Function>());
   env->set_async_hooks_post_function(args[3].As<Function>());
+
+  env->set_using_asyncwrap(true);
 }
 
 
