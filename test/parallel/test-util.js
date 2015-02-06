@@ -51,6 +51,25 @@ assert.equal(true, util.isError(Object.create(Error.prototype)));
 // isObject
 assert.ok(util.isObject({}) === true);
 
+// isPrimitive
+assert.equal(false, util.isPrimitive({}));
+assert.equal(false, util.isPrimitive(new Error));
+assert.equal(false, util.isPrimitive(new Date()));
+assert.equal(false, util.isPrimitive([]));
+assert.equal(false, util.isPrimitive(/regexp/));
+assert.equal(false, util.isPrimitive(function(){}));
+assert.equal(false, util.isPrimitive(new Number(1)));
+assert.equal(false, util.isPrimitive(new String('bla')));
+assert.equal(false, util.isPrimitive(new Boolean(true)));
+assert.equal(true, util.isPrimitive(1));
+assert.equal(true, util.isPrimitive('bla'));
+assert.equal(true, util.isPrimitive(true));
+assert.equal(true, util.isPrimitive(undefined));
+assert.equal(true, util.isPrimitive(null));
+assert.equal(true, util.isPrimitive(Infinity));
+assert.equal(true, util.isPrimitive(NaN));
+assert.equal(true, util.isPrimitive(Symbol('symbol')));
+
 // _extend
 assert.deepEqual(util._extend({a:1}),             {a:1});
 assert.deepEqual(util._extend({a:1}, []),         {a:1});
