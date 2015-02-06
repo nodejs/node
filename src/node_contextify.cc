@@ -236,7 +236,13 @@ class ContextifyContext {
     Local<String> script_source(args[0]->ToString(args.GetIsolate()));
     if (script_source.IsEmpty())
       return;  // Exception pending.
-    Context::Scope context_scope(Debug::GetDebugContext());
+
+    Environment* env = Environment::GetCurrent(args.GetIsolate());
+    Local<Context> ctx = Debug::GetDebugContext();
+    if (!ctx.IsEmpty())
+      ctx->SetSecurityToken(env->context()->GetSecurityToken());
+
+    Context::Scope context_scope(ctx);
     Local<Script> script = Script::Compile(script_source);
     if (script.IsEmpty())
       return;  // Exception pending.
