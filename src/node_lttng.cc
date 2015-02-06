@@ -141,7 +141,7 @@ void LTTNG_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
     return;
 
   Environment* env = Environment::GetCurrent(args);
-  Local<Object> arg0 = Local<Object>::Cast(args[0]);
+  Local<Object> arg0 = args[0].As<Object>();
   Local<Object> headers;
 
   memset(&req, 0, sizeof(req));
@@ -157,10 +157,10 @@ void LTTNG_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
   node::Utf8Value fwdfor(env->isolate(), strfwdfor);
-  req.forwardedFor = *fwdfor;
+  req.forwarded_for = *fwdfor;
 
-  if (!strfwdfor->IsString() || req.forwardedFor == nullptr)
-    req.forwardedFor = const_cast<char*>("");
+  if (!strfwdfor->IsString() || req.forwarded_for == nullptr)
+    req.forwarded_for = const_cast<char*>("");
 
   SLURP_CONNECTION(args[1], conn);
   NODE_HTTP_SERVER_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \

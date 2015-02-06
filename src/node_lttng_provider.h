@@ -13,7 +13,7 @@ void NODE_HTTP_SERVER_REQUEST(node_lttng_http_server_request_t* req,
                               const char *method, const char *url,
                               int fd) {
   tracepoint(node, http_server_request, req->url, req->method, \
-             req->forwardedFor);
+             req->forwarded_for);
 }
 
 void NODE_HTTP_SERVER_RESPONSE(node_lttng_connection_t* conn,

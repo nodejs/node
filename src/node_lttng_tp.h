@@ -15,7 +15,7 @@ TRACEPOINT_EVENT(
   TP_ARGS(
     char*, url,
     char*, method,
-    char*, forwardedFor
+    const char*, forwardedFor
   ),
   TP_FIELDS(
     ctf_string(url, url)
@@ -52,7 +52,6 @@ TRACEPOINT_EVENT(
   )
 )
 
-// DBTODO - sort out BYTE_ORDER issue with ints
 TRACEPOINT_EVENT(
   node,
   http_client_response,

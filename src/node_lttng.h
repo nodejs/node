@@ -25,7 +25,7 @@ typedef struct {
   } _un;
   char* url;
   char* method;
-  char* forwardedFor;
+  const char* forwarded_for;
   char* _pad[8];
 } node_lttng_http_server_request_t;
 
