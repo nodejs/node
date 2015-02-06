@@ -472,8 +472,7 @@ const char RetainedAllocInfo::label_[] = "smalloc";
 
 
 RetainedAllocInfo::RetainedAllocInfo(Handle<Value> wrapper) {
-  // TODO(trevnorris): Fix to properly acquire the Isolate.
-  Local<Object> obj = wrapper->ToObject(Isolate::GetCurrent());
+  Local<Object> obj = wrapper.As<Object>();
   length_ = obj->GetIndexedPropertiesExternalArrayDataLength();
   data_ = static_cast<char*>(obj->GetIndexedPropertiesExternalArrayData());
 }
