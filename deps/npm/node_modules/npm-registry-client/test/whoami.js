@@ -49,10 +49,13 @@ test("whoami call contract", function (t) {
 })
 
 test("whoami", function (t) {
-  server.expect("GET", "/whoami", function (req, res) {
+  server.expect("GET", "/-/whoami", function (req, res) {
     t.equal(req.method, "GET")
     // only available for token-based auth for now
-    t.equal(req.headers.authorization, "Bearer not-bad-meaning-bad-but-bad-meaning-wombat")
+    t.equal(
+      req.headers.authorization,
+      "Bearer not-bad-meaning-bad-but-bad-meaning-wombat"
+    )
 
     res.json({username : WHOIAM})
   })

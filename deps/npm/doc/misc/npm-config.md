@@ -55,7 +55,6 @@ The following shorthands are parsed on the command-line:
 * `-m`: `--message`
 * `-p`, `--porcelain`: `--parseable`
 * `-reg`: `--registry`
-* `-v`: `--version`
 * `-f`: `--force`
 * `-desc`: `--description`
 * `-S`: `--save`
@@ -106,6 +105,16 @@ then the user could change the behavior by doing:
 See package.json(5) for more information.
 
 ## Config Settings
+
+### access
+
+* Default: `restricted`
+* Type: Access
+
+When publishing scoped packages, the access level defaults to `restricted`.  If
+you want your scoped package to be publicly viewable (and installable) set
+`--access=public`. The only valid values for `access` are `public` and
+`restricted`. Unscoped packages _always_ have an access level of `public`.
 
 ### always-auth
 
@@ -423,7 +432,7 @@ The value `npm init` should use by default for the package license.
 
 ### init-version
 
-* Default: "0.0.0"
+* Default: "1.0.0"
 * Type: semver
 
 The value that `npm init` should use by default for the package
@@ -680,7 +689,7 @@ Only works if there is already a package.json file present.
 Configure how versions of packages installed to a package.json file via
 `--save` or `--save-dev` get prefixed.
 
-For example if a package has version `1.2.3`, by default it's version is
+For example if a package has version `1.2.3`, by default its version is
 set to `^1.2.3` which allows minor upgrades for that package, but after
 `npm config set save-prefix='~'` it would be set to `~1.2.3` which only allows
 patch upgrades.
@@ -876,7 +885,6 @@ Set to `"browser"` to view html help content in the default web browser.
 ## SEE ALSO
 
 * npm-config(1)
-* npm-config(7)
 * npmrc(5)
 * npm-scripts(7)
 * npm-folders(5)

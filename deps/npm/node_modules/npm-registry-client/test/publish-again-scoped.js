@@ -78,6 +78,7 @@ tap.test("publish again", function (t) {
 
   var params = {
     metadata : pkg,
+    access : "restricted",
     body : tarball,
     auth : auth
   }

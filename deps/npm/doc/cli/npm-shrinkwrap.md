@@ -88,7 +88,7 @@ This generates npm-shrinkwrap.json, which will look something like this:
           "version": "0.0.1",
           "dependencies": {
             "C": {
-              "version": "0.1.0"
+              "version": "0.0.1"
             }
           }
         }
@@ -101,7 +101,7 @@ installs a package with a npm-shrinkwrap.json file in the package
 root, the shrinkwrap file (rather than package.json files) completely
 drives the installation of that package and all of its dependencies
 (recursively).  So now the author publishes A@0.1.0, and subsequent
-installs of this package will use B@0.0.1 and C@0.1.0, regardless the
+installs of this package will use B@0.0.1 and C@0.0.1, regardless the
 dependencies and versions listed in A's, B's, and C's package.json
 files.
 

@@ -1,3 +1,130 @@
+### v2.5.1 (2015-02-06):
+
+This release doesn't look like much, but considerable effort went into ensuring
+that npm's tests will pass on io.js 1.1.0 and Node 0.11.16 / 0.12.0 on both OS
+X and Linux.
+
+**NOTE:** there are no actual changes to npm's code in `npm@2.5.1`. Only test
+code (and the upgrade of `request` to the latest version) has changed.
+
+#### `npm-registry-mock@1.0.0`:
+
+* [`0e8d473`](https://github.com/npm/npm/commit/0e8d4736a1cbdda41ae8eba8a02c7ff7ce80c2ff)
+  [#7281](https://github.com/npm/npm/issues/7281) `npm-registry-mock@1.0.0`:
+  Clean up API, set `connection: close`.
+  ([@robertkowalski](https://github.com/robertkowalski))
+* [`4707bba`](https://github.com/npm/npm/commit/4707bba7d44dfab85cc45c2ecafa9c1601ba2e9a)
+  Further update tests to work with `npm-registry-mock@1.0.0`.
+  ([@othiym23](https://github.com/othiym23))
+* [`41a0f89`](https://github.com/npm/npm/commit/41a0f8959d4e02af9661588afa7d2b4543cc21b6)
+  Got rid of completely gratuitous global config manipulation in tests.
+  ([@othiym23](https://github.com/othiym23))
+
+#### MINOR DEPENDENCY TWEAK
+
+* [`a4c7af9`](https://github.com/npm/npm/commit/a4c7af9c692f250c0fd017397ed9514fc263b752)
+  `request@2.53.0`: Tweaks to tunneling proxy behavior.
+  ([@nylen](https://github.com/nylen))
+
+### v2.5.0 (2015-01-29):
+
+#### SMALL FEATURE I HAVE ALREADY USED TO MAINTAIN NPM ITSELF
+
+* [`9d61e96`](https://github.com/npm/npm/commit/9d61e96fb1f48687a85c211e4e0cd44c7f95a38e)
+  `npm outdated --long` now includes a column showing the type of dependency.
+  ([@watilde](https://github.com/watilde))
+
+#### BUG FIXES & TWEAKS
+
+* [`fec4c96`](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
+  Allow `--no-proxy` to override `HTTP_PROXY` setting in environment.
+  ([@othiym23](https://github.com/othiym23))
+* [`589acb9`](https://github.com/npm/npm/commit/589acb9714f395c2ad0d98cb0ac4236f1842d2cc)
+  Only set `access` when publshing when it's explicitly set.
+  ([@othiym23](https://github.com/othiym23))
+* [`1027087`](https://github.com/npm/npm/commit/102708704c8c4f0ea99775d38f8d1efecf584940)
+  Add script and `Makefile` stanza to update AUTHORS.
+  ([@KenanY](https://github.com/KenanY))
+* [`eeff04d`](https://github.com/npm/npm/commit/eeff04da7979a0181becd36b8777d607e7aa1787)
+  Add `NPMOPTS` to top-level install in `Makefile` to override `userconfig`.
+  ([@aredridel](https://github.com/aredridel))
+* [`0d17328`](https://github.com/npm/npm/commit/0d173287336650606d4c91818bb7bcfb0c5d57a1)
+  `fstream@1.0.4`: Run chown only when necessary.
+  ([@silkentrance](https://github.com/silkentrance))
+* [`9aa4622`](https://github.com/npm/npm/commit/9aa46226ee63b9e183fd49fc72d9bdb0fae9605e)
+  `columnify@1.4.1`: ES6ified! ([@timoxley](https://github.com/timoxley))
+* [`51b2fd1`](https://github.com/npm/npm/commit/51b2fd1974e38b825ac5ca4a852ab3c4142624cc)
+  Update default version in `docs/npm-config.md`.
+  ([@lucthev](https://github.com/lucthev))
+
+#### `npm-registry-client@6.0.7`:
+
+* [`f9313a0`](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
+  [#7226](https://github.com/npm/npm/issues/7226) Ensure that all request
+  settings are copied onto the agent.
+  ([@othiym23](https://github.com/othiym23))
+* [`e186f6e`](https://github.com/npm/npm/commit/e186f6e7cfeb4db9c94d7375638f0b2f0d472947)
+  Only set `access` on publish when it differs from the norm.
+  ([@othiym23](https://github.com/othiym23))
+* [`f9313a0`](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
+  Allow overriding request's environment-based proxy handling.
+  ([@othiym23](https://github.com/othiym23))
+* [`f9313a0`](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
+  Properly handle retry failures on fetch.
+  ([@othiym23](https://github.com/othiym23))
+
+### v2.4.1 (2015-01-23):
+
+![bridge that doesn't meet in the middle](http://www.static-18.themodernnomad.com/wp-content/uploads/2011/08/bridge-fail.jpg)
+
+Let's accentuate the positive: the `dist-tag` endpoints for `npm dist-tag
+{add,rm,ls}` are now live on the public npm registry.
+
+* [`f70272b`](https://github.com/npm/npm/commit/f70272bed7d77032d1e21553371dd5662fef32f2)
+  `npm-registry-client@6.0.3`: Properly escape JSON tag version strings and
+  filter `_etag` from CouchDB docs. ([@othiym23](https://github.com/othiym23))
+
+### v2.4.0 (2015-01-22):
+
+#### REGISTRY 2: ACCESS AND DIST-TAGS
+
+NOTE: This week's registry-2 commands are leading the implementation on
+registry.npmjs.org a little bit, so some of the following may not work for
+another week or so. Also note that `npm access` has documentation and
+subcommands that are not yet finished, because they depend on incompletely
+specified registry API endpoints. Things are coming together very quickly,
+though, so expect the missing pieces to be filled in the coming weeks.
+
+* [`c963eb2`](https://github.com/npm/npm/commit/c963eb295cf766921b1680f4a71fd0ed3e1bcad8)
+  [#7181](https://github.com/npm/npm/issues/7181) NEW `npm access public` and
+  `npm access restricted`: Toggle visibility of scoped packages.
+  ([@othiym23](https://github.com/othiym23))
+* [`dc51810`](https://github.com/npm/npm/commit/dc51810e08c0f104259146c9c035d255de4f7d1d)
+  [#6243](https://github.com/npm/npm/issues/6243) /
+  [#6854](https://github.com/npm/npm/issues/6854) NEW `npm dist-tags`: Directly
+  manage `dist-tags` on packages. Most notably, `dist-tags` can now be deleted.
+  ([@othiym23](https://github.com/othiym23))
+* [`4c7c132`](https://github.com/npm/npm/commit/4c7c132a6b8305dca2974943226c39c0cdc64ff9)
+  [#7181](https://github.com/npm/npm/issues/7181) /
+  [#6854](https://github.com/npm/npm/issues/6854) `npm-registry-client@6.0.1`:
+  Add new `access` and `dist-tags` endpoints
+  ([@othiym23](https://github.com/othiym23))
+
+#### NOT EXACTLY SELF-DEPRECATING
+
+* [`10d5c77`](https://github.com/npm/npm/commit/10d5c77653487f15759ac7de262a97e9c655240c)
+  [#6274](https://github.com/npm/npm/issues/6274) Deprecate `npm tag` in favor
+  of `npm dist-tag`. ([@othiym23](https://github.com/othiym23))
+
+#### BUG FIX AND TINY FEATURE
+
+* [`29a6ef3`](https://github.com/npm/npm/commit/29a6ef38ef86ac318c5d9ea4bee28ce614672fa6)
+  [#6850](https://github.com/npm/npm/issues/6850) Be smarter about determining
+  base of file deletion when unbuilding. ([@phated](https://github.com/phated))
+* [`4ad01ea`](https://github.com/npm/npm/commit/4ad01ea2930a7a1cf88be121cc5ce9eba40c6807)
+  `init-package-json@1.2.0`: Support `--save-exact` in `npm init`.
+  ([@gustavnikolaj](https://github.com/gustavnikolaj))
+
 ### v2.3.0 (2015-01-15):
 
 #### REGISTRY 2: OH MY STARS! WHO AM I?

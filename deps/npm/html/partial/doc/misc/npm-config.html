@@ -42,7 +42,6 @@ defaults if nothing else is specified.</p>
 <li><code>-m</code>: <code>--message</code></li>
 <li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li>
 <li><code>-reg</code>: <code>--registry</code></li>
-<li><code>-v</code>: <code>--version</code></li>
 <li><code>-f</code>: <code>--force</code></li>
 <li><code>-desc</code>: <code>--description</code></li>
 <li><code>-S</code>: <code>--save</code></li>
@@ -81,6 +80,15 @@ this:</p>
 <pre><code>npm config set foo:port 80
 </code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
+<h3 id="access">access</h3>
+<ul>
+<li>Default: <code>restricted</code></li>
+<li>Type: Access</li>
+</ul>
+<p>When publishing scoped packages, the access level defaults to <code>restricted</code>.  If
+you want your scoped package to be publicly viewable (and installable) set
+<code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
+<code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
 <h3 id="always-auth">always-auth</h3>
 <ul>
 <li>Default: false</li>
@@ -354,7 +362,7 @@ for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
 <p>The value <code>npm init</code> should use by default for the package license.</p>
 <h3 id="init-version">init-version</h3>
 <ul>
-<li>Default: &quot;0.0.0&quot;</li>
+<li>Default: &quot;1.0.0&quot;</li>
 <li>Type: semver</li>
 </ul>
 <p>The value that <code>npm init</code> should use by default for the package
@@ -572,7 +580,7 @@ optionalDependencies.</p>
 </ul>
 <p>Configure how versions of packages installed to a package.json file via
 <code>--save</code> or <code>--save-dev</code> get prefixed.</p>
-<p>For example if a package has version <code>1.2.3</code>, by default it&#39;s version is
+<p>For example if a package has version <code>1.2.3</code>, by default its version is
 set to <code>^1.2.3</code> which allows minor upgrades for that package, but after
 <code>npm config set save-prefix=&#39;~&#39;</code> it would be set to <code>~1.2.3</code> which only allows
 patch upgrades.</p>
@@ -738,7 +746,6 @@ exit successfully.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-config.html">npm-config(1)</a></li>
-<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
 <li><a href="../files/npmrc.html">npmrc(5)</a></li>
 <li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
 <li><a href="../files/npm-folders.html">npm-folders(5)</a></li>

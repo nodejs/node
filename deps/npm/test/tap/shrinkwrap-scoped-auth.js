@@ -33,7 +33,7 @@ function mocks (server) {
 }
 
 test("setup", function (t) {
-  mr({ port : common.port, mocks : mocks }, function (s) {
+  mr({ port : common.port, plugin : mocks }, function (err, s) {
     server = s
     t.ok(s, "set up mock registry")
     setup()

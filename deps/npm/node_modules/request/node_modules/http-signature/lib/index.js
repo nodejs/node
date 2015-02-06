@@ -19,6 +19,7 @@ module.exports = {
 
   sshKeyToPEM: util.sshKeyToPEM,
   sshKeyFingerprint: util.fingerprint,
+  pemToRsaSSHKey: util.pemToRsaSSHKey,
 
   verify: verify.verifySignature,
   verifySignature: verify.verifySignature

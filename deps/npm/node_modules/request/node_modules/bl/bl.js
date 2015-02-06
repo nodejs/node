@@ -1,4 +1,4 @@
-var DuplexStream = require('readable-stream').Duplex
+var DuplexStream = require('readable-stream/duplex')
   , util         = require('util')
 
 function BufferList (callback) {

@@ -172,5 +172,15 @@ request.forever = function (agentOptions, optionsArg) {
 
 module.exports = request
 request.Request = require('./request')
-request.debug = process.env.NODE_DEBUG && /\brequest\b/.test(process.env.NODE_DEBUG)
 request.initParams = initParams
+
+// Backwards compatibility for request.debug
+Object.defineProperty(request, 'debug', {
+  enumerable : true,
+  get : function() {
+    return request.Request.debug
+  },
+  set : function(debug) {
+    request.Request.debug = debug
+  }
+})

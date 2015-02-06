@@ -1,12 +1,12 @@
-.TH "NPM\-PUBLISH" "1" "January 2015" "" ""
+.TH "NPM\-PUBLISH" "1" "February 2015" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm publish <tarball> [\-\-tag <tag>]
-npm publish <folder> [\-\-tag <tag>]
+npm publish <tarball> [\-\-tag <tag>] [\-\-access <public|restricted>]
+npm publish <folder> [\-\-tag <tag>] [\-\-access <public|restricted>]
 .fi
 .RE
 .SH DESCRIPTION
@@ -31,6 +31,12 @@ with a package\.json file inside\.
 Registers the published package with the given tag, such that \fBnpm install
 <name>@<tag>\fR will install this version\.  By default, \fBnpm publish\fR updates
 and \fBnpm install\fR installs the \fBlatest\fR tag\.
+.IP \(bu 2
+\fB[\-\-access <public|restricted>]\fR
+Tells the registry whether this package should be published as public or
+restricted\. Only applies to scoped packages, which default to \fBrestricted\fR\|\.
+If you don't have a paid account, you must publish with \fB\-\-access public\fR
+to publish scoped packages\.
 
 .RE
 .P
@@ -44,6 +50,8 @@ it is removed with npm help unpublish\.
 .RS 0
 .IP \(bu 2
 npm help 7 registry
+.IP \(bu 2
+npm help 7 scope
 .IP \(bu 2
 npm help adduser
 .IP \(bu 2

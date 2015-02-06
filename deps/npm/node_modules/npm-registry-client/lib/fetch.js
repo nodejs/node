@@ -22,6 +22,9 @@ function fetch (uri, params, cb) {
         if (operation.retry(er)) {
           client.log.info("retry", "will retry, error on last attempt: " + er)
         }
+        else {
+          cb(er)
+        }
       })
 
       req.on("response", function (res) {

@@ -25,7 +25,7 @@ function mocks(server) {
 }
 
 test("npm login", function (t) {
-  mr({port : common.port, mocks : mocks}, function (s) {
+  mr({port : common.port, plugin : mocks}, function (er, s) {
     var runner = common.npm(
     [
       "login",
@@ -61,7 +61,7 @@ test("npm login", function (t) {
 })
 
 test("npm login --always-auth", function (t) {
-  mr({port : common.port, mocks : mocks}, function (s) {
+  mr({port : common.port, plugin : mocks}, function (er, s) {
     var runner = common.npm(
     [
       "login",
@@ -98,7 +98,7 @@ test("npm login --always-auth", function (t) {
 })
 
 test("npm login --no-always-auth", function (t) {
-  mr({port : common.port, mocks : mocks}, function (s) {
+  mr({port : common.port, plugin : mocks}, function (er, s) {
     var runner = common.npm(
     [
       "login",

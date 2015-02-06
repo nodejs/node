@@ -23,7 +23,7 @@ test("setup", function (t) {
   cleanup()
   mkdirp.sync(cache)
   mkdirp.sync(tmp)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     var cmd = ["install", "underscore@1.3.1", "mkdirp", "test-package-with-one-dep", "--registry=" + common.registry]
     common.npm(cmd, opts, function (er, c) {
       if (er) throw er

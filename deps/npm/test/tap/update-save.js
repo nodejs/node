@@ -17,7 +17,8 @@ var EXEC_OPTS = {
   stdio: "ignore",
   env: {
     "npm_config_registry": common.registry,
-    "npm_config_loglevel": "verbose"
+    "npm_config_loglevel": "verbose",
+    "npm_config_save_prefix": "^"
   }
 }
 
@@ -37,7 +38,7 @@ var s // mock server reference
 test("setup", function (t) {
   resetPackage()
 
-  mr(common.port, function (server) {
+  mr({port : common.port}, function (er, server) {
     npm.load({cache: CACHE_DIR, registry: common.registry}, function (err) {
       t.ifError(err)
       s = server

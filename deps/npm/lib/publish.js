@@ -12,6 +12,7 @@ var npm = require("./npm.js")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , cachedPackageRoot = require("./cache/cached-package-root.js")
   , createReadStream = require("graceful-fs").createReadStream
+  , npa = require("npm-package-arg")
 
 publish.usage = "npm publish <tarball>"
               + "\nnpm publish <folder>"
@@ -119,6 +120,16 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       metadata : data,
       body     : createReadStream(tarballPath),
       auth     : auth
+    }
+
+    // registry-frontdoor cares about the access level, which is only
+    // configurable for scoped packages
+    if (config.get("access")) {
+      if (!npa(data.name).scope && config.get("access") === "restricted") {
+        return cb(new Error("Can't restrict access to unscoped packages."))
+      }
+
+      params.access = config.get("access")
     }
 
     registry.publish(registryBase, params, function (er) {

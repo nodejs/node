@@ -46,11 +46,34 @@ function RegClient (config) {
 
   this.log = this.config.log || npmlog
   delete this.config.log
+
+  var client = this
+  fs.readdirSync(join(__dirname, "lib")).forEach(function (f) {
+    var entry = join(__dirname, "lib", f)
+
+    // lib/group-name/operation.js -> client.groupName.operation
+    var stat = fs.statSync(entry)
+    if (stat.isDirectory()) {
+      var groupName = f.replace(/-([a-z])/, dashToCamel)
+      fs.readdirSync(entry).forEach(function (f) {
+        if (!f.match(/\.js$/)) return
+
+        if (!client[groupName]) {
+          // keep client.groupName.operation from stomping client.operation
+          client[groupName] = Object.create(client)
+        }
+        var name = f.replace(/\.js$/, "").replace(/-([a-z])/, dashToCamel)
+        client[groupName][name] = require(join(entry, f))
+      })
+      return
+    }
+
+    if (!f.match(/\.js$/)) return
+    var name = f.replace(/\.js$/, "").replace(/-([a-z])/, dashToCamel)
+    client[name] = require(entry)
+  })
 }
 
-fs.readdirSync(join(__dirname, "lib")).forEach(function (f) {
-  if (!f.match(/\.js$/)) return
-  var name = f.replace(/\.js$/, "")
-              .replace(/-([a-z])/, function (_, l) { return l.toUpperCase() })
-  RegClient.prototype[name] = require(join(__dirname, "lib", f))
-})
+function dashToCamel (_, l) {
+  return l.toUpperCase()
+}

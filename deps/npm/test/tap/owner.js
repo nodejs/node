@@ -53,6 +53,8 @@ function mocks (server) {
     .reply(200, {_id:"underscore",_rev:2,maintainers:[jashkenas,othiym23]})
 
   // test 4
+  server.get("/underscore")
+    .reply(200, {_id:"underscore",_rev:2,maintainers:[jashkenas,othiym23]})
   server.put(
     "/underscore/-rev/2",
     {_id:"underscore",_rev:2,maintainers:[jashkenas]},
@@ -71,7 +73,7 @@ test("setup", function (t) {
       t.ifError(err,  "npm cache clean ran without error")
       t.notOk(code,   "npm cache clean exited cleanly")
 
-      mr({ port : common.port, mocks : mocks }, function (s) {
+      mr({ port : common.port, plugin : mocks }, function (err, s) {
         server = s
         t.end()
       })
