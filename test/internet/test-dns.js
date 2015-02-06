@@ -226,34 +226,34 @@ TEST(function test_resolveNaptr(done) {
 TEST(function test_resolveSoa(done) {
   var req = dns.resolveSoa('nodejs.org', function(err, result) {
     if (err) throw err;
-    
+
     assert.ok(result);
     assert.ok(typeof result === 'object');
-    
+
     assert.ok(typeof result.nsname === 'string');
     assert.ok(result.nsname.length > 0);
-    
+
     assert.ok(typeof result.hostmaster === 'string');
     assert.ok(result.hostmaster.length > 0);
-    
+
     assert.ok(typeof result.serial === 'number');
     assert.ok((result.serial > 0) && (result.serial < 4294967295));
-    
+
     assert.ok(typeof result.refresh === 'number');
-    assert.ok((result.refresh > 0) && (result.refresh < 2147483647)); 
-    
+    assert.ok((result.refresh > 0) && (result.refresh < 2147483647));
+
     assert.ok(typeof result.retry === 'number');
     assert.ok((result.retry > 0) && (result.retry < 2147483647));
-    
+
     assert.ok(typeof result.expire === 'number');
     assert.ok((result.expire > 0) && (result.expire < 2147483647));
-    
+
     assert.ok(typeof result.minttl === 'number');
     assert.ok((result.minttl >= 0) && (result.minttl < 2147483647));
 
     done();
   });
-  
+
   checkWrap(req);
 });
 
@@ -463,6 +463,92 @@ TEST(function test_lookup_localhost_ipv4(done) {
     if (err) throw err;
     assert.strictEqual(ip, '127.0.0.1');
     assert.strictEqual(family, 4);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_ip_all(done) {
+  var req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
+    if (err) throw err;
+    assert.ok(Array.isArray(ips));
+    assert.ok(ips.length > 0);
+    assert.strictEqual(ips[0].address, '127.0.0.1');
+    assert.strictEqual(ips[0].family, 4);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_null_all(done) {
+  var req = dns.lookup(null, {all: true}, function(err, ips, family) {
+    if (err) throw err;
+    assert.ok(Array.isArray(ips));
+    assert.strictEqual(ips.length, 0);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_all_ipv4(done) {
+  var req = dns.lookup('www.google.com', {all: true, family: 4}, function(err, ips) {
+    if (err) throw err;
+    assert.ok(Array.isArray(ips));
+    assert.ok(ips.length > 0);
+
+    ips.forEach(function(ip) {
+      assert.ok(isIPv4(ip.address));
+      assert.strictEqual(ip.family, 4);
+    });
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_all_ipv6(done) {
+  var req = dns.lookup('www.google.com', {all: true, family: 6}, function(err, ips) {
+    if (err) throw err;
+    assert.ok(Array.isArray(ips));
+    assert.ok(ips.length > 0);
+
+    ips.forEach(function(ip) {
+      assert.ok(isIPv6(ip.address));
+      assert.strictEqual(ip.family, 6);
+    });
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_all_mixed(done) {
+  var req = dns.lookup('www.google.com', {all: true}, function(err, ips) {
+    if (err) throw err;
+    assert.ok(Array.isArray(ips));
+    assert.ok(ips.length > 0);
+
+    ips.forEach(function(ip) {
+      if (isIPv4(ip.address))
+        assert.equal(ip.family, 4);
+      else if (isIPv6(ip.address))
+        assert.equal(ip.family, 6);
+      else
+        assert(false);
+    });
 
     done();
   });
