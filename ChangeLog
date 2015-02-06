@@ -1,4 +1,11 @@
-2015.01.29, Version 0.11.16 (Unstable)
+2015.02.06, Version 0.12.0 (Stable)
+
+* npm: Upgrade to 2.5.1
+
+* mdb_v8: update for v0.12 (Dave Pacheco)
+
+
+2015.01.29, Version 0.11.16 (Unstable), 8e42e5a0731040075e14cec087eea86729f2dc53
 
 * openssl: Upgrade to 1.0.1l
 
