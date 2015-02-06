@@ -192,7 +192,7 @@ void LTTNG_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
    * caller here to retain their method and URL until the time at which
    * LTTNG_HTTP_CLIENT_REQUEST can be called.
    */
-  Local<Object> arg0 = Local<Object>::Cast(args[0]);
+  Local<Object> arg0 = args[0].As<Object>();
   SLURP_STRING(arg0, _header, &header);
 
   req.method = header;
