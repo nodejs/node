@@ -17,7 +17,7 @@ test("setup", function (t) {
 
 test("\"npm install --save --save-exact\" should install local pkg", function (t) {
   resetPackageJSON(pkg)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",
@@ -46,7 +46,7 @@ test("\"npm install --save --save-exact\" should install local pkg", function (t
 test("\"npm install --save-dev --save-exact\" should install local pkg", function (t) {
   resetPackageJSON(pkg)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",

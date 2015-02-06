@@ -123,7 +123,7 @@ function makeRequest (uri, params, cb_) {
 
   if (params.lastModified && params.method === "GET") {
     this.log.verbose("lastModified", params.lastModified)
-    headers["if-modified-since"] = params.lastModified;
+    headers["if-modified-since"] = params.lastModified
   }
 
   // figure out wth body is
@@ -226,8 +226,8 @@ function requestDone (method, where, cb) {
       parsed._etag = response.headers.etag
     }
 
-    if (parsed && response.headers['last-modified']) {
-      parsed._lastModified = response.headers['last-modified']
+    if (parsed && response.headers["last-modified"]) {
+      parsed._lastModified = response.headers["last-modified"]
     }
 
     // for the search endpoint, the "error" property can be an object

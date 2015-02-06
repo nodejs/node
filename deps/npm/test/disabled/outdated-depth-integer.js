@@ -24,7 +24,7 @@ test('outdated depth integer', function (t) {
 
   process.chdir(pkg)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (s) {
     npm.load({
       cache: pkg + '/cache'
     , loglevel: 'silent'

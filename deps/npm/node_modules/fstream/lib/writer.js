@@ -195,7 +195,7 @@ function endChmod (me, want, current, path, cb) {
 function endChown (me, want, current, path, cb) {
   // Don't even try it unless root.  Too easy to EPERM.
   if (process.platform === "win32") return cb()
-  if (!process.getuid || !process.getuid() === 0) return cb()
+  if (!process.getuid || process.getuid() !== 0) return cb()
   if (typeof want.uid !== "number" &&
       typeof want.gid !== "number" ) return cb()
 

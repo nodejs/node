@@ -14,7 +14,7 @@ test("returns a list of removed items", function (t) {
 
   cleanup()
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     setup(function () {
       npm.shrinkwrap([], function (err) {
         if (err) return t.fail(err)

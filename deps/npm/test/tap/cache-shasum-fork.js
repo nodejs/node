@@ -16,7 +16,7 @@ test("mock reg", function (t) {
   mkdirp.sync(cache)
   rimraf.sync(cwd)
   mkdirp.sync(path.join(cwd, "node_modules"))
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     server = s
     t.pass("ok")
     t.end()

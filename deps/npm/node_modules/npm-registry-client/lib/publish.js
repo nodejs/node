@@ -18,10 +18,9 @@ function publish (uri, params, cb) {
   assert(typeof cb === "function", "must pass callback to publish")
 
   var access = params.access
-  assert(access && typeof access === "string", "must pass access for package")
   assert(
-    ["public", "restricted"].indexOf(access) !== -1,
-    "access level must be either 'public' or 'restricted'"
+    (!access) || ["public", "restricted"].indexOf(access) !== -1,
+    "if present, access level must be either 'public' or 'restricted'"
   )
 
   var auth = params.auth
@@ -68,11 +67,12 @@ function putFirst (registry, data, tarbuffer, access, auth, cb) {
     { _id : data.name
     , name : data.name
     , description : data.description
-    , access : access
     , "dist-tags" : {}
     , versions : {}
     , readme: data.readme || ""
     }
+
+  if (access) root.access = access
 
   if (!auth.token) {
     root.maintainers = [{name : auth.username, email : auth.email}]

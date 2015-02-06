@@ -40,8 +40,13 @@ function setup() {
   process.chdir(pkg)
 }
 
-function performInstall(cb) {
-  mr(common.port, function (s) { // create mock registry.
+function plugin (server) {
+  server.get("/test-npm-404-parent-test")
+    .reply(404, {"error": "version not found"})
+}
+
+function performInstall (cb) {
+  mr({port : common.port, plugin : plugin}, function (er, s) { // create mock registry.
     npm.load({registry: common.registry}, function () {
       npm.commands.install(pkg, [], function (err) {
         cb(err)

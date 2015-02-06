@@ -16,7 +16,7 @@ EXEC_OPTS.env.npm_config_depth = "Infinity"
 var server
 
 test("reg mock", function (t) {
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     server = s
     t.pass("registry mock started")
     t.end()

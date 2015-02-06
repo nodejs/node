@@ -34,12 +34,12 @@ if (argv.indexOf('--version') !== -1) {
 	return;
 }
 
-if (process.stdin.isTTY) {
-	if (!input) {
-		help();
-		return;
-	}
+if (!input && process.stdin.isTTY) {
+	help();
+	return;
+}
 
+if (input) {
 	init(fs.readFileSync(input, 'utf8'));
 } else {
 	process.stdin.setEncoding('utf8');
