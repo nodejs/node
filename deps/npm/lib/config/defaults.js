@@ -119,7 +119,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
   }
 
   defaults = {
-    access : "restricted"
+    access : null
     , "always-auth" : false
 
     , "bin-links" : true
@@ -230,7 +230,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
 }})
 
 exports.types =
-  { access : ["restricted", "public"]
+  { access : [null, "restricted", "public"]
   , "always-auth" : Boolean
   , "bin-links": Boolean
   , browser : [null, String]
@@ -287,7 +287,7 @@ exports.types =
   , prefix: path
   , production: Boolean
   , "proprietary-attribs": Boolean
-  , proxy : [null, url]
+  , proxy : [null, false, url] // allow proxy to be disabled explicitly
   , "rebuild-bundle" : Boolean
   , registry : [null, url]
   , rollback : Boolean

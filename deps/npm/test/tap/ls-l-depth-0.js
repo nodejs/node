@@ -31,7 +31,7 @@ var EXEC_OPTS = {
 
 test("setup", function (t) {
   setup()
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     server = s
 
     t.end()

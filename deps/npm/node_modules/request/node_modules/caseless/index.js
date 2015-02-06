@@ -1,5 +1,5 @@
 function Caseless (dict) {
-  this.dict = dict
+  this.dict = dict || {}
 }
 Caseless.prototype.set = function (name, value, clobber) {
   if (typeof name === 'object') {

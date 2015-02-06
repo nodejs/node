@@ -13,7 +13,7 @@ var desiredResultsPath = path.resolve(pkg, "desired-shrinkwrap-results.json")
 test("shrinkwrap doesn't strip out the dependency", function (t) {
   t.plan(1)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     setup({ production: true }, function (err) {
       if (err) return t.fail(err)
 

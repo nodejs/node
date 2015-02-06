@@ -15,7 +15,7 @@ $ npm install --save strip-ansi
 ```js
 var stripAnsi = require('strip-ansi');
 
-stripAnsi('\x1b[4mcake\x1b[0m');
+stripAnsi('\u001b[4mcake\u001b[0m');
 //=> 'cake'
 ```
 
@@ -29,12 +29,12 @@ $ npm install --global strip-ansi
 ```sh
 $ strip-ansi --help
 
-Usage
-  $ strip-ansi <input-file> > <output-file>
-  $ cat <input-file> | strip-ansi > <output-file>
+  Usage
+    strip-ansi <input-file> > <output-file>
+    cat <input-file> | strip-ansi > <output-file>
 
-Example
-  $ strip-ansi unicorn.txt > unicorn-stripped.txt
+  Example
+    strip-ansi unicorn.txt > unicorn-stripped.txt
 ```
 
 

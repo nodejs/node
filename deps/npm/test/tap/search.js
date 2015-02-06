@@ -56,7 +56,7 @@ var mocks = {
 test("No previous cache, init cache triggered by first search", function(t) {
   cleanupCache()
 
-  mr({ port: common.port, mocks: mocks.allFutureUpdatedOnly }, function (s) {
+  mr({ port: common.port, plugin: mocks.allFutureUpdatedOnly }, function (err, s) {
     common.npm([
       "search", "do not do extra search work on my behalf",
       "--registry", common.registry,
@@ -88,7 +88,7 @@ test("previous cache, _updated set, should trigger since request", function(t) {
       m(server)
     })
   }
-  mr({ port: common.port, mocks: m }, function (s) {
+  mr({ port: common.port, plugin: m }, function (err, s) {
     common.npm([
       "search", "do not do extra search work on my behalf",
       "--registry", common.registry,
@@ -129,7 +129,7 @@ var searches = [
 searches.forEach(function(search) {
   test(search.description + " search in color", function(t) {
     cleanupCache()
-    mr({ port: common.port, mocks: mocks.all }, function (s) {
+    mr({ port: common.port, plugin: mocks.all }, function (er, s) {
       common.npm([
         "search", search.term,
         "--registry", common.registry,

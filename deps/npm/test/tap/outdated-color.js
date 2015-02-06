@@ -28,7 +28,7 @@ function ansiTrim (str) {
 // it"s not running in a tty
 test("does not use ansi styling", function (t) {
   t.plan(4)
-  mr(common.port, function (s) { // create mock registry.
+  mr({port : common.port}, function (er, s) { // create mock registry.
     common.npm(
     [
       "outdated",

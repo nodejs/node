@@ -35,6 +35,7 @@ var path = require("path")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , npa = require("npm-package-arg")
   , readInstalled = require("read-installed")
+  , long = npm.config.get("long")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -47,12 +48,14 @@ function outdated (args, silent, cb) {
       console.log(makeParseable(list))
     } else {
       var outList = list.map(makePretty)
-      var outTable = [[ "Package"
-                      , "Current"
-                      , "Wanted"
-                      , "Latest"
-                      , "Location"
-                     ]].concat(outList)
+      var outHead = [ "Package"
+                    , "Current"
+                    , "Wanted"
+                    , "Latest"
+                    , "Location"
+                    ]
+      if (long) outHead.push("Package Type")
+      var outTable = [outHead].concat(outList)
 
       if (npm.color) {
         outTable[0] = outTable[0].map(function(heading) {
@@ -69,13 +72,14 @@ function outdated (args, silent, cb) {
   })
 }
 
-// [[ dir, dep, has, want, latest ]]
+// [[ dir, dep, has, want, latest, type ]]
 function makePretty (p) {
   var dep = p[1]
     , dir = path.resolve(p[0], "node_modules", dep)
     , has = p[2]
     , want = p[3]
     , latest = p[4]
+    , type = p[6]
 
   if (!npm.config.get("global")) {
     dir = path.relative(process.cwd(), dir)
@@ -87,12 +91,14 @@ function makePretty (p) {
                 , latest
                 , dirToPrettyLocation(dir)
                 ]
+  if (long) columns[5] = type
 
   if (npm.color) {
     columns[0] = color[has === want ? "yellow" : "red"](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
     columns[4] = color.brightBlack(columns[4]) // dir
+    if (long) columns[5] = color.brightBlack(columns[5]) // type
   }
 
   return columns
@@ -111,17 +117,22 @@ function dirToPrettyLocation (dir) {
 
 function makeParseable (list) {
   return list.map(function (p) {
+
     var dep = p[1]
       , dir = path.resolve(p[0], "node_modules", dep)
       , has = p[2]
       , want = p[3]
       , latest = p[4]
+      , type = p[6]
 
-    return [ dir
+    var out = [ dir
            , dep + "@" + want
            , (has ? (dep + "@" + has) : "MISSING")
            , dep + "@" + latest
-           ].join(":")
+           ]
+   if (long) out.push(type)
+
+   return out.join(":")
   }).join(os.EOL)
 }
 
@@ -137,6 +148,7 @@ function makeJSON (list) {
                 , latest: p[4]
                 , location: dir
                 }
+    if (long) out[p[1]].type = p[6]
   })
   return JSON.stringify(out, null, 2)
 }
@@ -154,13 +166,23 @@ function outdated_ (args, dir, parentHas, depth, cb) {
     return cb(null, [])
   }
   var deps = null
+  var types = {}
   readJson(path.resolve(dir, "package.json"), function (er, d) {
     d = d || {}
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     deps = (er) ? true : (d.dependencies || {})
+    if (!er) {
+      Object.keys(deps).forEach(function (k) {
+        types[k] = "dependencies"
+      })
+    }
 
     if (npm.config.get("save-dev")) {
       deps = d.devDependencies || {}
+      Object.keys(deps).forEach(function (k) {
+        types[k] = "devDependencies"
+      })
+
       return next()
     }
 
@@ -174,6 +196,9 @@ function outdated_ (args, dir, parentHas, depth, cb) {
 
     if (npm.config.get("save-optional")) {
       deps = d.optionalDependencies || {}
+      Object.keys(deps).forEach(function (k) {
+        types[k] = "optionalDependencies"
+      })
       return next()
     }
 
@@ -186,6 +211,7 @@ function outdated_ (args, dir, parentHas, depth, cb) {
       Object.keys(d.devDependencies || {}).forEach(function (k) {
         if (!(k in parentHas)) {
           deps[k] = d.devDependencies[k]
+          types[k] = "devDependencies"
         }
       })
     }
@@ -236,12 +262,14 @@ function outdated_ (args, dir, parentHas, depth, cb) {
     // if has[dep] !== shouldHave[dep], then cb with the data
     // otherwise dive into the folder
     asyncMap(Object.keys(deps), function (dep, cb) {
-      shouldUpdate(args, dir, dep, has, deps[dep], depth, cb)
+      if (!long) return shouldUpdate(args, dir, dep, has, deps[dep], depth, cb)
+
+      shouldUpdate(args, dir, dep, has, deps[dep], depth, cb, types[dep])
     }, cb)
   }
 }
 
-function shouldUpdate (args, dir, dep, has, req, depth, cb) {
+function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
   // look up the most recent version.
   // if that's what we already have, or if it's not on the args list,
   // then dive into it.  Otherwise, cb() with the data.
@@ -260,15 +288,14 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
   }
 
   function doIt (wanted, latest) {
-    cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req ]])
+    if (!long) {
+      return cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req]])
+    }
+    cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req, type]])
   }
 
-  if (args.length && args.indexOf(dep) === -1) {
-    return skip()
-  }
-
-  if (npa(req).type === "git")
-    return doIt("git", "git")
+  if (args.length && args.indexOf(dep) === -1) return skip()
+  if (npa(req).type === "git") return doIt("git", "git")
 
   // search for the latest package
   mapToRegistry(dep, npm.config, function (er, uri, auth) {
@@ -318,10 +345,12 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb) {
 
       if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
           || d.version !== curr.version
-          || d.version !== l.version)
+          || d.version !== l.version) {
         doIt(d.version, l.version)
-      else
+      }
+      else {
         skip()
+      }
     }
   }
 }

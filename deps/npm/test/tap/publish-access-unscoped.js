@@ -51,11 +51,12 @@ test("setup", function (t) {
   }
 })
 
-test("scoped packages should default to restricted access", function (t) {
+test("unscoped packages can be explicitly set as public", function (t) {
   var put = nock(common.registry)
               .put("/publish-access")
               .reply(201, verify)
 
+  npm.config.set("access", "public")
   npm.commands.publish([], false, function (er) {
     t.ifError(er, "published without error")
 

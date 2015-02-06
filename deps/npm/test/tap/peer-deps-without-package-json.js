@@ -9,7 +9,6 @@ var pkg = path.resolve(__dirname, "peer-deps-without-package-json")
 var cache = path.resolve(pkg, "cache")
 var nodeModules = path.resolve(pkg, "node_modules")
 
-var js = fs.readFileSync(path.join(pkg, "file-js.js"), "utf8")
 test("installing a peerDependencies-using package without a package.json present (GH-3049)", function (t) {
 
   rimraf.sync(nodeModules)
@@ -20,21 +19,27 @@ test("installing a peerDependencies-using package without a package.json present
 
   var customMocks = {
     "get": {
-      "/ok.js": [200, js]
+      "/ok.js": [200, path.join(pkg, "file-js.js")]
     }
   }
-  mr({port: common.port, mocks: customMocks}, function (s) { // create mock registry.
+  mr({port: common.port, mocks: customMocks}, function (err, s) {
+    t.ifError(err, "mock registry booted")
     npm.load({
       registry: common.registry,
       cache: cache
     }, function () {
       npm.install(common.registry + "/ok.js", function (err) {
-        if (err) {
-          t.fail(err)
-        } else {
-          t.ok(fs.existsSync(path.join(nodeModules, "/npm-test-peer-deps-file")))
-          t.ok(fs.existsSync(path.join(nodeModules, "/underscore")))
-        }
+        t.ifError(err, "installed ok.js")
+
+        t.ok(
+          fs.existsSync(path.join(nodeModules, "/npm-test-peer-deps-file")),
+          "passive peer dep installed"
+        )
+        t.ok(
+          fs.existsSync(path.join(nodeModules, "/underscore")),
+          "underscore installed"
+        )
+
         t.end()
         s.close() // shutdown mock registry.
       })

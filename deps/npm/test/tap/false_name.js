@@ -28,7 +28,7 @@ test("setup", function(t) {
 
 test("not every pkg.name can be required", function (t) {
   t.plan(3)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     common.npm([
       "install", ".",
       "--cache", cache,

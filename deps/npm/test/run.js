@@ -121,9 +121,7 @@ function flatten (arr) {
 function setup (cb) {
   cleanup(function (er) {
     if (er) return cb(er)
-    execChain([ [ "node \""+npmcli+"\" install \""+npmpkg+"\"", root ],
-                [ "npm config set package-config:foo boo",  root ]
-              ], cb)
+    exec("node \""+npmcli+"\" install \""+npmpkg+"\"", root, false, cb)
   })
 }
 

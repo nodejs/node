@@ -14,7 +14,7 @@ var mr = require("npm-registry-mock")
 test("outdated-target: if no viable version is found, show error", function (t) {
   t.plan(1)
   setup()
-  mr({port: common.port}, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({ cache: cache, registry: common.registry}, function () {
       npm.commands.update(function (er) {
         t.equal(er.code, "ETARGET")

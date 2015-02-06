@@ -452,7 +452,7 @@ For example:
 
     {
       "name": "tea-latte",
-      "version": "1.3.5"
+      "version": "1.3.5",
       "peerDependencies": {
         "tea": "2.x"
       }

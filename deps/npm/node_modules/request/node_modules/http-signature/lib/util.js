@@ -243,7 +243,62 @@ module.exports = {
     }
 
     return fp;
+  },
+
+  /**
+  * Converts a PKGCS#8 PEM file to an OpenSSH public key (rsa)
+  *
+  * The reverse of the above function.
+  */
+  pemToRsaSSHKey: function pemToRsaSSHKey(pem, comment) {
+    assert.equal('string', typeof pem, 'typeof pem');
+
+    // chop off the BEGIN PUBLIC KEY and END PUBLIC KEY portion
+    var cleaned = pem.split('\n').slice(1, -2).join('');
+
+    var buf = new Buffer(cleaned, 'base64');
+
+    var der = new asn1.BerReader(buf);
+
+    der.readSequence();
+    der.readSequence();
+
+    var oid = der.readOID();
+    assert.equal(oid, '1.2.840.113549.1.1.1', 'pem not in RSA format');
+
+    // Null -- XXX this probably isn't good practice
+    der.readByte();
+    der.readByte();
+
+    // bit string sequence
+    der.readSequence(0x03);
+    der.readByte();
+    der.readSequence();
+
+    // modulus
+    assert.equal(der.peek(), asn1.Ber.Integer, 'modulus not an integer');
+    der._offset = der.readLength(der.offset + 1);
+    var modulus = der._buf.slice(der.offset, der.offset + der.length);
+    der._offset += der.length;
+
+    // exponent
+    assert.equal(der.peek(), asn1.Ber.Integer, 'exponent not an integer');
+    der._offset = der.readLength(der.offset + 1);
+    var exponent = der._buf.slice(der.offset, der.offset + der.length);
+    der._offset += der.length;
+
+    // now, make the key
+    var type = new Buffer('ssh-rsa');
+    var buffer = new Buffer(4 + type.length + 4 + modulus.length + 4 + exponent.length);
+    var i = 0;
+    buffer.writeUInt32BE(type.length, i);     i += 4;
+    type.copy(buffer, i);                     i += type.length;
+    buffer.writeUInt32BE(exponent.length, i); i += 4;
+    exponent.copy(buffer, i);                 i += exponent.length;
+    buffer.writeUInt32BE(modulus.length, i);  i += 4;
+    modulus.copy(buffer, i);                  i += modulus.length;
+
+    var s = type.toString() + ' ' + buffer.toString('base64') + ' ' + (comment || '');
+    return s;
   }
-
-
 };

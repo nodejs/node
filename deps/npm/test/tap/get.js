@@ -36,7 +36,7 @@ var server
 
 var mocks = {
   "get": {
-    "/@bigco%2fsample/1.2.3" : [200, JSON.stringify(BIGCO_SAMPLE)]
+    "/@bigco%2fsample/1.2.3" : [200, BIGCO_SAMPLE]
   }
 }
 
@@ -49,9 +49,10 @@ function getCachePath (uri) {
 test("setup", function (t) {
   mkdirp.sync(CACHE_DIR)
 
-  mr({port: common.port, mocks: mocks}, function (s) {
-    npm.load({cache: CACHE_DIR, registry: common.registry}, function (err) {
-      t.ifError(err)
+  mr({port: common.port, mocks: mocks}, function (er, s) {
+    t.ifError(er)
+    npm.load({cache: CACHE_DIR, registry: common.registry}, function (er) {
+      t.ifError(er)
       server = s
       t.end()
     })
@@ -110,7 +111,7 @@ test("basic request", function (t) {
   var scoped = common.registry + "/@bigco%2fsample/1.2.3"
   npm.registry.get(scoped, PARAMS, function (er, data) {
     t.ifError(er, "loaded all metadata")
-    t.deepEqual(data.name, "@bigco/sample")
+    t.equal(data.name, "@bigco/sample")
     fs.stat(getCachePath(scoped), function (er) {
       t.ifError(er, "scoped cache data written")
     })
