@@ -36,7 +36,7 @@ class ObjectWrap {
 
 
   inline v8::Local<v8::Object> handle() {
-    return handle(v8::Isolate::GetCurrent());
+    return v8::Local<v8::Object>::New(handle_->GetIsolate(), persistent());
   }
 
 
