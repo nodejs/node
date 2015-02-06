@@ -1128,11 +1128,14 @@ assert.equal(b.compare(c), -1);
 assert.equal(c.compare(d), 1);
 assert.equal(d.compare(b), 1);
 assert.equal(b.compare(d), -1);
+assert.equal(b.compare(b), 0);
 
 assert.equal(Buffer.compare(b, c), -1);
 assert.equal(Buffer.compare(c, d), 1);
 assert.equal(Buffer.compare(d, b), 1);
 assert.equal(Buffer.compare(b, d), -1);
+assert.equal(Buffer.compare(c, c), 0);
+
 
 assert.throws(function() {
   var b = new Buffer(1);
@@ -1158,6 +1161,7 @@ var e = new Buffer(6).fill('abcdef');
 assert.ok(b.equals(c));
 assert.ok(!c.equals(d));
 assert.ok(!d.equals(e));
+assert.ok(d.equals(d));
 
 assert.throws(function() {
   var b = new Buffer(1);
