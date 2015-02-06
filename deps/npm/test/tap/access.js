@@ -30,7 +30,7 @@ test("setup", function (t) {
   mkdirp(pkg, function (er) {
     t.ifError(er, pkg + " made successfully")
 
-    mr({port : common.port, mocks : mocks}, function (s) {
+    mr({port : common.port, plugin : mocks}, function (err, s) {
       server = s
 
       fs.writeFile(

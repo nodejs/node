@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "January 2015" "" ""
+.TH "NPM\-CONFIG" "7" "February 2015" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -69,8 +69,6 @@ The following shorthands are parsed on the command\-line:
 \fB\-p\fR, \fB\-\-porcelain\fR: \fB\-\-parseable\fR
 .IP \(bu 2
 \fB\-reg\fR: \fB\-\-registry\fR
-.IP \(bu 2
-\fB\-v\fR: \fB\-\-version\fR
 .IP \(bu 2
 \fB\-f\fR: \fB\-\-force\fR
 .IP \(bu 2
@@ -608,7 +606,7 @@ The value \fBnpm init\fR should use by default for the package license\.
 .SS init\-version
 .RS 0
 .IP \(bu 2
-Default: "0\.0\.0"
+Default: "1\.0\.0"
 .IP \(bu 2
 Type: semver
 
@@ -955,7 +953,7 @@ Type: String
 Configure how versions of packages installed to a package\.json file via
 \fB\-\-save\fR or \fB\-\-save\-dev\fR get prefixed\.
 .P
-For example if a package has version \fB1\.2\.3\fR, by default it's version is
+For example if a package has version \fB1\.2\.3\fR, by default its version is
 set to \fB^1\.2\.3\fR which allows minor upgrades for that package, but after
 \fBnpm config set save\-prefix='~'\fR it would be set to \fB~1\.2\.3\fR which only allows
 patch upgrades\.
@@ -1215,8 +1213,6 @@ Set to \fB"browser"\fR to view html help content in the default web browser\.
 .RS 0
 .IP \(bu 2
 npm help config
-.IP \(bu 2
-npm help 7 config
 .IP \(bu 2
 npm help 5 npmrc
 .IP \(bu 2

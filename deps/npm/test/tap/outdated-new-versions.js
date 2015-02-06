@@ -16,7 +16,7 @@ test("dicovers new versions in outdated", function (t) {
   process.chdir(pkg)
   t.plan(2)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({cache: cache, registry: common.registry}, function () {
       npm.outdated(function (er, d) {
         for (var i = 0; i < d.length; i++) {

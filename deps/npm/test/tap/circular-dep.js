@@ -35,7 +35,7 @@ function setup (cb) {
   process.chdir(path.resolve(pkg, "minimist"))
 
   fs.mkdirSync(path.resolve(pkg, "minimist/node_modules"))
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     server = s
     npm.load({
       loglevel: "silent",

@@ -51,11 +51,12 @@ test("setup", function (t) {
   }
 })
 
-test("scoped packages should default to restricted access", function (t) {
+test("scoped packages pass public access if set", function (t) {
   var put = nock(common.registry)
               .put("/@bigco%2fpublish-access")
               .reply(201, verify)
 
+  npm.config.set("access", "public")
   npm.commands.publish([], false, function (er) {
     t.ifError(er, "published without error")
 
@@ -66,7 +67,7 @@ test("scoped packages should default to restricted access", function (t) {
   function verify (_, body) {
     t.doesNotThrow(function () {
       var parsed = JSON.parse(body)
-      t.equal(parsed.access, "restricted", "access level is correct")
+      t.equal(parsed.access, "public", "access level is correct")
     }, "converted body back into object")
 
     return {ok: true}

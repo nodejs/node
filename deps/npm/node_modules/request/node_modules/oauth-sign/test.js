@@ -1,4 +1,5 @@
-var hmacsign = require('./index').hmacsign
+var oauth = require('./index')
+  , hmacsign = oauth.hmacsign
   , assert = require('assert')
   , qs = require('querystring')
   ;
@@ -61,3 +62,13 @@ console.log(rfc5849sign)
 console.log('r6/TJjbCOr97/+UU0NsvSne7s5g=')
 assert.equal(rfc5849sign, 'r6/TJjbCOr97/+UU0NsvSne7s5g=')
 
+
+// PLAINTEXT
+
+var plainSign = oauth.sign('PLAINTEXT', 'GET', 'http://dummy.com', {}, 'consumer_secret', 'token_secret')
+console.log(plainSign)
+assert.equal(plainSign, 'consumer_secret&token_secret')
+
+plainSign = oauth.plaintext('consumer_secret', 'token_secret')
+console.log(plainSign)
+assert.equal(plainSign, 'consumer_secret&token_secret')

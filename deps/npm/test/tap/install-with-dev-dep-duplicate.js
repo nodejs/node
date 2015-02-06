@@ -13,7 +13,7 @@ var desiredResultsPath = path.resolve(pkg, "desired-ls-results.json")
 test("prefers version from dependencies over devDependencies", function (t) {
   t.plan(1)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     setup(function (err) {
       if (err) return t.fail(err)
 

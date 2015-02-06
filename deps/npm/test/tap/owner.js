@@ -73,7 +73,7 @@ test("setup", function (t) {
       t.ifError(err,  "npm cache clean ran without error")
       t.notOk(code,   "npm cache clean exited cleanly")
 
-      mr({ port : common.port, mocks : mocks }, function (s) {
+      mr({ port : common.port, plugin : mocks }, function (err, s) {
         server = s
         t.end()
       })

@@ -85,10 +85,10 @@ latest:
 	@echo "Installing latest published npm"
 	@echo "Use 'make install' or 'make link' to install the code"
 	@echo "in this folder that you're looking at right now."
-	node cli.js install -g -f npm
+	node cli.js install -g -f npm ${NPMOPTS}
 
 install: all
-	node cli.js install -g -f
+	node cli.js install -g -f ${NPMOPTS}
 
 # backwards compat
 dev: install
@@ -230,7 +230,12 @@ test: doc
 tag:
 	npm tag npm@$(PUBLISHTAG) latest
 
-publish: link doc
+authors:
+	@bash scripts/update-authors.sh &&\
+	git add AUTHORS &&\
+	git commit -m "update AUTHORS" || true
+
+publish: link doc authors
 	@git push origin :v$(shell npm -v) 2>&1 || true
 	git clean -fd &&\
 	git push origin $(BRANCH) &&\
@@ -243,4 +248,4 @@ release:
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release
+.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release authors
