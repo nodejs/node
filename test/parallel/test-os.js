@@ -13,6 +13,8 @@ if (process.platform === 'win32') {
   process.env.TMP = '';
   var expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
   assert.equal(os.tmpdir(), expected);
+  process.env.TEMP = '\\temp\\';
+  assert.equal(os.tmpdir(), '\\temp');
 } else {
   assert.equal(os.tmpdir(), '/tmpdir');
   process.env.TMPDIR = '';
@@ -21,6 +23,8 @@ if (process.platform === 'win32') {
   assert.equal(os.tmpdir(), '/temp');
   process.env.TEMP = '';
   assert.equal(os.tmpdir(), '/tmp');
+  process.env.TMPDIR = '/tmpdir/';
+  assert.equal(os.tmpdir(), '/tmpdir');
 }
 
 var endianness = os.endianness();
