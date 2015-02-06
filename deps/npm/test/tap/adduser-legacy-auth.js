@@ -47,7 +47,7 @@ test("setup", function (t) {
 })
 
 test("npm login", function (t) {
-  mr({port : common.port, mocks : mocks}, function (s) {
+  mr({port : common.port, plugin : mocks}, function (er, s) {
     var runner = common.npm(
     [
       "login",

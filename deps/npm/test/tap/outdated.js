@@ -31,7 +31,7 @@ test("it should not throw", function (t) {
   console.log = function () {
     output.push.apply(output, arguments)
   }
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: "cache",
       loglevel: "silent",

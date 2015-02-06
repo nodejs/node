@@ -124,11 +124,12 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
 
     // registry-frontdoor cares about the access level, which is only
     // configurable for scoped packages
-    if (npa(data.name).scope) {
+    if (config.get("access")) {
+      if (!npa(data.name).scope && config.get("access") === "restricted") {
+        return cb(new Error("Can't restrict access to unscoped packages."))
+      }
+
       params.access = config.get("access")
-    }
-    else {
-      params.access = "public"
     }
 
     registry.publish(registryBase, params, function (er) {

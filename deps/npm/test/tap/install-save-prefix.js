@@ -17,7 +17,7 @@ test("setup", function (t) {
 
 test("npm install --save with default save-prefix should install local pkg versioned to allow minor updates", function (t) {
   resetPackageJSON(pkg)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",
@@ -43,7 +43,7 @@ test("npm install --save with default save-prefix should install local pkg versi
 
 test("npm install --save-dev with default save-prefix should install local pkg to dev dependencies versioned to allow minor updates", function (t) {
   resetPackageJSON(pkg)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",
@@ -69,7 +69,7 @@ test("npm install --save-dev with default save-prefix should install local pkg t
 
 test("npm install --save with \"~\" save-prefix should install local pkg versioned to allow patch updates", function (t) {
   resetPackageJSON(pkg)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",
@@ -96,7 +96,7 @@ test("npm install --save with \"~\" save-prefix should install local pkg version
 
 test("npm install --save-dev with \"~\" save-prefix should install local pkg to dev dependencies versioned to allow patch updates", function (t) {
   resetPackageJSON(pkg)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",

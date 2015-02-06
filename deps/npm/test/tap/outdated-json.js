@@ -35,7 +35,7 @@ test("it should log json data", function (t) {
   cleanup()
   process.chdir(pkg)
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + "/cache",
       loglevel: "silent",

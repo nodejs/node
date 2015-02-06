@@ -45,7 +45,7 @@ function tarballWasFetched(output){
 }
 
 function performInstall (t, cb) {
-  mr({port: common.port, mocks: mockRoutes}, function (s) {
+  mr({port: common.port, mocks: mockRoutes}, function (er, s) {
     var opts = {
       cwd : pkg,
       env: {

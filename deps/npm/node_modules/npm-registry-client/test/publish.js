@@ -71,19 +71,6 @@ test("publish call contract", function (t) {
     function () {
       var params = {
         metadata : METADATA,
-        body : BODY,
-        auth : AUTH
-      }
-      client.publish(URI, params, nop)
-    },
-    { name : "AssertionError", message : "must pass access for package" },
-    "params must include access for package"
-  )
-
-  t.throws(
-    function () {
-      var params = {
-        metadata : METADATA,
         access : ACCESS,
         auth : AUTH
       }
@@ -132,7 +119,7 @@ test("publish call contract", function (t) {
     },
     {
       name    : "AssertionError",
-      message : "access level must be either 'public' or 'restricted'"
+      message : "if present, access level must be either 'public' or 'restricted'"
     },
     "access level must be 'public' or 'restricted'"
   )

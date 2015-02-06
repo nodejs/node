@@ -146,7 +146,6 @@ module.exports = {
         }
         stringToSign += h + ': ' + value;
       } else {
-        value =
         stringToSign +=
           request.method + ' ' + request.path + ' HTTP/' + options.httpVersion;
       }

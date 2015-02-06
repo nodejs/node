@@ -4,7 +4,14 @@ in it. The commit message also has the corresponding github issue. i.e. CTYPE-42
 would be issue 42. Each issue can be found at:
 https://github.com/rmustacc/node-ctype/issues/%d.
 
-CTYPE v0.5.2
+v0.5.3
+CTYPE-50 Release 0.5.3
+Contributed by Nick Schonning:
+CTYPE-49 Add repository section to package.json
+Contributed by Jonathan Ong:
+CTYPE-48 Create .npmignore
+
+v0.5.2
 CTYPE-46 Release 0.5.2
 CTYPE-45 error in setEndian logic
 

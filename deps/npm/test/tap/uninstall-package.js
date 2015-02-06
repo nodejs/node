@@ -8,7 +8,7 @@ var test = require("tap").test
 
 test("returns a list of removed items", function (t) {
   t.plan(1)
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     setup(function () {
       npm.install(".", function (err) {
         if (err) return t.fail(err)
