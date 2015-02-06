@@ -137,8 +137,10 @@ void LTTNG_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   if (!NODE_HTTP_SERVER_REQUEST_ENABLED())
     return;
 
+  if (!args[0]->IsObject()) 
+    return;
+
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
   Local<Object> arg0 = Local<Object>::Cast(args[0]);
   Local<Object> headers;
 
@@ -155,8 +157,9 @@ void LTTNG_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
   node::Utf8Value fwdfor(env->isolate(), strfwdfor);
+  req.forwardedFor = *fwdfor;
 
-  if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == nullptr)
+  if (!strfwdfor->IsString() || req.forwardedFor == nullptr)
     req.forwardedFor = const_cast<char*>("");
 
   SLURP_CONNECTION(args[1], conn);
@@ -176,13 +179,12 @@ void LTTNG_HTTP_SERVER_RESPONSE(const FunctionCallbackInfo<Value>& args) {
 
 void LTTNG_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_lttng_http_client_request_t req;
-  char *header;
+  char* header;
 
   if (!NODE_HTTP_CLIENT_REQUEST_ENABLED())
     return;
 
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
 
   /*
    * For the method and URL, we're going to dig them out of the header.  This

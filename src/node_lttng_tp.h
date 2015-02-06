@@ -104,8 +104,8 @@ TRACEPOINT_EVENT(
   node,
   gc_start,
   TP_ARGS(
-    char*, gctype,
-    char*, gcflags
+    const char*, gctype,
+    const char*, gcflags
   ),
   TP_FIELDS(
     ctf_string(gctype, gctype)
@@ -117,8 +117,8 @@ TRACEPOINT_EVENT(
   node,
   gc_done,
   TP_ARGS(
-    char*, gctype,
-    char*, gcflags
+    const char*, gctype,
+    const char*, gcflags
   ),
   TP_FIELDS(
     ctf_string(gctype, gctype)
