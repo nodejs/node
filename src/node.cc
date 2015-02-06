@@ -1687,23 +1687,21 @@ static const char* name_by_gid(gid_t gid) {
 #endif
 
 
-static uid_t uid_by_name(Handle<Value> value) {
+static uid_t uid_by_name(Isolate* isolate, Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<uid_t>(value->Uint32Value());
   } else {
-    // TODO(trevnorris): Fix to not use GetCurrent().
-    node::Utf8Value name(Isolate::GetCurrent(), value);
+    node::Utf8Value name(isolate, value);
     return uid_by_name(*name);
   }
 }
 
 
-static gid_t gid_by_name(Handle<Value> value) {
+static gid_t gid_by_name(Isolate* isolate, Handle<Value> value) {
   if (value->IsUint32()) {
     return static_cast<gid_t>(value->Uint32Value());
   } else {
-    // TODO(trevnorris): Fix to not use GetCurrent().
-    node::Utf8Value name(Isolate::GetCurrent(), value);
+    node::Utf8Value name(isolate, value);
     return gid_by_name(*name);
   }
 }
@@ -1728,7 +1726,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("setgid argument must be a number or a string");
   }
 
-  gid_t gid = gid_by_name(args[0]);
+  gid_t gid = gid_by_name(env->isolate(), args[0]);
 
   if (gid == gid_not_found) {
     return env->ThrowError("setgid group id does not exist");
@@ -1747,7 +1745,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("setuid argument must be a number or a string");
   }
 
-  uid_t uid = uid_by_name(args[0]);
+  uid_t uid = uid_by_name(env->isolate(), args[0]);
 
   if (uid == uid_not_found) {
     return env->ThrowError("setuid user id does not exist");
@@ -1809,7 +1807,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   gid_t* groups = new gid_t[size];
 
   for (size_t i = 0; i < size; i++) {
-    gid_t gid = gid_by_name(groups_list->Get(i));
+    gid_t gid = gid_by_name(env->isolate(), groups_list->Get(i));
 
     if (gid == gid_not_found) {
       delete[] groups;
@@ -1856,7 +1854,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("initgroups user not found");
   }
 
-  extra_group = gid_by_name(args[1]);
+  extra_group = gid_by_name(env->isolate(), args[1]);
 
   if (extra_group == gid_not_found) {
     if (must_free)
