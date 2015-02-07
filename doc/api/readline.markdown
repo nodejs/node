@@ -5,7 +5,7 @@
 To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as `process.stdin`) on a line-by-line basis.
 
-Note that once you've invoked this module, your node program will not
+Note that once you've invoked this module, your io.js program will not
 terminate until you've closed the interface. Here's how to allow your
 program to gracefully exit:
 
@@ -16,7 +16,7 @@ program to gracefully exit:
       output: process.stdout
     });
 
-    rl.question("What do you think of node.js? ", function(answer) {
+    rl.question("What do you think of io.js? ", function(answer) {
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback:", answer);
 
@@ -88,8 +88,8 @@ stream.
 
 ### rl.setPrompt(prompt)
 
-Sets the prompt, for example when you run `node` on the command line, you see
-`> `, which is node's prompt.
+Sets the prompt, for example when you run `iojs` on the command line, you see
+`> `, which is io.js's prompt.
 
 ### rl.prompt([preserveCursor])
 

@@ -4,7 +4,7 @@
 
 [Punycode.js](https://mths.be/punycode) is bundled with io.js v1.0.0+ and
 Node.js v0.6.2+. Use `require('punycode')` to access it. (To use it with
-other Node.js versions, use npm to install the `punycode` module first.)
+other io.js versions, use npm to install the `punycode` module first.)
 
 ## punycode.decode(string)
 

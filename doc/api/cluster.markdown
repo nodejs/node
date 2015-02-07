@@ -2,8 +2,8 @@
 
     Stability: 2 - Unstable
 
-A single instance of Node runs in a single thread. To take advantage of
-multi-core systems the user will sometimes want to launch a cluster of Node
+A single instance of io.js runs in a single thread. To take advantage of
+multi-core systems the user will sometimes want to launch a cluster of io.js
 processes to handle the load.
 
 The cluster module allows you to easily create child processes that
@@ -31,9 +31,9 @@ all share server ports.
       }).listen(8000);
     }
 
-Running node will now share port 8000 between the workers:
+Running io.js will now share port 8000 between the workers:
 
-    % NODE_DEBUG=cluster node server.js
+    % NODE_DEBUG=cluster iojs server.js
     23521,Master Worker 23524 online
     23521,Master Worker 23526 online
     23521,Master Worker 23523 online
@@ -74,7 +74,7 @@ out of a total of eight.
 
 Because `server.listen()` hands off most of the work to the master
 process, there are three cases where the behavior between a normal
-node.js process and a cluster worker differs:
+io.js process and a cluster worker differs:
 
 1. `server.listen({fd: 7})` Because the message is passed to the master,
    file descriptor 7 **in the parent** will be listened on, and the
@@ -91,7 +91,7 @@ node.js process and a cluster worker differs:
    want to listen on a unique port, generate a port number based on the
    cluster worker ID.
 
-There is no routing logic in Node.js, or in your program, and no shared
+There is no routing logic in io.js, or in your program, and no shared
 state between the workers.  Therefore, it is important to design your
 program such that it does not rely too heavily on in-memory data objects
 for things like sessions and login.
@@ -99,7 +99,7 @@ for things like sessions and login.
 Because workers are all separate processes, they can be killed or
 re-spawned depending on your program's needs, without affecting other
 workers.  As long as there are some workers still alive, the server will
-continue to accept connections.  Node does not automatically manage the
+continue to accept connections.  io.js does not automatically manage the
 number of workers for you, however.  It is your responsibility to manage
 the worker pool for your application's needs.
 
@@ -121,7 +121,7 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 
 * {Object}
-  * `execArgv` {Array} list of string arguments passed to the node executable. 
+  * `execArgv` {Array} list of string arguments passed to the io.js executable. 
     (Default=`process.execArgv`)
   * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
