@@ -502,14 +502,14 @@ A property exposing version strings of io.js and its dependencies.
 
 Will print something like:
 
-    { http_parser: '1.0',
-      node: '0.10.4',
-      v8: '3.14.5.8',
-      ares: '1.9.0-DEV',
-      uv: '0.10.3',
-      zlib: '1.2.3',
-      modules: '11',
-      openssl: '1.0.1e' }
+    { http_parser: '2.3.0',
+      node: '1.1.1',
+      v8: '4.1.0.14',
+      uv: '1.3.0',
+      zlib: '1.2.8',
+      ares: '1.10.0-DEV',
+      modules: '43',
+      openssl: '1.0.1k' }
 
 ## process.config
 
