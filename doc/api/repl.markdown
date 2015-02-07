@@ -7,10 +7,10 @@ easily includable in other programs. The REPL provides a way to interactively
 run JavaScript and see the results.  It can be used for debugging, testing, or
 just trying things out.
 
-By executing `node` without any arguments from the command-line you will be
+By executing `iojs` without any arguments from the command-line you will be
 dropped into the REPL. It has simplistic emacs line-editing.
 
-    mjr:~$ node
+    mjr:~$ iojs
     Type '.help' for options.
     > a = [ 1, 2, 3];
     [ 1, 2, 3 ]
@@ -21,13 +21,13 @@ dropped into the REPL. It has simplistic emacs line-editing.
     2
     3
 
-For advanced line-editors, start node with the environmental variable
+For advanced line-editors, start io.js with the environmental variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
 terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
-    alias node="env NODE_NO_READLINE=1 rlwrap node"
+    alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
 
 
 ## repl.start(options)
@@ -70,7 +70,7 @@ You can use your own `eval` function if it has following signature:
       callback(null, result);
     }
 
-Multiple REPLs may be started against the same running instance of node.  Each
+Multiple REPLs may be started against the same running instance of io.js.  Each
 will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
@@ -81,7 +81,7 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     connections = 0;
 
     repl.start({
-      prompt: "node via stdin> ",
+      prompt: "io.js via stdin> ",
       input: process.stdin,
       output: process.stdout
     });
@@ -89,18 +89,18 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "node via Unix socket> ",
+        prompt: "io.js via Unix socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
         socket.end();
       })
-    }).listen("/tmp/node-repl-sock");
+    }).listen("/tmp/iojs-repl-sock");
 
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "node via TCP socket> ",
+        prompt: "io.js via TCP socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
@@ -114,7 +114,7 @@ for connecting to TCP sockets, and `socat` can be used to connect to both Unix a
 TCP sockets.
 
 By starting a REPL from a Unix socket-based server instead of stdin, you can
-connect to a long-running node process without restarting it.
+connect to a long-running io.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
@@ -187,7 +187,7 @@ associated with each `REPLServer`.  For example:
 
 Things in the `context` object appear as local within the REPL:
 
-    mjr:~$ node repl_test.js
+    mjr:~$ iojs repl_test.js
     > m
     'message'
 

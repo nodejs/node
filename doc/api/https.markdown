@@ -2,7 +2,7 @@
 
     Stability: 3 - Stable
 
-HTTPS is the HTTP protocol over TLS/SSL. In Node this is implemented as a
+HTTPS is the HTTP protocol over TLS/SSL. In io.js this is implemented as a
 separate module.
 
 ## Class: https.Server
