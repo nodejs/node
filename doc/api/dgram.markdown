@@ -170,7 +170,7 @@ and the `callback`(if specified) is called. Specifying both a
 "listening" event listener and `callback` is not harmful but not very
 useful.
 
-A bound datagram socket keeps the node process running to receive
+A bound datagram socket keeps the io.js process running to receive
 datagrams.
 
 If binding fails, an "error" event is generated. In rare case (e.g.

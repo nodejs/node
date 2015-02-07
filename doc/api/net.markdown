@@ -167,7 +167,7 @@ would be to wait a second and then try again. This can be done with
       }
     });
 
-(Note: All sockets in Node set `SO_REUSEADDR` already)
+(Note: All sockets in io.js set `SO_REUSEADDR` already)
 
 
 ### server.listen(path[, callback])
@@ -340,7 +340,7 @@ following this event.  See example in discussion of `server.listen`.
 
 This object is an abstraction of a TCP or local socket.  `net.Socket`
 instances implement a duplex Stream interface.  They can be created by the
-user and used as a client (with `connect()`) or they can be created by Node
+user and used as a client (with `connect()`) or they can be created by io.js
 and passed to the user through the `'connection'` event of a server.
 
 ### new net.Socket([options])
@@ -384,7 +384,7 @@ The `connectListener` parameter will be added as an listener for the
 `net.Socket` has the property that `socket.write()` always works. This is to
 help users get up and running quickly. The computer cannot always keep up
 with the amount of data that is written to a socket - the network connection
-simply might be too slow. Node will internally queue up the data written to a
+simply might be too slow. io.js will internally queue up the data written to a
 socket and send it out over the wire when it is possible. (Internally it is
 polling on the socket's file descriptor for being writable).
 
