@@ -13,8 +13,8 @@ TRACEPOINT_EVENT(
   node,
   http_server_request,
   TP_ARGS(
-    char*, url,
-    char*, method,
+    const char*, url,
+    const char*, method,
     const char*, forwardedFor
   ),
   TP_FIELDS(
@@ -29,7 +29,7 @@ TRACEPOINT_EVENT(
   http_server_response,
   TP_ARGS(
     int, port,
-    char*, remote,
+    const char*, remote,
     int, fd
   ),
   TP_FIELDS(
@@ -43,8 +43,8 @@ TRACEPOINT_EVENT(
   node,
   http_client_request,
   TP_ARGS(
-    char*, url,
-    char*, method
+    const char*, url,
+    const char*, method
   ),
   TP_FIELDS(
     ctf_string(url, url)
@@ -57,7 +57,7 @@ TRACEPOINT_EVENT(
   http_client_response,
   TP_ARGS(
     int, port,
-    char*, remote,
+    const char*, remote,
     int, fd
   ),
   TP_FIELDS(
@@ -71,7 +71,7 @@ TRACEPOINT_EVENT(
   node,
   net_server_connection,
   TP_ARGS(
-    char*, remote,
+    const char*, remote,
     int, port,
     int, fd,
     int, buffered
@@ -88,7 +88,7 @@ TRACEPOINT_EVENT(
   node,
   net_stream_end,
   TP_ARGS(
-    char*, remote,
+    const char*, remote,
     int, port,
     int, fd
   ),

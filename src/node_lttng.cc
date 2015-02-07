@@ -160,7 +160,7 @@ void LTTNG_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   req.forwarded_for = *fwdfor;
 
   if (!strfwdfor->IsString() || req.forwarded_for == nullptr)
-    req.forwarded_for = const_cast<char*>("");
+    req.forwarded_for = "";
 
   SLURP_CONNECTION(args[1], conn);
   NODE_HTTP_SERVER_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \

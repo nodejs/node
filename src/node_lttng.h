@@ -9,13 +9,13 @@ extern "C" {
 typedef struct {
   int32_t fd;
   int32_t port;
-  char* remote;
+  const char* remote;
   int32_t buffered;
 } node_lttng_connection_t;
 
 typedef struct {
-  char* url;
-  char* method;
+  const char* url;
+  const char* method;
 } node_lttng_http_client_request_t;
 
 typedef struct {
@@ -23,10 +23,10 @@ typedef struct {
     uint32_t version;
     uintptr_t unused;  /* for compat. with old 64-bit struct */
   } _un;
-  char* url;
-  char* method;
+  const char* url;
+  const char* method;
   const char* forwarded_for;
-  char* _pad[8];
+  const char* _pad[8];
 } node_lttng_http_server_request_t;
 
 }  // extern "C"
