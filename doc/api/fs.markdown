@@ -106,7 +106,8 @@ Synchronous ftruncate(2).
 ## fs.truncate(path, len, callback)
 
 Asynchronous truncate(2). No arguments other than a possible exception are
-given to the completion callback.
+given to the completion callback. A file descriptor can also be passed as the
+first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
 
