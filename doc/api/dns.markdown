@@ -79,8 +79,8 @@ All properties are optional. An example usage of options is shown below.
 ```
 {
   family: 4,
-  hints: dns.ADDRCONFIG | dns.V4MAPPED
-  all: true
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
+  all: false
 }
 ```
 
