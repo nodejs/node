@@ -38,7 +38,7 @@ this it is possible to allocate external array data to more than a plain Object.
 v8 does not support allocating external array data to an Array, and if passed
 will throw.
 
-It's possible is to specify the type of external array data you would like. All
+It's possible to specify the type of external array data you would like. All
 possible options are listed in `smalloc.Types`. Example usage:
 
     var doubleArr = smalloc.alloc(3, smalloc.Types.Double);
