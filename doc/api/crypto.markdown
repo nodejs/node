@@ -16,7 +16,7 @@ decipher, sign and verify methods.
 
 Load and set engine for some/all OpenSSL functions (selected by flags).
 
-`engine` could be either an id or a path to the to the engine's shared library.
+`engine` could be either an id or a path to the engine's shared library.
 
 `flags` is optional and has `ENGINE_METHOD_ALL` value by default. It could take
 one of or mix of following flags (defined in `constants` module):
