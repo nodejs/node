@@ -70,10 +70,14 @@ API
 
     Initialize the handle using a file descriptor.
 
+    .. versionchanged:: 1.2.2 the file descriptor is set to non-blocking mode.
+
 .. c:function:: int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle, uv_os_sock_t socket)
 
     Initialize the handle using a socket descriptor. On Unix this is identical
     to :c:func:`uv_poll_init`. On windows it takes a SOCKET handle.
+
+    .. versionchanged:: 1.2.2 the socket is set to non-blocking mode.
 
 .. c:function:: int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb)
 

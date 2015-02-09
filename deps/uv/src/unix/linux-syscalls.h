@@ -131,7 +131,7 @@ int uv__epoll_pwait(int epfd,
                     struct uv__epoll_event* events,
                     int nevents,
                     int timeout,
-                    const sigset_t* sigmask);
+                    uint64_t sigmask);
 int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);

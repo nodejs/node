@@ -55,17 +55,15 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Make a copy of the file name, it outlives this function's scope. */
   pipe_fname = strdup(name);
-  if (pipe_fname == NULL) {
-    err = -ENOMEM;
-    goto out;
-  }
+  if (pipe_fname == NULL)
+    return -ENOMEM;
 
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
 
   err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
   if (err < 0)
-    goto out;
+    goto err_socket;
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
@@ -78,7 +76,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == -ENOENT)
       err = -EACCES;
-    goto out;
+    goto err_bind;
   }
 
   /* Success. */
@@ -86,11 +84,10 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   handle->io_watcher.fd = sockfd;
   return 0;
 
-out:
-  /* unlink() before uv__close() to avoid races. */
-  assert(pipe_fname != NULL);
-  unlink(pipe_fname);
+err_bind:
   uv__close(sockfd);
+
+err_socket:
   free((void*)pipe_fname);
   return err;
 }
@@ -128,9 +125,13 @@ void uv__pipe_close(uv_pipe_t* handle) {
 
 
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
-#if defined(__APPLE__)
   int err;
 
+  err = uv__nonblock(fd, 1);
+  if (err)
+    return err;
+
+#if defined(__APPLE__)
   err = uv__stream_try_select((uv_stream_t*) handle, &fd);
   if (err)
     return err;
@@ -205,35 +206,53 @@ out:
 }
 
 
-int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
+typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
+
+
+static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
+                                    uv__peersockfunc func,
+                                    char* buffer,
+                                    size_t* size) {
   struct sockaddr_un sa;
   socklen_t addrlen;
   int err;
 
   addrlen = sizeof(sa);
   memset(&sa, 0, addrlen);
-  err = getsockname(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
+  err = func(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
   if (err < 0) {
-    *len = 0;
+    *size = 0;
     return -errno;
   }
 
+#if defined(__linux__)
   if (sa.sun_path[0] == 0)
     /* Linux abstract namespace */
     addrlen -= offsetof(struct sockaddr_un, sun_path);
   else
-    addrlen = strlen(sa.sun_path) + 1;
+#endif
+    addrlen = strlen(sa.sun_path);
 
 
-  if (addrlen > *len) {
-    *len = addrlen;
+  if (addrlen > *size) {
+    *size = addrlen;
     return UV_ENOBUFS;
   }
 
-  memcpy(buf, sa.sun_path, addrlen);
-  *len = addrlen;
+  memcpy(buffer, sa.sun_path, addrlen);
+  *size = addrlen;
 
   return 0;
+}
+
+
+int uv_pipe_getsockname(const uv_pipe_t* handle, char* buffer, size_t* size) {
+  return uv__pipe_getsockpeername(handle, getsockname, buffer, size);
+}
+
+
+int uv_pipe_getpeername(const uv_pipe_t* handle, char* buffer, size_t* size) {
+  return uv__pipe_getsockpeername(handle, getpeername, buffer, size);
 }
 
 

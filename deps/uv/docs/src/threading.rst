@@ -56,6 +56,9 @@ Threads
 ^^^^^^^
 
 .. c:function:: int uv_thread_create(uv_thread_t* tid, uv_thread_cb entry, void* arg)
+
+    .. versionchanged:: 1.4.1 returns a UV_E* error code on failure
+
 .. c:function:: uv_thread_t uv_thread_self(void)
 .. c:function:: int uv_thread_join(uv_thread_t *tid)
 .. c:function:: int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2)

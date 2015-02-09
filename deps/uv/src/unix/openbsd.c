@@ -47,7 +47,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
@@ -85,7 +85,7 @@ int uv_exepath(char* buffer, size_t* size) {
   pid_t mypid;
   int err;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   mypid = getpid();
@@ -108,17 +108,19 @@ int uv_exepath(char* buffer, size_t* size) {
     }
     argsbuf_size *= 2U;
   }
+
   if (argsbuf[0] == NULL) {
     err = -EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
     goto out;
   }
+
+  *size -= 1;
   exepath_size = strlen(argsbuf[0]);
-  if (exepath_size >= *size) {
-    err = -EINVAL;
-    goto out;
-  }
-  memcpy(buffer, argsbuf[0], exepath_size + 1U);
-  *size = exepath_size;
+  if (*size > exepath_size)
+    *size = exepath_size;
+
+  memcpy(buffer, argsbuf[0], *size);
+  buffer[*size] = '\0';
   err = 0;
 
 out:

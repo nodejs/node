@@ -22,7 +22,6 @@
 #include <errno.h>
 
 #ifndef _WIN32
-# include <fcntl.h>
 # include <sys/socket.h>
 # include <unistd.h>
 #endif
@@ -86,23 +85,7 @@ static int got_eagain(void) {
 }
 
 
-static void set_nonblocking(uv_os_sock_t sock) {
-  int r;
-#ifdef _WIN32
-  unsigned long on = 1;
-  r = ioctlsocket(sock, FIONBIO, &on);
-  ASSERT(r == 0);
-#else
-  int flags = fcntl(sock, F_GETFL, 0);
-  ASSERT(flags >= 0);
-  r = fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-  ASSERT(r >= 0);
-#endif
-}
-
-
-static uv_os_sock_t create_nonblocking_bound_socket(
-    struct sockaddr_in bind_addr) {
+static uv_os_sock_t create_bound_socket (struct sockaddr_in bind_addr) {
   uv_os_sock_t sock;
   int r;
 
@@ -112,8 +95,6 @@ static uv_os_sock_t create_nonblocking_bound_socket(
 #else
   ASSERT(sock >= 0);
 #endif
-
-  set_nonblocking(sock);
 
 #ifndef _WIN32
   {
@@ -479,8 +460,6 @@ static void server_poll_cb(uv_poll_t* handle, int status, int events) {
   ASSERT(sock >= 0);
 #endif
 
-  set_nonblocking(sock);
-
   connection_context = create_connection_context(sock, 1);
   connection_context->events = UV_READABLE | UV_WRITABLE;
   r = uv_poll_start(&connection_context->poll_handle,
@@ -502,7 +481,7 @@ static void start_server(void) {
   int r;
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  sock = create_nonblocking_bound_socket(addr);
+  sock = create_bound_socket(addr);
   context = create_server_context(sock);
 
   r = listen(sock, 100);
@@ -523,7 +502,7 @@ static void start_client(void) {
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
   ASSERT(0 == uv_ip4_addr("0.0.0.0", 0, &addr));
 
-  sock = create_nonblocking_bound_socket(addr);
+  sock = create_bound_socket(addr);
   context = create_connection_context(sock, 0);
 
   context->events = UV_READABLE | UV_WRITABLE;

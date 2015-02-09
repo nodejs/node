@@ -52,6 +52,8 @@ API
 
 .. c:function:: int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...)
 
+    .. versionadded:: 1.0.2
+
     Set additional loop options.  You should normally call this before the
     first call to :c:func:`uv_run` unless mentioned otherwise.
 
@@ -77,6 +79,12 @@ API
 
     Returns the initialized default loop. It may return NULL in case of
     allocation failure.
+
+    This function is just a convenient way for having a global loop throughout
+    an application, the default loop is in no way different than the ones
+    initialized with :c:func:`uv_loop_init`. As such, the default loop can (and
+    should) be closed with :c:func:`uv_loop_close` so the resources associated
+    with it are freed.
 
 .. c:function:: int uv_run(uv_loop_t* loop, uv_run_mode mode)
 

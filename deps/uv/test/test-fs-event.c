@@ -642,6 +642,7 @@ TEST_IMPL(fs_event_getpath) {
   len = sizeof buf;
   r = uv_fs_event_getpath(&fs_event, buf, &len);
   ASSERT(r == 0);
+  ASSERT(buf[len - 1] != 0);
   ASSERT(memcmp(buf, "watch_dir", len) == 0);
   r = uv_fs_event_stop(&fs_event);
   ASSERT(r == 0);

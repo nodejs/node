@@ -17,28 +17,8 @@
       }],
     ],
     'xcode_settings': {
-        'conditions': [
-          [ 'clang==1', {
-            'WARNING_CFLAGS': [
-              '-Wall',
-              '-Wextra',
-              '-Wno-unused-parameter',
-              '-Wno-dollar-in-identifier-extension'
-            ]}, {
-           'WARNING_CFLAGS': [
-             '-Wall',
-             '-Wextra',
-             '-Wno-unused-parameter'
-          ]}
-        ]
-      ],
-      'OTHER_LDFLAGS': [
-      ],
-      'OTHER_CFLAGS': [
-        '-g',
-        '--std=gnu89',
-        '-pedantic'
-      ],
+      'WARNING_CFLAGS': [ '-Wall', '-Wextra', '-Wno-unused-parameter' ],
+      'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
     }
   },
 
@@ -84,12 +64,6 @@
         'src/version.c'
       ],
       'conditions': [
-        [ 'gcc_version<=44', {
-          # GCC versions <= 4.4 do not handle the aliasing in the queue
-          # implementation, so disable aliasing on these platforms
-          # to avoid subtle bugs
-          'cflags': [ '-fno-strict-aliasing' ],
-        }],
         [ 'OS=="win"', {
           'defines': [
             '_WIN32_WINNT=0x0600',
@@ -221,6 +195,7 @@
           'cflags': [ '-Wstrict-aliasing' ],
         }],
         [ 'OS=="linux"', {
+          'defines': [ '_GNU_SOURCE' ],
           'sources': [
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
@@ -341,6 +316,7 @@
         'test/test-loop-close.c',
         'test/test-loop-stop.c',
         'test/test-loop-time.c',
+        'test/test-loop-configure.c',
         'test/test-walk-handles.c',
         'test/test-watcher-cross-stop.c',
         'test/test-multiple-listen.c',
@@ -353,9 +329,11 @@
         'test/test-pipe-sendmsg.c',
         'test/test-pipe-server-close.c',
         'test/test-pipe-close-stdout-read-stdin.c',
+        'test/test-pipe-set-non-blocking.c',
         'test/test-platform-output.c',
         'test/test-poll.c',
         'test/test-poll-close.c',
+        'test/test-poll-close-doesnt-corrupt-stack.c',
         'test/test-poll-closesocket.c',
         'test/test-process-title.c',
         'test/test-ref.c',
@@ -388,6 +366,7 @@
         'test/test-tcp-writealot.c',
         'test/test-tcp-try-write.c',
         'test/test-tcp-unexpected-read.c',
+        'test/test-tcp-oob.c',
         'test/test-tcp-read-stop.c',
         'test/test-tcp-write-queue-order.c',
         'test/test-threadpool.c',

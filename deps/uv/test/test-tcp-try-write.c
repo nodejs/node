@@ -28,16 +28,6 @@
 
 #define MAX_BYTES 1024 * 1024
 
-#ifdef _WIN32
-
-TEST_IMPL(tcp_try_write) {
-
-  MAKE_VALGRIND_HAPPY();
-  return 0;
-}
-
-#else  /* !_WIN32 */
-
 static uv_tcp_t server;
 static uv_tcp_t client;
 static uv_tcp_t incoming;
@@ -138,5 +128,3 @@ TEST_IMPL(tcp_try_write) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-
-#endif  /* !_WIN32 */

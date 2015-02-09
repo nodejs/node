@@ -30,53 +30,43 @@
 #define HAVE_SRWLOCK_API() (pTryAcquireSRWLockShared != NULL)
 #define HAVE_CONDVAR_API() (pInitializeConditionVariable != NULL)
 
-#ifdef _MSC_VER /* msvc */
-# define inline __inline
-# define NOINLINE __declspec (noinline)
-#else  /* gcc */
-# define inline inline
-# define NOINLINE __attribute__ ((noinline))
-#endif
+static int uv__rwlock_srwlock_init(uv_rwlock_t* rwlock);
+static void uv__rwlock_srwlock_destroy(uv_rwlock_t* rwlock);
+static void uv__rwlock_srwlock_rdlock(uv_rwlock_t* rwlock);
+static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_srwlock_rdunlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_srwlock_wrlock(uv_rwlock_t* rwlock);
+static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock);
+
+static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock);
+static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock);
+static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock);
+static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock);
+static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock);
+static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock);
 
 
-inline static int uv__rwlock_srwlock_init(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_srwlock_destroy(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_srwlock_rdlock(uv_rwlock_t* rwlock);
-inline static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_srwlock_rdunlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_srwlock_wrlock(uv_rwlock_t* rwlock);
-inline static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock);
-
-inline static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock);
-inline static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock);
-inline static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock);
-inline static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock);
-
-
-inline static int uv_cond_fallback_init(uv_cond_t* cond);
-inline static void uv_cond_fallback_destroy(uv_cond_t* cond);
-inline static void uv_cond_fallback_signal(uv_cond_t* cond);
-inline static void uv_cond_fallback_broadcast(uv_cond_t* cond);
-inline static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex);
-inline static int uv_cond_fallback_timedwait(uv_cond_t* cond,
+static int uv_cond_fallback_init(uv_cond_t* cond);
+static void uv_cond_fallback_destroy(uv_cond_t* cond);
+static void uv_cond_fallback_signal(uv_cond_t* cond);
+static void uv_cond_fallback_broadcast(uv_cond_t* cond);
+static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex);
+static int uv_cond_fallback_timedwait(uv_cond_t* cond,
     uv_mutex_t* mutex, uint64_t timeout);
 
-inline static int uv_cond_condvar_init(uv_cond_t* cond);
-inline static void uv_cond_condvar_destroy(uv_cond_t* cond);
-inline static void uv_cond_condvar_signal(uv_cond_t* cond);
-inline static void uv_cond_condvar_broadcast(uv_cond_t* cond);
-inline static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex);
-inline static int uv_cond_condvar_timedwait(uv_cond_t* cond,
+static int uv_cond_condvar_init(uv_cond_t* cond);
+static void uv_cond_condvar_destroy(uv_cond_t* cond);
+static void uv_cond_condvar_signal(uv_cond_t* cond);
+static void uv_cond_condvar_broadcast(uv_cond_t* cond);
+static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex);
+static int uv_cond_condvar_timedwait(uv_cond_t* cond,
     uv_mutex_t* mutex, uint64_t timeout);
 
 
-static NOINLINE void uv__once_inner(uv_once_t* guard,
-    void (*callback)(void)) {
+static void uv__once_inner(uv_once_t* guard, void (*callback)(void)) {
   DWORD result;
   HANDLE existing_event, created_event;
 
@@ -117,7 +107,19 @@ void uv_once(uv_once_t* guard, void (*callback)(void)) {
   uv__once_inner(guard, callback);
 }
 
-static UV_THREAD_LOCAL uv_thread_t uv__current_thread = NULL;
+
+/* Verify that uv_thread_t can be stored in a TLS slot. */
+STATIC_ASSERT(sizeof(uv_thread_t) <= sizeof(void*));
+
+static uv_key_t uv__current_thread_key;
+static uv_once_t uv__current_thread_init_guard = UV_ONCE_INIT;
+
+
+static void uv__init_current_thread_key(void) {
+  if (uv_key_create(&uv__current_thread_key))
+    abort();
+}
+
 
 struct thread_ctx {
   void (*entry)(void* arg);
@@ -126,8 +128,7 @@ struct thread_ctx {
 };
 
 
-static UINT __stdcall uv__thread_start(void* arg)
-{
+static UINT __stdcall uv__thread_start(void* arg) {
   struct thread_ctx *ctx_p;
   struct thread_ctx ctx;
 
@@ -135,7 +136,9 @@ static UINT __stdcall uv__thread_start(void* arg)
   ctx = *ctx_p;
   free(ctx_p);
 
-  uv__current_thread = ctx.self;
+  uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
+  uv_key_set(&uv__current_thread_key, (void*) ctx.self);
+
   ctx.entry(ctx.arg);
 
   return 0;
@@ -172,13 +175,25 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
     ResumeThread(thread);
   }
 
-  return err;
+  switch (err) {
+    case 0:
+      return 0;
+    case EACCES:
+      return UV_EACCES;
+    case EAGAIN:
+      return UV_EAGAIN;
+    case EINVAL:
+      return UV_EINVAL;
+  }
+
+  return UV_EIO;
 }
 
 
 uv_thread_t uv_thread_self(void) {
-  return uv__current_thread;
+  return (uv_thread_t) uv_key_get(&uv__current_thread_key);
 }
+
 
 int uv_thread_join(uv_thread_t *tid) {
   if (WaitForSingleObject(*tid, INFINITE))
@@ -332,23 +347,23 @@ int uv_sem_trywait(uv_sem_t* sem) {
 }
 
 
-inline static int uv__rwlock_srwlock_init(uv_rwlock_t* rwlock) {
+static int uv__rwlock_srwlock_init(uv_rwlock_t* rwlock) {
   pInitializeSRWLock(&rwlock->srwlock_);
   return 0;
 }
 
 
-inline static void uv__rwlock_srwlock_destroy(uv_rwlock_t* rwlock) {
+static void uv__rwlock_srwlock_destroy(uv_rwlock_t* rwlock) {
   (void) rwlock;
 }
 
 
-inline static void uv__rwlock_srwlock_rdlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_srwlock_rdlock(uv_rwlock_t* rwlock) {
   pAcquireSRWLockShared(&rwlock->srwlock_);
 }
 
 
-inline static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock) {
+static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock) {
   if (pTryAcquireSRWLockShared(&rwlock->srwlock_))
     return 0;
   else
@@ -356,17 +371,17 @@ inline static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock) {
 }
 
 
-inline static void uv__rwlock_srwlock_rdunlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_srwlock_rdunlock(uv_rwlock_t* rwlock) {
   pReleaseSRWLockShared(&rwlock->srwlock_);
 }
 
 
-inline static void uv__rwlock_srwlock_wrlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_srwlock_wrlock(uv_rwlock_t* rwlock) {
   pAcquireSRWLockExclusive(&rwlock->srwlock_);
 }
 
 
-inline static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock) {
+static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock) {
   if (pTryAcquireSRWLockExclusive(&rwlock->srwlock_))
     return 0;
   else
@@ -374,12 +389,12 @@ inline static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock) {
 }
 
 
-inline static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock) {
   pReleaseSRWLockExclusive(&rwlock->srwlock_);
 }
 
 
-inline static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock) {
+static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock) {
   int err;
 
   err = uv_mutex_init(&rwlock->fallback_.read_mutex_);
@@ -398,13 +413,13 @@ inline static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock) {
 }
 
 
-inline static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock) {
+static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock) {
   uv_mutex_destroy(&rwlock->fallback_.read_mutex_);
   uv_mutex_destroy(&rwlock->fallback_.write_mutex_);
 }
 
 
-inline static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock) {
   uv_mutex_lock(&rwlock->fallback_.read_mutex_);
 
   if (++rwlock->fallback_.num_readers_ == 1)
@@ -414,7 +429,7 @@ inline static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock) {
 }
 
 
-inline static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock) {
+static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock) {
   int err;
 
   err = uv_mutex_trylock(&rwlock->fallback_.read_mutex_);
@@ -435,7 +450,7 @@ out:
 }
 
 
-inline static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock) {
   uv_mutex_lock(&rwlock->fallback_.read_mutex_);
 
   if (--rwlock->fallback_.num_readers_ == 0)
@@ -445,17 +460,17 @@ inline static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock) {
 }
 
 
-inline static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock) {
   uv_mutex_lock(&rwlock->fallback_.write_mutex_);
 }
 
 
-inline static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock) {
+static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock) {
   return uv_mutex_trylock(&rwlock->fallback_.write_mutex_);
 }
 
 
-inline static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock) {
+static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock) {
   uv_mutex_unlock(&rwlock->fallback_.write_mutex_);
 }
 
@@ -468,7 +483,7 @@ inline static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock) {
  * uv_cond_timedwait() to be HANDLEs, but we use CRITICAL_SECTIONs.
  */
 
-inline static int uv_cond_fallback_init(uv_cond_t* cond) {
+static int uv_cond_fallback_init(uv_cond_t* cond) {
   int err;
 
   /* Initialize the count to 0. */
@@ -506,7 +521,7 @@ error2:
 }
 
 
-inline static int uv_cond_condvar_init(uv_cond_t* cond) {
+static int uv_cond_condvar_init(uv_cond_t* cond) {
   pInitializeConditionVariable(&cond->cond_var);
   return 0;
 }
@@ -522,7 +537,7 @@ int uv_cond_init(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_fallback_destroy(uv_cond_t* cond) {
+static void uv_cond_fallback_destroy(uv_cond_t* cond) {
   if (!CloseHandle(cond->fallback.broadcast_event))
     abort();
   if (!CloseHandle(cond->fallback.signal_event))
@@ -531,7 +546,7 @@ inline static void uv_cond_fallback_destroy(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_condvar_destroy(uv_cond_t* cond) {
+static void uv_cond_condvar_destroy(uv_cond_t* cond) {
   /* nothing to do */
 }
 
@@ -544,7 +559,7 @@ void uv_cond_destroy(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_fallback_signal(uv_cond_t* cond) {
+static void uv_cond_fallback_signal(uv_cond_t* cond) {
   int have_waiters;
 
   /* Avoid race conditions. */
@@ -557,7 +572,7 @@ inline static void uv_cond_fallback_signal(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_condvar_signal(uv_cond_t* cond) {
+static void uv_cond_condvar_signal(uv_cond_t* cond) {
   pWakeConditionVariable(&cond->cond_var);
 }
 
@@ -570,7 +585,7 @@ void uv_cond_signal(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_fallback_broadcast(uv_cond_t* cond) {
+static void uv_cond_fallback_broadcast(uv_cond_t* cond) {
   int have_waiters;
 
   /* Avoid race conditions. */
@@ -583,7 +598,7 @@ inline static void uv_cond_fallback_broadcast(uv_cond_t* cond) {
 }
 
 
-inline static void uv_cond_condvar_broadcast(uv_cond_t* cond) {
+static void uv_cond_condvar_broadcast(uv_cond_t* cond) {
   pWakeAllConditionVariable(&cond->cond_var);
 }
 
@@ -596,7 +611,7 @@ void uv_cond_broadcast(uv_cond_t* cond) {
 }
 
 
-inline int uv_cond_wait_helper(uv_cond_t* cond, uv_mutex_t* mutex,
+static int uv_cond_wait_helper(uv_cond_t* cond, uv_mutex_t* mutex,
     DWORD dwMilliseconds) {
   DWORD result;
   int last_waiter;
@@ -646,13 +661,13 @@ inline int uv_cond_wait_helper(uv_cond_t* cond, uv_mutex_t* mutex,
 }
 
 
-inline static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
+static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
   if (uv_cond_wait_helper(cond, mutex, INFINITE))
     abort();
 }
 
 
-inline static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
+static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
   if (!pSleepConditionVariableCS(&cond->cond_var, mutex, INFINITE))
     abort();
 }
@@ -666,13 +681,13 @@ void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
 }
 
 
-inline static int uv_cond_fallback_timedwait(uv_cond_t* cond,
+static int uv_cond_fallback_timedwait(uv_cond_t* cond,
     uv_mutex_t* mutex, uint64_t timeout) {
   return uv_cond_wait_helper(cond, mutex, (DWORD)(timeout / 1e6));
 }
 
 
-inline static int uv_cond_condvar_timedwait(uv_cond_t* cond,
+static int uv_cond_condvar_timedwait(uv_cond_t* cond,
     uv_mutex_t* mutex, uint64_t timeout) {
   if (pSleepConditionVariableCS(&cond->cond_var, mutex, (DWORD)(timeout / 1e6)))
     return 0;

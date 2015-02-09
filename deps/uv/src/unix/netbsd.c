@@ -49,7 +49,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
@@ -83,7 +83,7 @@ int uv_exepath(char* buffer, size_t* size) {
   size_t cb;
   pid_t mypid;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   mypid = getpid();

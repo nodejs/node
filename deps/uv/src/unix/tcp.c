@@ -156,6 +156,12 @@ int uv__tcp_connect(uv_connect_t* req,
 
 
 int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
+  int err;
+
+  err = uv__nonblock(sock, 1);
+  if (err)
+    return err;
+
   return uv__stream_open((uv_stream_t*)handle,
                          sock,
                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);

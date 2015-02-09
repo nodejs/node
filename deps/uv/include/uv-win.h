@@ -294,6 +294,7 @@ typedef struct uv__dirent_s {
   char d_name[1];
 } uv__dirent_t;
 
+#define HAVE_DIRENT_TYPES
 #define UV__DT_DIR     UV_DIRENT_DIR
 #define UV__DT_FILE    UV_DIRENT_FILE
 #define UV__DT_LINK    UV_DIRENT_LINK
@@ -517,10 +518,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   /* Used in fast mode */                                                     \
   SOCKET peer_socket;                                                         \
   AFD_POLL_INFO afd_poll_info_1;                                              \
-  union {                                                                     \
-    AFD_POLL_INFO* afd_poll_info_ptr;                                         \
-    AFD_POLL_INFO afd_poll_info;                                              \
-  } afd_poll_info_2;                                                          \
+  AFD_POLL_INFO afd_poll_info_2;                                              \
   /* Used in fast and slow mode. */                                           \
   uv_req_t poll_req_1;                                                        \
   uv_req_t poll_req_2;                                                        \
@@ -568,8 +566,11 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   void* alloc;                                                                \
   WCHAR* node;                                                                \
   WCHAR* service;                                                             \
-  struct addrinfoW* hints;                                                    \
-  struct addrinfoW* res;                                                      \
+  /* The addrinfoW field is used to store a pointer to the hints, and    */   \
+  /* later on to store the result of GetAddrInfoW. The final result will */   \
+  /* be converted to struct addrinfo* and stored in the addrinfo field.  */   \
+  struct addrinfoW* addrinfow;                                                \
+  struct addrinfo* addrinfo;                                                  \
   int retcode;
 
 #define UV_GETNAMEINFO_PRIVATE_FIELDS                                         \

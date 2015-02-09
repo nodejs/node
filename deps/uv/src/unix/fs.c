@@ -35,8 +35,10 @@
 #include <string.h>
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -48,30 +50,12 @@
     defined(__OpenBSD__)    ||                                            \
     defined(__NetBSD__)
 # define HAVE_PREADV 1
-#elif defined(__linux__)
-# include <linux/version.h>
-# if defined(__GLIBC_PREREQ)
-#   if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30) &&                    \
-       __GLIBC_PREREQ(2,10)
-#    define HAVE_PREADV 1
-#   else
-#    define HAVE_PREADV 0
-#   endif
-# else
-#  define HAVE_PREADV 0
-# endif
 #else
 # define HAVE_PREADV 0
 #endif
 
 #if defined(__linux__) || defined(__sun)
 # include <sys/sendfile.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-# include <sys/socket.h>
-#endif
-
-#if HAVE_PREADV || defined(__APPLE__)
-# include <sys/uio.h>
 #endif
 
 #define INIT(type)                                                            \
@@ -219,6 +203,9 @@ static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_read(uv_fs_t* req) {
+#if defined(__linux__)
+  static int no_preadv;
+#endif
   ssize_t result;
 
 #if defined(_AIX)
@@ -245,16 +232,12 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    static int no_preadv;
-    if (no_preadv)
+    if (no_preadv) retry:
 # endif
     {
       off_t nread;
       size_t index;
 
-# if defined(__linux__)
-    retry:
-# endif
       nread = 0;
       index = 0;
       result = 1;
@@ -578,6 +561,9 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_write(uv_fs_t* req) {
+#if defined(__linux__)
+  static int no_pwritev;
+#endif
   ssize_t r;
 
   /* Serialize writes on OS X, concurrent write() and pwrite() calls result in
@@ -603,16 +589,12 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
     r = pwritev(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    static int no_pwritev;
-    if (no_pwritev)
+    if (no_pwritev) retry:
 # endif
     {
       off_t written;
       size_t index;
 
-# if defined(__linux__)
-    retry:
-# endif
       written = 0;
       index = 0;
       r = 0;

@@ -31,6 +31,7 @@ sNtDeviceIoControlFile pNtDeviceIoControlFile;
 sNtQueryInformationFile pNtQueryInformationFile;
 sNtSetInformationFile pNtSetInformationFile;
 sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+sNtQueryDirectoryFile pNtQueryDirectoryFile;
 sNtQuerySystemInformation pNtQuerySystemInformation;
 
 
@@ -93,6 +94,12 @@ void uv_winapi_init() {
 
   pNtQueryVolumeInformationFile = (sNtQueryVolumeInformationFile)
       GetProcAddress(ntdll_module, "NtQueryVolumeInformationFile");
+  if (pNtQueryVolumeInformationFile == NULL) {
+    uv_fatal_error(GetLastError(), "GetProcAddress");
+  }
+
+  pNtQueryDirectoryFile = (sNtQueryDirectoryFile)
+      GetProcAddress(ntdll_module, "NtQueryDirectoryFile");
   if (pNtQueryVolumeInformationFile == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }

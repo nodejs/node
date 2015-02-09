@@ -68,6 +68,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   const char* arg;
   char* args[16];
   int n;
+  pid_t pid;
 
   stdout_file = tmpfile();
   if (!stdout_file) {
@@ -78,7 +79,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   p->terminated = 0;
   p->status = 0;
 
-  pid_t pid = fork();
+  pid = fork();
 
   if (pid < 0) {
     perror("fork");
@@ -167,8 +168,14 @@ static void* dowait(void* data) {
 /* Return 0 if all processes are terminated, -1 on error, -2 on timeout. */
 int process_wait(process_info_t* vec, int n, int timeout) {
   int i;
+  int r;
+  int retval;
   process_info_t* p;
   dowait_args args;
+  pthread_t tid;
+  struct timeval tv;
+  fd_set fds;
+
   args.vec = vec;
   args.n = n;
   args.pipe[0] = -1;
@@ -186,10 +193,7 @@ int process_wait(process_info_t* vec, int n, int timeout) {
    * we'd need to lock vec.
    */
 
-  pthread_t tid;
-  int retval;
-
-  int r = pipe((int*)&(args.pipe));
+  r = pipe((int*)&(args.pipe));
   if (r) {
     perror("pipe()");
     return -1;
@@ -202,11 +206,9 @@ int process_wait(process_info_t* vec, int n, int timeout) {
     goto terminate;
   }
 
-  struct timeval tv;
   tv.tv_sec = timeout / 1000;
   tv.tv_usec = 0;
 
-  fd_set fds;
   FD_ZERO(&fds);
   FD_SET(args.pipe[0], &fds);
 
@@ -259,14 +261,15 @@ long int process_output_size(process_info_t *p) {
 
 /* Copy the contents of the stdio output buffer to `fd`. */
 int process_copy_output(process_info_t *p, int fd) {
-  int r = fseek(p->stdout_file, 0, SEEK_SET);
+  ssize_t nwritten;
+  char buf[1024];
+  int r;
+
+  r = fseek(p->stdout_file, 0, SEEK_SET);
   if (r < 0) {
     perror("fseek");
     return -1;
   }
-
-  ssize_t nwritten;
-  char buf[1024];
 
   /* TODO: what if the line is longer than buf */
   while (fgets(buf, sizeof(buf), p->stdout_file) != NULL) {

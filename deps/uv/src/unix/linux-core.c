@@ -33,7 +33,6 @@
 #include <sys/prctl.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <time.h>
 
@@ -75,7 +74,7 @@ static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   int fd;
 
   fd = uv__epoll_create1(UV__EPOLL_CLOEXEC);
@@ -137,13 +136,15 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
 
 void uv__io_poll(uv_loop_t* loop, int timeout) {
+  static int no_epoll_pwait;
+  static int no_epoll_wait;
   struct uv__epoll_event events[1024];
   struct uv__epoll_event* pe;
   struct uv__epoll_event e;
   QUEUE* q;
   uv__io_t* w;
-  sigset_t* pset;
-  sigset_t set;
+  sigset_t sigset;
+  uint64_t sigmask;
   uint64_t base;
   uint64_t diff;
   int nevents;
@@ -152,7 +153,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
   int op;
   int i;
-  static int no_epoll_wait;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -194,11 +194,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
-  pset = NULL;
+  sigmask = 0;
   if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
-    pset = &set;
-    sigemptyset(pset);
-    sigaddset(pset, SIGPROF);
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGPROF);
+    sigmask |= 1 << (SIGPROF - 1);
   }
 
   assert(timeout >= -1);
@@ -206,22 +206,30 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
   for (;;) {
-    if (no_epoll_wait || pset != NULL) {
+    if (sigmask != 0 && no_epoll_pwait != 0)
+      if (pthread_sigmask(SIG_BLOCK, &sigset, NULL))
+        abort();
+
+    if (sigmask != 0 && no_epoll_pwait == 0) {
       nfds = uv__epoll_pwait(loop->backend_fd,
                              events,
                              ARRAY_SIZE(events),
                              timeout,
-                             pset);
+                             sigmask);
+      if (nfds == -1 && errno == ENOSYS)
+        no_epoll_pwait = 1;
     } else {
       nfds = uv__epoll_wait(loop->backend_fd,
                             events,
                             ARRAY_SIZE(events),
                             timeout);
-      if (nfds == -1 && errno == ENOSYS) {
+      if (nfds == -1 && errno == ENOSYS)
         no_epoll_wait = 1;
-        continue;
-      }
     }
+
+    if (sigmask != 0 && no_epoll_pwait != 0)
+      if (pthread_sigmask(SIG_UNBLOCK, &sigset, NULL))
+        abort();
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -235,6 +243,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (nfds == -1) {
+      if (errno == ENOSYS) {
+        /* epoll_wait() or epoll_pwait() failed, try the other system call. */
+        assert(no_epoll_wait == 0 || no_epoll_pwait == 0);
+        continue;
+      }
+
       if (errno != EINTR)
         abort();
 
@@ -383,10 +397,13 @@ void uv_loadavg(double avg[3]) {
 int uv_exepath(char* buffer, size_t* size) {
   ssize_t n;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-  n = readlink("/proc/self/exe", buffer, *size - 1);
+  n = *size - 1;
+  if (n > 0)
+    n = readlink("/proc/self/exe", buffer, n);
+
   if (n == -1)
     return -errno;
 

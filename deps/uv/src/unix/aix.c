@@ -61,7 +61,7 @@
 #define RDWR_BUF_SIZE   4096
 #define EQ(a,b)         (strcmp(a,b) == 0)
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   loop->fs_fd = -1;
 
   /* Passing maxfd of -1 should mean the limit is determined
@@ -294,7 +294,7 @@ int uv_exepath(char* buffer, size_t* size) {
   int fd;
   char **argv;
 
-  if ((buffer == NULL) || (size == NULL))
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());

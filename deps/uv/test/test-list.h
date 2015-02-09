@@ -29,6 +29,7 @@ TEST_DECLARE   (loop_close)
 TEST_DECLARE   (loop_stop)
 TEST_DECLARE   (loop_update_time)
 TEST_DECLARE   (loop_backend_timeout)
+TEST_DECLARE   (loop_configure)
 TEST_DECLARE   (default_loop_close)
 TEST_DECLARE   (barrier_1)
 TEST_DECLARE   (barrier_2)
@@ -79,6 +80,7 @@ TEST_DECLARE   (tcp_close_while_connecting)
 TEST_DECLARE   (tcp_close)
 #ifndef _WIN32
 TEST_DECLARE   (tcp_close_accept)
+TEST_DECLARE   (tcp_oob)
 #endif
 TEST_DECLARE   (tcp_flags)
 TEST_DECLARE   (tcp_write_to_half_open_connection)
@@ -103,6 +105,7 @@ TEST_DECLARE   (udp_dgram_too_big)
 TEST_DECLARE   (udp_dual_stack)
 TEST_DECLARE   (udp_ipv6_only)
 TEST_DECLARE   (udp_options)
+TEST_DECLARE   (udp_options6)
 TEST_DECLARE   (udp_no_autobind)
 TEST_DECLARE   (udp_open)
 TEST_DECLARE   (udp_try_send)
@@ -165,6 +168,7 @@ TEST_DECLARE   (pipe_ref4)
 #ifndef _WIN32
 TEST_DECLARE   (pipe_close_stdout_read_stdin)
 #endif
+TEST_DECLARE   (pipe_set_non_blocking)
 TEST_DECLARE   (process_ref)
 TEST_DECLARE   (has_ref)
 TEST_DECLARE   (active)
@@ -178,9 +182,12 @@ TEST_DECLARE   (get_memory)
 TEST_DECLARE   (handle_fileno)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_fail)
+TEST_DECLARE   (getaddrinfo_fail_sync)
 TEST_DECLARE   (getaddrinfo_basic)
+TEST_DECLARE   (getaddrinfo_basic_sync)
 TEST_DECLARE   (getaddrinfo_concurrent)
 TEST_DECLARE   (getnameinfo_basic_ip4)
+TEST_DECLARE   (getnameinfo_basic_ip4_sync)
 TEST_DECLARE   (getnameinfo_basic_ip6)
 TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
@@ -269,6 +276,7 @@ TEST_DECLARE   (ip4_addr)
 TEST_DECLARE   (ip6_addr_link_local)
 
 #ifdef _WIN32
+TEST_DECLARE   (poll_close_doesnt_corrupt_stack)
 TEST_DECLARE   (poll_closesocket)
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -312,6 +320,7 @@ TASK_LIST_START
   TEST_ENTRY  (loop_stop)
   TEST_ENTRY  (loop_update_time)
   TEST_ENTRY  (loop_backend_timeout)
+  TEST_ENTRY  (loop_configure)
   TEST_ENTRY  (default_loop_close)
   TEST_ENTRY  (barrier_1)
   TEST_ENTRY  (barrier_2)
@@ -332,6 +341,7 @@ TASK_LIST_START
 #ifndef _WIN32
   TEST_ENTRY  (pipe_close_stdout_read_stdin)
 #endif
+  TEST_ENTRY  (pipe_set_non_blocking)
   TEST_ENTRY  (tty)
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ip6_pton)
@@ -387,6 +397,7 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_close)
 #ifndef _WIN32
   TEST_ENTRY  (tcp_close_accept)
+  TEST_ENTRY  (tcp_oob)
 #endif
   TEST_ENTRY  (tcp_flags)
   TEST_ENTRY  (tcp_write_to_half_open_connection)
@@ -410,6 +421,7 @@ TASK_LIST_START
   TEST_ENTRY  (udp_dual_stack)
   TEST_ENTRY  (udp_ipv6_only)
   TEST_ENTRY  (udp_options)
+  TEST_ENTRY  (udp_options6)
   TEST_ENTRY  (udp_no_autobind)
   TEST_ENTRY  (udp_multicast_interface)
   TEST_ENTRY  (udp_multicast_interface6)
@@ -519,11 +531,14 @@ TASK_LIST_START
   TEST_ENTRY  (hrtime)
 
   TEST_ENTRY_CUSTOM (getaddrinfo_fail, 0, 0, 10000)
+  TEST_ENTRY  (getaddrinfo_fail_sync)
 
   TEST_ENTRY  (getaddrinfo_basic)
+  TEST_ENTRY  (getaddrinfo_basic_sync)
   TEST_ENTRY  (getaddrinfo_concurrent)
 
   TEST_ENTRY  (getnameinfo_basic_ip4)
+  TEST_ENTRY  (getnameinfo_basic_ip4_sync)
   TEST_ENTRY  (getnameinfo_basic_ip6)
 
   TEST_ENTRY  (getsockname_tcp)
@@ -558,6 +573,7 @@ TASK_LIST_START
   TEST_ENTRY  (kill)
 
 #ifdef _WIN32
+  TEST_ENTRY  (poll_close_doesnt_corrupt_stack)
   TEST_ENTRY  (poll_closesocket)
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
   TEST_ENTRY  (argument_escaping)

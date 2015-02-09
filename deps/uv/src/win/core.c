@@ -184,19 +184,7 @@ void uv__once_init(void) {
 }
 
 
-uv_loop_t* uv_default_loop(void) {
-  if (default_loop_ptr != NULL)
-    return default_loop_ptr;
-
-  if (uv_loop_init(&default_loop_struct))
-    return NULL;
-
-  default_loop_ptr = &default_loop_struct;
-  return default_loop_ptr;
-}
-
-
-static void uv__loop_close(uv_loop_t* loop) {
+void uv__loop_close(uv_loop_t* loop) {
   size_t i;
 
   /* close the async handle without needing an extra loop iteration */
@@ -218,57 +206,6 @@ static void uv__loop_close(uv_loop_t* loop) {
   uv_mutex_destroy(&loop->wq_mutex);
 
   CloseHandle(loop->iocp);
-}
-
-
-int uv_loop_close(uv_loop_t* loop) {
-  QUEUE* q;
-  uv_handle_t* h;
-  if (!QUEUE_EMPTY(&(loop)->active_reqs))
-    return UV_EBUSY;
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-    if (!(h->flags & UV__HANDLE_INTERNAL))
-      return UV_EBUSY;
-  }
-
-  uv__loop_close(loop);
-
-#ifndef NDEBUG
-  memset(loop, -1, sizeof(*loop));
-#endif
-  if (loop == default_loop_ptr)
-    default_loop_ptr = NULL;
-
-  return 0;
-}
-
-
-uv_loop_t* uv_loop_new(void) {
-  uv_loop_t* loop;
-
-  loop = (uv_loop_t*)malloc(sizeof(uv_loop_t));
-  if (loop == NULL) {
-    return NULL;
-  }
-
-  if (uv_loop_init(loop)) {
-    free(loop);
-    return NULL;
-  }
-
-  return loop;
-}
-
-
-void uv_loop_delete(uv_loop_t* loop) {
-  uv_loop_t* default_loop;
-  int err;
-  default_loop = default_loop_ptr;
-  err = uv_loop_close(loop);
-  assert(err == 0);
-  if (loop != default_loop)
-    free(loop);
 }
 
 
@@ -387,6 +324,7 @@ int uv_loop_alive(const uv_loop_t* loop) {
 int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   DWORD timeout;
   int r;
+  int ran_pending;
   void (*poll)(uv_loop_t* loop, DWORD timeout);
 
   if (pGetQueuedCompletionStatusEx)
@@ -402,12 +340,12 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_update_time(loop);
     uv_process_timers(loop);
 
-    uv_process_reqs(loop);
+    ran_pending = uv_process_reqs(loop);
     uv_idle_invoke(loop);
     uv_prepare_invoke(loop);
 
     timeout = 0;
-    if ((mode & UV_RUN_NOWAIT) == 0)
+    if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
     (*poll)(loop, timeout);
@@ -428,7 +366,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     }
 
     r = uv__loop_alive(loop);
-    if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
+    if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
       break;
   }
 

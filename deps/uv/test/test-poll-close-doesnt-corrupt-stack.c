@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright Bert Belder, and other libuv contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -22,9 +22,17 @@
 #ifdef _WIN32
 
 #include <errno.h>
+#include <stdio.h>
 
 #include "uv.h"
 #include "task.h"
+
+#ifdef _MSC_VER  /* msvc */
+# define NO_INLINE __declspec(noinline)
+#else  /* gcc */
+# define NO_INLINE __attribute__ ((noinline))
+#endif
+
 
 uv_os_sock_t sock;
 uv_poll_t handle;
@@ -38,21 +46,32 @@ static void close_cb(uv_handle_t* h) {
 
 
 static void poll_cb(uv_poll_t* h, int status, int events) {
-  int r;
-
-  ASSERT(status == 0);
-  ASSERT(h == &handle);
-
-  r = uv_poll_start(&handle, UV_READABLE, poll_cb);
-  ASSERT(r == 0);
-
-  closesocket(sock);
-  uv_close((uv_handle_t*) &handle, close_cb);
-
+  ASSERT(0 && "should never get here");
 }
 
 
-TEST_IMPL(poll_closesocket) {
+static void NO_INLINE close_socket_and_verify_stack() {
+  const uint32_t MARKER = 0xDEADBEEF;
+  const int VERIFY_AFTER = 10; /* ms */
+  int r;
+
+  volatile uint32_t data[65536];
+  size_t i;
+
+  for (i = 0; i < ARRAY_SIZE(data); i++)
+    data[i] = MARKER;
+
+  r = closesocket(sock);
+  ASSERT(r == 0);
+
+  uv_sleep(VERIFY_AFTER);
+
+  for (i = 0; i < ARRAY_SIZE(data); i++)
+    ASSERT(data[i] == MARKER);
+}
+
+
+TEST_IMPL(poll_close_doesnt_corrupt_stack) {
   struct WSAData wsa_data;
   int r;
   unsigned long on;
@@ -76,14 +95,20 @@ TEST_IMPL(poll_closesocket) {
 
   r = uv_poll_init_socket(uv_default_loop(), &handle, sock);
   ASSERT(r == 0);
-  r = uv_poll_start(&handle, UV_WRITABLE, poll_cb);
+  r = uv_poll_start(&handle, UV_READABLE | UV_WRITABLE, poll_cb);
   ASSERT(r == 0);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  uv_close((uv_handle_t*) &handle, close_cb);
+
+  close_socket_and_verify_stack();
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT(r == 0);
 
   ASSERT(close_cb_called == 1);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-#endif
+
+#endif  /* _WIN32 */
