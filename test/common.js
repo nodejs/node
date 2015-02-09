@@ -2,6 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
+var child_process = require('child_process');
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -18,10 +19,33 @@ if (process.env.TEST_THREAD_ID) {
 }
 exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 
-exports.opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
+var opensslCli = null;
+
+// opensslCli defined lazily to reduce overhead of spawnSync
+Object.defineProperty(exports, 'opensslCli', {get: function() {
+  if (opensslCli !== null) return opensslCli;
+
+  if (process.config.variables.node_shared_openssl) {
+    // use external command
+    opensslCli = 'openssl';
+  } else {
+    // use command built from sources included in io.js repository
+    opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
+  }
+
+  if (process.platform === 'win32') opensslCli += '.exe';
+
+  var openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
+  if (openssl_cmd.status !== 0 || openssl_cmd.error !== undefined) {
+    // openssl command cannot be executed
+    opensslCli = false;
+  }
+  return opensslCli;
+}, enumerable: true });
+
+
 if (process.platform === 'win32') {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
-  exports.opensslCli += '.exe';
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
@@ -35,12 +59,6 @@ if (process.env.NODE_COMMON_PIPE) {
   } catch (e) {
     // Ignore.
   }
-}
-
-try {
-  fs.accessSync(exports.opensslCli);
-} catch (err) {
-  exports.opensslCli = false;
 }
 
 if (process.platform === 'win32') {
