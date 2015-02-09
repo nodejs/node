@@ -9,6 +9,11 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var tls = require('tls');
 
+if (common.opensslCli === false) {
+  console.error('Skipping because openssl command cannot be executed');
+  process.exit(0);
+}
+
 var cert = fs.readFileSync(common.fixturesDir + '/test_cert.pem');
 var key = fs.readFileSync(common.fixturesDir + '/test_key.pem');
 var server = tls.createServer({ cert: cert, key: key }, assert.fail);
