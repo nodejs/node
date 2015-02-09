@@ -636,25 +636,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   proto->ForceSet(env->offset_string(),
                   Uint32::New(env->isolate(), 0),
                   v8::ReadOnly);
-
-  CHECK(args[1]->IsObject());
-
-  Local<Object> internal = args[1].As<Object>();
-  ASSERT(internal->IsObject());
-
-  env->SetMethod(internal, "byteLength", ByteLength);
-  env->SetMethod(internal, "compare", Compare);
-  env->SetMethod(internal, "fill", Fill);
-
-  env->SetMethod(internal, "readDoubleBE", ReadDoubleBE);
-  env->SetMethod(internal, "readDoubleLE", ReadDoubleLE);
-  env->SetMethod(internal, "readFloatBE", ReadFloatBE);
-  env->SetMethod(internal, "readFloatLE", ReadFloatLE);
-
-  env->SetMethod(internal, "writeDoubleBE", WriteDoubleBE);
-  env->SetMethod(internal, "writeDoubleLE", WriteDoubleLE);
-  env->SetMethod(internal, "writeFloatBE", WriteFloatBE);
-  env->SetMethod(internal, "writeFloatLE", WriteFloatLE);
 }
 
 
@@ -662,8 +643,23 @@ void Initialize(Handle<Object> target,
                 Handle<Value> unused,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "setupBufferJS"),
-              env->NewFunctionTemplate(SetupBufferJS)->GetFunction());
+
+  env->SetMethod(target, "setupBufferJS", SetupBufferJS);
+
+  env->SetMethod(target, "byteLength", ByteLength);
+  env->SetMethod(target, "byteLength", ByteLength);
+  env->SetMethod(target, "compare", Compare);
+  env->SetMethod(target, "fill", Fill);
+
+  env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
+  env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
+  env->SetMethod(target, "readFloatBE", ReadFloatBE);
+  env->SetMethod(target, "readFloatLE", ReadFloatLE);
+
+  env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
+  env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
+  env->SetMethod(target, "writeFloatBE", WriteFloatBE);
+  env->SetMethod(target, "writeFloatLE", WriteFloatLE);
 }
 
 
