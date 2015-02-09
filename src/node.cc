@@ -23,6 +23,10 @@
 #include "node_dtrace.h"
 #endif
 
+#if defined HAVE_LTTNG
+#include "node_lttng.h"
+#endif
+
 #include "ares.h"
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
@@ -2869,6 +2873,10 @@ void LoadEnvironment(Environment* env) {
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(env, global);
+#endif
+
+#if defined HAVE_LTTNG
+  InitLTTNG(env, global);
 #endif
 
 #if defined HAVE_PERFCTR
