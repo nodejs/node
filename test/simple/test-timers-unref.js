@@ -42,7 +42,8 @@ setTimeout(function() {
 interval = setInterval(function() {
   unref_interval = true;
   clearInterval(interval);
-}, SHORT_TIME).unref();
+}, SHORT_TIME);
+interval.unref();
 
 setTimeout(function() {
   unref_timer = true;
