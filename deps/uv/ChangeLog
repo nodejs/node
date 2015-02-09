@@ -1,3 +1,15 @@
+2015.02.10, Version 1.4.0 (Stable), 19fb8a90648f3763240db004b77ab984264409be
+
+Changes since version 1.3.0:
+
+* unix: check Android support for pthread_cond_timedwait_monotonic_np (Leith
+  Bade)
+
+* test: use modified path in test (cjihrig)
+
+* unix: implement uv_stream_set_blocking() (Ben Noordhuis)
+
+
 2015.01.29, Version 1.3.0 (Stable), 165685b2a9a42cf96501d79cd6d48a18aaa16e3b
 
 Changes since version 1.2.1:
