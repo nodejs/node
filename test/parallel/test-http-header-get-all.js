@@ -2,22 +2,30 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-// Verify that ServerResponse.getHeader() works correctly even after
-// the response header has been sent. Issue 752 on github.
+var s = http.createServer(function(req, res) {
+  var contentType = 'content-type';
+  var plain = 'text/plain';
+  res.setHeader(contentType, plain);
+  assert.ok(!res.headersSent);
+  res.writeHead(200);
+  assert.ok(res.headersSent);
+  res.end('hello world\n');
+  // This checks that after the headers have been sent, getHeader works
+  // and does not throw an exception (joyent/node Issue 752)
+  assert.doesNotThrow(
+      function() {
+        assert.deepStrictEqual({ 'content-type': 'text/plain' }, res.getAllHeaders());
+      }
+  );
+});
 
-var rando = Math.random();
-var expected = util._extend({}, {
-  'X-Random-Thing': rando,
-});
-var server = http.createServer(function(req, res) {
-  res.setHeader('X-Random-Thing', rando);
-  headers = res.getAllHeaders();
-  res.end('hello');
-  assert.strictEqual(res.getAllHeaders(), null);
-});
-server.listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(resp) {
-    assert.deepEqual(response.headers, expected);
-    server.close();
+s.listen(common.PORT, runTest);
+
+function runTest() {
+  http.get({ port: common.PORT }, function(response) {
+    response.on('end', function() {
+      s.close();
+    });
+    response.resume();
   });
-});
+}
