@@ -41,7 +41,7 @@ errors as well as plain JavaScript errors.
 
 Instantiates a new Error object and sets its `.message` property to the provided
 message. Its `.stack` will represent the point in the program at which `new Error`
-was called. Stack traces are subject to [V8's stack trace API](https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi). 
+was called. Stack traces are subject to [V8's stack trace API](https://code.google.com/p/v8-wiki/wiki/JavaScriptStackTraceApi). 
 Stack traces only extend to the beginning of synchronous code execution, *or* a number of frames given by
 `Error.stackTraceLimit`, whichever is smaller.
 
