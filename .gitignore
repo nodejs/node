@@ -45,7 +45,6 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
-/tools/osx-pkg.pmdoc/index.xml
 /test/addons/doc-*/
 email.md
 deps/v8-*
@@ -76,3 +75,8 @@ deps/zlib/zlib.target.mk
 # test artifacts
 tools/faketime
 icu_config.gypi
+
+# mac installer files
+/tools/osx-pkg/osx-pkg-out.pkgproj
+/tools/osx-pkg/strings/LICENSE.txt
+/tools/osx-pkg/strings/**/*.out.rtf

@@ -219,7 +219,7 @@ BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 PKG=out/$(TARNAME).pkg
-packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+packagesbuild=/usr/local/bin/packagesbuild
 
 PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
 ifdef NIGHTLY
@@ -252,9 +252,17 @@ release-only:
 		exit 1 ; \
 	fi
 
+pre-pkg:
+	cp LICENSE tools/osx-pkg/strings/LICENSE.txt
+	cat tools/osx-pkg/osx-pkg.pkgproj | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|introduction.rtf|introduction.out.rtf|g' > tools/osx-pkg/osx-pkg-out.pkgproj
+	$(foreach dir, \
+		$(shell echo tools/osx-pkg/strings/*/), \
+		cat $(dir)introduction.rtf | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > $(dir)introduction.out.rtf; \
+	)
+
 pkg: $(PKG)
 
-$(PKG): release-only
+$(PKG): release-only pre-pkg
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
 	$(PYTHON) ./configure --dest-cpu=ia32 --tag=$(TAG)
@@ -269,11 +277,7 @@ $(PKG): release-only
 		-create
 	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
 	rm -rf $(PKGDIR)/32
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > tools/osx-pkg.pmdoc/index.xml
-	$(packagemaker) \
-		--id "org.nodejs.Node" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
+	$(packagesbuild) tools/osx-pkg/osx-pkg-out.pkgproj
 	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 $(TARBALL): release-only $(NODE_EXE) doc
