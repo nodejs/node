@@ -14,7 +14,7 @@ restrictions, a **system error** is generated. Client code is then given the
 opportunity to **intercept** this error based on how the API **propagates** it.
 
 The style of API called determines how generated errors are handed back, or
-**propagated**, to client code, which in turn informs how client may **intercept**
+**propagated**, to client code, which in turn informs how the client may **intercept**
 the error. Exceptions can be intercepted using the `try / catch` construct;
 other propagation strategies are covered [below](#errors_error_propagation_and_interception).
 
@@ -119,7 +119,7 @@ loop tick.
 System-level errors are generated as augmented Error instances, which are detailed
 [below](#errors_system_errors).
 
-#### Error.captureStackTrace(targetObject)
+#### Error.captureStackTrace(targetObject[, constructorOpt])
 
 Creates a `.stack` property on `targetObject`, which when accessed returns
 a string representing the location in the program at which `Error.captureStackTrace`
@@ -135,6 +135,27 @@ myObject.stack  // similar to `new Error().stack`
 
 The first line of the trace, instead of being prefixed with `ErrorType:
 message`, will be the result of `targetObject.toString()`.
+
+`constructorOpt` optionally accepts a function. If given, all frames above
+`constructorOpt`, including `constructorOpt`, will be omitted from the generated
+stack trace. 
+
+This is useful for hiding implementation details of error generation from the
+end user. A common way of using this parameter is to pass the current Error
+constructor to it:
+
+```javascript
+
+function MyError() {
+  Error.captureStackTrace(this, MyError);
+}
+
+// without passing MyError to captureStackTrace, the MyError
+// frame would should up in the .stack property. by passing
+// the constructor, we omit that frame and all frames above it.
+new MyError().stack
+
+```
 
 #### Error.stackTraceLimit
 
@@ -176,10 +197,11 @@ of argument validation.
 
 A subclass of Error that indicates that an attempt is being made to access a variable
 that is not defined. Most commonly it indicates a typo, or an otherwise broken program.
-Only V8 may generate and propagate these errors.
+While client code may generate and propagate these errors, in practice only V8 will do
+so.
 
 ```javascript
-doesNotExist; // throws ReferenceError, `doesNotExist` is not a variable in this program.
+doesNotExist; // throws ReferenceError, doesNotExist is not a variable in this program.
 ```
 
 ReferenceError instances will have an `.arguments` member that is an array containing
