@@ -276,6 +276,7 @@ information about the governance of the io.js project, see
 * **Nikolai Vavilov** ([@seishun](https://github.com/seishun)) &lt;vvnicholas@gmail.com&gt;
 * **Nicu Micleușanu** ([@micnic](https://github.com/micnic)) &lt;micnic90@gmail.com&gt;
 * **Aleksey Smolenchuk** ([@lxe](https://github.com/lxe)) &lt;lxe@lxe.co&gt;
+* **Shigeki Ohtsu** ([@shigeki](https://github.com/shigeki)) &lt;ohtsu@iij.ad.jp&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
