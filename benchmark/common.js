@@ -3,7 +3,14 @@ var fs = require('fs');
 var path = require('path');
 var child_process = require('child_process');
 
-var silent = +process.env.NODE_BENCH_SILENT;
+var outputFormat = process.env.OUTPUT_FORMAT ||
+                   (+process.env.NODE_BENCH_SILENT ? 'silent' : false) ||
+                   'default';
+
+// verify outputFormat
+if (['default', 'csv', 'silent'].indexOf(outputFormat) == -1) {
+  throw new Error('OUTPUT_FORMAT set to invalid value');
+}
 
 exports.PORT = process.env.PORT || 12346;
 
@@ -54,7 +61,9 @@ function runBenchmarks() {
   if (test.match(/^[\._]/))
     return process.nextTick(runBenchmarks);
 
-  console.error(type + '/' + test);
+  if (outputFormat == 'default')
+    console.error(type + '/' + test);
+
   test = path.resolve(dir, test);
 
   var a = (process.execArgv || []).concat(test);
@@ -151,6 +160,10 @@ Benchmark.prototype._run = function() {
     return newSet;
   }, [[main]]);
 
+  // output csv heading
+  if (outputFormat == 'csv')
+    console.log('filename,' + Object.keys(options).join(',') + ',result');
+
   var node = process.execPath;
   var i = 0;
   function run() {
@@ -216,15 +229,25 @@ Benchmark.prototype.end = function(operations) {
 
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
-  if (!silent)
+
+  if (outputFormat == 'default')
     console.log('%s: %s', heading, value.toFixed(5));
+  else if (outputFormat == 'csv')
+    console.log('%s,%s', heading, value.toFixed(5));
 
   process.exit(0);
 };
 
 Benchmark.prototype.getHeading = function() {
   var conf = this.config;
-  return this._name + ' ' + Object.keys(conf).map(function(key) {
-    return key + '=' + conf[key];
-  }).join(' ');
+
+  if (outputFormat == 'default') {
+    return this._name + ' ' + Object.keys(conf).map(function(key) {
+      return key + '=' + conf[key];
+    }).join(' ');
+  } else if (outputFormat == 'csv') {
+    return this._name + ',' + Object.keys(conf).map(function(key) {
+      return conf[key];
+    }).join(',');
+  }
 };
