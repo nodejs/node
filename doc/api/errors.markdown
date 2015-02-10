@@ -348,7 +348,7 @@ an empty directory -- usually [fs.unlink](fs.html#fs_fs_unlink_path_callback).
 
 #### ETIMEDOUT: Operation timed out
 
-An connect or send request failed because the connected party did not properly
+A connect or send request failed because the connected party did not properly
 respond after a period of time. Usually encountered by [http](http.html) or [net](net.html) --
 often a sign that a connected socket was not `.end()`'d appropriately.
 
