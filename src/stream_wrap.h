@@ -117,19 +117,18 @@ class StreamWrap : public HandleWrap, public StreamBase {
   bool IsAlive();
 
   // JavaScript functions
-  int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  int Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int WriteBinaryString(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  int SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int ReadStart();
+  int ReadStop();
+  int Shutdown(v8::Local<v8::Object> req);
+  int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs);
+  int WriteBuffer(v8::Local<v8::Object> req,
+                  const char* buf,
+                  size_t len);
+  int WriteString(v8::Local<v8::Object> req,
+                  v8::Local<v8::String> str,
+                  enum encoding enc,
+                  v8::Local<v8::Object> handle);
+  int SetBlocking(bool enable);
 
   inline StreamWrapCallbacks* callbacks() const {
     return callbacks_;
@@ -153,8 +152,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
  protected:
-  static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
-
   StreamWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_stream_t* stream,
@@ -177,7 +174,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf);
-  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   static void OnRead(uv_stream_t* handle,
                      ssize_t nread,
@@ -186,9 +182,12 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            ssize_t nread,
                            const uv_buf_t* buf,
                            uv_handle_type pending);
+  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   template <enum encoding encoding>
-  int WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteStringImpl(v8::Local<v8::Object> req,
+                      v8::Local<v8::String> str,
+                      v8::Local<v8::Object> handle);
 
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;

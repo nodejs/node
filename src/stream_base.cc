@@ -1,5 +1,6 @@
 #include "stream_base.h"
 
+#include "node_buffer.h"
 #include "env.h"
 #include "env-inl.h"
 #include "stream_wrap.h"
@@ -9,6 +10,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
@@ -50,16 +52,16 @@ void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
                       JSMethod<Base, &StreamBase::WriteBuffer>);
   env->SetProtoMethod(t,
                       "writeAsciiString",
-                      JSMethod<Base, &StreamBase::WriteAsciiString>);
+                      JSMethod<Base, &StreamBase::WriteString<ASCII> >);
   env->SetProtoMethod(t,
                       "writeUtf8String",
-                      JSMethod<Base, &StreamBase::WriteUtf8String>);
+                      JSMethod<Base, &StreamBase::WriteString<UTF8> >);
   env->SetProtoMethod(t,
                       "writeUcs2String",
-                      JSMethod<Base, &StreamBase::WriteUcs2String>);
+                      JSMethod<Base, &StreamBase::WriteString<UCS2> >);
   env->SetProtoMethod(t,
                       "writeBinaryString",
-                      JSMethod<Base, &StreamBase::WriteBinaryString>);
+                      JSMethod<Base, &StreamBase::WriteString<BINARY> >);
   env->SetProtoMethod(t,
                       "setBlocking",
                       JSMethod<Base, &StreamBase::SetBlocking>);
@@ -88,5 +90,56 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set((wrap->*Method)(args));
 }
 
+
+int StreamBase::ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  return ReadStart();
+}
+
+
+int StreamBase::ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  return ReadStop();
+}
+
+
+int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsObject());
+  return Shutdown(args[0].As<Object>());
+}
+
+
+int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsArray());
+  return Writev(args[0].As<Object>(), args[1].As<Array>());
+}
+
+
+int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsObject());
+  CHECK(Buffer::HasInstance(args[1]));
+  return WriteBuffer(args[0].As<Object>(),
+                     Buffer::Data(args[1]),
+                     Buffer::Length(args[1]));
+}
+
+
+template <enum encoding Encoding>
+int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString());
+  Local<Object> handle;
+  if (args[2]->IsObject())
+    handle = args[2].As<Object>();
+  return WriteString(args[0].As<Object>(),
+                     args[1].As<String>(),
+                     Encoding,
+                     handle);
+}
+
+
+int StreamBase::SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK_GT(args.Length(), 0);
+  return SetBlocking(args[0]->IsTrue());
+}
 
 }  // namespace node

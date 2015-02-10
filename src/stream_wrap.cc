@@ -99,12 +99,12 @@ void StreamWrap::UpdateWriteQueueSize() {
 }
 
 
-int StreamWrap::ReadStart(const FunctionCallbackInfo<Value>& args) {
+int StreamWrap::ReadStart() {
   return uv_read_start(stream(), OnAlloc, OnRead);
 }
 
 
-int StreamWrap::ReadStop(const FunctionCallbackInfo<Value>& args) {
+int StreamWrap::ReadStop() {
   return uv_read_stop(stream());
 }
 
@@ -177,32 +177,16 @@ void StreamWrap::OnRead(uv_stream_t* handle,
 }
 
 
-size_t StreamWrap::WriteBuffer(Handle<Value> val, uv_buf_t* buf) {
-  CHECK(Buffer::HasInstance(val));
-
-  // Simple non-writev case
-  buf->base = Buffer::Data(val);
-  buf->len = Buffer::Length(val);
-
-  return buf->len;
-}
-
-
-int StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  CHECK(Buffer::HasInstance(args[1]));
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  Local<Object> buf_obj = args[1].As<Object>();
-
-  size_t length = Buffer::Length(buf_obj);
+int StreamWrap::WriteBuffer(Local<Object> req_wrap_obj,
+                            const char* data,
+                            size_t length) {
+  Environment* env = this->env();
 
   char* storage;
   WriteWrap* req_wrap;
   uv_buf_t buf;
-  WriteBuffer(buf_obj, &buf);
+  buf.base = const_cast<char*>(data);
+  buf.len = length;
 
   // Try writing immediately without allocation
   uv_buf_t* bufs = &buf;
@@ -244,15 +228,11 @@ int StreamWrap::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 template <enum encoding encoding>
-int StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+int StreamWrap::WriteStringImpl(Local<Object> req_wrap_obj,
+                                Local<String> string,
+                                Local<Object> send_handle_obj) {
+  Environment* env = this->env();
   int err;
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsString());
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  Local<String> string = args[1].As<String>();
 
   // Compute the size of the storage that the string will be flattened into.
   // For UTF8 strings that are very long, go ahead and take the hit for
@@ -275,7 +255,7 @@ int StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t buf;
 
   bool try_write = storage_size + 15 <= sizeof(stack_storage) &&
-                   (!is_named_pipe_ipc() || !args[2]->IsObject());
+                   (!is_named_pipe_ipc() || send_handle_obj.IsEmpty());
   if (try_write) {
     data_size = StringBytes::Write(env->isolate(),
                                    stack_storage,
@@ -332,8 +312,7 @@ int StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
   } else {
     uv_handle_t* send_handle = nullptr;
 
-    if (args[2]->IsObject()) {
-      Local<Object> send_handle_obj = args[2].As<Object>();
+    if (!send_handle_obj.IsEmpty()) {
       HandleWrap* wrap = Unwrap<HandleWrap>(send_handle_obj);
       send_handle = wrap->GetHandle();
       // Reference StreamWrap instance to prevent it from being garbage
@@ -370,14 +349,9 @@ int StreamWrap::WriteStringImpl(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-int StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+int StreamWrap::Writev(Local<Object> req_wrap_obj, Local<Array> chunks) {
+  Environment* env = this->env();
 
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsArray());
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  Local<Array> chunks = args[1].As<Array>();
   size_t count = chunks->Length() >> 1;
 
   uv_buf_t bufs_[16];
@@ -478,28 +452,28 @@ int StreamWrap::Writev(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-int StreamWrap::WriteAsciiString(const FunctionCallbackInfo<Value>& args) {
-  return WriteStringImpl<ASCII>(args);
+int StreamWrap::WriteString(Local<Object> req,
+                            Local<String> str,
+                            enum encoding enc,
+                            Local<Object> handle) {
+  switch (enc) {
+    case ASCII:
+      return WriteStringImpl<ASCII>(req, str, handle);
+    case UTF8:
+      return WriteStringImpl<UTF8>(req, str, handle);
+    case UCS2:
+      return WriteStringImpl<UCS2>(req, str, handle);
+    case BINARY:
+      return WriteStringImpl<BINARY>(req, str, handle);
+    default:
+      return UV_ENOSYS;
+  }
 }
 
-
-int StreamWrap::WriteUtf8String(const FunctionCallbackInfo<Value>& args) {
-  return WriteStringImpl<UTF8>(args);
+int StreamWrap::SetBlocking(bool enable) {
+  return uv_stream_set_blocking(stream(), enable);
 }
 
-
-int StreamWrap::WriteUcs2String(const FunctionCallbackInfo<Value>& args) {
-  return WriteStringImpl<UCS2>(args);
-}
-
-int StreamWrap::WriteBinaryString(const FunctionCallbackInfo<Value>& args) {
-  return WriteStringImpl<BINARY>(args);
-}
-
-int StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GT(args.Length(), 0);
-  return uv_stream_set_blocking(stream(), args[0]->IsTrue());
-}
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
@@ -538,11 +512,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 }
 
 
-int StreamWrap::Shutdown(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  Local<Object> req_wrap_obj = args[0].As<Object>();
+int StreamWrap::Shutdown(Local<Object> req_wrap_obj) {
+  Environment* env = this->env();
 
   ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj);
   int err = callbacks()->DoShutdown(req_wrap, AfterShutdown);
