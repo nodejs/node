@@ -5,6 +5,7 @@
 #include "handle_wrap.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
+#include "stream_base.h"
 #include "string_bytes.h"
 #include "v8.h"
 
@@ -98,7 +99,7 @@ class StreamWrapCallbacks {
   StreamWrap* const wrap_;
 };
 
-class StreamWrap : public HandleWrap {
+class StreamWrap : public HandleWrap, public StreamBase {
  public:
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
@@ -112,23 +113,23 @@ class StreamWrap : public HandleWrap {
       delete old;
   }
 
-  static void GetFD(v8::Local<v8::String>,
-                    const v8::PropertyCallbackInfo<v8::Value>&);
+  int GetFD();
+  bool IsAlive();
 
   // JavaScript functions
-  static void ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WriteBinaryString(
+  int Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteBinaryString(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   inline StreamWrapCallbacks* callbacks() const {
     return callbacks_;
@@ -187,7 +188,7 @@ class StreamWrap : public HandleWrap {
                            uv_handle_type pending);
 
   template <enum encoding encoding>
-  static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
