@@ -3,8 +3,14 @@ var fs = require('fs');
 var path = require('path');
 var spawn = require('child_process').spawn;
 
-var silent = +process.env.NODE_BENCH_SILENT;
-var outputFormat = process.env.OUTPUT_FORMAT || 'default';
+var outputFormat = process.env.OUTPUT_FORMAT ||
+                   (+process.env.NODE_BENCH_SILENT ? 'silent' : false) ||
+                   'default';
+
+// verify outputFormat
+if (['default', 'csv', 'silent'].indexOf(outputFormat) == -1) {
+  throw new Error('OUTPUT_FORMAT set to invalid value');
+}
 
 exports.PORT = process.env.PORT || 12346;
 
@@ -211,12 +217,10 @@ Benchmark.prototype.end = function(operations) {
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
 
-  if (!silent) {
-    if (outputFormat == 'default')
-      console.log('%s: %s', heading, value.toFixed(5));
-    else if (outputFormat == 'csv')
-      console.log('%s,%s', heading, value.toFixed(5));
-  }
+  if (outputFormat == 'default')
+    console.log('%s: %s', heading, value.toFixed(5));
+  else if (outputFormat == 'csv')
+    console.log('%s,%s', heading, value.toFixed(5));
 
   process.exit(0);
 };
@@ -232,7 +236,5 @@ Benchmark.prototype.getHeading = function() {
     return this._name + ',' + Object.keys(conf).map(function(key) {
       return conf[key];
     }).join(',');
-  } else {
-    throw new Error('OUTPUT_FORMAT set to invalid value');
   }
 };
