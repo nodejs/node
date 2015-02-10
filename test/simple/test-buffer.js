@@ -1184,3 +1184,6 @@ assert.throws(function() {
   var b = new Buffer(1);
   b.equals('abc');
 });
+
+// Regression test for https://github.com/iojs/io.js/issues/649.
+assert.throws(function() { Buffer(1422561062959).toString('utf8'); });
