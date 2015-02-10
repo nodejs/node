@@ -12,9 +12,6 @@ namespace node {
 class Environment;
 class StreamBase;
 
-// XXX(indutny): temporary
-class StreamWrap;
-
 class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
  public:
   ShutdownWrap(Environment* env,
@@ -39,7 +36,7 @@ class WriteWrap: public ReqWrap<uv_write_t> {
  public:
   // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
   // into the same provider. How should these be broken apart?
-  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
+  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamBase* wrap)
       : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
         wrap_(wrap) {
     Wrap(obj, this);
@@ -51,7 +48,7 @@ class WriteWrap: public ReqWrap<uv_write_t> {
   // we don't use exceptions in node.
   void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
 
-  inline StreamWrap* wrap() const {
+  inline StreamBase* wrap() const {
     return wrap_;
   }
 
@@ -65,10 +62,26 @@ class WriteWrap: public ReqWrap<uv_write_t> {
   void* operator new(size_t size) { UNREACHABLE(); }
   void operator delete(void* ptr) { UNREACHABLE(); }
 
-  StreamWrap* const wrap_;
+  StreamBase* const wrap_;
 };
 
-class StreamBase {
+class StreamResource {
+ public:
+  virtual ~StreamResource() = default;
+
+  virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
+  virtual int TryWrite(uv_buf_t** bufs, size_t* count) = 0;
+  virtual int DoWrite(WriteWrap* w,
+                      uv_buf_t* bufs,
+                      size_t count,
+                      uv_stream_t* send_handle,
+                      uv_write_cb cb) = 0;
+  virtual void DoAfterWrite(WriteWrap* w) = 0;
+  virtual const char* Error() const = 0;
+  virtual void ClearError() = 0;
+};
+
+class StreamBase : public StreamResource {
  public:
   template <class Base>
   static void AddMethods(Environment* env,
@@ -80,17 +93,11 @@ class StreamBase {
   virtual int ReadStart() = 0;
   virtual int ReadStop() = 0;
   virtual int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs) = 0;
-  virtual int WriteBuffer(v8::Local<v8::Object> req,
-                          const char* buf,
-                          size_t len) = 0;
   virtual int WriteString(v8::Local<v8::Object> req,
                           v8::Local<v8::String> str,
                           enum encoding enc,
                           v8::Local<v8::Object> handle) = 0;
   virtual int SetBlocking(bool enable) = 0;
-
-  // Resource interface
-  virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
 
   inline bool IsConsumed() const { return consumed_; }
 
@@ -102,8 +109,12 @@ class StreamBase {
   virtual ~StreamBase() = default;
 
   virtual v8::Local<v8::Object> GetObject() = 0;
-  static void AfterShutdown(uv_shutdown_t* req, int status);
 
+  // Libuv callbacks
+  static void AfterShutdown(uv_shutdown_t* req, int status);
+  static void AfterWrite(uv_write_t* req, int status);
+
+  // JS Methods
   int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   int ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   int Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -182,56 +182,6 @@ void StreamWrap::OnRead(uv_stream_t* handle,
 }
 
 
-int StreamWrap::WriteBuffer(Local<Object> req_wrap_obj,
-                            const char* data,
-                            size_t length) {
-  Environment* env = this->env();
-
-  char* storage;
-  WriteWrap* req_wrap;
-  uv_buf_t buf;
-  buf.base = const_cast<char*>(data);
-  buf.len = length;
-
-  // Try writing immediately without allocation
-  uv_buf_t* bufs = &buf;
-  size_t count = 1;
-  int err = callbacks()->TryWrite(&bufs, &count);
-  if (err != 0)
-    goto done;
-  if (count == 0)
-    goto done;
-  CHECK_EQ(count, 1);
-
-  // Allocate, or write rest
-  storage = new char[sizeof(WriteWrap)];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this);
-
-  err = callbacks()->DoWrite(req_wrap,
-                             bufs,
-                             count,
-                             nullptr,
-                             StreamWrap::AfterWrite);
-  req_wrap->Dispatched();
-  req_wrap_obj->Set(env->async(), True(env->isolate()));
-
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
-
- done:
-  const char* msg = callbacks()->Error();
-  if (msg != nullptr) {
-    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
-    callbacks()->ClearError();
-  }
-  req_wrap_obj->Set(env->bytes_string(),
-                    Integer::NewFromUnsigned(env->isolate(), length));
-  return err;
-}
-
-
 int StreamWrap::WriteString(Local<Object> req_wrap_obj,
                             Local<String> string,
                             enum encoding encoding,
@@ -313,7 +263,7 @@ int StreamWrap::WriteString(Local<Object> req_wrap_obj,
                                &buf,
                                1,
                                nullptr,
-                               StreamWrap::AfterWrite);
+                               StreamBase::AfterWrite);
   } else {
     uv_handle_t* send_handle = nullptr;
 
@@ -331,7 +281,7 @@ int StreamWrap::WriteString(Local<Object> req_wrap_obj,
         &buf,
         1,
         reinterpret_cast<uv_stream_t*>(send_handle),
-        StreamWrap::AfterWrite);
+        StreamBase::AfterWrite);
   }
 
   req_wrap->Dispatched();
@@ -432,7 +382,7 @@ int StreamWrap::Writev(Local<Object> req_wrap_obj, Local<Array> chunks) {
                                  bufs,
                                  count,
                                  nullptr,
-                                 StreamWrap::AfterWrite);
+                                 StreamBase::AfterWrite);
 
   // Deallocate space
   if (bufs != bufs_)
@@ -462,45 +412,37 @@ int StreamWrap::SetBlocking(bool enable) {
 }
 
 
-void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
-  StreamWrap* wrap = req_wrap->wrap();
-  Environment* env = wrap->env();
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // The wrap and request objects should still be there.
-  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
-
-  // Unref handle property
-  Local<Object> req_wrap_obj = req_wrap->object();
-  req_wrap_obj->Delete(env->handle_string());
-  wrap->callbacks()->AfterWrite(req_wrap);
-
-  Local<Value> argv[] = {
-    Integer::New(env->isolate(), status),
-    wrap->object(),
-    req_wrap_obj,
-    Undefined(env->isolate())
-  };
-
-  const char* msg = wrap->callbacks()->Error();
-  if (msg != nullptr) {
-    argv[3] = OneByteString(env->isolate(), msg);
-    wrap->callbacks()->ClearError();
-  }
-
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
-
-  req_wrap->~WriteWrap();
-  delete[] reinterpret_cast<char*>(req_wrap);
+int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
+  return callbacks()->DoShutdown(req_wrap, cb);
 }
 
 
-int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
-  return callbacks()->DoShutdown(req_wrap, cb);
+int StreamWrap::TryWrite(uv_buf_t** bufs, size_t* count) {
+  return callbacks()->TryWrite(bufs, count);
+}
+
+
+int StreamWrap::DoWrite(WriteWrap* w,
+                        uv_buf_t* bufs,
+                        size_t count,
+                        uv_stream_t* send_handle,
+                        uv_write_cb cb) {
+  return callbacks()->DoWrite(w, bufs, count, send_handle, cb);
+}
+
+
+void StreamWrap::DoAfterWrite(WriteWrap* w) {
+  return callbacks()->AfterWrite(w);
+}
+
+
+const char* StreamWrap::Error() const {
+  return callbacks()->Error();
+}
+
+
+void StreamWrap::ClearError() {
+  return callbacks()->ClearError();
 }
 
 

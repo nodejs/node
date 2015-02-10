@@ -75,9 +75,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   int ReadStart();
   int ReadStop();
   int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs);
-  int WriteBuffer(v8::Local<v8::Object> req,
-                  const char* buf,
-                  size_t len);
   int WriteString(v8::Local<v8::Object> req,
                   v8::Local<v8::String> str,
                   enum encoding enc,
@@ -86,6 +83,15 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
   // Resource implementation
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
+  int TryWrite(uv_buf_t** bufs, size_t* count);
+  int DoWrite(WriteWrap* w,
+              uv_buf_t* bufs,
+              size_t count,
+              uv_stream_t* send_handle,
+              uv_write_cb cb);
+  void DoAfterWrite(WriteWrap* w);
+  const char* Error() const;
+  void ClearError();
 
   inline StreamWrapCallbacks* callbacks() const {
     return callbacks_;
@@ -127,7 +133,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
  private:
   // Callbacks for libuv
-  static void AfterWrite(uv_write_t* req, int status);
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf);

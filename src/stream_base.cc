@@ -154,9 +154,54 @@ int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
 int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(Buffer::HasInstance(args[1]));
-  return WriteBuffer(args[0].As<Object>(),
-                     Buffer::Data(args[1]),
-                     Buffer::Length(args[1]));
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  const char* data = Buffer::Data(args[1]);
+  size_t length = Buffer::Length(args[1]);
+
+  char* storage;
+  WriteWrap* req_wrap;
+  uv_buf_t buf;
+  buf.base = const_cast<char*>(data);
+  buf.len = length;
+
+  // Try writing immediately without allocation
+  uv_buf_t* bufs = &buf;
+  size_t count = 1;
+  int err = TryWrite(&bufs, &count);
+  if (err != 0)
+    goto done;
+  if (count == 0)
+    goto done;
+  CHECK_EQ(count, 1);
+
+  // Allocate, or write rest
+  storage = new char[sizeof(WriteWrap)];
+  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this);
+
+  err = DoWrite(req_wrap,
+                bufs,
+                count,
+                nullptr,
+                StreamBase::AfterWrite);
+  req_wrap->Dispatched();
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
+
+  if (err) {
+    req_wrap->~WriteWrap();
+    delete[] storage;
+  }
+
+ done:
+  const char* msg = Error();
+  if (msg != nullptr) {
+    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    ClearError();
+  }
+  req_wrap_obj->Set(env->bytes_string(),
+                    Integer::NewFromUnsigned(env->isolate(), length));
+  return err;
 }
 
 
@@ -171,6 +216,43 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
                      args[1].As<String>(),
                      Encoding,
                      handle);
+}
+
+
+void StreamBase::AfterWrite(uv_write_t* req, int status) {
+  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
+  StreamBase* wrap = req_wrap->wrap();
+  Environment* env = req_wrap->env();
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  // The wrap and request objects should still be there.
+  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(wrap->GetObject().IsEmpty(), false);
+
+  // Unref handle property
+  Local<Object> req_wrap_obj = req_wrap->object();
+  req_wrap_obj->Delete(env->handle_string());
+  wrap->DoAfterWrite(req_wrap);
+
+  Local<Value> argv[] = {
+    Integer::New(env->isolate(), status),
+    wrap->GetObject(),
+    req_wrap_obj,
+    Undefined(env->isolate())
+  };
+
+  const char* msg = wrap->Error();
+  if (msg != nullptr) {
+    argv[3] = OneByteString(env->isolate(), msg);
+    wrap->ClearError();
+  }
+
+  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+
+  req_wrap->~WriteWrap();
+  delete[] reinterpret_cast<char*>(req_wrap);
 }
 
 
