@@ -91,6 +91,11 @@ bool StreamWrap::IsAlive() {
 }
 
 
+Local<Object> StreamWrap::GetObject() {
+  return object();
+}
+
+
 void StreamWrap::UpdateWriteQueueSize() {
   HandleScope scope(env()->isolate());
   Local<Integer> write_queue_size =
@@ -494,40 +499,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 }
 
 
-int StreamWrap::Shutdown(Local<Object> req_wrap_obj) {
-  Environment* env = this->env();
-
-  ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj);
-  int err = callbacks()->DoShutdown(req_wrap, AfterShutdown);
-  req_wrap->Dispatched();
-  if (err)
-    delete req_wrap;
-  return err;
-}
-
-
-void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = static_cast<ShutdownWrap*>(req->data);
-  StreamWrap* wrap = static_cast<StreamWrap*>(req->handle->data);
-  Environment* env = wrap->env();
-
-  // The wrap and request objects should still be there.
-  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  Local<Object> req_wrap_obj = req_wrap->object();
-  Local<Value> argv[3] = {
-    Integer::New(env->isolate(), status),
-    wrap->object(),
-    req_wrap_obj
-  };
-
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
-
-  delete req_wrap;
+int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
+  return callbacks()->DoShutdown(req_wrap, cb);
 }
 
 

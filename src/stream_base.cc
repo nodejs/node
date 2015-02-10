@@ -11,10 +11,12 @@
 namespace node {
 
 using v8::Array;
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -26,7 +28,8 @@ template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
 
 
-StreamBase::StreamBase(Environment* env, Local<Object> object) {
+StreamBase::StreamBase(Environment* env, Local<Object> object)
+    : consumed_(false) {
 }
 
 
@@ -72,7 +75,7 @@ template <class Base>
 void StreamBase::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
   Base* wrap = Unwrap<Base>(args.Holder());
-  if (!wrap->IsAlive())
+  if (wrap->IsConsumed() || !wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set(wrap->GetFD());
@@ -84,7 +87,7 @@ template <class Base,
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
   Base* wrap = Unwrap<Base>(args.Holder());
-  if (!wrap->IsAlive())
+  if (wrap->IsConsumed() || !wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set((wrap->*Method)(args));
@@ -102,8 +105,42 @@ int StreamBase::ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
   CHECK(args[0]->IsObject());
-  return Shutdown(args[0].As<Object>());
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+
+  ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj, this);
+  int err = DoShutdown(req_wrap, AfterShutdown);
+  req_wrap->Dispatched();
+  if (err)
+    delete req_wrap;
+  return err;
+}
+
+
+void StreamBase::AfterShutdown(uv_shutdown_t* req, int status) {
+  ShutdownWrap* req_wrap = static_cast<ShutdownWrap*>(req->data);
+  StreamBase* wrap = req_wrap->wrap();
+  Environment* env = req_wrap->env();
+
+  // The wrap and request objects should still be there.
+  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(wrap->GetObject().IsEmpty(), false);
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> req_wrap_obj = req_wrap->object();
+  Local<Value> argv[3] = {
+    Integer::New(env->isolate(), status),
+    wrap->GetObject(),
+    req_wrap_obj
+  };
+
+  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+
+  delete req_wrap;
 }
 
 

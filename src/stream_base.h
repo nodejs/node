@@ -1,13 +1,72 @@
 #ifndef SRC_STREAM_BASE_H_
 #define SRC_STREAM_BASE_H_
 
+#include "req_wrap.h"
 #include "node.h"
+
 #include "v8.h"
 
 namespace node {
 
 // Forward declarations
 class Environment;
+class StreamBase;
+
+// XXX(indutny): temporary
+class StreamWrap;
+
+class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
+ public:
+  ShutdownWrap(Environment* env,
+               v8::Local<v8::Object> req_wrap_obj,
+               StreamBase* wrap)
+      : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP),
+        wrap_(wrap) {
+    Wrap(req_wrap_obj, this);
+  }
+
+  static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(args.IsConstructCall());
+  }
+
+  inline StreamBase* wrap() const { return wrap_; }
+
+ private:
+  StreamBase* const wrap_;
+};
+
+class WriteWrap: public ReqWrap<uv_write_t> {
+ public:
+  // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
+  // into the same provider. How should these be broken apart?
+  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
+      : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
+        wrap_(wrap) {
+    Wrap(obj, this);
+  }
+
+  void* operator new(size_t size, char* storage) { return storage; }
+
+  // This is just to keep the compiler happy. It should never be called, since
+  // we don't use exceptions in node.
+  void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
+
+  inline StreamWrap* wrap() const {
+    return wrap_;
+  }
+
+  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(args.IsConstructCall());
+  }
+
+ private:
+  // People should not be using the non-placement new and delete operator on a
+  // WriteWrap. Ensure this never happens.
+  void* operator new(size_t size) { UNREACHABLE(); }
+  void operator delete(void* ptr) { UNREACHABLE(); }
+
+  StreamWrap* const wrap_;
+};
 
 class StreamBase {
  public:
@@ -20,7 +79,6 @@ class StreamBase {
 
   virtual int ReadStart() = 0;
   virtual int ReadStop() = 0;
-  virtual int Shutdown(v8::Local<v8::Object> req) = 0;
   virtual int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs) = 0;
   virtual int WriteBuffer(v8::Local<v8::Object> req,
                           const char* buf,
@@ -31,9 +89,20 @@ class StreamBase {
                           v8::Local<v8::Object> handle) = 0;
   virtual int SetBlocking(bool enable) = 0;
 
+  // Resource interface
+  virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
+
+  inline bool IsConsumed() const { return consumed_; }
+
+  // TODO(indutny): assert that stream is not yet consumed
+  inline void Consume() { consumed_ = true; }
+
  protected:
   StreamBase(Environment* env, v8::Local<v8::Object> object);
   virtual ~StreamBase() = default;
+
+  virtual v8::Local<v8::Object> GetObject() = 0;
+  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   int ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -52,6 +121,8 @@ class StreamBase {
             int (StreamBase::*Method)(
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool consumed_;
 };
 
 }  // namespace node

@@ -14,51 +14,6 @@ namespace node {
 // Forward declaration
 class StreamWrap;
 
-class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
- public:
-  ShutdownWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj)
-      : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-    Wrap(req_wrap_obj, this);
-  }
-
-  static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(args.IsConstructCall());
-  }
-};
-
-class WriteWrap: public ReqWrap<uv_write_t> {
- public:
-  // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
-  // into the same provider. How should these be broken apart?
-  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
-      : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
-        wrap_(wrap) {
-    Wrap(obj, this);
-  }
-
-  void* operator new(size_t size, char* storage) { return storage; }
-
-  // This is just to keep the compiler happy. It should never be called, since
-  // we don't use exceptions in node.
-  void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
-
-  inline StreamWrap* wrap() const {
-    return wrap_;
-  }
-
-  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(args.IsConstructCall());
-  }
-
- private:
-  // People should not be using the non-placement new and delete operator on a
-  // WriteWrap. Ensure this never happens.
-  void* operator new(size_t size) { UNREACHABLE(); }
-  void operator delete(void* ptr) { UNREACHABLE(); }
-
-  StreamWrap* const wrap_;
-};
-
 // Overridable callbacks' types
 class StreamWrapCallbacks {
  public:
@@ -119,7 +74,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   // JavaScript functions
   int ReadStart();
   int ReadStop();
-  int Shutdown(v8::Local<v8::Object> req);
   int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs);
   int WriteBuffer(v8::Local<v8::Object> req,
                   const char* buf,
@@ -129,6 +83,9 @@ class StreamWrap : public HandleWrap, public StreamBase {
                   enum encoding enc,
                   v8::Local<v8::Object> handle);
   int SetBlocking(bool enable);
+
+  // Resource implementation
+  int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
 
   inline StreamWrapCallbacks* callbacks() const {
     return callbacks_;
@@ -165,7 +122,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
     callbacks_ = nullptr;
   }
 
-  void StateChange() { }
+  v8::Local<v8::Object> GetObject();
   void UpdateWriteQueueSize();
 
  private:
@@ -182,7 +139,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            ssize_t nread,
                            const uv_buf_t* buf,
                            uv_handle_type pending);
-  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
