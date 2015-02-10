@@ -227,10 +227,10 @@ int StreamWrap::WriteBuffer(Local<Object> req_wrap_obj,
 }
 
 
-template <enum encoding encoding>
-int StreamWrap::WriteStringImpl(Local<Object> req_wrap_obj,
-                                Local<String> string,
-                                Local<Object> send_handle_obj) {
+int StreamWrap::WriteString(Local<Object> req_wrap_obj,
+                            Local<String> string,
+                            enum encoding encoding,
+                            Local<Object> send_handle_obj) {
   Environment* env = this->env();
   int err;
 
@@ -451,24 +451,6 @@ int StreamWrap::Writev(Local<Object> req_wrap_obj, Local<Array> chunks) {
   return err;
 }
 
-
-int StreamWrap::WriteString(Local<Object> req,
-                            Local<String> str,
-                            enum encoding enc,
-                            Local<Object> handle) {
-  switch (enc) {
-    case ASCII:
-      return WriteStringImpl<ASCII>(req, str, handle);
-    case UTF8:
-      return WriteStringImpl<UTF8>(req, str, handle);
-    case UCS2:
-      return WriteStringImpl<UCS2>(req, str, handle);
-    case BINARY:
-      return WriteStringImpl<BINARY>(req, str, handle);
-    default:
-      return UV_ENOSYS;
-  }
-}
 
 int StreamWrap::SetBlocking(bool enable) {
   return uv_stream_set_blocking(stream(), enable);

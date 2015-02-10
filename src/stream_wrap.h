@@ -184,11 +184,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            uv_handle_type pending);
   static void AfterShutdown(uv_shutdown_t* req, int status);
 
-  template <enum encoding encoding>
-  int WriteStringImpl(v8::Local<v8::Object> req,
-                      v8::Local<v8::String> str,
-                      v8::Local<v8::Object> handle);
-
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
   StreamWrapCallbacks* callbacks_;  // Overridable callbacks
