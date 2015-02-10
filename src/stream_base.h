@@ -10,6 +10,7 @@ class Environment;
 
 class StreamBase {
  public:
+  template <class Base>
   static void AddMethods(Environment* env,
                          v8::Handle<v8::FunctionTemplate> target);
 
@@ -35,10 +36,12 @@ class StreamBase {
   StreamBase(Environment* env, v8::Local<v8::Object> object);
   virtual ~StreamBase() = default;
 
+  template <class Base>
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
 
-  template <int (StreamBase::*Method)(
+  template <class Base,
+            int (StreamBase::*Method)(
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 };

@@ -75,13 +75,13 @@ void PipeWrap::Initialize(Handle<Object> target,
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe"));
-  t->InstanceTemplate()->SetInternalFieldCount(2);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
 
-  StreamWrap::AddMethods(env, t);
+  StreamWrap::AddMethods<StreamWrap>(env, t);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);

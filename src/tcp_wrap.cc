@@ -70,7 +70,7 @@ void TCPWrap::Initialize(Handle<Object> target,
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
-  t->InstanceTemplate()->SetInternalFieldCount(2);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
 
   // Init properties
   t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
@@ -89,7 +89,7 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  StreamWrap::AddMethods(env, t);
+  StreamWrap::AddMethods<StreamWrap>(env, t);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);

@@ -34,12 +34,12 @@ void TTYWrap::Initialize(Handle<Object> target,
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
-  t->InstanceTemplate()->SetInternalFieldCount(2);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  StreamWrap::AddMethods(env, t);
+  StreamWrap::AddMethods<StreamWrap>(env, t);
 
   env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);

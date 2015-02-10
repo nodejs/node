@@ -2,6 +2,7 @@
 
 #include "env.h"
 #include "env-inl.h"
+#include "stream_wrap.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -19,59 +20,56 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Value;
 
+template void StreamBase::AddMethods<StreamWrap>(Environment* env,
+                                                 Handle<FunctionTemplate> t);
+
 
 StreamBase::StreamBase(Environment* env, Local<Object> object) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 1);
-  object->SetAlignedPointerInInternalField(1, this);
 }
 
 
+template <class Base>
 void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     GetFD,
+                                     GetFD<Base>,
                                      nullptr,
                                      Handle<Value>(),
                                      v8::DEFAULT,
                                      attributes);
 
-  env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStart>);
-  env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStop>);
-  env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
-
-  env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
-  env->SetProtoMethod(t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
+  env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStart>);
+  env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStop>);
+  env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
+  env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
+  env->SetProtoMethod(t,
+                      "writeBuffer",
+                      JSMethod<Base, &StreamBase::WriteBuffer>);
   env->SetProtoMethod(t,
                       "writeAsciiString",
-                      JSMethod<&StreamBase::WriteAsciiString>);
+                      JSMethod<Base, &StreamBase::WriteAsciiString>);
   env->SetProtoMethod(t,
                       "writeUtf8String",
-                      JSMethod<&StreamBase::WriteUtf8String>);
+                      JSMethod<Base, &StreamBase::WriteUtf8String>);
   env->SetProtoMethod(t,
                       "writeUcs2String",
-                      JSMethod<&StreamBase::WriteUcs2String>);
+                      JSMethod<Base, &StreamBase::WriteUcs2String>);
   env->SetProtoMethod(t,
                       "writeBinaryString",
-                      JSMethod<&StreamBase::WriteBinaryString>);
-  env->SetProtoMethod(t, "setBlocking", JSMethod<&StreamBase::SetBlocking>);
+                      JSMethod<Base, &StreamBase::WriteBinaryString>);
+  env->SetProtoMethod(t,
+                      "setBlocking",
+                      JSMethod<Base, &StreamBase::SetBlocking>);
 }
 
 
-inline StreamBase* Unwrap(Local<Object> object) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 1);
-  void* pointer = object->GetAlignedPointerFromInternalField(1);
-  return static_cast<StreamBase*>(pointer);
-}
-
-
+template <class Base>
 void StreamBase::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
-  StreamBase* wrap = Unwrap(args.Holder());
+  Base* wrap = Unwrap<Base>(args.Holder());
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
@@ -79,10 +77,11 @@ void StreamBase::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
 }
 
 
-template <int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
+template <class Base,
+          int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
-  StreamBase* wrap = Unwrap(args.Holder());
+  Base* wrap = Unwrap<Base>(args.Holder());
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
