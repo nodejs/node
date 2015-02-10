@@ -76,7 +76,7 @@ StreamWrap::StreamWrap(Environment* env,
 }
 
 
-int StreamWrap::GetFD() {
+int StreamWrap::GetFD() const {
   int fd = -1;
 #if !defined(_WIN32)
   if (stream() != nullptr)
@@ -86,13 +86,18 @@ int StreamWrap::GetFD() {
 }
 
 
-bool StreamWrap::IsAlive() {
+bool StreamWrap::IsAlive() const {
   return HandleWrap::IsAlive(this);
 }
 
 
 Local<Object> StreamWrap::GetObject() {
   return object();
+}
+
+
+bool StreamWrap::IsIPCPipe() const {
+  return is_named_pipe_ipc();
 }
 
 
@@ -179,231 +184,6 @@ void StreamWrap::OnRead(uv_stream_t* handle,
   }
 
   OnReadCommon(handle, nread, buf, type);
-}
-
-
-int StreamWrap::WriteString(Local<Object> req_wrap_obj,
-                            Local<String> string,
-                            enum encoding encoding,
-                            Local<Object> send_handle_obj) {
-  Environment* env = this->env();
-  int err;
-
-  // Compute the size of the storage that the string will be flattened into.
-  // For UTF8 strings that are very long, go ahead and take the hit for
-  // computing their actual size, rather than tripling the storage.
-  size_t storage_size;
-  if (encoding == UTF8 && string->Length() > 65535)
-    storage_size = StringBytes::Size(env->isolate(), string, encoding);
-  else
-    storage_size = StringBytes::StorageSize(env->isolate(), string, encoding);
-
-  if (storage_size > INT_MAX)
-    return UV_ENOBUFS;
-
-  // Try writing immediately if write size isn't too big
-  char* storage;
-  WriteWrap* req_wrap;
-  char* data;
-  char stack_storage[16384];  // 16kb
-  size_t data_size;
-  uv_buf_t buf;
-
-  bool try_write = storage_size + 15 <= sizeof(stack_storage) &&
-                   (!is_named_pipe_ipc() || send_handle_obj.IsEmpty());
-  if (try_write) {
-    data_size = StringBytes::Write(env->isolate(),
-                                   stack_storage,
-                                   storage_size,
-                                   string,
-                                   encoding);
-    buf = uv_buf_init(stack_storage, data_size);
-
-    uv_buf_t* bufs = &buf;
-    size_t count = 1;
-    err = callbacks()->TryWrite(&bufs, &count);
-
-    // Failure
-    if (err != 0)
-      goto done;
-
-    // Success
-    if (count == 0)
-      goto done;
-
-    // Partial write
-    CHECK_EQ(count, 1);
-  }
-
-  storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this);
-
-  data = reinterpret_cast<char*>(ROUND_UP(
-      reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
-
-  if (try_write) {
-    // Copy partial data
-    memcpy(data, buf.base, buf.len);
-    data_size = buf.len;
-  } else {
-    // Write it
-    data_size = StringBytes::Write(env->isolate(),
-                                   data,
-                                   storage_size,
-                                   string,
-                                   encoding);
-  }
-
-  CHECK_LE(data_size, storage_size);
-
-  buf = uv_buf_init(data, data_size);
-
-  if (!is_named_pipe_ipc()) {
-    err = callbacks()->DoWrite(req_wrap,
-                               &buf,
-                               1,
-                               nullptr,
-                               StreamBase::AfterWrite);
-  } else {
-    uv_handle_t* send_handle = nullptr;
-
-    if (!send_handle_obj.IsEmpty()) {
-      HandleWrap* wrap = Unwrap<HandleWrap>(send_handle_obj);
-      send_handle = wrap->GetHandle();
-      // Reference StreamWrap instance to prevent it from being garbage
-      // collected before `AfterWrite` is called.
-      CHECK_EQ(false, req_wrap->persistent().IsEmpty());
-      req_wrap->object()->Set(env->handle_string(), send_handle_obj);
-    }
-
-    err = callbacks()->DoWrite(
-        req_wrap,
-        &buf,
-        1,
-        reinterpret_cast<uv_stream_t*>(send_handle),
-        StreamBase::AfterWrite);
-  }
-
-  req_wrap->Dispatched();
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
-
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
-
- done:
-  const char* msg = callbacks()->Error();
-  if (msg != nullptr) {
-    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
-    callbacks()->ClearError();
-  }
-  req_wrap_obj->Set(env->bytes_string(),
-                    Integer::NewFromUnsigned(env->isolate(), data_size));
-  return err;
-}
-
-
-int StreamWrap::Writev(Local<Object> req_wrap_obj, Local<Array> chunks) {
-  Environment* env = this->env();
-
-  size_t count = chunks->Length() >> 1;
-
-  uv_buf_t bufs_[16];
-  uv_buf_t* bufs = bufs_;
-
-  // Determine storage size first
-  size_t storage_size = 0;
-  for (size_t i = 0; i < count; i++) {
-    Handle<Value> chunk = chunks->Get(i * 2);
-
-    if (Buffer::HasInstance(chunk))
-      continue;
-      // Buffer chunk, no additional storage required
-
-    // String chunk
-    Handle<String> string = chunk->ToString(env->isolate());
-    enum encoding encoding = ParseEncoding(env->isolate(),
-                                           chunks->Get(i * 2 + 1));
-    size_t chunk_size;
-    if (encoding == UTF8 && string->Length() > 65535)
-      chunk_size = StringBytes::Size(env->isolate(), string, encoding);
-    else
-      chunk_size = StringBytes::StorageSize(env->isolate(), string, encoding);
-
-    storage_size += chunk_size + 15;
-  }
-
-  if (storage_size > INT_MAX)
-    return UV_ENOBUFS;
-
-  if (ARRAY_SIZE(bufs_) < count)
-    bufs = new uv_buf_t[count];
-
-  storage_size += sizeof(WriteWrap);
-  char* storage = new char[storage_size];
-  WriteWrap* req_wrap =
-      new(storage) WriteWrap(env, req_wrap_obj, this);
-
-  uint32_t bytes = 0;
-  size_t offset = sizeof(WriteWrap);
-  for (size_t i = 0; i < count; i++) {
-    Handle<Value> chunk = chunks->Get(i * 2);
-
-    // Write buffer
-    if (Buffer::HasInstance(chunk)) {
-      bufs[i].base = Buffer::Data(chunk);
-      bufs[i].len = Buffer::Length(chunk);
-      bytes += bufs[i].len;
-      continue;
-    }
-
-    // Write string
-    offset = ROUND_UP(offset, 16);
-    CHECK_LT(offset, storage_size);
-    char* str_storage = storage + offset;
-    size_t str_size = storage_size - offset;
-
-    Handle<String> string = chunk->ToString(env->isolate());
-    enum encoding encoding = ParseEncoding(env->isolate(),
-                                           chunks->Get(i * 2 + 1));
-    str_size = StringBytes::Write(env->isolate(),
-                                  str_storage,
-                                  str_size,
-                                  string,
-                                  encoding);
-    bufs[i].base = str_storage;
-    bufs[i].len = str_size;
-    offset += str_size;
-    bytes += str_size;
-  }
-
-  int err = callbacks()->DoWrite(req_wrap,
-                                 bufs,
-                                 count,
-                                 nullptr,
-                                 StreamBase::AfterWrite);
-
-  // Deallocate space
-  if (bufs != bufs_)
-    delete[] bufs;
-
-  req_wrap->Dispatched();
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
-  req_wrap->object()->Set(env->bytes_string(),
-                          Number::New(env->isolate(), bytes));
-  const char* msg = callbacks()->Error();
-  if (msg != nullptr) {
-    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
-    callbacks()->ClearError();
-  }
-
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
-
-  return err;
 }
 
 

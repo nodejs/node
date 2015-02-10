@@ -68,17 +68,12 @@ class StreamWrap : public HandleWrap, public StreamBase {
       delete old;
   }
 
-  int GetFD();
-  bool IsAlive();
+  int GetFD() const;
+  bool IsAlive() const;
 
   // JavaScript functions
   int ReadStart();
   int ReadStop();
-  int Writev(v8::Local<v8::Object> req, v8::Local<v8::Array> bufs);
-  int WriteString(v8::Local<v8::Object> req,
-                  v8::Local<v8::String> str,
-                  enum encoding enc,
-                  v8::Local<v8::Object> handle);
   int SetBlocking(bool enable);
 
   // Resource implementation
@@ -129,6 +124,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
   v8::Local<v8::Object> GetObject();
+  bool IsIPCPipe() const;
   void UpdateWriteQueueSize();
 
  private:
