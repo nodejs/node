@@ -1662,6 +1662,8 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
     sdk_root = xcode_settings._SdkRoot(configuration)
     if not sdk_root:
       sdk_root = xcode_settings._XcodeSdkPath('')
+    if sdk_root is None:
+      sdk_root = ''
     env['SDKROOT'] = sdk_root
 
   if not additional_settings:
