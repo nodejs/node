@@ -162,8 +162,10 @@ namespace node {
   V(received_shutdown_string, "receivedShutdown")                             \
   V(refresh_string, "refresh")                                                \
   V(regexp_string, "regexp")                                                  \
+  V(reject_string, "reject")                                                  \
   V(rename_string, "rename")                                                  \
   V(replacement_string, "replacement")                                        \
+  V(resolve_string, "resolve")                                                \
   V(retry_string, "retry")                                                    \
   V(rss_string, "rss")                                                        \
   V(serial_string, "serial")                                                  \

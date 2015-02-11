@@ -32,6 +32,24 @@ class ReqWrap : public AsyncWrap {
     persistent().Reset();
   }
 
+  inline v8::Handle<v8::Value> Fulfill(int argc, v8::Handle<v8::Value>* argv) {
+      // if (obj.oncomplete) .oncomplete(argv)
+      v8::Local<v8::Value> cb_v = object()->Get(env()->oncomplete_string());
+      if (cb_v->IsFunction()) {
+          return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
+      }
+      // else
+      //   if (argv[0]) obj.reject(argv[0])
+      //   else obj.resolve(argv[1...])
+      if (argc == 0)
+        return MakeCallback(env()->resolve_string(), 0, NULL);
+
+      if (argv[0]->ToBoolean()->IsTrue()) // if(err) {
+        return MakeCallback(env()->reject_string(), 1, argv);
+
+      return MakeCallback(env()->resolve_string(), argc-1, argv+1);
+  }
+
   // Call this after the req has been dispatched.
   void Dispatched() {
     req_.data = this;
