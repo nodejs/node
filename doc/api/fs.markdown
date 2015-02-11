@@ -517,7 +517,7 @@ The synchronous version of `fs.writeFile`.
   * `flag` {String} default = `'a'`
 * `callback` {Function}
 
-Asynchronously append data to a file, creating the file if it not yet exists.
+Asynchronously append data to a file, creating the file if it does not yet exist.
 `data` can be a string or a buffer.
 
 Example:
