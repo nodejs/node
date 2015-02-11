@@ -78,13 +78,14 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
   // Resource implementation
   int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
-  int TryWrite(uv_buf_t** bufs, size_t* count);
+  int DoTryWrite(uv_buf_t** bufs, size_t* count);
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
               uv_stream_t* send_handle,
               uv_write_cb cb);
   void DoAfterWrite(WriteWrap* w);
+  void DoAlloc(size_t size, uv_buf_t* buf);
   const char* Error() const;
   void ClearError();
 

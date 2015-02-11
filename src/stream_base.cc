@@ -278,7 +278,7 @@ int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Try writing immediately without allocation
   uv_buf_t* bufs = &buf;
   size_t count = 1;
-  int err = TryWrite(&bufs, &count);
+  int err = DoTryWrite(&bufs, &count);
   if (err != 0)
     goto done;
   if (count == 0)
@@ -360,7 +360,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     uv_buf_t* bufs = &buf;
     size_t count = 1;
-    err = TryWrite(&bufs, &count);
+    err = DoTryWrite(&bufs, &count);
 
     // Failure
     if (err != 0)
@@ -441,8 +441,6 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
                     Integer::NewFromUnsigned(env->isolate(), data_size));
   return err;
 }
-
-
 
 
 void StreamBase::AfterWrite(uv_write_t* req, int status) {

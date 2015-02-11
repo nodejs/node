@@ -124,7 +124,12 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
                          uv_buf_t* buf) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
-  wrap->callbacks()->DoAlloc(handle, suggested_size, buf);
+  return wrap->DoAlloc(suggested_size, buf);
+}
+
+
+void StreamWrap::DoAlloc(size_t size, uv_buf_t* buf) {
+  callbacks()->DoAlloc(reinterpret_cast<uv_handle_t*>(stream()), size, buf);
 }
 
 
@@ -197,7 +202,7 @@ int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
 }
 
 
-int StreamWrap::TryWrite(uv_buf_t** bufs, size_t* count) {
+int StreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   return callbacks()->TryWrite(bufs, count);
 }
 

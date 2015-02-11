@@ -70,13 +70,14 @@ class StreamResource {
   virtual ~StreamResource() = default;
 
   virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
-  virtual int TryWrite(uv_buf_t** bufs, size_t* count) = 0;
+  virtual int DoTryWrite(uv_buf_t** bufs, size_t* count) = 0;
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
                       uv_stream_t* send_handle,
                       uv_write_cb cb) = 0;
   virtual void DoAfterWrite(WriteWrap* w) = 0;
+  virtual void DoAlloc(size_t size, uv_buf_t* buf) = 0;
   virtual const char* Error() const = 0;
   virtual void ClearError() = 0;
 };
