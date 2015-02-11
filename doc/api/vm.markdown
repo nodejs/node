@@ -64,7 +64,7 @@ you can use.
 
 This function is useful for creating a sandbox that can be used to run multiple
 scripts, e.g. if you were emulating a web browser it could be used to create a
-single sandbox representing a window's global object, then run all `<script>`
+single sandbox representing a window’s global object, then run all `<script>`
 tags together inside that sandbox.
 
 [2]: http://es5.github.io/#x15.1
@@ -108,7 +108,7 @@ separate process.
 ## vm.runInNewContext(code[, sandbox][, options])
 
 `vm.runInNewContext` compiles `code`, contextifies `sandbox` if passed or
-creates a new contextified sandbox if it's omitted, and then runs the code with
+creates a new contextified sandbox if it’s omitted, and then runs the code with
 the sandbox as the global object and returns the result.
 
 `vm.runInNewContext` takes the same options as `vm.runInThisContext`.
@@ -142,7 +142,7 @@ The primary use case is to get access to the V8 debug object:
     var Debug = vm.runInDebugContext('Debug');
     Debug.scripts().forEach(function(script) { console.log(script.name); });
 
-Note that the debug context and object are intrinsically tied to V8's debugger
+Note that the debug context and object are intrinsically tied to V8’s debugger
 implementation and may change (or even get removed) without prior warning.
 
 The debug object can also be exposed with the `--expose_debug_as=` switch.
@@ -167,13 +167,13 @@ The options when creating a script are:
 - `displayErrors`: whether or not to print any errors to stderr, with the
   line of code that caused them highlighted, before throwing an exception.
   Applies only to syntax errors compiling the code; errors while running the
-  code are controlled by the options to the script's methods.
+  code are controlled by the options to the script’s methods.
 
 
 ### script.runInThisContext([options])
 
 Similar to `vm.runInThisContext` but a method of a precompiled `Script` object.
-`script.runInThisContext` runs `script`'s compiled code and returns the result.
+`script.runInThisContext` runs `script`’s compiled code and returns the result.
 Running code does not have access to local scope, but does have access to the
 current `global` object.
 
@@ -207,7 +207,7 @@ The options for running a script are:
 ### script.runInContext(contextifiedSandbox[, options])
 
 Similar to `vm.runInContext` but a method of a precompiled `Script` object.
-`script.runInContext` runs `script`'s compiled code in `contextifiedSandbox`
+`script.runInContext` runs `script`’s compiled code in `contextifiedSandbox`
 and returns the result. Running code does not have access to local scope.
 
 `script.runInContext` takes the same options as `script.runInThisContext`.
@@ -242,7 +242,7 @@ requires a separate process.
 
 Similar to `vm.runInNewContext` but a method of a precompiled `Script` object.
 `script.runInNewContext` contextifies `sandbox` if passed or creates a new
-contextified sandbox if it's omitted, and then runs `script`'s compiled code
+contextified sandbox if it’s omitted, and then runs `script`’s compiled code
 with the sandbox as the global object and returns the result. Running code does
 not have access to local scope.
 

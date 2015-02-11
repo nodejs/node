@@ -10,7 +10,7 @@ opened. All objects which emit events are instances of `events.EventEmitter`.
 You can access this module by doing: `require("events");`
 
 Typically, event names are represented by a camel-cased string, however,
-there aren't any strict restrictions on that, as any string will be accepted.
+there aren’t any strict restrictions on that, as any string will be accepted.
 
 Functions can then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_. Inside a listener
@@ -77,9 +77,9 @@ Returns emitter, so calls can be chained.
 
 ### emitter.removeAllListeners([event])
 
-Removes all listeners, or those of the specified event. It's not a good idea to
-remove listeners that were added elsewhere in the code, especially when it's on
-an emitter that you didn't create (e.g. sockets or file streams).
+Removes all listeners, or those of the specified event. It’s not a good idea to
+remove listeners that were added elsewhere in the code, especially when it’s on
+an emitter that you didn’t create (e.g. sockets or file streams).
 
 Returns emitter, so calls can be chained.
 

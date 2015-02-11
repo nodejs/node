@@ -5,9 +5,9 @@
 io.js provides a tri-directional `popen(3)` facility through the
 `child_process` module.
 
-It is possible to stream data through a child's `stdin`, `stdout`, and
+It is possible to stream data through a child’s `stdin`, `stdout`, and
 `stderr` in a fully non-blocking way.  (Note that some programs use
-line-buffered I/O internally.  That doesn't affect io.js but it means
+line-buffered I/O internally.  That doesn’t affect io.js but it means
 data you send to the child process may not be immediately consumed.)
 
 To create a child process use `require('child_process').spawn()` or
@@ -95,7 +95,7 @@ Messages send by `.send(message, [sendHandle])` are obtained using the
 
 * {Stream object}
 
-A `Writable Stream` that represents the child process's `stdin`.
+A `Writable Stream` that represents the child process’s `stdin`.
 If the child is waiting to read all its input, it will not continue until this
 stream has been closed via `end()`.
 
@@ -109,7 +109,7 @@ to the same object, or null.
 
 * {Stream object}
 
-A `Readable Stream` that represents the child process's `stdout`.
+A `Readable Stream` that represents the child process’s `stdout`.
 
 If the child was not spawned with `stdio[1]` set to `'pipe'`, then this will
 not be set.
@@ -121,7 +121,7 @@ to the same object, or null.
 
 * {Stream object}
 
-A `Readable Stream` that represents the child process's `stderr`.
+A `Readable Stream` that represents the child process’s `stderr`.
 
 If the child was not spawned with `stdio[2]` set to `'pipe'`, then this will
 not be set.
@@ -140,15 +140,15 @@ set to `'pipe'`.
 Note that streams 0-2 are also available as ChildProcess.stdin,
 ChildProcess.stdout, and ChildProcess.stderr, respectively.
 
-In the following example, only the child's fd `1` is setup as a pipe, so only
-the parent's `child.stdio[1]` is a stream, all other values in the array are
+In the following example, only the child’s fd `1` is setup as a pipe, so only
+the parent’s `child.stdio[1]` is a stream, all other values in the array are
 `null`.
 
     child = child_process.spawn("ls", {
         stdio: [
           0, // use parents stdin for child
-          'pipe', // pipe child's stdout to parent
-          fs.openSync("err.out", "w") // direct child's stderr to a file
+          'pipe', // pipe child’s stdout to parent
+          fs.openSync("err.out", "w") // direct child’s stderr to a file
         ]
     });
 
@@ -177,7 +177,7 @@ Example:
 
 ### child.connected
 
-* {Boolean} Set to false after `.disconnect' is called
+* {Boolean} Set to false after `.disconnect` is called
 
 If `.connected` is false, it is no longer possible to send messages.
 
@@ -202,7 +202,7 @@ May emit an `'error'` event when the signal cannot be delivered. Sending a
 signal to a child process that has already exited is not an error but may
 have unforeseen consequences: if the PID (the process ID) has been reassigned
 to another process, the signal will be delivered to that process instead.
-What happens next is anyone's guess.
+What happens next is anyone’s guess.
 
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually kill it.  `kill` really just sends a signal
@@ -353,7 +353,7 @@ callback or returning an EventEmitter).
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `stdio` {Array|String} Child's stdio configuration. (See
+  * `stdio` {Array|String} Child’s stdio configuration. (See
     [below](#child_process_options_stdio))
   * `detached` {Boolean} The child will be a process group leader.  (See
     [below](#child_process_options_detached))
@@ -464,9 +464,9 @@ index corresponds to a fd in the child.  The value is one of the following:
    process.on('message').
 3. `'ignore'` - Do not set this file descriptor in the child. Note that io.js
    will always open fd 0 - 2 for the processes it spawns. When any of these is
-   ignored io.js will open `/dev/null` and attach it to the child's fd.
+   ignored io.js will open `/dev/null` and attach it to the child’s fd.
 4. `Stream` object - Share a readable or writable stream that refers to a tty,
-   file, socket, or a pipe with the child process. The stream's underlying
+   file, socket, or a pipe with the child process. The stream’s underlying
    file descriptor is duplicated in the child process to the fd that 
    corresponds to the index in the `stdio` array. Note that the stream must
    have an underlying descriptor (file streams do not until the `'open'`
@@ -500,7 +500,7 @@ after the parent exits.
 
 By default, the parent will wait for the detached child to exit.  To prevent
 the parent from waiting for a given `child`, use the `child.unref()` method,
-and the parent's event loop will not include the child in its reference count.
+and the parent’s event loop will not include the child in its reference count.
 
 Example of detaching a long-running process and redirecting its output to a
 file:
@@ -519,7 +519,7 @@ file:
 
 When using the `detached` option to start a long-running process, the process
 will not stay running in the background unless it is provided with a `stdio`
-configuration that is not connected to the parent.  If the parent's `stdio` is
+configuration that is not connected to the parent.  If the parent’s `stdio` is
 inherited, the child will remain attached to the controlling terminal.
 
 See also: `child_process.exec()` and `child_process.fork()`
@@ -620,7 +620,7 @@ leaner than `child_process.exec`. It has the same options.
     (Default: `process.execArgv`)
   * `silent` {Boolean} If true, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
-    the "pipe" and "inherit" options for `spawn()`'s `stdio` for more details
+    the "pipe" and "inherit" options for `spawn()`’s `stdio` for more details
     (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -658,7 +658,7 @@ configuration at startup.
   * `cwd` {String} Current working directory of the child process
   * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration.
+  * `stdio` {Array} Child’s stdio configuration.
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -677,9 +677,9 @@ configuration at startup.
   * `error` {Error} The error object if the child process failed or timed out
 
 `spawnSync` will not return until the child process has fully closed. When a
-timeout has been encountered and `killSignal` is sent, the method won't return
+timeout has been encountered and `killSignal` is sent, the method won’t return
 until the process has completely exited. That is to say, if the process handles
-the `SIGTERM` signal and doesn't exit, your process will wait until the child
+the `SIGTERM` signal and doesn’t exit, your process will wait until the child
 process has exited.
 
 ### child_process.execFileSync(command[, args][, options])
@@ -690,8 +690,8 @@ process has exited.
   * `cwd` {String} Current working directory of the child process
   * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
-    - `stderr` by default will be output to the parent process' stderr unless
+  * `stdio` {Array} Child’s stdio configuration. (Default: 'pipe')
+    - `stderr` by default will be output to the parent’s process stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
@@ -704,9 +704,9 @@ process has exited.
 * return: {Buffer|String} The stdout from the command
 
 `execFileSync` will not return until the child process has fully closed. When a
-timeout has been encountered and `killSignal` is sent, the method won't return
+timeout has been encountered and `killSignal` is sent, the method won’t return
 until the process has completely exited. That is to say, if the process handles
-the `SIGTERM` signal and doesn't exit, your process will wait until the child
+the `SIGTERM` signal and doesn’t exit, your process will wait until the child
 process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
@@ -721,8 +721,8 @@ throw.  The `Error` object will contain the entire result from
   * `cwd` {String} Current working directory of the child process
   * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
-    - `stderr` by default will be output to the parent process' stderr unless
+  * `stdio` {Array} Child’s stdio configuration. (Default: 'pipe')
+    - `stderr` by default will be output to the parent’s process stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
@@ -735,7 +735,7 @@ throw.  The `Error` object will contain the entire result from
 * return: {Buffer|String} The stdout from the command
 
 `execSync` will not return until the child process has fully closed. When a
-timeout has been encountered and `killSignal` is sent, the method won't return
+timeout has been encountered and `killSignal` is sent, the method won’t return
 until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.

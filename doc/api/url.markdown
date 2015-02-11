@@ -82,7 +82,7 @@ Pass `true` as the third argument to treat `//foo/bar` as
 
 Take a parsed URL object, and return a formatted URL string.
 
-Here's how the formatting process works:
+Here’s how the formatting process works:
 
 * `href` will be ignored.
 * `protocol` is treated the same with or without the trailing `:` (colon).

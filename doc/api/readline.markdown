@@ -5,8 +5,8 @@
 To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as `process.stdin`) on a line-by-line basis.
 
-Note that once you've invoked this module, your io.js program will not
-terminate until you've closed the interface. Here's how to allow your
+Note that once you’ve invoked this module, your io.js program will not
+terminate until you’ve closed the interface. Here’s how to allow your
 program to gracefully exit:
 
     var readline = require('readline');
@@ -89,7 +89,7 @@ stream.
 ### rl.setPrompt(prompt)
 
 Sets the prompt, for example when you run `iojs` on the command line, you see
-`> `, which is io.js's prompt.
+`> `, which is io.js’s prompt.
 
 ### rl.prompt([preserveCursor])
 
@@ -105,9 +105,9 @@ prompt is not written.
 
 ### rl.question(query, callback)
 
-Prepends the prompt with `query` and invokes `callback` with the user's
+Prepends the prompt with `query` and invokes `callback` with the user’s
 response. Displays the query to the user, and then invokes `callback`
-with the user's response after it has been typed.
+with the user’s response after it has been typed.
 
 This will also resume the `input` stream used with `createInterface` if
 it has been paused.
@@ -125,7 +125,7 @@ Example usage:
 
 Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
-Note that this doesn't immediately pause the stream of events. Several events may be emitted after calling `pause`, including `line`.
+Note that this doesn’t immediately pause the stream of events. Several events may be emitted after calling `pause`, including `line`.
 
 ### rl.resume()
 
@@ -266,7 +266,7 @@ Example of listening for `SIGCONT`:
 
 ## Example: Tiny CLI
 
-Here's an example of how to use all these together to craft a tiny command
+Here’s an example of how to use all these together to craft a tiny command
 line interface:
 
     var readline = require('readline'),
@@ -296,7 +296,7 @@ Move cursor to the specified position in a given TTY stream.
 
 ## readline.moveCursor(stream, dx, dy)
 
-Move cursor relative to it's current position in a given TTY stream.
+Move cursor relative to it’s current position in a given TTY stream.
 
 ## readline.clearLine(stream, dir)
 

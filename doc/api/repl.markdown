@@ -52,13 +52,13 @@ the following values:
 
  - `useColors` - a boolean which specifies whether or not the `writer` function
    should output colors. If a different `writer` function is set then this does
-   nothing. Defaults to the repl's `terminal` value.
+   nothing. Defaults to the repl’s `terminal` value.
 
  - `useGlobal` - if set to `true`, then the repl will use the `global` object,
    instead of running scripts in a separate context. Defaults to `false`.
 
  - `ignoreUndefined` - if set to `true`, then the repl will not output the
-   return value of command if it's `undefined`. Defaults to `false`.
+   return value of command if it’s `undefined`. Defaults to `false`.
 
  - `writer` - the function to invoke for each command that gets evaluated which
    returns the formatting (including coloring) to display. Defaults to
@@ -142,7 +142,7 @@ Example of listening for `exit`:
 
 `function (context) {}`
 
-Emitted when the REPL's context is reset. This happens when you type `.clear`.
+Emitted when the REPL’s context is reset. This happens when you type `.clear`.
 If you start the repl with `{ useGlobal: true }` then this event will never
 be emitted.
 
@@ -194,7 +194,7 @@ Things in the `context` object appear as local within the REPL:
 There are a few special REPL commands:
 
   - `.break` - While inputting a multi-line expression, sometimes you get lost
-    or just don't care about completing it. `.break` will start over.
+    or just don’t care about completing it. `.break` will start over.
   - `.clear` - Resets the `context` object to an empty object and clears any
     multi-line expression.
   - `.exit` - Close the I/O stream, which will cause the REPL to exit.

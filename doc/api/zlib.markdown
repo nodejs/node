@@ -148,7 +148,7 @@ class of the compressor/decompressor classes.
 
 `kind` defaults to `zlib.Z_FULL_FLUSH`.
 
-Flush pending data. Don't call this frivolously, premature flushes negatively
+Flush pending data. Don’t call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
 
 ### zlib.params(level, strategy, callback)
@@ -260,7 +260,7 @@ See the description of `deflateInit2` and `inflateInit2` at
 
 <!--type=misc-->
 
-From `zlib/zconf.h`, modified to io.js's usage:
+From `zlib/zconf.h`, modified to io.js’s usage:
 
 The memory requirements for deflate are (in bytes):
 
@@ -274,7 +274,7 @@ the default memory requirements from 256K to 128K, set the options to:
 
     { windowBits: 14, memLevel: 7 }
 
-Of course this will generally degrade compression (there's no free lunch).
+Of course this will generally degrade compression (there’s no free lunch).
 
 The memory requirements for inflate are (in bytes)
 
@@ -292,7 +292,7 @@ will take longer to complete.  A lower level will result in less
 compression, but will be much faster.
 
 In general, greater memory usage options will mean that io.js has to make
-fewer calls to zlib, since it'll be able to process more data in a
+fewer calls to zlib, since it’ll be able to process more data in a
 single `write` operation.  So, this is another factor that affects the
 speed, at the cost of memory usage.
 

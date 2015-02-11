@@ -68,7 +68,7 @@ should be created via `dgram.createSocket(...)`
 * `rinfo` Object. Remote address information
 
 Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
-`rinfo` is an object with the sender's address information:
+`rinfo` is an object with the sender’s address information:
 
     socket.on('message', function(msg, rinfo) {
       console.log('Received %d bytes from %s:%d\n',
@@ -105,14 +105,14 @@ may be supplied for the `address` parameter, and it will be resolved with DNS.
 
 If the address is omitted or is an empty string, `'0.0.0.0'` or `'::0'` is used
 instead.  Depending on the network configuration, those defaults may or may not
-work; it's best to be explicit about the destination address.
+work; it’s best to be explicit about the destination address.
 
 If the socket has not been previously bound with a call to `bind`, it gets
 assigned a random port number and is bound to the "all interfaces" address
 (`'0.0.0.0'` for `udp4` sockets, `'::0'` for `udp6` sockets.)
 
 An optional callback may be specified to detect DNS errors or for determining
-when it's safe to reuse the `buf` object.  Note that DNS lookups delay the time
+when it’s safe to reuse the `buf` object.  Note that DNS lookups delay the time
 to send for at least one tick.  The only way to know for sure that the datagram
 has been sent is by using a callback.
 
@@ -151,9 +151,9 @@ and on the `Payload Length` field size.
   The value of `68` octets is very small, since most current link layer technologies have
   a minimum `MTU` of `1500` (like Ethernet).
 
-Note that it's impossible to know in advance the MTU of each link through which
+Note that it’s impossible to know in advance the MTU of each link through which
 a packet might travel, and that generally sending a datagram greater than
-the (receiver) `MTU` won't work (the packet gets silently dropped, without
+the (receiver) `MTU` won’t work (the packet gets silently dropped, without
 informing the source that the data did not reach its intended recipient).
 
 ### socket.bind(port[, address][, callback])
@@ -243,7 +243,7 @@ this object will contain `address` , `family` and `port`.
 * `flag` Boolean
 
 Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
-may be sent to a local interface's broadcast address.
+may be sent to a local interface’s broadcast address.
 
 ### socket.setTTL(ttl)
 
@@ -309,5 +309,5 @@ active socket in the event system. If the socket is already `unref`d calling
 ### socket.ref()
 
 Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
-let the program exit if it's the only socket left (the default behavior). If
+let the program exit if it’s the only socket left (the default behavior). If
 the socket is `ref`d calling `ref` again will have no effect.

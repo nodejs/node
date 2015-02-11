@@ -24,7 +24,7 @@ Tests shallow, coercive non-equality with the not equal comparison operator ( `!
 ## assert.deepEqual(actual, expected[, message])
 
 Tests for deep equality. Primitive values are compared with the equal comparison
-operator ( `==` ). Doesn't take object prototypes into account.
+operator ( `==` ). Doesn’t take object prototypes into account.
 
 ## assert.notDeepEqual(actual, expected[, message])
 

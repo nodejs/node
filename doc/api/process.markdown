@@ -16,11 +16,11 @@ cases:
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
-  internal in io.js's bootstrapping process caused a parse error.  This
+  internal in io.js’s bootstrapping process caused a parse error.  This
   is extremely rare, and generally can only happen during development
   of io.js itself.
 * `4` **Internal JavaScript Evaluation Failure** - The JavaScript
-  source code internal in io.js's bootstrapping process failed to
+  source code internal in io.js’s bootstrapping process failed to
   return a function value when evaluated.  This is extremely rare, and
   generally can only happen during development of io.js itself.
 * `5` **Fatal Error** - There was a fatal unrecoverable error in V8.
@@ -39,7 +39,7 @@ cases:
 * `9` - **Invalid Argument** - Either an unknown option was specified,
   or an option requiring a value was provided without a value.
 * `10` **Internal JavaScript Run-Time Failure** - The JavaScript
-  source code internal in io.js's bootstrapping process threw an error
+  source code internal in io.js’s bootstrapping process threw an error
   when the bootstrapping function was called.  This is extremely rare,
   and generally can only happen during development of io.js itself.
 * `12` **Invalid Debug Argument** - The `--debug` and/or `--debug-brk`
@@ -56,7 +56,7 @@ Emitted when the process is about to exit. There is no way to prevent the
 exiting of the event loop at this point, and once all `exit` listeners have
 finished running the process will exit. Therefore you **must** only perform
 **synchronous** operations in this handler. This is a good hook to perform
-checks on the module's state (like for unit tests). The callback takes one
+checks on the module’s state (like for unit tests). The callback takes one
 argument, the code the process is exiting with.
 
 Example of listening for `exit`:
@@ -72,7 +72,7 @@ Example of listening for `exit`:
 
 ## Event: 'beforeExit'
 
-This event is emitted when io.js empties it's event loop and has nothing else to
+This event is emitted when io.js empties it’s event loop and has nothing else to
 schedule. Normally, io.js exits when there is no work scheduled, but a listener
 for 'beforeExit' can make asynchronous calls, and cause io.js to continue.
 
@@ -97,14 +97,14 @@ Example of listening for `uncaughtException`:
       console.log('This will still run.');
     }, 500);
 
-    // Intentionally cause an exception, but don't catch it.
+    // Intentionally cause an exception, but don’t catch it.
     nonexistentFunc();
     console.log('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
 handling.
 
-Don't use it, use [domains](domain.html) instead. If you do use it, restart
+Don’t use it, use [domains](domain.html) instead. If you do use it, restart
 your application after every unhandled exception!
 
 Do *not* use it as the io.js equivalent of `On Error Resume Next`. An
@@ -126,7 +126,7 @@ standard POSIX signal names such as SIGINT, SIGHUP, etc.
 
 Example of listening for `SIGINT`:
 
-    // Start reading from stdin so we don't exit.
+    // Start reading from stdin so we don’t exit.
     process.stdin.resume();
 
     process.on('SIGINT', function() {
@@ -138,8 +138,8 @@ programs.
 
 Note:
 
-- `SIGUSR1` is reserved by io.js to start the debugger.  It's possible to
-  install a listener but that won't stop the debugger from starting.
+- `SIGUSR1` is reserved by io.js to start the debugger.  It’s possible to
+  install a listener but that won’t stop the debugger from starting.
 - `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that resets
   the terminal mode before exiting with code `128 + signal number`. If one of
   these signals has a listener installed, its default behaviour will be removed
@@ -347,8 +347,8 @@ An example of this object looks like:
       LOGNAME: 'maciej',
       _: '/usr/local/bin/iojs' }
 
-You can write to this object, but changes won't be reflected outside of your
-process. That means that the following won't work:
+You can write to this object, but changes won’t be reflected outside of your
+process. That means that the following won’t work:
 
     $ iojs -e 'process.env.foo = "bar"' && echo $foo
 
@@ -585,7 +585,7 @@ Getter/setter to set what is displayed in 'ps'.
 When used as a setter, the maximum length is platform-specific and probably
 short.
 
-On Linux and OS X, it's limited to the size of the binary name plus the
+On Linux and OS X, it’s limited to the size of the binary name plus the
 length of the command line arguments because it overwrites the argv memory.
 
 v0.8 allowed for longer process title strings by also overwriting the environ
@@ -595,14 +595,14 @@ cases.
 
 ## process.arch
 
-What processor architecture you're running on: `'arm'`, `'ia32'`, or `'x64'`.
+What processor architecture you’re running on: `'arm'`, `'ia32'`, or `'x64'`.
 
     console.log('This processor architecture is ' + process.arch);
 
 
 ## process.platform
 
-What platform you're running on:
+What platform you’re running on:
 `'darwin'`, `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`
 
     console.log('This platform is ' + process.platform);
@@ -623,7 +623,7 @@ This will generate:
       heapTotal: 1826816,
       heapUsed: 650472 }
 
-`heapTotal` and `heapUsed` refer to V8's memory usage.
+`heapTotal` and `heapUsed` refer to V8’s memory usage.
 
 
 ## process.nextTick(callback)
@@ -633,7 +633,7 @@ This will generate:
 Once the current event loop turn runs to completion, call the callback
 function.
 
-This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
+This is *not* a simple alias to `setTimeout(fn, 0)`, it’s much more
 efficient.  It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
@@ -684,7 +684,7 @@ This API is hazardous.  If you do this:
     });
     bar();
 
-then it's not clear whether `foo()` or `bar()` will be called first.
+then it’s not clear whether `foo()` or `bar()` will be called first.
 
 This approach is much better:
 
@@ -704,7 +704,7 @@ happening, just like a `while(true);` loop.
 
 ## process.umask([mask])
 
-Sets or reads the process's file mode creation mask. Child processes inherit
+Sets or reads the process’s file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
@@ -748,7 +748,7 @@ Alternate way to retrieve
 [`require.main`](modules.html#modules_accessing_the_main_module).
 The difference is that if the main module changes at runtime, `require.main`
 might still refer to the original main module in modules that were required
-before the change occurred. Generally it's safe to assume that the two refer
+before the change occurred. Generally it’s safe to assume that the two refer
 to the same module.
 
 As with `require.main`, it will be `undefined` if there was no entry script.
