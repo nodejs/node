@@ -10,7 +10,7 @@ knowledge of several libraries:
    tree), which is also available
    [online](http://izs.me/v8-docs/main.html).
 
- - [libuv](https://github.com/joyent/libuv), C event loop library.
+ - [libuv](https://github.com/libuv/libuv), C event loop library.
    Anytime one needs to wait for a file descriptor to become readable,
    wait for a timer, or wait for a signal to be received one will need
    to interface with libuv. That is, if you perform any I/O, libuv will
