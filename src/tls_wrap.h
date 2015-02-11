@@ -104,8 +104,8 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
     }
   }
 
-  v8::Local<v8::Object> GetObject();
-  bool IsIPCPipe() const;
+  v8::Local<v8::Object> GetObject() override;
+  bool IsIPCPipe() const override;
 
   // Resource implementation
   static void OnAfterWriteImpl(WriteWrap* w, void* ctx);

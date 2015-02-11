@@ -463,6 +463,40 @@ bool TLSWrap::ClearIn() {
 }
 
 
+Local<Object> TLSWrap::GetObject() {
+  return object();
+}
+
+
+bool TLSWrap::IsIPCPipe() const {
+  return stream_->IsIPCPipe();
+}
+
+
+int TLSWrap::GetFD() const {
+  return stream_->GetFD();
+}
+
+
+bool TLSWrap::IsAlive() const {
+  return stream_->IsAlive();
+}
+
+
+int TLSWrap::ReadStart() {
+  return stream_->ReadStart();
+}
+
+
+int TLSWrap::ReadStop() {
+  return stream_->ReadStop();
+}
+
+int TLSWrap::SetBlocking(bool enable) {
+  return stream_->SetBlocking(enable);
+}
+
+
 const char* TLSWrap::Error() const {
   return error_;
 }
@@ -619,40 +653,6 @@ int TLSWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
   shutdown_ = true;
   EncOut();
   return stream_->DoShutdown(req_wrap, cb);
-}
-
-
-Local<Object> TLSWrap::GetObject() {
-  return object();
-}
-
-
-bool TLSWrap::IsIPCPipe() const {
-  return false;
-}
-
-
-int TLSWrap::GetFD() const {
-  return stream_->GetFD();
-}
-
-
-bool TLSWrap::IsAlive() const {
-  return stream_->IsAlive();
-}
-
-
-int TLSWrap::ReadStart() {
-  return stream_->ReadStart();
-}
-
-
-int TLSWrap::ReadStop() {
-  return stream_->ReadStop();
-}
-
-int TLSWrap::SetBlocking(bool enable) {
-  return stream_->SetBlocking(enable);
 }
 
 

@@ -22,6 +22,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
   int GetFD() const override;
   bool IsAlive() const override;
+  bool IsIPCPipe() const override;
 
   // JavaScript functions
   int ReadStart() override;
@@ -66,8 +67,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
   ~StreamWrap() {
   }
 
-  v8::Local<v8::Object> GetObject();
-  bool IsIPCPipe() const;
+  v8::Local<v8::Object> GetObject() override;
   void UpdateWriteQueueSize();
 
  private:

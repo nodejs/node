@@ -137,6 +137,7 @@ class StreamBase : public StreamResource {
                          v8::Handle<v8::FunctionTemplate> target);
 
   virtual bool IsAlive() const = 0;
+  virtual bool IsIPCPipe() const = 0;
   virtual int GetFD() const = 0;
 
   virtual int ReadStart() = 0;
@@ -153,7 +154,6 @@ class StreamBase : public StreamResource {
   virtual ~StreamBase() = default;
 
   virtual v8::Local<v8::Object> GetObject() = 0;
-  virtual bool IsIPCPipe() const = 0;
 
   // Libuv callbacks
   static void AfterShutdown(uv_shutdown_t* req, int status);
