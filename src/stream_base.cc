@@ -458,7 +458,7 @@ void StreamBase::AfterWrite(uv_write_t* req, int status) {
   // Unref handle property
   Local<Object> req_wrap_obj = req_wrap->object();
   req_wrap_obj->Delete(env->handle_string());
-  wrap->DoAfterWrite(req_wrap);
+  wrap->OnAfterWrite(req_wrap);
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),

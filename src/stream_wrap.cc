@@ -73,6 +73,9 @@ StreamWrap::StreamWrap(Environment* env,
       default_callbacks_(this),
       callbacks_(&default_callbacks_),
       callbacks_gc_(false) {
+  set_after_write_cb(OnAfterWriteImpl, this);
+  set_alloc_cb(OnAllocImpl, this);
+  set_read_cb(OnReadImpl, this);
 }
 
 
@@ -124,19 +127,25 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
                          uv_buf_t* buf) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
-  return wrap->DoAlloc(suggested_size, buf);
+
+  return static_cast<StreamBase*>(wrap)->OnAlloc(suggested_size, buf);
 }
 
 
-void StreamWrap::DoAlloc(size_t size, uv_buf_t* buf) {
-  callbacks()->DoAlloc(reinterpret_cast<uv_handle_t*>(stream()), size, buf);
+void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  wrap->callbacks()->DoAlloc(reinterpret_cast<uv_handle_t*>(wrap->stream()),
+                             size,
+                             buf);
 }
 
 
-void StreamWrap::DoRead(size_t nread,
-                        const uv_buf_t* buf,
-                        uv_handle_type pending) {
-  callbacks()->DoRead(stream(), nread, buf, pending);
+void StreamWrap::OnReadImpl(size_t nread,
+                            const uv_buf_t* buf,
+                            uv_handle_type pending,
+                            void* ctx) {
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  wrap->callbacks()->DoRead(wrap->stream(), nread, buf, pending);
 }
 
 
@@ -180,7 +189,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
     }
   }
 
-  wrap->DoRead(nread, buf, pending);
+  static_cast<StreamBase*>(wrap)->OnRead(nread, buf, pending);
 }
 
 
@@ -223,8 +232,9 @@ int StreamWrap::DoWrite(WriteWrap* w,
 }
 
 
-void StreamWrap::DoAfterWrite(WriteWrap* w) {
-  return callbacks()->AfterWrite(w);
+void StreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  wrap->callbacks()->AfterWrite(w);
 }
 
 

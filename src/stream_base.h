@@ -67,6 +67,18 @@ class WriteWrap: public ReqWrap<uv_write_t> {
 
 class StreamResource {
  public:
+  typedef void (*AfterWriteCb)(WriteWrap* w, void* ctx);
+  typedef void (*AllocCb)(size_t size, uv_buf_t* buf, void* ctx);
+  typedef void (*ReadCb)(size_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
+
+  StreamResource() : after_write_cb_(nullptr),
+                     alloc_cb_(nullptr),
+                     read_cb_(nullptr) {
+  }
+
   virtual ~StreamResource() = default;
 
   virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
@@ -76,13 +88,46 @@ class StreamResource {
                       size_t count,
                       uv_stream_t* send_handle,
                       uv_write_cb cb) = 0;
-  virtual void DoAfterWrite(WriteWrap* w) = 0;
-  virtual void DoAlloc(size_t size, uv_buf_t* buf) = 0;
-  virtual void DoRead(size_t nread,
-                      const uv_buf_t* buf,
-                      uv_handle_type pending) = 0;
   virtual const char* Error() const = 0;
   virtual void ClearError() = 0;
+
+  // Events
+  inline void OnAfterWrite(WriteWrap* w) {
+    after_write_cb_(w, after_write_ctx_);
+  }
+
+  inline void OnAlloc(size_t size, uv_buf_t* buf) {
+    alloc_cb_(size, buf, alloc_ctx_);
+  }
+
+  inline void OnRead(size_t nread,
+                     const uv_buf_t* buf,
+                     uv_handle_type pending) {
+    read_cb_(nread, buf, pending, read_ctx_);
+  }
+
+  inline void set_after_write_cb(AfterWriteCb cb, void* ctx) {
+    after_write_ctx_ = ctx;
+    after_write_cb_ = cb;
+  }
+
+  inline void set_alloc_cb(AllocCb cb, void* ctx) {
+    alloc_cb_ = cb;
+    alloc_ctx_ = ctx;
+  }
+
+  inline void set_read_cb(ReadCb cb, void* ctx) {
+    read_cb_ = cb;
+    read_ctx_ = ctx;
+  }
+
+ private:
+  AfterWriteCb after_write_cb_;
+  void* after_write_ctx_;
+  AllocCb alloc_cb_;
+  void* alloc_ctx_;
+  ReadCb read_cb_;
+  void* read_ctx_;
 };
 
 class StreamBase : public StreamResource {

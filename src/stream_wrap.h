@@ -84,9 +84,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle,
               uv_write_cb cb);
-  void DoAfterWrite(WriteWrap* w);
-  void DoAlloc(size_t size, uv_buf_t* buf);
-  void DoRead(size_t nread, const uv_buf_t* buf, uv_handle_type pending);
   const char* Error() const;
   void ClearError();
 
@@ -142,6 +139,14 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            ssize_t nread,
                            const uv_buf_t* buf,
                            uv_handle_type pending);
+
+  // Resource interface implementation
+  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
+  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadImpl(size_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
 
   uv_stream_t* const stream_;
   StreamWrapCallbacks default_callbacks_;
