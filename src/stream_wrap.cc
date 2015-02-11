@@ -133,6 +133,13 @@ void StreamWrap::DoAlloc(size_t size, uv_buf_t* buf) {
 }
 
 
+void StreamWrap::DoRead(size_t nread,
+                        const uv_buf_t* buf,
+                        uv_handle_type pending) {
+  callbacks()->DoRead(stream(), nread, buf, pending);
+}
+
+
 template <class WrapType, class UVType>
 static Local<Object> AcceptHandle(Environment* env,
                                   uv_stream_t* pipe,
@@ -173,7 +180,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
     }
   }
 
-  wrap->callbacks()->DoRead(handle, nread, buf, pending);
+  wrap->DoRead(nread, buf, pending);
 }
 
 

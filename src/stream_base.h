@@ -78,6 +78,9 @@ class StreamResource {
                       uv_write_cb cb) = 0;
   virtual void DoAfterWrite(WriteWrap* w) = 0;
   virtual void DoAlloc(size_t size, uv_buf_t* buf) = 0;
+  virtual void DoRead(size_t nread,
+                      const uv_buf_t* buf,
+                      uv_handle_type pending) = 0;
   virtual const char* Error() const = 0;
   virtual void ClearError() = 0;
 };
