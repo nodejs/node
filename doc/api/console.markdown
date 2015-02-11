@@ -11,7 +11,7 @@ provided by most web browsers, here the output is sent to stdout or stderr.
 
 The console functions are synchronous when the destination is a terminal or
 a file (to avoid lost messages in case of premature exit) and asynchronous
-when it's a pipe (to avoid blocking for long periods of time).
+when it’s a pipe (to avoid blocking for long periods of time).
 
 That is, in the following example, stdout is non-blocking while stderr
 is blocking:
@@ -52,7 +52,7 @@ Uses `util.inspect` on `obj` and prints resulting string to stdout. This functio
 bypasses any custom `inspect()` function on `obj`. An optional *options* object
 may be passed that alters certain aspects of the formatted string:
 
-- `showHidden` - if `true` then the object's non-enumerable properties will be
+- `showHidden` - if `true` then the object’s non-enumerable properties will be
 shown too. Defaults to `false`.
 
 - `depth` - tells `inspect` how many times to recurse while formatting the

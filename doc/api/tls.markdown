@@ -57,10 +57,10 @@ exceeded. The limits are configurable:
   - `tls.CLIENT_RENEG_WINDOW`: renegotiation window in seconds, default is
     10 minutes.
 
-Don't change the defaults unless you know what you are doing.
+Don’t change the defaults unless you know what you are doing.
 
 To test your server, connect to it with `openssl s_client -connect address:port`
-and tap `R<CR>` (that's the letter `R` followed by a carriage return) a few
+and tap `R<CR>` (that’s the letter `R` followed by a carriage return) a few
 times.
 
 
@@ -177,7 +177,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     A `'clientError'` is emitted on the `tls.Server` object whenever a handshake
     times out.
 
-  - `honorCipherOrder` : When choosing a cipher, use the server's preferences
+  - `honorCipherOrder` : When choosing a cipher, use the server’s preferences
     instead of the client preferences.
 
     Although, this option is disabled by default, it is *recommended* that you
@@ -197,7 +197,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     has an effect if `requestCert` is `true`. Default: `false`.
 
   - `checkServerIdentity(servername, cert)`: Provide an override for checking
-    server's hostname against the certificate. Should return an error if verification
+    server’s hostname against the certificate. Should return an error if verification
     fails. Return `undefined` if passing.
 
   - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
@@ -208,7 +208,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
     SecureContext instance.
     (You can use `tls.createSecureContext(...)` to get proper
-    SecureContext). If `SNICallback` wasn't provided - default callback with
+    SecureContext). If `SNICallback` wasn’t provided - default callback with
     high-level API will be used (see below).
 
   - `sessionTimeout`: An integer specifying the seconds after which TLS
@@ -324,7 +324,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `NPNProtocols`: An array of strings or `Buffer`s containing supported NPN
     protocols. `Buffer`s should have following format: `0x05hello0x05world`,
-    where first byte is next protocol name's length. (Passing array should
+    where first byte is next protocol name’s length. (Passing array should
     usually be much simpler: `['hello', 'world']`.)
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
@@ -444,7 +444,7 @@ dictionary with keys:
   Consult
   <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
   for details on the format.
-* `honorCipherOrder` : When choosing a cipher, use the server's preferences
+* `honorCipherOrder` : When choosing a cipher, use the server’s preferences
   instead of the client preferences. For further details see `tls` module
   documentation.
 
@@ -545,7 +545,7 @@ established after addition of event listener.
 
 Emitted when client wants to resume previous TLS session. Event listener may
 perform lookup in external storage using given `sessionId`, and invoke
-`callback(null, sessionData)` once finished. If session can't be resumed
+`callback(null, sessionData)` once finished. If session can’t be resumed
 (i.e. doesn't exist in storage) one may call `callback(null, null)`. Calling
 `callback(err)` will terminate incoming connection and destroy socket.
 
@@ -558,7 +558,7 @@ established after addition of event listener.
 `function (certificate, issuer, callback) { }`
 
 Emitted when the client sends a certificate status request. You could parse
-server's current certificate to obtain OCSP url and certificate id, and after
+server’s current certificate to obtain OCSP url and certificate id, and after
 obtaining OCSP response invoke `callback(null, resp)`, where `resp` is a
 `Buffer` instance. Both `certificate` and `issuer` are a `Buffer`
 DER-representations of the primary and issuer's certificates. They could be used
@@ -618,14 +618,14 @@ more information.
 
 ### server.addContext(hostname, context)
 
-Add secure context that will be used if client request's SNI hostname is
+Add secure context that will be used if client request’s SNI hostname is
 matching passed `hostname` (wildcards can be used). `context` can contain
 `key`, `cert`, `ca` and/or any other properties from `tls.createSecureContext`
 `options` argument.
 
 ### server.maxConnections
 
-Set this property to reject connections when the server's connection count
+Set this property to reject connections when the server’s connection count
 gets high.
 
 ### server.connections
@@ -655,7 +655,7 @@ common stream methods and events.
 ### Event: 'secureConnect'
 
 This event is emitted after a new connection has been successfully handshaked.
-The listener will be called no matter if the server's certificate was
+The listener will be called no matter if the server’s certificate was
 authorized or not. It is up to the user to test `tlsSocket.authorized`
 to see if the server certificate was signed by one of the specified CAs.
 If `tlsSocket.authorized === false` then the error can be found in
@@ -667,10 +667,10 @@ If `tlsSocket.authorized === false` then the error can be found in
 `function (response) { }`
 
 This event will be emitted if `requestOCSP` option was set. `response` is a
-buffer object, containing server's OCSP response.
+buffer object, containing server’s OCSP response.
 
-Traditionally, the `response` is a signed object from the server's CA that
-contains information about server's certificate revocation status.
+Traditionally, the `response` is a signed object from the server’s CA that
+contains information about server’s certificate revocation status.
 
 ### tlsSocket.encrypted
 
@@ -684,12 +684,12 @@ specified CAs, otherwise `false`
 
 ### tlsSocket.authorizationError
 
-The reason why the peer's certificate has not been verified. This property
+The reason why the peer’s certificate has not been verified. This property
 becomes available only when `tlsSocket.authorized === false`.
 
 ### tlsSocket.getPeerCertificate([ detailed ])
 
-Returns an object representing the peer's certificate. The returned object has
+Returns an object representing the peer’s certificate. The returned object has
 some properties corresponding to the field of the certificate. If `detailed`
 argument is `true` - the full chain with `issuer` property will be returned,
 if `false` - only the top certificate without `issuer` property.
@@ -739,7 +739,7 @@ fields: `rejectUnauthorized`, `requestCert` (See [tls.createServer][]
 for details). `callback(err)` will be executed with `null` as `err`,
 once the renegotiation is successfully completed.
 
-NOTE: Can be used to request peer's certificate after the secure connection
+NOTE: Can be used to request peer’s certificate after the secure connection
 has been established.
 
 ANOTHER NOTE: When running as the server, socket will be destroyed

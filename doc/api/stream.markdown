@@ -59,7 +59,7 @@ var server = http.createServer(function (req, res) {
 
   var body = '';
   // we want to get the data as utf8 strings
-  // If you don't set an encoding, then you'll get Buffer objects
+  // If you don’t set an encoding, then you’ll get Buffer objects
   req.setEncoding('utf8');
 
   // Readable streams emit 'data' events once a listener is added
@@ -152,7 +152,7 @@ When a chunk of data can be read from the stream, it will emit a
 
 In some cases, listening for a `'readable'` event will cause some data
 to be read into the internal buffer from the underlying system, if it
-hadn't already.
+hadn’t already.
 
 ```javascript
 var readable = getReadableStreamSomehow();
@@ -541,7 +541,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
         writer.write(data, encoding, callback);
       } else {
         // see if we should continue, or wait
-        // don't pass the callback, because we're not done yet.
+        // don’t pass the callback, because we’re not done yet.
         ok = writer.write(data, encoding);
       }
     } while (i > 0 && ok);
@@ -847,7 +847,7 @@ SimpleProtocol.prototype._read = function(n) {
   if (!this._inBody) {
     var chunk = this._source.read();
 
-    // if the source doesn't have data, we don't have data yet.
+    // if the source doesn’t have data, we don’t have data yet.
     if (chunk === null)
       return this.push('');
 
@@ -990,7 +990,7 @@ function SourceWrapper(options) {
   this._source = getLowlevelSourceObject();
   var self = this;
 
-  // Every time there's data, we push it into the internal buffer.
+  // Every time there’s data, we push it into the internal buffer.
   this._source.ondata = function(chunk) {
     // if push() returns false, then we need to stop reading from source
     if (!self.push(chunk))
@@ -1099,7 +1099,7 @@ with an underlying implementation of the `_read(size)` and
 [`_write(chunk, encoding, callback)`][] methods as you would with a
 Readable or Writable stream class.
 
-Since JavaScript doesn't have multiple prototypal inheritance, this
+Since JavaScript doesn’t have multiple prototypal inheritance, this
 class prototypally inherits from Readable, and then parasitically from
 Writable.  It is thus up to the user to implement both the lowlevel
 `_read(n)` method as well as the lowlevel
@@ -1344,7 +1344,7 @@ stream is not currently reading, then calling `read(0)` will trigger
 a low-level `_read` call.
 
 There is almost never a need to do this.  However, you will see some
-cases in Node's internals where this is done, particularly in the
+cases in Node’s internals where this is done, particularly in the
 Readable stream class internals.
 
 ### `stream.push('')`
@@ -1352,7 +1352,7 @@ Readable stream class internals.
 Pushing a zero-byte string or Buffer (when not in [Object mode][]) has an
 interesting side effect.  Because it *is* a call to
 [`stream.push()`][], it will end the `reading` process.  However, it
-does *not* add any data to the readable buffer, so there's nothing for
+does *not* add any data to the readable buffer, so there’s nothing for
 a user to consume.
 
 Very rarely, there are cases where you have no data to provide now,

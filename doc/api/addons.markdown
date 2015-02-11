@@ -22,7 +22,7 @@ knowledge of several libraries:
  - Others. Look in `deps/` for what else is available.
 
 Node statically compiles all its dependencies into the executable.
-When compiling your module, you don't need to worry about linking to
+When compiling your module, you don’t need to worry about linking to
 any of these libraries.
 
 All of the following examples are available for
@@ -31,7 +31,7 @@ used as a starting-point for your own Addon.
 
 ## Hello world
 
-To get started let's make a small Addon which is the C++ equivalent of
+To get started let’s make a small Addon which is the C++ equivalent of
 the following JavaScript code:
 
     module.exports.hello = function() { return 'world'; };
@@ -60,7 +60,7 @@ Note that all Node addons must export an initialization function:
     void Initialize (Handle<Object> exports);
     NODE_MODULE(module_name, Initialize)
 
-There is no semi-colon after `NODE_MODULE` as it's not a function (see
+There is no semi-colon after `NODE_MODULE` as it’s not a function (see
 `node.h`).
 
 The `module_name` needs to match the filename of the final binary (minus the
@@ -106,7 +106,7 @@ Please see patterns below for further information or
 
 Below are some addon patterns to help you get started. Consult the online
 [v8 reference](http://izs.me/v8-docs/main.html) for help with the various v8
-calls, and v8's [Embedder's Guide](http://code.google.com/apis/v8/embed.html)
+calls, and v8’s [Embedder’s Guide](http://code.google.com/apis/v8/embed.html)
 for an explanation of several concepts used such as handles, scopes,
 function templates, etc.
 
@@ -183,7 +183,7 @@ You can test it with the following JavaScript snippet:
 ### Callbacks
 
 You can pass JavaScript functions to a C++ function and execute them from
-there. Here's `addon.cc`:
+there. Here’s `addon.cc`:
 
     // addon.cc
     #include <node.h>
@@ -346,7 +346,7 @@ Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
     #endif
 
 And in `myobject.cc` implement the various methods that you want to expose.
-Here we expose the method `plusOne` by adding it to the constructor's
+Here we expose the method `plusOne` by adding it to the constructor’s
 prototype:
 
     // myobject.cc
@@ -426,7 +426,7 @@ explicitly instantiating them with the `new` operator in JavaScript, e.g.
     // instead of:
     // var obj = new addon.Object();
 
-Let's register our `createObject` method in `addon.cc`:
+Let’s register our `createObject` method in `addon.cc`:
 
     // addon.cc
     #include <node.h>
@@ -564,7 +564,7 @@ Test it with:
 ### Passing wrapped objects around
 
 In addition to wrapping and returning C++ objects, you can pass them around
-by unwrapping them with Node's `node::ObjectWrap::Unwrap` helper function.
+by unwrapping them with Node’s `node::ObjectWrap::Unwrap` helper function.
 In the following `addon.cc` we introduce a function `add()` that can take on two
 `MyObject` objects:
 

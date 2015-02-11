@@ -18,7 +18,7 @@ Node has a built-in client for this debugger. To use this, start Node with the
       3   debugger;
     debug>
 
-Node's debugger client doesn't support the full range of commands, but
+Node’s debugger client doesn’t support the full range of commands, but
 simple step and inspection is possible. By putting the statement `debugger;`
 into the source code of your script, you will enable a breakpoint.
 
@@ -82,7 +82,7 @@ to come. Type `help` to see others.
 
 You can watch expression and variable values while debugging your code.
 On every breakpoint each expression from the watchers list will be evaluated
-in the current context and displayed just before the breakpoint's source code
+in the current context and displayed just before the breakpoint’s source code
 listing.
 
 To start watching an expression, type `watch("my_expression")`. `watchers`
@@ -110,7 +110,7 @@ script.js
 * `clearBreakpoint`, `cb(...)` - Clear breakpoint
 
 It is also possible to set a breakpoint in a file (module) that
-isn't loaded yet:
+isn’t loaded yet:
 
     % ./node debug test/fixtures/break-in-module/main.js
     < debugger listening on port 5858
@@ -142,18 +142,18 @@ after)
 * `unwatch(expr)` - Remove expression from watch list
 * `watchers` - List all watchers and their values (automatically listed on each
 breakpoint)
-* `repl` - Open debugger's repl for evaluation in debugging script's context
+* `repl` - Open debugger’s repl for evaluation in debugging script’s context
 
 ### Execution control
 
-* `run` - Run script (automatically runs on debugger's start)
+* `run` - Run script (automatically runs on debugger’s start)
 * `restart` - Restart script
 * `kill` - Kill script
 
 ### Various
 
 * `scripts` - List all loaded scripts
-* `version` - Display v8's version
+* `version` - Display v8’s version
 
 ## Advanced Usage
 

@@ -25,7 +25,7 @@ Converts a string of Unicode symbols to a Punycode string of ASCII-only symbols.
 ## punycode.toUnicode(domain)
 
 Converts a Punycode string representing a domain name to Unicode. Only the
-Punycoded parts of the domain name will be converted, i.e. it doesn't matter if
+Punycoded parts of the domain name will be converted, i.e. it doesn’t matter if
 you call it on a string that has already been converted to Unicode.
 
     // decode domain names
@@ -35,8 +35,8 @@ you call it on a string that has already been converted to Unicode.
 ## punycode.toASCII(domain)
 
 Converts a Unicode string representing a domain name to Punycode. Only the
-non-ASCII parts of the domain name will be converted, i.e. it doesn't matter if
-you call it with a domain that's already in ASCII.
+non-ASCII parts of the domain name will be converted, i.e. it doesn’t matter if
+you call it with a domain that’s already in ASCII.
 
     // encode domain names
     punycode.toASCII('mañana.com'); // 'xn--maana-pta.com'

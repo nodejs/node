@@ -8,7 +8,7 @@ Use `require('os')` to access this module.
 
 ## os.tmpdir()
 
-Returns the operating system's default directory for temp files.
+Returns the operating system’s default directory for temp files.
 
 ## os.endianness()
 
