@@ -95,7 +95,7 @@ Explanation of function parameters:
 * `create(userData)`: A `Function` called when an asynchronous
 event is instantiated. If a `Value` is returned then it will be attached
 to the event and overwrite any value that had been passed to
-`tracing.createAsyncListener()`'s `userData` argument. If an initial
+`tracing.createAsyncListener()`’s `userData` argument. If an initial
 `userData` was passed when created, then `create()` will
 receive that as a function argument.
 
@@ -106,10 +106,10 @@ either returned from `create()` or passed during construction (if
 either occurred).
 
 * `after(context, userData)`: A `Function` called immediately after
-the asynchronous event's callback has run. Note this will not be called
+the asynchronous event’s callback has run. Note this will not be called
 if the callback throws and the error is not handled.
 
-* `error(userData, error)`: A `Function` called if the event's
+* `error(userData, error)`: A `Function` called if the event’s
 callback threw. If this registered callback returns `true` then Node will
 assume the error has been properly handled and resume execution normally.
 When multiple `error()` callbacks have been registered only **one** of
@@ -158,7 +158,7 @@ Example usage for capturing errors:
         return { uid: cntr++ };
       },
       before: function onBefore(context, storage) {
-        // Write directly to stdout or we'll enter a recursive loop
+        // Write directly to stdout or we’ll enter a recursive loop
         fs.writeSync(1, 'uid: ' + storage.uid + ' is about to run\n');
       },
       after: function onAfter(context, storage) {
@@ -182,7 +182,7 @@ Example usage for capturing errors:
     // Output:
     // uid: 0 is about to run
     // handled error just threw:
-    // Error: really, it's ok
+    // Error: really, it’s ok
     //     at /tmp/test2.js:27:9
     //     at process._tickCallback (node.js:583:11)
     //     at Function.Module.runMain (module.js:492:11)
@@ -194,7 +194,7 @@ Example usage for capturing errors:
 Removes the `AsyncListener` from the listening queue.
 
 Removing the `AsyncListener` from the active queue does _not_ mean the
-`asyncListener` callbacks will cease to fire on the events they've been
+`asyncListener` callbacks will cease to fire on the events they’ve been
 registered. Subsequently, any asynchronous events fired during the
 execution of a callback will also have the same `asyncListener` callbacks
 attached for future execution. For example:
@@ -203,7 +203,7 @@ attached for future execution. For example:
 
     var key = tracing.createAsyncListener({
       create: function asyncListener() {
-        // Write directly to stdout or we'll enter a recursive loop
+        // Write directly to stdout or we’ll enter a recursive loop
         fs.writeSync(1, 'You summoned me?\n');
       }
     });
@@ -219,7 +219,7 @@ attached for future execution. For example:
         });
       });
 
-      // Removing the listener doesn't mean to stop capturing events that
+      // Removing the listener doesn’t mean to stop capturing events that
       // have already been added.
       tracing.removeAsyncListener(key);
     }, 100);
@@ -231,7 +231,7 @@ attached for future execution. For example:
     // You summoned me?
 
 The fact that we logged 4 asynchronous events is an implementation detail
-of Node's [Timers][].
+of Node’s [Timers][].
 
 To stop capturing from a specific asynchronous event stack
 `tracing.removeAsyncListener()` must be called from within the call
@@ -241,7 +241,7 @@ stack itself. For example:
 
     var key = tracing.createAsyncListener({
       create: function asyncListener() {
-        // Write directly to stdout or we'll enter a recursive loop
+        // Write directly to stdout or we’ll enter a recursive loop
         fs.writeSync(1, 'You summoned me?\n');
       }
     });

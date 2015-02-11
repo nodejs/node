@@ -12,7 +12,7 @@ Use `require('path')` to use this module.  The following methods are provided:
 
 Normalize a string path, taking care of `'..'` and `'.'` parts.
 
-When multiple slashes are found, they're replaced by a single one;
+When multiple slashes are found, they’re replaced by a single one;
 when the path contains a trailing slash, it is preserved.
 On Windows backslashes are used.
 
@@ -43,7 +43,7 @@ Example:
 
 Resolves `to` to an absolute path.
 
-If `to` isn't already absolute `from` arguments are prepended in right to left
+If `to` isn’t already absolute `from` arguments are prepended in right to left
 order, until an absolute path is found. If after using all `from` paths still
 no absolute path is found, the current working directory is used as well. The
 resulting path is normalized, and trailing slashes are removed unless the path
@@ -61,7 +61,7 @@ Is similar to:
     cd a/../subfile
     pwd
 
-The difference is that the different paths don't need to exist and may also be
+The difference is that the different paths don’t need to exist and may also be
 files.
 
 Examples:
