@@ -8,7 +8,7 @@ Use `require('crypto')` to access this module.
 The crypto module offers a way of encapsulating secure credentials to be
 used as part of a secure HTTPS net or http connection.
 
-It also offers a set of wrappers for OpenSSL's hash, hmac, cipher,
+It also offers a set of wrappers for OpenSSL’s hash, hmac, cipher,
 decipher, sign and verify methods.
 
 
@@ -16,7 +16,7 @@ decipher, sign and verify methods.
 
 Load and set engine for some/all OpenSSL functions (selected by flags).
 
-`engine` could be either an id or a path to the engine's shared library.
+`engine` could be either an id or a path to the engine’s shared library.
 
 `flags` is optional and has `ENGINE_METHOD_ALL` value by default. It could take
 one of or mix of following flags (defined in `constants` module):
@@ -197,7 +197,7 @@ salt allows dictionary attacks as the same password always creates the same key.
 The low iteration count and non-cryptographically secure hash algorithm allow
 passwords to be tested very rapidly.
 
-In line with OpenSSL's recommendation to use pbkdf2 instead of EVP_BytesToKey it
+In line with OpenSSL’s recommendation to use pbkdf2 instead of EVP_BytesToKey it
 is recommended you derive a key and iv yourself with [crypto.pbkdf2][] and to
 then use [createCipheriv()][] to create the cipher stream.
 
@@ -314,7 +314,7 @@ called.
 
 You can disable auto padding if the data has been encrypted without
 standard block padding to prevent `decipher.final` from checking and
-removing it. Can only work if the input data's length is a multiple of
+removing it. Can only work if the input data’s length is a multiple of
 the ciphers block size. You must call this before streaming data to
 `decipher.update`.
 
@@ -455,7 +455,7 @@ or `'base64'`.  If no encoding is provided, then a buffer is returned.
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
-party's public key and returns the computed shared secret. Supplied
+party’s public key and returns the computed shared secret. Supplied
 key is interpreted using specified `input_encoding`, and secret is
 encoded using specified `output_encoding`. Encodings can be
 `'binary'`, `'hex'`, or `'base64'`. If the input encoding is not
@@ -508,7 +508,7 @@ supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in [RFC
 interface of objects created by [crypto.createDiffieHellman()][]
 above, but will not allow to change the keys (with
 [diffieHellman.setPublicKey()][] for example).  The advantage of using
-this routine is that the parties don't have to generate nor exchange
+this routine is that the parties don’t have to generate nor exchange
 group modulus beforehand, saving both processor and communication
 time.
 
@@ -554,7 +554,7 @@ then a buffer is returned.
 ### ECDH.computeSecret(other_public_key[, input_encoding][, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
-party's public key and returns the computed shared secret. Supplied
+party’s public key and returns the computed shared secret. Supplied
 key is interpreted using specified `input_encoding`, and secret is
 encoded using specified `output_encoding`. Encodings can be
 `'binary'`, `'hex'`, or `'base64'`. If the input encoding is not
@@ -737,7 +737,7 @@ The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were Buffer objects for handling
 binary data.
 
-As such, the streaming classes don't have the typical methods found on
+As such, the streaming classes don’t have the typical methods found on
 other io.js classes, and many methods accepted and returned
 Binary-encoded strings by default rather than Buffers.  This was
 changed to use Buffers by default instead.
@@ -748,14 +748,14 @@ For example, if you currently use the default arguments to the Sign
 class, and then pass the results to the Verify class, without ever
 inspecting the data, then it will continue to work as before.  Where
 you once got a binary string and then presented the binary string to
-the Verify object, you'll now get a Buffer, and present the Buffer to
+the Verify object, you’ll now get a Buffer, and present the Buffer to
 the Verify object.
 
 However, if you were doing things with the string data that will not
 work properly on Buffers (such as, concatenating them, storing in
 databases, etc.), or you are passing binary strings to the crypto
 functions without an encoding argument, then you will need to start
-providing encoding arguments to specify which encoding you'd like to
+providing encoding arguments to specify which encoding you’d like to
 use.  To switch to the previous style of using binary strings by
 default, set the `crypto.DEFAULT_ENCODING` field to 'binary'.  Note
 that new programs will probably expect buffers, so only use this as a

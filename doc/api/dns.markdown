@@ -26,7 +26,7 @@ contains all functions in the `dns` module but `dns.lookup`. These functions
 do not use the same set of configuration files than what `dns.lookup` uses.
 For instance, _they do not use the configuration from `/etc/hosts`_. These
 functions should be used by developers who do not want to use the underlying
-operating system's facilities for name resolution, and instead want to
+operating system’s facilities for name resolution, and instead want to
 _always_ perform DNS queries.
 
 Here is an example which resolves `'www.google.com'` then reverse
@@ -98,7 +98,7 @@ Keep in mind that `err.code` will be set to `'ENOENT'` not only when
 the hostname does not exist but also when the lookup fails in other ways
 such as no available file descriptors.
 
-`dns.lookup` doesn't necessarily have anything to do with the DNS protocol.
+`dns.lookup` doesn’t necessarily have anything to do with the DNS protocol.
 It's only an operating system facility that can associate name with addresses,
 and vice versa.
 
@@ -226,7 +226,7 @@ Given an array of IP addresses as strings, set them as the servers to use for
 resolving
 
 If you specify a port with the address it will be stripped, as the underlying
-library doesn't support that.
+library doesn’t support that.
 
 This will throw if you pass invalid input.
 
@@ -287,15 +287,15 @@ in `nsswitch.conf(5)` and/or `resolv.conf(5)`, but be careful that changing
 these files will change the behavior of all other programs running on the same
 operating system.
 
-Though the call will be asynchronous from JavaScript's perspective, it is
-implemented as a synchronous call to `getaddrinfo(3)` that runs on libuv's
-threadpool. Because libuv's threadpool has a fixed size, it means that if for
+Though the call will be asynchronous from JavaScript’s perspective, it is
+implemented as a synchronous call to `getaddrinfo(3)` that runs on libuv’s
+threadpool. Because libuv’s threadpool has a fixed size, it means that if for
 whatever reason the call to `getaddrinfo(3)` takes a long time, other
-operations that could run on libuv's threadpool (such as filesystem
+operations that could run on libuv’s threadpool (such as filesystem
 operations) will experience degraded performance. In order to mitigate this
-issue, one potential solution is to increase the size of libuv's threadpool by
+issue, one potential solution is to increase the size of libuv’s threadpool by
 setting the 'UV_THREADPOOL_SIZE' environment variable to a value greater than
-4 (its current default value). For more information on libuv's threadpool, see
+4 (its current default value). For more information on libuv’s threadpool, see
 [the official libuv
 documentation](http://docs.libuv.org/en/latest/threadpool.html).
 
@@ -304,10 +304,10 @@ documentation](http://docs.libuv.org/en/latest/threadpool.html).
 These functions are implemented quite differently than `dns.lookup`. They do
 not use `getaddrinfo(3)` and they _always_ perform a DNS query on the network.
 This network communication is always done asynchronously, and does not use
-libuv's threadpool.
+libuv’s threadpool.
 
 As a result, these functions cannot have the same negative impact on other
-processing that happens on libuv's threadpool that `dns.lookup` can have.
+processing that happens on libuv’s threadpool that `dns.lookup` can have.
 
 They do not use the same set of configuration files than what `dns.lookup`
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.

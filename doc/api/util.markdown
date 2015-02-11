@@ -5,12 +5,12 @@
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
 
-The `util` module is primarily designed to support the needs of io.js's
+The `util` module is primarily designed to support the needs of io.js’s
 internal APIs.  Many of these utilities are useful for your own
 programs.  If you find that these functions are lacking for your
 purposes, however, you are encouraged to write your own utilities.  We
 are not interested in any future additions to the `util` module that
-are unnecessary for io.js's internal functionality.
+are unnecessary for io.js’s internal functionality.
 
 ## util.debuglog(section)
 
@@ -88,7 +88,7 @@ Return a string representation of `object`, which is useful for debugging.
 An optional *options* object may be passed that alters certain aspects of the
 formatted string:
 
- - `showHidden` - if `true` then the object's non-enumerable and symbol
+ - `showHidden` - if `true` then the object’s non-enumerable and symbol
    properties will be shown too. Defaults to `false`.
 
  - `depth` - tells `inspect` how many times to recurse while formatting the
@@ -99,7 +99,7 @@ formatted string:
    Defaults to `false`. Colors are customizable, see below.
 
  - `customInspect` - if `false`, then custom `inspect(depth, opts)` functions
-   defined on the objects being inspected won't be called. Defaults to `true`.
+   defined on the objects being inspected won’t be called. Defaults to `true`.
 
 Example of inspecting all properties of the `util` object:
 

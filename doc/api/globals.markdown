@@ -2,7 +2,7 @@
 
 <!-- type=misc -->
 
-These objects are available in all modules. Some of these objects aren't
+These objects are available in all modules. Some of these objects aren’t
 actually in the global scope but in the module scope - this will be noted.
 
 ## global
@@ -12,7 +12,7 @@ actually in the global scope but in the module scope - this will be noted.
 * {Object} The global namespace object.
 
 In browsers, the top-level scope is the global scope. That means that in
-browsers if you're in the global scope `var something` will define a global
+browsers if you’re in the global scope `var something` will define a global
 variable. In io.js this is different. The top-level scope is not the global
 scope; `var something` inside an io.js module will be local to that module.
 
@@ -46,7 +46,7 @@ Used to handle binary data. See the [buffer section][]
 
 * {Function}
 
-To require modules. See the [Modules][] section.  `require` isn't actually a
+To require modules. See the [Modules][] section.  `require` isn’t actually a
 global but rather local to each module.
 
 ### require.resolve()
@@ -99,7 +99,7 @@ Example: running `iojs example.js` from `/Users/mjr`
     console.log(__filename);
     // /Users/mjr/example.js
 
-`__filename` isn't actually a global but rather local to each module.
+`__filename` isn’t actually a global but rather local to each module.
 
 ## __dirname
 
@@ -114,7 +114,7 @@ Example: running `iojs example.js` from `/Users/mjr`
     console.log(__dirname);
     // /Users/mjr
 
-`__dirname` isn't actually a global but rather local to each module.
+`__dirname` isn’t actually a global but rather local to each module.
 
 
 ## module
@@ -127,7 +127,7 @@ A reference to the current module. In particular
 `module.exports` is used for defining what a module exports and makes
 available through `require()`.
 
-`module` isn't actually a global but rather local to each module.
+`module` isn’t actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
@@ -139,7 +139,7 @@ A reference to the `module.exports` that is shorter to type.
 See [module system documentation][] for details on when to use `exports` and
 when to use `module.exports`.
 
-`exports` isn't actually a global but rather local to each module.
+`exports` isn’t actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
@@ -151,7 +151,7 @@ Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
 on external factors like OS timer granularity and system load.
 
 The timeout must be in the range of 1-2,147,483,647 inclusive. If the value is
-outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
+outside that range, it’s changed to 1 millisecond. Broadly speaking, a timer
 cannot span more than 24.8 days.
 
 Returns an opaque value that represents the timer.
@@ -165,10 +165,10 @@ not execute.
 
 Run callback `cb` repeatedly every `ms` milliseconds. Note that the actual
 interval may vary, depending on external factors like OS timer granularity and
-system load. It's never less than `ms` but it may be longer.
+system load. It’s never less than `ms` but it may be longer.
 
 The interval must be in the range of 1-2,147,483,647 inclusive. If the value is
-outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
+outside that range, it’s changed to 1 millisecond. Broadly speaking, a timer
 cannot span more than 24.8 days.
 
 Returns an opaque value that represents the timer.
