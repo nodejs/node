@@ -254,8 +254,8 @@ down the process. These are usually failed `assert()` checks or `abort()` calls 
 System errors are generated in response to a program's runtime environment.
 Ideally, they represent operational errors that the program needs to be able to
 react to. They are generated at the syscall level: an exhaustive list of error
-codes and their meanings is available by running `man 2 intro` on most Unices;
-or [online](http://man7.org/linux/man-pages/man2/intro.2.html).
+codes and their meanings is available by running `man 2 intro` or `man 3 errno`
+on most Unices; or [online](http://man7.org/linux/man-pages/man3/errno.3.html).
 
 In io.js, system errors are represented as augmented Error objects -- not full
 subclasses, but instead an error instance with added members.
@@ -275,7 +275,7 @@ letters, and may be referenced in `man 2 intro`.
 ### Common System Errors
 
 This list is **not exhaustive**, but enumerates many of the common system errors when
-writing a io.js program. An exhaustive list may be found [here](http://man7.org/linux/man-pages/man2/intro.2.html).
+writing a io.js program. An exhaustive list may be found [here](http://man7.org/linux/man-pages/man3/errno.3.html).
 
 #### EPERM: Operation not permitted
 
