@@ -68,11 +68,7 @@ StreamWrap::StreamWrap(Environment* env,
                  reinterpret_cast<uv_handle_t*>(stream),
                  provider,
                  parent),
-      StreamBase(env, object),
-      stream_(stream),
-      default_callbacks_(this),
-      callbacks_(&default_callbacks_),
-      callbacks_gc_(false) {
+      stream_(stream) {
   set_after_write_cb(OnAfterWriteImpl, this);
   set_alloc_cb(OnAllocImpl, this);
   set_read_cb(OnReadImpl, this);
@@ -133,26 +129,19 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
-  wrap->callbacks()->DoAlloc(reinterpret_cast<uv_handle_t*>(wrap->stream()),
-                             size,
-                             buf);
-}
+  buf->base = static_cast<char*>(malloc(size));
+  buf->len = size;
 
-
-void StreamWrap::OnReadImpl(size_t nread,
-                            const uv_buf_t* buf,
-                            uv_handle_type pending,
-                            void* ctx) {
-  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
-  wrap->callbacks()->DoRead(wrap->stream(), nread, buf, pending);
+  if (buf->base == nullptr && size > 0) {
+    FatalError(
+        "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
+        "Out Of Memory");
+  }
 }
 
 
 template <class WrapType, class UVType>
-static Local<Object> AcceptHandle(Environment* env,
-                                  uv_stream_t* pipe,
-                                  AsyncWrap* parent) {
+static Local<Object> AcceptHandle(Environment* env, StreamWrap* parent) {
   EscapableHandleScope scope(env->isolate());
   Local<Object> wrap_obj;
   UVType* handle;
@@ -164,10 +153,61 @@ static Local<Object> AcceptHandle(Environment* env,
   WrapType* wrap = Unwrap<WrapType>(wrap_obj);
   handle = wrap->UVHandle();
 
-  if (uv_accept(pipe, reinterpret_cast<uv_stream_t*>(handle)))
+  if (uv_accept(parent->stream(), reinterpret_cast<uv_stream_t*>(handle)))
     abort();
 
   return scope.Escape(wrap_obj);
+}
+
+
+void StreamWrap::OnReadImpl(ssize_t nread,
+                            const uv_buf_t* buf,
+                            uv_handle_type pending,
+                            void* ctx) {
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  Environment* env = wrap->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Value> argv[] = {
+    Integer::New(env->isolate(), nread),
+    Undefined(env->isolate()),
+    Undefined(env->isolate())
+  };
+
+  if (nread < 0)  {
+    if (buf->base != nullptr)
+      free(buf->base);
+    wrap->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+    return;
+  }
+
+  if (nread == 0) {
+    if (buf->base != nullptr)
+      free(buf->base);
+    return;
+  }
+
+  char* base = static_cast<char*>(realloc(buf->base, nread));
+  CHECK_LE(static_cast<size_t>(nread), buf->len);
+  argv[1] = Buffer::Use(env, base, nread);
+
+  Local<Object> pending_obj;
+  if (pending == UV_TCP) {
+    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, wrap);
+  } else if (pending == UV_NAMED_PIPE) {
+    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env, wrap);
+  } else if (pending == UV_UDP) {
+    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env, wrap);
+  } else {
+    CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
+  }
+
+  if (!pending_obj.IsEmpty()) {
+    argv[2] = pending_obj;
+  }
+
+  wrap->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
 }
 
 
@@ -214,46 +254,7 @@ int StreamWrap::SetBlocking(bool enable) {
 
 
 int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
-  return callbacks()->DoShutdown(req_wrap, cb);
-}
-
-
-int StreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
-  return callbacks()->TryWrite(bufs, count);
-}
-
-
-int StreamWrap::DoWrite(WriteWrap* w,
-                        uv_buf_t* bufs,
-                        size_t count,
-                        uv_stream_t* send_handle,
-                        uv_write_cb cb) {
-  return callbacks()->DoWrite(w, bufs, count, send_handle, cb);
-}
-
-
-void StreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
-  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
-  wrap->callbacks()->AfterWrite(w);
-}
-
-
-const char* StreamWrap::Error() const {
-  return callbacks()->Error();
-}
-
-
-void StreamWrap::ClearError() {
-  return callbacks()->ClearError();
-}
-
-
-const char* StreamWrapCallbacks::Error() const {
-  return nullptr;
-}
-
-
-void StreamWrapCallbacks::ClearError() {
+  return uv_shutdown(&req_wrap->req_, stream(), cb);
 }
 
 
@@ -261,13 +262,13 @@ void StreamWrapCallbacks::ClearError() {
 // values, shifting their base and decrementing their length. This is
 // required in order to skip the data that was successfully written via
 // uv_try_write().
-int StreamWrapCallbacks::TryWrite(uv_buf_t** bufs, size_t* count) {
+int StreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   int err;
   size_t written;
   uv_buf_t* vbufs = *bufs;
   size_t vcount = *count;
 
-  err = uv_try_write(wrap()->stream(), vbufs, vcount);
+  err = uv_try_write(stream(), vbufs, vcount);
   if (err == UV_ENOSYS || err == UV_EAGAIN)
     return 0;
   if (err < 0)
@@ -297,106 +298,50 @@ int StreamWrapCallbacks::TryWrite(uv_buf_t** bufs, size_t* count) {
 }
 
 
-int StreamWrapCallbacks::DoWrite(WriteWrap* w,
-                                 uv_buf_t* bufs,
-                                 size_t count,
-                                 uv_stream_t* send_handle,
-                                 uv_write_cb cb) {
+int StreamWrap::DoWrite(WriteWrap* w,
+                        uv_buf_t* bufs,
+                        size_t count,
+                        uv_stream_t* send_handle,
+                        uv_write_cb cb) {
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(&w->req_, wrap()->stream(), bufs, count, cb);
+    r = uv_write(&w->req_, stream(), bufs, count, cb);
   } else {
-    r = uv_write2(&w->req_, wrap()->stream(), bufs, count, send_handle, cb);
+    r = uv_write2(&w->req_, stream(), bufs, count, send_handle, cb);
   }
 
   if (!r) {
     size_t bytes = 0;
     for (size_t i = 0; i < count; i++)
       bytes += bufs[i].len;
-    if (wrap()->stream()->type == UV_TCP) {
+    if (stream()->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(bytes);
-    } else if (wrap()->stream()->type == UV_NAMED_PIPE) {
+    } else if (stream()->type == UV_NAMED_PIPE) {
       NODE_COUNT_PIPE_BYTES_SENT(bytes);
     }
   }
 
-  wrap()->UpdateWriteQueueSize();
+  UpdateWriteQueueSize();
 
   return r;
 }
 
 
-void StreamWrapCallbacks::AfterWrite(WriteWrap* w) {
-  wrap()->UpdateWriteQueueSize();
+
+
+void StreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
+  StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
+  wrap->UpdateWriteQueueSize();
 }
 
 
-void StreamWrapCallbacks::DoAlloc(uv_handle_t* handle,
-                                  size_t suggested_size,
-                                  uv_buf_t* buf) {
-  buf->base = static_cast<char*>(malloc(suggested_size));
-  buf->len = suggested_size;
-
-  if (buf->base == nullptr && suggested_size > 0) {
-    FatalError(
-        "node::StreamWrapCallbacks::DoAlloc(uv_handle_t*, size_t, uv_buf_t*)",
-        "Out Of Memory");
-  }
+const char* StreamWrap::Error() const {
+  return nullptr;
 }
 
 
-void StreamWrapCallbacks::DoRead(uv_stream_t* handle,
-                                 ssize_t nread,
-                                 const uv_buf_t* buf,
-                                 uv_handle_type pending) {
-  Environment* env = wrap()->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
-    Undefined(env->isolate()),
-    Undefined(env->isolate())
-  };
-
-  if (nread < 0)  {
-    if (buf->base != nullptr)
-      free(buf->base);
-    wrap()->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
-    return;
-  }
-
-  if (nread == 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
-    return;
-  }
-
-  char* base = static_cast<char*>(realloc(buf->base, nread));
-  CHECK_LE(static_cast<size_t>(nread), buf->len);
-  argv[1] = Buffer::Use(env, base, nread);
-
-  Local<Object> pending_obj;
-  if (pending == UV_TCP) {
-    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, handle, wrap());
-  } else if (pending == UV_NAMED_PIPE) {
-    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env, handle, wrap());
-  } else if (pending == UV_UDP) {
-    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env, handle, wrap());
-  } else {
-    CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
-  }
-
-  if (!pending_obj.IsEmpty()) {
-    argv[2] = pending_obj;
-  }
-
-  wrap()->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
-}
-
-
-int StreamWrapCallbacks::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
-  return uv_shutdown(&req_wrap->req_, wrap()->stream(), cb);
+void StreamWrap::ClearError() {
+  // No-op
 }
 
 }  // namespace node

@@ -33,8 +33,7 @@ template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
 
 
-StreamBase::StreamBase(Environment* env, Local<Object> object)
-    : consumed_(false) {
+StreamBase::StreamBase() : consumed_(false) {
 }
 
 

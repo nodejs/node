@@ -69,7 +69,7 @@ class StreamResource {
  public:
   typedef void (*AfterWriteCb)(WriteWrap* w, void* ctx);
   typedef void (*AllocCb)(size_t size, uv_buf_t* buf, void* ctx);
-  typedef void (*ReadCb)(size_t nread,
+  typedef void (*ReadCb)(ssize_t nread,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
@@ -149,7 +149,7 @@ class StreamBase : public StreamResource {
   inline void Consume() { consumed_ = true; }
 
  protected:
-  StreamBase(Environment* env, v8::Local<v8::Object> object);
+  StreamBase();
   virtual ~StreamBase() = default;
 
   virtual v8::Local<v8::Object> GetObject() = 0;
