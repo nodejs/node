@@ -11431,7 +11431,10 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
 
   os << "Instructions (size = " << instruction_size() << ")\n";
   // TODO(svenpanne) The Disassembler should use streams, too!
-  Disassembler::Decode(stdout, this);
+  {
+    CodeTracer::Scope trace_scope(GetIsolate()->GetCodeTracer());
+    Disassembler::Decode(trace_scope.file(), this);
+  }
   os << "\n";
 
   if (kind() == FUNCTION) {

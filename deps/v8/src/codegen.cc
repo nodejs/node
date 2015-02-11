@@ -190,7 +190,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
             function->end_position() - function->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
-            os << AsUC16(stream.GetNext());
+            os << AsReversiblyEscapedUC16(stream.GetNext());
           }
         }
         os << "\n\n";
