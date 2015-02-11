@@ -321,15 +321,11 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if V8_OS_MACOSX
-  return static_cast<int>(pthread_mach_thread_np(pthread_self()));
-#elif V8_OS_LINUX
+#if defined(ANDROID)
   return static_cast<int>(syscall(__NR_gettid));
-#elif V8_OS_ANDROID
-  return static_cast<int>(gettid());
 #else
-  return static_cast<int>(pthread_self());
-#endif
+  return static_cast<int>(syscall(SYS_gettid));
+#endif  // defined(ANDROID)
 }
 
 
@@ -608,8 +604,9 @@ void Thread::Join() {
 
 
 void Thread::YieldCPU() {
-  const timespec delay = { 0, 1 };
-  nanosleep(&delay, NULL);
+  int result = sched_yield();
+  DCHECK_EQ(0, result);
+  USE(result);
 }
 
 

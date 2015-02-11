@@ -221,7 +221,6 @@ class Factory V8_FINAL {
   // Create a symbol.
   Handle<Symbol> NewSymbol();
   Handle<Symbol> NewPrivateSymbol();
-  Handle<Symbol> NewPrivateOwnSymbol();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();

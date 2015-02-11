@@ -174,7 +174,7 @@ class PrintableUnique : public Unique<T> {
     return PrintableUnique<T>(zone, reinterpret_cast<Address>(*handle), handle);
   }
 
-  const char* string() const { return string_; }
+  const char* string() { return string_; }
 
  private:
   const char* string_;

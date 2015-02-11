@@ -486,10 +486,11 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                  heap_object = iterator.Next()) {
               // We skip free space objects.
               if (!heap_object->IsFiller()) {
+                DCHECK(heap_object->IsMap());
                 FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(), slot_callback,
-                    clear_maps);
+                    heap_object->address() + Map::kPointerFieldsBeginOffset,
+                    heap_object->address() + Map::kPointerFieldsEndOffset,
+                    slot_callback, clear_maps);
               }
             }
           } else {

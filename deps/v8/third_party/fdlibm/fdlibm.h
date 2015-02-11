@@ -22,8 +22,8 @@ namespace fdlibm {
 int rempio2(double x, double* y);
 
 // Constants to be exposed to builtins via Float64Array.
-struct MathConstants {
-  static const double constants[45];
+struct TrigonometricConstants {
+  static const double constants[34];
 };
 }
 }  // namespace v8::internal

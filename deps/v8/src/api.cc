@@ -5543,6 +5543,11 @@ bool v8::String::CanMakeExternal() {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
 
+  // TODO(yangguo): Externalizing sliced/cons strings allocates.
+  // This rule can be removed when all code that can
+  // trigger an access check is handlified and therefore GC safe.
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) return false;
+
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kShortSize) return false;
@@ -6730,6 +6735,7 @@ void v8::Isolate::LowMemoryNotification() {
     isolate->heap()->CollectAllAvailableGarbage("low memory notification");
   }
 }
+
 
 int v8::Isolate::ContextDisposedNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

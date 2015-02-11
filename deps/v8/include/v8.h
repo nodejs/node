@@ -4187,17 +4187,6 @@ class V8_EXPORT Isolate {
   static Isolate* GetCurrent();
 
   /**
-   * Custom callback used by embedders to help V8 determine if it should abort
-   * when it throws and no internal handler can catch the exception.
-   * If FLAG_abort_on_uncaught_exception is true, then V8 will abort if either:
-   * - no custom callback is set.
-   * - the custom callback set returns true.
-   * Otherwise it won't abort.
-   */
-  typedef bool (*abort_on_uncaught_exception_t)();
-  void SetAbortOnUncaughtException(abort_on_uncaught_exception_t callback);
-
-  /**
    * Methods below this point require holding a lock (using Locker) in
    * a multi-threaded environment.
    */

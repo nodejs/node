@@ -347,6 +347,26 @@ function MathExpm1(x) {
   }
 }
 
+// ES6 draft 09-27-13, section 20.2.2.20.
+// Use Taylor series to approximate. With y = x + 1;
+// log(y) at 1 == log(1) + log'(1)(y-1)/1! + log''(1)(y-1)^2/2! + ...
+//             == 0 + x - x^2/2 + x^3/3 ...
+// The closer x is to 0, the fewer terms are required.
+function MathLog1p(x) {
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  var xabs = MathAbs(x);
+  if (xabs < 1E-7) {
+    return x * (1 - x * (1/2));
+  } else if (xabs < 3E-5) {
+    return x * (1 - x * (1/2 - x * (1/3)));
+  } else if (xabs < 7E-3) {
+    return x * (1 - x * (1/2 - x * (1/3 - x * (1/4 -
+           x * (1/5 - x * (1/6 - x * (1/7)))))));
+  } else {  // Use regular log if not close enough to 0.
+    return MathLog(1 + x);
+  }
+}
+
 // -------------------------------------------------------------------
 
 function SetUpMath() {
@@ -408,7 +428,7 @@ function SetUpMath() {
     "fround", MathFroundJS,
     "clz32", MathClz32,
     "cbrt", MathCbrt,
-    "log1p", MathLog1p,    // implemented by third_party/fdlibm
+    "log1p", MathLog1p,
     "expm1", MathExpm1
   ));
 

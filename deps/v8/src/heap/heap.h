@@ -393,18 +393,11 @@ class PromotionQueue {
     emergency_stack_ = NULL;
   }
 
-  inline void ActivateGuardIfOnTheSamePage();
-
   Page* GetHeadPage() {
     return Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
   }
 
   void SetNewLimit(Address limit) {
-    if (!guard_) {
-      return;
-    }
-
-    DCHECK(GetHeadPage() == Page::FromAllocationTop(limit));
     limit_ = reinterpret_cast<intptr_t*>(limit);
 
     if (limit_ <= rear_) {
@@ -460,8 +453,6 @@ class PromotionQueue {
   intptr_t* front_;
   intptr_t* rear_;
   intptr_t* limit_;
-
-  bool guard_;
 
   static const int kEntrySizeInWords = 2;
 

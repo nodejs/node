@@ -2920,9 +2920,6 @@ FixedArrayBase* Map::GetInitialElements() {
       GetHeap()->EmptyFixedTypedArrayForMap(this);
     DCHECK(!GetHeap()->InNewSpace(empty_array));
     return empty_array;
-  } else if (has_dictionary_elements()) {
-    DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_slow_element_dictionary()));
-    return GetHeap()->empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
@@ -3372,7 +3369,6 @@ bool Name::Equals(Handle<Name> one, Handle<Name> two) {
 ACCESSORS(Symbol, name, Object, kNameOffset)
 ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
-BOOL_ACCESSORS(Symbol, flags, is_own, kOwnBit)
 
 
 bool String::Equals(String* other) {
@@ -6495,10 +6491,6 @@ uint32_t Name::Hash() {
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(this)->ComputeAndSetHash();
-}
-
-bool Name::IsOwn() {
-  return this->IsSymbol() && Symbol::cast(this)->is_own();
 }
 
 

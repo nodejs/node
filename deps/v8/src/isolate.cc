@@ -1090,9 +1090,10 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         thread_local_top()->pending_message_end_pos_ = location->end_pos();
       }
 
-      // If the abort-on-uncaught-exception flag is specified, and if the
-      // exception is not caught by JavaScript (even when an external handler is
-      // present).
+      // If the abort-on-uncaught-exception flag is specified, abort on any
+      // exception not caught by JavaScript, even when an external handler is
+      // present.  This flag is intended for use by JavaScript developers, so
+      // print a user-friendly stack trace (not an internal one).
       if (fatal_exception_depth == 0 &&
           FLAG_abort_on_uncaught_exception &&
           (report_exception || can_be_caught_externally)) {
@@ -1296,6 +1297,7 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   stack_trace_for_uncaught_exceptions_frame_limit_ = frame_limit;
   stack_trace_for_uncaught_exceptions_options_ = options;
 }
+
 
 Handle<Context> Isolate::native_context() {
   return handle(context()->native_context());

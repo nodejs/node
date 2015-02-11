@@ -1,8 +1,3 @@
-2014-08-13: Version 3.28.73
-
-        Performance and stability improvements on all platforms.
-
-
 2014-08-12: Version 3.28.71
 
         ToNumber(Symbol) should throw TypeError (issue 3499).

@@ -124,8 +124,6 @@ class Representation {
     return other.is_more_general_than(*this) || other.Equals(*this);
   }
 
-  bool CanContainDouble(double value);
-
   Representation generalize(Representation other) {
     if (other.fits_into(*this)) return *this;
     if (other.is_more_general_than(*this)) return other;

@@ -20,11 +20,8 @@
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
-        'change-lowering-unittest.cc',
         'compiler-unittests.cc',
         'instruction-selector-unittest.cc',
-        'node-matchers.cc',
-        'node-matchers.h',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

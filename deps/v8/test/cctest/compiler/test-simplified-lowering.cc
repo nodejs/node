@@ -114,9 +114,9 @@ TEST(RunLoadMap) {
   t.Return(load);
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<JSObject> src = TestObject();
     Handle<Map> src_map(src->map());
     Object* result = t.Call(*src);  // TODO(titzer): raw pointers in call
@@ -132,9 +132,9 @@ TEST(RunStoreMap) {
   t.Return(t.jsgraph.TrueConstant());
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<JSObject> src = TestObject();
     Handle<Map> src_map(src->map());
     Handle<JSObject> dst = TestObject();
@@ -152,9 +152,9 @@ TEST(RunLoadProperties) {
   t.Return(load);
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<JSObject> src = TestObject();
     Handle<FixedArray> src_props(src->properties());
     Object* result = t.Call(*src);  // TODO(titzer): raw pointers in call
@@ -171,9 +171,9 @@ TEST(RunLoadStoreMap) {
   t.Return(load);
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<JSObject> src = TestObject();
     Handle<Map> src_map(src->map());
     Handle<JSObject> dst = TestObject();
@@ -194,9 +194,9 @@ TEST(RunLoadStoreFixedArrayIndex) {
   t.Return(load);
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<FixedArray> array = t.factory()->NewFixedArray(2);
     Handle<JSObject> src = TestObject();
     Handle<JSObject> dst = TestObject();
@@ -223,9 +223,9 @@ TEST(RunLoadStoreArrayBuffer) {
   t.Return(t.jsgraph.TrueConstant());
 
   t.LowerAllNodes();
-  t.GenerateCode();
 
   if (Pipeline::SupportedTarget()) {
+    t.GenerateCode();
     Handle<JSArrayBuffer> array = t.factory()->NewJSArrayBuffer();
     const int array_length = 2 * index;
     Runtime::SetupArrayBufferAllocatingData(t.isolate(), array, array_length);
@@ -407,9 +407,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreElement(access, ptr, t.Int32Constant(to_index), load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -429,9 +429,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreField(to_access, ptr, load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -468,9 +468,9 @@ class AccessTester : public HandleAndZoneScope {
     index = t.environment()->Pop();
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -707,7 +707,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     Node* tb = graph()->NewNode(common()->IfTrue(), br);
     Node* fb = graph()->NewNode(common()->IfFalse(), br);
     Node* m = graph()->NewNode(common()->Merge(2), tb, fb);
-    NodeProperties::ReplaceControlInput(ret, m);
+    ret->ReplaceInput(NodeProperties::FirstControlIndex(ret), m);
     return br;
   }
 

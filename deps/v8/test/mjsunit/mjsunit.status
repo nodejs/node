@@ -299,9 +299,6 @@
 ##############################################################################
 ['arch == arm64 or arch == android_arm64', {
 
-  # arm64 TF timeout.
-  'regress/regress-1257': [PASS, TIMEOUT],
-
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
   # should be platform-independent.
@@ -348,7 +345,7 @@
   'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],
-  'compiler/osr-warm': [PASS, TIMEOUT, SLOW],
+  'compiler/osr-warm': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],

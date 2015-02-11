@@ -13,21 +13,21 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 //
-// The following is a straightforward translation of fdlibm routines
-// by Raymond Toy (rtoy@google.com).
+// The following is a straightforward translation of fdlibm routines for
+// sin, cos, and tan, by Raymond Toy (rtoy@google.com).
 
 
-var kMath;  // Initialized to a Float64Array during genesis and is not writable.
+var kTrig;  // Initialized to a Float64Array during genesis and is not writable.
 
-const INVPIO2 = kMath[0];
-const PIO2_1  = kMath[1];
-const PIO2_1T = kMath[2];
-const PIO2_2  = kMath[3];
-const PIO2_2T = kMath[4];
-const PIO2_3  = kMath[5];
-const PIO2_3T = kMath[6];
-const PIO4    = kMath[32];
-const PIO4LO  = kMath[33];
+const INVPIO2 = kTrig[0];
+const PIO2_1  = kTrig[1];
+const PIO2_1T = kTrig[2];
+const PIO2_2  = kTrig[3];
+const PIO2_2T = kTrig[4];
+const PIO2_3  = kTrig[5];
+const PIO2_3T = kTrig[6];
+const PIO4    = kTrig[32];
+const PIO4LO  = kTrig[33];
 
 // Compute k and r such that x - k*pi/2 = r where |r| < pi/4. For
 // precision, r is returned as two values y0 and y1 such that r = y0 + y1
@@ -133,7 +133,7 @@ endmacro
 //          sin(x) = X + (S1*X + (X *(r-Y/2)+Y))
 //
 macro KSIN(x)
-kMath[7+x]
+kTrig[7+x]
 endmacro
 
 macro RETURN_KERNELSIN(X, Y, SIGN)
@@ -177,7 +177,7 @@ endmacro
 //     thus, reducing the rounding error in the subtraction.
 //
 macro KCOS(x)
-kMath[13+x]
+kTrig[13+x]
 endmacro
 
 macro RETURN_KERNELCOS(X, Y, SIGN)
@@ -198,7 +198,6 @@ macro RETURN_KERNELCOS(X, Y, SIGN)
     return (1 - qx - (hz - (z * r - X * Y))) SIGN;
   }
 endmacro
-
 
 // kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
 // Input x is assumed to be bounded by ~pi/4 in magnitude.
@@ -236,7 +235,7 @@ endmacro
 // and will cause incorrect results.
 //
 macro KTAN(x)
-kMath[19+x]
+kTrig[19+x]
 endmacro
 
 function KernelTan(x, y, returnTan) {
@@ -354,165 +353,4 @@ function MathTan(x) {
   }
   REMPIO2(x);
   return KernelTan(y0, y1, (n & 1) ? -1 : 1);
-}
-
-// ES6 draft 09-27-13, section 20.2.2.20.
-// Math.log1p
-//
-// Method :                  
-//   1. Argument Reduction: find k and f such that 
-//                      1+x = 2^k * (1+f), 
-//         where  sqrt(2)/2 < 1+f < sqrt(2) .
-//
-//      Note. If k=0, then f=x is exact. However, if k!=0, then f
-//      may not be representable exactly. In that case, a correction
-//      term is need. Let u=1+x rounded. Let c = (1+x)-u, then
-//      log(1+x) - log(u) ~ c/u. Thus, we proceed to compute log(u),
-//      and add back the correction term c/u.
-//      (Note: when x > 2**53, one can simply return log(x))
-//
-//   2. Approximation of log1p(f).
-//      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
-//            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
-//            = 2s + s*R
-//      We use a special Reme algorithm on [0,0.1716] to generate 
-//      a polynomial of degree 14 to approximate R The maximum error 
-//      of this polynomial approximation is bounded by 2**-58.45. In
-//      other words,
-//                      2      4      6      8      10      12      14
-//          R(z) ~ Lp1*s +Lp2*s +Lp3*s +Lp4*s +Lp5*s  +Lp6*s  +Lp7*s
-//      (the values of Lp1 to Lp7 are listed in the program)
-//      and
-//          |      2          14          |     -58.45
-//          | Lp1*s +...+Lp7*s    -  R(z) | <= 2 
-//          |                             |
-//      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
-//      In order to guarantee error in log below 1ulp, we compute log
-//      by
-//              log1p(f) = f - (hfsq - s*(hfsq+R)).
-//
-//      3. Finally, log1p(x) = k*ln2 + log1p(f).  
-//                           = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
-//         Here ln2 is split into two floating point number: 
-//                      ln2_hi + ln2_lo,
-//         where n*ln2_hi is always exact for |n| < 2000.
-//
-// Special cases:
-//      log1p(x) is NaN with signal if x < -1 (including -INF) ; 
-//      log1p(+INF) is +INF; log1p(-1) is -INF with signal;
-//      log1p(NaN) is that NaN with no signal.
-//
-// Accuracy:
-//      according to an error analysis, the error is always less than
-//      1 ulp (unit in the last place).
-//
-// Constants:
-// The hexadecimal values are the intended ones for the following 
-// constants. The decimal values may be used, provided that the 
-// compiler will convert from decimal to binary accurately enough 
-// to produce the hexadecimal values shown.
-//
-// Note: Assuming log() return accurate answer, the following
-//       algorithm can be used to compute log1p(x) to within a few ULP:
-//
-//              u = 1+x;
-//              if (u==1.0) return x ; else
-//                          return log(u)*(x/(u-1.0));
-//
-//       See HP-15C Advanced Functions Handbook, p.193.
-//
-const LN2_HI    = kMath[34];
-const LN2_LO    = kMath[35];
-const TWO54     = kMath[36];
-const TWO_THIRD = kMath[37];
-macro KLOGP1(x)
-(kMath[38+x])
-endmacro
-
-function MathLog1p(x) {
-  x = x * 1;  // Convert to number.
-  var hx = %_DoubleHi(x);
-  var ax = hx & 0x7fffffff;
-  var k = 1;
-  var f = x;
-  var hu = 1;
-  var c = 0;
-  var u = x;
-
-  if (hx < 0x3fda827a) {
-    // x < 0.41422
-    if (ax >= 0x3ff00000) {  // |x| >= 1
-      if (x === -1) {
-        return -INFINITY;  // log1p(-1) = -inf
-      } else {
-        return NAN;  // log1p(x<-1) = NaN
-      }
-    } else if (ax < 0x3c900000)  {
-      // For |x| < 2^-54 we can return x.
-      return x;
-    } else if (ax < 0x3e200000) {
-      // For |x| < 2^-29 we can use a simple two-term Taylor series.
-      return x - x * x * 0.5;
-    }
-
-    if ((hx > 0) || (hx <= -0x402D413D)) {  // (int) 0xbfd2bec3 = -0x402d413d
-      // -.2929 < x < 0.41422
-      k = 0;
-    }
-  }
-
-  // Handle Infinity and NAN
-  if (hx >= 0x7ff00000) return x;
-
-  if (k !== 0) {
-    if (hx < 0x43400000) {
-      // x < 2^53
-      u = 1 + x;
-      hu = %_DoubleHi(u);
-      k = (hu >> 20) - 1023;
-      c = (k > 0) ? 1 - (u - x) : x - (u - 1);
-      c = c / u;
-    } else {
-      hu = %_DoubleHi(u);
-      k = (hu >> 20) - 1023;
-    }
-    hu = hu & 0xfffff;
-    if (hu < 0x6a09e) {
-      u = %_ConstructDouble(hu | 0x3ff00000, %_DoubleLo(u));  // Normalize u.
-    } else {
-      ++k;
-      u = %_ConstructDouble(hu | 0x3fe00000, %_DoubleLo(u));  // Normalize u/2.
-      hu = (0x00100000 - hu) >> 2;
-    }
-    f = u - 1;
-  }
-
-  var hfsq = 0.5 * f * f;
-  if (hu === 0) {
-    // |f| < 2^-20;
-    if (f === 0) {
-      if (k === 0) {
-        return 0.0;
-      } else {
-        return k * LN2_HI + (c + k * LN2_LO);
-      }
-    }
-    var R = hfsq * (1 - TWO_THIRD * f);
-    if (k === 0) {
-      return f - R;
-    } else {
-      return k * LN2_HI - ((R - (k * LN2_LO + c)) - f);
-    }
-  }
-
-  var s = f / (2 + f); 
-  var z = s * s;
-  var R = z * (KLOGP1(0) + z * (KLOGP1(1) + z *
-              (KLOGP1(2) + z * (KLOGP1(3) + z *
-              (KLOGP1(4) + z * (KLOGP1(5) + z * KLOGP1(6)))))));
-  if (k === 0) {
-    return f - (hfsq - s * (hfsq + R));
-  } else {
-    return k * LN2_HI - ((hfsq - (s * (hfsq + R) + (k * LN2_LO + c))) - f);
-  }
 }

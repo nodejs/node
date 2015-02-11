@@ -88,7 +88,7 @@ class RepresentationChanger {
     } else if (use_type & rFloat64) {
       return GetFloat64RepresentationFor(node, output_type);
     } else if (use_type & rWord32) {
-      return GetWord32RepresentationFor(node, output_type, use_type & tUint32);
+      return GetWord32RepresentationFor(node, output_type);
     } else if (use_type & rBit) {
       return GetBitRepresentationFor(node, output_type);
     } else if (use_type & rWord64) {
@@ -165,8 +165,10 @@ class RepresentationChanger {
     if (output_type & rWord32) {
       if (output_type & tUint32) {
         op = machine()->ChangeUint32ToFloat64();
-      } else {
+      } else if (output_type & tInt32) {
         op = machine()->ChangeInt32ToFloat64();
+      } else {
+        return TypeError(node, output_type, rFloat64);
       }
     } else if (output_type & rTagged) {
       op = simplified()->ChangeTaggedToFloat64();
@@ -176,23 +178,22 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
-  Node* GetWord32RepresentationFor(Node* node, RepTypeUnion output_type,
-                                   bool use_unsigned) {
+  Node* GetWord32RepresentationFor(Node* node, RepTypeUnion output_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
         return node;  // No change necessary.
       case IrOpcode::kNumberConstant:
       case IrOpcode::kFloat64Constant: {
-        double value = ValueOf<double>(node->op());
-        if (value < 0) {
-          DCHECK(IsInt32Double(value));
-          int32_t iv = static_cast<int32_t>(value);
-          return jsgraph()->Int32Constant(iv);
+        if (output_type & tUint32) {
+          int32_t value = static_cast<int32_t>(
+              static_cast<uint32_t>(ValueOf<double>(node->op())));
+          return jsgraph()->Int32Constant(value);
+        } else if (output_type & tInt32) {
+          int32_t value = FastD2I(ValueOf<double>(node->op()));
+          return jsgraph()->Int32Constant(value);
         } else {
-          DCHECK(IsUint32Double(value));
-          int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
-          return jsgraph()->Int32Constant(iv);
+          return TypeError(node, output_type, rWord32);
         }
       }
       default:
@@ -201,16 +202,20 @@ class RepresentationChanger {
     // Select the correct X -> Word32 operator.
     Operator* op = NULL;
     if (output_type & rFloat64) {
-      if (output_type & tUint32 || use_unsigned) {
+      if (output_type & tUint32) {
         op = machine()->ChangeFloat64ToUint32();
-      } else {
+      } else if (output_type & tInt32) {
         op = machine()->ChangeFloat64ToInt32();
+      } else {
+        return TypeError(node, output_type, rWord32);
       }
     } else if (output_type & rTagged) {
-      if (output_type & tUint32 || use_unsigned) {
+      if (output_type & tUint32) {
         op = simplified()->ChangeTaggedToUint32();
-      } else {
+      } else if (output_type & tInt32) {
         op = simplified()->ChangeTaggedToInt32();
+      } else {
+        return TypeError(node, output_type, rWord32);
       }
     } else if (output_type & rBit) {
       return node;  // Sloppy comparison -> word32.

@@ -608,17 +608,6 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Handle<Symbol> symbol = isolate->factory()->NewPrivateOwnSymbol();
-  if (name->IsString()) symbol->set_name(*name);
-  return *symbol;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -9767,59 +9756,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 
-// Walk up the stack expecting:
-//  - Runtime_CompileString
-//  - JSFunction callee (eval, Function constructor, etc)
-//  - call() (maybe)
-//  - apply() (maybe)
-//  - bind() (maybe)
-// - JSFunction caller (maybe)
-//
-// return true if the caller has the same security token as the callee
-// or if an exit frame was hit, in which case allow it through, as it could
-// have come through the api.
-static bool TokensMatchForCompileString(Isolate* isolate) {
-  MaybeHandle<JSFunction> callee;
-  bool exit_handled = true;
-  bool tokens_match = true;
-  bool done = false;
-  for (StackFrameIterator it(isolate); !it.done() && !done; it.Advance()) {
-    StackFrame* raw_frame = it.frame();
-    if (!raw_frame->is_java_script()) {
-      if (raw_frame->is_exit()) exit_handled = false;
-      continue;
-    }
-    JavaScriptFrame* outer_frame = JavaScriptFrame::cast(raw_frame);
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    outer_frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0 && !done; --i) {
-      FrameSummary& frame = frames[i];
-      Handle<JSFunction> fun = frame.function();
-      // Capture the callee function.
-      if (callee.is_null()) {
-        callee = fun;
-        exit_handled = true;
-        continue;
-      }
-      // Exit condition.
-      Handle<Context> context(callee.ToHandleChecked()->context());
-      if (!fun->context()->HasSameSecurityTokenAs(*context)) {
-        tokens_match = false;
-        done = true;
-        continue;
-      }
-      // Skip bound functions in correct origin.
-      if (fun->shared()->bound()) {
-        exit_handled = true;
-        continue;
-      }
-      done = true;
-    }
-  }
-  return !exit_handled || tokens_match;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -9828,11 +9764,6 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
-
-  // Filter cross security context calls.
-  if (!TokensMatchForCompileString(isolate)) {
-    return isolate->heap()->undefined_value();
-  }
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
@@ -10541,10 +10472,10 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
     Handle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
     int j = 0;
+    bool failure = false;
     if (estimate_result_length > 0) {
       Handle<FixedDoubleArray> double_storage =
           Handle<FixedDoubleArray>::cast(storage);
-      bool failure = false;
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj(elements->get(i), isolate);
         if (obj->IsSmi()) {
@@ -10565,6 +10496,11 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
                   FixedDoubleArray::cast(array->elements());
               for (uint32_t i = 0; i < length; i++) {
                 if (elements->is_the_hole(i)) {
+                  // TODO(jkummerow/verwaest): We could be a bit more clever
+                  // here: Check if there are no elements/getters on the
+                  // prototype chain, and if so, allow creation of a holey
+                  // result array.
+                  // Same thing below (holey smi case).
                   failure = true;
                   break;
                 }
@@ -10591,6 +10527,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
               break;
             }
             case FAST_HOLEY_ELEMENTS:
+            case FAST_ELEMENTS:
               DCHECK_EQ(0, length);
               break;
             default:
@@ -10600,14 +10537,17 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
         if (failure) break;
       }
     }
-    Handle<JSArray> array = isolate->factory()->NewJSArray(0);
-    Smi* length = Smi::FromInt(j);
-    Handle<Map> map;
-    map = JSObject::GetElementsTransitionMap(array, kind);
-    array->set_map(*map);
-    array->set_length(length);
-    array->set_elements(*storage);
-    return *array;
+    if (!failure) {
+      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+      Smi* length = Smi::FromInt(j);
+      Handle<Map> map;
+      map = JSObject::GetElementsTransitionMap(array, kind);
+      array->set_map(*map);
+      array->set_length(length);
+      array->set_elements(*storage);
+      return *array;
+    }
+    // In case of failure, fall through.
   }
 
   Handle<FixedArray> storage;

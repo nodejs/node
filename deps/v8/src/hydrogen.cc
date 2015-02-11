@@ -3498,7 +3498,7 @@ int HGraph::TraceInlinedFunction(
               shared->end_position() - shared->start_position() + 1;
           for (int i = 0; i < source_len; i++) {
             if (stream.HasMore()) {
-              os << AsReversiblyEscapedUC16(stream.GetNext());
+              os << AsUC16(stream.GetNext());
             }
           }
         }
@@ -8800,6 +8800,12 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
 
   Push(graph()->GetConstantMinus1());
   if (IsFastDoubleElementsKind(kind) || IsFastSmiElementsKind(kind)) {
+    // Make sure that we can actually compare numbers correctly below, see
+    // https://code.google.com/p/chromium/issues/detail?id=407946 for details.
+    search_element = AddUncasted<HForceRepresentation>(
+        search_element, IsFastSmiElementsKind(kind) ? Representation::Smi()
+                                                    : Representation::Double());
+
     LoopBuilder loop(this, context(), direction);
     {
       HValue* index = loop.BeginBody(initial, terminating, token);
@@ -8807,12 +8813,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
           elements, index, static_cast<HValue*>(NULL),
           kind, ALLOW_RETURN_HOLE);
       IfBuilder if_issame(this);
-      if (IsFastDoubleElementsKind(kind)) {
-        if_issame.If<HCompareNumericAndBranch>(
-            element, search_element, Token::EQ_STRICT);
-      } else {
-        if_issame.If<HCompareObjectEqAndBranch>(element, search_element);
-      }
+      if_issame.If<HCompareNumericAndBranch>(element, search_element,
+                                             Token::EQ_STRICT);
       if_issame.Then();
       {
         Drop(1);

@@ -1326,7 +1326,6 @@ class Isolate {
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
 
-
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;

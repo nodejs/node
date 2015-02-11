@@ -2655,17 +2655,19 @@ Genesis::Genesis(Isolate* isolate,
                                   NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
-    const int constants_size = ARRAY_SIZE(fdlibm::MathConstants::constants);
+    const int constants_size =
+        ARRAY_SIZE(fdlibm::TrigonometricConstants::constants);
     const int table_num_bytes = constants_size * kDoubleSize;
     v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
         reinterpret_cast<v8::Isolate*>(isolate),
-        const_cast<double*>(fdlibm::MathConstants::constants), table_num_bytes);
+        const_cast<double*>(fdlibm::TrigonometricConstants::constants),
+        table_num_bytes);
     v8::Local<v8::Float64Array> trig_table =
         v8::Float64Array::New(trig_buffer, 0, constants_size);
 
     Runtime::DefineObjectProperty(
         builtins,
-        factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("kMath")),
+        factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("kTrig")),
         Utils::OpenHandle(*trig_table), NONE).Assert();
   }
 

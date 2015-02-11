@@ -47,11 +47,11 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 429
-EXPECTED_FUZZABLE_COUNT = 332
+EXPECTED_FUNCTION_COUNT = 428
+EXPECTED_FUZZABLE_COUNT = 331
 EXPECTED_CCTEST_COUNT = 7
 EXPECTED_UNKNOWN_COUNT = 16
-EXPECTED_BUILTINS_COUNT = 808
+EXPECTED_BUILTINS_COUNT = 809
 
 
 # Don't call these at all.
@@ -226,7 +226,6 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "CreateBreakIterator": ["'en-US'", "{type: 'string'}", None, None],
   "CreateJSFunctionProxy": [None, "function() {}", None, None, None],
   "CreatePrivateSymbol": ["\"foo\"", None],
-  "CreatePrivateOwnSymbol": ["\"foo\"", None],
   "CreateSymbol": ["\"foo\"", None],
   "DateParseString": [None, "new Array(8)", None],
   "DefineAccessorPropertyUnchecked": [None, None, "function() {}",

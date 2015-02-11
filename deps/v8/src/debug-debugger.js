@@ -430,7 +430,7 @@ ScriptBreakPoint.prototype.set = function (script) {
   if (IS_NULL(position)) return;
 
   // Create a break point object and set the break point.
-  var break_point = MakeBreakPoint(position, this);
+  break_point = MakeBreakPoint(position, this);
   break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position,
                                              this.position_alignment_,

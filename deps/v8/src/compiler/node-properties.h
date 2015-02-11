@@ -5,13 +5,15 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
-#include "src/compiler/node.h"
+#include "src/v8.h"
+
 #include "src/types.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Node;
 class Operator;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
@@ -29,7 +31,6 @@ class NodeProperties {
 
   static inline bool IsControl(Node* node);
 
-  static inline void ReplaceControlInput(Node* node, Node* control);
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);
   static inline void RemoveNonValueInputs(Node* node);
@@ -37,9 +38,9 @@ class NodeProperties {
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
 
- private:
+  static inline int GetContextIndex(Node* node);
+
   static inline int FirstValueIndex(Node* node);
-  static inline int FirstContextIndex(Node* node);
   static inline int FirstEffectIndex(Node* node);
   static inline int FirstControlIndex(Node* node);
   static inline int PastValueIndex(Node* node);
@@ -49,9 +50,8 @@ class NodeProperties {
 
   static inline bool IsInputRange(Node::Edge edge, int first, int count);
 };
-
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}
+}
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_NODE_PROPERTIES_H_

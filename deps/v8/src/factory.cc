@@ -664,14 +664,6 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
 }
 
 
-Handle<Symbol> Factory::NewPrivateOwnSymbol() {
-  Handle<Symbol> symbol = NewSymbol();
-  symbol->set_is_private(true);
-  symbol->set_is_own(true);
-  return symbol;
-}
-
-
 Handle<Context> Factory::NewNativeContext() {
   Handle<FixedArray> array = NewFixedArray(Context::NATIVE_CONTEXT_SLOTS);
   array->set_map_no_write_barrier(*native_context_map());

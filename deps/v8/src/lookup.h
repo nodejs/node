@@ -47,7 +47,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   LookupIterator(Handle<Object> receiver,
                  Handle<Name> name,
                  Configuration configuration = CHECK_ALL)
-      : configuration_(ComputeConfiguration(configuration, name)),
+      : configuration_(configuration),
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
@@ -66,7 +66,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
                  Handle<Name> name,
                  Handle<JSReceiver> holder,
                  Configuration configuration = CHECK_ALL)
-      : configuration_(ComputeConfiguration(configuration, name)),
+      : configuration_(configuration),
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
@@ -185,15 +185,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DCHECK(has_property_);
     DCHECK_EQ(DICTIONARY, property_encoding_);
     return number_;
-  }
-
-  static Configuration ComputeConfiguration(
-      Configuration configuration, Handle<Name> name) {
-    if (name->IsOwn()) {
-      return static_cast<Configuration>(configuration & CHECK_OWN);
-    } else {
-      return configuration;
-    }
   }
 
   Configuration configuration_;

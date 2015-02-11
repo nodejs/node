@@ -192,11 +192,18 @@ TEST(SingleChanges) {
 TEST(SignednessInWord32) {
   RepresentationChangerTester r;
 
-  // TODO(titzer): assume that uses of a word32 without a sign mean tInt32.
-  CheckChange(IrOpcode::kChangeTaggedToInt32, rTagged, rWord32 | tInt32);
-  CheckChange(IrOpcode::kChangeTaggedToUint32, rTagged, rWord32 | tUint32);
-  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32, rFloat64);
-  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64, rWord32);
+  // TODO(titzer): these are currently type errors because the output type is
+  // not specified. Maybe the RepresentationChanger should assume anything to or
+  // from {rWord32} is {tInt32}, i.e. signed, if not it is explicitly otherwise?
+  r.CheckTypeError(rTagged, rWord32 | tInt32);
+  r.CheckTypeError(rTagged, rWord32 | tUint32);
+  r.CheckTypeError(rWord32, rFloat64);
+  r.CheckTypeError(rFloat64, rWord32);
+
+  //  CheckChange(IrOpcode::kChangeTaggedToInt32, rTagged, rWord32 | tInt32);
+  //  CheckChange(IrOpcode::kChangeTaggedToUint32, rTagged, rWord32 | tUint32);
+  //  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32, rFloat64);
+  //  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64, rWord32);
 }
 
 

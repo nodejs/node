@@ -193,8 +193,10 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
                                      const size_t commit_size,
                                      size_t* allocated) {
   DCHECK(commit_size <= requested_size);
-  DCHECK(current_allocation_block_index_ < allocation_list_.length());
-  if (requested_size > allocation_list_[current_allocation_block_index_].size) {
+  DCHECK(allocation_list_.length() == 0 ||
+         current_allocation_block_index_ < allocation_list_.length());
+  if (allocation_list_.length() == 0 ||
+      requested_size > allocation_list_[current_allocation_block_index_].size) {
     // Find an allocation block large enough.
     if (!GetNextAllocationBlock(requested_size)) return NULL;
   }
@@ -218,7 +220,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   allocation_list_[current_allocation_block_index_].size -= *allocated;
   if (*allocated == current.size) {
     // This block is used up, get the next one.
-    if (!GetNextAllocationBlock(0)) return NULL;
+    GetNextAllocationBlock(0);
   }
   return current.start;
 }
@@ -1365,7 +1367,6 @@ bool NewSpace::AddFreshPage() {
   Address limit = NewSpacePage::FromLimit(top)->area_end();
   if (heap()->gc_state() == Heap::SCAVENGE) {
     heap()->promotion_queue()->SetNewLimit(limit);
-    heap()->promotion_queue()->ActivateGuardIfOnTheSamePage();
   }
 
   int remaining_in_page = static_cast<int>(limit - top);

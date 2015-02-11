@@ -115,7 +115,7 @@
       'Release': {
         'variables': {
           'v8_enable_extra_checks%': 0,
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {

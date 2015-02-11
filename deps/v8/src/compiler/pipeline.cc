@@ -14,7 +14,6 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
-#include "src/compiler/phi-reducer.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -23,7 +22,6 @@
 #include "src/compiler/verifier.h"
 #include "src/hydrogen.h"
 #include "src/ostreams.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -75,25 +73,9 @@ class PhaseStats {
 
 void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
   if (FLAG_trace_turbo) {
-    char buffer[256];
-    Vector<char> filename(buffer, sizeof(buffer));
-    SmartArrayPointer<char> functionname =
-        info_->shared_info()->DebugName()->ToCString();
-    if (strlen(functionname.get()) > 0) {
-      SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
-    } else {
-      SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
-    }
-    std::replace(filename.start(), filename.start() + filename.length(), ' ',
-                 '_');
-    FILE* file = base::OS::FOpen(filename.start(), "w+");
-    OFStream of(file);
-    of << AsDOT(*graph);
-    fclose(file);
-
     OFStream os(stdout);
-    os << "-- " << phase << " graph printed to file " << filename.start()
-       << "\n";
+    os << "-- " << phase << " graph -----------------------------------\n"
+       << AsDOT(*graph);
   }
   if (VerifyGraphs()) Verifier::Run(graph);
 }
@@ -161,17 +143,6 @@ Handle<Code> Pipeline::GenerateCode() {
                                                &source_positions);
     graph_builder.CreateGraph();
     context_node = graph_builder.GetFunctionContext();
-  }
-  {
-    PhaseStats phi_reducer_stats(info(), PhaseStats::CREATE_GRAPH,
-                                 "phi reduction");
-    PhiReducer phi_reducer;
-    GraphReducer graph_reducer(&graph);
-    graph_reducer.AddReducer(&phi_reducer);
-    graph_reducer.ReduceGraph();
-    // TODO(mstarzinger): Running reducer once ought to be enough for everyone.
-    graph_reducer.ReduceGraph();
-    graph_reducer.ReduceGraph();
   }
 
   VerifyAndPrintGraph(&graph, "Initial untyped");

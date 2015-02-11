@@ -13,33 +13,23 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// The TARGET_TEST(Case, Name) macro works just like
+// The COMPILER_TEST(Case, Name) macro works just like
 // TEST(Case, Name), except that the test is disabled
 // if the platform is not a supported TurboFan target.
 #if V8_TURBOFAN_TARGET
-#define TARGET_TEST(Case, Name) TEST(Case, Name)
+#define COMPILER_TEST(Case, Name) TEST(Case, Name)
 #else
-#define TARGET_TEST(Case, Name) TEST(Case, DISABLED_##Name)
+#define COMPILER_TEST(Case, Name) TEST(Case, DISABLED_##Name)
 #endif
 
 
-// The TARGET_TEST_F(Case, Name) macro works just like
+// The COMPILER_TEST_F(Case, Name) macro works just like
 // TEST_F(Case, Name), except that the test is disabled
 // if the platform is not a supported TurboFan target.
 #if V8_TURBOFAN_TARGET
-#define TARGET_TEST_F(Case, Name) TEST_F(Case, Name)
+#define COMPILER_TEST_F(Case, Name) TEST_F(Case, Name)
 #else
-#define TARGET_TEST_F(Case, Name) TEST_F(Case, DISABLED_##Name)
-#endif
-
-
-// The TARGET_TYPED_TEST(Case, Name) macro works just like
-// TYPED_TEST(Case, Name), except that the test is disabled
-// if the platform is not a supported TurboFan target.
-#if V8_TURBOFAN_TARGET
-#define TARGET_TYPED_TEST(Case, Name) TYPED_TEST(Case, Name)
-#else
-#define TARGET_TYPED_TEST(Case, Name) TYPED_TEST(Case, DISABLED_##Name)
+#define COMPILER_TEST_F(Case, Name) TEST_F(Case, DISABLED_##Name)
 #endif
 
 
@@ -51,6 +41,7 @@ class CompilerTest : public ::testing::Test {
   Isolate* isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
   Zone* zone() { return &zone_; }
 
+ protected:
   static void SetUpTestCase();
   static void TearDownTestCase();
 

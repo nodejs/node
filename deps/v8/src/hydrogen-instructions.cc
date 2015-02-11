@@ -1511,17 +1511,8 @@ HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
        HValue* value, Representation representation) {
   if (FLAG_fold_constants && value->IsConstant()) {
     HConstant* c = HConstant::cast(value);
-    if (c->HasNumberValue()) {
-      double double_res = c->DoubleValue();
-      if (representation.IsDouble()) {
-        return HConstant::New(zone, context, double_res);
-
-      } else if (representation.CanContainDouble(double_res)) {
-        return HConstant::New(zone, context,
-                              static_cast<int32_t>(double_res),
-                              representation);
-      }
-    }
+    c = c->CopyToRepresentation(representation, zone);
+    if (c != NULL) return c;
   }
   return new(zone) HForceRepresentation(value, representation);
 }

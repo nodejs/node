@@ -31,7 +31,6 @@ void MachineCallHelper::InitParameters(GraphBuilder* builder,
 
 byte* MachineCallHelper::Generate() {
   DCHECK(parameter_count() == 0 || parameters_ != NULL);
-  if (!Pipeline::SupportedBackend()) return NULL;
   if (code_.is_null()) {
     Zone* zone = graph_->zone();
     CompilationInfo info(zone->isolate(), zone);

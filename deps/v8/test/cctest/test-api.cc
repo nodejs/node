@@ -22736,32 +22736,6 @@ TEST(ScriptNameAndLineNumber) {
 }
 
 
-Local<v8::Context> call_eval_context;
-Local<v8::Function> call_eval_bound_function;
-static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Context::Scope scope(call_eval_context);
-  args.GetReturnValue().Set(
-      call_eval_bound_function->Call(call_eval_context->Global(), 0, NULL));
-}
-
-
-TEST(CrossActivationEval) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  {
-    call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
-    call_eval_bound_function =
-        Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
-  }
-  env->Global()->Set(v8_str("CallEval"),
-      v8::FunctionTemplate::New(isolate, CallEval)->GetFunction());
-  Local<Value> result = CompileRun("CallEval();");
-  CHECK_EQ(result, v8::Integer::New(isolate, 1));
-}
-
-
 void SourceURLHelper(const char* source, const char* expected_source_url,
                      const char* expected_source_mapping_url) {
   Local<Script> script = v8_compile(source);
