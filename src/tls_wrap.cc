@@ -112,7 +112,7 @@ bool TLSCallbacks::InvokeQueued(int status) {
   WriteItemList queue;
   pending_write_items_.MoveBack(&queue);
   while (WriteItem* wi = queue.PopFront()) {
-    wi->cb_(&wi->w_->req_, status);
+    wi->w_->Done(&wi->w_->req_, status);
     delete wi;
   }
 
@@ -298,14 +298,19 @@ void TLSWrap::EncOut() {
   write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
   CHECK(write_size_ != 0 && count != 0);
 
-  Local<Object> req_wrap_obj = Object::New(env()->isolate());
+  // XXX(indutny): How to do it in a better way?
+  Local<Object> req_wrap_obj =
+      env()->write_wrap_constructor_function()->NewInstance();
   char* storage = new char[sizeof(WriteWrap)];
-  WriteWrap* write_req = new(storage) WriteWrap(env(), req_wrap_obj, this);
+  WriteWrap* write_req = new(storage) WriteWrap(env(),
+                                                req_wrap_obj,
+                                                this,
+                                                EncOutCb);
 
   uv_buf_t buf[ARRAY_SIZE(data)];
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
-  int r = stream_->DoWrite(write_req, buf, count, nullptr, EncOutCb);
+  int r = stream_->DoWrite(write_req, buf, count, nullptr);
 
   // Ignore errors, this should be already handled in js
   if (!r)
@@ -313,8 +318,8 @@ void TLSWrap::EncOut() {
 }
 
 
-void TLSWrap::EncOutCb(uv_write_t* req, int status) {
-  TLSWrap* wrap = static_cast<TLSWrap*>(req->data);
+void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
+  StreamBase* wrap = req_wrap->wrap();
 
   // Handle error
   if (status) {
@@ -525,8 +530,7 @@ int TLSWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
 int TLSWrap::DoWrite(WriteWrap* w,
                      uv_buf_t* bufs,
                      size_t count,
-                     uv_stream_t* send_handle,
-                     uv_write_cb cb) {
+                     uv_stream_t* send_handle) {
   CHECK_EQ(send_handle, nullptr);
 
   bool empty = true;
@@ -543,11 +547,11 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However if there any data that should be written to socket,
     // callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0)
-      return stream_->DoWrite(w, bufs, count, send_handle, cb);
+      return stream_->DoWrite(w, bufs, count, send_handle);
   }
 
   // Queue callback to execute it on next tick
-  write_item_queue_.PushBack(new WriteItem(w, cb));
+  write_item_queue_.PushBack(new WriteItem(w));
 
   // Write queued data
   if (empty) {
@@ -655,12 +659,12 @@ void TLSWrap::DoRead(ssize_t nread,
 }
 
 
-int TLSWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
+int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
   if (SSL_shutdown(ssl_) == 0)
     SSL_shutdown(ssl_);
   shutdown_ = true;
   EncOut();
-  return stream_->DoShutdown(req_wrap, cb);
+  return stream_->DoShutdown(req_wrap);
 }
 
 

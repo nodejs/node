@@ -55,6 +55,7 @@ void StreamWrap::Initialize(Handle<Object> target,
   ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
               ww->GetFunction());
+  env->set_write_wrap_constructor_function(ww->GetFunction());
 }
 
 
@@ -253,8 +254,14 @@ int StreamWrap::SetBlocking(bool enable) {
 }
 
 
-int StreamWrap::DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) {
-  return uv_shutdown(&req_wrap->req_, stream(), cb);
+int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
+  return uv_shutdown(&req_wrap->req_, stream(), AfterShutdown);
+}
+
+
+void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
+  ShutdownWrap* req_wrap = ContainerOf(&ShutdownWrap::req_, req);
+  req_wrap->Done(status);
 }
 
 
@@ -301,13 +308,12 @@ int StreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
 int StreamWrap::DoWrite(WriteWrap* w,
                         uv_buf_t* bufs,
                         size_t count,
-                        uv_stream_t* send_handle,
-                        uv_write_cb cb) {
+                        uv_stream_t* send_handle) {
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(&w->req_, stream(), bufs, count, cb);
+    r = uv_write(&w->req_, stream(), bufs, count, AfterWrite);
   } else {
-    r = uv_write2(&w->req_, stream(), bufs, count, send_handle, cb);
+    r = uv_write2(&w->req_, stream(), bufs, count, send_handle, AfterWrite);
   }
 
   if (!r) {
@@ -327,6 +333,10 @@ int StreamWrap::DoWrite(WriteWrap* w,
 }
 
 
+void StreamWrap::AfterWrite(uv_write_t* req, int status) {
+  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
+  req_wrap->Done(status);
+}
 
 
 void StreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {

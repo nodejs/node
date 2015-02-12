@@ -30,13 +30,12 @@ class StreamWrap : public HandleWrap, public StreamBase {
   int SetBlocking(bool enable) override;
 
   // Resource implementation
-  int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) override;
+  int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
-              uv_stream_t* send_handle,
-              uv_write_cb cb) override;
+              uv_stream_t* send_handle) override;
   const char* Error() const override;
   void ClearError() override;
 
@@ -83,6 +82,8 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            ssize_t nread,
                            const uv_buf_t* buf,
                            uv_handle_type pending);
+  static void AfterWrite(uv_write_t* req, int status);
+  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   // Resource interface implementation
   static void OnAfterWriteImpl(WriteWrap* w, void* ctx);

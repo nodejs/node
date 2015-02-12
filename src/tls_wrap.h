@@ -39,13 +39,12 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   int ReadStop() override;
 
   int SetBlocking(bool enable) override;
-  int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) override;
+  int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
-              uv_stream_t* send_handle,
-              uv_write_cb cb) override;
+              uv_stream_t* send_handle) override;
   const char* Error() const override;
   void ClearError() override;
 
@@ -66,15 +65,13 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   // Write callback queue's item
   class WriteItem {
    public:
-    WriteItem(WriteWrap* w, uv_write_cb cb) : w_(w), cb_(cb) {
+    WriteItem(WriteWrap* w) : w_(w) {
     }
     ~WriteItem() {
       w_ = nullptr;
-      cb_ = nullptr;
     }
 
     WriteWrap* w_;
-    uv_write_cb cb_;
     ListNode<WriteItem> member_;
   };
 
@@ -87,7 +84,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
   void EncOut();
-  static void EncOutCb(uv_write_t* req, int status);
+  static void EncOutCb(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
   void MakePending();

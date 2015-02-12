@@ -12,12 +12,31 @@ namespace node {
 class Environment;
 class StreamBase;
 
-class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
+template <class Req>
+class StreamReq {
+ public:
+  typedef void (*DoneCb)(Req* req, int status);
+
+  StreamReq(DoneCb cb) : cb_(cb) {
+  }
+
+  inline void Done(int status) {
+    cb_(static_cast<Req*>(this), status);
+  }
+
+ private:
+  DoneCb cb_;
+};
+
+class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
+                     public StreamReq<ShutdownWrap> {
  public:
   ShutdownWrap(Environment* env,
                v8::Local<v8::Object> req_wrap_obj,
-               StreamBase* wrap)
+               StreamBase* wrap,
+               DoneCb cb)
       : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP),
+        StreamReq<ShutdownWrap>(cb),
         wrap_(wrap) {
     Wrap(req_wrap_obj, this);
   }
@@ -32,12 +51,17 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
   StreamBase* const wrap_;
 };
 
-class WriteWrap: public ReqWrap<uv_write_t> {
+class WriteWrap: public ReqWrap<uv_write_t>,
+                 public StreamReq<WriteWrap> {
  public:
   // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
   // into the same provider. How should these be broken apart?
-  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamBase* wrap)
+  WriteWrap(Environment* env,
+            v8::Local<v8::Object> obj,
+            StreamBase* wrap,
+            DoneCb cb)
       : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
+        StreamReq<WriteWrap>(cb),
         wrap_(wrap) {
     Wrap(obj, this);
   }
@@ -81,13 +105,12 @@ class StreamResource {
 
   virtual ~StreamResource() = default;
 
-  virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) = 0;
+  virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count) = 0;
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
-                      uv_stream_t* send_handle,
-                      uv_write_cb cb) = 0;
+                      uv_stream_t* send_handle) = 0;
   virtual const char* Error() const = 0;
   virtual void ClearError() = 0;
 
@@ -156,8 +179,8 @@ class StreamBase : public StreamResource {
   virtual v8::Local<v8::Object> GetObject() = 0;
 
   // Libuv callbacks
-  static void AfterShutdown(uv_shutdown_t* req, int status);
-  static void AfterWrite(uv_write_t* req, int status);
+  static void AfterShutdown(ShutdownWrap* req, int status);
+  static void AfterWrite(WriteWrap* req, int status);
 
   // JS Methods
   int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);

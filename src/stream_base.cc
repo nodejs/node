@@ -123,8 +123,12 @@ int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
-  ShutdownWrap* req_wrap = new ShutdownWrap(env, req_wrap_obj, this);
-  int err = DoShutdown(req_wrap, AfterShutdown);
+  ShutdownWrap* req_wrap = new ShutdownWrap(env,
+                                            req_wrap_obj,
+                                            this,
+                                            AfterShutdown);
+
+  int err = DoShutdown(req_wrap);
   req_wrap->Dispatched();
   if (err)
     delete req_wrap;
@@ -132,8 +136,7 @@ int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-void StreamBase::AfterShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = static_cast<ShutdownWrap*>(req->data);
+void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
   StreamBase* wrap = req_wrap->wrap();
   Environment* env = req_wrap->env();
 
@@ -202,7 +205,7 @@ int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
   storage_size += sizeof(WriteWrap);
   char* storage = new char[storage_size];
   WriteWrap* req_wrap =
-      new(storage) WriteWrap(env, req_wrap_obj, this);
+      new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
   uint32_t bytes = 0;
   size_t offset = sizeof(WriteWrap);
@@ -237,11 +240,7 @@ int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
     bytes += str_size;
   }
 
-  int err = DoWrite(req_wrap,
-                    bufs,
-                    count,
-                    nullptr,
-                    StreamBase::AfterWrite);
+  int err = DoWrite(req_wrap, bufs, count, nullptr);
 
   // Deallocate space
   if (bufs != bufs_)
@@ -295,13 +294,9 @@ int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Allocate, or write rest
   storage = new char[sizeof(WriteWrap)];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this);
+  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
-  err = DoWrite(req_wrap,
-                bufs,
-                count,
-                nullptr,
-                StreamBase::AfterWrite);
+  err = DoWrite(req_wrap, bufs, count, nullptr);
   req_wrap->Dispatched();
   req_wrap_obj->Set(env->async(), True(env->isolate()));
 
@@ -383,7 +378,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this);
+  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
   data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
@@ -406,11 +401,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
   buf = uv_buf_init(data, data_size);
 
   if (!IsIPCPipe()) {
-    err = DoWrite(req_wrap,
-                  &buf,
-                  1,
-                  nullptr,
-                  StreamBase::AfterWrite);
+    err = DoWrite(req_wrap, &buf, 1, nullptr);
   } else {
     uv_handle_t* send_handle = nullptr;
 
@@ -427,8 +418,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
         req_wrap,
         &buf,
         1,
-        reinterpret_cast<uv_stream_t*>(send_handle),
-        StreamBase::AfterWrite);
+        reinterpret_cast<uv_stream_t*>(send_handle));
   }
 
   req_wrap->Dispatched();
@@ -451,8 +441,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-void StreamBase::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
+void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
   StreamBase* wrap = req_wrap->wrap();
   Environment* env = req_wrap->env();
 
