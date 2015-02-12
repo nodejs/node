@@ -5,6 +5,7 @@ PYTHON ?= python
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
+NO_SYMLINK ?= false
 
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
@@ -50,7 +51,7 @@ config.gypi: configure
 	fi
 
 install: all
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)' '$(NO_SYMLINK)'
 
 uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
@@ -269,7 +270,7 @@ $(PKG): release-only pre-pkg
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
 	rm -rf out/deps out/Release
 	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
+	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR) NO_SYMLINK=true
 	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/iojs \
 		$(PKGDIR)/usr/local/bin/iojs \

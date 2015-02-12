@@ -17,6 +17,7 @@ node_prefix = '/usr/local' # PREFIX variable from Makefile
 install_path = None # base target directory (DESTDIR + PREFIX from Makefile)
 target_defaults = None
 variables = None
+no_symlink = False
 
 def abspath(*args):
   path = os.path.join(*args)
@@ -132,7 +133,7 @@ def files(action):
   exeext = '.exe' if is_windows else ''
   action(['out/Release/iojs' + exeext], 'bin/iojs' + exeext)
 
-  if not is_windows:
+  if not is_windows and not no_symlink:
     # Install iojs -> node compatibility symlink.
     link_target = 'bin/node'
     link_path = abspath(install_path, link_target)
@@ -186,7 +187,7 @@ def files(action):
     ], 'include/node/')
 
 def run(args):
-  global node_prefix, install_path, target_defaults, variables
+  global node_prefix, install_path, target_defaults, variables, no_symlink
 
   # chdir to the project's top-level directory
   os.chdir(abspath(os.path.dirname(__file__), '..'))
@@ -194,6 +195,8 @@ def run(args):
   conf = load_config()
   variables = conf['variables']
   target_defaults = conf['target_defaults']
+  # argv[4] is a variable representing whether a symlink should be made
+  no_symlink = True if len(args) > 4 and args[4] == 'true' else False
 
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
   # argv[3] is a custom install prefix (think PREFIX)
