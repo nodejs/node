@@ -1,7 +1,9 @@
 #ifndef SRC_STREAM_BASE_H_
 #define SRC_STREAM_BASE_H_
 
-#include "req_wrap.h"
+#include "env.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "node.h"
 
 #include "v8.h"
@@ -9,7 +11,6 @@
 namespace node {
 
 // Forward declarations
-class Environment;
 class StreamBase;
 
 template <class Req>

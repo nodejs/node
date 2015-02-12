@@ -98,12 +98,12 @@ TLSWrap::~TLSWrap() {
 }
 
 
-void TLSCallbacks::MakePending() {
+void TLSWrap::MakePending() {
   write_item_queue_.MoveBack(&pending_write_items_);
 }
 
 
-bool TLSCallbacks::InvokeQueued(int status) {
+bool TLSWrap::InvokeQueued(int status) {
   if (pending_write_items_.IsEmpty())
     return false;
 
@@ -111,7 +111,7 @@ bool TLSCallbacks::InvokeQueued(int status) {
   WriteItemList queue;
   pending_write_items_.MoveBack(&queue);
   while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(&wi->w_->req_, status);
+    wi->w_->Done(status);
     delete wi;
   }
 
