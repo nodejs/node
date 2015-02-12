@@ -79,9 +79,6 @@ void StreamBase::GetFD(Local<String> key,
                        const PropertyCallbackInfo<Value>& args) {
   StreamBase* wrap = Unwrap<Base>(args.Holder());
 
-  while (wrap->ConsumedBy() != nullptr)
-    wrap = wrap->ConsumedBy();
-
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
@@ -93,9 +90,6 @@ template <class Base,
           int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = Unwrap<Base>(args.Holder());
-
-  while (wrap->ConsumedBy() != nullptr)
-    wrap = wrap->ConsumedBy();
 
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
@@ -122,7 +116,7 @@ int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   ShutdownWrap* req_wrap = new ShutdownWrap(env,
                                             req_wrap_obj,
-                                            GetParent(),
+                                            this,
                                             AfterShutdown);
 
   int err = DoShutdown(req_wrap);
@@ -203,7 +197,7 @@ int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
   storage_size += sizeof(WriteWrap);
   char* storage = new char[storage_size];
   WriteWrap* req_wrap =
-      new(storage) WriteWrap(env, req_wrap_obj, GetParent(), AfterWrite);
+      new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
   uint32_t bytes = 0;
   size_t offset = sizeof(WriteWrap);
@@ -292,7 +286,7 @@ int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Allocate, or write rest
   storage = new char[sizeof(WriteWrap)];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, GetParent(), AfterWrite);
+  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
   req_wrap->Dispatched();
@@ -376,7 +370,7 @@ int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, GetParent(), AfterWrite);
+  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
 
   data = reinterpret_cast<char*>(ROUND_UP(
       reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
