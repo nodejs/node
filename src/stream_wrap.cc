@@ -69,6 +69,7 @@ StreamWrap::StreamWrap(Environment* env,
                  reinterpret_cast<uv_handle_t*>(stream),
                  provider,
                  parent),
+      StreamBase(env),
       stream_(stream) {
   set_after_write_cb(OnAfterWriteImpl, this);
   set_alloc_cb(OnAllocImpl, this);
@@ -98,6 +99,11 @@ void* StreamWrap::Cast() {
 
 Local<Object> StreamWrap::GetObject() {
   return object();
+}
+
+
+AsyncWrap* StreamWrap::GetAsyncWrap() {
+  return this;
 }
 
 
@@ -175,16 +181,12 @@ void StreamWrap::OnReadImpl(ssize_t nread,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
-    Undefined(env->isolate()),
-    Undefined(env->isolate())
-  };
+  Local<Object> pending_obj;
 
   if (nread < 0)  {
     if (buf->base != nullptr)
       free(buf->base);
-    wrap->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+    wrap->OnData(nread, nullptr, pending_obj);
     return;
   }
 
@@ -196,9 +198,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
 
   char* base = static_cast<char*>(realloc(buf->base, nread));
   CHECK_LE(static_cast<size_t>(nread), buf->len);
-  argv[1] = Buffer::Use(env, base, nread);
 
-  Local<Object> pending_obj;
   if (pending == UV_TCP) {
     pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, wrap);
   } else if (pending == UV_NAMED_PIPE) {
@@ -209,11 +209,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
   }
 
-  if (!pending_obj.IsEmpty()) {
-    argv[2] = pending_obj;
-  }
-
-  wrap->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+  wrap->OnData(nread, base, pending_obj);
 }
 
 

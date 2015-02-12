@@ -2,6 +2,7 @@
 #define SRC_STREAM_BASE_H_
 
 #include "env.h"
+#include "async-wrap.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "node.h"
@@ -180,11 +181,19 @@ class StreamBase : public StreamResource {
   template <class Outer>
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
+  // TODO(indutny): should be a part of Resource
+  void OnData(ssize_t nread, char* data, v8::Local<v8::Object> handle);
+
  protected:
-  StreamBase();
+  StreamBase(Environment* env) : env_(env), consumed_by_(nullptr) {
+  }
+
   virtual ~StreamBase() = default;
 
   virtual v8::Local<v8::Object> GetObject() = 0;
+
+  // Optional
+  virtual AsyncWrap* GetAsyncWrap();
 
   // Libuv callbacks
   static void AfterShutdown(ShutdownWrap* req, int status);
@@ -209,6 +218,8 @@ class StreamBase : public StreamResource {
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+ private:
+  Environment* env_;
   StreamBase* consumed_by_;
 };
 

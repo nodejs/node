@@ -33,10 +33,6 @@ template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
 
 
-StreamBase::StreamBase() : consumed_by_(nullptr) {
-}
-
-
 template <class Base>
 void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
@@ -482,6 +478,30 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 int StreamBase::SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_GT(args.Length(), 0);
   return SetBlocking(args[0]->IsTrue());
+}
+
+
+void StreamBase::OnData(ssize_t nread, char* data, Local<Object> handle) {
+  Environment* env = env_;
+
+  Local<Value> argv[] = {
+    Integer::New(env->isolate(), nread),
+    Undefined(env->isolate()),
+    handle
+  };
+
+  if (data != nullptr)
+    argv[1] = Buffer::Use(env, data, nread);
+
+  if (argv[2].IsEmpty())
+    argv[2] = Undefined(env->isolate());
+
+  GetAsyncWrap()->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+}
+
+
+AsyncWrap* StreamBase::GetAsyncWrap() {
+  return nullptr;
 }
 
 }  // namespace node

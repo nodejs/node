@@ -66,6 +66,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
   v8::Local<v8::Object> GetObject() override;
+  AsyncWrap* GetAsyncWrap() override;
   void UpdateWriteQueueSize();
 
  private:

@@ -39,6 +39,7 @@ TLSWrap::TLSWrap(Environment* env,
                  Handle<Object> stream_obj,
                  Handle<Object> sc)
     : SSLWrap<TLSWrap>(env, Unwrap<SecureContext>(sc), kind),
+      StreamBase(env),
       AsyncWrap(env,
                 env->tls_wrap_constructor_function()->NewInstance(),
                 AsyncWrap::PROVIDER_TLSWRAP),
@@ -401,19 +402,14 @@ void TLSWrap::ClearOut() {
   do {
     read = SSL_read(ssl_, out, sizeof(out));
     if (read > 0) {
-      Local<Value> argv[] = {
-        Integer::New(env()->isolate(), read),
-        Buffer::New(env(), out, read)
-      };
-      MakeCallback(env()->onread_string(), ARRAY_SIZE(argv), argv);
+      stream_->OnData(read, out, Local<Object>());
     }
   } while (read > 0);
 
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
-    Local<Value> arg = Integer::New(env()->isolate(), UV_EOF);
-    MakeCallback(env()->onread_string(), 1, &arg);
+    stream_->OnData(UV_EOF, nullptr, Local<Object>());
   }
 
   if (read == -1) {
@@ -638,8 +634,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    Local<Value> arg = Integer::New(env()->isolate(), nread);
-    MakeCallback(env()->onread_string(), 1, &arg);
+    stream_->OnData(nread, nullptr, Local<Object>());
     return;
   }
 
