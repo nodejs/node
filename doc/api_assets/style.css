@@ -1,6 +1,8 @@
 /*--------------------- Layout and Typography ----------------------------*/
 html {
   -webkit-font-smoothing: antialiased;
+  -webkit-font-variant-ligatures: none;
+          font-variant-ligatures: none;
 }
 
 body {
