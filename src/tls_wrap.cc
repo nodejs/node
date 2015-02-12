@@ -35,7 +35,8 @@ using v8::Value;
 
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
-                 Handle<Object> stream,
+                 StreamBase* stream,
+                 Handle<Object> stream_obj,
                  Handle<Object> sc)
     : SSLWrap<TLSWrap>(env, Unwrap<SecureContext>(sc), kind),
       AsyncWrap(env,
@@ -43,8 +44,8 @@ TLSWrap::TLSWrap(Environment* env,
                 AsyncWrap::PROVIDER_TLSWRAP),
       sc_(Unwrap<SecureContext>(sc)),
       sc_handle_(env->isolate(), sc),
-      stream_(Unwrap<StreamBase>(stream)),
-      stream_handle_(env->isolate(), stream),
+      stream_(stream),
+      stream_handle_(env->isolate(), stream_obj),
       enc_in_(nullptr),
       enc_out_(nullptr),
       clear_in_(nullptr),
@@ -65,8 +66,9 @@ TLSWrap::TLSWrap(Environment* env,
   stream_->set_after_write_cb(OnAfterWriteImpl, this);
   stream_->set_alloc_cb(OnAllocImpl, this);
   stream_->set_read_cb(OnReadImpl, this);
-  stream_->Consume();
+  stream_->Consume(this);
 
+  fprintf(stderr, "TLSWrap() %p\n", this);
   InitSSL();
 }
 
@@ -179,14 +181,20 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 3 || !args[2]->IsBoolean())
     return env->ThrowTypeError("Third argument should be boolean");
 
-  Local<Object> stream = args[0].As<Object>();
+  Local<Object> stream_obj = args[0].As<Object>();
   Local<Object> sc = args[1].As<Object>();
   Kind kind = args[2]->IsTrue() ? SSLWrap<TLSWrap>::kServer :
                                   SSLWrap<TLSWrap>::kClient;
 
-  TLSWrap* wrap = new TLSWrap(env, kind, stream, sc);
+  StreamBase* stream = nullptr;
+  WITH_GENERIC_STREAM(env, stream_obj, {
+    stream = wrap;
+  });
+  CHECK_NE(stream, nullptr);
 
-  args.GetReturnValue().Set(wrap->persistent());
+  TLSWrap* res = new TLSWrap(env, kind, stream, stream_obj, sc);
+
+  args.GetReturnValue().Set(res->persistent());
 }
 
 

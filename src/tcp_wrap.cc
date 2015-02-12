@@ -153,6 +153,7 @@ TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
   UpdateWriteQueueSize();
+  fprintf(stderr, "TCPWrap() tcp %p env %p\n", this, env);
 }
 
 
@@ -361,6 +362,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
+    fprintf(stderr, "tcp_connect() tcp %p connect %p env %p\n", wrap, req_wrap, env);
     err = uv_tcp_connect(&req_wrap->req_,
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),

@@ -33,7 +33,7 @@ template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
 
 
-StreamBase::StreamBase() : consumed_(false) {
+StreamBase::StreamBase() : consumed_by_(nullptr) {
 }
 
 
@@ -76,10 +76,15 @@ void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
 
 
 template <class Base>
-void StreamBase::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
+void StreamBase::GetFD(Local<String> key,
+                       const PropertyCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
-  Base* wrap = Unwrap<Base>(args.Holder());
-  if (wrap->IsConsumed() || !wrap->IsAlive())
+  StreamBase* wrap = Unwrap<Base>(args.Holder());
+
+  while (wrap->ConsumedBy() != nullptr)
+    wrap = wrap->ConsumedBy();
+
+  if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set(wrap->GetFD());
@@ -90,8 +95,12 @@ template <class Base,
           int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
-  Base* wrap = Unwrap<Base>(args.Holder());
-  if (wrap->IsConsumed() || !wrap->IsAlive())
+  StreamBase* wrap = Unwrap<Base>(args.Holder());
+
+  while (wrap->ConsumedBy() != nullptr)
+    wrap = wrap->ConsumedBy();
+
+  if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set((wrap->*Method)(args));

@@ -144,10 +144,10 @@ class StreamBase : public StreamResource {
   virtual int ReadStop() = 0;
   virtual int SetBlocking(bool enable) = 0;
 
-  inline bool IsConsumed() const { return consumed_; }
+  inline StreamBase* ConsumedBy() const { return consumed_by_; }
 
   // TODO(indutny): assert that stream is not yet consumed
-  inline void Consume() { consumed_ = true; }
+  inline void Consume(StreamBase* child) { consumed_by_ = child; }
 
  protected:
   StreamBase();
@@ -178,7 +178,7 @@ class StreamBase : public StreamResource {
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  bool consumed_;
+  StreamBase* consumed_by_;
 };
 
 }  // namespace node

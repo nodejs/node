@@ -80,7 +80,8 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
 
   TLSWrap(Environment* env,
           Kind kind,
-          v8::Handle<v8::Object> stream,
+          StreamBase* steram,
+          v8::Handle<v8::Object> stream_obj,
           v8::Handle<v8::Object> sc);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
