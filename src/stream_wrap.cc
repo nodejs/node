@@ -103,7 +103,7 @@ Local<Object> StreamWrap::GetObject() {
 
 
 AsyncWrap* StreamWrap::GetAsyncWrap() {
-  return this;
+  return static_cast<AsyncWrap*>(this);
 }
 
 

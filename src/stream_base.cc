@@ -6,6 +6,7 @@
 #include "env-inl.h"
 #include "stream_wrap.h"
 #include "string_bytes.h"
+#include "tls_wrap.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -31,6 +32,8 @@ using v8::Value;
 
 template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
+template void StreamBase::AddMethods<TLSWrap>(Environment* env,
+                                              Handle<FunctionTemplate> t);
 
 
 template <class Base>
@@ -74,7 +77,6 @@ void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
 template <class Base>
 void StreamBase::GetFD(Local<String> key,
                        const PropertyCallbackInfo<Value>& args) {
-  HandleScope scope(args.GetIsolate());
   StreamBase* wrap = Unwrap<Base>(args.Holder());
 
   while (wrap->ConsumedBy() != nullptr)
@@ -90,7 +92,6 @@ void StreamBase::GetFD(Local<String> key,
 template <class Base,
           int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(args.GetIsolate());
   StreamBase* wrap = Unwrap<Base>(args.Holder());
 
   while (wrap->ConsumedBy() != nullptr)
