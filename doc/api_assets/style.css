@@ -218,7 +218,6 @@ h1 span, h2 span, h3 span, h4 span {
   display: block;
   top: 0;
   right: 0;
-  opacity: 0.3;
 }
 
 h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
@@ -402,7 +401,7 @@ span.type {
 span > .mark,
 span > .mark:visited {
   font-size: 18px;
-  color: #ccc;
+  color: #707070;
   position: absolute;
   top: 0px;
   right: 0px;
