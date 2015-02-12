@@ -1,6 +1,7 @@
 /*--------------------- Layout and Typography ----------------------------*/
 html {
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
           font-variant-ligatures: none;
 }
@@ -465,4 +466,3 @@ td > *:last-child {
     display: none;
   }
 }
-
