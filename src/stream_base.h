@@ -173,10 +173,19 @@ class StreamBase : public StreamResource {
   virtual int ReadStop() = 0;
   virtual int SetBlocking(bool enable) = 0;
 
-  inline StreamBase* ConsumedBy() const { return consumed_by_; }
+  inline StreamBase* ConsumedBy() { return consumed_by_; }
+  inline StreamBase* GetParent() {
+    StreamBase* c = this;
+    while (c->parent_ != nullptr)
+      c = c->parent_;
+    return c;
+  }
 
   // TODO(indutny): assert that stream is not yet consumed
-  inline void Consume(StreamBase* child) { consumed_by_ = child; }
+  inline void Consume(StreamBase* child) {
+    consumed_by_ = child;
+    child->parent_ = this;
+  }
 
   template <class Outer>
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
@@ -185,7 +194,9 @@ class StreamBase : public StreamResource {
   void OnData(ssize_t nread, char* data, v8::Local<v8::Object> handle);
 
  protected:
-  StreamBase(Environment* env) : env_(env), consumed_by_(nullptr) {
+  StreamBase(Environment* env) : parent_(nullptr),
+                                 env_(env),
+                                 consumed_by_(nullptr) {
   }
 
   virtual ~StreamBase() = default;
@@ -217,6 +228,8 @@ class StreamBase : public StreamResource {
             int (StreamBase::*Method)(
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  StreamBase* parent_;
 
  private:
   Environment* env_;
