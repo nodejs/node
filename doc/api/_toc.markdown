@@ -12,6 +12,7 @@
 * [Debugger](debugger.html)
 * [DNS](dns.html)
 * [Domain](domain.html)
+* [Errors](errors.html)
 * [Events](events.html)
 * [File System](fs.html)
 * [Globals](globals.html)

@@ -1,10 +1,11 @@
 #ifndef SRC_BASE_OBJECT_H_
 #define SRC_BASE_OBJECT_H_
 
-#include "env.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
 
 class BaseObject {
  public:

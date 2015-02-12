@@ -6,7 +6,6 @@
 #include "util.h"
 #include "util-inl.h"
 #include "node.h"
-#include "queue.h"
 
 namespace node {
 
@@ -70,13 +69,12 @@ HandleWrap::HandleWrap(Environment* env,
   handle__->data = this;
   HandleScope scope(env->isolate());
   Wrap(object, this);
-  QUEUE_INSERT_TAIL(env->handle_wrap_queue(), &handle_wrap_queue_);
+  env->handle_wrap_queue()->PushBack(this);
 }
 
 
 HandleWrap::~HandleWrap() {
   CHECK(persistent().IsEmpty());
-  QUEUE_REMOVE(&handle_wrap_queue_);
 }
 
 

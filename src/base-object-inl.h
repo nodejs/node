@@ -2,6 +2,8 @@
 #define SRC_BASE_OBJECT_INL_H_
 
 #include "base-object.h"
+#include "env.h"
+#include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"

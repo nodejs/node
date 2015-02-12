@@ -11,6 +11,7 @@
 @include dgram
 @include dns
 @include domain
+@include errors
 @include events
 @include fs
 @include globals

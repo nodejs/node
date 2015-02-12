@@ -1099,15 +1099,9 @@ void SSLWrap<Base>::OnClientHello(void* arg,
 
 
 static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
-  // Only alt_name is escaped at the moment
-  if (OBJ_obj2nid(ext->object) != NID_subject_alt_name)
-    return false;
-
   const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-  if (method == NULL || method->it == NULL)
-    return false;
 
-  if (method->i2v != reinterpret_cast<X509V3_EXT_I2V>(i2v_GENERAL_NAMES))
+  if (method != X509V3_EXT_get_nid(NID_subject_alt_name))
     return false;
 
   const unsigned char* p = ext->value->data;

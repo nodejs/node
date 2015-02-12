@@ -6,8 +6,8 @@
 
 #include "async-wrap.h"
 #include "env.h"
-#include "queue.h"
 #include "stream_wrap.h"
+#include "util.h"
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -75,7 +75,7 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 
     WriteWrap* w_;
     uv_write_cb cb_;
-    QUEUE member_;
+    ListNode<WriteItem> member_;
   };
 
   TLSCallbacks(Environment* env,
@@ -131,8 +131,9 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   uv_write_t write_req_;
   size_t write_size_;
   size_t write_queue_size_;
-  QUEUE write_item_queue_;
-  QUEUE pending_write_items_;
+  typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
+  WriteItemList write_item_queue_;
+  WriteItemList pending_write_items_;
   bool started_;
   bool established_;
   bool shutdown_;

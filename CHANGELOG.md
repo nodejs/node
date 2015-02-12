@@ -1,5 +1,90 @@
 # io.js ChangeLog
 
+## 2015-02-10, Version 1.2.0, @rvagg
+
+### Notable changes
+
+* **stream**:
+  - Simpler stream construction, see [readable-stream/issues#102](https://github.com/iojs/readable-stream/issues/102) for details. This extends the streams base objects to make their constructors accept default implementation methods, reducing the boilerplate required to implement custom streams. An updated version of readable-stream will eventually be released to match this change in core. (@sonewman)
+* **dns**:
+  - `lookup()` now supports an `'all'` boolean option, default to `false` but when turned on will cause the method to return an array of *all* resolved names for an address, see, [#744](https://github.com/iojs/io.js/pull/744) (@silverwind)
+* **assert**:
+  - Remove `prototype` property comparison in `deepEqual()`, considered a bugfix, see [#636](https://github.com/iojs/io.js/pull/636) (@vkurchatkin)
+  - Introduce a `deepStrictEqual()` method to mirror `deepEqual()` but performs strict equality checks on primitives, see [#639](https://github.com/iojs/io.js/pull/639) (@vkurchatkin)
+* **tracing**:
+  - Add [LTTng](http://lttng.org/) (Linux Trace Toolkit Next Generation) when compiled with the  `--with-lttng` option. Trace points match those available for DTrace and ETW. [#702](https://github.com/iojs/io.js/pull/702) (@thekemkid)
+* **docs**:
+  - Lots of doc updates, see individual commits
+  - New **Errors** page discussing JavaScript errors, V8 specifics, and io.js specific error details. (@chrisdickinson)
+* **npm** upgrade to 2.5.1, short changelog:
+  - [npm/0e8d473](https://github.com/npm/npm/commit/0e8d4736a1cbdda41ae8eba8a02c7ff7ce80c2ff) [#7281](https://github.com/npm/npm/issues/7281) `npm-registry-mock@1.0.0`: Clean up API, set `connection: close`, which makes tests pass on io.js 1.1.x.
+  ([@robertkowalski](https://github.com/robertkowalski))
+  - [npm/f9313a0](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
+  [#7226](https://github.com/npm/npm/issues/7226) Ensure that all request
+  settings are copied onto the agent.
+  ([@othiym23](https://github.com/othiym23))
+   - [npm/fec4c96](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
+  Allow `--no-proxy` to override `HTTP_PROXY` setting in environment.
+  ([@othiym23](https://github.com/othiym23))
+  - [npm/9d61e96](https://github.com/npm/npm/commit/9d61e96fb1f48687a85c211e4e0cd44c7f95a38e)
+  `npm outdated --long` now includes a column showing the type of dependency.
+  ([@watilde](https://github.com/watilde))
+* **libuv** upgrade to 1.4.0, see [libuv ChangeLog](https://github.com/libuv/libuv/blob/v1.x/ChangeLog)
+* Add new collaborators:
+  - Aleksey Smolenchuk (@lxe)
+  - Shigeki Ohtsu (@shigeki)
+
+### Known issues
+
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774) that should appear in the next patch release.
+
+### Commits
+
+* [7e2235a] - doc: add error documentation (Chris Dickinson)
+* [d832be4] - doc: update AUTHORS list (Rod Vagg)
+* [aea9b89] - doc: add shigeki as collaborator (Shigeki Ohtsu)
+* [e653080] - fs: improve `readFile` performance (Vladimir Kurchatkin)
+* [9681fca] - deps: update libuv to 1.4.0 (Saúl Ibarra Corretgé)
+* [5e825d1] - tracing: add lttng support for tracing on linux (Glen Keane)
+* [b677b84] - events: optimize various functions (Brian White)
+* [c86e383] - test: fix test failure with shared openssl (Shigeki Ohtsu)
+* [1151016] - doc: fix typo in crypto (Haoliang Gao)
+* [7c56868] - doc: change the order of crypto.publicDecrypt (Haoliang Gao)
+* [3f473ef] - assert: introduce `deepStrictEqual` (Vladimir Kurchatkin)
+* [828d19a] - doc: fix dns.lookup options example (Roman Reiss)
+* [90d2b35] - doc: update antiquated process.versions output (Ben Noordhuis)
+* [789bbb9] - doc: update node.js references in api docs (Ben Noordhuis)
+* [c22e5ac] - https: simpler argument check (Michaël Zasso)
+* [b9d3928] - util: simplify `isPrimitive` (Vladimir Kurchatkin)
+* [2c3121c] - benchmark: bump eventemitter number of iterations (Ben Noordhuis)
+* [633a990] - dns: allow dns.lookup() to return all addresses (Roman Reiss)
+* [1cd1d7a] - buffer: don't compare same buffers (Vladimir Kurchatkin)
+* [847b9d2] - benchmark: add more EventEmitter benchmarks (Brian White)
+* [96597bc] - doc: add lxe as collaborator (Aleksey Smolenchuk)
+* [7a301e2] - deps: make node-gyp work again on windows (Bert Belder)
+* [b188a34] - deps: make node-gyp fetch tarballs from iojs.org (Ben Noordhuis)
+* [af1bf49] - deps: upgrade npm to 2.5.1 (Forrest L Norvell)
+* [9dc9ec3] - lib: make debug client connect to 127.0.0.1 (Ben Noordhuis)
+* [e7573f9] - assert: don't compare object `prototype` property (Vladimir Kurchatkin)
+* [8d11799] - asyncwrap: fix nullptr parent check (Trevor Norris)
+* [62512bb] - test: accept EPROTONOSUPPORT ipv6 error (Ben Noordhuis)
+* [05f4dff] - asyncwrap: fix constructor condition for early ret (Trevor Norris)
+* [10277d2] - docs: include mention of new crypto methods (Calvin Metcalf)
+* [9a8f186] - child_process: add debug and error details (Zach Bruggeman)
+* [6f7a978] - crypto: clear error on return in TLS methods (Fedor Indutny)
+* [50daee7] - stream: simpler stream constructon (Sam Newman)
+* [e0730ee] - benchmark: allow compare via fine-grained filters (Brian White)
+* [96ffcb9] - src: reduce cpu profiler overhead (Ben Noordhuis)
+* [3e675e4] - benchmark: don't use template strings (Evan Lucas)
+* [8ac8b76] - doc: simplified pure consensus seeking (Mikeal Rogers)
+* [0a54b6a] - doc: update streams wg charter (Chris Dickinson)
+* [b8ead4a] - Adjusting for feedback in the PR. (Mikeal Rogers)
+* [3af7f30] - Initial documentation for working groups. (Mikeal Rogers)
+* [513724e] - doc: add GPG fingerprint for chrisdickinson (Chris Dickinson)
+* [4168198] - doc: add TC meeting 2015-01-28 minutes (Rod Vagg)
+
 ## 2015-02-03, Version 1.1.0, @chrisdickinson
 
 ### Notable changes
