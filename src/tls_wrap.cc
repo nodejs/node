@@ -402,14 +402,14 @@ void TLSWrap::ClearOut() {
   do {
     read = SSL_read(ssl_, out, sizeof(out));
     if (read > 0) {
-      stream_->OnData(read, out, Local<Object>());
+      stream_->OnData(read, Buffer::New(env(), out, read), Local<Object>());
     }
   } while (read > 0);
 
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
-    stream_->OnData(UV_EOF, nullptr, Local<Object>());
+    stream_->OnData(UV_EOF, Local<Object>(), Local<Object>());
   }
 
   if (read == -1) {
@@ -634,7 +634,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    stream_->OnData(nread, nullptr, Local<Object>());
+    stream_->OnData(nread, Local<Object>(), Local<Object>());
     return;
   }
 

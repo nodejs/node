@@ -482,17 +482,19 @@ int StreamBase::SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-void StreamBase::OnData(ssize_t nread, char* data, Local<Object> handle) {
+void StreamBase::OnData(ssize_t nread,
+                        Local<Object> buf,
+                        Local<Object> handle) {
   Environment* env = env_;
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), nread),
-    Undefined(env->isolate()),
+    buf,
     handle
   };
 
-  if (data != nullptr)
-    argv[1] = Buffer::Use(env, data, nread);
+  if (argv[1].IsEmpty())
+    argv[1] = Undefined(env->isolate());
 
   if (argv[2].IsEmpty())
     argv[2] = Undefined(env->isolate());

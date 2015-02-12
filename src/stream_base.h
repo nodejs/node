@@ -191,7 +191,9 @@ class StreamBase : public StreamResource {
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
   // TODO(indutny): should be a part of Resource
-  void OnData(ssize_t nread, char* data, v8::Local<v8::Object> handle);
+  void OnData(ssize_t nread,
+              v8::Local<v8::Object> buf,
+              v8::Local<v8::Object> handle);
 
  protected:
   StreamBase(Environment* env) : parent_(nullptr),

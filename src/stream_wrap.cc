@@ -186,7 +186,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
   if (nread < 0)  {
     if (buf->base != nullptr)
       free(buf->base);
-    wrap->OnData(nread, nullptr, pending_obj);
+    wrap->OnData(nread, Local<Object>(), pending_obj);
     return;
   }
 
@@ -209,7 +209,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
   }
 
-  wrap->OnData(nread, base, pending_obj);
+  wrap->OnData(nread, Buffer::Use(env, base, nread), pending_obj);
 }
 
 
