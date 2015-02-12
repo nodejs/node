@@ -154,7 +154,8 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
     req_wrap_obj
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  if (req_wrap->object()->Has(env->oncomplete_string()))
+    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }
@@ -470,7 +471,8 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
     wrap->ClearError();
   }
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  if (req_wrap->object()->Has(env->oncomplete_string()))
+    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
   req_wrap->~WriteWrap();
   delete[] reinterpret_cast<char*>(req_wrap);

@@ -116,17 +116,20 @@ class StreamResource {
 
   // Events
   inline void OnAfterWrite(WriteWrap* w) {
-    after_write_cb_(w, after_write_ctx_);
+    if (after_write_cb_ != nullptr)
+      after_write_cb_(w, after_write_ctx_);
   }
 
   inline void OnAlloc(size_t size, uv_buf_t* buf) {
-    alloc_cb_(size, buf, alloc_ctx_);
+    if (alloc_cb_ != nullptr)
+      alloc_cb_(size, buf, alloc_ctx_);
   }
 
   inline void OnRead(size_t nread,
                      const uv_buf_t* buf,
                      uv_handle_type pending) {
-    read_cb_(nread, buf, pending, read_ctx_);
+    if (read_cb_ != nullptr)
+      read_cb_(nread, buf, pending, read_ctx_);
   }
 
   inline void set_after_write_cb(AfterWriteCb cb, void* ctx) {
