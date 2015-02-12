@@ -68,7 +68,6 @@ TLSWrap::TLSWrap(Environment* env,
   stream_->set_read_cb(OnReadImpl, this);
   stream_->Consume(this);
 
-  fprintf(stderr, "TLSWrap() %p\n", this);
   InitSSL();
 }
 
@@ -319,7 +318,7 @@ void TLSWrap::EncOut() {
 
 
 void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
-  StreamBase* wrap = req_wrap->wrap();
+  TLSWrap* wrap = req_wrap->wrap()->Cast<TLSWrap>();
 
   // Handle error
   if (status) {
@@ -473,6 +472,11 @@ bool TLSWrap::ClearIn() {
   }
 
   return false;
+}
+
+
+void* TLSWrap::Cast() {
+  return reinterpret_cast<void*>(this);
 }
 
 

@@ -31,6 +31,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
+  void* Cast() override;
   int GetFD() const override;
   bool IsAlive() const override;
 

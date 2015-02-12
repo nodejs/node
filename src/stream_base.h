@@ -159,6 +159,7 @@ class StreamBase : public StreamResource {
   static void AddMethods(Environment* env,
                          v8::Handle<v8::FunctionTemplate> target);
 
+  virtual void* Cast() = 0;
   virtual bool IsAlive() const = 0;
   virtual bool IsIPCPipe() const = 0;
   virtual int GetFD() const = 0;
@@ -171,6 +172,9 @@ class StreamBase : public StreamResource {
 
   // TODO(indutny): assert that stream is not yet consumed
   inline void Consume(StreamBase* child) { consumed_by_ = child; }
+
+  template <class Outer>
+  inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
  protected:
   StreamBase();

@@ -21,6 +21,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
                          v8::Handle<v8::Context> context);
 
   int GetFD() const override;
+  void* Cast() override;
   bool IsAlive() const override;
   bool IsIPCPipe() const override;
 

@@ -91,6 +91,11 @@ bool StreamWrap::IsAlive() const {
 }
 
 
+void* StreamWrap::Cast() {
+  return reinterpret_cast<void*>(this);
+}
+
+
 Local<Object> StreamWrap::GetObject() {
   return object();
 }
