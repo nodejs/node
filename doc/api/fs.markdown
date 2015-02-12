@@ -29,7 +29,7 @@ Here is the synchronous version:
 
     var fs = require('fs');
 
-    fs.unlinkSync('/tmp/hello')
+    fs.unlinkSync('/tmp/hello');
     console.log('successfully deleted /tmp/hello');
 
 With the asynchronous methods there is no guaranteed ordering. So the
