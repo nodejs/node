@@ -92,6 +92,11 @@ bool StreamWrap::IsAlive() const {
 }
 
 
+bool StreamWrap::IsClosing() const {
+  return uv_is_closing(reinterpret_cast<uv_handle_t*>(stream()));
+}
+
+
 void* StreamWrap::Cast() {
   return reinterpret_cast<void*>(this);
 }

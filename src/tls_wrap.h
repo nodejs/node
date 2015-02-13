@@ -34,6 +34,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   void* Cast() override;
   int GetFD() const override;
   bool IsAlive() const override;
+  bool IsClosing() const override;
 
   // JavaScript functions
   int ReadStart() override;
@@ -66,7 +67,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   // Write callback queue's item
   class WriteItem {
    public:
-    WriteItem(WriteWrap* w) : w_(w) {
+    explicit WriteItem(WriteWrap* w) : w_(w) {
     }
     ~WriteItem() {
       w_ = nullptr;

@@ -21,6 +21,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
   int GetFD() const override;
   void* Cast() override;
   bool IsAlive() const override;
+  bool IsClosing() const override;
   bool IsIPCPipe() const override;
 
   // JavaScript functions

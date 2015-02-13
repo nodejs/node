@@ -19,7 +19,7 @@ class StreamReq {
  public:
   typedef void (*DoneCb)(Req* req, int status);
 
-  StreamReq(DoneCb cb) : cb_(cb) {
+  explicit StreamReq(DoneCb cb) : cb_(cb) {
   }
 
   inline void Done(int status) {
@@ -166,6 +166,7 @@ class StreamBase : public StreamResource {
 
   virtual void* Cast() = 0;
   virtual bool IsAlive() const = 0;
+  virtual bool IsClosing() const = 0;
   virtual bool IsIPCPipe() const = 0;
   virtual int GetFD() const = 0;
 
@@ -187,7 +188,7 @@ class StreamBase : public StreamResource {
               v8::Local<v8::Object> handle);
 
  protected:
-  StreamBase(Environment* env) : env_(env), consumed_(false) {
+  explicit StreamBase(Environment* env) : env_(env), consumed_(false) {
   }
 
   virtual ~StreamBase() = default;
