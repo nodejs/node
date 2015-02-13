@@ -973,7 +973,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   env->SetProtoMethod(t, "getCurrentCipher", GetCurrentCipher);
   env->SetProtoMethod(t, "endParser", EndParser);
   env->SetProtoMethod(t, "renegotiate", Renegotiate);
-  env->SetProtoMethod(t, "sslShutdown", Shutdown);
+  env->SetProtoMethod(t, "shutdownSSL", Shutdown);
   env->SetProtoMethod(t, "getTLSTicket", GetTLSTicket);
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
