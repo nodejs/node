@@ -23,8 +23,13 @@ console.log('sleep exited', stop);
 assert.strictEqual(stop[0], 1, 'sleep should not take longer or less than 1 second');
 
 // Error test when command does not exist
-var ret_err = spawnSync('command_does_not_exist');
-assert.strictEqual(ret_err.error.code, 'ENOENT');
+var ret_err = spawnSync('command_does_not_exist', ['bar']).error;
+
+assert.strictEqual(ret_err.code, 'ENOENT');
+assert.strictEqual(ret_err.errno, 'ENOENT');
+assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist');
+assert.strictEqual(ret_err.path, 'command_does_not_exist');
+assert.deepEqual(ret_err.spawnargs, ['bar']);
 
 // Verify that the cwd option works - GH #7824
 (function() {
