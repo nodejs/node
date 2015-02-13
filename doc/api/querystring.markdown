@@ -42,7 +42,7 @@ characters.
 Options object may contain `maxKeys` property (equal to 1000 by default), it'll
 be used to limit processed keys. Set it to 0 to remove key count limitation.
 
-Options object may contain `decodeURIComponent` property (`decodeURIComponent` by default),
+Options object may contain `decodeURIComponent` property (`querystring.unescape` by default),
 it can be used to decode `non-utf8` encoding string if necessary.
 
 Example:
