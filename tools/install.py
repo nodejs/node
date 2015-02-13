@@ -196,7 +196,7 @@ def run(args):
   variables = conf['variables']
   target_defaults = conf['target_defaults']
   # argv[4] is a variable representing whether a symlink should be made
-  no_symlink = True if len(args) > 4 and args[4] == 'true' else False
+  no_symlink = len(args) > 4 and args[4] == 'true'
 
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
   # argv[3] is a custom install prefix (think PREFIX)
