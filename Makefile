@@ -257,10 +257,16 @@ pre-pkg:
 	touch tools/osx-pkg/scripts/iojs-create-node-symlink # empty file for symlink step
 	touch tools/osx-pkg/scripts/iojs-run-uninstall # empty file for uninstall step
 	cp LICENSE tools/osx-pkg/strings/LICENSE.txt
-	cat tools/osx-pkg/osx-pkg.pkgproj | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|introduction.rtf|introduction.out.rtf|g' > tools/osx-pkg/osx-pkg-out.pkgproj
+	cat tools/osx-pkg/osx-pkg.pkgproj | \
+		sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|introduction.rtf|introduction.out.rtf|g' > \
+		tools/osx-pkg/osx-pkg-out.pkgproj
 	$(foreach dir, \
 		$(shell echo tools/osx-pkg/strings/*/), \
-		cat $(dir)introduction.rtf | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > $(dir)introduction.out.rtf; \
+		cat $(dir)introduction.rtf | \
+		sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
+		$(dir)introduction.out.rtf; \
 	)
 
 pkg: $(PKG)
