@@ -210,11 +210,11 @@ void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
   // Copy given buffer entirely or partiall if handle becomes closed
   // XXX(indunty): figure out uv_is_closing
   while (len > 0 /* && !uv_is_closing(reinterpret_cast<uv_handle_t*>(stream))*/) {
-    wrap->OnAlloc(len, &buf);
+    wrap->stream_->OnAlloc(len, &buf);
     size_t copy = buf.len > len ? len : buf.len;
     memcpy(buf.base, data, copy);
     buf.len = copy;
-    wrap->OnRead(buf.len, &buf, UV_UNKNOWN_HANDLE);
+    wrap->stream_->OnRead(buf.len, &buf, UV_UNKNOWN_HANDLE);
 
     data += copy;
     len -= copy;
