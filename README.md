@@ -278,6 +278,7 @@ information about the governance of the io.js project, see
 * **Aleksey Smolenchuk** ([@lxe](https://github.com/lxe)) &lt;lxe@lxe.co&gt;
 * **Shigeki Ohtsu** ([@shigeki](https://github.com/shigeki)) &lt;ohtsu@iij.ad.jp&gt;
 * **Sam Roberts** ([@sam-github](https://github.com/sam-github)) &lt;vieuxtech@gmail.com&gt;
+* **Wyatt Preul** ([@geek](https://github.com/geek)) &lt;wpreul@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
