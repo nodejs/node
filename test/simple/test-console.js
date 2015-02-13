@@ -46,6 +46,22 @@ console.log({slashes: '\\\\'});
 console._stderr = process.stdout;
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
+assert.throws(function () {
+  console.timeEnd('no such label');
+});
+
+assert.doesNotThrow(function () {
+  console.time('label');
+  console.timeEnd('label');
+});
+
+console.time('__proto__');
+console.timeEnd('__proto__');
+console.time('constructor');
+console.timeEnd('constructor');
+console.time('hasOwnProperty');
+console.timeEnd('hasOwnProperty');
+
 global.process.stdout.write = stdout_write;
 
 assert.equal('foo\n', strings.shift());
@@ -55,11 +71,8 @@ assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
              strings.shift().split('\n').shift());
 
-assert.throws(function () {
-  console.timeEnd('no such label');
-});
-
-assert.doesNotThrow(function () {
-  console.time('label');
-  console.timeEnd('label');
-});
+assert.ok(/^label: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^__proto__: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^constructor: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^hasOwnProperty: \d+ms$/.test(strings.shift().trim()));
+assert.equal(strings.length, 0);
