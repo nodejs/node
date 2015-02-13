@@ -824,6 +824,7 @@ void TLSWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "setServername", SetServername);
 #endif  // SSL_CRT_SET_TLSEXT_SERVERNAME_CB
 
+  env->set_tls_wrap_constructor_template(t);
   env->set_tls_wrap_constructor_function(t->GetFunction());
 }
 
