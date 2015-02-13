@@ -18,10 +18,10 @@ sub ::generic
 
     if ($opcode =~ /lea/ && @arg[1] =~ s/.*PTR\s+(\(.*\))$/OFFSET $1/)	# no []
     {	$opcode="mov";	}
-    elsif ($opcode !~ /movq/)
+    elsif ($opcode !~ /mov[dq]$/)
     {	# fix xmm references
-	$arg[0] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[1]=~/\bxmm[0-7]\b/i);
-	$arg[1] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[0]=~/\bxmm[0-7]\b/i);
+	$arg[0] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[-1]=~/\bxmm[0-7]\b/i);
+	$arg[-1] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[0]=~/\bxmm[0-7]\b/i);
     }
 
     &::emit($opcode,@arg);
@@ -160,13 +160,13 @@ sub ::public_label
 {   push(@out,"PUBLIC\t".&::LABEL($_[0],$nmdecor.$_[0])."\n");   }
 
 sub ::data_byte
-{   push(@out,("DB\t").join(',',@_)."\n");	}
+{   push(@out,("DB\t").join(',',splice(@_,0,16))."\n") while(@_);	}
 
 sub ::data_short
-{   push(@out,("DW\t").join(',',@_)."\n");	}
+{   push(@out,("DW\t").join(',',splice(@_,0,8))."\n") while(@_);	}
 
 sub ::data_word
-{   push(@out,("DD\t").join(',',@_)."\n");	}
+{   push(@out,("DD\t").join(',',splice(@_,0,4))."\n") while(@_);	}
 
 sub ::align
 {   push(@out,"ALIGN\t$_[0]\n");	}
