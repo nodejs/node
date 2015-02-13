@@ -72,7 +72,7 @@ Example of listening for `exit`:
 
 ## Event: 'beforeExit'
 
-This event is emitted when io.js empties it's event loop and has nothing else to
+This event is emitted when io.js empties its event loop and has nothing else to
 schedule. Normally, io.js exits when there is no work scheduled, but a listener
 for 'beforeExit' can make asynchronous calls, and cause io.js to continue.
 
