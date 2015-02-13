@@ -173,10 +173,10 @@ class StreamBase : public StreamResource {
   virtual int ReadStop() = 0;
   virtual int SetBlocking(bool enable) = 0;
 
-  inline StreamBase* ConsumedBy() { return consumed_by_; }
-
-  // TODO(indutny): assert that stream is not yet consumed
-  inline void Consume(StreamBase* child) { consumed_by_ = child; }
+  inline void Consume() {
+    CHECK_EQ(consumed_, false);
+    consumed_ = true;
+  }
 
   template <class Outer>
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
@@ -187,7 +187,7 @@ class StreamBase : public StreamResource {
               v8::Local<v8::Object> handle);
 
  protected:
-  StreamBase(Environment* env) : env_(env), consumed_by_(nullptr) {
+  StreamBase(Environment* env) : env_(env), consumed_(false) {
   }
 
   virtual ~StreamBase() = default;
@@ -222,7 +222,7 @@ class StreamBase : public StreamResource {
 
  private:
   Environment* env_;
-  StreamBase* consumed_by_;
+  bool consumed_;
 };
 
 }  // namespace node

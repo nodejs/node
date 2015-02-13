@@ -64,10 +64,10 @@ TLSWrap::TLSWrap(Environment* env,
   SSL_CTX_sess_set_get_cb(sc_->ctx_, SSLWrap<TLSWrap>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc_->ctx_, SSLWrap<TLSWrap>::NewSessionCallback);
 
+  stream_->Consume();
   stream_->set_after_write_cb(OnAfterWriteImpl, this);
   stream_->set_alloc_cb(OnAllocImpl, this);
   stream_->set_read_cb(OnReadImpl, this);
-  stream_->Consume(this);
 
   InitSSL();
 }
@@ -401,15 +401,14 @@ void TLSWrap::ClearOut() {
   int read;
   do {
     read = SSL_read(ssl_, out, sizeof(out));
-    if (read > 0) {
-      stream_->OnData(read, Buffer::New(env(), out, read), Local<Object>());
-    }
+    if (read > 0)
+      OnData(read, Buffer::New(env(), out, read), Local<Object>());
   } while (read > 0);
 
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
-    stream_->OnData(UV_EOF, Local<Object>(), Local<Object>());
+    OnData(UV_EOF, Local<Object>(), Local<Object>());
   }
 
   if (read == -1) {
@@ -478,6 +477,11 @@ void* TLSWrap::Cast() {
 
 Local<Object> TLSWrap::GetObject() {
   return object();
+}
+
+
+AsyncWrap* TLSWrap::GetAsyncWrap() {
+  return static_cast<AsyncWrap*>(this);
 }
 
 
@@ -634,7 +638,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    stream_->OnData(nread, Local<Object>(), Local<Object>());
+    OnData(nread, Local<Object>(), Local<Object>());
     return;
   }
 
