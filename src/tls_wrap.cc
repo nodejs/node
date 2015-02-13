@@ -69,6 +69,9 @@ TLSWrap::TLSWrap(Environment* env,
   stream_->set_alloc_cb(OnAllocImpl, this);
   stream_->set_read_cb(OnReadImpl, this);
 
+  set_alloc_cb(OnAllocSelf, this);
+  set_read_cb(OnReadSelf, this);
+
   InitSSL();
 }
 
@@ -401,14 +404,18 @@ void TLSWrap::ClearOut() {
   int read;
   do {
     read = SSL_read(ssl_, out, sizeof(out));
-    if (read > 0)
-      OnData(read, Buffer::New(env(), out, read), Local<Object>());
+    if (read > 0) {
+      uv_buf_t buf;
+      OnAlloc(read, &buf);
+      memcpy(buf.base, out, read);
+      OnRead(read, &buf, UV_UNKNOWN_HANDLE);
+    }
   } while (read > 0);
 
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
-    OnData(UV_EOF, Local<Object>(), Local<Object>());
+    OnRead(UV_EOF, nullptr, UV_UNKNOWN_HANDLE);
   }
 
   if (read == -1) {
@@ -623,6 +630,25 @@ void TLSWrap::OnReadImpl(ssize_t nread,
 }
 
 
+void TLSWrap::OnAllocSelf(size_t suggested_size, uv_buf_t* buf, void* ctx) {
+  buf->base = static_cast<char*>(malloc(suggested_size));
+  CHECK_NE(buf->base, nullptr);
+  buf->len = suggested_size;
+}
+
+
+void TLSWrap::OnReadSelf(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx) {
+  TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
+  Local<Object> buf_obj;
+  if (buf != nullptr)
+    buf_obj = Buffer::Use(wrap->env(), buf->base, buf->len);
+  wrap->OnData(nread, buf_obj, Local<Object>());
+}
+
+
 void TLSWrap::DoRead(ssize_t nread,
                      const uv_buf_t* buf,
                      uv_handle_type pending) {
@@ -639,7 +665,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    OnData(nread, Local<Object>(), Local<Object>());
+    OnRead(nread, nullptr, UV_UNKNOWN_HANDLE);
     return;
   }
 

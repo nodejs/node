@@ -114,6 +114,12 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  static void OnAfterWriteSelf(WriteWrap* w, void* ctx);
+  static void OnAllocSelf(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadSelf(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
 
   void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
