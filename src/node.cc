@@ -3133,6 +3133,9 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
 #endif
+    } else if (strcmp(arg, "--expose-internals") == 0 ||
+               strcmp(arg, "--expose_internals") == 0) {
+      // consumed in js
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
