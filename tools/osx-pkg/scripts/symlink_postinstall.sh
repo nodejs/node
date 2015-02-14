@@ -3,5 +3,5 @@
 # file placed only if the symlink install step was checked
 if [ -f /tmp/iojs-create-node-symlink ]; then
   ln -sf /usr/local/bin/iojs /usr/local/bin/node
-  rm /tmp/iojs-create-node-symlink
+  rm -f /tmp/iojs-create-node-symlink
 fi
