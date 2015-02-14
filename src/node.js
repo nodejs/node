@@ -838,6 +838,14 @@
     return NativeModule._source.hasOwnProperty(id);
   };
 
+  NativeModule.nonInternalExists = function(id) {
+    return NativeModule.exists(id) && !NativeModule.isInternal(id);
+  };
+
+  NativeModule.isInternal = function(id) {
+    return id.startsWith('internal/');
+  };
+
   NativeModule.getSource = function(id) {
     return NativeModule._source[id];
   };
