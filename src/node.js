@@ -838,6 +838,27 @@
     return NativeModule._source.hasOwnProperty(id);
   };
 
+  const EXPOSE_INTERNALS = process.execArgv.some(function(arg) {
+    return arg.match(/^--expose[-_]internals$/);
+  });
+
+  if (EXPOSE_INTERNALS) {
+    NativeModule.nonInternalExists = NativeModule.exists;
+
+    NativeModule.isInternal = function(id) {
+      return false;
+    };
+  } else {
+    NativeModule.nonInternalExists = function(id) {
+      return NativeModule.exists(id) && !NativeModule.isInternal(id);
+    };
+
+    NativeModule.isInternal = function(id) {
+      return id.startsWith('internal/');
+    };
+  }
+
+
   NativeModule.getSource = function(id) {
     return NativeModule._source[id];
   };
