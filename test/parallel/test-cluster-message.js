@@ -6,7 +6,7 @@ var net = require('net');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
-    fn(obj[name], name, index);
+    fn(obj[name], name);
   });
 }
 
@@ -45,6 +45,10 @@ if (cluster.isWorker) {
 else if (cluster.isMaster) {
 
   var checks = {
+    global: {
+      'receive': false,
+      'correct': false
+    },
     master: {
       'receive': false,
       'correct': false
@@ -76,12 +80,15 @@ else if (cluster.isMaster) {
   // Spawn worker
   var worker = cluster.fork();
 
-  // When a IPC message is received form the worker
+  // When a IPC message is received from the worker
   worker.on('message', function(message) {
     check('master', message === 'message from worker');
   });
+  cluster.on('message', function(message) {
+    check('global', message === 'message from worker');
+  });
 
-  // When a TCP connection is made with the worker connect to it
+  // When a TCP server is listening in the worker connect to it
   worker.on('listening', function() {
 
     client = net.connect(common.PORT, function() {
