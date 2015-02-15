@@ -75,11 +75,6 @@ the binary verification command above.
 
 ## Build
 
-To quickly test that io.js was built correctly from any of the steps below:
-```
-$ iojs -e "console.log('Hello, world')"
-```
-
 ### Unix / Macintosh
 
 Prerequisites:
@@ -242,6 +237,13 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```text
 > vcbuild full-icu
+```
+
+### Testing
+
+To quickly test that io.js was built correctly from any of the steps above:
+```
+$ iojs -e "console.log('Hello, world')"
 ```
 
 ## Resources for Newcomers
