@@ -104,7 +104,6 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
     }
   }
 
-  v8::Local<v8::Object> GetObject() override;
   AsyncWrap* GetAsyncWrap() override;
   bool IsIPCPipe() const override;
 

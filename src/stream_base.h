@@ -193,10 +193,7 @@ class StreamBase : public StreamResource {
 
   virtual ~StreamBase() = default;
 
-  virtual v8::Local<v8::Object> GetObject() = 0;
-
-  // Optional
-  virtual AsyncWrap* GetAsyncWrap();
+  virtual AsyncWrap* GetAsyncWrap() = 0;
 
   // Libuv callbacks
   static void AfterShutdown(ShutdownWrap* req, int status);

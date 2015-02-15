@@ -481,11 +481,6 @@ void* TLSWrap::Cast() {
 }
 
 
-Local<Object> TLSWrap::GetObject() {
-  return object();
-}
-
-
 AsyncWrap* TLSWrap::GetAsyncWrap() {
   return static_cast<AsyncWrap*>(this);
 }
