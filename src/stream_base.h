@@ -214,7 +214,7 @@ class StreamBase : public StreamResource {
                     const v8::PropertyCallbackInfo<v8::Value>&);
 
   template <class Base,
-            int (StreamBase::*Method)(
+            int (StreamBase::*Method)(  // NOLINT(whitespace/parens)
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 

@@ -1,10 +1,10 @@
 #include "stream_base.h"
+#include "stream_wrap.h"
 
 #include "node.h"
 #include "node_buffer.h"
 #include "env.h"
 #include "env-inl.h"
-#include "stream_wrap.h"
 #include "string_bytes.h"
 #include "tls_wrap.h"
 #include "util.h"

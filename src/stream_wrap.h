@@ -1,9 +1,10 @@
 #ifndef SRC_STREAM_WRAP_H_
 #define SRC_STREAM_WRAP_H_
 
+#include "stream_base.h"
+
 #include "env.h"
 #include "handle_wrap.h"
-#include "stream_base.h"
 #include "string_bytes.h"
 #include "v8.h"
 
