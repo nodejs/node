@@ -248,6 +248,16 @@ This can be used to restart the worker by calling `.fork()` again.
 
 See [child_process event: 'exit'](child_process.html#child_process_event_exit).
 
+## Event: 'message'
+
+* `worker` {Worker object}
+* `message` {Object}
+
+Emitted when any worker receives a message.
+
+See
+[child_process event: 'message'](child_process.html#child_process_event_message).
+
 ## Event: 'setup'
 
 * `settings` {Object}
@@ -529,6 +539,8 @@ created. It is disconnected after the `disconnect` event is emitted.
 ### Event: 'message'
 
 * `message` {Object}
+
+Similar to the `cluster.on('message')` event, but specific to this worker.
 
 This event is the same as the one provided by `child_process.fork()`.
 
