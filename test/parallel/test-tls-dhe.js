@@ -26,6 +26,7 @@ function test(keylen, expectedCipher, cb) {
   var options = {
     key: key,
     cert: cert,
+    ciphers: ciphers,
     dhparam: loadDHParam(keylen)
   };
 
