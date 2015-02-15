@@ -21,7 +21,7 @@ the title of man pages).
 
 ## Download
 
-Binaries, installers and source tarballs are available at
+Binaries, installers, and source tarballs are available at
 <https://iojs.org>.
 
 **Releases** are available at <https://iojs.org/dist/>, listed under
