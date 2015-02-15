@@ -25,6 +25,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   var client = tls.connect({
     host: '127.0.0.1',
     port: common.PORT,
+    ciphers: cipher_list.join(':'),
     rejectUnauthorized: false
   }, function() {
     var cipher = client.getCipher();
