@@ -75,6 +75,11 @@ the binary verification command above.
 
 ## Build
 
+To quickly test that io.js was built correctly from any of the steps below:
+```
+$ iojs -e "console.log('Hello, world')"
+```
+
 ### Unix / Macintosh
 
 Prerequisites:
