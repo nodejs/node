@@ -119,7 +119,7 @@ To read the documentation:
 $ man doc/iojs.1
 ```
 
-To quickly test that io.js was built correctly from any of the steps above:
+To test if io.js was built correctly:
 
 ```
 $ iojs -e "console.log('Hello from io.js ' + process.version)"
@@ -146,7 +146,7 @@ To run the tests:
 > vcbuild test
 ```
 
-To quickly test that io.js was built correctly from any of the steps above:
+To test if io.js was built correctly:
 
 ```
 > iojs -e "console.log('Hello from io.js ' + process.version)"
