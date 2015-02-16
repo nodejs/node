@@ -40,7 +40,6 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   int ReadStart() override;
   int ReadStop() override;
 
-  int SetBlocking(bool enable) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,

@@ -172,7 +172,6 @@ class StreamBase : public StreamResource {
 
   virtual int ReadStart() = 0;
   virtual int ReadStop() = 0;
-  virtual int SetBlocking(bool enable) = 0;
 
   inline void Consume() {
     CHECK_EQ(consumed_, false);
@@ -206,7 +205,6 @@ class StreamBase : public StreamResource {
   int WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <enum encoding enc>
   int WriteString(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base>
   static void GetFD(v8::Local<v8::String>,

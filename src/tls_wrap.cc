@@ -525,11 +525,6 @@ int TLSWrap::ReadStop() {
 }
 
 
-int TLSWrap::SetBlocking(bool enable) {
-  return stream_->SetBlocking(enable);
-}
-
-
 const char* TLSWrap::Error() const {
   return error_;
 }
@@ -850,7 +845,7 @@ void TLSWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
   env->SetProtoMethod(t, "enableHelloParser", EnableHelloParser);
 
-  StreamWrap::AddMethods<TLSWrap>(env, t);
+  StreamBase::AddMethods<TLSWrap>(env, t);
   SSLWrap<TLSWrap>::AddMethods(env, t);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB

@@ -28,7 +28,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   // JavaScript functions
   int ReadStart() override;
   int ReadStop() override;
-  int SetBlocking(bool enable) override;
 
   // Resource implementation
   int DoShutdown(ShutdownWrap* req_wrap) override;
@@ -70,7 +69,12 @@ class StreamWrap : public HandleWrap, public StreamBase {
   AsyncWrap* GetAsyncWrap() override;
   void UpdateWriteQueueSize();
 
+  static void AddMethods(Environment* env,
+                         v8::Handle<v8::FunctionTemplate> target);
+
  private:
+  static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   // Callbacks for libuv
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,

@@ -77,6 +77,13 @@ StreamWrap::StreamWrap(Environment* env,
 }
 
 
+void StreamWrap::AddMethods(Environment* env,
+                            v8::Handle<v8::FunctionTemplate> target) {
+  env->SetProtoMethod(target, "setBlocking", SetBlocking);
+  StreamBase::AddMethods<StreamWrap>(env, target);
+}
+
+
 int StreamWrap::GetFD() const {
   int fd = -1;
 #if !defined(_WIN32)
@@ -250,8 +257,15 @@ void StreamWrap::OnRead(uv_stream_t* handle,
 }
 
 
-int StreamWrap::SetBlocking(bool enable) {
-  return uv_stream_set_blocking(stream(), enable);
+void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+
+  CHECK_GT(args.Length(), 0);
+  if (!wrap->IsAlive())
+    return args.GetReturnValue().Set(UV_EINVAL);
+
+  bool enable = args[0]->IsTrue();
+  args.GetReturnValue().Set(uv_stream_set_blocking(wrap->stream(), enable));
 }
 
 

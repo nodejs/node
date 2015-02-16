@@ -81,7 +81,7 @@ void PipeWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
 
-  StreamWrap::AddMethods<StreamWrap>(env, t);
+  StreamWrap::AddMethods(env, t);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);

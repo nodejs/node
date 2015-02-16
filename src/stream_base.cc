@@ -68,9 +68,6 @@ void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   env->SetProtoMethod(t,
                       "writeBinaryString",
                       JSMethod<Base, &StreamBase::WriteString<BINARY> >);
-  env->SetProtoMethod(t,
-                      "setBlocking",
-                      JSMethod<Base, &StreamBase::SetBlocking>);
 }
 
 
@@ -98,17 +95,17 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-int StreamBase::ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::ReadStart(const FunctionCallbackInfo<Value>& args) {
   return ReadStart();
 }
 
 
-int StreamBase::ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::ReadStop(const FunctionCallbackInfo<Value>& args) {
   return ReadStop();
 }
 
 
-int StreamBase::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
@@ -152,7 +149,7 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
 }
 
 
-int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
@@ -259,7 +256,7 @@ int StreamBase::Writev(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 
-int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(Buffer::HasInstance(args[1]));
   Environment* env = Environment::GetCurrent(args);
@@ -310,7 +307,7 @@ int StreamBase::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 template <enum encoding enc>
-int StreamBase::WriteString(const v8::FunctionCallbackInfo<v8::Value>& args) {
+int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -467,12 +464,6 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 
   req_wrap->~WriteWrap();
   delete[] reinterpret_cast<char*>(req_wrap);
-}
-
-
-int StreamBase::SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK_GT(args.Length(), 0);
-  return SetBlocking(args[0]->IsTrue());
 }
 
 
