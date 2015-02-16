@@ -401,15 +401,25 @@ void TLSWrap::ClearOut() {
 
   char out[kClearOutChunkSize];
   int read;
-  do {
+  for (;;) {
     read = SSL_read(ssl_, out, sizeof(out));
-    if (read > 0) {
+
+    if (read <= 0)
+      break;
+
+    while (read > 0) {
+      int avail = read;
+
       uv_buf_t buf;
-      OnAlloc(read, &buf);
-      memcpy(buf.base, out, read);
-      OnRead(read, &buf, UV_UNKNOWN_HANDLE);
+      OnAlloc(avail, &buf);
+      if (static_cast<int>(buf.len) < avail)
+        avail = buf.len;
+      memcpy(buf.base, out, avail);
+      OnRead(avail, &buf, UV_UNKNOWN_HANDLE);
+
+      read -= avail;
     }
-  } while (read > 0);
+  }
 
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
