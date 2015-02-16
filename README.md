@@ -119,6 +119,12 @@ To read the documentation:
 $ man doc/iojs.1
 ```
 
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
+```
+
 ### Windows
 
 Prerequisites:
@@ -138,6 +144,12 @@ To run the tests:
 
 ```text
 > vcbuild test
+```
+
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
 ```
 
 ### Android / Android based devices, aka. Firefox OS
