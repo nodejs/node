@@ -119,6 +119,12 @@ To read the documentation:
 $ man doc/iojs.1
 ```
 
+To quickly test that io.js was built correctly from any of the steps above:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
+```
+
 ### Windows
 
 Prerequisites:
@@ -138,6 +144,12 @@ To run the tests:
 
 ```text
 > vcbuild test
+```
+
+To quickly test that io.js was built correctly from any of the steps above:
+
+```
+> iojs -e "console.log('Hello from io.js ' + process.version)"
 ```
 
 ### `Intl` (ECMA-402) support:
@@ -239,12 +251,6 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 > vcbuild full-icu
 ```
 
-### Testing
-
-To quickly test that io.js was built correctly from any of the steps above:
-```
-$ iojs -e "console.log('Hello, world')"
-```
 
 ## Resources for Newcomers
 
