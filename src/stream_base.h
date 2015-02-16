@@ -182,10 +182,9 @@ class StreamBase : public StreamResource {
   template <class Outer>
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
-  // TODO(indutny): should be a part of Resource
-  void OnData(ssize_t nread,
-              v8::Local<v8::Object> buf,
-              v8::Local<v8::Object> handle);
+  void EmitData(ssize_t nread,
+                v8::Local<v8::Object> buf,
+                v8::Local<v8::Object> handle);
 
  protected:
   explicit StreamBase(Environment* env) : env_(env), consumed_(false) {

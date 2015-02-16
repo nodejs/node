@@ -300,7 +300,6 @@ void TLSWrap::EncOut() {
   write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
   CHECK(write_size_ != 0 && count != 0);
 
-  // XXX(indutny): How to do it in a better way?
   Local<Object> req_wrap_obj =
       env()->write_wrap_constructor_function()->NewInstance();
   char* storage = new char[sizeof(WriteWrap)];
@@ -654,7 +653,7 @@ void TLSWrap::OnReadSelf(ssize_t nread,
   Local<Object> buf_obj;
   if (buf != nullptr)
     buf_obj = Buffer::Use(wrap->env(), buf->base, buf->len);
-  wrap->OnData(nread, buf_obj, Local<Object>());
+  wrap->EmitData(nread, buf_obj, Local<Object>());
 }
 
 

@@ -476,9 +476,9 @@ int StreamBase::SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-void StreamBase::OnData(ssize_t nread,
-                        Local<Object> buf,
-                        Local<Object> handle) {
+void StreamBase::EmitData(ssize_t nread,
+                          Local<Object> buf,
+                          Local<Object> handle) {
   Environment* env = env_;
 
   Local<Value> argv[] = {
