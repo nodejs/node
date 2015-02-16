@@ -393,7 +393,7 @@ span.type {
 
 #footer {
   padding: 0;
-  min-height: 300px;
+  min-height: 24px;
   background: #333;
   color: white;
 }
