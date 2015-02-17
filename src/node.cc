@@ -1030,7 +1030,7 @@ Handle<Value> MakeCallback(Environment* env,
     try_catch.SetVerbose(false);
     env->async_hooks_pre_function()->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
-      FatalError("node:;MakeCallback", "pre hook threw");
+      FatalError("node::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
   }
 
