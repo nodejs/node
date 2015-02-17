@@ -114,6 +114,8 @@ static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
 static const char* eval_string = nullptr;
+static unsigned int preload_module_count = 0;
+static const char** preload_modules = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
@@ -2766,6 +2768,19 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
   }
 
+  if (preload_module_count) {
+    CHECK(preload_modules);
+    Local<Array> array = Array::New(env->isolate());
+    for (unsigned int i = 0; i < preload_module_count; ++i) {
+      Local<String> module = String::NewFromUtf8(env->isolate(),
+                                                 preload_modules[i]);
+      array->Set(i, module);
+    }
+    READONLY_PROPERTY(process,
+                      "_preload_modules",
+                      array);
+  }
+
   // --no-deprecation
   if (no_deprecation) {
     READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
@@ -2990,6 +3005,7 @@ static void PrintHelp() {
          "  -p, --print          evaluate script and print result\n"
          "  -i, --interactive    always enter the REPL even if stdin\n"
          "                       does not appear to be a terminal\n"
+         "  -r, --require        module to preload (option can be repeated)\n"
          "  --no-deprecation     silence deprecation warnings\n"
          "  --throw-deprecation  throw an exception anytime a deprecated "
          "function is used\n"
@@ -3045,11 +3061,13 @@ static void ParseArgs(int* argc,
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
   const char** new_argv = new const char*[nargs];
+  const char** local_preload_modules = new const char*[nargs];
 
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
     new_v8_argv[i] = nullptr;
     new_argv[i] = nullptr;
+    local_preload_modules[i] = nullptr;
   }
 
   // exec_argv starts with the first option, the other two start with argv[0].
@@ -3098,6 +3116,15 @@ static void ParseArgs(int* argc,
           eval_string += 1;
         }
       }
+    } else if (strcmp(arg, "--require") == 0 ||
+               strcmp(arg, "-r") == 0) {
+      const char* module = argv[index + 1];
+      if (module == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      local_preload_modules[preload_module_count++] = module;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
@@ -3144,6 +3171,16 @@ static void ParseArgs(int* argc,
   memcpy(argv, new_argv, new_argc * sizeof(*argv));
   delete[] new_argv;
   *argc = static_cast<int>(new_argc);
+
+  // Copy the preload_modules from the local array to an appropriately sized
+  // global array.
+  if (preload_module_count > 0) {
+    CHECK(!preload_modules);
+    preload_modules = new const char*[preload_module_count];
+    memcpy(preload_modules, local_preload_modules,
+           preload_module_count * sizeof(*preload_modules));
+  }
+  delete[] local_preload_modules;
 }
 
 
