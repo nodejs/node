@@ -3366,7 +3366,22 @@ inline void PlatformInit() {
   sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+
+  // Make sure file descriptors 0-2 are valid before we start logging anything.
+  for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
+    struct stat ignored;
+    if (fstat(fd, &ignored) == 0)
+      continue;
+    // Anything but EBADF means something is seriously wrong.  We don't
+    // have to special-case EINTR, fstat() is not interruptible.
+    if (errno != EBADF)
+      abort();
+    if (fd != open("/dev/null", O_RDWR))
+      abort();
+  }
+
+  CHECK_EQ(err, 0);
 
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
