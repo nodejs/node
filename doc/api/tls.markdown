@@ -301,6 +301,9 @@ Creates a new client connection to the given `port` and `host` (old API) or
     format. If this is omitted several well known "root" CAs will be used,
     like VeriSign. These are used to authorize connections.
 
+  - `ciphers`: A string describing the ciphers to use or exclude, separated by
+   `:`. Uses the same default cipher suite as `tls.createServer`.
+
   - `rejectUnauthorized`: If `true`, the server certificate is verified against
     the list of supplied CAs. An `'error'` event is emitted if verification
     fails; `err.code` contains the OpenSSL error code. Default: `true`.
