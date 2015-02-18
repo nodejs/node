@@ -3899,6 +3899,9 @@ class V8_EXPORT FunctionTemplate : public Template {
 };
 
 
+enum class PropertyHandlerFlags { kNone = 0, kAllCanRead = 1 };
+
+
 struct NamedPropertyHandlerConfiguration {
   NamedPropertyHandlerConfiguration(
       /** Note: getter is required **/
@@ -3907,13 +3910,15 @@ struct NamedPropertyHandlerConfiguration {
       GenericNamedPropertyQueryCallback query = 0,
       GenericNamedPropertyDeleterCallback deleter = 0,
       GenericNamedPropertyEnumeratorCallback enumerator = 0,
-      Handle<Value> data = Handle<Value>())
+      Handle<Value> data = Handle<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
-        data(data) {}
+        data(data),
+        flags(flags) {}
 
   GenericNamedPropertyGetterCallback getter;
   GenericNamedPropertySetterCallback setter;
@@ -3921,6 +3926,7 @@ struct NamedPropertyHandlerConfiguration {
   GenericNamedPropertyDeleterCallback deleter;
   GenericNamedPropertyEnumeratorCallback enumerator;
   Handle<Value> data;
+  PropertyHandlerFlags flags;
 };
 
 
@@ -3932,13 +3938,15 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyQueryCallback query = 0,
       IndexedPropertyDeleterCallback deleter = 0,
       IndexedPropertyEnumeratorCallback enumerator = 0,
-      Handle<Value> data = Handle<Value>())
+      Handle<Value> data = Handle<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
-        data(data) {}
+        data(data),
+        flags(flags) {}
 
   IndexedPropertyGetterCallback getter;
   IndexedPropertySetterCallback setter;
@@ -3946,6 +3954,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyDeleterCallback deleter;
   IndexedPropertyEnumeratorCallback enumerator;
   Handle<Value> data;
+  PropertyHandlerFlags flags;
 };
 
 
