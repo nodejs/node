@@ -26,11 +26,11 @@ Any API addition will cause an increase in the *minor* version.
 
 ### Long Term Support
 
-`io.js` supports old versions for as long as community members are fixing bugs in them.
+io.js supports old versions for as long as community members are fixing bugs in them.
 
-As long as there is a community back porting bug fixes we will push patch releases for those versions of `io.js`.
+As long as there is a community back porting bug fixes we will push patch releases for those versions of io.js.
 
-When old versions of dependencies like V8 are no longer supported by their project `io.js` will take on the responsibility of maintenance to ensure continued long term support in `io.js` patch releases.
+When old versions of dependencies like V8 are no longer supported by their project io.js will take on the responsibility of maintenance to ensure continued long term support in io.js patch releases.
 
 ## Channels
 
@@ -40,7 +40,7 @@ When old versions of dependencies like V8 are no longer supported by their proje
 
 ## NG (Next Generation)
 
-In order for `io.js` to stay competitive we need to work on the next generation of the platform that can more accurately integrate and reflect the advancements in the language and the ecosystem.
+In order for io.js to stay competitive we need to work on the next generation of the platform that can more accurately integrate and reflect the advancements in the language and the ecosystem.
 
 While this constitutes a great leap forward for the platform we will be making this leap without breaking backwards compatibility with the existing ecosystem of modules.
 
