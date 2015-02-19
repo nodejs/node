@@ -79,14 +79,6 @@ a standard TC motion.
 Changes to TC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "TC Meetings" below).
 
-If an addition or removal is proposed during a meeting, and the full
-TC is not in attendance to participate, then the addition or removal
-is added to the agenda for the subsequent meeting.  This is to ensure
-that all members are given the opportunity to participate in all
-membership decisions.  If a TC member is unable to attend a meeting
-where a planned membership decision is being made, then their consent
-is assumed.
-
 No more than 1/3 of the TC members may be affiliated with the same
 employer.  If removal or resignation of a TC member, or a change of
 employment by a TC member, creates a situation where more than 1/3 of
@@ -141,6 +133,3 @@ If an agenda item cannot reach a consensus a TC member can call for
 either a closing vote or a vote to table the issue to the next
 meeting. The call for a vote must be seconded by a majority of the TC
 or else the discussion will continue. Simple majority wins.
-
-Note that changes to TC membership require unanimous consensus.  See
-"TC Membership" above.
