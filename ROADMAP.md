@@ -35,7 +35,7 @@ When old versions of dependencies like V8 are no longer supported by their proje
 ## Channels
 
 * Release - Stable production ready builds. Unique version numbers following semver.
-* Canary - Nightly builds on next-generation V8 + changes landing to io.js. No version designation.
+* Canary - Nightly builds w/ V8 version in Chrome Canary + changes landing to io.js. No version designation.
 * NG - "Next Generation." No version designation.
 
 ## NG (Next Generation)
