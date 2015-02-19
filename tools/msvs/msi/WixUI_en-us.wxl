@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-    <String Id="WelcomeDlgDescription">The Setup Wizard will install [ProductName] on your computer.&#xD;&#xA;&#xD;&#xA;WARNING: if you're upgrading from io.js v1.0.0 or v1.0.1, you must first uninstall these versions manually.</String>
-    <String Id="InstallDirDlgDescription">Choose a custom location or click Next to install.</String>
-</WixLocalization>

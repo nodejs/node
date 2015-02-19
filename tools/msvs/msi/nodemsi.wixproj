@@ -14,24 +14,23 @@
     <NodeVersion Condition=" '$(NodeVersion)' == '' ">0.0.0.0</NodeVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>..\..\..\$(Configuration)</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>..\..\..\$(Configuration)</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>..\..\..\$(Configuration)</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
-    <Cultures>en-US</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>..\..\..\$(Configuration)</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
@@ -45,16 +44,17 @@
   </ItemGroup>
   <ItemGroup>
     <WixExtension Include="WixUIExtension">
-      <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
+      <HintPath>$(WixExtDir)WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
     <WixExtension Include="WiXUtilExtension">
-      <HintPath>$(WixExtDir)\WiXUtilExtension.dll</HintPath>
+      <HintPath>$(WixExtDir)WiXUtilExtension.dll</HintPath>
       <Name>WiXUtilExtension</Name>
     </WixExtension>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WixUI_en-us.wxl" />
+    <EmbeddedResource Include="i18n\de-de.wxl" />
+    <EmbeddedResource Include="i18n\en-us.wxl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="custom_actions.vcxproj">
@@ -72,7 +72,10 @@
     </HeatDirectory>
   </Target>
   <PropertyGroup>
-    <PostBuildEvent>move "!(TargetPath)" "$(TargetDir)\$(TargetFileName)"
-move "!(TargetPdbPath)" "$(TargetDir)\$(TargetPdbName)"</PostBuildEvent>
+    <PostBuildEvent>
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)de-de\$(TargetFileName)" -out "$(TargetDir)transforms\de-de.mst"
+      cscript.exe WiSubStg.vbs "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
+      cscript.exe WiLangId.vbs "$(TargetDir)en-US\$(TargetFileName)" Package 1033,1031
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>
