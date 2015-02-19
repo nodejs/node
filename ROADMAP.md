@@ -4,7 +4,7 @@
 
 ## Stability Policy
 
-The single more important consideration in every code change is the impact it will have, positive or negative, on the ecosystem (modules and applications).
+The most important consideration in every code change is the impact it will have, positive or negative, on the ecosystem (modules and applications).
 
 io.js does not remove stdlib JS API.
 
