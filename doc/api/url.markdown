@@ -45,6 +45,11 @@ string will not be in the parsed object. Examples are shown for the URL
 
     Example: `'/p/a/t/h'`
 
+* `path`: The path section of the URL, that is treated the same with `pathname` 
+  but able to contain `query` as well.
+
+    Example: `'/p/a/t/h?i=10&j=91'`
+
 * `search`: The 'query string' portion of the URL, including the leading
   question mark.
 
