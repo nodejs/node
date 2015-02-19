@@ -57,6 +57,10 @@ assert.throws(function() {
   fs.access(__filename, fs.F_OK);
 }, /callback must be a function/);
 
+assert.throws(function() {
+  fs.access(__filename, fs.F_OK, {});
+}, /callback must be a function/);
+
 assert.doesNotThrow(function() {
   fs.accessSync(__filename);
 });
