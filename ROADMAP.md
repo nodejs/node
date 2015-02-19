@@ -82,7 +82,7 @@ The initial goals for this automation are relatively simple but will create a ba
 
 * Fix all existing compatibility issues.
 * Simplify stream creation to avoid user error.
-* Implement WHATWG Streams interface and identify compatibility issues.
+* Explore and identify compatibility issues with [WHATWG Streams](https://github.com/whatwg/streams).
 * Improve stream performance.
 
 ## Internationalization / Localization
