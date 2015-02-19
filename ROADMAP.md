@@ -40,8 +40,6 @@ When old versions of dependencies like V8 are no longer supported by their proje
 
 ## NG (Next Generation)
 
-> This is not Python 3!
-
 In order for `io.js` to stay competitive we need to work on the next generation of the platform that can more accurately integrate and reflect the advancements in the language and the ecosystem.
 
 While this constitutes a great leap forward for the platform we will be making this leap without breaking backwards compatibility with the existing ecosystem of modules.
