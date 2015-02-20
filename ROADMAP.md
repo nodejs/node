@@ -34,17 +34,17 @@ When old versions of dependencies like V8 are no longer supported by their proje
 
 ## Channels
 
+Channels are points of collaboration with the broader community and are not strictly scoped to a repository or branch.
+
 * Release - Stable production ready builds. Unique version numbers following semver.
 * Canary - Nightly builds w/ V8 version in Chrome Canary + changes landing to io.js. No version designation.
 * NG - "Next Generation." No version designation.
 
 ## NG (Next Generation)
 
-In order for io.js to stay competitive we need to work on the next generation of the platform that can more accurately integrate and reflect the advancements in the language and the ecosystem.
+In order for io.js to stay competitive we need to work on the next generation of the platform which will more accurately integrate and reflect the advancements in the language and the ecosystem.
 
 While this constitutes a great leap forward for the platform we will be making this leap without breaking backwards compatibility with the existing ecosystem of modules.
-
-NG will use ES6 modules and will be implementing a new platform and standard library available only to modules using this native new style. Modules written prior to NG using the old CommonJS module syntax will continue to operate against the old API. This is what will allow us to make improvements to the platform without breaking compatibility and still letting future NG based applications benefit from all the modules built today.
 
 # Immediate Priorities
 
