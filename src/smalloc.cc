@@ -537,6 +537,56 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
 }
 
 
+// User facing API.
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           size_t length,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, length, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           char* data,
+           size_t length,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, data, length, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, length, fn, hint, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           char* data,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, data, length, fn, hint, type);
+}
+
+
+void AllocDispose(Isolate* isolate, Handle<Object> obj) {
+  AllocDispose(Environment::GetCurrent(isolate), obj);
+}
+
+
+bool HasExternalData(Isolate* isolate, Local<Object> obj) {
+  return HasExternalData(Environment::GetCurrent(isolate), obj);
+}
+
+
 void Initialize(Handle<Object> exports,
                 Handle<Value> unused,
                 Handle<Context> context) {

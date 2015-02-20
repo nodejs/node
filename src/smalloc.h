@@ -70,30 +70,31 @@ NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type);
  *        v8::kExternalFloatArray);
  *    v8::Local<v8::Object> obj = v8::Object::New();
  *    char* data = static_cast<char*>(malloc(byte_length * array_length));
- *    node::smalloc::Alloc(obj, data, byte_length, v8::kExternalFloatArray);
+ *    node::smalloc::Alloc(isolate, obj, data, byte_length,
+ *                         v8::kExternalFloatArray);
  *    obj->Set(v8::String::NewFromUtf8("length"),
  *             v8::Integer::NewFromUnsigned(array_length));
  * \code
  */
-NODE_EXTERN void Alloc(Environment* env,
+NODE_EXTERN void Alloc(v8::Isolate* isolate,
                        v8::Handle<v8::Object> obj,
                        size_t length,
                        enum v8::ExternalArrayType type =
                        v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(Environment* env,
+NODE_EXTERN void Alloc(v8::Isolate* isolate,
                        v8::Handle<v8::Object> obj,
                        char* data,
                        size_t length,
                        enum v8::ExternalArrayType type =
                        v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(Environment* env,
+NODE_EXTERN void Alloc(v8::Isolate* isolate,
                        v8::Handle<v8::Object> obj,
                        size_t length,
                        FreeCallback fn,
                        void* hint,
                        enum v8::ExternalArrayType type =
                        v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(Environment* env,
+NODE_EXTERN void Alloc(v8::Isolate* isolate,
                        v8::Handle<v8::Object> obj,
                        char* data,
                        size_t length,
@@ -106,13 +107,45 @@ NODE_EXTERN void Alloc(Environment* env,
  * Free memory associated with an externally allocated object. If no external
  * memory is allocated to the object then nothing will happen.
  */
-NODE_EXTERN void AllocDispose(Environment* env, v8::Handle<v8::Object> obj);
+NODE_EXTERN void AllocDispose(v8::Isolate* isolate, v8::Handle<v8::Object> obj);
 
 
 /**
  * Check if the Object has externally allocated memory.
  */
-NODE_EXTERN bool HasExternalData(Environment* env, v8::Local<v8::Object> obj);
+NODE_EXTERN bool HasExternalData(v8::Isolate* isolate,
+                                 v8::Local<v8::Object> obj);
+
+
+// Internal use
+void Alloc(Environment* env,
+           v8::Handle<v8::Object> obj,
+           size_t length,
+           enum v8::ExternalArrayType type =
+           v8::kExternalUnsignedByteArray);
+void Alloc(Environment* env,
+           v8::Handle<v8::Object> obj,
+           char* data,
+           size_t length,
+           enum v8::ExternalArrayType type =
+           v8::kExternalUnsignedByteArray);
+void Alloc(Environment* env,
+           v8::Handle<v8::Object> obj,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum v8::ExternalArrayType type =
+           v8::kExternalUnsignedByteArray);
+void Alloc(Environment* env,
+           v8::Handle<v8::Object> obj,
+           char* data,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum v8::ExternalArrayType type =
+           v8::kExternalUnsignedByteArray);
+void AllocDispose(Environment* env, v8::Handle<v8::Object> obj);
+bool HasExternalData(Environment* env, v8::Local<v8::Object> obj);
 
 }  // namespace smalloc
 }  // namespace node
