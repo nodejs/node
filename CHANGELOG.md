@@ -16,7 +16,7 @@
 
 ### Commits
 
-* [[`35ed79932c`](https://github.com/iojs/io.js/commit/35ed79932c)] - **benchmark**: add a few querystring benchmarks (Brian White) [#847](https://github.com/iojs/io.js/pull/847)
+* [[`35ed79932c`](https://github.com/iojs/io.js/commit/35ed79932c)] - **benchmark**: add a few querystring benchmarks (Brian White) [#846](https://github.com/iojs/io.js/pull/846)
 * [[`c6fd2c5e95`](https://github.com/iojs/io.js/commit/c6fd2c5e95)] - **buffer**: fix pool offset adjustment (Trevor Norris)
 * [[`36a779560a`](https://github.com/iojs/io.js/commit/36a779560a)] - **buffer**: expose internals on binding (Vladimir Kurchatkin) [#770](https://github.com/iojs/io.js/pull/770)
 * [[`e63b51793b`](https://github.com/iojs/io.js/commit/e63b51793b)] - **crypto**: fix to check ext method for shared lib (Shigeki Ohtsu) [#800](https://github.com/iojs/io.js/pull/800)
