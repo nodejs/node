@@ -100,7 +100,7 @@ X509_STORE* root_cert_store;
 // Just to generate static methods
 template class SSLWrap<TLSWrap>;
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
-                                                Handle<FunctionTemplate> t);
+                                           Handle<FunctionTemplate> t);
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
@@ -108,7 +108,7 @@ template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     int len,
     int* copy);
 template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
-                                                       SSL_SESSION* sess);
+                                                  SSL_SESSION* sess);
 template void SSLWrap<TLSWrap>::OnClientHello(
     void* arg,
     const ClientHelloParser::ClientHello& hello);
