@@ -75,7 +75,7 @@ with your package.
 
 It should look like this:
 
-    { "url" : "http://github.com/owner/project/issues"
+    { "url" : "https://github.com/owner/project/issues"
     , "email" : "project@hostname.com"
     }
 
@@ -219,7 +219,7 @@ will create entries for `man foo` and `man 2 foo`
 
 The CommonJS [Packages](http://wiki.commonjs.org/wiki/Packages/1.0) spec details a
 few ways that you can indicate the structure of your package using a `directories`
-object. If you look at [npm's package.json](http://registry.npmjs.org/npm/latest),
+object. If you look at [npm's package.json](https://registry.npmjs.org/npm/latest),
 you'll see that it has directories for doc, lib, and man.
 
 In the future, this information may be used in other creative ways.
@@ -260,17 +260,22 @@ Do it like this:
 
     "repository" :
       { "type" : "git"
-      , "url" : "http://github.com/npm/npm.git"
+      , "url" : "https://github.com/npm/npm.git"
       }
 
     "repository" :
       { "type" : "svn"
-      , "url" : "http://v8.googlecode.com/svn/trunk/"
+      , "url" : "https://v8.googlecode.com/svn/trunk/"
       }
 
 The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It's for computers.
+
+For GitHub repositories you can use the same shortcut syntax you use for `npm
+install`:
+
+    "repository": "npm/npm"
 
 ## scripts
 
@@ -459,12 +464,18 @@ For example:
     }
 
 This ensures your package `tea-latte` can be installed *along* with the second
-major version of the host package `tea` only. The host package is automatically
-installed if needed. `npm install tea-latte` could possibly yield the following
-dependency graph:
+major version of the host package `tea` only. `npm install tea-latte` could
+possibly yield the following dependency graph:
 
     ├── tea-latte@1.3.5
     └── tea@2.2.0
+
+**NOTE: npm versions 1 and 2 will automatically install `peerDependencies` if
+they are not explicitly depended upon higher in the dependency tree. In the
+next major version of npm (npm@3), this will no longer be the case. You will
+receive a warning that the peerDependency is not installed instead.** The
+behavior in npms 1 & 2 was frequently confusing and could easily put you into
+dependency hell, a situation that npm is designed to avoid as much as possible.
 
 Trying to install another plugin with a conflicting requirement will cause an
 error. For this reason, make sure your plugin requirement is as broad as
@@ -534,6 +545,8 @@ field is advisory only.
 
 ## engineStrict
 
+**NOTE: This feature is deprecated and will be removed in npm 3.0.0.**
+
 If you are sure that your module will *definitely not* run properly on
 versions of Node/npm other than those specified in the `engines` object,
 then you can set `"engineStrict": true` in your package.json file.
@@ -542,8 +555,7 @@ This will override the user's `engine-strict` config setting.
 Please do not do this unless you are really very very sure.  If your
 engines object is something overly restrictive, you can quite easily and
 inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node.  Consider this choice carefully.  If
-people abuse it, it will be removed in a future version of npm.
+updating to new versions of Node.  Consider this choice carefully.
 
 ## os
 

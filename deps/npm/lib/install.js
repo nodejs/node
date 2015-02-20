@@ -162,6 +162,12 @@ function install (args, cb_) {
             peers.push(dep)
           }
         })
+        if (peers.length) {
+          log.warn("deprecation", "peerDependencies will no longer be")
+          log.warn("deprecation", "installed implicitly in the next major")
+          log.warn("deprecation", "version of npm (npm@3). You will need to")
+          log.warn("deprecation", "switch to depending on them explicitly.")
+        }
         log.verbose("install", "where, peers", [where, peers])
 
         var context = { family: {}

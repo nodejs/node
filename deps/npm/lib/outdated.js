@@ -41,6 +41,7 @@ function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
   var dir = path.resolve(npm.dir, "..")
   outdated_(args, dir, {}, 0, function (er, list) {
+    if (!list) list = []
     if (er || silent || list.length === 0) return cb(er, list)
     if (npm.config.get("json")) {
       console.log(makeJSON(list))

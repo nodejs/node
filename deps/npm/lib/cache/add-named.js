@@ -91,6 +91,11 @@ function engineFilter (data) {
   Object.keys(data.versions || {}).forEach(function (v) {
     var eng = data.versions[v].engines
     if (!eng) return
+    if (data.versions[v].engineStrict) {
+      log.warn("deprecation", "Per-package engineStrict will no longer be used")
+      log.warn("deprecation", "in upcoming versions of npm. Use the config")
+      log.warn("deprecation", "setting `engine-strict` instead.")
+    }
     if (!strict && !data.versions[v].engineStrict) return
     if (eng.node && !semver.satisfies(nodev, eng.node, true)
         || eng.npm && !semver.satisfies(npmv, eng.npm, true)) {

@@ -93,6 +93,10 @@ Install a package
 
 Symlink a package folder
 
+### npm-logout(1)
+
+Log out of the registry
+
 ### npm-ls(1)
 
 List installed packages

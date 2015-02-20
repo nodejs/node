@@ -18,6 +18,7 @@ var i = require("../")
             + 'ar[]=three\n'
             + 'ar[]=this is included\n'
             + 'br=warm\n'
+            + 'eq=\"eq=eq\"\n'
             + '\n'
             + '[a]\n'
             + 'av=a val\n'
@@ -43,6 +44,7 @@ var i = require("../")
       'zr': ['deedee'],
       'ar': ['one', 'three', 'this is included'],
       'br': 'warm',
+      'eq': 'eq=eq',
       a:
        { av: 'a val',
          e: '{ o: p, a: { av: a val, b: { c: { e: "this [value]" } } } }',
