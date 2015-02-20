@@ -83,7 +83,7 @@ similar risk on the <em>next</em> set of prerelease versions.</p>
 <h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
 <p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
 will append the value of the string as a prerelease identifier:</p>
-<pre><code class="lang-`javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;pre&#39;, &#39;beta&#39;)
+<pre><code class="lang-javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;pre&#39;, &#39;beta&#39;)
 &#39;1.2.4-beta.0&#39;
 </code></pre>
 <p>command-line example:</p>
@@ -208,6 +208,9 @@ prerelease. If the input version is already a prerelease it simply
 increments it.</li>
 </ul>
 </li>
+<li><code>major(v)</code>: Return the major version number.</li>
+<li><code>minor(v)</code>: Return the minor version number.</li>
+<li><code>patch(v)</code>: Return the patch version number.</li>
 </ul>
 <h3 id="comparison">Comparison</h3>
 <ul>

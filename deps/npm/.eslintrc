@@ -10,6 +10,7 @@
     "curly": 0,
     "no-underscore-dangle": 0,
     "no-lonely-if": 1,
+    "no-shadow": 0,
     "no-unused-vars": [2, {"vars" : "all", "args" : "after-used"}],
     "no-mixed-requires": 0,
     "space-infix-ops": 0,

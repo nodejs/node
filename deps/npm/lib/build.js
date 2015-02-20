@@ -239,8 +239,9 @@ function linkMans (pkg, folder, parent, gtop, cb) {
     var stem = parseMan[1]
     var sxn = parseMan[2]
     var bn = path.basename(stem)
+    var manSrc = path.resolve(folder, man)
     var manDest = path.join(manRoot, "man" + sxn, bn)
 
-    linkIfExists(man, manDest, gtop && folder, cb)
+    linkIfExists(manSrc, manDest, gtop && folder, cb)
   }, cb)
 }

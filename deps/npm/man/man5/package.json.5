@@ -77,7 +77,7 @@ It should look like this:
 .P
 .RS 2
 .nf
-{ "url" : "http://github\.com/owner/project/issues"
+{ "url" : "https://github\.com/owner/project/issues"
 , "email" : "project@hostname\.com"
 }
 .fi
@@ -251,7 +251,7 @@ will create entries for \fBman foo\fR and \fBman 2 foo\fR
 .P
 The CommonJS Packages \fIhttp://wiki\.commonjs\.org/wiki/Packages/1\.0\fR spec details a
 few ways that you can indicate the structure of your package using a \fBdirectories\fR
-object\. If you look at npm's package\.json \fIhttp://registry\.npmjs\.org/npm/latest\fR,
+object\. If you look at npm's package\.json \fIhttps://registry\.npmjs\.org/npm/latest\fR,
 you'll see that it has directories for doc, lib, and man\.
 .P
 In the future, this information may be used in other creative ways\.
@@ -288,12 +288,12 @@ Do it like this:
 .nf
 "repository" :
   { "type" : "git"
-  , "url" : "http://github\.com/npm/npm\.git"
+  , "url" : "https://github\.com/npm/npm\.git"
   }
 
 "repository" :
   { "type" : "svn"
-  , "url" : "http://v8\.googlecode\.com/svn/trunk/"
+  , "url" : "https://v8\.googlecode\.com/svn/trunk/"
   }
 .fi
 .RE
@@ -301,6 +301,15 @@ Do it like this:
 The URL should be a publicly available (perhaps read\-only) url that can be handed
 directly to a VCS program without any modification\.  It should not be a url to an
 html project page that you put in your browser\.  It's for computers\.
+.P
+For GitHub repositories you can use the same shortcut syntax you use for \fBnpm
+install\fR:
+.P
+.RS 2
+.nf
+"repository": "npm/npm"
+.fi
+.RE
 .SH scripts
 .P
 The "scripts" property is a dictionary containing script commands that are run
@@ -531,9 +540,8 @@ For example:
 .RE
 .P
 This ensures your package \fBtea\-latte\fR can be installed \fIalong\fR with the second
-major version of the host package \fBtea\fR only\. The host package is automatically
-installed if needed\. \fBnpm install tea\-latte\fR could possibly yield the following
-dependency graph:
+major version of the host package \fBtea\fR only\. \fBnpm install tea\-latte\fR could
+possibly yield the following dependency graph:
 .P
 .RS 2
 .nf
@@ -541,6 +549,13 @@ dependency graph:
 └── tea@2\.2\.0
 .fi
 .RE
+.P
+\fBNOTE: npm versions 1 and 2 will automatically install \fBpeerDependencies\fR if
+they are not explicitly depended upon higher in the dependency tree\. In the
+next major version of npm (npm@3), this will no longer be the case\. You will
+receive a warning that the peerDependency is not installed instead\.\fR The
+behavior in npms 1 & 2 was frequently confusing and could easily put you into
+dependency hell, a situation that npm is designed to avoid as much as possible\.
 .P
 Trying to install another plugin with a conflicting requirement will cause an
 error\. For this reason, make sure your plugin requirement is as broad as
@@ -618,6 +633,8 @@ Note that, unless the user has set the \fBengine\-strict\fR config flag, this
 field is advisory only\.
 .SH engineStrict
 .P
+\fBNOTE: This feature is deprecated and will be removed in npm 3\.0\.0\.\fR
+.P
 If you are sure that your module will \fIdefinitely not\fR run properly on
 versions of Node/npm other than those specified in the \fBengines\fR object,
 then you can set \fB"engineStrict": true\fR in your package\.json file\.
@@ -626,8 +643,7 @@ This will override the user's \fBengine\-strict\fR config setting\.
 Please do not do this unless you are really very very sure\.  If your
 engines object is something overly restrictive, you can quite easily and
 inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node\.  Consider this choice carefully\.  If
-people abuse it, it will be removed in a future version of npm\.
+updating to new versions of Node\.  Consider this choice carefully\.
 .SH os
 .P
 You can specify which operating systems your

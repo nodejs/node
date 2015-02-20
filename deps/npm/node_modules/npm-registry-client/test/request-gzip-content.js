@@ -40,7 +40,7 @@ zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
   tap.test("request wrong gzip package content", function (t) {
     // will retry 3 times
     for (var i = 0; i < 3; i++) {
-      server.expect("GET", "/some-package-gzip-error/1.2.3", function (req, res) {
+      server.expect("GET", "/some-package-gzip/1.2.3", function (req, res) {
         res.statusCode = 200
         res.setHeader("Content-Encoding", "gzip")
         res.setHeader("Content-Type", "application/json")

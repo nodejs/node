@@ -1,3 +1,50 @@
+### v2.6.0 (2015-02-12):
+
+#### A LONG-AWAITED GUEST
+
+* [`38c4825`](https://github.com/npm/npm/commit/38c48254d3d217b4babf5027cb39492be4052fc2)
+  [#5068](https://github.com/npm/npm/issues/5068) Add new logout command, and
+  make it do something useful on both bearer-based and basic-based authed
+  clients. ([@othiym23](https://github.com/othiym23))
+* [`4bf0f5d`](https://github.com/npm/npm/commit/4bf0f5d56c33649124b486e016ba4a620c105c1c)
+  `npm-registry-clieng@6.1.1`: Support new `logout` endpoint to invalidate
+  token for sessions. ([@othiym23](https://github.com/othiym23))
+
+#### DEPRECATIONS
+
+* [`c8e08e6`](https://github.com/npm/npm/commit/c8e08e6d91f4016c80f572aac5a2080df0f78098)
+  [#6565](https://github.com/npm/npm/issues/6565) Warn that `peerDependency`
+  behavior is changing and add a note to the docs.
+  ([@othiym23](https://github.com/othiym23))
+* [`7c81a5f`](https://github.com/npm/npm/commit/7c81a5f5f058941f635a92f22641ea68e79b60db)
+  [#7171](https://github.com/npm/npm/issues/7171) Warn that `engineStrict` in
+  `package.json` will be going away in the next major version of npm (coming
+  soon!) ([@othiym23](https://github.com/othiym23))
+
+#### BUG FIXES & TWEAKS
+
+* [`add5890`](https://github.com/npm/npm/commit/add5890ce447dabf120b907a85f715df1e065f44)
+  [#4668](https://github.com/npm/npm/issues/4668) `read-package-json@1.3.1`:
+  Warn when a `bin` symbolic link is a dangling reference.
+* [`4b42071`](https://github.com/npm/npm/commit/4b420714dfb84338d85def78c30bd665e32d72c1)
+  `semver@4.3.0`: Add functions to extract parts of the version triple, fix a
+  typo. ([@isaacs](https://github.com/isaacs))
+* [`a9aff38`](https://github.com/npm/npm/commit/a9aff38719918486fc381d67ad3371c475632ff7)
+  Use full path for man pages as the symbolic link source, instead of just the
+  file name. ([@bengl](https://github.com/bengl))
+* [`6fd0fbd`](https://github.com/npm/npm/commit/6fd0fbd8a0347fd47cb7ee0064e0902a2f8a087c)
+  [#7233](https://github.com/npm/npm/issues/7233) Ensure `globalconfig` path
+  exists before trying to edit it. ([@ljharb](https://github.com/ljharb))
+* [`a0a2620`](https://github.com/npm/npm/commit/a0a262047647d9e2690cebe5a89e6a0dd33202bb)
+  `ini@1.3.3`: Allow embedded, quoted equals signs in ini field names.
+  ([@isaacs](https://github.com/isaacs))
+
+Also typos and other documentation issues were addressed by
+[@rutsky](https://github.com/rutsky), [@imurchie](https://github.com/imurchie),
+[@marcin-wosinek](https://github.com/marcin-wosinek),
+[@marr](https://github.com/marr), [@amZotti](https://github.com/amZotti), and
+[@karlhorky](https://github.com/karlhorky). Thank you, everyone!
+
 ### v2.5.1 (2015-02-06):
 
 This release doesn't look like much, but considerable effort went into ensuring
