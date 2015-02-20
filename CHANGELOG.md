@@ -5,14 +5,14 @@
 ### Notable changes
 
 * **url**: `url.resolve('/path/to/file', '.')` now returns `/path/to/` with the trailing slash, `url.resolve('/', '.')` returns `/`. [#278](https://github.com/iojs/io.js/issues/278) (Amir Saboury)
-* **tls**: tls (and in turn https) now rely on a stronger default cipher suite which excludes the RC4 cipher. If you still want to use RC4, you have to specify your own ciphers suite. [#826](https://github.com/iojs/io.js/issues/826) (Roman Reiss)
+* **tls**: The default cipher suite used by `tls` and `https` has been changed to one that achieves Perfect Forward Secrecy with all modern browsers. Additionally, insecure RC4 ciphers have been excluded. If you absolutely require RC4, please specify your own cipher suites. [#826](https://github.com/iojs/io.js/issues/826) (Roman Reiss)
 
 ### Known issues
 
 * Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
 * Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
 * `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
-* Calling `dns.setServers()` while a DNS query is in process can cause process crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
 
 ### Commits
 
