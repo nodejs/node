@@ -1,5 +1,71 @@
 # io.js ChangeLog
 
+## 2015-02-20, Version 1.3.0, @rvagg
+
+### Notable changes
+
+* **url**: `url.resolve('/path/to/file', '.')` now returns `/path/to/` with the trailing slash, `url.resolve('/', '.')` returns `/`. [#278](https://github.com/iojs/io.js/issues/278) (Amir Saboury)
+* **tls**: tls (and in turn https) now rely on a stronger default cipher suite which excludes the RC4 cipher. If you still want to use RC4, you have to specify your own ciphers suite. [#826](https://github.com/iojs/io.js/issues/826) (Roman Reiss)
+
+### Known issues
+
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in process can cause process crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`35ed79932c`](https://github.com/iojs/io.js/commit/35ed79932c)] - **benchmark**: add a few querystring benchmarks (Brian White) [#847](https://github.com/iojs/io.js/pull/847)
+* [[`c6fd2c5e95`](https://github.com/iojs/io.js/commit/c6fd2c5e95)] - **buffer**: fix pool offset adjustment (Trevor Norris)
+* [[`36a779560a`](https://github.com/iojs/io.js/commit/36a779560a)] - **buffer**: expose internals on binding (Vladimir Kurchatkin) [#770](https://github.com/iojs/io.js/pull/770)
+* [[`e63b51793b`](https://github.com/iojs/io.js/commit/e63b51793b)] - **crypto**: fix to check ext method for shared lib (Shigeki Ohtsu) [#800](https://github.com/iojs/io.js/pull/800)
+* [[`afdef70fcc`](https://github.com/iojs/io.js/commit/afdef70fcc)] - **doc**: update AUTHORS list (Rod Vagg) [#900](https://github.com/iojs/io.js/pull/900)
+* [[`1bf91878e7`](https://github.com/iojs/io.js/commit/1bf91878e7)] - **doc**: add TC meeting 2015-02-04 minutes (Rod Vagg) [#876](https://github.com/iojs/io.js/pull/876)
+* [[`9e05c8d2fc`](https://github.com/iojs/io.js/commit/9e05c8d2fc)] - **doc**: remove outdated language on consensus (Emily Rose)
+* [[`ed240f44f7`](https://github.com/iojs/io.js/commit/ed240f44f7)] - **doc**: document 'ciphers' option of tls.connect (Roman Reiss) [#845](https://github.com/iojs/io.js/pull/845)
+* [[`0555b3c785`](https://github.com/iojs/io.js/commit/0555b3c785)] - **doc**: fix typo miliseconds -> milliseconds (jigsaw) [#865](https://github.com/iojs/io.js/pull/865)
+* [[`fc6507dd4e`](https://github.com/iojs/io.js/commit/fc6507dd4e)] - **doc**: add comma in README to increase clarity (Jimmy Hsu)
+* [[`f0296933f8`](https://github.com/iojs/io.js/commit/f0296933f8)] - **doc**: correct `it's` to `its` in process (Charmander) [#837](https://github.com/iojs/io.js/pull/837)
+* [[`e81731ad18`](https://github.com/iojs/io.js/commit/e81731ad18)] - **doc**: add geek as collaborator (Wyatt Preul) [#835](https://github.com/iojs/io.js/pull/835)
+* [[`4ca7cca84a`](https://github.com/iojs/io.js/commit/4ca7cca84a)] - **doc**: grammar fix in smalloc (Debjeet Biswas) [joyent/node#9164](https://github.com/joyent/node/pull/9164)
+* [[`30dca66958`](https://github.com/iojs/io.js/commit/30dca66958)] - **doc**: fix code syntax (Dan Dascalescu) [joyent/node#9198](https://github.com/joyent/node/pull/9198)
+* [[`8c1df7a8a8`](https://github.com/iojs/io.js/commit/8c1df7a8a8)] - **doc**: use correct signature for assert() (Andrei Sedoi) [joyent/node#9003](https://github.com/joyent/node/pull/9003)
+* [[`ba40942ad2`](https://github.com/iojs/io.js/commit/ba40942ad2)] - **doc**: fix sentence grammar timers.markdown (Omer Wazir) [#815](https://github.com/iojs/io.js/pull/815)
+* [[`789ff959be`](https://github.com/iojs/io.js/commit/789ff959be)] - **doc**: increase mark class contrast ratio (Omer Wazir) [#824](https://github.com/iojs/io.js/pull/824)
+* [[`122a1758d1`](https://github.com/iojs/io.js/commit/122a1758d1)] - **doc**: better font-smoothing for firefox (Jeremiah Senkpiel) [#820](https://github.com/iojs/io.js/pull/820)
+* [[`982b143ab3`](https://github.com/iojs/io.js/commit/982b143ab3)] - **doc**: disable font ligatures (Roman Reiss) [#816](https://github.com/iojs/io.js/pull/816)
+* [[`cb5560bd62`](https://github.com/iojs/io.js/commit/cb5560bd62)] - **doc**: Close code span correctly (Omer Wazir) [#814](https://github.com/iojs/io.js/pull/814)
+* [[`c3c2fbdf83`](https://github.com/iojs/io.js/commit/c3c2fbdf83)] - **doc**: change effect to affect in errors.md (Ryan Seys) [#799](https://github.com/iojs/io.js/pull/799)
+* [[`b620129715`](https://github.com/iojs/io.js/commit/b620129715)] - **doc**: add sam-github as collaborator (Sam Roberts) [#791](https://github.com/iojs/io.js/pull/791)
+* [[`e80f803298`](https://github.com/iojs/io.js/commit/e80f803298)] - **doc**: remove Caine section from contributing guide (Michaël Zasso) [#804](https://github.com/iojs/io.js/pull/804)
+* [[`400d6e56f9`](https://github.com/iojs/io.js/commit/400d6e56f9)] - **doc**: fix libuv link (Yosuke Furukawa) [#803](https://github.com/iojs/io.js/pull/803)
+* [[`15d156e3ec`](https://github.com/iojs/io.js/commit/15d156e3ec)] - **doc**: fix wording in fs.appendFile (Rudolf Meijering) [#801](https://github.com/iojs/io.js/pull/801)
+* [[`dbf75924f1`](https://github.com/iojs/io.js/commit/dbf75924f1)] - **doc**: update error links (Chris Dickinson) [#793](https://github.com/iojs/io.js/pull/793)
+* [[`7061669dba`](https://github.com/iojs/io.js/commit/7061669dba)] - **events**: optimize adding and removing of listeners (Brian White) [#785](https://github.com/iojs/io.js/pull/785)
+* [[`630f636334`](https://github.com/iojs/io.js/commit/630f636334)] - **events**: move slow path to separate function too (Brian White) [#785](https://github.com/iojs/io.js/pull/785)
+* [[`ecef87177a`](https://github.com/iojs/io.js/commit/ecef87177a)] - **fs**: ensure nullCheck() callback is a function (cjihrig) [#887](https://github.com/iojs/io.js/pull/887)
+* [[`6a2b204bbc`](https://github.com/iojs/io.js/commit/6a2b204bbc)] - **module**: replace NativeModule.require (Herbert Vojčík) [joyent/node#9201](https://github.com/joyent/node/pull/9201)
+* [[`9b6b05556f`](https://github.com/iojs/io.js/commit/9b6b05556f)] - **net**: unref timer in parent sockets (Fedor Indutny) [#891](https://github.com/iojs/io.js/pull/891)
+* [[`cca8de6709`](https://github.com/iojs/io.js/commit/cca8de6709)] - **net**: remove use of arguments in Server constructor (cjihrig)
+* [[`0cff0521c3`](https://github.com/iojs/io.js/commit/0cff0521c3)] - **net**: throw on invalid socket timeouts (cjihrig) [joyent/node#8884](https://github.com/joyent/node/pull/8884)
+* [[`b5f25a963c`](https://github.com/iojs/io.js/commit/b5f25a963c)] - **src**: ensure that file descriptors 0-2 are valid (Ben Noordhuis) [#875](https://github.com/iojs/io.js/pull/875)
+* [[`a956791f69`](https://github.com/iojs/io.js/commit/a956791f69)] - **src**: fix typo in error message (Ben Noordhuis) [#875](https://github.com/iojs/io.js/pull/875)
+* [[`fb28c91074`](https://github.com/iojs/io.js/commit/fb28c91074)] - **src**: fix add-on builds, partially revert 8aed9d66 (Ben Noordhuis) [#868](https://github.com/iojs/io.js/pull/868)
+* [[`4bb3184d8d`](https://github.com/iojs/io.js/commit/4bb3184d8d)] - **src**: reduce AsyncWrap memory footprint (Ben Noordhuis) [#667](https://github.com/iojs/io.js/pull/667)
+* [[`7e779b4593`](https://github.com/iojs/io.js/commit/7e779b4593)] - **src**: remove obsoleted queue.h header (Ben Noordhuis) [#667](https://github.com/iojs/io.js/pull/667)
+* [[`38dc0cd8f4`](https://github.com/iojs/io.js/commit/38dc0cd8f4)] - **src**: switch from QUEUE to intrusive list (Ben Noordhuis) [#667](https://github.com/iojs/io.js/pull/667)
+* [[`58eb00c693`](https://github.com/iojs/io.js/commit/58eb00c693)] - **src**: add typesafe intrusive list (Ben Noordhuis) [#667](https://github.com/iojs/io.js/pull/667)
+* [[`8aed9d6610`](https://github.com/iojs/io.js/commit/8aed9d6610)] - **src**: cleanup `Isolate::GetCurrent()` (Vladimir Kurchatkin) [#807](https://github.com/iojs/io.js/pull/807)
+* [[`7c22372303`](https://github.com/iojs/io.js/commit/7c22372303)] - **src**: remove trailing whitespace (Vladimir Kurchatkin) [#798](https://github.com/iojs/io.js/pull/798)
+* [[`20f8e7f17a`](https://github.com/iojs/io.js/commit/20f8e7f17a)] - **test**: remove flaky test functionality (Rod Vagg) [#812](https://github.com/iojs/io.js/pull/812)
+* [[`30e340ad9d`](https://github.com/iojs/io.js/commit/30e340ad9d)] - **test**: fix parallel/test-tls-getcipher (Roman Reiss) [#853](https://github.com/iojs/io.js/pull/853)
+* [[`d53b636d94`](https://github.com/iojs/io.js/commit/d53b636d94)] - **test**: verify fields in spawn{Sync} errors (cjihrig) [#838](https://github.com/iojs/io.js/pull/838)
+* [[`3b1b4de903`](https://github.com/iojs/io.js/commit/3b1b4de903)] - **test**: Timeout#unref() does not return instance (Jan Schär) [joyent/node#9171](https://github.com/joyent/node/pull/9171)
+* [[`becb4e980e`](https://github.com/iojs/io.js/commit/becb4e980e)] - **test**: distribute crypto tests into separate files (Brendan Ashworth) [#827](https://github.com/iojs/io.js/pull/827)
+* [[`77f35861d0`](https://github.com/iojs/io.js/commit/77f35861d0)] - **(SEMVER-MINOR) tls**: more secure defaults (Roman Reiss) [#826](https://github.com/iojs/io.js/pull/826)
+* [[`faa687b4be`](https://github.com/iojs/io.js/commit/faa687b4be)] - **url**: reslove urls with . and .. (Amir Saboury) [#278](https://github.com/iojs/io.js/pull/278)
+
 ## 2015-02-10, Version 1.2.0, @rvagg
 
 ### Notable changes
