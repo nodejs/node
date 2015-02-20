@@ -87,130 +87,130 @@ site, set the NODE_DEBUG environment variable:
 
 ## fs.rename(oldPath, newPath, callback)
 
-Asynchronous rename(2). No arguments other than a possible exception are given
+Asynchronous [rename(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?rename+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.renameSync(oldPath, newPath)
 
-Synchronous rename(2).
+Synchronous [rename(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?rename+2).
 
 ## fs.ftruncate(fd, len, callback)
 
-Asynchronous ftruncate(2). No arguments other than a possible exception are
+Asynchronous [ftruncate(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?ftruncate+2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.ftruncateSync(fd, len)
 
-Synchronous ftruncate(2).
+Synchronous [ftruncate(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?ftruncate+2).
 
 ## fs.truncate(path, len, callback)
 
-Asynchronous truncate(2). No arguments other than a possible exception are
+Asynchronous [truncate(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?truncate+2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.truncateSync(path, len)
 
-Synchronous truncate(2).
+Synchronous [truncate(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?truncate+2).
 
 ## fs.chown(path, uid, gid, callback)
 
-Asynchronous chown(2). No arguments other than a possible exception are given
+Asynchronous [chown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?chown+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chownSync(path, uid, gid)
 
-Synchronous chown(2).
+Synchronous [chown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?chown+2).
 
 ## fs.fchown(fd, uid, gid, callback)
 
-Asynchronous fchown(2). No arguments other than a possible exception are given
+Asynchronous [fchown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fchown+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fchownSync(fd, uid, gid)
 
-Synchronous fchown(2).
+Synchronous [fchown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fchown+2).
 
 ## fs.lchown(path, uid, gid, callback)
 
-Asynchronous lchown(2). No arguments other than a possible exception are given
+Asynchronous [lchown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lchown+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
 
-Synchronous lchown(2).
+Synchronous [lchown(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lchown+2).
 
 ## fs.chmod(path, mode, callback)
 
-Asynchronous chmod(2). No arguments other than a possible exception are given
+Asynchronous [chmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?chmod+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chmodSync(path, mode)
 
-Synchronous chmod(2).
+Synchronous [chmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?chmod+2).
 
 ## fs.fchmod(fd, mode, callback)
 
-Asynchronous fchmod(2). No arguments other than a possible exception
+Asynchronous [fchmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fchmod+2). No arguments other than a possible exception
 are given to the completion callback.
 
 ## fs.fchmodSync(fd, mode)
 
-Synchronous fchmod(2).
+Synchronous [fchmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fchmod+2).
 
 ## fs.lchmod(path, mode, callback)
 
-Asynchronous lchmod(2). No arguments other than a possible exception
+Asynchronous [lchmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lchmod+2). No arguments other than a possible exception
 are given to the completion callback.
 
 Only available on Mac OS X.
 
 ## fs.lchmodSync(path, mode)
 
-Synchronous lchmod(2).
+Synchronous [lchmod(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lchmod+2).
 
 ## fs.stat(path, callback)
 
-Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
+Asynchronous [stat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?stat+2). The callback gets two arguments `(err, stats)` where
 `stats` is a [fs.Stats](#fs_class_fs_stats) object.  See the [fs.Stats](#fs_class_fs_stats)
 section below for more information.
 
 ## fs.lstat(path, callback)
 
-Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
+Asynchronous [lstat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lstat+2). The callback gets two arguments `(err, stats)` where
 `stats` is a `fs.Stats` object. `lstat()` is identical to `stat()`, except that if
 `path` is a symbolic link, then the link itself is stat-ed, not the file that it
 refers to.
 
 ## fs.fstat(fd, callback)
 
-Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
+Asynchronous [fstat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fstat+2). The callback gets two arguments `(err, stats)` where
 `stats` is a `fs.Stats` object. `fstat()` is identical to `stat()`, except that
 the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.statSync(path)
 
-Synchronous stat(2). Returns an instance of `fs.Stats`.
+Synchronous [stat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?stat+2). Returns an instance of `fs.Stats`.
 
 ## fs.lstatSync(path)
 
-Synchronous lstat(2). Returns an instance of `fs.Stats`.
+Synchronous [lstat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?lstat+2). Returns an instance of `fs.Stats`.
 
 ## fs.fstatSync(fd)
 
-Synchronous fstat(2). Returns an instance of `fs.Stats`.
+Synchronous [fstat(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fstat+2). Returns an instance of `fs.Stats`.
 
 ## fs.link(srcpath, dstpath, callback)
 
-Asynchronous link(2). No arguments other than a possible exception are given to
+Asynchronous [link(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?link+2). No arguments other than a possible exception are given to
 the completion callback.
 
 ## fs.linkSync(srcpath, dstpath)
 
-Synchronous link(2).
+Synchronous [link(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?link+2).
 
 ## fs.symlink(destination, path[, type], callback)
 
-Asynchronous symlink(2). No arguments other than a possible exception are given
+Asynchronous [symlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?symlink+2). No arguments other than a possible exception are given
 to the completion callback.
 The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
 is `'file'`) and is only available on Windows (ignored on other platforms).
@@ -219,20 +219,20 @@ Note that Windows junction points require the destination path to be absolute.  
 
 ## fs.symlinkSync(destination, path[, type])
 
-Synchronous symlink(2).
+Synchronous [symlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?symlink+2).
 
 ## fs.readlink(path, callback)
 
-Asynchronous readlink(2). The callback gets two arguments `(err,
+Asynchronous [readlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?readlink+2). The callback gets two arguments `(err,
 linkString)`.
 
 ## fs.readlinkSync(path)
 
-Synchronous readlink(2). Returns the symbolic link's string value.
+Synchronous [readlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?readlink+2). Returns the symbolic link's string value.
 
 ## fs.realpath(path[, cache], callback)
 
-Asynchronous realpath(2). The `callback` gets two arguments `(err,
+Asynchronous [realpath(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?realpath+2). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
 object literal of mapped paths that can be used to force a specific path
 resolution or avoid additional `fs.stat` calls for known real paths.
@@ -247,58 +247,58 @@ Example:
 
 ## fs.realpathSync(path[, cache])
 
-Synchronous realpath(2). Returns the resolved path.
+Synchronous [realpath(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?realpath+2). Returns the resolved path.
 
 ## fs.unlink(path, callback)
 
-Asynchronous unlink(2). No arguments other than a possible exception are given
+Asynchronous [unlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?unlink+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.unlinkSync(path)
 
-Synchronous unlink(2).
+Synchronous [unlink(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?unlink+2).
 
 ## fs.rmdir(path, callback)
 
-Asynchronous rmdir(2). No arguments other than a possible exception are given
+Asynchronous [rmdir(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?rmdir+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.rmdirSync(path)
 
-Synchronous rmdir(2).
+Synchronous [rmdir(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?rmdir+2).
 
 ## fs.mkdir(path[, mode], callback)
 
-Asynchronous mkdir(2). No arguments other than a possible exception are given
+Asynchronous [mkdir(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?mkdir+2). No arguments other than a possible exception are given
 to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
 
-Synchronous mkdir(2).
+Synchronous [mkdir(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?mkdir+2).
 
 ## fs.readdir(path, callback)
 
-Asynchronous readdir(3).  Reads the contents of a directory.
+Asynchronous [readdir(3)](http://unixhelp.ed.ac.uk/CGI/man-cgi?readdir+3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
 ## fs.readdirSync(path)
 
-Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
+Synchronous [readdir(3)](http://unixhelp.ed.ac.uk/CGI/man-cgi?readdir+3). Returns an array of filenames excluding `'.'` and
 `'..'`.
 
 ## fs.close(fd, callback)
 
-Asynchronous close(2).  No arguments other than a possible exception are given
+Asynchronous [close(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?close+2).  No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.closeSync(fd)
 
-Synchronous close(2).
+Synchronous [close(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?close+2).
 
 ## fs.open(path, flags[, mode], callback)
 
-Asynchronous file open. See open(2). `flags` can be:
+Asynchronous file open. See [open(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?open+2). `flags` can be:
 
 * `'r'` - Open file for reading.
 An exception occurs if the file does not exist.
@@ -344,7 +344,7 @@ created. It defaults to `0666`, readable and writeable.
 
 The callback gets two arguments `(err, fd)`.
 
-The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that `path` is newly
+The exclusive flag `'x'` (`O_EXCL` flag in [open(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?open+2)) ensures that `path` is newly
 created. On POSIX systems, `path` is considered to exist even if it is a symlink
 to a non-existent file. The exclusive flag may or may not work with network file
 systems.
@@ -370,12 +370,12 @@ descriptor.
 
 ## fs.fsync(fd, callback)
 
-Asynchronous fsync(2). No arguments other than a possible exception are given
+Asynchronous [fsync(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fsync+2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fsyncSync(fd)
 
-Synchronous fsync(2).
+Synchronous [fsync(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?fsync+2).
 
 ## fs.write(fd, buffer, offset, length[, position], callback)
 
@@ -385,7 +385,7 @@ Write `buffer` to the file specified by `fd`.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
+at the current position. See [pwrite(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?pwrite+2).
 
 The callback will be given three arguments `(err, written, buffer)` where
 `written` specifies how many _bytes_ were written from `buffer`.
@@ -405,7 +405,7 @@ then the value will be coerced to a string.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
-the current position. See pwrite(2).
+the current position. See [pwrite(2)](http://unixhelp.ed.ac.uk/CGI/man-cgi?pwrite+2).
 
 `encoding` is the expected string encoding.
 
@@ -742,19 +742,19 @@ page.
 The times in the stat object have the following semantics:
 
 * `atime` "Access Time" - Time when file data last accessed.  Changed
-  by the `mknod(2)`, `utimes(2)`, and `read(2)` system calls.
+  by the [`mknod(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?mknod+2), [`utimes(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?utimes+2), and [`read(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?read+2) system calls.
 * `mtime` "Modified Time" - Time when file data last modified.
-  Changed by the `mknod(2)`, `utimes(2)`, and `write(2)` system calls.
+  Changed by the [`mknod(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?mknod+2), [`utimes(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?utimes+2), and [`write(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?write+2) system calls.
 * `ctime` "Change Time" - Time when file status was last changed
-  (inode data modification).  Changed by the `chmod(2)`, `chown(2)`,
-  `link(2)`, `mknod(2)`, `rename(2)`, `unlink(2)`, `utimes(2)`,
-  `read(2)`, and `write(2)` system calls.
+  (inode data modification).  Changed by the [`chmod(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?chmod+2), [`chown(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?chown+2),
+  [`link(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?link+2), [`mknod(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?mknod+2), [`rename(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?rename+2), [`unlink(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?unlink+2), [`utimes(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?utimes+2),
+  [`read(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?read+2), and [`write(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?write+2) system calls.
 * `birthtime` "Birth Time" -  Time of file creation. Set once when the
   file is created.  On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
   `1970-01-01T00:00Z` (ie, unix epoch timestamp `0`).  On Darwin and
   other FreeBSD variants, also set if the `atime` is explicitly set to
-  an earlier value than the current `birthtime` using the `utimes(2)`
+  an earlier value than the current `birthtime` using the [`utimes(2)`](http://unixhelp.ed.ac.uk/CGI/man-cgi?utimes+2)
   system call.
 
 Prior to io.js v1.0 and Node v0.12, the `ctime` held the `birthtime` on Windows
