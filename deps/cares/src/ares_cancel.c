@@ -48,8 +48,9 @@ void ares_cancel(ares_channel channel)
     {
       query = list_node->data;
       list_node = list_node->next;  /* since we're deleting the query */
+      ares__free_query_pre(query);
       query->callback(query->arg, ARES_ECANCELLED, 0, NULL, 0);
-      ares__free_query(query);
+      ares__free_query_post(query);
     }
   }
   if (!(channel->flags & ARES_FLAG_STAYOPEN) && ares__is_list_empty(&(channel->all_queries)))

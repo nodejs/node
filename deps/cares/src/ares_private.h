@@ -324,6 +324,8 @@ void ares__close_sockets(ares_channel channel, struct server_state *server);
 int ares__get_hostent(FILE *fp, int family, struct hostent **host);
 int ares__read_line(FILE *fp, char **buf, size_t *bufsize);
 void ares__free_query(struct query *query);
+void ares__free_query_pre(struct query *query);
+void ares__free_query_post(struct query *query);
 unsigned short ares__generate_new_id(rc4_key* key);
 struct timeval ares__tvnow(void);
 int ares__expand_name_for_response(const unsigned char *encoded,
