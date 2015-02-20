@@ -101,6 +101,7 @@ void PipeWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
   env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
   env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
+  env->SetProtoMethod(t, "writev", StreamWrap::Writev);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);
