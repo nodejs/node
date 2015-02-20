@@ -20,7 +20,9 @@ var git
 test("setup", function (t) {
   bootstrap()
   setup(function (er, r) {
-    t.ifError(er, "git started up successfully")
+    if (er) {
+      throw er
+    }
 
     if (!er) {
       daemon = r[r.length - 2]
@@ -66,11 +68,13 @@ var pjChild = JSON.stringify({
 }, null, 2) + "\n"
 
 function bootstrap () {
+  rimraf.sync(pkg)
   mkdirp.sync(pkg)
   fs.writeFileSync(resolve(pkg, "package.json"), pjParent)
 }
 
 function setup (cb) {
+  rimraf.sync(repo)
   mkdirp.sync(repo)
   fs.writeFileSync(resolve(repo, "package.json"), pjChild)
   npm.load({ registry : common.registry, loglevel : "silent" }, function () {

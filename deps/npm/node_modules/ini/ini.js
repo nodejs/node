@@ -145,7 +145,7 @@ function isQuoted (val) {
 
 function safe (val) {
   return ( typeof val !== "string"
-         || val.match(/[\r\n]/)
+         || val.match(/[=\r\n]/)
          || val.match(/^\[/)
          || (val.length > 1
              && isQuoted(val))
