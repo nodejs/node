@@ -76,6 +76,107 @@ Its responsibilities are:
 The current members can be found in their
 [README](https://github.com/iojs/build#people).
 
+### Tracing
+
+The tracing working group's purpose is to increase the
+transparency of software written in io.js.
+
+Its responsibilities are:
+* Collaboration with V8 to integrate with `trace_event`.
+* Maintinence and iteration on AsyncWrap.
+* Maintinence and improvements to system tracing support (DTrace, LTTng, etc).
+* Documention of tracing and debugging techniques.
+* Fostering a tracing and debugging ecosystem.
+
+The current members can be found in their
+[README](https://github.com/iojs/tracing-wg#people).
+
+### i18n
+
+The i18n working groups handle more than just translations. They
+are endpoints for community members to collaborate with each
+other in their language of choice.
+
+Each team is organized around a common spoken language. Each
+language community might then produce multiple localizations for
+various project resources.
+
+Their responsibilities are:
+* Translation of any io.js materials they believe are relevant to their
+community.
+* Review processes for keeping translations up
+to date and of high quality.
+* Social media channels in their language.
+* Promotion of io.js speakers for meetups and conferences in their
+language.
+
+Membership is maintained by each language community.
+
+* [iojs-bg](http://github.com/iojs/iojs-bg)
+* [iojs-bn](http://github.com/iojs/iojs-bn)
+* [iojs-cn](http://github.com/iojs/iojs-cn)
+* [iojs-cs](http://github.com/iojs/iojs-cs)
+* [iojs-da](http://github.com/iojs/iojs-da)
+* [iojs-de](http://github.com/iojs/iojs-de)
+* [iojs-el](http://github.com/iojs/iojs-el)
+* [iojs-es](http://github.com/iojs/iojs-es)
+* [iojs-fa](http://github.com/iojs/iojs-fa)
+* [iojs-fi](http://github.com/iojs/iojs-fi)
+* [iojs-fr](http://github.com/iojs/iojs-fr)
+* [iojs-he](http://github.com/iojs/iojs-he)
+* [iojs-hi](http://github.com/iojs/iojs-hi)
+* [iojs-hu](http://github.com/iojs/iojs-hu)
+* [iojs-id](http://github.com/iojs/iojs-id)
+* [iojs-it](http://github.com/iojs/iojs-it)
+* [iojs-ja](http://github.com/iojs/iojs-ja)
+* [iojs-ka](http://github.com/iojs/iojs-ka)
+* [iojs-ko](http://github.com/iojs/iojs-ko)
+* [iojs-mk](http://github.com/iojs/iojs-mk)
+* [iojs-nl](http://github.com/iojs/iojs-nl)
+* [iojs-no](http://github.com/iojs/iojs-no)
+* [iojs-pl](http://github.com/iojs/iojs-pl)
+* [iojs-pt](http://github.com/iojs/iojs-pt)
+* [iojs-ro](http://github.com/iojs/iojs-ro)
+* [iojs-ru](http://github.com/iojs/iojs-ru)
+* [iojs-sv](http://github.com/iojs/iojs-sv)
+* [iojs-ta](http://github.com/iojs/iojs-ta)
+* [iojs-tr](http://github.com/iojs/iojs-tr)
+* [iojs-tw](http://github.com/iojs/iojs-tw)
+* [iojs-uk](http://github.com/iojs/iojs-uk)
+* [iojs-vi](http://github.com/iojs/iojs-vi)
+
+### Evangelism
+
+The evangelism working group promotes the accomplishments
+of io.js and lets the community know how they can get involved.
+
+Their responsibilities are:
+* Project messaging.
+* Official project social media.
+* Promotion of speakers for meetups and conferences.
+* Promotion of community events.
+* Publishing regular update summaries and other promotional
+content.
+
+The current members can be found in their
+[README](https://github.com/iojs/evangelism#people).
+
+### Roadmap
+
+The roadmap working group is responsible for user community outreach
+and the translation of their concerns into a plan of action for io.js.
+
+The final [ROADMAP](./ROADMAP.md) document is still owned by the TC and requires
+the same approval for changes as any other project asset.
+
+Their responsibilities are:
+* Attract and summarize user community needs and feedback.
+* Find or potentially create tools that allow for broader participation.
+* Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
+
+The current members can be found in their
+[README](https://github.com/iojs/roadmap#people).
+
 ## Starting a WG
 
 A Working Group is established by first defining a charter  that can be
