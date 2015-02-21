@@ -16,3 +16,8 @@ assert.strictEqual(emitter.listenerCount('foo'), 2);
 assert.strictEqual(emitter.listenerCount('bar'), 0);
 assert.strictEqual(emitter.listenerCount('baz'), 1);
 assert.strictEqual(emitter.listenerCount(123), 1);
+
+
+const emitter2 = new EventEmitter();
+emitter2.once('foo', function() {});
+assert.strictEqual(emitter2.listenerCount('foo'), 1);
