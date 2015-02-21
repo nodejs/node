@@ -1067,7 +1067,7 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-### writable.\_writev(chunks, callback)
+#### writable.\_writev(chunks, callback)
 
 * `chunks` {Array} The chunks to be written.  Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
