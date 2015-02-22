@@ -208,6 +208,14 @@
   };
 
   startup.processFatal = function() {
+    process._makeCallbackAbortOnUncaught = function() {
+      try {
+        return this.apply(null, arguments);
+      } catch (err) {
+        process._fatalException(er);
+      }
+    };
+
     process._fatalException = function(er) {
       var caught;
 

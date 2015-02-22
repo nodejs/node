@@ -165,6 +165,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       using_smalloc_alloc_cb_(false),
       using_domains_(false),
+      using_abort_on_uncaught_exc_(false),
       using_asyncwrap_(false),
       printed_error_(false),
       debugger_agent_(this),
@@ -281,6 +282,14 @@ inline bool Environment::using_smalloc_alloc_cb() const {
 
 inline void Environment::set_using_smalloc_alloc_cb(bool value) {
   using_smalloc_alloc_cb_ = value;
+}
+
+inline bool Environment::using_abort_on_uncaught_exc() const {
+  return using_abort_on_uncaught_exc_;
+}
+
+inline void Environment::set_using_abort_on_uncaught_exc(bool value) {
+  using_abort_on_uncaught_exc_ = value;
 }
 
 inline bool Environment::using_domains() const {
