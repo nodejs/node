@@ -21,33 +21,33 @@ namespace crypto {
   class SecureContext;
 }
 
-class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
-                     public StreamWrapCallbacks,
-                     public AsyncWrap {
+class TLSWrap : public crypto::SSLWrap<TLSWrap>,
+                public StreamBase,
+                public AsyncWrap {
  public:
-  ~TLSCallbacks() override;
+  ~TLSWrap() override;
 
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
-  const char* Error() const override;
-  void ClearError() override;
-  int TryWrite(uv_buf_t** bufs, size_t* count) override;
+  void* Cast() override;
+  int GetFD() const override;
+  bool IsAlive() const override;
+  bool IsClosing() const override;
+
+  // JavaScript functions
+  int ReadStart() override;
+  int ReadStop() override;
+
+  int DoShutdown(ShutdownWrap* req_wrap) override;
+  int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
-              uv_stream_t* send_handle,
-              uv_write_cb cb) override;
-  void AfterWrite(WriteWrap* w) override;
-  void DoAlloc(uv_handle_t* handle,
-               size_t suggested_size,
-               uv_buf_t* buf) override;
-  void DoRead(uv_stream_t* handle,
-              ssize_t nread,
-              const uv_buf_t* buf,
-              uv_handle_type pending) override;
-  int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) override;
+              uv_stream_t* send_handle) override;
+  const char* Error() const override;
+  void ClearError() override;
 
   void NewSessionDoneCb();
 
@@ -66,27 +66,26 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   // Write callback queue's item
   class WriteItem {
    public:
-    WriteItem(WriteWrap* w, uv_write_cb cb) : w_(w), cb_(cb) {
+    explicit WriteItem(WriteWrap* w) : w_(w) {
     }
     ~WriteItem() {
       w_ = nullptr;
-      cb_ = nullptr;
     }
 
     WriteWrap* w_;
-    uv_write_cb cb_;
     ListNode<WriteItem> member_;
   };
 
-  TLSCallbacks(Environment* env,
-               Kind kind,
-               v8::Handle<v8::Object> sc,
-               StreamWrapCallbacks* old);
+  TLSWrap(Environment* env,
+          Kind kind,
+          StreamBase* steram,
+          v8::Handle<v8::Object> stream_obj,
+          v8::Handle<v8::Object> sc);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
   void EncOut();
-  static void EncOutCb(uv_write_t* req, int status);
+  static void EncOutCb(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
   void MakePending();
@@ -103,6 +102,25 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
       EncOut();
     }
   }
+
+  AsyncWrap* GetAsyncWrap() override;
+  bool IsIPCPipe() const override;
+
+  // Resource implementation
+  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
+  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadImpl(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
+  static void OnAfterWriteSelf(WriteWrap* w, void* ctx);
+  static void OnAllocSelf(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadSelf(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
+
+  void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
   // If |msg| is not nullptr, caller is responsible for calling `delete[] *msg`.
   v8::Local<v8::Value> GetSSLError(int status, int* err, const char** msg);
@@ -125,10 +143,11 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 
   crypto::SecureContext* sc_;
   v8::Persistent<v8::Object> sc_handle_;
+  StreamBase* stream_;
+  v8::Persistent<v8::Object> stream_handle_;
   BIO* enc_in_;
   BIO* enc_out_;
   NodeBIO* clear_in_;
-  uv_write_t write_req_;
   size_t write_size_;
   size_t write_queue_size_;
   typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
