@@ -1,5 +1,5 @@
 var assert = require('assert');
-var common = require('../common.js');
+var common = require('../common');
 var fromList = require('_stream_readable')._fromList;
 
 // tiny node-tap lookalike.

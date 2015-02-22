@@ -1,5 +1,5 @@
 var assert = require('assert');
-var common = require('../common.js');
+var common = require('../common');
 
 var util   = require('util');
 var repl   = require('repl');
