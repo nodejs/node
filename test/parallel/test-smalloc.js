@@ -309,3 +309,23 @@ assert.throws(function() {
 assert.throws(function() {
   smalloc.dispose({});
 });
+
+
+// Types should be immutable
+assert.deepStrictEqual(Object.getOwnPropertyDescriptor(smalloc, 'Types'), {
+  value: smalloc.Types,
+  writable: false,
+  enumerable: true,
+  configurable: false
+});
+
+var types = Object.keys(smalloc.Types);
+var Types = smalloc.Types;
+
+for (var i = 0; i < types.length; i++)
+  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(Types, types[i]), {
+    value: Types[types[i]],
+    writable: false,
+    enumerable: true,
+    configurable: false
+  });

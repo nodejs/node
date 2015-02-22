@@ -10,6 +10,20 @@
 #include <string.h>
 
 #define ALLOC_ID (0xA10C)
+#define EXTERNAL_ARRAY_TYPES(V)                                               \
+  V(Int8, kExternalInt8Array)                                                 \
+  V(Uint8, kExternalUint8Array)                                               \
+  V(Int16, kExternalInt16Array)                                               \
+  V(Uint16, kExternalUint16Array)                                             \
+  V(Int32, kExternalInt32Array)                                               \
+  V(Uint32, kExternalUint32Array)                                             \
+  V(Float, kExternalFloat32Array)                                             \
+  V(Double, kExternalFloat64Array)                                            \
+  V(Uint8Clamped, kExternalUint8ClampedArray)
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 
 namespace node {
 namespace smalloc {
@@ -559,6 +573,7 @@ void Initialize(Handle<Object> exports,
                 Handle<Value> unused,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   env->SetMethod(exports, "copyOnto", CopyOnto);
   env->SetMethod(exports, "sliceOnto", SliceOnto);
@@ -572,6 +587,25 @@ void Initialize(Handle<Object> exports,
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
                Uint32::NewFromUnsigned(env->isolate(), kMaxLength));
+
+  Local<Object> types = Object::New(isolate);
+
+  uint32_t kMinType = ~0;
+  uint32_t kMaxType = 0;
+  #define V(name, value)                                                      \
+    types->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                  \
+                Uint32::NewFromUnsigned(env->isolate(), v8::value));          \
+    kMinType = MIN(kMinType, v8::value);                                      \
+    kMaxType = MAX(kMinType, v8::value);
+
+    EXTERNAL_ARRAY_TYPES(V)
+  #undef V
+
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "types"), types);
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMinType"),
+               Uint32::NewFromUnsigned(env->isolate(), kMinType));
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxType"),
+               Uint32::NewFromUnsigned(env->isolate(), kMaxType));
 
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
   heap_profiler->SetWrapperClassInfoProvider(ALLOC_ID, WrapperInfo);
