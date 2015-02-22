@@ -7,6 +7,7 @@
 
 #include "v8.h"
 
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -81,6 +82,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   Local<Object> process = env()->process_object();
   Local<Object> domain;
   bool has_domain = false;
+  bool has_abort_on_uncaught_and_domains = false;
 
   if (env()->using_domains()) {
     Local<Value> domain_v = context->Get(env()->domain_string());
@@ -89,6 +91,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
       domain = domain_v.As<Object>();
       if (domain->Get(env()->disposed_string())->IsTrue())
         return Undefined(env()->isolate());
+      has_abort_on_uncaught_and_domains = env()->using_abort_on_uncaught_exc();
     }
   }
 
@@ -112,7 +115,21 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     try_catch.SetVerbose(true);
   }
 
-  Local<Value> ret = cb->Call(context, argc, argv);
+  Local<Value> ret;
+
+  if (has_abort_on_uncaught_and_domains) {
+    Local<Value> fn = process->Get(env()->domain_abort_uncaught_exc_string());
+    if (fn->IsFunction()) {
+      Local<Array> special_context = Array::New(env()->isolate(), 2);
+      special_context->Set(0, context);
+      special_context->Set(1, cb);
+      ret = fn.As<Function>()->Call(special_context, argc, argv);
+    } else {
+      ret = cb->Call(context, argc, argv);
+    }
+  } else {
+    ret = cb->Call(context, argc, argv);
+  }
 
   if (try_catch.HasCaught()) {
     return Undefined(env()->isolate());

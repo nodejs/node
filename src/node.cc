@@ -112,6 +112,7 @@ static bool print_eval = false;
 static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
+static bool abort_on_uncaught_exception = false;
 static const char* eval_string = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
@@ -3109,6 +3110,9 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
+               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
+      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
@@ -3789,7 +3793,7 @@ int Start(int argc, char** argv) {
         exec_argc,
         exec_argv);
     Context::Scope context_scope(context);
-
+    env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
     // Start debug agent when argv has --debug
     if (use_debug_agent)
       StartDebug(env, debug_wait_connect);
