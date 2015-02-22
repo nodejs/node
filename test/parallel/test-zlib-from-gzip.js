@@ -1,7 +1,7 @@
 // test unzipping a file that was created with a non-node gzip lib,
 // piped in as fast as possible.
 
-var common = require('../common.js');
+var common = require('../common');
 var assert = require('assert');
 var zlib = require('zlib');
 var path = require('path');
