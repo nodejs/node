@@ -6,7 +6,8 @@ var tests = [
   nextTick,
   timer,
   timerPlusNextTick,
-  firstRun
+  firstRun,
+  netServer
 ]
 
 tests.forEach(function(test) {
@@ -14,7 +15,8 @@ tests.forEach(function(test) {
   var child = spawn(process.execPath, [
     '--abort-on-uncaught-exception',
     '-e',
-    '(' + test+ ')()'
+    '(' + test+ ')()',
+    common.PORT
   ]);
   child.stderr.pipe(process.stderr);
   child.stdout.pipe(process.stdout);
@@ -80,5 +82,28 @@ function firstRun() {
   });
   d.run(function() {
     throw new Error('exceptional!');
+  });
+}
+
+function netServer() {
+  var domain = require('domain');
+  var net = require('net');
+  var d = domain.create();
+
+  d.on('error', function(err) {
+    console.log('ok');
+    process.exit(0);
+  });
+  d.run(function() {
+    var server = net.createServer(function(conn) {
+      conn.pipe(conn);
+    });
+    server.listen(Number(process.argv[1]), '0.0.0.0', function() {
+      var conn = net.connect(Number(process.argv[1]), '0.0.0.0')
+      conn.once('data', function() {
+        throw new Error('ok');
+      })
+      conn.end('ok');
+    });
   });
 }
