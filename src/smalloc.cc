@@ -152,18 +152,14 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject())
-    return env->ThrowTypeError("source must be an object");
-  if (!args[2]->IsObject())
-    return env->ThrowTypeError("dest must be an object");
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[2]->IsObject());
 
   Local<Object> source = args[0].As<Object>();
   Local<Object> dest = args[2].As<Object>();
 
-  if (!source->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowError("source has no external array data");
-  if (!dest->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowError("dest has no external array data");
+  ASSERT(source->HasIndexedPropertiesInExternalArrayData());
+  ASSERT(dest->HasIndexedPropertiesInExternalArrayData());
 
   size_t source_start = args[1]->Uint32Value();
   size_t dest_start = args[3]->Uint32Value();
@@ -266,11 +262,11 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 void Alloc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ASSERT(args[0]->IsObject());
+
   Local<Object> obj = args[0].As<Object>();
 
-  // can't perform this check in JS
-  if (obj->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowTypeError("object already has external array data");
+  ASSERT(!obj->HasIndexedPropertiesInExternalArrayData());
 
   size_t length = args[1]->Uint32Value();
   enum ExternalArrayType array_type;
@@ -410,8 +406,8 @@ void Alloc(Environment* env,
 
 void HasExternalData(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(args[0]->IsObject() &&
-                            HasExternalData(env, args[0].As<Object>()));
+  ASSERT(args[0]->IsObject());
+  args.GetReturnValue().Set(HasExternalData(env, args[0].As<Object>()));
 }
 
 
