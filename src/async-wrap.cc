@@ -7,6 +7,7 @@
 
 #include "v8.h"
 
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -119,7 +120,10 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   if (has_abort_on_uncaught_and_domains) {
     Local<Value> fn = context->Get(env()->domain_abort_uncaught_exc_string());
     if (fn->IsFunction()) {
-      ret = fn.As<Function>()->Call(cb, argc, argv);
+      Local<Array> specialContext;
+      specialContext->Set(0, context);
+      specialContext->Set(1, cb);
+      ret = fn.As<Function>()->Call(specialContext, argc, argv);
     } else {
       ret = cb->Call(context, argc, argv);
     }

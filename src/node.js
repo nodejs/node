@@ -210,7 +210,7 @@
   startup.processFatal = function() {
     process._makeCallbackAbortOnUncaught = function() {
       try {
-        return this.apply(null, arguments);
+        return this[1].apply(this[0], arguments);
       } catch (err) {
         process._fatalException(er);
       }
