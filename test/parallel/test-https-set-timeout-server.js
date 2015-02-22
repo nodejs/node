@@ -1,4 +1,4 @@
-var common = require('../common.js');
+var common = require('../common');
 var assert = require('assert');
 var https = require('https');
 var tls = require('tls');
