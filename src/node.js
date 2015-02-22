@@ -212,7 +212,7 @@
       try {
         return this[1].apply(this[0], arguments);
       } catch (err) {
-        process._fatalException(er);
+        process._fatalException(err);
       }
     };
 
