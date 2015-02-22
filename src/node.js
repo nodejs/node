@@ -31,6 +31,7 @@
     startup.processAssert();
     startup.processConfig();
     startup.processNextTick();
+    startup.processPromises();
     startup.processStdio();
     startup.processKillAndExit();
     startup.processSignalHandlers();
@@ -264,8 +265,11 @@
     });
   };
 
+  var addPendingUnhandledRejection;
+  var hasBeenNotifiedProperty = new WeakMap();
   startup.processNextTick = function() {
     var nextTickQueue = [];
+    var pendingUnhandledRejections = [];
     var microtasksScheduled = false;
 
     // Used to run V8's micro task queue.
@@ -318,7 +322,8 @@
       microtasksScheduled = false;
       _runMicrotasks();
 
-      if (tickInfo[kIndex] < tickInfo[kLength])
+      if (tickInfo[kIndex] < tickInfo[kLength] ||
+          emitPendingUnhandledRejections())
         scheduleMicrotasks();
     }
 
@@ -388,6 +393,57 @@
       nextTickQueue.push(obj);
       tickInfo[kLength]++;
     }
+
+    function emitPendingUnhandledRejections() {
+      var hadListeners = false;
+      while (pendingUnhandledRejections.length > 0) {
+        var promise = pendingUnhandledRejections.shift();
+        var reason = pendingUnhandledRejections.shift();
+        if (hasBeenNotifiedProperty.get(promise) === false) {
+          hasBeenNotifiedProperty.set(promise, true);
+          if (!process.emit('unhandledRejection', reason, promise)) {
+            // Nobody is listening.
+            // TODO(petkaantonov) Take some default action, see #830
+          } else
+            hadListeners = true;
+        }
+      }
+      return hadListeners;
+    }
+
+    addPendingUnhandledRejection = function(promise, reason) {
+      pendingUnhandledRejections.push(promise, reason);
+      scheduleMicrotasks();
+    };
+  };
+
+  startup.processPromises = function() {
+    var promiseRejectEvent = process._promiseRejectEvent;
+
+    function unhandledRejection(promise, reason) {
+      hasBeenNotifiedProperty.set(promise, false);
+      addPendingUnhandledRejection(promise, reason);
+    }
+
+    function rejectionHandled(promise) {
+      var hasBeenNotified = hasBeenNotifiedProperty.get(promise);
+      if (hasBeenNotified !== undefined) {
+        hasBeenNotifiedProperty.delete(promise);
+        if (hasBeenNotified === true)
+          process.emit('rejectionHandled', promise);
+      }
+    }
+
+    process._setupPromises(function(event, promise, reason) {
+      if (event === promiseRejectEvent.unhandled)
+        unhandledRejection(promise, reason);
+      else if (event === promiseRejectEvent.handled)
+        process.nextTick(function() {
+          rejectionHandled(promise);
+        });
+      else
+        NativeModule.require('assert').fail('unexpected PromiseRejectEvent');
+    });
   };
 
   function evalScript(name) {
