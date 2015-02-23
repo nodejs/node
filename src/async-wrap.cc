@@ -118,12 +118,12 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   Local<Value> ret;
 
   if (has_abort_on_uncaught_and_domains) {
-    Local<Value> fn = context->Get(env()->domain_abort_uncaught_exc_string());
+    Local<Value> fn = process->Get(env()->domain_abort_uncaught_exc_string());
     if (fn->IsFunction()) {
-      Local<Array> specialContext;
+      Local<Array> specialContext = Array::New(env()->isolate(), 2);
       specialContext->Set(0, context);
       specialContext->Set(1, cb);
-      ret = fn.As<Function>()->Call(specialContext, argc, argv);
+      ret = fn.As<Function>()->Call(specialContext.As<Object>(), argc, argv);
     } else {
       ret = cb->Call(context, argc, argv);
     }
