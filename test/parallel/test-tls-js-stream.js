@@ -46,7 +46,7 @@ var server = tls.createServer({
   });
 
   var socket = tls.connect({
-    socket: raw,
+    socket: p,
     rejectUnauthorized: false
   }, function() {
     console.log('client secure');
