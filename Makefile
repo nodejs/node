@@ -247,7 +247,7 @@ release-only:
 	else \
 	  echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
+	  echo "Did you remember to update src/node_version.h?" >&2 ; \
 	  echo "" >&2 ; \
 		exit 1 ; \
 	fi
