@@ -145,6 +145,7 @@ Benchmark.prototype._run = function() {
     var argv = queue[i++];
     if (!argv)
       return;
+    argv = process.execArgv.concat(argv);
     var child = spawn(node, argv, { stdio: 'inherit' });
     child.on('close', function(code, signal) {
       if (code)
