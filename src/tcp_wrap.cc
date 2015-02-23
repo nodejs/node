@@ -428,7 +428,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
-  assert(args[2]->Uint32Value());
+  assert(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(args[1]);
@@ -460,7 +460,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
   assert(args[0]->IsObject());
   assert(args[1]->IsString());
-  assert(args[2]->Uint32Value());
+  assert(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(args[1]);
