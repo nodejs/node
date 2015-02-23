@@ -32,16 +32,15 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
                          v8::Handle<v8::Context> context);
 
   void* Cast() override;
-  int GetFD() const override;
-  bool IsAlive() const override;
-  bool IsClosing() const override;
+  int GetFD() override;
+  bool IsAlive() override;
+  bool IsClosing() override;
 
   // JavaScript functions
   int ReadStart() override;
   int ReadStop() override;
 
   int DoShutdown(ShutdownWrap* req_wrap) override;
-  int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
@@ -78,7 +77,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
 
   TLSWrap(Environment* env,
           Kind kind,
-          StreamBase* steram,
+          StreamBase* stream,
           v8::Handle<v8::Object> stream_obj,
           v8::Handle<v8::Object> sc);
 
@@ -104,7 +103,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   }
 
   AsyncWrap* GetAsyncWrap() override;
-  bool IsIPCPipe() const override;
+  bool IsIPCPipe() override;
 
   // Resource implementation
   static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
