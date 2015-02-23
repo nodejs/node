@@ -19,11 +19,11 @@ class StreamWrap : public HandleWrap, public StreamBase {
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
-  int GetFD() const override;
+  int GetFD() override;
   void* Cast() override;
-  bool IsAlive() const override;
-  bool IsClosing() const override;
-  bool IsIPCPipe() const override;
+  bool IsAlive() override;
+  bool IsClosing() override;
+  bool IsIPCPipe() override;
 
   // JavaScript functions
   int ReadStart() override;
@@ -36,8 +36,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
               uv_buf_t* bufs,
               size_t count,
               uv_stream_t* send_handle) override;
-  const char* Error() const override;
-  void ClearError() override;
 
   inline uv_stream_t* stream() const {
     return stream_;

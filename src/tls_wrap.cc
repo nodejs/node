@@ -216,7 +216,7 @@ void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
     size_t copy = buf.len > len ? len : buf.len;
     memcpy(buf.base, data, copy);
     buf.len = copy;
-    wrap->stream_->OnRead(buf.len, &buf, UV_UNKNOWN_HANDLE);
+    wrap->stream_->OnRead(buf.len, &buf);
 
     data += copy;
     len -= copy;
@@ -414,7 +414,7 @@ void TLSWrap::ClearOut() {
       if (static_cast<int>(buf.len) < avail)
         avail = buf.len;
       memcpy(buf.base, out, avail);
-      OnRead(avail, &buf, UV_UNKNOWN_HANDLE);
+      OnRead(avail, &buf);
 
       read -= avail;
     }
@@ -423,7 +423,7 @@ void TLSWrap::ClearOut() {
   int flags = SSL_get_shutdown(ssl_);
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
-    OnRead(UV_EOF, nullptr, UV_UNKNOWN_HANDLE);
+    OnRead(UV_EOF, nullptr);
   }
 
   if (read == -1) {
@@ -495,22 +495,22 @@ AsyncWrap* TLSWrap::GetAsyncWrap() {
 }
 
 
-bool TLSWrap::IsIPCPipe() const {
+bool TLSWrap::IsIPCPipe() {
   return stream_->IsIPCPipe();
 }
 
 
-int TLSWrap::GetFD() const {
+int TLSWrap::GetFD() {
   return stream_->GetFD();
 }
 
 
-bool TLSWrap::IsAlive() const {
+bool TLSWrap::IsAlive() {
   return stream_->IsAlive();
 }
 
 
-bool TLSWrap::IsClosing() const {
+bool TLSWrap::IsClosing() {
   return stream_->IsClosing();
 }
 
@@ -533,12 +533,6 @@ const char* TLSWrap::Error() const {
 void TLSWrap::ClearError() {
   delete[] error_;
   error_ = nullptr;
-}
-
-
-int TLSWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
-  // TODO(indutny): Support it
-  return 0;
 }
 
 
@@ -668,7 +662,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    OnRead(nread, nullptr, UV_UNKNOWN_HANDLE);
+    OnRead(nread, nullptr);
     return;
   }
 
