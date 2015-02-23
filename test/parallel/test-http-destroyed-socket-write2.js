@@ -28,8 +28,9 @@ server.listen(common.PORT, function() {
       req.end();
       test();
     } else {
-      timer = setTimeout(write, 50);
-      req.write('hello');
+      req.write('hello', function() {
+        timer = setImmediate(write);
+      });
     }
   }
 
