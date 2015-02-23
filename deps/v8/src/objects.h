@@ -1971,9 +1971,8 @@ class JSObject: public JSReceiver {
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
   MUST_USE_RESULT static MaybeHandle<Object> GetElementWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      uint32_t index);
+      Handle<JSObject> object, Handle<Object> receiver, uint32_t index,
+      bool check_prototype);
 
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,
@@ -2336,6 +2335,14 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       StrictMode strict_mode,
       bool check_prototype = true);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithFailedAccessCheck(
+      Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
+      uint32_t index);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+  GetElementAttributesWithFailedAccessCheck(Isolate* isolate,
+                                            Handle<JSObject> object,
+                                            Handle<Object> receiver,
+                                            uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
@@ -7062,8 +7069,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kUniqueIdOffset = kFeedbackVectorOffset + kPointerSize;
   static const int kLastPointerFieldOffset = kUniqueIdOffset;
 #else
-  // Just to not break the postmortem support with conditional offsets
-  static const int kUniqueIdOffset = kFeedbackVectorOffset;
   static const int kLastPointerFieldOffset = kFeedbackVectorOffset;
 #endif
 
@@ -10642,6 +10647,7 @@ class InterceptorInfo: public Struct {
   DECL_ACCESSORS(enumerator, Object)
   DECL_ACCESSORS(data, Object)
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
+  DECL_BOOLEAN_ACCESSORS(all_can_read)
 
   inline int flags() const;
   inline void set_flags(int flags);
@@ -10662,6 +10668,7 @@ class InterceptorInfo: public Struct {
   static const int kSize = kFlagsOffset + kPointerSize;
 
   static const int kCanInterceptSymbolsBit = 0;
+  static const int kAllCanReadBit = 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);
