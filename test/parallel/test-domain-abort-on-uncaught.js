@@ -15,7 +15,7 @@ tests.forEach(function(test) {
   var child = spawn(process.execPath, [
     '--abort-on-uncaught-exception',
     '-e',
-    '(' + test+ ')()',
+    '(' + test + ')()',
     common.PORT
   ]);
   child.stderr.pipe(process.stderr);

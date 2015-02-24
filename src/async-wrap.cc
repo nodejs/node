@@ -120,10 +120,10 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   if (has_abort_on_uncaught_and_domains) {
     Local<Value> fn = process->Get(env()->domain_abort_uncaught_exc_string());
     if (fn->IsFunction()) {
-      Local<Array> specialContext = Array::New(env()->isolate(), 2);
-      specialContext->Set(0, context);
-      specialContext->Set(1, cb);
-      ret = fn.As<Function>()->Call(specialContext.As<Object>(), argc, argv);
+      Local<Array> special_context = Array::New(env()->isolate(), 2);
+      special_context->Set(0, context);
+      special_context->Set(1, cb);
+      ret = fn.As<Function>()->Call(special_context, argc, argv);
     } else {
       ret = cb->Call(context, argc, argv);
     }
