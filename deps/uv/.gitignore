@@ -67,3 +67,6 @@ ipch
 
 *.xcodeproj
 *.xcworkspace
+
+# make dist output
+libuv-*.tar.*

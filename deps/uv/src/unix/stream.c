@@ -375,6 +375,10 @@ failed_malloc:
 
 
 int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
+#if defined(__APPLE__)
+  int enable;
+#endif
+
   assert(fd >= 0);
   stream->flags |= flags;
 
@@ -386,6 +390,14 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
     if ((stream->flags & UV_TCP_KEEPALIVE) && uv__tcp_keepalive(fd, 1, 60))
       return -errno;
   }
+
+#if defined(__APPLE__)
+  enable = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &enable, sizeof(enable)) &&
+      errno != ENOTSOCK) {
+    return -errno;
+  }
+#endif
 
   stream->io_watcher.fd = fd;
 
