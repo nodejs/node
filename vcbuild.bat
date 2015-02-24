@@ -36,6 +36,7 @@ set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
+set release_urls_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -87,6 +88,10 @@ if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
 if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 
+if defined RELEASE_SOURCE_URL set release_urls_arg=--release-source-url=%RELEASE_SOURCE_URL%
+if defined RELEASE_HEADERS_URL set release_urls_arg=%release_urls_arg% --release-headers-url=%RELEASE_HEADERS_URL%
+if defined RELEASE_LIB_URL set release_urls_arg=%release_urls_arg% --release-lib-url=%RELEASE_LIB_URL%
+
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto msbuild
@@ -96,7 +101,7 @@ if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 @rem Generate the VS project.
 SETLOCAL
   if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% %release_urls% --dest-cpu=%target_arch% --tag=%TAG%
   if errorlevel 1 goto create-msvs-files-failed
   if not exist node.sln goto create-msvs-files-failed
   echo Project files generated.

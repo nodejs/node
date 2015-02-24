@@ -2663,6 +2663,30 @@ void SetupProcessObject(Environment* env,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
 
+  // process.release
+  Local<Object> release = Object::New(env->isolate());
+  READONLY_PROPERTY(process, "release", release);
+
+  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "iojs"));
+
+#if defined(NODE_RELEASE_SOURCE_URL)
+  READONLY_PROPERTY(release,
+                    "sourceUrl",
+                    OneByteString(env->isolate(), NODE_RELEASE_SOURCE_URL));
+#endif
+
+#if defined(NODE_RELEASE_HEADERS_URL)
+  READONLY_PROPERTY(release,
+                    "headersUrl",
+                    OneByteString(env->isolate(), NODE_RELEASE_HEADERS_URL));
+#endif
+
+#if defined(NODE_RELEASE_LIB_URL)
+  READONLY_PROPERTY(release,
+                    "libUrl",
+                    OneByteString(env->isolate(), NODE_RELEASE_LIB_URL));
+#endif
+
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
   for (int i = 0; i < argc; ++i) {

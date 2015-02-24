@@ -178,6 +178,21 @@
       ],
 
       'conditions': [
+        [ 'node_release_source_url!=""', {
+          'defines': [
+            'NODE_RELEASE_SOURCE_URL="<(node_release_source_url)"',
+          ]
+        }],
+        [ 'node_release_headers_url!=""', {
+          'defines': [
+            'NODE_RELEASE_HEADERS_URL="<(node_release_headers_url)"',
+          ]
+        }],
+        [ 'node_release_lib_url!=""', {
+          'defines': [
+            'NODE_RELEASE_LIB_URL="<(node_release_lib_url)"',
+          ]
+        }],
         [ 'v8_enable_i18n_support==1', {
           'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
           'dependencies': [

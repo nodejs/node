@@ -197,6 +197,21 @@ parser.add_option('--tag',
     dest='tag',
     help='custom build tag')
 
+parser.add_option('--release-source-url',
+    action='store',
+    dest='release_source_url',
+    help='custom url for process.release.sourceUrl')
+
+parser.add_option('--release-headers-url',
+    action='store',
+    dest='release_headers_url',
+    help='custom url for process.release.headersUrl')
+
+parser.add_option('--release-lib-url',
+    action='store',
+    dest='release_lib_url',
+    help='custom url for process.release.libUrl. Only valid on Windows.')
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -568,6 +583,21 @@ def configure_node(o):
     o['variables']['node_tag'] = '-' + options.tag
   else:
     o['variables']['node_tag'] = ''
+
+  if options.release_source_url:
+    o['variables']['node_release_source_url'] = options.release_source_url
+  else:
+    o['variables']['node_release_source_url'] = ''
+
+  if options.release_headers_url:
+    o['variables']['node_release_headers_url'] = options.release_headers_url
+  else:
+    o['variables']['node_release_headers_url'] = ''
+
+  if options.release_lib_url:
+    o['variables']['node_release_lib_url'] = '-' + options.release_lib_url
+  else:
+    o['variables']['node_release_lib_url'] = ''
 
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
