@@ -22,7 +22,7 @@ E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
 CPPFLAGS += -I$(SRCDIR)/src
-LDFLAGS=-lm
+LDFLAGS=-lm -pthread
 
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64
@@ -186,7 +186,7 @@ src/.buildstamp src/unix/.buildstamp test/.buildstamp:
 	mkdir -p $(@D)
 	touch $@
 
-src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h src/unix/.buildstamp $(DTRACE_HEADER)
+src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/atomic-ops.h src/unix/internal.h src/unix/.buildstamp $(DTRACE_HEADER)
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 src/%.o src/%.pic.o: src/%.c include/uv.h include/uv-private/uv-unix.h src/.buildstamp

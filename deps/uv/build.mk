@@ -91,6 +91,7 @@ TESTS= \
 	test/test-ipc-send-recv.o \
 	test/test-loop-handles.o \
 	test/test-loop-stop.o \
+	test/test-loop-configure.o \
 	test/test-multiple-listen.o \
 	test/test-mutexes.o \
 	test/test-osx-select.o \
@@ -126,6 +127,7 @@ TESTS= \
 	test/test-tcp-connect-timeout.o \
 	test/test-tcp-flags.o \
 	test/test-tcp-open.o \
+	test/test-tcp-oob.o \
 	test/test-tcp-read-stop.o \
 	test/test-tcp-shutdown-after-write.o \
 	test/test-tcp-unexpected-read.o \

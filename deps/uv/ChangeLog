@@ -1,4 +1,72 @@
-2014.12.10, Version 0.10.30 (Stable)
+2015.02.27, Version 0.10.36 (Stable)
+
+Changes since version 0.10.35:
+
+* stream: ignore EINVAL for SO_OOBINLINE on OS X (Fedor Indutny)
+
+
+2015.02.25, Version 0.10.35 (Stable), 4dc978825d870643bbaa4660f71d22975efba29e
+
+Changes since version 0.10.34:
+
+* stream: use SO_OOBINLINE on OS X (Fedor Indutny)
+
+
+2015.02.21, Version 0.10.34 (Stable), 37aa4aa9b9712c778d7b249563e868cabfdb8332
+
+Changes since version 0.10.33:
+
+* unix: add atomic-ops.h (Ben Noordhuis)
+
+* unix: fix for uv_async data race (Michael Penick)
+
+* unix: call setgoups before calling setuid/setgid (Saúl Ibarra Corretgé)
+
+
+2015.01.29, Version 0.10.33 (Stable), 7a2253d33ad8215a26c1b34f1952aee7242dd687
+
+Changes since version 0.10.32:
+
+* linux: fix epoll_pwait() regression with < 2.6.19 (Ben Noordhuis)
+
+* test: back-port uv_loop_configure() test (Ben Noordhuis)
+
+
+2015.01.06, Version 0.10.32 (Stable), 378de30c59aef5fdb6d130fa5cfcb0a68fce571c
+
+Changes since version 0.10.31:
+
+* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)
+
+
+2014.12.25, Version 0.10.31 (Stable), 4dbd27e2219069a6daa769fb37f98673b77b4261
+
+Changes since version 0.10.30:
+
+* test: test that closing a poll handle doesn't corrupt the stack (Bert Belder)
+
+* win: fix compilation of tests (Marc Schlaich)
+
+* Revert "win: keep a reference to AFD_POLL_INFO in cancel poll" (Bert Belder)
+
+* win: avoid stack corruption when closing a poll handle (Bert Belder)
+
+* gitignore: ignore Visual Studio files (Marc Schlaich)
+
+* win: set fallback message if FormatMessage fails (Marc Schlaich)
+
+* win: fall back to default language in uv_dlerror (Marc Schlaich)
+
+* test: improve compatibility for dlerror test (Marc Schlaich)
+
+* test: check dlerror is "no error" in no error case (Marc Schlaich)
+
+* build: link against -pthread (Logan Rosen)
+
+* win: scandir use 'ls' for formatting long strings (Kenneth Perry)
+
+
+2014.12.10, Version 0.10.30 (Stable), 5a63f5e9546dca482eeebc3054139b21f509f21f
 
 Changes since version 0.10.29:
 

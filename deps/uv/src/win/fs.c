@@ -732,9 +732,9 @@ void fs__readdir(uv_fs_t* req) {
   if (len == 0) {
     fmt = L"./*";
   } else if (pathw[len - 1] == L'/' || pathw[len - 1] == L'\\') {
-    fmt = L"%s*";
+    fmt = L"%ls*";
   } else {
-    fmt = L"%s\\*";
+    fmt = L"%ls\\*";
   }
 
   /* Figure out whether path is a file or a directory. */

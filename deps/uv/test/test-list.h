@@ -24,6 +24,7 @@ TEST_DECLARE   (callback_order)
 TEST_DECLARE   (run_once)
 TEST_DECLARE   (run_nowait)
 TEST_DECLARE   (loop_stop)
+TEST_DECLARE   (loop_configure)
 TEST_DECLARE   (barrier_1)
 TEST_DECLARE   (barrier_2)
 TEST_DECLARE   (barrier_3)
@@ -64,7 +65,10 @@ TEST_DECLARE   (tcp_connect_error_fault)
 TEST_DECLARE   (tcp_connect_timeout)
 TEST_DECLARE   (tcp_close_while_connecting)
 TEST_DECLARE   (tcp_close)
+#ifndef _WIN32
 TEST_DECLARE   (tcp_close_accept)
+TEST_DECLARE   (tcp_oob)
+#endif
 TEST_DECLARE   (tcp_flags)
 TEST_DECLARE   (tcp_write_to_half_open_connection)
 TEST_DECLARE   (tcp_unexpected_read)
@@ -215,6 +219,7 @@ TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
 #ifdef _WIN32
+TEST_DECLARE   (poll_close_doesnt_corrupt_stack)
 TEST_DECLARE   (poll_closesocket)
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -249,6 +254,7 @@ TASK_LIST_START
   TEST_ENTRY  (run_once)
   TEST_ENTRY  (run_nowait)
   TEST_ENTRY  (loop_stop)
+  TEST_ENTRY  (loop_configure)
   TEST_ENTRY  (barrier_1)
   TEST_ENTRY  (barrier_2)
   TEST_ENTRY  (barrier_3)
@@ -308,7 +314,10 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_connect_timeout)
   TEST_ENTRY  (tcp_close_while_connecting)
   TEST_ENTRY  (tcp_close)
+#ifndef _WIN32
   TEST_ENTRY  (tcp_close_accept)
+  TEST_ENTRY  (tcp_oob)
+#endif
   TEST_ENTRY  (tcp_flags)
   TEST_ENTRY  (tcp_write_to_half_open_connection)
   TEST_ENTRY  (tcp_unexpected_read)
@@ -451,6 +460,7 @@ TASK_LIST_START
   TEST_ENTRY  (kill)
 
 #ifdef _WIN32
+  TEST_ENTRY  (poll_close_doesnt_corrupt_stack)
   TEST_ENTRY  (poll_closesocket)
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
   TEST_ENTRY  (argument_escaping)

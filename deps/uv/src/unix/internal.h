@@ -66,6 +66,21 @@
   }                                                                           \
   while (0)
 
+/* The __clang__ and __INTEL_COMPILER checks are superfluous because they
+ * define __GNUC__. They are here to convey to you, dear reader, that these
+ * macros are enabled when compiling with clang or icc.
+ */
+#if defined(__clang__) ||                                                     \
+    defined(__GNUC__) ||                                                      \
+    defined(__INTEL_COMPILER) ||                                              \
+    defined(__SUNPRO_C)
+# define UV_DESTRUCTOR(declaration) __attribute__((destructor)) declaration
+# define UV_UNUSED(declaration)     __attribute__((unused)) declaration
+#else
+# define UV_DESTRUCTOR(declaration) declaration
+# define UV_UNUSED(declaration)     declaration
+#endif
+
 #if defined(__linux__)
 # define UV__POLLIN   UV__EPOLLIN
 # define UV__POLLOUT  UV__EPOLLOUT
