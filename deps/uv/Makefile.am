@@ -222,6 +222,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-read-stop.c \
                          test/test-tcp-shutdown-after-write.c \
                          test/test-tcp-unexpected-read.c \
+                         test/test-tcp-oob.c \
                          test/test-tcp-write-to-half-open-connection.c \
                          test/test-tcp-write-after-connect.c \
                          test/test-tcp-writealot.c \
