@@ -107,7 +107,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci: test-build
-	$(PYTHON) tools/test.py -J parallel sequential message addons
+	$(PYTHON) tools/test.py -J -p tap parallel sequential message addons
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
