@@ -76,3 +76,4 @@ deps/zlib/zlib.target.mk
 # test artifacts
 tools/faketime
 icu_config.gypi
+test.tap

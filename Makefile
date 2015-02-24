@@ -106,8 +106,8 @@ test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
-test-ci: test-build
-	$(PYTHON) tools/test.py -J parallel sequential message addons
+test-ci:
+	$(PYTHON) tools/test.py -p tap --logfile test.tap -J parallel sequential message
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
