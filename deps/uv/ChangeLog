@@ -1,3 +1,23 @@
+2015.02.25, Version 1.4.1 (Stable)
+
+Changes since version 1.4.0:
+
+* win: don't use inline keyword in thread.c (Ben Noordhuis)
+
+* windows: fix setting dirent types on uv_fs_scandir_next (Saúl Ibarra
+  Corretgé)
+
+* unix,windows: make uv_thread_create() return errno (Ben Noordhuis)
+
+* tty: fix build for SmartOS (Julien Gilli)
+
+* unix: fix for uv_async data race (Michael Penick)
+
+* unix, windows: map EHOSTDOWN errno (Ben Noordhuis)
+
+* stream: use SO_OOBINLINE on OS X (Fedor Indutny)
+
+
 2015.02.10, Version 1.4.0 (Stable), 19fb8a90648f3763240db004b77ab984264409be
 
 Changes since version 1.3.0:
