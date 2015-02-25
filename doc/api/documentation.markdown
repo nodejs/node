@@ -16,7 +16,7 @@ experimental, and added for the benefit of IDEs and other utilities that
 wish to do programmatic things with the documentation.
 
 Every `.html` and `.json` file is generated based on the corresponding
-`.markdown` file in the `doc/api/` folder in node's source tree.  The
+`.markdown` file in the `doc/api/` folder in io.js's source tree.  The
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 
@@ -79,4 +79,4 @@ change.  Please do not suggest changes in this area; they will be refused.
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
 
-This feature is new as of node v0.6.12.  It is experimental.
+This feature was added in node v0.6.12.  It is experimental.
