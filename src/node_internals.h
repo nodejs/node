@@ -79,6 +79,19 @@ v8::Local<v8::Object> AddressToJS(
     const sockaddr* addr,
     v8::Local<v8::Object> info = v8::Handle<v8::Object>());
 
+template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
+void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  T* const wrap = Unwrap<T>(args.Holder());
+  CHECK(args[0]->IsObject());
+  sockaddr_storage storage;
+  int addrlen = sizeof(storage);
+  sockaddr* const addr = reinterpret_cast<sockaddr*>(&storage);
+  const int err = F(&wrap->handle_, addr, &addrlen);
+  if (err == 0)
+    AddressToJS(wrap->env(), addr, args[0].As<v8::Object>());
+  args.GetReturnValue().Set(err);
+}
+
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...

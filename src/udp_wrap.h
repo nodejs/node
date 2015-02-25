@@ -40,6 +40,12 @@ class UDPWrap: public HandleWrap {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  typedef uv_udp_t HandleType;
+
+  template <typename T,
+            int (*F)(const typename T::HandleType*, sockaddr*, int*)>
+  friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
+
   UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
