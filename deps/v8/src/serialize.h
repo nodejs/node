@@ -481,12 +481,14 @@ class SerializedData {
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
  protected:
-  void SetHeaderValue(int offset, int value) {
-    reinterpret_cast<int*>(data_)[offset] = value;
+  void SetHeaderValue(int offset, uint32_t value) {
+    memcpy(reinterpret_cast<uint32_t*>(data_) + offset, &value, sizeof(value));
   }
 
-  int GetHeaderValue(int offset) const {
-    return reinterpret_cast<const int*>(data_)[offset];
+  uint32_t GetHeaderValue(int offset) const {
+    uint32_t value;
+    memcpy(&value, reinterpret_cast<int*>(data_) + offset, sizeof(value));
+    return value;
   }
 
   void AllocateData(int size);
@@ -920,22 +922,32 @@ class SerializedCodeData : public SerializedData {
   explicit SerializedCodeData(ScriptData* data)
       : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
-  bool IsSane(String* source);
+  bool IsSane(String* source) const;
 
-  int CheckSum(String* source);
+  static uint32_t SourceHash(String* source) { return source->length(); }
 
   // The data header consists of int-sized entries:
   // [0] version hash
-  // [1] number of internalized strings
-  // [2] number of code stub keys
-  // [3] number of reservation size entries
-  // [4] payload length
-  static const int kCheckSumOffset = 0;
-  static const int kNumInternalizedStringsOffset = 1;
-  static const int kReservationsOffset = 2;
-  static const int kNumCodeStubKeysOffset = 3;
-  static const int kPayloadLengthOffset = 4;
-  static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
+  // [1] source hash
+  // [2] cpu features
+  // [3] flag hash
+  // [4] number of internalized strings
+  // [5] number of code stub keys
+  // [6] number of reservation size entries
+  // [7] payload length
+  // [8] checksum 1
+  // [9] checksum 2
+  static const int kVersionHashOffset = 0;
+  static const int kSourceHashOffset = 1;
+  static const int kCpuFeaturesOffset = 2;
+  static const int kFlagHashOffset = 3;
+  static const int kNumInternalizedStringsOffset = 4;
+  static const int kReservationsOffset = 5;
+  static const int kNumCodeStubKeysOffset = 6;
+  static const int kPayloadLengthOffset = 7;
+  static const int kChecksum1Offset = 8;
+  static const int kChecksum2Offset = 9;
+  static const int kHeaderSize = (kChecksum2Offset + 1) * kIntSize;
 };
 } }  // namespace v8::internal
 

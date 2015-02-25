@@ -84,7 +84,7 @@ namespace internal {
 
 // Determine whether double field unboxing feature is enabled.
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
-#define V8_DOUBLE_FIELDS_UNBOXING 1
+#define V8_DOUBLE_FIELDS_UNBOXING 0
 #else
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif

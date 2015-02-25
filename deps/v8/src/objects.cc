@@ -572,12 +572,19 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 
 
 static bool FindAllCanReadHolder(LookupIterator* it) {
-  for (; it->IsFound(); it->Next()) {
+  // Skip current iteration, it's in state ACCESS_CHECK or INTERCEPTOR, both of
+  // which have already been checked.
+  DCHECK(it->state() == LookupIterator::ACCESS_CHECK ||
+         it->state() == LookupIterator::INTERCEPTOR);
+  for (it->Next(); it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::ACCESSOR) {
-      Handle<Object> accessors = it->GetAccessors();
+      auto accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
         if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
       }
+    } else if (it->state() == LookupIterator::INTERCEPTOR) {
+      auto holder = it->GetHolder<JSObject>();
+      if (holder->GetNamedInterceptor()->all_can_read()) return true;
     }
   }
   return false;
@@ -587,10 +594,18 @@ static bool FindAllCanReadHolder(LookupIterator* it) {
 MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
     LookupIterator* it) {
   Handle<JSObject> checked = it->GetHolder<JSObject>();
-  if (FindAllCanReadHolder(it)) {
-    return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
-                                   it->GetHolder<JSObject>(),
-                                   it->GetAccessors());
+  while (FindAllCanReadHolder(it)) {
+    if (it->state() == LookupIterator::ACCESSOR) {
+      return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
+                                     it->GetHolder<JSObject>(),
+                                     it->GetAccessors());
+    }
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
+    auto receiver = Handle<JSObject>::cast(it->GetReceiver());
+    auto result = GetPropertyWithInterceptor(it->GetHolder<JSObject>(),
+                                             receiver, it->name());
+    if (it->isolate()->has_scheduled_exception()) break;
+    if (!result.is_null()) return result;
   }
   it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_GET);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
@@ -601,8 +616,16 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
     LookupIterator* it) {
   Handle<JSObject> checked = it->GetHolder<JSObject>();
-  if (FindAllCanReadHolder(it))
-    return maybe(it->property_details().attributes());
+  while (FindAllCanReadHolder(it)) {
+    if (it->state() == LookupIterator::ACCESSOR) {
+      return maybe(it->property_details().attributes());
+    }
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
+    auto result = GetPropertyAttributesWithInterceptor(
+        it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
+    if (it->isolate()->has_scheduled_exception()) break;
+    if (result.has_value && result.value != ABSENT) return result;
+  }
   it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_HAS);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(),
                                       Maybe<PropertyAttributes>());
@@ -736,6 +759,65 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
 }
 
 
+static MaybeHandle<JSObject> FindIndexedAllCanReadHolder(
+    Isolate* isolate, Handle<JSObject> js_object,
+    PrototypeIterator::WhereToStart where_to_start) {
+  for (PrototypeIterator iter(isolate, js_object, where_to_start);
+       !iter.IsAtEnd(); iter.Advance()) {
+    auto curr = PrototypeIterator::GetCurrent(iter);
+    if (!curr->IsJSObject()) break;
+    auto obj = Handle<JSObject>::cast(curr);
+    if (!obj->HasIndexedInterceptor()) continue;
+    if (obj->GetIndexedInterceptor()->all_can_read()) return obj;
+  }
+  return MaybeHandle<JSObject>();
+}
+
+
+MaybeHandle<Object> JSObject::GetElementWithFailedAccessCheck(
+    Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
+    uint32_t index) {
+  Handle<JSObject> holder = object;
+  PrototypeIterator::WhereToStart where_to_start =
+      PrototypeIterator::START_AT_RECEIVER;
+  while (true) {
+    auto all_can_read_holder =
+        FindIndexedAllCanReadHolder(isolate, holder, where_to_start);
+    if (!all_can_read_holder.ToHandle(&holder)) break;
+    auto result =
+        JSObject::GetElementWithInterceptor(holder, receiver, index, false);
+    if (isolate->has_scheduled_exception()) break;
+    if (!result.is_null()) return result;
+    where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
+  }
+  isolate->ReportFailedAccessCheck(object, v8::ACCESS_GET);
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  return isolate->factory()->undefined_value();
+}
+
+
+Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
+    Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
+    uint32_t index) {
+  Handle<JSObject> holder = object;
+  PrototypeIterator::WhereToStart where_to_start =
+      PrototypeIterator::START_AT_RECEIVER;
+  while (true) {
+    auto all_can_read_holder =
+        FindIndexedAllCanReadHolder(isolate, holder, where_to_start);
+    if (!all_can_read_holder.ToHandle(&holder)) break;
+    auto result =
+        JSObject::GetElementAttributeFromInterceptor(object, receiver, index);
+    if (isolate->has_scheduled_exception()) break;
+    if (result.has_value && result.value != ABSENT) return result;
+    where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
+  }
+  isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<PropertyAttributes>());
+  return maybe(ABSENT);
+}
+
+
 MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
                                                    Handle<Object> object,
                                                    Handle<Object> receiver,
@@ -768,14 +850,14 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
       if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
-        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
-        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-        return isolate->factory()->undefined_value();
+        return JSObject::GetElementWithFailedAccessCheck(isolate, js_object,
+                                                         receiver, index);
       }
     }
 
     if (js_object->HasIndexedInterceptor()) {
-      return JSObject::GetElementWithInterceptor(js_object, receiver, index);
+      return JSObject::GetElementWithInterceptor(js_object, receiver, index,
+                                                 true);
     }
 
     if (js_object->elements() != isolate->heap()->empty_fixed_array()) {
@@ -4184,9 +4266,8 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithReceiver(
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<PropertyAttributes>());
-      return maybe(ABSENT);
+      return GetElementAttributesWithFailedAccessCheck(isolate, object,
+                                                       receiver, index);
     }
   }
 
@@ -13383,10 +13464,10 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
 }
 
 
-MaybeHandle<Object> JSObject::GetElementWithInterceptor(
-    Handle<JSObject> object,
-    Handle<Object> receiver,
-    uint32_t index) {
+MaybeHandle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
+                                                        Handle<Object> receiver,
+                                                        uint32_t index,
+                                                        bool check_prototype) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing
@@ -13410,6 +13491,8 @@ MaybeHandle<Object> JSObject::GetElementWithInterceptor(
       return handle(*result_internal, isolate);
     }
   }
+
+  if (!check_prototype) return MaybeHandle<Object>();
 
   ElementsAccessor* handler = object->GetElementsAccessor();
   Handle<Object> result;

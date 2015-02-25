@@ -2054,6 +2054,10 @@ void Serializer::Pad() {
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
     sink_->Put(kNop, "Padding");
   }
+  // Pad up to pointer size for checksum.
+  while (!IsAligned(sink_->Position(), kPointerAlignment)) {
+    sink_->Put(kNop, "Padding");
+  }
 }
 
 
@@ -2394,6 +2398,41 @@ Vector<const byte> SnapshotData::Payload() const {
 }
 
 
+class Checksum {
+ public:
+  explicit Checksum(Vector<const byte> payload) {
+    // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
+    uintptr_t a = 1;
+    uintptr_t b = 0;
+    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    DCHECK(IsAligned(payload.length(), kIntptrSize));
+    const uintptr_t* end = cur + payload.length() / kIntptrSize;
+    while (cur < end) {
+      // Unsigned overflow expected and intended.
+      a += *cur++;
+      b += a;
+    }
+#if V8_HOST_ARCH_64_BIT
+    a ^= a >> 32;
+    b ^= b >> 32;
+#endif  // V8_HOST_ARCH_64_BIT
+    a_ = static_cast<uint32_t>(a);
+    b_ = static_cast<uint32_t>(b);
+  }
+
+  bool Check(uint32_t a, uint32_t b) const { return a == a_ && b == b_; }
+
+  uint32_t a() const { return a_; }
+  uint32_t b() const { return b_; }
+
+ private:
+  uint32_t a_;
+  uint32_t b_;
+
+  DISALLOW_COPY_AND_ASSIGN(Checksum);
+};
+
+
 SerializedCodeData::SerializedCodeData(const List<byte>& payload,
                                        const CodeSerializer& cs) {
   DisallowHeapAllocation no_gc;
@@ -2412,11 +2451,19 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   AllocateData(size);
 
   // Set header values.
-  SetHeaderValue(kCheckSumOffset, CheckSum(cs.source()));
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
+  SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
+  SetHeaderValue(kCpuFeaturesOffset,
+                 static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
+  SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
   SetHeaderValue(kReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
+
+  Checksum checksum(payload.ToConstVector());
+  SetHeaderValue(kChecksum1Offset, checksum.a());
+  SetHeaderValue(kChecksum2Offset, checksum.b());
 
   // Copy reservation chunk sizes.
   CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
@@ -2432,14 +2479,14 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
 }
 
 
-bool SerializedCodeData::IsSane(String* source) {
-  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
-         Payload().length() >= SharedFunctionInfo::kSize;
-}
-
-
-int SerializedCodeData::CheckSum(String* string) {
-  return Version::Hash() ^ string->length();
+bool SerializedCodeData::IsSane(String* source) const {
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
+         GetHeaderValue(kSourceHashOffset) == SourceHash(source) &&
+         GetHeaderValue(kCpuFeaturesOffset) ==
+             static_cast<uint32_t>(CpuFeatures::SupportedFeatures()) &&
+         GetHeaderValue(kFlagHashOffset) == FlagList::Hash() &&
+         Checksum(Payload()).Check(GetHeaderValue(kChecksum1Offset),
+                                   GetHeaderValue(kChecksum2Offset));
 }
 
 
