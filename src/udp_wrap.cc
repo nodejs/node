@@ -96,7 +96,8 @@ void UDPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "close", Close);
   env->SetProtoMethod(t, "recvStart", RecvStart);
   env->SetProtoMethod(t, "recvStop", RecvStop);
-  env->SetProtoMethod(t, "getsockname", GetSockName);
+  env->SetProtoMethod(t, "getsockname",
+                      GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
   env->SetProtoMethod(t, "addMembership", AddMembership);
   env->SetProtoMethod(t, "dropMembership", DropMembership);
   env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
@@ -322,29 +323,6 @@ void UDPWrap::RecvStop(const FunctionCallbackInfo<Value>& args) {
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
   int r = uv_udp_recv_stop(&wrap->handle_);
   args.GetReturnValue().Set(r);
-}
-
-
-void UDPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  struct sockaddr_storage address;
-  UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> obj = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_udp_getsockname(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, obj);
-  }
-
-  args.GetReturnValue().Set(err);
 }
 
 

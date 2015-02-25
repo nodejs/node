@@ -98,8 +98,10 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "connect", Connect);
   env->SetProtoMethod(t, "bind6", Bind6);
   env->SetProtoMethod(t, "connect6", Connect6);
-  env->SetProtoMethod(t, "getsockname", GetSockName);
-  env->SetProtoMethod(t, "getpeername", GetPeerName);
+  env->SetProtoMethod(t, "getsockname",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+  env->SetProtoMethod(t, "getpeername",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
   env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
 
@@ -159,50 +161,6 @@ TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
 
 TCPWrap::~TCPWrap() {
   CHECK(persistent().IsEmpty());
-}
-
-
-void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getsockname(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getpeername(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
 }
 
 
