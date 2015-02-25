@@ -30,6 +30,9 @@ class PipeWrap : public StreamWrap {
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  template <int (*F)(const uv_pipe_t*, char*, size_t*)>
+  static void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
+
 #ifdef _WIN32
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);

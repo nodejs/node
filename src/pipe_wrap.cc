@@ -89,6 +89,10 @@ void PipeWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "listen", Listen);
   env->SetProtoMethod(t, "connect", Connect);
   env->SetProtoMethod(t, "open", Open);
+  env->SetProtoMethod(t, "getpeername",
+                      GetSockOrPeerName<uv_pipe_getpeername>);
+  env->SetProtoMethod(t, "getsockname",
+                      GetSockOrPeerName<uv_pipe_getsockname>);
 
 #ifdef _WIN32
   env->SetProtoMethod(t, "setPendingInstances", SetPendingInstances);
@@ -273,6 +277,28 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
 
   args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
+}
+
+
+template <int (*F)(const uv_pipe_t*, char*, size_t*)>
+void PipeWrap::GetSockOrPeerName(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsObject());
+  char buffer[1024];
+  size_t size = sizeof(buffer);
+  const PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
+  const int err = F(&wrap->handle_, buffer, &size);
+  if (err == 0) {
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(buffer);
+    const String::NewStringType type = String::kNormalString;
+    Local<String> path =
+        String::NewFromOneByte(args.GetIsolate(), data, type, size);
+    Environment* env = Environment::GetCurrent(args);
+    Local<Object> out = args[0].As<Object>();
+    out->Set(env->address_string(), path);
+    out->Set(env->family_string(), env->pipe_string());
+  }
+  args.GetReturnValue().Set(err);
 }
 
 
