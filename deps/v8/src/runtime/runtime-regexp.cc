@@ -278,7 +278,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 }
 
 
-void FindOneByteStringIndices(Vector<const uint8_t> subject, char pattern,
+void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
                               ZoneList<int>* indices, unsigned int limit,
                               Zone* zone) {
   DCHECK(limit > 0);

@@ -3052,6 +3052,11 @@ void MarkCompactCollector::EvacuatePages() {
       // have an emergency page and the space still has room for that.
       if (space->HasEmergencyMemory() && space->CanExpand()) {
         EvacuateLiveObjectsFromPage(p);
+        // Unlink the page from the list of pages here. We must not iterate
+        // over that page later (e.g. when scan on scavenge pages are
+        // processed). The page itself will be freed later and is still
+        // reachable from the evacuation candidates list.
+        p->Unlink();
       } else {
         // Without room for expansion evacuation is not guaranteed to succeed.
         // Pessimistically abandon unevacuated pages.

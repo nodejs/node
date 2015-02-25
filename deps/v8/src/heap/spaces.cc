@@ -1142,7 +1142,12 @@ void PagedSpace::ReleasePage(Page* page) {
     allocation_info_.set_limit(NULL);
   }
 
-  page->Unlink();
+  // If page is still in a list, unlink it from that list.
+  if (page->next_chunk() != NULL) {
+    DCHECK(page->prev_chunk() != NULL);
+    page->Unlink();
+  }
+
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
   } else {
