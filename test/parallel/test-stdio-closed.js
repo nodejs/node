@@ -13,6 +13,7 @@ if (process.argv[2] === 'child') {
       process.exit(42);
     });
   });
+  return;
 }
 
 // Run the script in a shell but close stdout and stderr.
