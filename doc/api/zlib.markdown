@@ -1,6 +1,6 @@
 # Zlib
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 You can access this module with:
 

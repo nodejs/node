@@ -1,6 +1,6 @@
 # Stream
 
-    Stability: 2 - Unstable
+    Stability: 2 - Stable
 
 A stream is an abstract interface implemented by various objects in
 io.js.  For example a [request to an HTTP

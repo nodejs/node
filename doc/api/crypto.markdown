@@ -1,7 +1,6 @@
 # Crypto
 
-    Stability: 2 - Unstable; API changes are being discussed for
-    future versions.  Breaking changes will be minimized.  See below.
+    Stability: 2 - Stable
 
 Use `require('crypto')` to access this module.
 

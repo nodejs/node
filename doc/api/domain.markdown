@@ -1,6 +1,6 @@
 # Domain
 
-    Stability: 2 - Unstable
+    Stability: 0 - Deprecated
 
 **This module is pending deprecation**. Once a replacement API has been
 finalized, this module will be fully deprecated. Most end users should

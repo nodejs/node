@@ -1,6 +1,6 @@
 # HTTP
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 To use the HTTP server and client one must `require('http')`.
 

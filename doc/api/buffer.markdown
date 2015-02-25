@@ -1,6 +1,6 @@
 # Buffer
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 Pure JavaScript is Unicode friendly but not nice to binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet

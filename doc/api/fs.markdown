@@ -1,6 +1,6 @@
 # File System
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 <!--name=fs-->
 

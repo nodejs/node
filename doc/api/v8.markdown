@@ -1,6 +1,6 @@
 # V8
 
-    Stability: 1 - Experimental
+    Stability: 2 - Stable
 
 This module exposes events and interfaces specific to the version of [V8][]
 built with io.js.  These interfaces are subject to change by upstream and are
