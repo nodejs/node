@@ -1306,10 +1306,12 @@ void ObjectTemplate::SetAccessor(v8::Handle<Name> name,
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
           typename Enumerator>
-static void ObjectTemplateSetNamedPropertyHandler(
-    ObjectTemplate* templ, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Handle<Value> data,
-    bool can_intercept_symbols, PropertyHandlerFlags flags) {
+static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
+                                                  Getter getter, Setter setter,
+                                                  Query query, Deleter remover,
+                                                  Enumerator enumerator,
+                                                  Handle<Value> data,
+                                                  bool can_intercept_symbols) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -1317,8 +1319,10 @@ static void ObjectTemplateSetNamedPropertyHandler(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(templ)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  auto obj = i::Handle<i::InterceptorInfo>::cast(
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
+  i::Handle<i::Struct> struct_obj =
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
+  i::Handle<i::InterceptorInfo> obj =
+      i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
   if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
   if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
@@ -1327,8 +1331,6 @@ static void ObjectTemplateSetNamedPropertyHandler(
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
   obj->set_flags(0);
   obj->set_can_intercept_symbols(can_intercept_symbols);
-  obj->set_all_can_read(static_cast<int>(flags) &
-                        static_cast<int>(PropertyHandlerFlags::kAllCanRead));
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
@@ -1343,16 +1345,15 @@ void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Handle<Value> data) {
   ObjectTemplateSetNamedPropertyHandler(this, getter, setter, query, remover,
-                                        enumerator, data, false,
-                                        PropertyHandlerFlags::kNone);
+                                        enumerator, data, false);
 }
 
 
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
-  ObjectTemplateSetNamedPropertyHandler(
-      this, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.data, true, config.flags);
+  ObjectTemplateSetNamedPropertyHandler(this, config.getter, config.setter,
+                                        config.query, config.deleter,
+                                        config.enumerator, config.data, true);
 }
 
 
@@ -1408,8 +1409,10 @@ void ObjectTemplate::SetHandler(
   i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
       Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  auto obj = i::Handle<i::InterceptorInfo>::cast(
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
+  i::Handle<i::Struct> struct_obj =
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
+  i::Handle<i::InterceptorInfo> obj =
+      i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
   if (config.getter != 0) SET_FIELD_WRAPPED(obj, set_getter, config.getter);
   if (config.setter != 0) SET_FIELD_WRAPPED(obj, set_setter, config.setter);
@@ -1419,8 +1422,6 @@ void ObjectTemplate::SetHandler(
     SET_FIELD_WRAPPED(obj, set_enumerator, config.enumerator);
   }
   obj->set_flags(0);
-  obj->set_all_can_read(static_cast<int>(config.flags) &
-                        static_cast<int>(PropertyHandlerFlags::kAllCanRead));
 
   v8::Local<v8::Value> data = config.data;
   if (data.IsEmpty()) {
