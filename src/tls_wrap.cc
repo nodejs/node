@@ -9,6 +9,8 @@
 #include "node_wrap.h"  // WithGenericStream
 #include "node_counters.h"
 #include "node_internals.h"
+#include "stream_base.h"
+#include "stream_base-inl.h"
 #include "util.h"
 #include "util-inl.h"
 
