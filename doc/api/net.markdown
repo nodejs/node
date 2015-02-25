@@ -1,6 +1,6 @@
 # net
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 The `net` module provides you with an asynchronous network wrapper. It contains
 methods for creating both servers and clients (called streams). You can include

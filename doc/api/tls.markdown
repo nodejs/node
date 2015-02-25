@@ -1,6 +1,6 @@
 # TLS (SSL)
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 Use `require('tls')` to access this module.
 

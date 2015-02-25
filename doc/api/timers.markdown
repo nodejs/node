@@ -1,6 +1,6 @@
 # Timers
 
-    Stability: 5 - Locked
+    Stability: 3 - Locked
 
 All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.

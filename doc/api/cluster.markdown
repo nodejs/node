@@ -1,6 +1,6 @@
 # Cluster
 
-    Stability: 2 - Unstable
+    Stability: 2 - Stable
 
 A single instance of io.js runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of io.js

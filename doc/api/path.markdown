@@ -1,6 +1,6 @@
 # Path
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 This module contains utilities for handling and transforming file
 paths.  Almost all these methods perform only string transformations.

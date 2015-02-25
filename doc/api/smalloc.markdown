@@ -1,6 +1,6 @@
 # Smalloc
 
-    Stability: 1 - Experimental
+    Stability: 2 - Stable
 
 ## Class: smalloc
 

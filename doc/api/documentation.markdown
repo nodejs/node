@@ -42,34 +42,20 @@ compatibility should not be expected.
 
 ```
 Stability: 1 - Experimental
-This feature was introduced recently, and may change
-or be removed in future versions.  Please try it out and provide feedback.
-If it addresses a use-case that is important to you, tell the node core team.
+This feature is subject to change, and is gated by a command line flag.
+It may change or be removed in future versions.
 ```
 
 ```
-Stability: 2 - Unstable
-The API is in the process of settling, but has not yet had
-sufficient real-world testing to be considered stable. Backwards-compatibility
-will be maintained if reasonable.
+Stability: 2 - Stable
+The API has proven satisfactory. Compatibility with the npm ecosystem
+is a high priority, and will not be broken unless absolutely necessary.
 ```
 
 ```
-Stability: 3 - Stable
-The API has proven satisfactory, but cleanup in the underlying
-code may cause minor changes.  Backwards-compatibility is guaranteed.
-```
-
-```
-Stability: 4 - API Frozen
-This API has been tested extensively in production and is
-unlikely to ever have to change.
-```
-
-```
-Stability: 5 - Locked
-Unless serious bugs are found, this code will not ever
-change.  Please do not suggest changes in this area; they will be refused.
+Stability: 3 - Locked
+Only fixes related to security, performance, or bug fixes will be accepted.
+Please do not suggest API changes in this area; they will be refused.
 ```
 
 ## JSON Output

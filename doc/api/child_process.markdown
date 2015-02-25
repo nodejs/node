@@ -1,6 +1,6 @@
 # Child Process
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 io.js provides a tri-directional `popen(3)` facility through the
 `child_process` module.
