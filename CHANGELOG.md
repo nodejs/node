@@ -1,5 +1,71 @@
 # io.js ChangeLog
 
+## 2015-02-26, Version 1.4.1, @rvagg
+
+_Note: version **1.4.0** was tagged and built but not released. A libuv bug was discovered in the process so the release was aborted. The tag was straight after [`a558cd0a61`](https://github.com/iojs/io.js/commit/a558cd0a61) but has since been removed. We have jumped to 1.4.1 to avoid confusion._
+
+### Notable changes
+
+* **process** / **promises**: An`'unhandledRejection'` event is now emitted on `process` whenever a `Promise` is rejected and no error handler is attached to the `Promise` within a turn of the event loop. A `'rejectionHandled'` event is now emitted whenever a `Promise` was rejected and an error handler was attached to it later than after an event loop turn. See the [process](https://iojs.org/api/process.html) documentation for more detail. [#758](https://github.com/iojs/io.js/pull/758) (Petka Antonov)
+* **streams**: you can now use regular streams as an underlying socket for `tls.connect()` [#926](https://github.com/iojs/io.js/pull/926) (Fedor Indutny)
+* **http**: A new `'abort'` event emitted when a `http.ClientRequest` is aborted by the client. [#945](https://github.com/iojs/io.js/pull/945) (Evan Lucas)
+* **V8**: Upgrade V8 to 4.1.0.21. Includes an embargoed fix, details should be available at https://code.google.com/p/chromium/issues/detail?id=430201 when embargo is lifted. A breaking ABI change has been held back from this upgrade, possibly to be included when io.js merges V8 4.2. See [#952](https://github.com/iojs/io.js/pull/952) for discussion.
+* **npm**: Upgrade npm to 2.6.0. Includes features to support the new registry and to prepare for `npm@3`. See [npm CHANGELOG.md](https://github.com/npm/npm/blob/master/CHANGELOG.md#v260-2015-02-12) for details. Summary:
+  * [`38c4825`](https://github.com/npm/npm/commit/38c48254d3d217b4babf5027cb39492be4052fc2) [#5068](https://github.com/npm/npm/issues/5068) Add new logout command, and make it do something useful on both bearer-based and basic-based authed clients. ([@othiym23](https://github.com/othiym23))
+  * [`c8e08e6`](https://github.com/npm/npm/commit/c8e08e6d91f4016c80f572aac5a2080df0f78098) [#6565](https://github.com/npm/npm/issues/6565) Warn that `peerDependency` behavior is changing and add a note to the docs. ([@othiym23](https://github.com/othiym23))
+  * [`7c81a5f`](https://github.com/npm/npm/commit/7c81a5f5f058941f635a92f22641ea68e79b60db) [#7171](https://github.com/npm/npm/issues/7171) Warn that `engineStrict` in `package.json` will be going away in the next major version of npm (coming soon!) ([@othiym23](https://github.com/othiym23))
+* **libuv**: Upgrade to 1.4.2. See [libuv ChangeLog](https://github.com/libuv/libuv/blob/v1.x/ChangeLog) for details of fixes.
+
+### Known issues
+
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`8a1e22af3a`](https://github.com/iojs/io.js/commit/8a1e22af3a)] - **benchmark**: pass execArgv to the benchmarking process (Petka Antonov) [#928](https://github.com/iojs/io.js/pull/928)
+* [[`234e6916b8`](https://github.com/iojs/io.js/commit/234e6916b8)] - **build**: Fix incorrect reference (Johan Bergström) [#924](https://github.com/iojs/io.js/pull/924)
+* [[`e00c938d24`](https://github.com/iojs/io.js/commit/e00c938d24)] - **build**: make test-ci output TAP to stdout and log (Rod Vagg) [#938](https://github.com/iojs/io.js/pull/938)
+* [[`b2a0d8f65e`](https://github.com/iojs/io.js/commit/b2a0d8f65e)] - **deps**: update libuv to 1.4.2 (Ben Noordhuis) [#966](https://github.com/iojs/io.js/pull/966)
+* [[`a558cd0a61`](https://github.com/iojs/io.js/commit/a558cd0a61)] - **deps**: revert v8 abi change (Ben Noordhuis) [#952](https://github.com/iojs/io.js/pull/952)
+* [[`54532a9761`](https://github.com/iojs/io.js/commit/54532a9761)] - **deps**: fix postmortem support in v8 (Fedor Indutny) [#706](https://github.com/iojs/io.js/pull/706)
+* [[`78f4837926`](https://github.com/iojs/io.js/commit/78f4837926)] - **deps**: upgrade v8 to 4.1.0.21 (Ben Noordhuis) [#952](https://github.com/iojs/io.js/pull/952)
+* [[`739fda16a9`](https://github.com/iojs/io.js/commit/739fda16a9)] - **deps**: update libuv to 1.4.1 (Ben Noordhuis) [#940](https://github.com/iojs/io.js/pull/940)
+* [[`da730c76e9`](https://github.com/iojs/io.js/commit/da730c76e9)] - **deps**: enable node-gyp iojs.lib download checksum (Ben Noordhuis) [#918](https://github.com/iojs/io.js/pull/918)
+* [[`97b424365a`](https://github.com/iojs/io.js/commit/97b424365a)] - **deps**: make node-gyp work again on windows (Bert Belder)
+* [[`19e3d5e10a`](https://github.com/iojs/io.js/commit/19e3d5e10a)] - **deps**: make node-gyp fetch tarballs from iojs.org (Ben Noordhuis) [#343](https://github.com/iojs/io.js/pull/343)
+* [[`1e2fa1537f`](https://github.com/iojs/io.js/commit/1e2fa1537f)] - **deps**: upgrade npm to 2.6.0 (Forrest L Norvell) [#904](https://github.com/iojs/io.js/pull/904)
+* [[`2e2cf81476`](https://github.com/iojs/io.js/commit/2e2cf81476)] - **doc**: fix process.stdout reference to console.log (Brendan Ashworth) [#964](https://github.com/iojs/io.js/pull/964)
+* [[`2e63bad7eb`](https://github.com/iojs/io.js/commit/2e63bad7eb)] - **doc**: link & formatting of SHAs in commit list (Tim Oxley) [#967](https://github.com/iojs/io.js/pull/967)
+* [[`c5050d8e4d`](https://github.com/iojs/io.js/commit/c5050d8e4d)] - **doc**: fix 'dhparam' description of tls.createServer (silverwind) [#968](https://github.com/iojs/io.js/pull/968)
+* [[`06ee782f24`](https://github.com/iojs/io.js/commit/06ee782f24)] - **doc**: document 'unhandledRejection' and 'rejectionHandled' (Benjamin Gruenbaum) [#946](https://github.com/iojs/io.js/pull/946)
+* [[`b65dade102`](https://github.com/iojs/io.js/commit/b65dade102)] - **doc**: update documentation.markdown for io.js. (Ryan Scheel) [#950](https://github.com/iojs/io.js/pull/950)
+* [[`87e4bfd582`](https://github.com/iojs/io.js/commit/87e4bfd582)] - **doc**: link cluster worker.send() to child.send() (Sam Roberts) [#839](https://github.com/iojs/io.js/pull/839)
+* [[`cb22bc9b8a`](https://github.com/iojs/io.js/commit/cb22bc9b8a)] - **doc**: fix footer sizing (Jeremiah Senkpiel) [#860](https://github.com/iojs/io.js/pull/860)
+* [[`3ab9b92e90`](https://github.com/iojs/io.js/commit/3ab9b92e90)] - **doc**: fix stream `_writev` header size (René Kooi) [#916](https://github.com/iojs/io.js/pull/916)
+* [[`4fcbb8aaaf`](https://github.com/iojs/io.js/commit/4fcbb8aaaf)] - **doc**: use HTTPS URL for the API documentation page (Shinnosuke Watanabe) [#913](https://github.com/iojs/io.js/pull/913)
+* [[`329f364ea2`](https://github.com/iojs/io.js/commit/329f364ea2)] - **doc**: fix PR reference in CHANGELOG (Brian White) [#903](https://github.com/iojs/io.js/pull/903)
+* [[`0ac57317aa`](https://github.com/iojs/io.js/commit/0ac57317aa)] - **doc**: fix typo, rephrase cipher change in CHANGELOG (Rod Vagg) [#902](https://github.com/iojs/io.js/pull/902)
+* [[`1f40b2a636`](https://github.com/iojs/io.js/commit/1f40b2a636)] - **fs**: add type checking to makeCallback() (cjihrig) [#866](https://github.com/iojs/io.js/pull/866)
+* [[`c82e580a50`](https://github.com/iojs/io.js/commit/c82e580a50)] - **fs**: properly handle fd passed to truncate() (Bruno Jouhier) [joyent/node#9161](https://github.com/joyent/node/pull/9161)
+* [[`2ca22aacbd`](https://github.com/iojs/io.js/commit/2ca22aacbd)] - **(SEMVER-MINOR) http**: emit abort event from ClientRequest (Evan Lucas) [#945](https://github.com/iojs/io.js/pull/945)
+* [[`d8eb974a98`](https://github.com/iojs/io.js/commit/d8eb974a98)] - **net**: make Server.prototype.unref() persistent (cjihrig) [#897](https://github.com/iojs/io.js/pull/897)
+* [[`872702d9b7`](https://github.com/iojs/io.js/commit/872702d9b7)] - **(SEMVER-MINOR) node**: implement unhandled rejection tracking (Petka Antonov) [#758](https://github.com/iojs/io.js/pull/758)
+* [[`b41dbc2737`](https://github.com/iojs/io.js/commit/b41dbc2737)] - **readline**: use native `codePointAt` (Vladimir Kurchatkin) [#825](https://github.com/iojs/io.js/pull/825)
+* [[`26ebe9805e`](https://github.com/iojs/io.js/commit/26ebe9805e)] - **smalloc**: extend user API (Trevor Norris) [#905](https://github.com/iojs/io.js/pull/905)
+* [[`e435a0114d`](https://github.com/iojs/io.js/commit/e435a0114d)] - **src**: fix intermittent SIGSEGV in resolveTxt (Evan Lucas) [#960](https://github.com/iojs/io.js/pull/960)
+* [[`0af4c9ea74`](https://github.com/iojs/io.js/commit/0af4c9ea74)] - **src**: fix domains + --abort-on-uncaught-exception (Chris Dickinson) [#922](https://github.com/iojs/io.js/pull/922)
+* [[`89e133a1d8`](https://github.com/iojs/io.js/commit/89e133a1d8)] - **stream_base**: remove static JSMethod declarations (Fedor Indutny) [#957](https://github.com/iojs/io.js/pull/957)
+* [[`b9686233fc`](https://github.com/iojs/io.js/commit/b9686233fc)] - **stream_base**: introduce StreamBase (Fedor Indutny) [#840](https://github.com/iojs/io.js/pull/840)
+* [[`1738c77835`](https://github.com/iojs/io.js/commit/1738c77835)] - **(SEMVER-MINOR) streams**: introduce StreamWrap and JSStream (Fedor Indutny) [#926](https://github.com/iojs/io.js/pull/926)
+* [[`506c7fd40b`](https://github.com/iojs/io.js/commit/506c7fd40b)] - **test**: fix infinite spawn cycle in stdio test (Ben Noordhuis) [#948](https://github.com/iojs/io.js/pull/948)
+* [[`a7bdce249c`](https://github.com/iojs/io.js/commit/a7bdce249c)] - **test**: support writing test output to file (Johan Bergström) [#934](https://github.com/iojs/io.js/pull/934)
+* [[`0df54303c1`](https://github.com/iojs/io.js/commit/0df54303c1)] - **test**: common.js -> common (Brendan Ashworth) [#917](https://github.com/iojs/io.js/pull/917)
+* [[`ed3b057e9f`](https://github.com/iojs/io.js/commit/ed3b057e9f)] - **util**: handle symbols properly in format() (cjihrig) [#931](https://github.com/iojs/io.js/pull/931)
+
+
 ## 2015-02-20, Version 1.3.0, @rvagg
 
 ### Notable changes
