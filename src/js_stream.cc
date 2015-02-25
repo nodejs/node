@@ -5,6 +5,7 @@
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "stream_base.h"
+#include "stream_base-inl.h"
 #include "v8.h"
 
 namespace node {
