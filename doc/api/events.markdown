@@ -1,6 +1,6 @@
 # Events
 
-    Stability: 4 - API Frozen
+    Stability: 2 - Stable
 
 <!--type=module-->
 

@@ -1,6 +1,6 @@
 # OS
 
-    Stability: 4 - API Frozen
+    Stability: 2 - Stable
 
 Provides a few basic operating-system related utility functions.
 

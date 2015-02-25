@@ -1,6 +1,6 @@
 # StringDecoder
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 To use this module, do `require('string_decoder')`. StringDecoder decodes a
 buffer to a string. It is a simple interface to `buffer.toString()` but provides

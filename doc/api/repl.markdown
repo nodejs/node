@@ -1,6 +1,6 @@
 # REPL
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 A Read-Eval-Print-Loop (REPL) is available both as a standalone program and
 easily includable in other programs. The REPL provides a way to interactively
