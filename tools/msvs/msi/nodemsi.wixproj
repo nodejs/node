@@ -74,8 +74,8 @@
   <PropertyGroup>
     <PostBuildEvent>
       "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)de-de\$(TargetFileName)" -out "$(TargetDir)transforms\de-de.mst"
-      cscript.exe WiSubStg.vbs "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
-      cscript.exe WiLangId.vbs "$(TargetDir)en-US\$(TargetFileName)" Package 1033,1031
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiLangId.vbs" "$(TargetDir)en-US\$(TargetFileName)" Package 1033,1031
     </PostBuildEvent>
   </PropertyGroup>
 </Project>
