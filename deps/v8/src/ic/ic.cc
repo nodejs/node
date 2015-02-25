@@ -2924,7 +2924,7 @@ RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::GetElementWithInterceptor(receiver, receiver, index, true));
+      JSObject::GetElementWithInterceptor(receiver, receiver, index));
   return *result;
 }
 
