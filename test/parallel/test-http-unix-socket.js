@@ -9,6 +9,7 @@ var headers_ok = false;
 var body_ok = false;
 
 var server = http.createServer(function(req, res) {
+  assert.equal(req.socket.address().address, common.PIPE);
   res.writeHead(200, {
     'Content-Type': 'text/plain',
     'Connection': 'close'
@@ -19,6 +20,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PIPE, function() {
+  assert.equal(server.address().address, common.PIPE);
 
   var options = {
     socketPath: common.PIPE,
