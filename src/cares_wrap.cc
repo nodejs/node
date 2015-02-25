@@ -611,8 +611,9 @@ class QueryTxtWrap: public QueryWrap {
       }
       txt_chunk->Set(j++, txt);
     }
-    // Push last chunk
-    txt_records->Set(i, txt_chunk);
+    // Push last chunk if it isn't empty
+    if (!txt_chunk.IsEmpty())
+      txt_records->Set(i, txt_chunk);
 
     ares_free_data(txt_out);
 
