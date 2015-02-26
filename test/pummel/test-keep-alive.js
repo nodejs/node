@@ -39,11 +39,9 @@ function runAb(opts, callback) {
 
   args.push(url.format({ hostname: '127.0.0.1', port: common.PORT, protocol: 'http'}));
 
-  var comm = path.join(__dirname, '..', '..', 'tools', 'wrk', 'wrk');
-
   //console.log(comm, args.join(' '));
 
-  var child = spawn(comm, args);
+  var child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);
   child.stdout.setEncoding('utf8');
 

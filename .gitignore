@@ -71,8 +71,6 @@ deps/zlib/zlib.target.mk
 /*.tar.*
 /SHASUMS*.txt*
 
-/tools/wrk/wrk
-
 # test artifacts
 tools/faketime
 icu_config.gypi
