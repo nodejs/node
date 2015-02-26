@@ -236,10 +236,10 @@ emulation with `process.kill()`, and `child_process.kill()`:
 
 A `Writable Stream` to `stdout` (on fd `1`).
 
-Example: the definition of `console.log`
+For example, a `console.log` equivalent could look like this:
 
-    console.log = function(d) {
-      process.stdout.write(d + '\n');
+    console.log = function(msg) {
+      process.stdout.write(msg + '\n');
     };
 
 `process.stderr` and `process.stdout` are unlike other streams in io.js in
