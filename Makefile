@@ -121,7 +121,7 @@ test-message: test-build
 test-simple: all
 	$(PYTHON) tools/test.py parallel sequential
 
-test-pummel: all wrk
+test-pummel: all
 	$(PYTHON) tools/test.py pummel
 
 test-internet: all
@@ -328,13 +328,12 @@ $(PKGSRC): release-only
 
 pkgsrc: $(PKGSRC)
 
-wrkclean:
-	$(MAKE) -C tools/wrk/ clean
-	rm tools/wrk/wrk
-
-wrk: tools/wrk/wrk
-tools/wrk/wrk:
-	$(MAKE) -C tools/wrk/
+haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
+wrk:
+ifneq ($(haswrk), 0)
+	@echo "please install wrk before proceeding"; >&2
+	@exit 1
+endif
 
 bench-net: all
 	@$(NODE) benchmark/common.js net

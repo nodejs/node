@@ -79,14 +79,13 @@ function Benchmark(fn, options) {
 // benchmark an http server.
 Benchmark.prototype.http = function(p, args, cb) {
   var self = this;
-  var wrk = path.resolve(__dirname, '..', 'tools', 'wrk', 'wrk');
   var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
   var url = 'http://127.0.0.1:' + exports.PORT + p;
 
   args = args.concat(url);
 
   var out = '';
-  var child = spawn(wrk, args);
+  var child = spawn('wrk', args);
 
   child.stdout.setEncoding('utf8');
 
