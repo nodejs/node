@@ -35,7 +35,12 @@ var winPaths = [
   '\\\\server two\\shared folder\\file path.zip',
   '\\\\teela\\admin$\\system32',
   '\\\\?\\UNC\\server\\share'
+];
 
+var winSpecialCaseFormatTests = [
+  [{dir: 'some\\dir'}, 'some\\dir\\'],
+  [{base: 'index.html'}, 'index.html'],
+  [{}, '']
 ];
 
 var unixPaths = [
@@ -48,6 +53,12 @@ var unixPaths = [
   '.\\file',
   './file',
   'C:\\foo'
+];
+
+var unixSpecialCaseFormatTests = [
+  [{dir: 'some/dir'}, 'some/dir/'],
+  [{base: 'index.html'}, 'index.html'],
+  [{}, '']
 ];
 
 var errors = [
@@ -65,10 +76,12 @@ var errors = [
   {method: 'format', input: [{root: 12}], message: /'pathObject.root' must be a string or undefined, not number/},
 ];
 
-check(path.win32, winPaths);
-check(path.posix, unixPaths);
+checkParseFormat(path.win32, winPaths);
+checkParseFormat(path.posix, unixPaths);
 checkErrors(path.win32);
 checkErrors(path.posix);
+checkFormat(path.win32, winSpecialCaseFormatTests);
+checkFormat(path.posix, unixSpecialCaseFormatTests);
 
 function checkErrors(path) {
   errors.forEach(function(errorCase) {
@@ -87,13 +100,18 @@ function checkErrors(path) {
   });
 }
 
-
-function check(path, paths) {
+function checkParseFormat(path, paths) {
   paths.forEach(function(element, index, array) {
     var output = path.parse(element);
     assert.strictEqual(path.format(output), element);
     assert.strictEqual(output.dir, output.dir ? path.dirname(element) : '');
     assert.strictEqual(output.base, path.basename(element));
     assert.strictEqual(output.ext, path.extname(element));
+  });
+}
+
+function checkFormat(path, testCases) {
+  testCases.forEach(function(testCase) {
+    assert.strictEqual(path.format(testCase[0]), testCase[1]);
   });
 }
