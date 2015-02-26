@@ -159,39 +159,59 @@ event:
       return reportToUser(JSON.pasre(res)); // note the typo
     }); // no `.catch` or `.then`
 
+Here is an example of a coding pattern that will also trigger
+`'unhandledRejection'`:
+
+    function SomeResource() {
+      // Initially set the loaded status to a rejected promise
+      this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
+    }
+
+    var resource = new SomeResource();
+    // no .catch or .then on resource.loaded for at least a turn
+
+To deal with cases like this, which you likely don't want to track as developer
+error in the same way as other `'unhandledRejection'` events, you can either
+attach a dummy `.catch(function() { })` handler to `resource.loaded`,
+preventing the `'unhandledRejection'` event from being emitted, or you can use
+the 'rejectionHandled' event.
+
 ## Event: 'rejectionHandled'
 
 Emitted whenever a Promise was rejected and an error handler was attached to it
 (for example with `.catch()`) later than after an event loop turn. This event
 is emitted with the following arguments:
 
- - `p` the promise that was previously emitted in an 'unhandledRejection'
+ - `p` the promise that was previously emitted in an `'unhandledRejection'`
  event, but which has now gained a rejection handler.
 
 There is no notion of a top level for a promise chain at which rejections can
 always be handled. Being inherently asynchronous in nature, a promise rejection
 can be be handled at a future point in time — possibly much later than the
-event loop turn it takes for the 'unhandledRejection' event to be emitted.
+event loop turn it takes for the `'unhandledRejection'` event to be emitted.
 
 Another way of stating this is that, unlike in synchronous code where there is
 an ever-growing list of unhandled exceptions, with promises there is a
 growing-and-shrinking list of unhandled rejections. In synchronous code, the
 'uncaughtException' event tells you when the list of unhandled exceptions
-grows. And in asynchronous code, the 'unhandledRejection' event tells you
+grows. And in asynchronous code, the `'unhandledRejection'` event tells you
 when the list of unhandled rejections grows, while the 'rejectionHandled'
 event tells you when the list of unhandled rejections shrinks.
 
 For example using the rejection detection hooks in order to keep a list of all
 the rejected promises at a given time:
 
-    var unhandledRejections = [];
+    var unhandledRejections = new Set();
     process.on('unhandledRejection', function(reason, p) {
-        unhandledRejections.push(p);
+      unhandledRejections.add(p);
     });
     process.on('rejectionHandled', function(p) {
-        var index = unhandledRejections.indexOf(p);
-        unhandledRejections.splice(index, 1);
+      unhandledRejections.delete(p);
     });
+
+You could then record this list in some error log, either periodically or upon
+process exit. This would avoid the false positive seen in the above resource
+example.
 
 ## Signal Events
 
