@@ -137,12 +137,28 @@ Here is an example that logs every unhandled rejection to the console
         // application specific logging, throwing an error, or other logic here
     });
 
-For example, here is a rejection that will trigger the `'unhandledRejection'`
+For example, here is a rejection that will trigger the 'unhandledRejection'
 event:
 
     somePromise.then(function(res) {
       return reportToUser(JSON.pasre(res)); // note the typo
     }); // no `.catch` or `.then`
+
+Here is an example of a coding pattern that will also trigger
+'unhandledRejection':
+
+    function SomeResource() {
+      // Initially set the loaded status to a rejected promise
+      this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
+    }
+
+    var resource = new SomeResource();
+    // no .catch or .then on resource.loaded for at least a turn
+
+To deal with cases like this, which are likely false positives, you can either
+attach a dummy `.catch(function() { })` handler to `resource.loaded`,
+preventing the 'unhandledRejection' event from being emitted, or you can use
+the 'rejectionHandled' event.
 
 ## Event: 'rejectionHandled'
 
@@ -169,14 +185,17 @@ event tells you when the list of unhandled rejections shrinks.
 For example using the rejection detection hooks in order to keep a list of all
 the rejected promises at a given time:
 
-    var unhandledRejections = [];
+    var unhandledRejections = new Set();
     process.on('unhandledRejection', function(reason, p) {
-        unhandledRejections.push(p);
+      unhandledRejections.add(p);
     });
     process.on('rejectionHandled', function(p) {
-        var index = unhandledRejections.indexOf(p);
-        unhandledRejections.splice(index, 1);
+      unhandledRejections.delete(p);
     });
+
+You could then record this list in some error log, either periodically or upon
+process exit. This would avoid the false positive seen in the above resource
+example.
 
 ## Signal Events
 
