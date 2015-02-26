@@ -158,9 +158,10 @@ automatically set as a listener for the [secureConnection][] event.  The
 
     Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
-  - `dhparam`: DH parameter file to use for DHE key agreement. Use
-    `openssl dhparam` command to create it. If the file is invalid to
-    load, it is silently discarded.
+  - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
+    required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
+    If omitted or invalid, it is silently discarded and DHE ciphers won't be
+    available.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.
