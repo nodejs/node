@@ -112,6 +112,7 @@ language.
 
 Membership is maintained by each language community.
 
+* [iojs-bg](http://github.com/iojs/iojs-bg)
 * [iojs-bn](http://github.com/iojs/iojs-bn)
 * [iojs-cn](http://github.com/iojs/iojs-cn)
 * [iojs-cs](http://github.com/iojs/iojs-cs)
@@ -129,7 +130,7 @@ Membership is maintained by each language community.
 * [iojs-it](http://github.com/iojs/iojs-it)
 * [iojs-ja](http://github.com/iojs/iojs-ja)
 * [iojs-ka](http://github.com/iojs/iojs-ka)
-* [iojs-kr](http://github.com/iojs/iojs-kr)
+* [iojs-ko](http://github.com/iojs/iojs-ko)
 * [iojs-mk](http://github.com/iojs/iojs-mk)
 * [iojs-nl](http://github.com/iojs/iojs-nl)
 * [iojs-no](http://github.com/iojs/iojs-no)
@@ -138,9 +139,11 @@ Membership is maintained by each language community.
 * [iojs-ro](http://github.com/iojs/iojs-ro)
 * [iojs-ru](http://github.com/iojs/iojs-ru)
 * [iojs-sv](http://github.com/iojs/iojs-sv)
+* [iojs-ta](http://github.com/iojs/iojs-ta)
 * [iojs-tr](http://github.com/iojs/iojs-tr)
 * [iojs-tw](http://github.com/iojs/iojs-tw)
 * [iojs-uk](http://github.com/iojs/iojs-uk)
+* [iojs-vi](http://github.com/iojs/iojs-vi)
 
 ### Evangelism
 
