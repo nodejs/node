@@ -277,12 +277,14 @@ $(PKG): release-only
 	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 $(TARBALL): release-only $(NODE_EXE) doc
-	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
+	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/iojs.1 $(TARNAME)/doc/iojs.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
-	rm -rf $(TARNAME)/deps/v8/test # too big
+	rm -rf $(TARNAME)/deps/v8/{test,samples,tools/profviz} # too big
 	rm -rf $(TARNAME)/doc/images # too big
+	rm -rf $(TARNAME)/deps/uv/{docs,samples,test}
+	rm -rf $(TARNAME)/deps/openssl/{doc,demos,test}
 	rm -rf $(TARNAME)/deps/zlib/contrib # too big, unused
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
