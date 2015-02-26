@@ -18,6 +18,17 @@ var s = http.createServer(function(req, res) {
   }
   assert.ok(threw, 'Non-string names should throw');
 
+  // undefined value should throw, via 979d0ca8
+  threw = false;
+  try {
+    res.setHeader('foo', undefined);
+  } catch (e) {
+    assert.ok(e instanceof Error);
+    assert.equal(e.message, '`value` required in setHeader("foo", value).');
+    threw = true;
+  }
+  assert.ok(threw, 'Undefined value should throw');
+
   res.writeHead(200, { Test: '2' });
   res.end();
 });
