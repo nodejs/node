@@ -1,37 +1,30 @@
+// Flags: --abort_on_uncaught_exception
+
 var common = require('../common');
 var assert = require('assert');
-var spawn = require('child_process').spawn;
+var domain = require('domain');
 
 var tests = [
   nextTick,
   timer,
   timerPlusNextTick,
+  netServer,
   firstRun,
-  netServer
-]
+];
 
-tests.forEach(function(test) {
-  console.log(test.name);
-  var child = spawn(process.execPath, [
-    '--abort-on-uncaught-exception',
-    '-e',
-    '(' + test + ')()',
-    common.PORT
-  ]);
-  child.stderr.pipe(process.stderr);
-  child.stdout.pipe(process.stdout);
-  child.on('exit', function(code) {
-    assert.strictEqual(code, 0);
-  });
+var errors = 0;
+
+process.on('exit', function() {
+  assert.equal(errors, tests.length);
 });
 
+tests.forEach(function(test) { test(); })
+
 function nextTick() {
-  var domain = require('domain');
   var d = domain.create();
 
-  d.on('error', function(err) {
-    console.log('ok');
-    process.exit(0);
+  d.once('error', function(err) {
+    errors += 1;
   });
   d.run(function() {
     process.nextTick(function() {
@@ -41,12 +34,10 @@ function nextTick() {
 }
 
 function timer() {
-  var domain = require('domain');
   var d = domain.create();
 
   d.on('error', function(err) {
-    console.log('ok');
-    process.exit(0);
+    errors += 1;
   });
   d.run(function() {
     setTimeout(function() {
@@ -56,12 +47,10 @@ function timer() {
 }
 
 function timerPlusNextTick() {
-  var domain = require('domain');
   var d = domain.create();
 
   d.on('error', function(err) {
-    console.log('ok');
-    process.exit(0);
+    errors += 1;
   });
   d.run(function() {
     setTimeout(function() {
@@ -73,12 +62,10 @@ function timerPlusNextTick() {
 }
 
 function firstRun() {
-  var domain = require('domain');
   var d = domain.create();
 
   d.on('error', function(err) {
-    console.log('ok');
-    process.exit(0);
+    errors += 1;
   });
   d.run(function() {
     throw new Error('exceptional!');
@@ -86,24 +73,23 @@ function firstRun() {
 }
 
 function netServer() {
-  var domain = require('domain');
   var net = require('net');
   var d = domain.create();
 
   d.on('error', function(err) {
-    console.log('ok');
-    process.exit(0);
+    errors += 1;
   });
   d.run(function() {
     var server = net.createServer(function(conn) {
       conn.pipe(conn);
     });
-    server.listen(Number(process.argv[1]), '0.0.0.0', function() {
-      var conn = net.connect(Number(process.argv[1]), '0.0.0.0')
+    server.listen(common.PORT, '0.0.0.0', function() {
+      var conn = net.connect(common.PORT, '0.0.0.0')
       conn.once('data', function() {
         throw new Error('ok');
       })
       conn.end('ok');
+      server.close();
     });
   });
 }
