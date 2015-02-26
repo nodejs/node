@@ -5,11 +5,7 @@ io.js APIs.
 
 ## prerequisites
 
-Most of the http benchmarks require `wrk` to be compiled beforehand.
-
-```sh
-make wrk
-```
+Most of the http benchmarks require `wrk` and `ab` being installed.
 
 ## How to run tests
 
