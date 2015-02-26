@@ -170,7 +170,7 @@ the same approval for changes as any other project asset.
 Their responsibilities are:
 * Attract and summarize user community needs and feedback.
 * Find or potentially create tools that allow for broader participation.
-* Create Pull Requests for relevant changes to [Roadmap.md]
+* Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
 
 The current members can be found in their
 [README](https://github.com/iojs/roadmap#people).
