@@ -195,8 +195,12 @@ If true, then only prints color codes for tty file descriptors.</p>
 <li>Default: Infinity</li>
 <li>Type: Number</li>
 </ul>
-<p>The depth to go when recursing directories for <code>npm ls</code> and
-<code>npm cache ls</code>.</p>
+<p>The depth to go when recursing directories for <code>npm ls</code>, 
+<code>npm cache ls</code>, and <code>npm outdated</code>.</p>
+<p>For <code>npm outdated</code>, a setting of <code>Infinity</code> will be treated as <code>0</code>
+since that gives more useful information.  To show the outdated status
+of all packages and dependents, use a large integer value,
+e.g., <code>npm outdated --depth 9999</code></p>
 <h3 id="description">description</h3>
 <ul>
 <li>Default: true</li>
