@@ -331,7 +331,7 @@ pkgsrc: $(PKGSRC)
 haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
 wrk:
 ifneq ($(haswrk), 0)
-	@echo "please install wrk before proceeding"; >&2
+	@echo "please install wrk before proceeding. More information can be found in benchmark/README.md." >&2
 	@exit 1
 endif
 
