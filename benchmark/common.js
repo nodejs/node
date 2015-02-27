@@ -1,7 +1,7 @@
 var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
-var spawn = require('child_process').spawn;
+var child_process = require('child_process');
 
 var silent = +process.env.NODE_BENCH_SILENT;
 
@@ -9,6 +9,7 @@ exports.PORT = process.env.PORT || 12346;
 
 // If this is the main module, then run the benchmarks
 if (module === require.main) {
+  hasWrk();
   var type = process.argv[2];
   var testFilter = process.argv[3];
   if (!type) {
@@ -36,6 +37,15 @@ if (module === require.main) {
   runBenchmarks();
 }
 
+function hasWrk() {
+  var result = child_process.spawnSync('wrk', ['-h']);
+  if (result.error.code === 'ENOENT') {
+    console.error('Couldn\'t locate `wrk` which is needed for running ' +
+      'benchmarks. Check benchmark/README.md for further instructions.');
+      process.exit(-1);
+  }
+}
+
 function runBenchmarks() {
   var test = tests.shift();
   if (!test)
@@ -48,7 +58,7 @@ function runBenchmarks() {
   test = path.resolve(dir, test);
 
   var a = (process.execArgv || []).concat(test);
-  var child = spawn(process.execPath, a, { stdio: 'inherit' });
+  var child = child_process.spawn(process.execPath, a, { stdio: 'inherit' });
   child.on('close', function(code) {
     if (code) {
       process.exit(code);
@@ -70,7 +80,10 @@ function Benchmark(fn, options) {
   this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
   this._start = [0,0];
   this._started = false;
+
   var self = this;
+
+  hasWrk();
   process.nextTick(function() {
     self._run();
   });
@@ -85,7 +98,7 @@ Benchmark.prototype.http = function(p, args, cb) {
   args = args.concat(url);
 
   var out = '';
-  var child = spawn('wrk', args);
+  var child = child_process.spawn('wrk', args);
 
   child.stdout.setEncoding('utf8');
 
@@ -145,7 +158,7 @@ Benchmark.prototype._run = function() {
     if (!argv)
       return;
     argv = process.execArgv.concat(argv);
-    var child = spawn(node, argv, { stdio: 'inherit' });
+    var child = child_process.spawn(node, argv, { stdio: 'inherit' });
     child.on('close', function(code, signal) {
       if (code)
         console.error('child process exited with code ' + code);
