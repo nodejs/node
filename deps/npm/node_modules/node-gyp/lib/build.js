@@ -173,7 +173,7 @@ function build (gyp, argv, callback) {
   }
 
   /**
-   * Copies the node.lib file for the current target architecture into the
+   * Copies the iojs.lib file for the current target architecture into the
    * current proper dev dir location.
    */
 
@@ -181,15 +181,15 @@ function build (gyp, argv, callback) {
     if (!win || !copyDevLib) return doBuild()
 
     var buildDir = path.resolve(nodeDir, buildType)
-      , archNodeLibPath = path.resolve(nodeDir, arch, 'node.lib')
-      , buildNodeLibPath = path.resolve(buildDir, 'node.lib')
+      , archNodeLibPath = path.resolve(nodeDir, arch, 'iojs.lib')
+      , buildNodeLibPath = path.resolve(buildDir, 'iojs.lib')
 
     mkdirp(buildDir, function (err, isNew) {
       if (err) return callback(err)
       log.verbose('"' + buildType + '" dir needed to be created?', isNew)
       var rs = fs.createReadStream(archNodeLibPath)
         , ws = fs.createWriteStream(buildNodeLibPath)
-      log.verbose('copying "node.lib" for ' + arch, buildNodeLibPath)
+      log.verbose('copying "iojs.lib" for ' + arch, buildNodeLibPath)
       rs.pipe(ws)
       rs.on('error', callback)
       ws.on('error', callback)
