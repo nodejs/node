@@ -321,7 +321,6 @@
         callback: runMicrotasksCallback,
         domain: null
       });
-
       tickInfo[kLength]++;
       microtasksScheduled = true;
     }
@@ -340,52 +339,59 @@
     function _tickCallback() {
       var callback, threw, tock;
 
-      scheduleMicrotasks();
-
-      while (tickInfo[kIndex] < tickInfo[kLength]) {
-        tock = nextTickQueue[tickInfo[kIndex]++];
-        callback = tock.callback;
-        threw = true;
-        try {
-          callback();
-          threw = false;
-        } finally {
-          if (threw)
+      do {
+        while (tickInfo[kIndex] < tickInfo[kLength]) {
+          tock = nextTickQueue[tickInfo[kIndex]++];
+          callback = tock.callback;
+          threw = true;
+          try {
+            callback();
+            threw = false;
+          } finally {
+            if (threw)
+              tickDone();
+          }
+          if (1e4 < tickInfo[kIndex])
             tickDone();
         }
-        if (1e4 < tickInfo[kIndex])
-          tickDone();
-      }
-
-      tickDone();
+        tickDone();
+        _runMicrotasks();
+        emitPendingUnhandledRejections();
+      } while (tickInfo[kLength] !== 0);
     }
 
     function _tickDomainCallback() {
       var callback, domain, threw, tock;
 
-      scheduleMicrotasks();
-
-      while (tickInfo[kIndex] < tickInfo[kLength]) {
-        tock = nextTickQueue[tickInfo[kIndex]++];
-        callback = tock.callback;
-        domain = tock.domain;
-        if (domain)
-          domain.enter();
-        threw = true;
-        try {
-          callback();
-          threw = false;
-        } finally {
-          if (threw)
+      do {
+        while (tickInfo[kIndex] < tickInfo[kLength]) {
+          tock = nextTickQueue[tickInfo[kIndex]++];
+          callback = tock.callback;
+          domain = tock.domain;
+          if (domain)
+            domain.enter();
+          threw = true;
+          try {
+            callback();
+            threw = false;
+          } finally {
+            if (threw)
+              tickDone();
+          }
+          if (1e4 < tickInfo[kIndex])
             tickDone();
+          if (domain)
+            domain.exit();
         }
-        if (1e4 < tickInfo[kIndex])
-          tickDone();
-        if (domain)
-          domain.exit();
-      }
+        tickDone();
+        _runMicrotasks();
+        emitPendingUnhandledRejections();
+      } while (tickInfo[kLength] !== 0);
+    }
 
-      tickDone();
+    function TickObject(c) {
+      this.callback = c;
+      this.domain = process.domain || null;
     }
 
     function nextTick(callback) {
@@ -393,12 +399,7 @@
       if (process._exiting)
         return;
 
-      var obj = {
-        callback: callback,
-        domain: process.domain || null
-      };
-
-      nextTickQueue.push(obj);
+      nextTickQueue.push(new TickObject(callback));
       tickInfo[kLength]++;
     }
 
