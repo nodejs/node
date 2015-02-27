@@ -8,5 +8,5 @@ setTimeout(function() {
   var ms = (hr[0] * 1e3) + (hr[1] / 1e6);
   var delta = ms - TIMEOUT;
   console.log('timer fired in', delta);
-  assert.ok(delta > 0, 'Timer fired early');
+  assert.ok(delta > -0.5, 'Timer fired early');
 }, TIMEOUT);
