@@ -340,8 +340,13 @@ Type: Number
 
 .RE
 .P
-The depth to go when recursing directories for \fBnpm ls\fR and
-\fBnpm cache ls\fR\|\.
+The depth to go when recursing directories for \fBnpm ls\fR, 
+\fBnpm cache ls\fR, and \fBnpm outdated\fR\|\.
+.P
+For \fBnpm outdated\fR, a setting of \fBInfinity\fR will be treated as \fB0\fR
+since that gives more useful information\.  To show the outdated status
+of all packages and dependents, use a large integer value,
+e\.g\., \fBnpm outdated \-\-depth 9999\fR
 .SS description
 .RS 0
 .IP \(bu 2

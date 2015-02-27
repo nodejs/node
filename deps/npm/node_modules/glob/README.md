@@ -264,6 +264,7 @@ filesystem.
 * `nocomment` Suppress `comment` behavior.  (See below.)
 * `nonull` Return the pattern when no matches are found.
 * `nodir` Do not match directories, only files.
+* `ignore` Add a pattern or an array of patterns to exclude matches.
 
 ## Comparisons to other fnmatch/glob implementations
 
