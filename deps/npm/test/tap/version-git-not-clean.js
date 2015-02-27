@@ -55,7 +55,8 @@ test("npm version <semver> with working directory not clean", function (t) {
                 t.fail("should fail on non-clean working directory")
               }
               else {
-                t.equal(err.message, "Git working directory not clean.\nM package.json")
+                t.ok(err.message.match(/Git working directory not clean./))
+                t.ok(err.message.match(/M package.json/))
               }
               t.end()
             })

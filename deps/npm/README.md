@@ -173,7 +173,7 @@ npm, Inc. or the Node.js project.
 
 Data published to the npm registry is not part of npm itself, and is
 the sole property of the publisher.  While every effort is made to
-ensure accountability, there is absolutely no guarantee, warrantee, or
+ensure accountability, there is absolutely no guarantee, warranty, or
 assertion expressed or implied as to the quality, fitness for a
 specific purpose, or lack of malice in any given npm package.
 

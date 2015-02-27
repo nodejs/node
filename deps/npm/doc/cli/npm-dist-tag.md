@@ -20,7 +20,7 @@ Add, remove, and enumerate distribution tags on a package:
 
 * ls:
   Show all of the dist-tags for a package, defaulting to the package in
-  the curren prefix.
+  the current prefix.
 
 A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:

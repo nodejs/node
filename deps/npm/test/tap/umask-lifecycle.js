@@ -3,6 +3,7 @@ var test = require("tap").test
 var fs = require("fs")
 var rimraf = require("rimraf")
 var mkdirp = require("mkdirp")
+var sprintf = require("sprintf-js").sprintf
 var common = require("../common-tap.js")
 
 var pkg = path.resolve(__dirname, "umask-lifecycle")
@@ -12,14 +13,15 @@ var pj = JSON.stringify({
   scripts: { umask: "$npm_execpath config get umask && echo \"$npm_config_umask\" && node -p 'process.umask()'" }
 }, null, 2) + "\n"
 
+var umask = process.umask()
 var expected = [
   "",
   "> x@1.2.3 umask "+path.join(__dirname, "umask-lifecycle"),
   "> $npm_execpath config get umask && echo \"$npm_config_umask\" && node -p 'process.umask()'",
   "",
-  "0022",
-  "0022",
-  "18",
+  sprintf("%04o", umask),
+  sprintf("%04o", umask),
+  sprintf("%d", umask),
   ""
 ].join("\n")
 
@@ -32,7 +34,6 @@ test("setup", function (t) {
 
 test("umask script", function (t) {
   common.npm(["run", "umask"], {
-    umask: 0022,
     cwd: pkg,
     env: {
       PATH: process.env.PATH,

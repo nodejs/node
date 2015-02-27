@@ -110,6 +110,7 @@ var commandCache = {}
               , "stars"
               , "tag"
               , "adduser"
+              , "logout"
               , "unpublish"
               , "owner"
               , "access"

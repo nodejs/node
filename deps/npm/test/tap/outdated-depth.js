@@ -30,7 +30,6 @@ test("outdated depth zero", function (t) {
       cache: cache
     , loglevel: "silent"
     , registry: common.registry
-    , depth: 0
     }
     , function () {
         npm.install(".", function (er) {

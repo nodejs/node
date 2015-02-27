@@ -18,7 +18,7 @@ exports.npm = function (cmd, opts, cb) {
   cmd = [bin].concat(cmd)
   opts = opts || {}
 
-  opts.env = opts.env ? opts.env : process.env
+  opts.env = opts.env || process.env
   if (!opts.env.npm_config_cache) {
     opts.env.npm_config_cache = npm_config_cache
   }
