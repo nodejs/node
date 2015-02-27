@@ -1,5 +1,5 @@
 {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -53,7 +53,7 @@
     "fstream-npm": "~1.0.1",
     "github-url-from-git": "~1.4.0",
     "github-url-from-username-repo": "~1.0.2",
-    "glob": "~4.3.5",
+    "glob": "~4.4.0",
     "graceful-fs": "~3.0.5",
     "inflight": "~1.0.4",
     "inherits": "~2.0.1",
