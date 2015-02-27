@@ -39,7 +39,7 @@ function install (gyp, argv, callback) {
     }
   }
 
-  var distUrl = gyp.opts['dist-url'] || gyp.opts.disturl || 'http://nodejs.org/dist'
+  var distUrl = gyp.opts['dist-url'] || gyp.opts.disturl || 'https://iojs.org/dist'
 
 
   // Determine which node dev files version we are installing
@@ -185,7 +185,7 @@ function install (gyp, argv, callback) {
 
       // now download the node tarball
       var tarPath = gyp.opts['tarball']
-      var tarballUrl = tarPath ? tarPath : distUrl + '/v' + version + '/node-v' + version + '.tar.gz'
+      var tarballUrl = tarPath ? tarPath : distUrl + '/v' + version + '/iojs-v' + version + '.tar.gz'
         , badDownload = false
         , extractCount = 0
         , gunzip = zlib.createGunzip()
@@ -272,7 +272,7 @@ function install (gyp, argv, callback) {
         var async = 0
 
         if (win) {
-          // need to download node.lib
+          // need to download iojs.lib
           async++
           downloadNodeLib(deref)
         }
@@ -351,36 +351,36 @@ function install (gyp, argv, callback) {
       }
 
       function downloadNodeLib (done) {
-        log.verbose('on Windows; need to download `node.lib`...')
+        log.verbose('on Windows; need to download `iojs.lib`...')
         var dir32 = path.resolve(devDir, 'ia32')
           , dir64 = path.resolve(devDir, 'x64')
-          , nodeLibPath32 = path.resolve(dir32, 'node.lib')
-          , nodeLibPath64 = path.resolve(dir64, 'node.lib')
-          , nodeLibUrl32 = distUrl + '/v' + version + '/node.lib'
-          , nodeLibUrl64 = distUrl + '/v' + version + '/x64/node.lib'
+          , nodeLibPath32 = path.resolve(dir32, 'iojs.lib')
+          , nodeLibPath64 = path.resolve(dir64, 'iojs.lib')
+          , nodeLibUrl32 = distUrl + '/v' + version + '/win-x86/iojs.lib'
+          , nodeLibUrl64 = distUrl + '/v' + version + '/win-x64/iojs.lib'
 
-        log.verbose('32-bit node.lib dir', dir32)
-        log.verbose('64-bit node.lib dir', dir64)
-        log.verbose('`node.lib` 32-bit url', nodeLibUrl32)
-        log.verbose('`node.lib` 64-bit url', nodeLibUrl64)
+        log.verbose('32-bit iojs.lib dir', dir32)
+        log.verbose('64-bit iojs.lib dir', dir64)
+        log.verbose('`iojs.lib` 32-bit url', nodeLibUrl32)
+        log.verbose('`iojs.lib` 64-bit url', nodeLibUrl64)
 
         var async = 2
         mkdir(dir32, function (err) {
           if (err) return done(err)
-          log.verbose('streaming 32-bit node.lib to:', nodeLibPath32)
+          log.verbose('streaming 32-bit iojs.lib to:', nodeLibPath32)
 
           var req = download(nodeLibUrl32)
           if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 32-bit node.lib'))
+              done(new Error(res.statusCode + ' status code downloading 32-bit iojs.lib'))
               return
             }
 
             getContentSha(res, function (_, checksum) {
-              contentShasums['node.lib'] = checksum
-              log.verbose('content checksum', 'node.lib', checksum)
+              contentShasums['win-x86/iojs.lib'] = checksum
+              log.verbose('content checksum', 'win-x86/iojs.lib', checksum)
             })
 
             var ws = fs.createWriteStream(nodeLibPath32)
@@ -393,20 +393,20 @@ function install (gyp, argv, callback) {
         })
         mkdir(dir64, function (err) {
           if (err) return done(err)
-          log.verbose('streaming 64-bit node.lib to:', nodeLibPath64)
+          log.verbose('streaming 64-bit iojs.lib to:', nodeLibPath64)
 
           var req = download(nodeLibUrl64)
           if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 64-bit node.lib'))
+              done(new Error(res.statusCode + ' status code downloading 64-bit iojs.lib'))
               return
             }
 
             getContentSha(res, function (_, checksum) {
-              contentShasums['x64/node.lib'] = checksum
-              log.verbose('content checksum', 'x64/node.lib', checksum)
+              contentShasums['win-x64/iojs.lib'] = checksum
+              log.verbose('content checksum', 'win-x64/iojs.lib', checksum)
             })
 
             var ws = fs.createWriteStream(nodeLibPath64)
