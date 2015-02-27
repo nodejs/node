@@ -60,18 +60,6 @@ The API has proven satisfactory, but cleanup in the underlying
 code may cause minor changes.  Backwards-compatibility is guaranteed.
 ```
 
-```
-Stability: 4 - API Frozen
-This API has been tested extensively in production and is
-unlikely to ever have to change.
-```
-
-```
-Stability: 5 - Locked
-Unless serious bugs are found, this code will not ever
-change.  Please do not suggest changes in this area; they will be refused.
-```
-
 ## JSON Output
 
     Stability: 1 - Experimental

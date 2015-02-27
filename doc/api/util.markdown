@@ -1,6 +1,6 @@
 # util
 
-    Stability: 4 - API Frozen
+    Stability: 3 - Stable
 
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
@@ -131,7 +131,7 @@ Highlighted styles and their default values are:
  * `special` - only function at this time (cyan)
  * `name` (intentionally no styling)
 
-Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`, 
+Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
