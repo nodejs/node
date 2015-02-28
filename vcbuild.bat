@@ -22,7 +22,6 @@ set noprojgen=
 set nobuild=
 set nosign=
 set snapshot=
-set test=
 set test_args=
 set msi=
 set licensertf=
@@ -52,16 +51,15 @@ if /i "%1"=="snapshot"      set snapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test-uv"       set test=test-uv&goto arg-ok
-if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
-if /i "%1"=="test-pummel"   set test=test-pummel&goto arg-ok
-if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
-if /i "%1"=="test-message"  set test=test-message&goto arg-ok
-if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
-if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
-if /i "%1"=="test"          set test=test&goto arg-ok
-if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% sequential parallel message -J&set jslint=1&goto arg-ok
+if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
+if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
+if /i "%1"=="test-gc"       set test_args=%test_args% gc&set buildnodeweak=1&goto arg-ok
+if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
+if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
+if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&buildnodeweak1=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
+if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
@@ -75,8 +73,6 @@ shift
 goto next-arg
 
 :args-done
-if defined jslint goto jslint
-
 if "%config%"=="Debug" set debug_arg=--debug
 if "%target_arch%"=="x64" set msiplatform=x64
 if defined snapshot set snapshot_arg=--with-snapshot
@@ -159,23 +155,11 @@ if errorlevel 1 echo Failed to sign msi&goto exit
 
 :run
 @rem Run tests if requested.
-if "%test%"=="" goto exit
-
-if "%config%"=="Debug" set test_args=--mode=debug
-if "%config%"=="Release" set test_args=--mode=release
-
-if "%test%"=="test" set test_args=%test_args% sequential parallel message -J
-if "%test%"=="test-internet" set test_args=%test_args% internet
-if "%test%"=="test-pummel" set test_args=%test_args% pummel
-if "%test%"=="test-simple" set test_args=%test_args% sequential parallel
-if "%test%"=="test-message" set test_args=%test_args% message
-if "%test%"=="test-gc" set test_args=%test_args% gc
-if "%test%"=="test-all" set test_args=%test_args%
 
 :build-node-weak
 @rem Build node-weak if required
 if "%buildnodeweak%"=="" goto run-tests
-"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
+"%config%\iojs" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
 if errorlevel 1 goto build-node-weak-failed
 goto run-tests
 
@@ -184,19 +168,22 @@ echo Failed to build node-weak.
 goto exit
 
 :run-tests
+if "%test_args%"=="" goto jslint
+if "%config%"=="Debug" set test_args=--mode=debug %test_args%
+if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'python tools/test.py %test_args%'
 python tools/test.py %test_args%
-if "%test%"=="test" goto jslint
-goto exit
-
-:create-msvs-files-failed
-echo Failed to create vc project files. 
-goto exit
+goto jslint
 
 :jslint
+if not defined jslint goto exit
 echo running jslint
 set PYTHONPATH=tools/closure_linter/;tools/gflags/
 python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+goto exit
+
+:create-msvs-files-failed
+echo Failed to create vc project files.
 goto exit
 
 :help
