@@ -81,9 +81,10 @@ StreamWrap::StreamWrap(Environment* env,
 
 
 void StreamWrap::AddMethods(Environment* env,
-                            v8::Handle<v8::FunctionTemplate> target) {
+                            v8::Handle<v8::FunctionTemplate> target,
+                            int flags) {
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
-  StreamBase::AddMethods<StreamWrap>(env, target);
+  StreamBase::AddMethods<StreamWrap>(env, target, flags);
 }
 
 

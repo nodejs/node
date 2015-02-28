@@ -210,7 +210,7 @@ void JSStream::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "readBuffer", ReadBuffer);
   env->SetProtoMethod(t, "emitEOF", EmitEOF);
 
-  StreamBase::AddMethods<JSStream>(env, t);
+  StreamBase::AddMethods<JSStream>(env, t, StreamBase::kFlagHasWritev);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream"),
               t->GetFunction());
   env->set_jsstream_constructor_template(t);
