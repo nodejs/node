@@ -6,7 +6,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 
 ### Notable changes
 
-* **process** / **promises**: An`'unhandledRejection'` event is now emitted on `process` whenever a `Promise` is rejected and no error handler is attached to the `Promise` within a turn of the event loop. A `'rejectionHandled'` event is now emitted whenever a `Promise` was rejected and an error handler was attached to it later than after an event loop turn. See the [process](https://iojs.org/api/process.html) documentation for more detail. [#758](https://github.com/iojs/io.js/pull/758) (Petka Antonov)
+* **process** / **promises**: An `'unhandledRejection'` event is now emitted on `process` whenever a `Promise` is rejected and no error handler is attached to the `Promise` within a turn of the event loop. A `'rejectionHandled'` event is now emitted whenever a `Promise` was rejected and an error handler was attached to it later than after an event loop turn. See the [process](https://iojs.org/api/process.html) documentation for more detail. [#758](https://github.com/iojs/io.js/pull/758) (Petka Antonov)
 * **streams**: you can now use regular streams as an underlying socket for `tls.connect()` [#926](https://github.com/iojs/io.js/pull/926) (Fedor Indutny)
 * **http**: A new `'abort'` event emitted when a `http.ClientRequest` is aborted by the client. [#945](https://github.com/iojs/io.js/pull/945) (Evan Lucas)
 * **V8**: Upgrade V8 to 4.1.0.21. Includes an embargoed fix, details should be available at https://code.google.com/p/chromium/issues/detail?id=430201 when embargo is lifted. A breaking ABI change has been held back from this upgrade, possibly to be included when io.js merges V8 4.2. See [#952](https://github.com/iojs/io.js/pull/952) for discussion.
@@ -410,7 +410,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * [[`4dd22b9`](https://github.com/iojs/io.js/commit/4dd22b946ebfec81a7c4a61aa9c6ed528e317802)] - cluster: avoid race enabling debugger in worker (Timothy J Fontaine)
 * [[`6b91c78`](https://github.com/iojs/io.js/commit/6b91c78e201948937a4524027a6778aa7f82fb0a)] - test: reland changes from [`11c1bae`](https://github.com/iojs/io.js/commit/11c1bae734dae3a017f2c4f3f71b5e679a9ddfa6) (Ben Noordhuis)
 * [[`992a1e7`](https://github.com/iojs/io.js/commit/992a1e7f5f87606276af8504c2d57cc5a966830a)] - test: debug-signal-cluster should not be racey (Timothy J Fontaine)
-* [`cdf0df1`](https://github.com/iojs/io.js/commit/cdf0df13d85391b3b8ac36fa5b70da7f21072619)] - test: temporarily back out changes from [[`11c1bae`](https://github.com/iojs/io.js/commit/11c1bae734dae3a017f2c4f3f71b5e679a9ddfa6) (Ben Noordhuis)
+* [[`cdf0df1`](https://github.com/iojs/io.js/commit/cdf0df13d85391b3b8ac36fa5b70da7f21072619)] - test: temporarily back out changes from [`11c1bae`](https://github.com/iojs/io.js/commit/11c1bae734dae3a017f2c4f3f71b5e679a9ddfa6) (Ben Noordhuis)
 * [[`1ea607c`](https://github.com/iojs/io.js/commit/1ea607cb299b0bb59d7d557e01b21b3c615d689e)] - test: move sequential/test-debug-port-from-cmdline (Ben Noordhuis)
 * [[`2f33e00`](https://github.com/iojs/io.js/commit/2f33e00d716d692e84b02768430664fd92298c98)] - test: fix test-debug-port-from-cmdline.js (Julien Gilli)
 * [[`b7365c1`](https://github.com/iojs/io.js/commit/b7365c15597253e906590045aa6f3f07f6e76b52)] - repl: make REPL support multiline template literals (Xiaowei Li)
