@@ -89,7 +89,7 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  StreamWrap::AddMethods(env, t);
+  StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);

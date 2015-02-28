@@ -158,9 +158,15 @@ class StreamResource {
 
 class StreamBase : public StreamResource {
  public:
+  enum Flags {
+    kFlagNone = 0x0,
+    kFlagHasWritev = 0x1
+  };
+
   template <class Base>
   static inline void AddMethods(Environment* env,
-                                v8::Handle<v8::FunctionTemplate> target);
+                                v8::Handle<v8::FunctionTemplate> target,
+                                int flags = kFlagNone);
 
   virtual void* Cast() = 0;
   virtual bool IsAlive() = 0;
