@@ -68,7 +68,8 @@ class StreamWrap : public HandleWrap, public StreamBase {
   void UpdateWriteQueueSize();
 
   static void AddMethods(Environment* env,
-                         v8::Handle<v8::FunctionTemplate> target);
+                         v8::Handle<v8::FunctionTemplate> target,
+                         int flags = StreamBase::kFlagNone);
 
  private:
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
