@@ -1,5 +1,57 @@
 # io.js ChangeLog
 
+## 2015-02-28, Version 1.4.2, @rvagg
+
+### Notable changes
+
+* **tls**: A typo introduced in the TLSWrap changes in [#840](https://github.com/iojs/io.js/pull/840) only encountered as a bug on Windows was not caught by the io.js CI system due to problems with the Windows build script and the Windows CI slave configuration, see Known Issues below. Fixed in [#994](https://github.com/iojs/io.js/pull/994) & [#1004](https://github.com/iojs/io.js/pull/1004). (Fedor Indutny)
+* **npm**: Upgrade npm to 2.6.1. See [npm CHANGELOG.md](https://github.com/npm/npm/blob/master/CHANGELOG.md#v260-2015-02-12) for details. Summary:
+  * [`8b98f0e`](https://github.com/npm/npm/commit/8b98f0e709d77a8616c944aebd48ab726f726f76)
+    [#4471](https://github.com/npm/npm/issues/4471) `npm outdated` (and only `npm
+    outdated`) now defaults to `--depth=0`. This also has the excellent but unexpected effect of making `npm update -g` work the way almost everyone wants it to. See the [docs for
+    `--depth`](https://github.com/npm/npm/blob/82f484672adb1a3caf526a8a48832789495bb43d/doc/misc/npm-config.md#depth)
+    for the mildly confusing details. ([@smikes](https://github.com/smikes))
+  * [`aa79194`](https://github.com/npm/npm/commit/aa791942a9f3c8af6a650edec72a675deb7a7c6e)
+    [#6565](https://github.com/npm/npm/issues/6565) Tweak `peerDependency`
+    deprecation warning to include which peer dependency on which package is
+    going to need to change. ([@othiym23](https://github.com/othiym23))
+  * [`5fa067f`](https://github.com/npm/npm/commit/5fa067fd47682ac3cdb12a2b009d8ca59b05f992)
+    [#7171](https://github.com/npm/npm/issues/7171) Tweak `engineStrict`
+    deprecation warning to include which `package.json` is using it.
+    ([@othiym23](https://github.com/othiym23))
+* Add new collaborators:
+  - Robert Kowalski ([@robertkowalski](https://github.com/robertkowalski))
+  - Christian Vaagland Tellnes ([@tellnes](https://github.com/tellnes))
+  - Brian White ([@mscdex](https://github.com/mscdex))
+
+### Known issues
+
+* Windows support has some outstanding failures that have not been properly picked up by the io.js CI system due to a combination of factors including human, program and Jenkins errors. See [#1005](https://github.com/iojs/io.js/issues/1005) for details & discussion. Expect these problems to be addressed ASAP.
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`25da0742ee`](https://github.com/iojs/io.js/commit/25da0742ee)] - **build**: improve vcbuild.bat (Bert Belder) [#998](https://github.com/iojs/io.js/pull/998)
+* [[`b8310cbd3e`](https://github.com/iojs/io.js/commit/b8310cbd3e)] - **build**: reduce tarball size by 8-10% (Johan Bergström) [#961](https://github.com/iojs/io.js/pull/961)
+* [[`58a612ea9d`](https://github.com/iojs/io.js/commit/58a612ea9d)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
+* [[`2a2fe5c4f2`](https://github.com/iojs/io.js/commit/2a2fe5c4f2)] - **deps**: upgrade npm to 2.6.1 (Forrest L Norvell) [#990](https://github.com/iojs/io.js/pull/990)
+* [[`84ee2722a3`](https://github.com/iojs/io.js/commit/84ee2722a3)] - **doc**: minor formatting fixes. (Tim Oxley) [#996](https://github.com/iojs/io.js/pull/996)
+* [[`cf0306cd71`](https://github.com/iojs/io.js/commit/cf0306cd71)] - **doc**: update stability index (Chris Dickinson) [#943](https://github.com/iojs/io.js/pull/943)
+* [[`fb2439a699`](https://github.com/iojs/io.js/commit/fb2439a699)] - **doc**: add robertkowalski as collaborator (Robert Kowalski) [#977](https://github.com/iojs/io.js/pull/977)
+* [[`f83d380647`](https://github.com/iojs/io.js/commit/f83d380647)] - **doc**: update os.markdown (Benjamin Gruenbaum) [#976](https://github.com/iojs/io.js/pull/976)
+* [[`ae7a23351f`](https://github.com/iojs/io.js/commit/ae7a23351f)] - **doc**: add roadmap, i18n, tracing, evangelism WGs (Mikeal Rogers) [#911](https://github.com/iojs/io.js/pull/911)
+* [[`14174a95a5`](https://github.com/iojs/io.js/commit/14174a95a5)] - **doc**: document roadmap, workgroups (Mikeal Rogers)
+* [[`865ee313cf`](https://github.com/iojs/io.js/commit/865ee313cf)] - **doc**: add tellnes as collaborator (Christian Tellnes) [#973](https://github.com/iojs/io.js/pull/973)
+* [[`01296923db`](https://github.com/iojs/io.js/commit/01296923db)] - **doc**: add mscdex as collaborator (Brian White) [#972](https://github.com/iojs/io.js/pull/972)
+* [[`675cffb33e`](https://github.com/iojs/io.js/commit/675cffb33e)] - **http**: don't confuse automatic headers for others (Christian Tellnes) [#828](https://github.com/iojs/io.js/pull/828)
+* [[`7887e119ed`](https://github.com/iojs/io.js/commit/7887e119ed)] - **install**: new performance counters provider guid (Russell Dempsey)
+* [[`4d1fa2ca97`](https://github.com/iojs/io.js/commit/4d1fa2ca97)] - **src**: add check for already defined macro NOMINMAX (Pavel Medvedev) [#986](https://github.com/iojs/io.js/pull/986)
+* [[`1ab7e80838`](https://github.com/iojs/io.js/commit/1ab7e80838)] - **tls**: proxy `handle.reading` back to parent handle (Fedor Indutny) [#1004](https://github.com/iojs/io.js/pull/1004)
+* [[`755461219d`](https://github.com/iojs/io.js/commit/755461219d)] - **tls**: fix typo `handle._reading` => `handle.reading` (Fedor Indutny) [#994](https://github.com/iojs/io.js/pull/994)
+
 ## 2015-02-26, Version 1.4.1, @rvagg
 
 _Note: version **1.4.0** was tagged and built but not released. A libuv bug was discovered in the process so the release was aborted. The tag was straight after [`a558cd0a61`](https://github.com/iojs/io.js/commit/a558cd0a61) but has since been removed. We have jumped to 1.4.1 to avoid confusion._
