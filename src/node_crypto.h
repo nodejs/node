@@ -693,7 +693,6 @@ class ECDH : public BaseObject {
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
       : BaseObject(env, wrap),
-        generated_(false),
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
     MakeWeak<ECDH>(this);
@@ -702,6 +701,7 @@ class ECDH : public BaseObject {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GeneratePublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -710,7 +710,6 @@ class ECDH : public BaseObject {
 
   EC_POINT* BufferToPoint(char* data, size_t len);
 
-  bool generated_;
   EC_KEY* key_;
   const EC_GROUP* group_;
 };

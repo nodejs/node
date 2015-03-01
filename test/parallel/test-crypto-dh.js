@@ -183,3 +183,9 @@ ecdh4.setPublicKey(ecdh1.getPublicKey());
 assert.throws(function() {
   ecdh4.setPublicKey(ecdh3.getPublicKey());
 });
+
+// ECDH should be able to generate public key from private key
+var ecdh5 = crypto.createECDH('prime256v1');
+ecdh5.setPrivateKey(ecdh4.getPrivateKey());
+
+assert(ecdh5.generatePublicKey('hex') === ecdh5.getPublicKey('hex'));
