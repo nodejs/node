@@ -812,46 +812,32 @@ Test it with:
 
     console.log(result); // 30
 
-
-### void AtExit(callback, args)
+### AtExit hooks
+#### void AtExit(callback, args)
 
 * `callback`: `void (*)(void*)` - A pointer to the function to call at exit.
 * `args`: `void*` - A pointer to pass to the callback at exit.
 
 Registers exit hooks that run after the event loop has ended, but before the VM is killed.
 
-Callbacks are run in reverse order of registration, i.e. newest first. AtExit takes callback 
-and its arguments as arguments. See implementation below:
+Callbacks are run in reverse order of registration, i.e. newest first. AtExit takes callback and its arguments as arguments.
 
-      void AtExit(void (*cb)(void* arg), void* arg) {
-        AtExitCallback* p = new AtExitCallback;
-        p->cb_ = cb;
-        p->arg_ = arg;
-        p->next_ = at_exit_functions_;
-        at_exit_functions_ = p;
-      }
 The file `binding.cc` implements AtExit below:
 
       #undef NDEBUG
       #include <assert.h>
       #include <stdlib.h>
       #include <node.h>
-      #include <v8.h>
-
-      using node::AtExit;
-      using v8::Handle;
-      using v8::HandleScope;
-      using v8::Local;
-      using v8::Object;
 
       static char cookie[] = "yum yum";
       static int at_exit_cb1_called = 0;
       static int at_exit_cb2_called = 0;
 
       static void at_exit_cb1(void* arg) {
-        HandleScope scope;
+        v8::Isolate* isolate = v8::Isolate::GetCurrent();
+        v8::HandleScope scope(isolate);
         assert(arg == 0);
-        Local<Object> obj = Object::New();
+        v8::Local<v8::Object> obj = v8::Object::New(isolate);
         assert(!obj.IsEmpty()); // assert VM is still alive
         assert(obj->IsObject());
         at_exit_cb1_called++;
@@ -867,11 +853,11 @@ The file `binding.cc` implements AtExit below:
         assert(at_exit_cb2_called == 2);
       }
 
-      void init(Handle<Object> target) {
+      void init(Handle<Object> exports) {
         AtExit(at_exit_cb1);
         AtExit(at_exit_cb2, cookie);
         AtExit(at_exit_cb2, cookie);
-        atexit(sanity_check);
+        AtExit(sanity_check);
       }
 
       NODE_MODULE(binding, init);
