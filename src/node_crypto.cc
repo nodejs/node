@@ -4025,6 +4025,7 @@ void ECDH::Initialize(Environment* env, Handle<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
+  env->SetProtoMethod(t, "generatePublicKey", GeneratePublicKey);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
   env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
   env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
@@ -4062,10 +4063,33 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 
   if (!EC_KEY_generate_key(ecdh->key_))
     return env->ThrowError("Failed to generate EC_KEY");
-
-  ecdh->generated_ = true;
 }
 
+void ECDH::GeneratePublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ECDH* ecdh = Unwrap<ECDH>(args.Holder());
+
+  const BIGNUM* priv = EC_KEY_get0_private_key(ecdh->key_);
+  if (priv == nullptr)
+    return env->ThrowError("Failed to get ECDH private key");
+
+  EC_POINT* pub = EC_POINT_new(ecdh->group_);
+  if (pub == nullptr)
+    return env->ThrowError("Failed to allocate EC_POINT for a public key");
+
+  if(EC_POINT_mul(ecdh->group_, pub, priv, nullptr, nullptr, nullptr) <= 0) {
+    EC_POINT_free(pub);
+    return env->ThrowError("Failed to generate ECDH public key");
+  }
+
+  if(!EC_KEY_set_public_key(ecdh->key_, pub)) {
+    EC_POINT_free(pub);
+    return env->ThrowError("Failed to convert EC_POINT to a public key");
+  }
+
+  EC_POINT_free(pub);
+}
 
 EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
   EC_POINT* pub;
@@ -4095,7 +4119,6 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
   return nullptr;
 }
 
-
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -4124,7 +4147,6 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Buffer::Use(env, out, out_len));
 }
 
-
 void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -4132,9 +4154,6 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
-
-  if (!ecdh->generated_)
-    return env->ThrowError("You should generate ECDH keys first");
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
   if (pub == nullptr)
@@ -4167,9 +4186,6 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
-
-  if (!ecdh->generated_)
-    return env->ThrowError("You should generate ECDH keys first");
 
   const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
   if (b == nullptr)
@@ -4224,7 +4240,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   int r = EC_KEY_set_public_key(ecdh->key_, pub);
   EC_POINT_free(pub);
   if (!r)
-    return env->ThrowError("Failed to convert BN to a private key");
+    return env->ThrowError("Failed to convert EC_POINT to a public key");
 }
 
 
