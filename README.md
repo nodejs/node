@@ -282,6 +282,7 @@ information about the governance of the io.js project, see
 * **Brian White** ([@mscdex](https://github.com/mscdex)) &lt;mscdex@mscdex.net&gt;
 * **Christian Vaagland Tellnes** ([@tellnes](https://github.com/tellnes)) &lt;christian@tellnes.com&gt;
 * **Robert Kowalski** ([@robertkowalski](https://github.com/robertkowalski)) &lt;rok@kowalski.gd&gt;
+* **Julian Duque** ([@julianduque](https://github.com/julianduque)) &lt;julianduquej@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
