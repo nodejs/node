@@ -193,7 +193,7 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.
-the last parameter `callback` will be added as an listener for the
+The last parameter `callback` will be added as an listener for the
 ['listening'][] event.
 
 ### server.listen(options[, callback])
@@ -229,9 +229,8 @@ shown below.
 Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally
 closed when all connections are ended and the server emits a `'close'`
-event. Optionally, you can pass a callback to listen for the `'close'`
-event. If present, the callback is invoked with any potential error
-as the first and only argument.
+event.  The last parameter `callback` will be added as an listener for the
+['close'][] event.
 
 ### server.address()
 
@@ -313,7 +312,7 @@ event is not emitted until all connections are ended.
 
 * {Error Object}
 
-Emitted when an error occurs.  The `'close'` event will be called directly
+Emitted when an error occurs.  The ['close'][] event will be called directly
 following this event.  See example in discussion of `server.listen`.
 
 ## Class: net.Socket
@@ -581,7 +580,7 @@ following this event.
 
 ### Event: 'close'
 
-* `had_error` {Boolean} true if the socket had a transmission error
+* `had_error` {Boolean} `true` if the socket had a transmission error.
 
 Emitted once the socket is fully closed. The argument `had_error` is a boolean
 which says if the socket was closed due to a transmission error.
@@ -601,6 +600,7 @@ Returns true if input is a version 4 IP address, otherwise returns false.
 
 Returns true if input is a version 6 IP address, otherwise returns false.
 
+['close']: #net_event_close
 ['connect']: #net_event_connect
 ['connection']: #net_event_connection
 ['end']: #net_event_end
