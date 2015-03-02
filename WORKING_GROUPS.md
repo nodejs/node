@@ -187,7 +187,7 @@ A working group needs 3 initial members. These should be individuals
 already undertaking the work described in the charter.
 
 The list of responsibilities should be specific. Once established these
-responsibilities are no longer governed by the TC and therefor should
+responsibilities are no longer governed by the TC and therefore should
 not be broad or subjective. The only recourse the TC has over the working
 group is to revoke the entire charter and take on the work previously
 done by the working group themselves.
@@ -228,7 +228,7 @@ For the current list of WG members, see the project
 
 ### Collaborators
 
-The [iojs/website](https://github.com/iojs/website) GitHub repository is
+The *[insert WG name]* GitHub repository is
 maintained by the WG and additional Collaborators who are added by the
 WG on an ongoing basis.
 
@@ -241,7 +241,7 @@ _Note:_ If you make a significant contribution and are not considered
 for commit-access log an issue or contact a WG member directly and it
 will be brought up in the next WG meeting.
 
-Modifications of the contents of the iojs/website repository are made on
+Modifications of the contents of the *[insert WG repo]* repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
 modification via pull request and it will be considered by the project
 Collaborators. All pull requests must be reviewed and accepted by a
