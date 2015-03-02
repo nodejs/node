@@ -12,7 +12,6 @@
     'node_shared_libuv%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
-    'node_use_mdb%': 'false',
     'node_v8_options%': '',
     'library_files': [
       'src/node.js',
@@ -275,13 +274,6 @@
             'src/node_lttng.cc'
           ],
         } ],
-        [ 'node_use_mdb=="true"', {
-          'dependencies': [ 'node_mdb' ],
-          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-          'sources': [
-            'src/node_mdb.cc',
-          ],
-        } ],
         [ 'node_use_etw=="true"', {
           'defines': [ 'HAVE_ETW=1' ],
           'dependencies': [ 'node_etw' ],
@@ -508,32 +500,6 @@
           ]
         } ],
       ]
-    },
-    {
-      'target_name': 'node_mdb',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_mdb=="true"',
-          {
-            'dependencies': [ 'deps/mdb_v8/mdb_v8.gyp:mdb_v8' ],
-            'actions': [
-              {
-                'action_name': 'node_mdb',
-                'inputs': [ '<(PRODUCT_DIR)/obj.target/deps/mdb_v8/mdb_v8.so' ],
-                'outputs': [ '<(PRODUCT_DIR)/obj.target/node/src/node_mdb.o' ],
-                'conditions': [
-                  [ 'target_arch=="ia32"', {
-                    'action': [ 'elfwrap', '-o', '<@(_outputs)', '<@(_inputs)' ],
-                  } ],
-                  [ 'target_arch=="x64"', {
-                    'action': [ 'elfwrap', '-64', '-o', '<@(_outputs)', '<@(_inputs)' ],
-                  } ],
-                ],
-              },
-            ],
-          },
-        ],
-      ],
     },
     {
       'target_name': 'node_dtrace_provider',
