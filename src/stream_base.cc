@@ -7,7 +7,6 @@
 #include "env-inl.h"
 #include "js_stream.h"
 #include "string_bytes.h"
-#include "tls_wrap.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
