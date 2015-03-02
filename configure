@@ -38,7 +38,8 @@ parser.add_option('--debug',
 parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
-    help='CPU architecture to build for. Valid values are: arm, ia32, x32, x64')
+    help='CPU architecture to build for. '
+         'Valid values are: arm, arm64, ia32, x32, x64')
 
 parser.add_option('--dest-os',
     action='store',
@@ -436,10 +437,11 @@ def host_arch_cc():
   k = cc_macros()
 
   matchup = {
-    '__x86_64__'  : 'x64',
-    '__i386__'    : 'ia32',
+    '__aarch64__' : 'arm64',
     '__arm__'     : 'arm',
+    '__i386__'    : 'ia32',
     '__mips__'    : 'mips',
+    '__x86_64__'  : 'x64',
   }
 
   rtn = 'ia32' # default
@@ -510,6 +512,13 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
+  elif (target_arch == 'arm64' and
+        not options.shared_openssl and
+        not options.without_ssl):
+    # FIXME(bnoordhuis) It's not possible to build the bundled openssl due to
+    # deps/openssl/asm/arm-elf-gas/modes/ghash-armv4.S, which is 32 bits only.
+    warn('not building openssl, arm64 not yet supported')
+    options.without_ssl = True
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace

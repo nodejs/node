@@ -190,7 +190,7 @@
    * boundary. See crypto/rc4/rc4_enc.c for further details.
    */
 # undef RC4_CHUNK
-# if defined(_M_X64) || defined(__x86_64__)
+# if defined(_M_X64) || defined(__aarch64__) || defined(__x86_64__)
 #  define RC4_CHUNK unsigned long long
 # elif defined(__arm__)
 #  define RC4_CHUNK unsigned long
@@ -220,7 +220,7 @@
 # undef THIRTY_TWO_BIT
 # undef SIXTEEN_BIT
 # undef EIGHT_BIT
-# if defined(_M_X64) || defined(__x86_64__)
+# if defined(_M_X64) || defined(__aarch64__) || defined(__x86_64__)
 #  if defined(_LP64)
 #   define SIXTY_FOUR_BIT_LONG
 #  else
