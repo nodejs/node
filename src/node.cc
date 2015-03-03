@@ -139,9 +139,6 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = nullptr;
 
-int WRITE_UTF8_FLAGS = v8::String::HINT_MANY_WRITES_EXPECTED |
-                       v8::String::NO_NULL_TERMINATION;
-
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
   // Impose an upper limit to avoid out of memory errors that bring down
@@ -3818,11 +3815,6 @@ static void StartNodeInstance(void* arg) {
 
 int Start(int argc, char** argv) {
   PlatformInit();
-
-  const char* replace_invalid = secure_getenv("NODE_INVALID_UTF8");
-
-  if (replace_invalid == nullptr)
-    WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
 
   CHECK_GT(argc, 0);
 

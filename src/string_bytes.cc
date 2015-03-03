@@ -287,8 +287,9 @@ size_t StringBytes::Write(Isolate* isolate,
   Local<String> str = val.As<String>();
   len = len < buflen ? len : buflen;
 
-  int flags = String::NO_NULL_TERMINATION |
-              String::HINT_MANY_WRITES_EXPECTED;
+  int flags = String::HINT_MANY_WRITES_EXPECTED |
+              String::NO_NULL_TERMINATION |
+              String::REPLACE_INVALID_UTF8;
 
   switch (encoding) {
     case ASCII:
@@ -311,7 +312,7 @@ size_t StringBytes::Write(Isolate* isolate,
         // well?
         memcpy(buf, data, len);
       else
-        len = str->WriteUtf8(buf, buflen, chars_written, WRITE_UTF8_FLAGS);
+        len = str->WriteUtf8(buf, buflen, chars_written, flags);
       break;
 
     case UCS2:
