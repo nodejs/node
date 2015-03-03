@@ -1347,7 +1347,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
     }
 
     /* Request queued by the kernel. */
-    req->queued_bytes = uv__count_bufs(bufs, nbufs);
+    req->queued_bytes = bufs[0].len;
     handle->write_queue_size += req->queued_bytes;
   } else if (handle->flags & UV_HANDLE_BLOCKING_WRITES) {
     /* Using overlapped IO, but wait for completion before returning */
@@ -1372,12 +1372,13 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
       /* Request completed immediately. */
       req->queued_bytes = 0;
     } else {
-      assert(ipc_header_req != NULL);
       /* Request queued by the kernel. */
-      if (WaitForSingleObject(ipc_header_req->overlapped.hEvent, INFINITE) !=
+      req->queued_bytes = bufs[0].len;
+      handle->write_queue_size += req->queued_bytes;
+      if (WaitForSingleObject(req->overlapped.hEvent, INFINITE) !=
           WAIT_OBJECT_0) {
         err = GetLastError();
-        CloseHandle(ipc_header_req->overlapped.hEvent);
+        CloseHandle(req->overlapped.hEvent);
         return uv_translate_sys_error(err);
       }
     }
@@ -1386,7 +1387,6 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
     REGISTER_HANDLE_REQ(loop, handle, req);
     handle->reqs_pending++;
     handle->write_reqs_pending++;
-    POST_COMPLETION_FOR_REQ(loop, req);
     return 0;
   } else {
     result = WriteFile(handle->handle,
@@ -1404,7 +1404,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
       req->queued_bytes = 0;
     } else {
       /* Request queued by the kernel. */
-      req->queued_bytes = uv__count_bufs(bufs, nbufs);
+      req->queued_bytes = bufs[0].len;
       handle->write_queue_size += req->queued_bytes;
     }
 
