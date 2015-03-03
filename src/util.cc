@@ -1,11 +1,10 @@
 #include "util.h"
-
 #include "string_bytes.h"
 
 namespace node {
 
 Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
-  : length_(0), str_(nullptr) {
+    : length_(0), str_(str_st_) {
   if (value.IsEmpty())
     return;
 
@@ -15,19 +14,15 @@ Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
 
   // Allocate enough space to include the null terminator
   size_t len = StringBytes::StorageSize(val_, UTF8) + 1;
-
-  char* str;
-  if (len > kStorageSize)
-    str = static_cast<char*>(malloc(len));
-  else
-    str = str_st_;
-  CHECK_NE(str, NULL);
+  if (len > sizeof(str_st_)) {
+    str_ = static_cast<char*>(malloc(len));
+    CHECK_NE(str_, nullptr);
+  }
 
   const int flags =
       v8::String::NO_NULL_TERMINATION | v8::String::REPLACE_INVALID_UTF8;
-  length_ = val_->WriteUtf8(str, len, 0, flags);
-  str[length_] = '\0';
-
-  str_ = reinterpret_cast<char*>(str);
+  length_ = val_->WriteUtf8(str_, len, 0, flags);
+  str_[length_] = '\0';
 }
+
 }  // namespace node

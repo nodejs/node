@@ -190,10 +190,9 @@ class Utf8Value {
     };
 
   private:
-    static const int kStorageSize = 1024;
     size_t length_;
-    char str_st_[kStorageSize];
     char* str_;
+    char str_st_[1024];
 };
 
 }  // namespace node
