@@ -3499,7 +3499,7 @@ void Init(int* argc,
   uv_disable_stdio_inheritance();
 
   // init async debug messages dispatching
-  // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
+  // Main thread uses uv_default_loop
   uv_async_init(uv_default_loop(),
                 &dispatch_debug_messages_async,
                 DispatchDebugMessagesAsyncCallback);
@@ -3663,6 +3663,18 @@ Environment* CreateEnvironment(Isolate* isolate,
   return env;
 }
 
+static Environment* CreateEnvironment(Isolate* isolate,
+                                      Handle<Context> context,
+                                      NodeInstanceData* instance_data) {
+  return CreateEnvironment(isolate,
+                           instance_data->event_loop(),
+                           context,
+                           instance_data->argc(),
+                           instance_data->argv(),
+                           instance_data->exec_argc(),
+                           instance_data->exec_argv());
+}
+
 
 static void HandleCloseCb(uv_handle_t* handle) {
   Environment* env = reinterpret_cast<Environment*>(handle->data);
@@ -3746,12 +3758,70 @@ Environment* CreateEnvironment(Isolate* isolate,
 }
 
 
+// Entry point for new node instances, also called directly for the main
+// node instance.
+static void StartNodeInstance(void* arg) {
+  NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
+  Isolate* isolate = Isolate::New();
+    // Fetch a reference to the main isolate, so we have a reference to it
+  // even when we need it to access it from another (debugger) thread.
+  if (instance_data->is_main())
+    node_isolate = isolate;
+  {
+    Locker locker(isolate);
+    Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
+    Local<Context> context = Context::New(isolate);
+    Environment* env = CreateEnvironment(isolate, context, instance_data);
+    Context::Scope context_scope(context);
+    if (instance_data->is_main())
+      env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
+    // Start debug agent when argv has --debug
+    if (instance_data->use_debug_agent())
+      StartDebug(env, debug_wait_connect);
+
+    LoadEnvironment(env);
+
+    // Enable debugger
+    if (instance_data->use_debug_agent())
+      EnableDebug(env);
+
+    bool more;
+    do {
+      more = uv_run(env->event_loop(), UV_RUN_ONCE);
+      if (more == false) {
+        EmitBeforeExit(env);
+
+        // Emit `beforeExit` if the loop became alive either after emitting
+        // event, or after running some callbacks.
+        more = uv_loop_alive(env->event_loop());
+        if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
+          more = true;
+      }
+    } while (more == true);
+
+    int exit_code = EmitExit(env);
+    if (instance_data->is_main())
+      instance_data->set_exit_code(exit_code);
+    RunAtExit(env);
+
+    env->Dispose();
+    env = nullptr;
+  }
+
+  CHECK_NE(isolate, nullptr);
+  isolate->Dispose();
+  isolate = nullptr;
+  if (instance_data->is_main())
+    node_isolate = nullptr;
+}
+
 int Start(int argc, char** argv) {
   PlatformInit();
 
-  const char* replaceInvalid = secure_getenv("NODE_INVALID_UTF8");
+  const char* replace_invalid = secure_getenv("NODE_INVALID_UTF8");
 
-  if (replaceInvalid == nullptr)
+  if (replace_invalid == nullptr)
     WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
 
   CHECK_GT(argc, 0);
@@ -3772,67 +3842,26 @@ int Start(int argc, char** argv) {
 #endif
 
   V8::InitializePlatform(new Platform(4));
-
-  int code;
   V8::Initialize();
 
-  // Fetch a reference to the main isolate, so we have a reference to it
-  // even when we need it to access it from another (debugger) thread.
-  node_isolate = Isolate::New();
+  int exit_code = 1;
   {
-    Locker locker(node_isolate);
-    Isolate::Scope isolate_scope(node_isolate);
-    HandleScope handle_scope(node_isolate);
-    Local<Context> context = Context::New(node_isolate);
-    Environment* env = CreateEnvironment(
-        node_isolate,
-        uv_default_loop(),
-        context,
-        argc,
-        argv,
-        exec_argc,
-        exec_argv);
-    Context::Scope context_scope(context);
-    env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
-    // Start debug agent when argv has --debug
-    if (use_debug_agent)
-      StartDebug(env, debug_wait_connect);
-
-    LoadEnvironment(env);
-
-    // Enable debugger
-    if (use_debug_agent)
-      EnableDebug(env);
-
-    bool more;
-    do {
-      more = uv_run(env->event_loop(), UV_RUN_ONCE);
-      if (more == false) {
-        EmitBeforeExit(env);
-
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env->event_loop());
-        if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-          more = true;
-      }
-    } while (more == true);
-    code = EmitExit(env);
-    RunAtExit(env);
-
-    env->Dispose();
-    env = nullptr;
+    NodeInstanceData instance_data(NodeInstanceType::MAIN,
+                                   uv_default_loop(),
+                                   argc,
+                                   const_cast<const char**>(argv),
+                                   exec_argc,
+                                   exec_argv,
+                                   use_debug_agent);
+    StartNodeInstance(&instance_data);
+    exit_code = instance_data.exit_code();
   }
-
-  CHECK_NE(node_isolate, nullptr);
-  node_isolate->Dispose();
-  node_isolate = nullptr;
   V8::Dispose();
 
   delete[] exec_argv;
   exec_argv = nullptr;
 
-  return code;
+  return exit_code;
 }
 
 
