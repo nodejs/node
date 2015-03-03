@@ -166,8 +166,14 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[2]->IsObject());
+
   Local<Object> source = args[0].As<Object>();
   Local<Object> dest = args[2].As<Object>();
+
+  ASSERT(source->HasIndexedPropertiesInExternalArrayData());
+  ASSERT(dest->HasIndexedPropertiesInExternalArrayData());
 
   size_t source_start = args[1]->Uint32Value();
   size_t dest_start = args[3]->Uint32Value();
@@ -270,7 +276,11 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 void Alloc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ASSERT(args[0]->IsObject());
+
   Local<Object> obj = args[0].As<Object>();
+
+  ASSERT(!obj->HasIndexedPropertiesInExternalArrayData());
 
   size_t length = args[1]->Uint32Value();
   enum ExternalArrayType array_type;
@@ -410,6 +420,7 @@ void Alloc(Environment* env,
 
 void HasExternalData(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ASSERT(args[0]->IsObject());
   args.GetReturnValue().Set(HasExternalData(env, args[0].As<Object>()));
 }
 
