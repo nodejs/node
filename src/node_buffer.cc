@@ -415,9 +415,6 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
 
-  if (encoding == UCS2)
-    max_length = max_length / 2;
-
   if (offset >= obj_length)
     return env->ThrowRangeError("Offset is out of bounds");
 
