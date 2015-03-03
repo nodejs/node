@@ -28,6 +28,10 @@ a = tls.createServer(options, function (socket) {
   var dest = net.connect(options);
   dest.pipe(socket);
   socket.pipe(dest);
+
+  dest.on('close', function() {
+    socket.destroy();
+  });
 });
 
 // the "target" server
