@@ -321,7 +321,6 @@
         callback: runMicrotasksCallback,
         domain: null
       });
-
       tickInfo[kLength]++;
       microtasksScheduled = true;
     }
