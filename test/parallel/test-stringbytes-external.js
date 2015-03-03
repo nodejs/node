@@ -106,3 +106,16 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     }
   }
 })();
+
+// https://github.com/iojs/io.js/issues/1024
+(function() {
+  var a = Array(1 << 20).join('x');
+  var b = Buffer(a, 'ucs2').toString('ucs2');
+  var c = Buffer(b, 'utf8').toString('utf8');
+
+  assert.equal(a.length, b.length);
+  assert.equal(b.length, c.length);
+
+  assert.equal(a, b);
+  assert.equal(b, c);
+})();
