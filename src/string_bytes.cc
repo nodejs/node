@@ -28,8 +28,7 @@ class ExternString: public ResourceType {
   public:
     ~ExternString() override {
       delete[] data_;
-      int64_t change_in_bytes = -static_cast<int64_t>(length_);
-      isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+      isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
     }
 
     const TypeName* data() const override {
@@ -38,6 +37,10 @@ class ExternString: public ResourceType {
 
     size_t length() const override {
       return length_;
+    }
+
+    int64_t byte_length() const {
+      return length() * sizeof(*data());
     }
 
     static Local<String> NewFromCopy(Isolate* isolate,
@@ -69,7 +72,7 @@ class ExternString: public ResourceType {
                                                                      data,
                                                                      length);
       Local<String> str = String::NewExternal(isolate, h_str);
-      isolate->AdjustAmountOfExternalAllocatedMemory(length);
+      isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
       return scope.Escape(str);
     }
