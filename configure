@@ -39,7 +39,7 @@ parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
     help='CPU architecture to build for. '
-         'Valid values are: arm, arm64, ia32, x32, x64')
+         'Valid values are: arm, arm64, ia32, mips, mipsel, x32, x64')
 
 parser.add_option('--dest-os',
     action='store',
@@ -208,6 +208,24 @@ parser.add_option('--with-arm-float-abi',
     dest='arm_float_abi',
     help='specifies which floating-point ABI to use. Valid values are: '
          'soft, softfp, hard')
+
+parser.add_option('--with-mips-arch-variant',
+    action='store',
+    dest='mips_arch_variant',
+    default='r2',
+    help='MIPS arch variant: loongson, r1, r2, r6, rx')
+
+parser.add_option('--with-mips-fpu-mode',
+    action='store',
+    dest='mips_fpu_mode',
+    default='fp32',
+    help='MIPS FPU mode: fp32, fp64, fpxx')
+
+parser.add_option('--with-mips-float-abi',
+    action='store',
+    dest='mips_float_abi',
+    default='hard',
+    help='MIPS floating-point ABI: soft, hard')
 
 parser.add_option('--with-dtrace',
     action='store_true',
@@ -493,6 +511,14 @@ def configure_arm(o):
     warn('when building on ARMv6, don\'t use --with-snapshot')
 
 
+def configure_mips(o):
+  can_use_fpu_instructions = (options.mips_float_abi != 'soft')
+  o['variables']['v8_can_use_fpu_instructions'] = b(can_use_fpu_instructions)
+  o['variables']['v8_use_mips_abi_hardfloat'] = b(can_use_fpu_instructions)
+  o['variables']['mips_arch_variant'] = options.mips_arch_variant
+  o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
+
+
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
@@ -519,6 +545,8 @@ def configure_node(o):
     # deps/openssl/asm/arm-elf-gas/modes/ghash-armv4.S, which is 32 bits only.
     warn('not building openssl, arm64 not yet supported')
     options.without_ssl = True
+  elif target_arch in ('mips', 'mipsel'):
+    configure_mips(o)
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
