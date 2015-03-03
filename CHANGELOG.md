@@ -1,5 +1,31 @@
 # io.js ChangeLog
 
+## 2015-03-02, Version 1.4.3, @rvagg
+
+### Notable changes
+
+* **stream**: Fixes problems for platforms without `writev()` support, particularly Windows. Changes introduced in 1.4.1, via [#926](https://github.com/iojs/io.js/pull/926), broke some functionality for these platforms, this has now been addressed. [#1008](https://github.com/iojs/io.js/pull/1008) (Fedor Indutny)
+* **arm**: We have the very beginnings of ARMv8 / ARM64 / AARCH64 support. An upgrade to OpenSSL 1.0.2 is one requirement for full support. [#1028](https://github.com/iojs/io.js/pull/1028) (Ben Noordhuis)
+* Add new collaborator: Julian Duque ([@julianduque](https://github.com/julianduque))
+
+### Known issues
+
+* Windows still reports some minor test failures and we are continuing to address all of these ASAP. See [#1005](https://github.com/iojs/io.js/issues/1005).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`ca3c50b789`](https://github.com/iojs/io.js/commit/ca3c50b789)] - **build**: add basic arm64 support (Ben Noordhuis) [#1028](https://github.com/iojs/io.js/pull/1028)
+* [[`08e89b1880`](https://github.com/iojs/io.js/commit/08e89b1880)] - **doc**: update AUTHORS list (Rod Vagg) [#1018](https://github.com/iojs/io.js/pull/1018)
+* [[`ea02d90cd0`](https://github.com/iojs/io.js/commit/ea02d90cd0)] - **doc**: add julianduque as collaborator (Julian Duque) [#1021](https://github.com/iojs/io.js/pull/1021)
+* [[`dfe7a17784`](https://github.com/iojs/io.js/commit/dfe7a17784)] - **doc**: fix typos and sources in WORKING_GROUPS.md (&! (bitandbang)) [#1022](https://github.com/iojs/io.js/pull/1022)
+* [[`6d26990d32`](https://github.com/iojs/io.js/commit/6d26990d32)] - **doc**: Clean up net.Socket (Ryan Scheel) [#951](https://github.com/iojs/io.js/pull/951)
+* [[`c380ac6e98`](https://github.com/iojs/io.js/commit/c380ac6e98)] - **doc**: suggest alternatives to deprecated APs (Benjamin Gruenbaum) [#1007](https://github.com/iojs/io.js/pull/1007)
+* [[`3d6440cf2a`](https://github.com/iojs/io.js/commit/3d6440cf2a)] - **src**: fix --without-ssl build (Ben Noordhuis) [#1027](https://github.com/iojs/io.js/pull/1027)
+* [[`2b47fd2eb6`](https://github.com/iojs/io.js/commit/2b47fd2eb6)] - **stream_base**: `.writev()` has limited support (Fedor Indutny) [#1008](https://github.com/iojs/io.js/pull/1008)
 ## 2015-02-28, Version 1.4.2, @rvagg
 
 ### Notable changes
