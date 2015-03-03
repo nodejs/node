@@ -15,15 +15,10 @@ assert.equal(b[0], 0x61);
 assert.equal(b[1], 0);
 assert.equal(ucs2_control, c);
 
-
-// grow the strings to proper length
-while (write_str.length <= EXTERN_APEX) {
-  write_str += write_str;
-  ucs2_control += ucs2_control;
-}
-write_str += write_str.substr(0, EXTERN_APEX - write_str.length);
-ucs2_control += ucs2_control.substr(0, EXTERN_APEX * 2 - ucs2_control.length);
-
+// now create big strings
+var size = 1 + (1 << 20);
+write_str = Array(size).join(write_str);
+ucs2_control = Array(size).join(ucs2_control);
 
 // check resultant buffer and output string
 var b = new Buffer(write_str, 'ucs2');
