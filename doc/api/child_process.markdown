@@ -439,7 +439,7 @@ Example of checking for failed exec:
       console.log('Failed to start child process.');
     });
 
-### options.stdio
+#### options.stdio
 
 As a shorthand, the `stdio` argument may be one of the following strings:
 
@@ -492,7 +492,7 @@ Example:
     // startd-style interface.
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 
-### options.detached
+#### options.detached
 
 If the `detached` option is set, the child process will be made the leader of a
 new process group.  This makes it possible for the child to continue running 
