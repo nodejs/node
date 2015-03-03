@@ -754,20 +754,16 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 Local<Value> StringBytes::Encode(Isolate* isolate,
                                  const uint16_t* buf,
                                  size_t buflen) {
-  const uint16_t* src = buf;
-
   Local<String> val;
+
   if (buflen < EXTERN_APEX) {
     val = String::NewFromTwoByte(isolate,
-                                 src,
+                                 buf,
                                  String::kNormalString,
                                  buflen);
   } else {
-    val = ExternTwoByteString::NewFromCopy(isolate, src, buflen);
+    val = ExternTwoByteString::NewFromCopy(isolate, buf, buflen);
   }
-
-  if (src != buf)
-    delete[] src;
 
   return val;
 }
