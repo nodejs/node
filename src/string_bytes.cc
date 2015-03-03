@@ -263,7 +263,7 @@ bool StringBytes::GetExternalParts(Isolate* isolate,
     const String::ExternalStringResource* ext;
     ext = str->GetExternalStringResource();
     *data = reinterpret_cast<const char*>(ext->data());
-    *len = ext->length();
+    *len = ext->length() * sizeof(*ext->data());
     return true;
   }
 
@@ -317,7 +317,7 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case UCS2:
       if (is_extern)
-        memcpy(buf, data, len * 2);
+        memcpy(buf, data, len);
       else
         len = str->Write(reinterpret_cast<uint16_t*>(buf), 0, buflen, flags);
       if (IsBigEndian()) {
