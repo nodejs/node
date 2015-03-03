@@ -1557,3 +1557,20 @@ relativeTests2.forEach(function(relativeTest) {
                'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
+
+
+
+// https://github.com/iojs/io.js/pull/1036
+var throws = [
+  undefined,
+  null,
+  true,
+  false,
+  0,
+  function () {}
+];
+for (var i = 0; i < throws.length; i++) {
+  assert.throws(function () { url.format(throws[i]); }, TypeError);
+};
+assert(url.format('') === '');
+assert(url.format({}) === '');
