@@ -104,7 +104,7 @@ Note that `emitter.setMaxListeners(n)` still has precedence over
 
 ### emitter.listeners(event)
 
-Returns an array of listeners for the specified event.
+Returns a copy of the array of listeners for the specified event.
 
     server.on('connection', function (stream) {
       console.log('someone connected!');
