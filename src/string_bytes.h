@@ -10,8 +10,6 @@
 
 namespace node {
 
-extern int WRITE_UTF8_FLAGS;
-
 class StringBytes {
  public:
   class InlineDecoder {

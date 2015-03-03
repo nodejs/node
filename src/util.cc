@@ -23,12 +23,9 @@ Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
     str = str_st_;
   CHECK_NE(str, NULL);
 
-  int flags = WRITE_UTF8_FLAGS;
-
-  length_ = val_->WriteUtf8(str,
-                            len,
-                            0,
-                            flags);
+  const int flags =
+      v8::String::NO_NULL_TERMINATION | v8::String::REPLACE_INVALID_UTF8;
+  length_ = val_->WriteUtf8(str, len, 0, flags);
   str[length_] = '\0';
 
   str_ = reinterpret_cast<char*>(str);
