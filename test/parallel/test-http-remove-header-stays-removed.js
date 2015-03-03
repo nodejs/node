@@ -8,6 +8,7 @@ var server = http.createServer(function(request, response) {
   // to the output:
   response.removeHeader('connection');
   response.removeHeader('transfer-encoding');
+  response.removeHeader('content-length');
 
   // make sure that removing and then setting still works:
   response.removeHeader('date');
