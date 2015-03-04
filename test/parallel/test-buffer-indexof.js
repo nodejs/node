@@ -26,6 +26,7 @@ assert.equal(b.indexOf('bc', -5), 1);
 assert.equal(b.indexOf('bc', NaN), 1);
 assert.equal(b.indexOf('bc', -Infinity), 1);
 assert.equal(b.indexOf('bc', Infinity), -1);
+assert.equal(b.indexOf('cd'), 2);
 assert.equal(b.indexOf('f'), b.length - 1);
 assert.equal(b.indexOf('z'), -1);
 assert.equal(b.indexOf(''), -1);
