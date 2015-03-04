@@ -592,14 +592,13 @@ void Initialize(Handle<Object> exports,
 
   uint32_t kMinType = ~0;
   uint32_t kMaxType = 0;
-  #define V(name, value)                                                      \
-    types->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                  \
-                Uint32::NewFromUnsigned(env->isolate(), v8::value));          \
-    kMinType = MIN(kMinType, v8::value);                                      \
-    kMaxType = MAX(kMinType, v8::value);
-
-    EXTERNAL_ARRAY_TYPES(V)
-  #undef V
+#define V(name, value)                                                        \
+  types->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                    \
+             Uint32::NewFromUnsigned(env->isolate(), v8::value));             \
+  kMinType = MIN(kMinType, static_cast<uint32_t>(v8::value));                 \
+  kMaxType = MAX(kMinType, static_cast<uint32_t>(v8::value));
+  EXTERNAL_ARRAY_TYPES(V)
+#undef V
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "types"), types);
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMinType"),
