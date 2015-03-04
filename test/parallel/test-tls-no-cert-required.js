@@ -1,9 +1,9 @@
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
 var common = require('../common');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
 
 // Omitting the cert or pfx option to tls.createServer() should not throw.

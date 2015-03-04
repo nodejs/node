@@ -1,8 +1,13 @@
 var common = require('../common');
 var assert = require('assert');
 
-var fs = require('fs');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var https = require('https');
+
+var fs = require('fs');
 var path = require('path');
 
 var resultFile = path.resolve(common.tmpDir, 'result');

@@ -1,7 +1,12 @@
-var common = require('../common');
-var https = require('https'),
+var common = require('../common'),
     fs = require('fs'),
     assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var https = require('https');
 
 if (!common.hasMultiLocalhost()) {
   console.log('Skipping platform-specific test.');

@@ -1,5 +1,4 @@
 var http = require('http'),
-    https = require('https'),
     fs = require('fs'),
     common = require('../common'),
     assert = require('assert'),
@@ -7,8 +6,14 @@ var http = require('http'),
       key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
       cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
     },
-    httpServer = http.createServer(reqHandler),
-    httpsServer = https.createServer(options, reqHandler);
+    httpServer = http.createServer(reqHandler);
+
+if(common.hasCrypto) {
+  var https = require('https'),
+      httpsServer = https.createServer(options, reqHandler);
+} else {
+  console.log('1..0 # Skipped: missing crypto');
+}
 
 function reqHandler(req, res) {
   console.log('Got request: ' + req.headers.host + ' ' + req.url);
@@ -41,7 +46,9 @@ function testHttp() {
     console.log('back from http request. counter = ' + counter);
     if (counter === 0) {
       httpServer.close();
-      testHttps();
+      if(common.hasCrypto) {
+        testHttps();
+      }
     }
     res.resume();
   }

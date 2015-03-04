@@ -1,8 +1,13 @@
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+var common = require('../common');
+var assert = require('assert');
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var tls = require('tls');
+
+var fs = require('fs');
 
 var hosterr = /Hostname\/IP doesn\'t match certificate\'s altnames/g;
 var testCases =
@@ -36,13 +41,6 @@ var testCases =
        ]
      }
     ];
-
-
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
-
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');

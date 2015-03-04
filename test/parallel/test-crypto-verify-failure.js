@@ -1,13 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
 
-try {
-  var crypto = require('crypto');
-  var tls = require('tls');
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
   process.exit();
 }
+var crypto = require('crypto');
+var tls = require('tls');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 

@@ -7,6 +7,11 @@ if (!common.opensslCli) {
   process.exit(0);
 }
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+
 var join = require('path').join;
 var net = require('net');
 var assert = require('assert');

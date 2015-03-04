@@ -1,14 +1,14 @@
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
 
-var common = require('../common');
+var fs = require('fs');
+var net = require('net');
 
 var sent = 'hello world';
 var received = '';

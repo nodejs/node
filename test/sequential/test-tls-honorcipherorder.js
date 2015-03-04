@@ -1,6 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
+
 var fs = require('fs');
 var nconns = 0;
 // test only in TLSv1 to use DES which is no longer supported TLSv1.2

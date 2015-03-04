@@ -98,11 +98,15 @@ var testCases =
     }
     ];
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var tls = require('tls');
 
 var constants = require('constants');
 var assert = require('assert');
 var fs = require('fs');
-var tls = require('tls');
 var spawn = require('child_process').spawn;
 
 

@@ -2,9 +2,13 @@
 // to an http server. You should get an error and exit.
 var common = require('../common');
 var assert = require('assert');
-var https = require('https');
 var http = require('http');
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var https = require('https');
 
 var reqCount = 0;
 var resCount = 0;

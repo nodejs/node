@@ -7,7 +7,13 @@
 var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var https = require('https');
+
 var fs = require('fs');
 
 var PORT = 8000;
