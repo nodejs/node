@@ -43,6 +43,9 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
   return opensslCli;
 }, enumerable: true });
 
+Object.defineProperty(exports, 'hasCrypto', {get: function() {
+  return process.versions.openssl ? true : false;
+}});
 
 if (process.platform === 'win32') {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
