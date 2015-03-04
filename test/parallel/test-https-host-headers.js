@@ -1,7 +1,18 @@
-var http = require('http'),
-    common = require('../common'),
-    assert = require('assert'),
-    httpServer = http.createServer(reqHandler);
+var common = require('../common');
+var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var https = require('https');
+
+var fs = require('fs'),
+    options = {
+      key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+      cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+    },
+    httpsServer = https.createServer(options, reqHandler);
 
 function reqHandler(req, res) {
   console.log('Got request: ' + req.headers.host + ' ' + req.url);
@@ -21,29 +32,28 @@ function thrower(er) {
   throw er;
 }
 
-testHttp();
+testHttps();
 
-function testHttp() {
+function testHttps() {
 
-  console.log('testing http on port ' + common.PORT);
+  console.log('testing https on port ' + common.PORT);
 
   var counter = 0;
 
   function cb(res) {
     counter--;
-    console.log('back from http request. counter = ' + counter);
+    console.log('back from https request. counter = ' + counter);
     if (counter === 0) {
-      httpServer.close();
+      httpsServer.close();
+      console.log('ok');
     }
     res.resume();
   }
 
-  httpServer.listen(common.PORT, function(er) {
-    console.error('listening on ' + common.PORT);
-
+  httpsServer.listen(common.PORT, function(er) {
     if (er) throw er;
 
-    http.get({
+    https.get({
       method: 'GET',
       path: '/' + (counter++),
       host: 'localhost',
@@ -52,7 +62,7 @@ function testHttp() {
       rejectUnauthorized: false
     }, cb).on('error', thrower);
 
-    http.request({
+    https.request({
       method: 'GET',
       path: '/' + (counter++),
       host: 'localhost',
@@ -61,7 +71,7 @@ function testHttp() {
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
-    http.request({
+    https.request({
       method: 'POST',
       path: '/' + (counter++),
       host: 'localhost',
@@ -70,7 +80,7 @@ function testHttp() {
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
-    http.request({
+    https.request({
       method: 'PUT',
       path: '/' + (counter++),
       host: 'localhost',
@@ -79,11 +89,20 @@ function testHttp() {
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
-    http.request({
+    https.request({
       method: 'DELETE',
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
+      port: common.PORT,
+      rejectUnauthorized: false
+    }, cb).on('error', thrower).end();
+
+    https.get({
+      method: 'GET',
+      path: '/setHostFalse' + (counter++),
+      host: 'localhost',
+      setHost: false,
       port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
