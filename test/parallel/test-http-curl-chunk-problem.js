@@ -1,11 +1,11 @@
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
+var common = require('../common');
+var assert = require('assert');
+if (!common.opensslCli) {
+  console.error('Skipping because node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
-var common = require('../common');
-var assert = require('assert');
 var http = require('http');
 var cp = require('child_process');
 var fs = require('fs');
@@ -16,7 +16,7 @@ var count = 0;
 function maybeMakeRequest() {
   if (++count < 2) return;
   console.log('making curl request');
-  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | openssl sha1';
+  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | ' + common.opensslCli + ' sha1';
   cp.exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
     var hex = stdout.match(/([A-Fa-f0-9]{40})/)[0];
