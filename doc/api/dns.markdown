@@ -1,6 +1,6 @@
 # DNS
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 Use `require('dns')` to access this module.
 

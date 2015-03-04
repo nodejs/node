@@ -1,4 +1,4 @@
-var common = require('../common.js');
+var common = require('../common');
 var stream = require('stream');
 var Buffer = require('buffer').Buffer;
 

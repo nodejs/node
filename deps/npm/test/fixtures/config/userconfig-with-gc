@@ -12,7 +12,7 @@ npm-www:nocache=1
 sign-git-tag=false
 message=v%s
 strict-ssl=false
-_auth=dXNlcm5hbWU6cGFzc3dvcmQ=
+_auth="dXNlcm5hbWU6cGFzc3dvcmQ="
 
 [_token]
 AuthSession=yabba-dabba-doodle

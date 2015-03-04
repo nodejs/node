@@ -1,6 +1,6 @@
 # Cluster
 
-    Stability: 2 - Unstable
+    Stability: 2 - Stable
 
 A single instance of io.js runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of io.js
@@ -420,11 +420,13 @@ exit, the master may choose not to respawn a worker based on this value.
 * `message` {Object}
 * `sendHandle` {Handle object}
 
-This function is equal to the send methods provided by
-`child_process.fork()`.  In the master you should use this function to
-send a message to a specific worker.
+Send a message to a worker or master, optionally with a handle.
 
-In a worker you can also use `process.send(message)`, it is the same function.
+In the master this sends a message to a specific worker. It is identical to
+[child.send()](child_process.html#child_process_child_send_message_sendhandle).
+
+In a worker this sends a message to the master. It is identical to
+`process.send()`.
 
 This example will echo back all messages from the master:
 

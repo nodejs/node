@@ -1,4 +1,4 @@
-var common = require('../common.js');
+var common = require('../common');
 var Readable = require('stream').Readable;
 var assert = require('assert');
 

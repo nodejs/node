@@ -1,6 +1,6 @@
 # Timers
 
-    Stability: 5 - Locked
+    Stability: 3 - Locked
 
 All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.
@@ -34,7 +34,7 @@ Stops an interval from triggering.
 
 The opaque value returned by `setTimeout` and `setInterval` also has the method
 `timer.unref()` which will allow you to create a timer that is active but if
-it is the only item left in the event loop won't keep the program running.
+it is the only item left in the event loop, it won't keep the program running.
 If the timer is already `unref`d calling `unref` again will have no effect.
 
 In the case of `setTimeout` when you `unref` you create a separate timer that

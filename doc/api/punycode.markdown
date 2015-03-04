@@ -1,6 +1,6 @@
 # punycode
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 [Punycode.js](https://mths.be/punycode) is bundled with io.js v1.0.0+ and
 Node.js v0.6.2+. Use `require('punycode')` to access it. (To use it with

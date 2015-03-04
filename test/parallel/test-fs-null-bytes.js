@@ -20,6 +20,8 @@ function check(async, sync) {
     async.apply(null, argsAsync);
 }
 
+check(fs.access,      fs.accessSync,      'foo\u0000bar');
+check(fs.access,      fs.accessSync,      'foo\u0000bar', fs.F_OK);
 check(fs.appendFile,  fs.appendFileSync,  'foo\u0000bar');
 check(fs.chmod,       fs.chmodSync,       'foo\u0000bar', '0644');
 check(fs.chown,       fs.chownSync,       'foo\u0000bar', 12, 34);
@@ -52,4 +54,3 @@ fs.exists('foo\u0000bar', function(exists) {
   assert(!exists);
 });
 assert(!fs.existsSync('foo\u0000bar'));
-

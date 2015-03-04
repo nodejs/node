@@ -1,6 +1,6 @@
 # TLS (SSL)
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 Use `require('tls')` to access this module.
 
@@ -25,8 +25,10 @@ To create a self-signed certificate with the CSR, do this:
 
 Alternatively you can send the CSR to a Certificate Authority for signing.
 
-(TODO: docs on creating a CA, for now interested users should just look at
-`test/fixtures/keys/Makefile` in the Node source code)
+For Perfect Forward Secrecy, it is required to generate Diffie-Hellman
+parameters:
+
+    openssl dhparam -outform PEM -out dhparam.pem 2048
 
 To create .pfx or .p12, do this:
 
@@ -136,40 +138,30 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate
     Revocation List)
 
-  - `ciphers`: A string describing the ciphers to use or exclude.
+  - `ciphers`: A string describing the ciphers to use or exclude, seperated by
+    `:`. The default cipher suite is:
 
-    To mitigate [BEAST attacks] it is recommended that you use this option in
-    conjunction with the `honorCipherOrder` option described below to
-    prioritize the non-CBC cipher.
+        ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:
+        DHE-RSA-AES256-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:
+        HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA
 
-    Defaults to
-    `ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL`.
-    Consult the [OpenSSL cipher list format documentation] for details
-    on the format.
-
-    `ECDHE-RSA-AES128-SHA256`, `DHE-RSA-AES128-SHA256` and
-    `AES128-GCM-SHA256` are TLS v1.2 ciphers and used when io.js is
-    linked against OpenSSL 1.0.1 or newer, such as the bundled version
-    of OpenSSL.  Note that it is still possible for a TLS v1.2 client
-    to negotiate a weaker cipher unless `honorCipherOrder` is enabled.
-
-    `RC4` is used as a fallback for clients that speak on older version of
-    the TLS protocol.  `RC4` has in recent years come under suspicion and
-    should be considered compromised for anything that is truly sensitive.
-    It is speculated that state-level actors possess the ability to break it.
-
-    **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
-    acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
-    susceptible to [BEAST attacks]. Do *not* use it.
+    The default cipher suite prefers ECDHE and DHE ciphers for Perfect Forward
+    secrecy, while offering *some* backward compatibiltity. Old clients which
+    rely on insecure and deprecated RC4 or DES-based ciphers (like Internet
+    Explorer 6) aren't able to complete the handshake with the default
+    configuration. If you absolutely must support these clients, the
+    [TLS recommendations] may offer a compatible cipher suite. For more details
+    on the format, see the [OpenSSL cipher list format documentation].
 
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
     Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
-  - `dhparam`: DH parameter file to use for DHE key agreement. Use
-    `openssl dhparam` command to create it. If the file is invalid to
-    load, it is silently discarded.
+  - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
+    required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
+    If omitted or invalid, it is silently discarded and DHE ciphers won't be
+    available.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.
@@ -178,11 +170,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     times out.
 
   - `honorCipherOrder` : When choosing a cipher, use the server's preferences
-    instead of the client preferences.
-
-    Although, this option is disabled by default, it is *recommended* that you
-    use this option in conjunction with the `ciphers` option to mitigate
-    BEAST attacks.
+    instead of the client preferences. Default: `true`.
 
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
@@ -313,6 +301,9 @@ Creates a new client connection to the given `port` and `host` (old API) or
   - `ca`: An array of strings or `Buffer`s of trusted certificates in PEM
     format. If this is omitted several well known "root" CAs will be used,
     like VeriSign. These are used to authorize connections.
+
+  - `ciphers`: A string describing the ciphers to use or exclude, separated by
+   `:`. Uses the same default cipher suite as `tls.createServer`.
 
   - `rejectUnauthorized`: If `true`, the server certificate is verified against
     the list of supplied CAs. An `'error'` event is emitted if verification
@@ -812,3 +803,4 @@ The numeric representation of the local port.
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [asn1.js]: http://npmjs.org/package/asn1.js
 [OCSP request]: http://en.wikipedia.org/wiki/OCSP_stapling
+[TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS

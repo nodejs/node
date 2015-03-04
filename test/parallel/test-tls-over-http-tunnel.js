@@ -41,7 +41,8 @@ var proxy = net.createServer(function(clientSocket) {
       // Verify the CONNECT request
       assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
                    'Proxy-Connections: keep-alive\r\n' +
-                   'Host: localhost:' + proxyPort + '\r\n\r\n',
+                   'Host: localhost:' + proxyPort + '\r\n' +
+                   'Connection: close\r\n\r\n',
                    chunk);
 
       console.log('PROXY: got CONNECT request');

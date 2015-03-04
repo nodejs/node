@@ -35,14 +35,14 @@ npm link                    # creates global link
 cd ~/projects/node-bloggy   # go into some other package directory.
 npm link redis              # link-install the package
 </code></pre><p>Now, any changes to ~/projects/node-redis will be reflected in
-~/projects/node-bloggy/node_modules/redis/</p>
+~/projects/node-bloggy/node_modules/node-redis/</p>
 <p>You may also shortcut the two steps in one.  For example, to do the
 above use-case in a shorter way:</p>
 <pre><code>cd ~/projects/node-bloggy  # go into the dir of your main project
 npm link ../node-redis     # link the dir of your dependency
 </code></pre><p>The second line is the equivalent of doing:</p>
 <pre><code>(cd ../node-redis; npm link)
-npm link redis
+npm link node-redis
 </code></pre><p>That is, it first creates a global link, and then links the global
 installation target into your project&#39;s <code>node_modules</code> folder.</p>
 <p>If your linked package is scoped (see <code><a href="../misc/npm-scope.html"><a href="../misc/npm-scope.html">npm-scope(7)</a></a></code>) your link command must
@@ -71,5 +71,5 @@ include that scope, e.g.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-link &mdash; npm@2.5.1</p>
+<p id="footer">npm-link &mdash; npm@2.6.1</p>
 

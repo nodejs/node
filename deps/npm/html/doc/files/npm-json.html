@@ -63,7 +63,7 @@ been published somewhere else, and spit at you.</p>
 issues should be reported. These are helpful for people who encounter issues
 with your package.</p>
 <p>It should look like this:</p>
-<pre><code>{ &quot;url&quot; : &quot;http://github.com/owner/project/issues&quot;
+<pre><code>{ &quot;url&quot; : &quot;https://github.com/owner/project/issues&quot;
 , &quot;email&quot; : &quot;project@hostname.com&quot;
 }
 </code></pre><p>You can specify either one or both values. If you want to provide only a url,
@@ -161,7 +161,7 @@ compressed.  The number dictates which man section the file is installed into.</
 <h2 id="directories">directories</h2>
 <p>The CommonJS <a href="http://wiki.commonjs.org/wiki/Packages/1.0">Packages</a> spec details a
 few ways that you can indicate the structure of your package using a <code>directories</code>
-object. If you look at <a href="http://registry.npmjs.org/npm/latest">npm&#39;s package.json</a>,
+object. If you look at <a href="https://registry.npmjs.org/npm/latest">npm&#39;s package.json</a>,
 you&#39;ll see that it has directories for doc, lib, and man.</p>
 <p>In the future, this information may be used in other creative ways.</p>
 <h3 id="directories-lib">directories.lib</h3>
@@ -186,17 +186,20 @@ command will be able to find you.</p>
 <p>Do it like this:</p>
 <pre><code>&quot;repository&quot; :
   { &quot;type&quot; : &quot;git&quot;
-  , &quot;url&quot; : &quot;http://github.com/npm/npm.git&quot;
+  , &quot;url&quot; : &quot;https://github.com/npm/npm.git&quot;
   }
 
 &quot;repository&quot; :
   { &quot;type&quot; : &quot;svn&quot;
-  , &quot;url&quot; : &quot;http://v8.googlecode.com/svn/trunk/&quot;
+  , &quot;url&quot; : &quot;https://v8.googlecode.com/svn/trunk/&quot;
   }
 </code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It&#39;s for computers.</p>
-<h2 id="scripts">scripts</h2>
+<p>For GitHub repositories you can use the same shortcut syntax you use for <code>npm
+install</code>:</p>
+<pre><code>&quot;repository&quot;: &quot;npm/npm&quot;
+</code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
 event, and the value is the command to run at that point.</p>
@@ -342,12 +345,17 @@ a specific interface, expected and specified by the host documentation.</p>
   }
 }
 </code></pre><p>This ensures your package <code>tea-latte</code> can be installed <em>along</em> with the second
-major version of the host package <code>tea</code> only. The host package is automatically
-installed if needed. <code>npm install tea-latte</code> could possibly yield the following
-dependency graph:</p>
+major version of the host package <code>tea</code> only. <code>npm install tea-latte</code> could
+possibly yield the following dependency graph:</p>
 <pre><code>├── tea-latte@1.3.5
 └── tea@2.2.0
-</code></pre><p>Trying to install another plugin with a conflicting requirement will cause an
+</code></pre><p><strong>NOTE: npm versions 1 and 2 will automatically install <code>peerDependencies</code> if
+they are not explicitly depended upon higher in the dependency tree. In the
+next major version of npm (npm@3), this will no longer be the case. You will
+receive a warning that the peerDependency is not installed instead.</strong> The
+behavior in npms 1 &amp; 2 was frequently confusing and could easily put you into
+dependency hell, a situation that npm is designed to avoid as much as possible.</p>
+<p>Trying to install another plugin with a conflicting requirement will cause an
 error. For this reason, make sure your plugin requirement is as broad as
 possible, and not to lock it down to specific patch versions.</p>
 <p>Assuming the host complies with <a href="http://semver.org/">semver</a>, only changes in
@@ -396,6 +404,7 @@ are capable of properly installing your program.  For example:</p>
 </code></pre><p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
 field is advisory only.</p>
 <h2 id="enginestrict">engineStrict</h2>
+<p><strong>NOTE: This feature is deprecated and will be removed in npm 3.0.0.</strong></p>
 <p>If you are sure that your module will <em>definitely not</em> run properly on
 versions of Node/npm other than those specified in the <code>engines</code> object,
 then you can set <code>&quot;engineStrict&quot;: true</code> in your package.json file.
@@ -403,8 +412,7 @@ This will override the user&#39;s <code>engine-strict</code> config setting.</p>
 <p>Please do not do this unless you are really very very sure.  If your
 engines object is something overly restrictive, you can quite easily and
 inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node.  Consider this choice carefully.  If
-people abuse it, it will be removed in a future version of npm.</p>
+updating to new versions of Node.  Consider this choice carefully.</p>
 <h2 id="os">os</h2>
 <p>You can specify which operating systems your
 module will run on:</p>
@@ -488,5 +496,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-json &mdash; npm@2.5.1</p>
+<p id="footer">npm-json &mdash; npm@2.6.1</p>
 

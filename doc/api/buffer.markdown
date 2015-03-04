@@ -1,6 +1,6 @@
 # Buffer
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 Pure JavaScript is Unicode friendly but not nice to binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet
@@ -391,6 +391,19 @@ byte from the original Buffer.
 
     // abc
     // !bc
+
+
+### buf.indexOf(value[, byteOffset])
+
+* `value` String, Buffer or Number
+* `byteOffset` Number, Optional, Default: 0
+* Return: Number
+
+Operates similar to
+[Array#indexOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf).
+Accepts a String, Buffer or Number. Strings are interpreted as UTF8. Buffers
+will use the entire buffer. So in order to compare a partial Buffer use
+`Buffer#slice()`. Numbers can range from 0 to 255.
 
 ### buf.readUInt8(offset[, noAssert])
 

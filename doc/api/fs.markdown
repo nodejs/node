@@ -1,6 +1,6 @@
 # File System
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 <!--name=fs-->
 
@@ -29,7 +29,7 @@ Here is the synchronous version:
 
     var fs = require('fs');
 
-    fs.unlinkSync('/tmp/hello')
+    fs.unlinkSync('/tmp/hello');
     console.log('successfully deleted /tmp/hello');
 
 With the asynchronous methods there is no guaranteed ordering. So the
@@ -106,7 +106,8 @@ Synchronous ftruncate(2).
 ## fs.truncate(path, len, callback)
 
 Asynchronous truncate(2). No arguments other than a possible exception are
-given to the completion callback.
+given to the completion callback. A file descriptor can also be passed as the
+first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
 
@@ -641,6 +642,10 @@ callback, and have some fallback logic if it is null.
 
 ## fs.exists(path, callback)
 
+`fs.exists()` is **deprecated**. For supported alternatives please check out
+[`fs.stat`](fs.html#fs_fs_stat_path_callback) or
+[`fs.access`](fs.html#fs_fs_access_path_mode_callback).
+
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
 
@@ -656,13 +661,15 @@ that leaves you vulnerable to race conditions: another process may remove the
 file between the calls to `fs.exists()` and `fs.open()`.  Just open the file
 and handle the error when it's not there.
 
-`fs.exists()` is **deprecated**.
+
 
 ## fs.existsSync(path)
 
-Synchronous version of `fs.exists`.
+Synchronous version of [`fs.exists`](fs.html#fs_fs_exists_path_callback).
 
-`fs.existsSync()` is **deprecated**.
+`fs.existsSync()` is **deprecated**. For supported alternatives please check
+out [`fs.statSync`](fs.html#fs_fs_statsync_path) or
+[`fs.accessSync`](fs.html#fs_fs_accesssync_path_mode).
 
 ## fs.access(path[, mode], callback)
 

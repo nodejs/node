@@ -1,6 +1,6 @@
 # Child Process
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 io.js provides a tri-directional `popen(3)` facility through the
 `child_process` module.
@@ -177,7 +177,7 @@ Example:
 
 ### child.connected
 
-* {Boolean} Set to false after `.disconnect' is called
+* {Boolean} Set to false after `.disconnect` is called
 
 If `.connected` is false, it is no longer possible to send messages.
 
@@ -439,7 +439,7 @@ Example of checking for failed exec:
       console.log('Failed to start child process.');
     });
 
-### options.stdio
+#### options.stdio
 
 As a shorthand, the `stdio` argument may be one of the following strings:
 
@@ -492,7 +492,7 @@ Example:
     // startd-style interface.
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 
-### options.detached
+#### options.detached
 
 If the `detached` option is set, the child process will be made the leader of a
 new process group.  This makes it possible for the child to continue running 

@@ -3,7 +3,7 @@ if (process.platform !== 'win32') {
   return process.exit(0);
 }
 
-var common = require('../common.js'),
+var common = require('../common'),
     assert = require('assert'),
     fs = require('fs'),
     path = require('path'),

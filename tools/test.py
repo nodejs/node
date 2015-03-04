@@ -29,6 +29,7 @@
 
 
 import imp
+import logging
 import optparse
 import os
 import platform
@@ -47,6 +48,8 @@ from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 from Queue import Queue, Empty
 
+logger = logging.getLogger('testrunner')
+
 VERBOSE = False
 
 
@@ -57,9 +60,8 @@ VERBOSE = False
 
 class ProgressIndicator(object):
 
-  def __init__(self, cases, flaky_tests_mode):
+  def __init__(self, cases):
     self.cases = cases
-    self.flaky_tests_mode = flaky_tests_mode
     self.parallel_queue = Queue(len(cases))
     self.sequential_queue = Queue(len(cases))
     for case in cases:
@@ -238,7 +240,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 class TapProgressIndicator(SimpleProgressIndicator):
 
   def Starting(self):
-    print '1..%i' % len(self.cases)
+    logger.info('1..%i' % len(self.cases))
     self._done = 0
 
   def AboutToRun(self, case):
@@ -248,19 +250,13 @@ class TapProgressIndicator(SimpleProgressIndicator):
     self._done += 1
     command = basename(output.command[-1])
     if output.UnexpectedOutput():
-      status_line = 'not ok %i - %s' % (self._done, command)
-      if FLAKY in output.test.outcomes and self.flaky_tests_mode == "dontcare":
-        status_line = status_line + " # TODO : Fix flaky test"
-      print status_line
+      logger.info('not ok %i - %s' % (self._done, command))
       for l in output.output.stderr.splitlines():
-        print '#' + l
+        logger.info('#' + l)
       for l in output.output.stdout.splitlines():
-        print '#' + l
+        logger.info('#' + l)
     else:
-      status_line = 'ok %i - %s' % (self._done, command)
-      if FLAKY in output.test.outcomes:
-        status_line = status_line + " # TODO : Fix flaky test"
-      print status_line
+      logger.info('ok %i - %s' % (self._done, command))
 
     duration = output.test.duration
 
@@ -268,9 +264,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
     total_seconds = (duration.microseconds +
       (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
 
-    print '  ---'
-    print '  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000)
-    print '  ...'
+    logger.info('  ---')
+    logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
+    logger.info('  ...')
 
   def Done(self):
     pass
@@ -278,8 +274,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
 class CompactProgressIndicator(ProgressIndicator):
 
-  def __init__(self, cases, flaky_tests_mode, templates):
-    super(CompactProgressIndicator, self).__init__(cases, flaky_tests_mode)
+  def __init__(self, cases, templates):
+    super(CompactProgressIndicator, self).__init__(cases)
     self.templates = templates
     self.last_status_length = 0
     self.start_time = time.time()
@@ -334,13 +330,13 @@ class CompactProgressIndicator(ProgressIndicator):
 
 class ColorProgressIndicator(CompactProgressIndicator):
 
-  def __init__(self, cases, flaky_tests_mode):
+  def __init__(self, cases):
     templates = {
       'status_line': "[%(mins)02i:%(secs)02i|\033[34m%%%(remaining) 4d\033[0m|\033[32m+%(passed) 4d\033[0m|\033[31m-%(failed) 4d\033[0m]: %(test)s",
       'stdout': "\033[1m%s\033[0m",
       'stderr': "\033[31m%s\033[0m",
     }
-    super(ColorProgressIndicator, self).__init__(cases, flaky_tests_mode, templates)
+    super(ColorProgressIndicator, self).__init__(cases, templates)
 
   def ClearLine(self, last_line_length):
     print "\033[1K\r",
@@ -348,7 +344,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
 
-  def __init__(self, cases, flaky_tests_mode):
+  def __init__(self, cases):
     templates = {
       'status_line': "[%(mins)02i:%(secs)02i|%%%(remaining) 4d|+%(passed) 4d|-%(failed) 4d]: %(test)s",
       'stdout': '%s',
@@ -356,7 +352,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
       'clear': lambda last_line_length: ("\r" + (" " * last_line_length) + "\r"),
       'max_length': 78
     }
-    super(MonochromeProgressIndicator, self).__init__(cases, flaky_tests_mode, templates)
+    super(MonochromeProgressIndicator, self).__init__(cases, templates)
 
   def ClearLine(self, last_line_length):
     print ("\r" + (" " * last_line_length) + "\r"),
@@ -776,8 +772,8 @@ class Context(object):
   def GetTimeout(self, mode):
     return self.timeout * TIMEOUT_SCALEFACTOR[mode]
 
-def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
-  progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode)
+def RunTestCases(cases_to_run, progress, tasks):
+  progress = PROGRESS_INDICATORS[progress](cases_to_run)
   return progress.Run(tasks)
 
 
@@ -801,7 +797,6 @@ OKAY = 'okay'
 TIMEOUT = 'timeout'
 CRASH = 'crash'
 SLOW = 'slow'
-FLAKY = 'flaky'
 
 
 class Expression(object):
@@ -1224,6 +1219,8 @@ def BuildOptions():
       default='release')
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
+  result.add_option('--logfile', dest='logfile',
+      help='write test output to file. NOTE: this only applies the tap progress indicator')
   result.add_option("-S", dest="scons_flags", help="Flag to pass through to scons",
       default=[], action="append")
   result.add_option("-p", "--progress",
@@ -1248,9 +1245,6 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
-  result.add_option("--flaky-tests",
-      help="Regard tests marked as flaky (run|skip|dontcare)",
-      default="run")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -1280,35 +1274,24 @@ def ProcessOptions(options):
   options.mode = options.mode.split(',')
   if options.J:
     options.j = multiprocessing.cpu_count()
-  def CheckTestMode(name, option):
-    if not option in ["run", "skip", "dontcare"]:
-      print "Unknown %s mode %s" % (name, option)
-      return False
-    return True
-  if not CheckTestMode("--flaky-tests", options.flaky_tests):
-    return False
   return True
 
 
 REPORT_TEMPLATE = """\
 Total: %(total)i tests
  * %(skipped)4d tests will be skipped
- * %(nocrash)4d tests are expected to be flaky but not crash
  * %(pass)4d tests are expected to pass
  * %(fail_ok)4d tests are expected to fail that we won't fix
  * %(fail)4d tests are expected to fail that we should fix\
 """
 
 def PrintReport(cases):
-  def IsFlaky(o):
-    return (PASS in o) and (FAIL in o) and (not CRASH in o) and (not OKAY in o)
   def IsFailOk(o):
     return (len(o) == 2) and (FAIL in o) and (OKAY in o)
   unskipped = [c for c in cases if not SKIP in c.outcomes]
   print REPORT_TEMPLATE % {
     'total': len(cases),
     'skipped': len(cases) - len(unskipped),
-    'nocrash': len([t for t in unskipped if IsFlaky(t.outcomes)]),
     'pass': len([t for t in unskipped if list(t.outcomes) == [PASS]]),
     'fail_ok': len([t for t in unskipped if IsFailOk(t.outcomes)]),
     'fail': len([t for t in unskipped if list(t.outcomes) == [FAIL]])
@@ -1380,6 +1363,13 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
+
+  ch = logging.StreamHandler(sys.stdout)
+  logger.addHandler(ch)
+  logger.setLevel('INFO')
+  if options.logfile:
+    fh = logging.FileHandler(options.logfile)
+    logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   suites = GetSuites(join(workspace, 'test'))
@@ -1486,7 +1476,7 @@ def Main():
 
   result = None
   def DoSkip(case):
-    return SKIP in case.outcomes or SLOW in case.outcomes or (FLAKY in case.outcomes and options.flaky_tests == "skip")
+    return SKIP in case.outcomes or SLOW in case.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
   if len(cases_to_run) == 0:
     print "No tests to run."
@@ -1494,7 +1484,7 @@ def Main():
   else:
     try:
       start = time.time()
-      if RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests):
+      if RunTestCases(cases_to_run, options.progress, options.j):
         result = 0
       else:
         result = 1

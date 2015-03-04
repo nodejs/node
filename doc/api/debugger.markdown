@@ -1,6 +1,6 @@
 # Debugger
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 <!-- type=misc -->
 

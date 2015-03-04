@@ -1,4 +1,4 @@
-var common = require('../common.js'),
+var common = require('../common'),
     assert = require('assert'),
     fs = require('fs'),
     path = require('path');

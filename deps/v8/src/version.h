@@ -18,8 +18,9 @@ class Version {
   static int GetBuild() { return build_; }
   static int GetPatch() { return patch_; }
   static bool IsCandidate() { return candidate_; }
-  static int Hash() {
-    return static_cast<int>(base::hash_combine(major_, minor_, build_, patch_));
+  static uint32_t Hash() {
+    return static_cast<uint32_t>(
+        base::hash_combine(major_, minor_, build_, patch_));
   }
 
   // Calculate the V8 version string.

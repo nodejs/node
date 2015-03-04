@@ -1,6 +1,6 @@
 // test uncompressing invalid input
 
-var common = require('../common.js'),
+var common = require('../common'),
     assert = require('assert'),
     zlib = require('zlib');
 

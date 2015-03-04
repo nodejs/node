@@ -1,6 +1,6 @@
-# os
+# OS
 
-    Stability: 4 - API Frozen
+    Stability: 2 - Stable
 
 Provides a few basic operating-system related utility functions.
 
@@ -8,11 +8,12 @@ Use `require('os')` to access this module.
 
 ## os.tmpdir()
 
-Returns the operating system's default directory for temp files.
+Returns the operating system's default directory for temporary files.
 
 ## os.endianness()
 
-Returns the endianness of the CPU. Possible values are `"BE"` or `"LE"`.
+Returns the endianness of the CPU. Possible values are `'BE'` for big endian
+or `'LE'` for little endian.
 
 ## os.hostname()
 
@@ -20,16 +21,19 @@ Returns the hostname of the operating system.
 
 ## os.type()
 
-Returns the operating system name.
+Returns the operating system name. For example `'Linux'` on Linux, `'Darwin'`
+on OS X and `'Windows_NT'` on Windows.
 
 ## os.platform()
 
-Returns the operating system platform.
+Returns the operating system platform. Possible values are `'darwin'`,
+`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
+`process.platform`.
 
 ## os.arch()
 
-Returns the operating system CPU architecture. Possible values are `"x64"`,
-`"arm"` and `"ia32"`.
+Returns the operating system CPU architecture. Possible values are `'x64'`,
+`'arm'` and `'ia32'`. Returns the value of `process.arch`.
 
 ## os.release()
 
@@ -132,6 +136,9 @@ Example inspection of os.cpus:
            idle: 1072572010,
            irq: 30 } } ]
 
+Note that since `nice` values are UNIX centric in Windows the `nice` values of
+all processors are always 0.
+
 ## os.networkInterfaces()
 
 Get a list of network interfaces:
@@ -164,4 +171,5 @@ interfaces that have been assigned an address.
 
 ## os.EOL
 
-A constant defining the appropriate End-of-line marker for the operating system.
+A constant defining the appropriate End-of-line marker for the operating
+system.

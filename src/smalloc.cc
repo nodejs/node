@@ -10,6 +10,20 @@
 #include <string.h>
 
 #define ALLOC_ID (0xA10C)
+#define EXTERNAL_ARRAY_TYPES(V)                                               \
+  V(Int8, kExternalInt8Array)                                                 \
+  V(Uint8, kExternalUint8Array)                                               \
+  V(Int16, kExternalInt16Array)                                               \
+  V(Uint16, kExternalUint16Array)                                             \
+  V(Int32, kExternalInt32Array)                                               \
+  V(Uint32, kExternalUint32Array)                                             \
+  V(Float, kExternalFloat32Array)                                             \
+  V(Double, kExternalFloat64Array)                                            \
+  V(Uint8Clamped, kExternalUint8ClampedArray)
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 
 namespace node {
 namespace smalloc {
@@ -152,18 +166,14 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
 void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject())
-    return env->ThrowTypeError("source must be an object");
-  if (!args[2]->IsObject())
-    return env->ThrowTypeError("dest must be an object");
+  ASSERT(args[0]->IsObject());
+  ASSERT(args[2]->IsObject());
 
   Local<Object> source = args[0].As<Object>();
   Local<Object> dest = args[2].As<Object>();
 
-  if (!source->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowError("source has no external array data");
-  if (!dest->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowError("dest has no external array data");
+  ASSERT(source->HasIndexedPropertiesInExternalArrayData());
+  ASSERT(dest->HasIndexedPropertiesInExternalArrayData());
 
   size_t source_start = args[1]->Uint32Value();
   size_t dest_start = args[3]->Uint32Value();
@@ -266,11 +276,11 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
 void Alloc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ASSERT(args[0]->IsObject());
+
   Local<Object> obj = args[0].As<Object>();
 
-  // can't perform this check in JS
-  if (obj->HasIndexedPropertiesInExternalArrayData())
-    return env->ThrowTypeError("object already has external array data");
+  ASSERT(!obj->HasIndexedPropertiesInExternalArrayData());
 
   size_t length = args[1]->Uint32Value();
   enum ExternalArrayType array_type;
@@ -410,8 +420,8 @@ void Alloc(Environment* env,
 
 void HasExternalData(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(args[0]->IsObject() &&
-                            HasExternalData(env, args[0].As<Object>()));
+  ASSERT(args[0]->IsObject());
+  args.GetReturnValue().Set(HasExternalData(env, args[0].As<Object>()));
 }
 
 
@@ -509,10 +519,61 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
 }
 
 
+// User facing API.
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           size_t length,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, length, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           char* data,
+           size_t length,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, data, length, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, length, fn, hint, type);
+}
+
+
+void Alloc(Isolate* isolate,
+           Handle<Object> obj,
+           char* data,
+           size_t length,
+           FreeCallback fn,
+           void* hint,
+           enum ExternalArrayType type) {
+  Alloc(Environment::GetCurrent(isolate), obj, data, length, fn, hint, type);
+}
+
+
+void AllocDispose(Isolate* isolate, Handle<Object> obj) {
+  AllocDispose(Environment::GetCurrent(isolate), obj);
+}
+
+
+bool HasExternalData(Isolate* isolate, Local<Object> obj) {
+  return HasExternalData(Environment::GetCurrent(isolate), obj);
+}
+
+
 void Initialize(Handle<Object> exports,
                 Handle<Value> unused,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   env->SetMethod(exports, "copyOnto", CopyOnto);
   env->SetMethod(exports, "sliceOnto", SliceOnto);
@@ -526,6 +587,24 @@ void Initialize(Handle<Object> exports,
 
   exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
                Uint32::NewFromUnsigned(env->isolate(), kMaxLength));
+
+  Local<Object> types = Object::New(isolate);
+
+  uint32_t kMinType = ~0;
+  uint32_t kMaxType = 0;
+#define V(name, value)                                                        \
+  types->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                    \
+             Uint32::NewFromUnsigned(env->isolate(), v8::value));             \
+  kMinType = MIN(kMinType, static_cast<uint32_t>(v8::value));                 \
+  kMaxType = MAX(kMinType, static_cast<uint32_t>(v8::value));
+  EXTERNAL_ARRAY_TYPES(V)
+#undef V
+
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "types"), types);
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMinType"),
+               Uint32::NewFromUnsigned(env->isolate(), kMinType));
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxType"),
+               Uint32::NewFromUnsigned(env->isolate(), kMaxType));
 
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
   heap_profiler->SetWrapperClassInfoProvider(ALLOC_ID, WrapperInfo);

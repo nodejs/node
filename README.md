@@ -21,7 +21,7 @@ the title of man pages).
 
 ## Download
 
-Binaries, installers and source tarballs are available at
+Binaries, installers, and source tarballs are available at
 <https://iojs.org>.
 
 **Releases** are available at <https://iojs.org/dist/>, listed under
@@ -34,7 +34,7 @@ string which includes their date (in UTC time) and the commit SHA at
 the HEAD of the release.
 
 **API documentation** is available in each release and nightly
-directory under _docs_. <http://iojs.org/api/> points to the the
+directory under _docs_. <https://iojs.org/api/> points to the the
 latest version.
 
 ### Verifying Binaries
@@ -263,7 +263,7 @@ information about the governance of the io.js project, see
 * **Trevor Norris** ([@trevnorris](https://github.com/trevnorris)) &lt;trev.norris@gmail.com&gt; (Technical Committee)
 * **Chris Dickinson** ([@chrisdickinson](https://github.com/chrisdickinson)) &lt;christopher.s.dickinson@gmail.com&gt; (Technical Committee)
 <br>Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
-* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt; (Technical Committee)
+* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt;
 * **Mikeal Rogers** ([@mikeal](https://github.com/mikeal)) &lt;mikeal.rogers@gmail.com&gt;
 * **Rod Vagg** ([@rvagg](https://github.com/rvagg)) &lt;rod@vagg.org&gt;
 <br>Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -278,6 +278,11 @@ information about the governance of the io.js project, see
 * **Aleksey Smolenchuk** ([@lxe](https://github.com/lxe)) &lt;lxe@lxe.co&gt;
 * **Shigeki Ohtsu** ([@shigeki](https://github.com/shigeki)) &lt;ohtsu@iij.ad.jp&gt;
 * **Sam Roberts** ([@sam-github](https://github.com/sam-github)) &lt;vieuxtech@gmail.com&gt;
+* **Wyatt Preul** ([@geek](https://github.com/geek)) &lt;wpreul@gmail.com&gt;
+* **Brian White** ([@mscdex](https://github.com/mscdex)) &lt;mscdex@mscdex.net&gt;
+* **Christian Vaagland Tellnes** ([@tellnes](https://github.com/tellnes)) &lt;christian@tellnes.com&gt;
+* **Robert Kowalski** ([@robertkowalski](https://github.com/robertkowalski)) &lt;rok@kowalski.gd&gt;
+* **Julian Duque** ([@julianduque](https://github.com/julianduque)) &lt;julianduquej@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.

@@ -28,15 +28,14 @@ var server = tls.createServer(options, function(conn) {
     ciphers: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     rejectUnauthorized: false
   }, function() {
+    ciphers.push(ecdsa.getCipher());
     var rsa = tls.connect(common.PORT, {
       ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
       rejectUnauthorized: false
     }, function() {
+      ciphers.push(rsa.getCipher());
       ecdsa.destroy();
       rsa.destroy();
-
-      ciphers.push(ecdsa.getCipher());
-      ciphers.push(rsa.getCipher());
       server.close();
     });
   });

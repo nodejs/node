@@ -31,6 +31,7 @@
     startup.processAssert();
     startup.processConfig();
     startup.processNextTick();
+    startup.processPromises();
     startup.processStdio();
     startup.processKillAndExit();
     startup.processSignalHandlers();
@@ -208,6 +209,14 @@
   };
 
   startup.processFatal = function() {
+    process._makeCallbackAbortOnUncaught = function() {
+      try {
+        return this[1].apply(this[0], arguments);
+      } catch (err) {
+        process._fatalException(err);
+      }
+    };
+
     process._fatalException = function(er) {
       var caught;
 
@@ -264,8 +273,11 @@
     });
   };
 
+  var addPendingUnhandledRejection;
+  var hasBeenNotifiedProperty = new WeakMap();
   startup.processNextTick = function() {
     var nextTickQueue = [];
+    var pendingUnhandledRejections = [];
     var microtasksScheduled = false;
 
     // Used to run V8's micro task queue.
@@ -318,7 +330,8 @@
       microtasksScheduled = false;
       _runMicrotasks();
 
-      if (tickInfo[kIndex] < tickInfo[kLength])
+      if (tickInfo[kIndex] < tickInfo[kLength] ||
+          emitPendingUnhandledRejections())
         scheduleMicrotasks();
     }
 
@@ -327,52 +340,59 @@
     function _tickCallback() {
       var callback, threw, tock;
 
-      scheduleMicrotasks();
-
-      while (tickInfo[kIndex] < tickInfo[kLength]) {
-        tock = nextTickQueue[tickInfo[kIndex]++];
-        callback = tock.callback;
-        threw = true;
-        try {
-          callback();
-          threw = false;
-        } finally {
-          if (threw)
+      do {
+        while (tickInfo[kIndex] < tickInfo[kLength]) {
+          tock = nextTickQueue[tickInfo[kIndex]++];
+          callback = tock.callback;
+          threw = true;
+          try {
+            callback();
+            threw = false;
+          } finally {
+            if (threw)
+              tickDone();
+          }
+          if (1e4 < tickInfo[kIndex])
             tickDone();
         }
-        if (1e4 < tickInfo[kIndex])
-          tickDone();
-      }
-
-      tickDone();
+        tickDone();
+        _runMicrotasks();
+        emitPendingUnhandledRejections();
+      } while (tickInfo[kLength] !== 0);
     }
 
     function _tickDomainCallback() {
       var callback, domain, threw, tock;
 
-      scheduleMicrotasks();
-
-      while (tickInfo[kIndex] < tickInfo[kLength]) {
-        tock = nextTickQueue[tickInfo[kIndex]++];
-        callback = tock.callback;
-        domain = tock.domain;
-        if (domain)
-          domain.enter();
-        threw = true;
-        try {
-          callback();
-          threw = false;
-        } finally {
-          if (threw)
+      do {
+        while (tickInfo[kIndex] < tickInfo[kLength]) {
+          tock = nextTickQueue[tickInfo[kIndex]++];
+          callback = tock.callback;
+          domain = tock.domain;
+          if (domain)
+            domain.enter();
+          threw = true;
+          try {
+            callback();
+            threw = false;
+          } finally {
+            if (threw)
+              tickDone();
+          }
+          if (1e4 < tickInfo[kIndex])
             tickDone();
+          if (domain)
+            domain.exit();
         }
-        if (1e4 < tickInfo[kIndex])
-          tickDone();
-        if (domain)
-          domain.exit();
-      }
+        tickDone();
+        _runMicrotasks();
+        emitPendingUnhandledRejections();
+      } while (tickInfo[kLength] !== 0);
+    }
 
-      tickDone();
+    function TickObject(c) {
+      this.callback = c;
+      this.domain = process.domain || null;
     }
 
     function nextTick(callback) {
@@ -380,14 +400,60 @@
       if (process._exiting)
         return;
 
-      var obj = {
-        callback: callback,
-        domain: process.domain || null
-      };
-
-      nextTickQueue.push(obj);
+      nextTickQueue.push(new TickObject(callback));
       tickInfo[kLength]++;
     }
+
+    function emitPendingUnhandledRejections() {
+      var hadListeners = false;
+      while (pendingUnhandledRejections.length > 0) {
+        var promise = pendingUnhandledRejections.shift();
+        var reason = pendingUnhandledRejections.shift();
+        if (hasBeenNotifiedProperty.get(promise) === false) {
+          hasBeenNotifiedProperty.set(promise, true);
+          if (!process.emit('unhandledRejection', reason, promise)) {
+            // Nobody is listening.
+            // TODO(petkaantonov) Take some default action, see #830
+          } else
+            hadListeners = true;
+        }
+      }
+      return hadListeners;
+    }
+
+    addPendingUnhandledRejection = function(promise, reason) {
+      pendingUnhandledRejections.push(promise, reason);
+      scheduleMicrotasks();
+    };
+  };
+
+  startup.processPromises = function() {
+    var promiseRejectEvent = process._promiseRejectEvent;
+
+    function unhandledRejection(promise, reason) {
+      hasBeenNotifiedProperty.set(promise, false);
+      addPendingUnhandledRejection(promise, reason);
+    }
+
+    function rejectionHandled(promise) {
+      var hasBeenNotified = hasBeenNotifiedProperty.get(promise);
+      if (hasBeenNotified !== undefined) {
+        hasBeenNotifiedProperty.delete(promise);
+        if (hasBeenNotified === true)
+          process.emit('rejectionHandled', promise);
+      }
+    }
+
+    process._setupPromises(function(event, promise, reason) {
+      if (event === promiseRejectEvent.unhandled)
+        unhandledRejection(promise, reason);
+      else if (event === promiseRejectEvent.handled)
+        process.nextTick(function() {
+          rejectionHandled(promise);
+        });
+      else
+        NativeModule.require('assert').fail('unexpected PromiseRejectEvent');
+    });
   };
 
   function evalScript(name) {

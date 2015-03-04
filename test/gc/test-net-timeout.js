@@ -22,7 +22,7 @@ var net  = require('net'),
     count   = 0,
     countGC = 0,
     todo    = 500,
-    common = require('../common.js'),
+    common = require('../common'),
     assert = require('assert'),
     PORT = common.PORT;
 

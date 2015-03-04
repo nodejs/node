@@ -98,6 +98,8 @@ using v8::Message;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::Promise;
+using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::TryCatch;
@@ -110,6 +112,7 @@ static bool print_eval = false;
 static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
+static bool abort_on_uncaught_exception = false;
 static const char* eval_string = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
@@ -982,6 +985,37 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick"));
 }
 
+void PromiseRejectCallback(PromiseRejectMessage message) {
+  Local<Promise> promise = message.GetPromise();
+  Isolate* isolate = promise->GetIsolate();
+  Local<Value> value = message.GetValue();
+  Local<Integer> event = Integer::New(isolate, message.GetEvent());
+
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Function> callback = env->promise_reject_function();
+
+  if (value.IsEmpty())
+    value = Undefined(isolate);
+
+  Local<Value> args[] = { event, promise, value };
+  Local<Object> process = env->process_object();
+
+  callback->Call(process, ARRAY_SIZE(args), args);
+}
+
+void SetupPromises(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK(args[0]->IsFunction());
+
+  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
+  env->set_promise_reject_function(args[0].As<Function>());
+
+  env->process_object()->Delete(
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises"));
+}
+
 
 Handle<Value> MakeCallback(Environment* env,
                            Handle<Value> recv,
@@ -1030,7 +1064,7 @@ Handle<Value> MakeCallback(Environment* env,
     try_catch.SetVerbose(false);
     env->async_hooks_pre_function()->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
-      FatalError("node:;MakeCallback", "pre hook threw");
+      FatalError("node::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
   }
 
@@ -2572,6 +2606,14 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
     obj->ForceSet(OneByteString(env->isolate(), str), var, v8::ReadOnly);     \
   } while (0)
 
+#define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
+  do {                                                                        \
+    obj->ForceSet(OneByteString(env->isolate(), str),                         \
+                  var,                                                        \
+                  static_cast<v8::PropertyAttribute>(v8::ReadOnly |           \
+                                                     v8::DontEnum));          \
+  } while (0)
+
 
 void SetupProcessObject(Environment* env,
                         int argc,
@@ -2631,6 +2673,20 @@ void SetupProcessObject(Environment* env,
       versions,
       "modules",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
+
+  // process._promiseRejectEvent
+  Local<Object> promiseRejectEvent = Object::New(env->isolate());
+  READONLY_DONT_ENUM_PROPERTY(process,
+                              "_promiseRejectEvent",
+                              promiseRejectEvent);
+  READONLY_PROPERTY(promiseRejectEvent,
+                    "unhandled",
+                    Integer::New(env->isolate(),
+                                 v8::kPromiseRejectWithNoHandler));
+  READONLY_PROPERTY(promiseRejectEvent,
+                    "handled",
+                    Integer::New(env->isolate(),
+                                 v8::kPromiseHandlerAddedAfterReject));
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -2790,6 +2846,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
 
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
+  env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
   // pre-set _events object for faster emit checks
@@ -3053,6 +3110,9 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
+               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
+      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
@@ -3366,7 +3426,22 @@ inline void PlatformInit() {
   sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+
+  // Make sure file descriptors 0-2 are valid before we start logging anything.
+  for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
+    struct stat ignored;
+    if (fstat(fd, &ignored) == 0)
+      continue;
+    // Anything but EBADF means something is seriously wrong.  We don't
+    // have to special-case EINTR, fstat() is not interruptible.
+    if (errno != EBADF)
+      abort();
+    if (fd != open("/dev/null", O_RDWR))
+      abort();
+  }
+
+  CHECK_EQ(err, 0);
 
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
@@ -3718,7 +3793,7 @@ int Start(int argc, char** argv) {
         exec_argc,
         exec_argv);
     Context::Scope context_scope(context);
-
+    env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
     // Start debug agent when argv has --debug
     if (use_debug_agent)
       StartDebug(env, debug_wait_connect);

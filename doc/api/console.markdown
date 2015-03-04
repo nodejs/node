@@ -1,6 +1,6 @@
 # console
 
-    Stability: 4 - API Frozen
+    Stability: 2 - Stable
 
 * {Object}
 
@@ -66,7 +66,7 @@ Defaults to `false`. Colors are customizable, see below.
 
 Used to calculate the duration of a specific operation. To start a timer, call
 the `console.time()` method, giving it a name as only parameter. To stop the
-timer, and to get the elapsed time in miliseconds, just call the
+timer, and to get the elapsed time in milliseconds, just call the
 [`console.timeEnd()`](#console_console_timeend_label) method, again passing the
 timer's name as the parameter.
 

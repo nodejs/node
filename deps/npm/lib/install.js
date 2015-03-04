@@ -89,6 +89,7 @@ var npm = require("./npm.js")
   , locker = require("./utils/locker.js")
   , lock = locker.lock
   , unlock = locker.unlock
+  , warnPeers = require("./utils/warn-deprecated.js")("peerDependencies")
 
 function install (args, cb_) {
   var hasArguments = !!args.length
@@ -159,6 +160,11 @@ function install (args, cb_) {
               "install",
               "peerDependency", dep, "wasn't going to be installed; adding"
             )
+            warnPeers([
+              "The peer dependency "+dep+" included from "+data.name+" will no",
+              "longer be automatically installed to fulfill the peerDependency ",
+              "in npm 3+. Your application will need to depend on it explicitly."
+            ], dep+","+data.name)
             peers.push(dep)
           }
         })
@@ -1036,6 +1042,13 @@ function write (target, targetFolder, context, cb_) {
         //  favor of killing implicit peerDependency installs with fire.
         var peerDeps = prepareForInstallMany(data, "peerDependencies", bundled,
             wrap, family)
+        peerDeps.forEach(function (pd) {
+            warnPeers([
+              "The peer dependency "+pd+" included from "+data.name+" will no",
+              "longer be automatically installed to fulfill the peerDependency ",
+              "in npm 3+. Your application will need to depend on it explicitly."
+            ], pd+","+data.name)
+        })
         var pdTargetFolder = path.resolve(targetFolder, "..", "..")
         var pdContext = context
         if (peerDeps.length > 0) {

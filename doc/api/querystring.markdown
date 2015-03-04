@@ -1,6 +1,6 @@
 # Query String
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 <!--name=querystring-->
 
@@ -42,8 +42,8 @@ characters.
 Options object may contain `maxKeys` property (equal to 1000 by default), it'll
 be used to limit processed keys. Set it to 0 to remove key count limitation.
 
-Options object may contain `decodeURIComponent` property (`decodeURIComponent` by default),
-it can be used to decode `non-utf8` encoding string if necessary.
+Options object may contain `decodeURIComponent` property (`querystring.unescape` by default),
+it can be used to decode a `non-utf8` encoding string if necessary.
 
 Example:
 
@@ -67,3 +67,7 @@ provided so that it could be overridden if necessary.
 
 The unescape function used by `querystring.parse`,
 provided so that it could be overridden if necessary.
+
+It will try to use `decodeURIComponent` in the first place,
+but if that fails it falls back to a safer equivalent that
+doesn't throw on malformed URLs.

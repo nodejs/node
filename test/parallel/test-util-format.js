@@ -1,6 +1,7 @@
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
+var symbol = Symbol('foo');
 
 assert.equal(util.format(), '');
 assert.equal(util.format(''), '');
@@ -13,6 +14,15 @@ assert.equal(util.format('test'), 'test');
 
 // CHECKME this is for console.log() compatibility - but is it *right*?
 assert.equal(util.format('foo', 'bar', 'baz'), 'foo bar baz');
+
+// ES6 Symbol handling
+assert.equal(util.format(symbol), 'Symbol(foo)');
+assert.equal(util.format('foo', symbol), 'foo Symbol(foo)');
+assert.equal(util.format('%s', symbol), 'Symbol(foo)');
+assert.equal(util.format('%j', symbol), 'undefined');
+assert.throws(function() {
+  util.format('%d', symbol);
+}, TypeError);
 
 assert.equal(util.format('%d', 42.0), '42');
 assert.equal(util.format('%d', 42), '42');

@@ -1,6 +1,6 @@
 # HTTP
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 To use the HTTP server and client one must `require('http')`.
 
@@ -858,6 +858,13 @@ A client server pair that show you how to listen for the `upgrade` event.
 Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
+
+### Event: 'abort'
+
+`function () { }`
+
+Emitted when the request has been aborted by the client. This event is only
+emitted on the first call to `abort()`.
 
 ### request.flush()
 

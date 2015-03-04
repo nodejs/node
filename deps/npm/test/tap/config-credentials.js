@@ -28,6 +28,18 @@ test("trying to set credentials with no URI", function (t) {
   })
 })
 
+test("trying to clear credentials with no URI", function (t) {
+  npmconf.load(common.builtin, function (er, conf) {
+    t.ifError(er, "configuration loaded")
+
+    t.throws(function () {
+      conf.clearCredentialsByURI()
+    }, "enforced missing URI")
+
+    t.end()
+  })
+})
+
 test("set with missing credentials object", function (t) {
   npmconf.load(common.builtin, function (er, conf) {
     t.ifError(er, "configuration loaded")
@@ -71,6 +83,24 @@ test("set with token", function (t) {
     }
 
     t.same(conf.getCredentialsByURI(URI), expected, "got bearer token and scope")
+
+    t.end()
+  })
+})
+
+test("clear with token", function (t) {
+  npmconf.load(common.builtin, function (er, conf) {
+    t.ifError(er, "configuration loaded")
+
+    t.doesNotThrow(function () {
+      conf.setCredentialsByURI(URI, {token : "simple-token"})
+    }, "needs only token")
+
+    t.doesNotThrow(function () {
+      conf.clearCredentialsByURI(URI)
+    }, "needs only URI")
+
+    t.notOk(conf.getCredentialsByURI(URI).token, "token all gone")
 
     t.end()
   })
@@ -152,6 +182,31 @@ test("set with old-style credentials", function (t) {
     }
 
     t.same(conf.getCredentialsByURI(URI), expected, "got credentials")
+
+    t.end()
+  })
+})
+
+test("clear with old-style credentials", function (t) {
+  npmconf.load(common.builtin, function (er, conf) {
+    t.ifError(er, "configuration loaded")
+
+    var credentials = {
+      username : "username",
+      password : "password",
+      email    : "ogd@aoaioxxysz.net"
+    }
+
+    t.doesNotThrow(function () {
+      conf.setCredentialsByURI(URI, credentials)
+    }, "requires all of username, password, and email")
+
+    t.doesNotThrow(function () {
+      conf.clearCredentialsByURI(URI)
+    }, "clearing only required URI")
+
+    t.notOk(conf.getCredentialsByURI(URI).username, "username cleared")
+    t.notOk(conf.getCredentialsByURI(URI).password, "password cleared")
 
     t.end()
   })

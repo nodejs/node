@@ -1157,6 +1157,14 @@ var relativeTests = [
   ['/foo/bar/baz/', 'quux/baz', '/foo/bar/baz/quux/baz'],
   ['/foo/bar/baz', '../../../../../../../../quux/baz', '/quux/baz'],
   ['/foo/bar/baz', '../../../../../../../quux/baz', '/quux/baz'],
+  ['/foo', '.', '/'],
+  ['/foo', '..', '/'],
+  ['/foo/', '.', '/foo/'],
+  ['/foo/', '..', '/'],
+  ['/foo/bar', '.', '/foo/'],
+  ['/foo/bar', '..', '/'],
+  ['/foo/bar/', '.', '/foo/bar/'],
+  ['/foo/bar/', '..', '/foo/'],
   ['foo/bar', '../../../baz', '../../baz'],
   ['foo/bar/', '../../../baz', '../baz'],
   ['http://example.com/b//c//d;p?q#blarg', 'https:#hash2', 'https:///#hash2'],
@@ -1549,3 +1557,20 @@ relativeTests2.forEach(function(relativeTest) {
                'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
+
+
+
+// https://github.com/iojs/io.js/pull/1036
+var throws = [
+  undefined,
+  null,
+  true,
+  false,
+  0,
+  function () {}
+];
+for (var i = 0; i < throws.length; i++) {
+  assert.throws(function () { url.format(throws[i]); }, TypeError);
+};
+assert(url.format('') === '');
+assert(url.format({}) === '');
