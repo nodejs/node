@@ -263,7 +263,7 @@ information about the governance of the io.js project, see
 * **Trevor Norris** ([@trevnorris](https://github.com/trevnorris)) &lt;trev.norris@gmail.com&gt; (Technical Committee)
 * **Chris Dickinson** ([@chrisdickinson](https://github.com/chrisdickinson)) &lt;christopher.s.dickinson@gmail.com&gt; (Technical Committee)
 <br>Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
-* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt; (Technical Committee)
+* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt;
 * **Mikeal Rogers** ([@mikeal](https://github.com/mikeal)) &lt;mikeal.rogers@gmail.com&gt;
 * **Rod Vagg** ([@rvagg](https://github.com/rvagg)) &lt;rod@vagg.org&gt;
 <br>Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
