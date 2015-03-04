@@ -1,16 +1,15 @@
 var common = require('../common');
-
-if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
-}
-
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var tls = require('tls');
 
 var join = require('path').join;
 var net = require('net');
 var fs = require('fs');
-var tls = require('tls');
 var spawn = require('child_process').spawn;
 
 var connections = 0;

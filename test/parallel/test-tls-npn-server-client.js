@@ -6,8 +6,14 @@ if (!process.features.tls_npn) {
 
 var common = require('../common'),
     assert = require('assert'),
-    fs = require('fs'),
-    tls = require('tls');
+    fs = require('fs');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var tls = require('tls');
+
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');

@@ -1,9 +1,13 @@
-if (!process.versions.openssl) process.exit();
-
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
+
+var net = require('net');
 var fs = require('fs');
 
 var clientErrors = 0;

@@ -1,5 +1,10 @@
 var assert = require('assert');
 var common = require('../common');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
 
 function Done() {}

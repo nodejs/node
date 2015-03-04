@@ -1108,16 +1108,20 @@ assert.throws(function () {
   new SlowBuffer(smalloc.kMaxLength + 1);
 }, RangeError);
 
-// Test truncation after decode
-var crypto = require('crypto');
+if (common.hasCrypto) {
+  // Test truncation after decode
+  var crypto = require('crypto');
 
-var b1 = new Buffer('YW55=======', 'base64');
-var b2 = new Buffer('YW55', 'base64');
+  var b1 = new Buffer('YW55=======', 'base64');
+  var b2 = new Buffer('YW55', 'base64');
 
-assert.equal(
-  crypto.createHash('sha1').update(b1).digest('hex'),
-  crypto.createHash('sha1').update(b2).digest('hex')
-);
+  assert.equal(
+    crypto.createHash('sha1').update(b1).digest('hex'),
+    crypto.createHash('sha1').update(b2).digest('hex')
+  );
+} else {
+  console.log('1..0 # Skipped: missing crypto');
+}
 
 // Test Compare
 var b = new Buffer(1).fill('a');

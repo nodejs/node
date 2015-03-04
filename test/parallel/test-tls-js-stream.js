@@ -1,10 +1,15 @@
+var common = require('../common');
 var assert = require('assert');
-var stream = require('stream');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
+
+var stream = require('stream');
 var fs = require('fs');
 var net = require('net');
-
-var common = require('../common');
 
 var connected = {
   client: 0,

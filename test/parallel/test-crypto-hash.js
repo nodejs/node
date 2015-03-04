@@ -3,12 +3,11 @@ var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
 
-try {
-  var crypto = require('crypto');
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
   process.exit();
 }
+var crypto = require('crypto');
 
 // Test hashing
 var a0 = crypto.createHash('sha1').update('Test123').digest('hex');
