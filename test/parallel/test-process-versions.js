@@ -1,7 +1,11 @@
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 
 var expected_keys = ['ares', 'http_parser', 'modules', 'node',
-                     'openssl', 'uv', 'v8', 'zlib'];
+                     'uv', 'v8', 'zlib'];
 
-assert.deepEqual(Object.keys(process.versions).sort(), expected_keys);
+if(common.hasCrypto) {
+  expected_keys.push('openssl');
+}
+
+assert.deepEqual(Object.keys(process.versions).sort(), expected_keys.sort());
