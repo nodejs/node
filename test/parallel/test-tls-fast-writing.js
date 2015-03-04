@@ -1,7 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
+
 var fs = require('fs');
 
 var PORT = common.PORT;

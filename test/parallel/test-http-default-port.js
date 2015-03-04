@@ -1,6 +1,5 @@
 var common = require('../common');
 var http = require('http'),
-    https = require('https'),
     PORT = common.PORT,
     SSLPORT = common.PORT + 1,
     assert = require('assert'),
@@ -15,15 +14,21 @@ var http = require('http'),
     gotHttpsResp = false,
     gotHttpResp = false;
 
+if (common.hasCrypto) {
+  var https = require('https');
+} else {
+  console.log('1..0 # Skipped: missing crypto');
+}
+
 process.on('exit', function() {
-  assert(gotHttpsResp);
+  if (common.hasCrypto) {
+    assert(gotHttpsResp);
+  }
   assert(gotHttpResp);
   console.log('ok');
 });
 
 http.globalAgent.defaultPort = PORT;
-https.globalAgent.defaultPort = SSLPORT;
-
 http.createServer(function(req, res) {
   assert.equal(req.headers.host, hostExpect);
   assert.equal(req.headers['x-port'], PORT);
@@ -42,21 +47,24 @@ http.createServer(function(req, res) {
   });
 });
 
-https.createServer(options, function(req, res) {
-  assert.equal(req.headers.host, hostExpect);
-  assert.equal(req.headers['x-port'], SSLPORT);
-  res.writeHead(200);
-  res.end('ok');
-  this.close();
-}).listen(SSLPORT, function() {
-  var req = https.get({
-    host: 'localhost',
-    rejectUnauthorized: false,
-    headers: {
-      'x-port': SSLPORT
-    }
-  }, function(res) {
-    gotHttpsResp = true;
-    res.resume();
+if (common.hasCrypto) {
+  https.globalAgent.defaultPort = SSLPORT;
+  https.createServer(options, function(req, res) {
+    assert.equal(req.headers.host, hostExpect);
+    assert.equal(req.headers['x-port'], SSLPORT);
+    res.writeHead(200);
+    res.end('ok');
+    this.close();
+  }).listen(SSLPORT, function() {
+    var req = https.get({
+      host: 'localhost',
+      rejectUnauthorized: false,
+      headers: {
+        'x-port': SSLPORT
+      }
+    }, function(res) {
+      gotHttpsResp = true;
+      res.resume();
+    });
   });
-});
+}

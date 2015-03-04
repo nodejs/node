@@ -5,6 +5,11 @@ if (!common.opensslCli) {
   process.exit(0);
 }
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+
 doTest({ tickets: false } , function() {
   doTest({ tickets: true } , function() {
     console.error('all done');

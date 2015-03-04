@@ -1,12 +1,11 @@
 var common = require('../common');
 var assert = require('assert');
 
-try {
-  var crypto = require('crypto');
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
   process.exit();
 }
+var crypto = require('crypto');
 
 // Test HMAC
 var h1 = crypto.createHmac('sha1', 'Node')

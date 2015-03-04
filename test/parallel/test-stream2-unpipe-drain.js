@@ -1,6 +1,11 @@
 var common = require('../common');
 var assert = require('assert');
 var stream = require('stream');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var crypto = require('crypto');
 
 var util = require('util');

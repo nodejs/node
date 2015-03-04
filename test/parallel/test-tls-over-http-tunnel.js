@@ -1,15 +1,15 @@
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
 var common = require('../common');
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var https = require('https');
 
 var fs = require('fs');
 var net = require('net');
 var http = require('http');
-var https = require('https');
 
 var proxyPort = common.PORT + 1;
 var gotRequest = false;

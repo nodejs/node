@@ -1,7 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var https = require('https');
+
 var http = require('http');
 var gotHttpsResp = false;
 var gotHttpResp = false;

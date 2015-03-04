@@ -1,7 +1,13 @@
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
 var tls = require('tls');
+
 
 var tests = [
   // Basic CN handling

@@ -3,12 +3,11 @@ var assert = require('assert');
 var stream = require('stream');
 var util = require('util');
 
-try {
-  var crypto = require('crypto');
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
   process.exit();
 }
+var crypto = require('crypto');
 
 // Small stream to buffer converter
 function Stream2buffer(callback) {
