@@ -1,7 +1,6 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var https = require('https');
 var url = require('url');
 
 var testURL = url.parse('http://localhost:' + common.PORT + '/asdf?qwer=zxcv');
