@@ -39,7 +39,7 @@ void TTYWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  StreamWrap::AddMethods(env, t);
+  StreamWrap::AddMethods(env, t, StreamBase::kFlagNoShutdown);
 
   env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
