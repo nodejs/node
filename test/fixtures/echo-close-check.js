@@ -1,6 +1,7 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
+var fs = require('fs');
 
 process.stdout.write('hello world\r\n');
 
@@ -11,10 +12,8 @@ stdin.on('data', function(data) {
 });
 
 stdin.on('end', function() {
-  // If stdin's fd will be closed - createServer may get it
-  var server = net.createServer(function() {
-  }).listen(common.PORT, function() {
-    assert(typeof server._handle.fd !== 'number' || server._handle.fd > 2);
-    server.close();
-  });
+  // If stdin's fd was closed, the next open() call would return 0.
+  var fd = fs.openSync(process.argv[1], 'r');
+  assert(fd > 2);
+  fs.closeSync(fd);
 });
