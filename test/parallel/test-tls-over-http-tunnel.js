@@ -63,7 +63,7 @@ var proxy = net.createServer(function(clientSocket) {
       });
 
       serverSocket.on('end', function() {
-        clientSocket.destroy();
+        clientSocket.destroySoon();
       });
     } else {
       serverSocket.write(chunk);
@@ -71,8 +71,10 @@ var proxy = net.createServer(function(clientSocket) {
   });
 
   clientSocket.on('end', function() {
-    serverSocket.destroy();
+    serverSocket.destroySoon();
   });
+
+  clientSocket.on('error', onError);
 });
 
 server.listen(common.PORT);
@@ -122,7 +124,7 @@ proxy.listen(proxyPort, function() {
 
     console.log('CLIENT: Making HTTPS request');
 
-    https.get({
+    var req = https.get({
       path: '/foo',
       key: key,
       cert: cert,
@@ -142,15 +144,20 @@ proxy.listen(proxyPort, function() {
         proxy.close();
         server.close();
       });
-    }).on('error', function(er) {
-      // We're ok with getting ECONNRESET in this test, but it's
-      // timing-dependent, and thus unreliable. Any other errors
-      // are just failures, though.
-      if (er.code !== 'ECONNRESET')
-        throw er;
-    }).end();
+    });
+    req.end();
+
+    req.on('error', onError);
   }
 });
+
+function onError(er) {
+  // We're ok with getting ECONNRESET in this test, but it's
+  // timing-dependent, and thus unreliable. Any other errors
+  // are just failures, though.
+  if (er.code !== 'ECONNRESET')
+    throw er;
+}
 
 process.on('exit', function() {
   assert.ok(gotRequest);
