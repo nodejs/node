@@ -358,7 +358,10 @@
           callback = tock.callback;
           threw = true;
           try {
-            callback();
+            if (tock.args === undefined)
+              callback();
+            else
+              callback.apply(null, tock.args);
             threw = false;
           } finally {
             if (threw)
@@ -385,7 +388,10 @@
             domain.enter();
           threw = true;
           try {
-            callback();
+            if (tock.args === undefined)
+              callback();
+            else
+              callback.apply(null, tock.args);
             threw = false;
           } finally {
             if (threw)
@@ -402,9 +408,10 @@
       } while (tickInfo[kLength] !== 0);
     }
 
-    function TickObject(c) {
+    function TickObject(c, args) {
       this.callback = c;
       this.domain = process.domain || null;
+      this.args = args;
     }
 
     function nextTick(callback) {
@@ -412,7 +419,14 @@
       if (process._exiting)
         return;
 
-      nextTickQueue.push(new TickObject(callback));
+      var args = undefined;
+      if (arguments.length > 1) {
+        args = [];
+        for (var i = 1; i < arguments.length; i++)
+          args.push(arguments[i]);
+      }
+
+      nextTickQueue.push(new TickObject(callback, args));
       tickInfo[kLength]++;
     }
 

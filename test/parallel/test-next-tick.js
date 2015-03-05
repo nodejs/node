@@ -23,6 +23,13 @@ process.nextTick(function() {
   complete++;
 });
 
+var obj = {};
+
+process.nextTick(function(a, b) {
+  assert.equal(a, 42);
+  assert.equal(b, obj);
+}, 42, obj);
+
 process.on('exit', function() {
   assert.equal(5, complete);
   process.nextTick(function() {
