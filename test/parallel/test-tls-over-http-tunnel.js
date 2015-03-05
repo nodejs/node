@@ -40,7 +40,6 @@ var proxy = net.createServer(function(clientSocket) {
     if (!serverSocket) {
       // Verify the CONNECT request
       assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
-                   'Proxy-Connections: keep-alive\r\n' +
                    'Host: localhost:' + proxyPort + '\r\n' +
                    'Connection: close\r\n\r\n',
                    chunk);
@@ -53,9 +52,9 @@ var proxy = net.createServer(function(clientSocket) {
         console.log('PROXY: replying to client CONNECT request');
 
         // Send the response
-        clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
-                           '-alive\r\nConnections: keep-alive\r\nVia: ' +
-                           'localhost:' + proxyPort + '\r\n\r\n');
+        clientSocket.write('HTTP/1.1 200 OK\r\n' +
+                           'Connection: keep-alive\r\n' +
+                           'Via: localhost:' + proxyPort + '\r\n\r\n');
       });
 
       serverSocket.on('data', function(chunk) {
@@ -63,7 +62,7 @@ var proxy = net.createServer(function(clientSocket) {
       });
 
       serverSocket.on('end', function() {
-        clientSocket.destroy();
+        clientSocket.destroySoon();
       });
     } else {
       serverSocket.write(chunk);
@@ -71,7 +70,7 @@ var proxy = net.createServer(function(clientSocket) {
   });
 
   clientSocket.on('end', function() {
-    serverSocket.destroy();
+    serverSocket.destroySoon();
   });
 });
 
@@ -84,9 +83,6 @@ proxy.listen(proxyPort, function() {
     port: proxyPort,
     method: 'CONNECT',
     path: 'localhost:' + common.PORT,
-    headers: {
-      'Proxy-Connections': 'keep-alive'
-    }
   });
   req.useChunkedEncodingByDefault = false; // for v0.6
   req.on('response', onResponse); // for v0.6
@@ -128,7 +124,10 @@ proxy.listen(proxyPort, function() {
       cert: cert,
       socket: socket,  // reuse the socket
       agent: false,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      headers: {
+        'Connection': 'keep-alive'
+      }
     }, function(res) {
       assert.equal(200, res.statusCode);
 
