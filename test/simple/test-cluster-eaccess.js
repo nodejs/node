@@ -27,7 +27,12 @@ var path = require('path');
 var fs = require('fs');
 var net = require('net');
 
-var socketPath = path.join(common.fixturesDir, 'socket-path');
+var socketPath = common.PIPE;
+if (process.platform === 'win32') {
+  // for windows pipes are handled specially and we can't write to
+  // common.PIPE with fs.writeFileSync like we can on other platforms
+  socketPath = path.join(common.fixturesDir, 'socket-path');
+}
 
 if (cluster.isMaster) {
   var worker = cluster.fork();
