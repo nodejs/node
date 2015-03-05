@@ -33,6 +33,7 @@ http.createServer(function(req, res) {
   assert.equal(req.connection.remoteFamily, 'pipe');
   assert.equal(req.connection.remotePort, undefined);
   assert.equal(req.connection.localAddress, common.PIPE);
+  assert.equal(req.connection.localFamily, 'pipe');
   assert.equal(req.connection.localPort, undefined);
   res.writeHead(200);
   res.end('OK');
