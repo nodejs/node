@@ -533,6 +533,11 @@ client connects on `'192.168.1.1'`, the value would be `'192.168.1.1'`.
 For UNIX sockets and Windows pipes, the file path the socket is listening
 on.  The local address for client sockets is always `''`, the empty string.
 
+### socket.localFamily
+
+The string representation of the local IP family. `'IPv4'` or `'IPv6'`
+for TCP sockets, `'pipe'` for UNIX sockets and Windows pipes.
+
 ### socket.localPort
 
 The numeric representation of the local port. For example, `80` or `21`.
