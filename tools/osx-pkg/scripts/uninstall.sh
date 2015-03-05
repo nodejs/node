@@ -11,5 +11,9 @@ if [ -f /tmp/iojs-run-uninstall ]; then
   rm -f $DIR_PREFIX/share/man/man1/iojs.1
   rm -f $DIR_PREFIX/share/systemtap/tapset/node.stp
 
+  if [ ! "$(ls -A $DIR_PREFIX/lib/node_modules)" ]; then
+    rm -rf $DIR_PREFIX/lib/node_modules
+  fi
+
   rm -f /tmp/iojs-run-uninstall
 fi
