@@ -687,7 +687,7 @@ This will generate:
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 
 
-## process.nextTick(callback)
+## process.nextTick(callback[, arg][, ...])
 
 * `callback` {Function}
 
