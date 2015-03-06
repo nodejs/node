@@ -18,7 +18,8 @@ var childrenIgnored = common.childrenIgnored
 
 function globSync (pattern, options) {
   if (typeof options === 'function' || arguments.length === 3)
-    throw new TypeError('callback provided to sync glob')
+    throw new TypeError('callback provided to sync glob\n'+
+                        'See: https://github.com/isaacs/node-glob/issues/167')
 
   return new GlobSync(pattern, options).found
 }
@@ -28,7 +29,8 @@ function GlobSync (pattern, options) {
     throw new Error('must provide pattern')
 
   if (typeof options === 'function' || arguments.length === 3)
-    throw new TypeError('callback provided to sync glob')
+    throw new TypeError('callback provided to sync glob\n'+
+                        'See: https://github.com/isaacs/node-glob/issues/167')
 
   if (!(this instanceof GlobSync))
     return new GlobSync(pattern, options)

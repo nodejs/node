@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "February 2015" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
@@ -11,16 +11,11 @@ npm run [command] [\-\- <args>]
 .RE
 .SH DESCRIPTION
 .P
-This runs an arbitrary command from a package's \fB"scripts"\fR object\.
-If no package name is provided, it will search for a \fBpackage\.json\fR
-in the current folder and use its \fB"scripts"\fR object\. If no \fB"command"\fR
-is provided, it will list the available top level scripts\. The \fBenv\fR command
-can be used to list environment variables that will be available to the script
-at runtime\. If an "env" command is defined in your package it will have
-precedence instead\.
-.P
-\fBrun[\-script]\fR is used by the test, start, restart, and stop commands, but can
-be called directly, as well\.
+This runs an arbitrary command from a package's \fB"scripts"\fR object\.  If no
+\fB"command"\fR is provided, it will list the available scripts\.  \fBrun[\-script]\fR is
+used by the test, start, restart, and stop commands, but can be called
+directly, as well\. When the scripts in the package are printed out, they're
+separated into lifecycle (test, start, restart) and directly\-run scripts\.
 .P
 As of \fBnpm@2\.0\.0\fR \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
 use custom arguments when executing scripts\. The special option \fB\-\-\fR is used by
@@ -35,6 +30,11 @@ npm run test \-\- \-\-grep="pattern"
 .P
 The arguments will only be passed to the script specified after \fBnpm run\fR
 and not to any pre or post script\.
+.P
+The \fBenv\fR script is a special built\-in command that can be used to list
+environment variables that will be available to the script at runtime\. If an
+"env" command is defined in your package it will take precedence over the
+built\-in\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

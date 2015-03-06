@@ -15,14 +15,9 @@ var npm = require("./npm.js")
   , npa = require("npm-package-arg")
 
 repo.completion = function (opts, cb) {
-  if (opts.conf.argv.remain.length > 2) return cb()
-  mapToRegistry("/-/short", npm.config, function (er, uri) {
-    if (er) return cb(er)
-
-    npm.registry.get(uri, { timeout : 60000 }, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function repo (args, cb) {

@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "February 2015" "" ""
+.TH "NPM\-LS" "1" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SH SYNOPSIS
@@ -23,7 +23,7 @@ For example, running \fBnpm ls promzard\fR in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@2.6.1 /path/to/npm
+npm@2.7.0 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -86,6 +86,26 @@ Type: Int
 .RE
 .P
 Max display depth of the dependency tree\.
+.SS prod / production
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Display only the dependency tree for packages in \fBdependencies\fR\|\.
+.SS dev
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Display only the dependency tree for packages in \fBdevDependencies\fR\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -26,12 +26,9 @@ owner.completion = function (opts, cb) {
     var byUser, theUser
     switch (argv[2]) {
       case "ls":
-        if (argv.length > 3) return cb()
-        return mapToRegistry("-/short", npm.config, function (er, uri, auth) {
-          if (er) return cb(er)
-
-          npm.registry.get(uri, { auth : auth }, cb)
-        })
+        // FIXME: there used to be registry completion here, but it stopped
+        // making sense somewhere around 50,000 packages on the registry
+        return cb()
 
       case "rm":
         if (argv.length > 3) {
