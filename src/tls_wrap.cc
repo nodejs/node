@@ -37,7 +37,6 @@ using v8::Value;
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
                  StreamBase* stream,
-                 Handle<Object> stream_obj,
                  Handle<Object> sc)
     : SSLWrap<TLSWrap>(env, Unwrap<SecureContext>(sc), kind),
       StreamBase(env),
@@ -47,7 +46,6 @@ TLSWrap::TLSWrap(Environment* env,
       sc_(Unwrap<SecureContext>(sc)),
       sc_handle_(env->isolate(), sc),
       stream_(stream),
-      stream_handle_(env->isolate(), stream_obj),
       enc_in_(nullptr),
       enc_out_(nullptr),
       clear_in_(nullptr),
@@ -85,8 +83,6 @@ TLSWrap::~TLSWrap() {
 
   sc_ = nullptr;
   sc_handle_.Reset();
-  stream_handle_.Reset();
-  persistent().Reset();
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   sni_context_.Reset();
@@ -196,9 +192,9 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   });
   CHECK_NE(stream, nullptr);
 
-  TLSWrap* res = new TLSWrap(env, kind, stream, stream_obj, sc);
+  TLSWrap* res = new TLSWrap(env, kind, stream, sc);
 
-  args.GetReturnValue().Set(res->persistent());
+  args.GetReturnValue().Set(res->object());
 }
 
 

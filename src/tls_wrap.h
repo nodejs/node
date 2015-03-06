@@ -78,7 +78,6 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   TLSWrap(Environment* env,
           Kind kind,
           StreamBase* stream,
-          v8::Handle<v8::Object> stream_obj,
           v8::Handle<v8::Object> sc);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
@@ -143,7 +142,6 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   crypto::SecureContext* sc_;
   v8::Persistent<v8::Object> sc_handle_;
   StreamBase* stream_;
-  v8::Persistent<v8::Object> stream_handle_;
   BIO* enc_in_;
   BIO* enc_out_;
   NodeBIO* clear_in_;
