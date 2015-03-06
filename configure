@@ -282,6 +282,11 @@ parser.add_option('--without-etw',
     dest='without_etw',
     help='build without ETW')
 
+parser.add_option('--without-mdb',
+    action='store_true',
+    dest='without_mdb',
+    help='build without mdb')
+
 parser.add_option('--without-npm',
     action='store_true',
     dest='without_npm',
@@ -554,7 +559,7 @@ def configure_node(o):
   # if we're on illumos based systems wrap the helper library into the
   # executable
   if flavor == 'solaris':
-    o['variables']['node_use_mdb'] = 'true'
+    o['variables']['node_use_mdb'] = b(not options.without_mdb)
   else:
     o['variables']['node_use_mdb'] = 'false'
 
