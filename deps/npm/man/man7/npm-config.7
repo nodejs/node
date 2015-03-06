@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "February 2015" "" ""
+.TH "NPM\-CONFIG" "7" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -340,7 +340,7 @@ Type: Number
 
 .RE
 .P
-The depth to go when recursing directories for \fBnpm ls\fR, 
+The depth to go when recursing directories for \fBnpm ls\fR,
 \fBnpm cache ls\fR, and \fBnpm outdated\fR\|\.
 .P
 For \fBnpm outdated\fR, a setting of \fBInfinity\fR will be treated as \fB0\fR
@@ -545,6 +545,20 @@ Type: url
 A proxy to use for outgoing https requests\. If the \fBHTTPS_PROXY\fR or
 \fBhttps_proxy\fR or \fBHTTP_PROXY\fR or \fBhttp_proxy\fR environment variables are set,
 proxy settings will be honored by the underlying \fBrequest\fR library\.
+.SS if\-present
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm will not exit with an error code when \fBrun\-script\fR is invoked for
+a script that isn't defined in the \fBscripts\fR section of \fBpackage\.json\fR\|\. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails\. This is useful, for example, when running
+scripts that may only apply for some builds in an otherwise generic CI setup\.
 .SS ignore\-scripts
 .RS 0
 .IP \(bu 2

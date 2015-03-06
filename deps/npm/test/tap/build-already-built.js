@@ -10,7 +10,7 @@ var requireInject = require("require-inject")
 
 var npm = require("../../lib/npm.js")
 
-var PKG_DIR = path.resolve(__dirname, "build-alread-built")
+var PKG_DIR = path.resolve(__dirname, "build-already-built")
 var fakePkg = "foo"
 
 test("setup", function (t) {

@@ -11,7 +11,7 @@ installed, as well as their dependencies, in a tree-structure.</p>
 limit the results to only the paths to the packages named.  Note that
 nested packages will <em>also</em> show the paths to the specified packages.
 For example, running <code>npm ls promzard</code> in npm&#39;s source tree will show:</p>
-<pre><code>npm@2.6.1 /path/to/npm
+<pre><code>npm@2.7.0 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 </code></pre><p>It will print out extraneous, missing, and invalid packages.</p>
@@ -50,6 +50,18 @@ project.</p>
 <li>Type: Int</li>
 </ul>
 <p>Max display depth of the dependency tree.</p>
+<h3 id="prod-production">prod / production</h3>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>Display only the dependency tree for packages in <code>dependencies</code>.</p>
+<h3 id="dev">dev</h3>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>Display only the dependency tree for packages in <code>devDependencies</code>.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-config.html">npm-config(1)</a></li>

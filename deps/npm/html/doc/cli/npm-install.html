@@ -44,9 +44,10 @@ after packing it up into a tarball (b).</p>
 <p>  In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package.</p>
-<p>  By default, <code>npm install</code> will install all modules listed as
-  dependencies. With the <code>--production</code> flag,
-  npm will not install modules listed in <code>devDependencies</code>.</p>
+<p>  By default, <code>npm install</code> will install all modules listed as dependencies.
+  With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable
+  is set to <code>production</code>), npm will not install modules listed in
+  <code>devDependencies</code>.</p>
 </li>
 <li><p><code>npm install &lt;folder&gt;</code>:</p>
 <p>  Install a package that is sitting in a folder on the filesystem.</p>
@@ -239,5 +240,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@2.6.1</p>
+<p id="footer">npm-install &mdash; npm@2.7.0</p>
 

@@ -243,7 +243,7 @@ If true, then only prints color codes for tty file descriptors.
 * Default: Infinity
 * Type: Number
 
-The depth to go when recursing directories for `npm ls`, 
+The depth to go when recursing directories for `npm ls`,
 `npm cache ls`, and `npm outdated`.
 
 For `npm outdated`, a setting of `Infinity` will be treated as `0`
@@ -389,6 +389,17 @@ The string that starts all the debugging log output.
 A proxy to use for outgoing https requests. If the `HTTPS_PROXY` or
 `https_proxy` or `HTTP_PROXY` or `http_proxy` environment variables are set,
 proxy settings will be honored by the underlying `request` library.
+
+### if-present
+
+* Default: false
+* Type: Boolean
+
+If true, npm will not exit with an error code when `run-script` is invoked for
+a script that isn't defined in the `scripts` section of `package.json`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when running
+scripts that may only apply for some builds in an otherwise generic CI setup.
 
 ### ignore-scripts
 

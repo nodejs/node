@@ -304,11 +304,15 @@ function errorHandler (er) {
     break
 
   case "ETARGET":
-    log.error("notarget", [er.message
+    var msg = [er.message
               ,"This is most likely not a problem with npm itself."
               ,"In most cases you or one of your dependencies are requesting"
               ,"a package version that doesn't exist."
-              ].join("\n"))
+              ]
+      if (er.parent) {
+        msg.push("\nIt was specified as a dependency of '"+er.parent+"'\n")
+      }
+      log.error("notarget", msg.join("\n"))
     break
 
   case "ENOTSUP":

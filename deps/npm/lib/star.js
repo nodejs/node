@@ -10,17 +10,9 @@ star.usage = "npm star <package> [pkg, pkg, ...]\n"
            + "npm unstar <package> [pkg, pkg, ...]"
 
 star.completion = function (opts, cb) {
-  mapToRegistry("-/short", npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
-
-    var params = {
-      timeout : 60000,
-      auth    : auth
-    }
-    npm.registry.get(uri, params, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function star (args, cb) {

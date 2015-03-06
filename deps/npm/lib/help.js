@@ -59,19 +59,23 @@ function help (args, cb) {
   var manroot = path.resolve(__dirname, "..", "man")
 
   // legacy
-  if (section === "global")
-    section = "folders"
-  else if (section === "json")
-    section = "package.json"
+  if (section === "global") section = "folders"
+  else if (section === "json") section = "package.json"
 
   // find either /section.n or /npm-section.n
-  var f = "+(npm-" + section + "|" + section + ").[0-9]"
+  var compext = "\\.+(gz|bz2|lzma|[FYzZ]|xz)$"
+  var f = "+(npm-" + section + "|" + section + ").[0-9]?(" + compext + ")"
   return glob(manroot + "/*/" + f, function (er, mans) {
-    if (er)
-      return cb(er)
+    if (er) return cb(er)
 
-    if (!mans.length)
-      return npm.commands["help-search"](args, cb)
+    if (!mans.length) return npm.commands["help-search"](args, cb)
+
+    mans = mans.map(function (man) {
+      var ext = path.extname(man)
+      if (man.match(new RegExp(compext))) man = path.basename(man, ext)
+
+      return man
+    })
 
     viewMan(pickMan(mans, pref), cb)
   })

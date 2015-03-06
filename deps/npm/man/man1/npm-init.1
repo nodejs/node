@@ -1,4 +1,4 @@
-.TH "NPM\-INIT" "1" "February 2015" "" ""
+.TH "NPM\-INIT" "1" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-init\fR \- Interactively create a package\.json file
 .SH SYNOPSIS
@@ -23,6 +23,17 @@ without a really good reason to do so\.
 .P
 If you invoke it with \fB\-f\fR, \fB\-\-force\fR, \fB\-y\fR, or \fB\-\-yes\fR, it will use only
 defaults and not prompt you for any options\.
+.SH CONFIGURATION
+.SS scope
+.RS 0
+.IP \(bu 2
+Default: none
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The scope under which the new module should be created\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
@@ -31,6 +42,8 @@ https://github\.com/isaacs/init\-package\-json
 npm help 5 package\.json
 .IP \(bu 2
 npm help version
+.IP \(bu 2
+npm help 7 scope
 
 .RE
 

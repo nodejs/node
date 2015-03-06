@@ -195,7 +195,7 @@ If true, then only prints color codes for tty file descriptors.</p>
 <li>Default: Infinity</li>
 <li>Type: Number</li>
 </ul>
-<p>The depth to go when recursing directories for <code>npm ls</code>, 
+<p>The depth to go when recursing directories for <code>npm ls</code>,
 <code>npm cache ls</code>, and <code>npm outdated</code>.</p>
 <p>For <code>npm outdated</code>, a setting of <code>Infinity</code> will be treated as <code>0</code>
 since that gives more useful information.  To show the outdated status
@@ -325,6 +325,16 @@ user.</p>
 <p>A proxy to use for outgoing https requests. If the <code>HTTPS_PROXY</code> or
 <code>https_proxy</code> or <code>HTTP_PROXY</code> or <code>http_proxy</code> environment variables are set,
 proxy settings will be honored by the underlying <code>request</code> library.</p>
+<h3 id="if-present">if-present</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm will not exit with an error code when <code>run-script</code> is invoked for
+a script that isn&#39;t defined in the <code>scripts</code> section of <code>package.json</code>. This
+option can be used when it&#39;s desirable to optionally run a script when it&#39;s
+present and fail if the script fails. This is useful, for example, when running
+scripts that may only apply for some builds in an otherwise generic CI setup.</p>
 <h3 id="ignore-scripts">ignore-scripts</h3>
 <ul>
 <li>Default: false</li>

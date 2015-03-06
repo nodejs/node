@@ -41,41 +41,23 @@ stop and start scripts if no <code>restart</code> script is provided.</li>
 run-script &lt;pkg&gt; &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
 <code>postmyscript</code>).</p>
-<h2 id="note-install-scripts-are-an-antipattern">NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN</h2>
-<p><strong>tl;dr</strong> Don&#39;t use <code>install</code>.  Use a <code>.gyp</code> file for compilation, and
-<code>prepublish</code> for anything else.</p>
-<p>You should almost never have to explicitly set a <code>preinstall</code> or
-<code>install</code> script.  If you are doing this, please consider if there is
-another option.</p>
-<p>The only valid use of <code>install</code> or <code>preinstall</code> scripts is for
-compilation which must be done on the target architecture.  In early
-versions of node, this was often done using the <code>node-waf</code> scripts, or
-a standalone <code>Makefile</code>, and early versions of npm required that it be
-explicitly set in package.json.  This was not portable, and harder to
-do properly.</p>
-<p>In the current version of node, the standard way to do this is using a
-<code>.gyp</code> file.  If you have a file with a <code>.gyp</code> extension in the root
-of your package, then npm will run the appropriate <code>node-gyp</code> commands
-automatically at install time.  This is the only officially supported
-method for compiling binary addons, and does not require that you add
-anything to your package.json file.</p>
-<p>If you have to do other things before your package is used, in a way
+<h2 id="common-uses">COMMON USES</h2>
+<p>If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, then use a <code>prepublish</code> script instead.  This includes
+target system, use a <code>prepublish</code> script.  This includes
 tasks such as:</p>
 <ul>
-<li>Compile CoffeeScript source code into JavaScript.</li>
-<li>Create minified versions of JavaScript source code.</li>
+<li>Compiling CoffeeScript source code into JavaScript.</li>
+<li>Creating minified versions of JavaScript source code.</li>
 <li>Fetching remote resources that your package will use.</li>
 </ul>
-<p>The advantage of doing these things at <code>prepublish</code> time instead of
-<code>preinstall</code> or <code>install</code> time is that they can be done once, in a
-single place, and thus greatly reduce complexity and variability.
+<p>The advantage of doing these things at <code>prepublish</code> time is that they can be done once, in a
+single place, thus reducing complexity and variability.
 Additionally, this means that:</p>
 <ul>
 <li>You can depend on <code>coffee-script</code> as a <code>devDependency</code>, and thus
 your users don&#39;t need to have it installed.</li>
-<li>You don&#39;t need to include the minifiers in your package, reducing
+<li>You don&#39;t need to include minifiers in your package, reducing
 the size for your users.</li>
 <li>You don&#39;t need to rely on your users having <code>curl</code> or <code>wget</code> or
 other system tools on the target machines.</li>
@@ -196,6 +178,11 @@ probably set it up that way for a reason.</li>
 <li>Don&#39;t prefix your script commands with &quot;sudo&quot;.  If root permissions
 are required for some reason, then it&#39;ll fail with that error, and
 the user will sudo the npm command in question.</li>
+<li>Don&#39;t use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepublish</code>
+for anything else. You should almost never have to explicitly set a
+preinstall or install script. If you are doing this, please consider if
+there is another option. The only valid use of <code>install</code> or <code>preinstall</code>
+scripts is for compilation which must be done on the target architecture.</li>
 </ul>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
@@ -216,5 +203,5 @@ the user will sudo the npm command in question.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@2.6.1</p>
+<p id="footer">npm-scripts &mdash; npm@2.7.0</p>
 

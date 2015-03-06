@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "February 2015" "" ""
+.TH "NPM\-SCRIPTS" "7" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -45,53 +45,31 @@ Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <pkg> <stage>\fR\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fR, \fBmyscript\fR,
 \fBpostmyscript\fR)\.
-.SH NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN
+.SH COMMON USES
 .P
-\fBtl;dr\fR Don't use \fBinstall\fR\|\.  Use a \fB\|\.gyp\fR file for compilation, and
-\fBprepublish\fR for anything else\.
-.P
-You should almost never have to explicitly set a \fBpreinstall\fR or
-\fBinstall\fR script\.  If you are doing this, please consider if there is
-another option\.
-.P
-The only valid use of \fBinstall\fR or \fBpreinstall\fR scripts is for
-compilation which must be done on the target architecture\.  In early
-versions of node, this was often done using the \fBnode\-waf\fR scripts, or
-a standalone \fBMakefile\fR, and early versions of npm required that it be
-explicitly set in package\.json\.  This was not portable, and harder to
-do properly\.
-.P
-In the current version of node, the standard way to do this is using a
-\fB\|\.gyp\fR file\.  If you have a file with a \fB\|\.gyp\fR extension in the root
-of your package, then npm will run the appropriate \fBnode\-gyp\fR commands
-automatically at install time\.  This is the only officially supported
-method for compiling binary addons, and does not require that you add
-anything to your package\.json file\.
-.P
-If you have to do other things before your package is used, in a way
+If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, then use a \fBprepublish\fR script instead\.  This includes
+target system, use a \fBprepublish\fR script\.  This includes
 tasks such as:
 .RS 0
 .IP \(bu 2
-Compile CoffeeScript source code into JavaScript\.
+Compiling CoffeeScript source code into JavaScript\.
 .IP \(bu 2
-Create minified versions of JavaScript source code\.
+Creating minified versions of JavaScript source code\.
 .IP \(bu 2
 Fetching remote resources that your package will use\.
 
 .RE
 .P
-The advantage of doing these things at \fBprepublish\fR time instead of
-\fBpreinstall\fR or \fBinstall\fR time is that they can be done once, in a
-single place, and thus greatly reduce complexity and variability\.
+The advantage of doing these things at \fBprepublish\fR time is that they can be done once, in a
+single place, thus reducing complexity and variability\.
 Additionally, this means that:
 .RS 0
 .IP \(bu 2
 You can depend on \fBcoffee\-script\fR as a \fBdevDependency\fR, and thus
 your users don't need to have it installed\.
 .IP \(bu 2
-You don't need to include the minifiers in your package, reducing
+You don't need to include minifiers in your package, reducing
 the size for your users\.
 .IP \(bu 2
 You don't need to rely on your users having \fBcurl\fR or \fBwget\fR or
@@ -275,6 +253,12 @@ probably set it up that way for a reason\.
 Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
+.IP \(bu 2
+Don't use \fBinstall\fR\|\. Use a \fB\|\.gyp\fR file for compilation, and \fBprepublish\fR
+for anything else\. You should almost never have to explicitly set a
+preinstall or install script\. If you are doing this, please consider if
+there is another option\. The only valid use of \fBinstall\fR or \fBpreinstall\fR
+scripts is for compilation which must be done on the target architecture\.
 
 .RE
 .SH SEE ALSO

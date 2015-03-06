@@ -8,8 +8,10 @@ data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.jso
 valid second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, &quot;major&quot;,
 &quot;prepatch&quot;, &quot;preminor&quot;, &quot;premajor&quot;, &quot;prerelease&quot;). In the second case,
 the existing version will be incremented by 1 in the specified field.</p>
-<p>If run in a git repo, it will also create a version commit and tag, and
-fail if the repo is not clean.</p>
+<p>If run in a git repo, it will also create a version commit and tag, and fail if
+the repo is not clean.  This behavior is controlled by <code>git-tag-version</code> (see
+below), and can be disabled on the command line by running <code>npm
+--no-git-tag-version version</code></p>
 <p>If supplied with <code>--message</code> (shorthand: <code>-m</code>) config option, npm will
 use it as a commit message when creating a version commit.  If the
 <code>message</code> config contains <code>%s</code> then that will be replaced with the
@@ -26,10 +28,18 @@ user: &quot;isaacs (http://blog.izs.me/) &lt;i@izs.me&gt;&quot;
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
-</code></pre><h2 id="see-also">SEE ALSO</h2>
+</code></pre><h2 id="configuration">CONFIGURATION</h2>
+<h3 id="git-tag-version">git-tag-version</h3>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Commit and tag the version change.</p>
+<h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-init.html">npm-init(1)</a></li>
 <li><a href="../files/package.json.html">package.json(5)</a></li>
 <li><a href="../misc/semver.html">semver(7)</a></li>
+<li><a href="../misc/config.html">config(7)</a></li>
 </ul>
 

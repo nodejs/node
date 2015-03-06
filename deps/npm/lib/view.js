@@ -14,11 +14,9 @@ var npm = require("./npm.js")
 
 view.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length <= 2) {
-    return mapToRegistry("-/short", npm.config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      npm.registry.get(uri, { auth : auth }, cb)
-    })
+    // FIXME: there used to be registry completion here, but it stopped making
+    // sense somewhere around 50,000 packages on the registry
+    return cb()
   }
   // have the package, get the fields.
   var tag = npm.config.get("tag")

@@ -11,13 +11,9 @@ var npm = require("./npm.js")
   , mapToRegistry = require("./utils/map-to-registry.js")
 
 docs.completion = function (opts, cb) {
-  mapToRegistry("/-/short", npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
-
-    npm.registry.get(uri, { timeout : 60000, auth : auth }, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function url (json) {

@@ -34,46 +34,24 @@ run-script <pkg> <stage>`. *Pre* and *post* commands with matching
 names will be run for those as well (e.g. `premyscript`, `myscript`,
 `postmyscript`).
 
-## NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN
+## COMMON USES
 
-**tl;dr** Don't use `install`.  Use a `.gyp` file for compilation, and
-`prepublish` for anything else.
-
-You should almost never have to explicitly set a `preinstall` or
-`install` script.  If you are doing this, please consider if there is
-another option.
-
-The only valid use of `install` or `preinstall` scripts is for
-compilation which must be done on the target architecture.  In early
-versions of node, this was often done using the `node-waf` scripts, or
-a standalone `Makefile`, and early versions of npm required that it be
-explicitly set in package.json.  This was not portable, and harder to
-do properly.
-
-In the current version of node, the standard way to do this is using a
-`.gyp` file.  If you have a file with a `.gyp` extension in the root
-of your package, then npm will run the appropriate `node-gyp` commands
-automatically at install time.  This is the only officially supported
-method for compiling binary addons, and does not require that you add
-anything to your package.json file.
-
-If you have to do other things before your package is used, in a way
+If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, then use a `prepublish` script instead.  This includes
+target system, use a `prepublish` script.  This includes
 tasks such as:
 
-* Compile CoffeeScript source code into JavaScript.
-* Create minified versions of JavaScript source code.
+* Compiling CoffeeScript source code into JavaScript.
+* Creating minified versions of JavaScript source code.
 * Fetching remote resources that your package will use.
 
-The advantage of doing these things at `prepublish` time instead of
-`preinstall` or `install` time is that they can be done once, in a
-single place, and thus greatly reduce complexity and variability.
+The advantage of doing these things at `prepublish` time is that they can be done once, in a
+single place, thus reducing complexity and variability.
 Additionally, this means that:
 
 * You can depend on `coffee-script` as a `devDependency`, and thus
   your users don't need to have it installed.
-* You don't need to include the minifiers in your package, reducing
+* You don't need to include minifiers in your package, reducing
   the size for your users.
 * You don't need to rely on your users having `curl` or `wget` or
   other system tools on the target machines.
@@ -234,6 +212,11 @@ above.
 * Don't prefix your script commands with "sudo".  If root permissions
   are required for some reason, then it'll fail with that error, and
   the user will sudo the npm command in question.
+* Don't use `install`. Use a `.gyp` file for compilation, and `prepublish`
+  for anything else. You should almost never have to explicitly set a
+  preinstall or install script. If you are doing this, please consider if
+  there is another option. The only valid use of `install` or `preinstall`
+  scripts is for compilation which must be done on the target architecture.
 
 ## SEE ALSO
 

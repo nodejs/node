@@ -224,7 +224,7 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     })
 
     return commandCache[a]
-  }, enumerable: fullList.indexOf(c) !== -1 })
+  }, enumerable: fullList.indexOf(c) !== -1, configurable: true })
 
   // make css-case commands callable via camelCase as well
   if (c.match(/\-([a-z])/)) {

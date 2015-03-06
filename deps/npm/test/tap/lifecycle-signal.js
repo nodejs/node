@@ -13,13 +13,6 @@ test("lifecycle signal abort", function (t) {
     cwd: pkg
   })
   child.on("close", function (code, signal) {
-    // GNU shell returns a code, no signal
-    if (process.platform === "linux") {
-      t.equal(code, 1)
-      t.equal(signal, null)
-      return t.end()
-    }
-
     t.equal(code, null)
     t.equal(signal, "SIGSEGV")
     t.end()

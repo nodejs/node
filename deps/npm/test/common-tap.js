@@ -8,6 +8,7 @@ process.env.npm_config_loglevel = "error"
 var npm_config_cache = path.resolve(__dirname, "npm_cache")
 process.env.npm_config_cache = exports.npm_config_cache = npm_config_cache
 process.env.npm_config_userconfig = exports.npm_config_userconfig = path.join(__dirname, "fixtures", "config", "userconfig")
+process.env.npm_config_globalconfig = exports.npm_config_globalconfig = path.join(__dirname, "fixtures", "config", "globalconfig")
 process.env.random_env_var = "foo"
 
 var bin = exports.bin = require.resolve("../bin/npm-cli.js")
