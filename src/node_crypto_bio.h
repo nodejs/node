@@ -2,14 +2,18 @@
 #define SRC_NODE_CRYPTO_BIO_H_
 
 #include "openssl/bio.h"
+#include "env.h"
+#include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
+#include "v8.h"
 
 namespace node {
 
 class NodeBIO {
  public:
-  NodeBIO() : initial_(kInitialBufferLength),
+  NodeBIO() : env_(nullptr),
+              initial_(kInitialBufferLength),
               length_(0),
               read_head_(nullptr),
               write_head_(nullptr) {
@@ -18,6 +22,8 @@ class NodeBIO {
   ~NodeBIO();
 
   static BIO* New();
+
+  void AssignEnvironment(Environment* env);
 
   // Move read head to next buffer if needed
   void TryMoveReadHead();
@@ -89,17 +95,23 @@ class NodeBIO {
 
   class Buffer {
    public:
-    explicit Buffer(size_t len) : read_pos_(0),
-                                  write_pos_(0),
-                                  len_(len),
-                                  next_(nullptr) {
+    Buffer(Environment* env, size_t len) : env_(env),
+                                           read_pos_(0),
+                                           write_pos_(0),
+                                           len_(len),
+                                           next_(nullptr) {
       data_ = new char[len];
+      if (env_ != nullptr)
+        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(len);
     }
 
     ~Buffer() {
       delete[] data_;
+      if (env_ != nullptr)
+        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-len_);
     }
 
+    Environment* env_;
     size_t read_pos_;
     size_t write_pos_;
     size_t len_;
@@ -107,6 +119,7 @@ class NodeBIO {
     char* data_;
   };
 
+  Environment* env_;
   size_t initial_;
   size_t length_;
   Buffer* read_head_;
