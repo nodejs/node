@@ -1,3 +1,159 @@
+### v2.7.0 (2015-02-26):
+
+#### SOMETIMES SEMVER MEANS "SUBJECTIVE-EMPATHETIC VERSIONING"
+
+For a very long time (maybe forever?), the documentation for `npm run-script`
+has said that `npm restart` will only call `npm stop` and `npm start` when
+there is no command defined as `npm restart` in `package.json`. The problem
+with this documentation is that `npm run-script` was apparently never wired up
+to actually work this way.
+
+Until now.
+
+If the patch below were landed on its own, free of context, it would be a
+breaking change. But, since the "new" behavior is how the documentation claims
+this feature has always worked, I'm classifying it as a patch-level bug fix. I
+apologize in advance if this breaks anybody's deployment scripts, and if it
+turns out to be a significant regression in practics, we can revert this change
+and move it to `npm@3`, which is allowed to make breaking changes due to being
+a new major version of semver.
+
+* [`2f6a1df`](https://github.com/npm/npm/commit/2f6a1df3e1e3e0a3bc4abb69e40f59a64204e7aa)
+  [#1999](https://github.com/npm/npm/issues/1999) Only run `stop` and `start`
+  scripts (plus their pre- and post- scripts) when there's no `restart` script
+  defined. This makes it easier to support graceful restarts of services
+  managed by npm.  ([@watilde](https://github.com/watilde) /
+  [@scien](https://github.com/scien))
+
+#### A SMALL FEATURE WITH BIG IMPLICATIONS
+
+* [`145af65`](https://github.com/npm/npm/commit/145af6587f45de135cc876be2027ed818ed4ca6a)
+  [#4887](https://github.com/npm/npm/issues/4887) Replace calls to the
+  `node-gyp` script bundled with npm by passing the
+  `--node-gyp=/path/to/node-gyp` option to npm. Swap in `pangyp` or a version
+  of `node-gyp` modified to work better with io.js without having to touch
+  npm's code!  ([@ackalker](https://github.com/ackalker))
+
+#### [@WATILDE'S](https://github.com/watilde) NPM USABILITY CORNER
+
+Following `npm@2.6.1`'s unexpected fix of many of the issues with `npm update
+-g` simply by making `--depth=0` the default for `npm outdated`, friend of npm
+[@watilde](https://github.com/watilde) has made several modest changes to npm's
+behavior that together justify bumping npm's minor version, as well as making
+npm significantly more pleasant to use:
+
+* [`448efd0`](https://github.com/npm/npm/commit/448efd0eaa6f97af0889bf47efc543a1ea2f8d7e)
+  [#2853](https://github.com/npm/npm/issues/2853) Add support for `--dev` and
+  `--prod` to `npm ls`, so that you can list only the trees of production or
+  development dependencies, as desired.
+  ([@watilde](https://github.com/watilde))
+* [`a0a8777`](https://github.com/npm/npm/commit/a0a87777af8bee180e4e9321699f050c29ed5ac4)
+  [#7463](https://github.com/npm/npm/issues/7463) Split the list printed by
+  `npm run-script` into lifecycle scripts and scripts directly invoked via `npm
+  run-script`. ([@watilde](https://github.com/watilde))
+* [`a5edc17`](https://github.com/npm/npm/commit/a5edc17d5ef1435b468a445156a4a109df80f92b)
+  [#6749](https://github.com/npm/npm/issues/6749) `init-package-json@1.3.1`:
+  Support for passing scopes to `npm init` so packages are initialized as part
+  of that scope / organization / team. ([@watilde](https://github.com/watilde))
+
+#### SMALLER FEATURES AND FIXES
+
+It turns out that quite a few pull requests had piled up on npm's issue
+tracker, and they included some nice small features and fixes:
+
+* [`f33e8b8`](https://github.com/npm/npm/commit/f33e8b8ff2de094071c5976be95e35110cf2ab1a)
+  [#7354](https://github.com/npm/npm/issues/7354) Add `--if-present` flag to
+  allow e.g. CI systems to call (semi-) standard build tasks defined in
+  `package.json`, but don't raise an error if no such script is defined.
+  ([@jussi](https://github.com/jussi)-kalliokoski)
+* [`7bf85cc`](https://github.com/npm/npm/commit/7bf85cc372ab5698593b01e139c383fa62c92516)
+  [#4005](https://github.com/npm/npm/issues/4005)
+  [#6248](https://github.com/npm/npm/issues/6248) Globally unlink a package
+  when `npm rm` / `npm unlink` is called with no arguments.
+  ([@isaacs](https://github.com/isaacs))
+* [`a2e04bd`](https://github.com/npm/npm/commit/a2e04bd921feab8f9e40a27e180ca9308eb709d7)
+  [#7294](https://github.com/npm/npm/issues/7294) Ensure that when depending on
+  `git+<proto>` URLs, npm doesn't keep tacking additional `git+` prefixes onto
+  the front. ([@twhid](https://github.com/twhid))
+* [`0f87f5e`](https://github.com/npm/npm/commit/0f87f5ed28960d962f34977953561d22983da4f9)
+  [#6422](https://github.com/npm/npm/issues/6422) When depending on GitHub
+  private repositories, make sure we construct the Git URLS correctly.
+  ([@othiym23](https://github.com/othiym23))
+* [`50f461d`](https://github.com/npm/npm/commit/50f461d248c4d22e881a9535dccc1d57d994dbc7)
+  [#4595](https://github.com/npm/npm/issues/4595) Support finding compressed
+  manpages. It's still up to the system to figure out how to display them,
+  though. ([@pshevtsov](https://github.com/pshevtsov))
+* [`44da664`](https://github.com/npm/npm/commit/44da66456b530c049ff50953f78368460df87461)
+  [#7465](https://github.com/npm/npm/issues/7465) When calling git, log the
+  **full** command, with all arguments, on error.
+  ([@thriqon](https://github.com/thriqon))
+* [`9748d5c`](https://github.com/npm/npm/commit/9748d5cd195d0269b32caf45129a93d29359a796)
+  Add parent to error on `ETARGET` error.
+  ([@davglass](https://github.com/davglass))
+* [`37038d7`](https://github.com/npm/npm/commit/37038d7db47a986001f77ac17b3e164000fc8ff3)
+  [#4663](https://github.com/npm/npm/issues/4663) Remove hackaround for Linux
+  tests, as it's evidently no longer necessary.
+  ([@mmalecki](https://github.com/mmalecki))
+* [`d7b7853`](https://github.com/npm/npm/commit/d7b785393dffce93bb70317fbc039a6428ca37c5)
+  [#2612](https://github.com/npm/npm/issues/2612) Add support for path
+  completion on `npm install`, which narrows completion to only directories
+  containing `package.json` files. ([@deestan](https://github.com/deestan))
+* [`628fcdb`](https://github.com/npm/npm/commit/628fcdb0be4e14c0312085a50dc2ae01dc713fa6)
+  Remove all command completion calls to `-/short`, because it's been removed
+  from the primary registry for quite some time, and is generally a poor idea
+  on any registry with more than a few hundred packages.
+  ([@othiym23](https://github.com/othiym23))
+* [`3f6061d`](https://github.com/npm/npm/commit/3f6061d75650441ee690472d1fa9c8dd7a7b1b28)
+  [#6659](https://github.com/npm/npm/issues/6659) Instead of removing zsh
+  completion global, make it a local instead.
+  ([@othiym23](https://github.com/othiym23))
+
+#### DOCUMENTATION TWEAKS
+
+* [`5bc70e6`](https://github.com/npm/npm/commit/5bc70e6cfb3598da433806c6f447fc94c8e1d35d)
+  [#7417](https://github.com/npm/npm/issues/7417) Provide concrete examples of
+  how the new `npm update` defaults work in practice, tied to actual test
+  cases. Everyone interested in using `npm update -g` now that it's been fixed
+  should read these documents, as should anyone interested in writing
+  documentation for npm. ([@smikes](https://github.com/smikes))
+* [`8ac6f21`](https://github.com/npm/npm/commit/8ac6f2123a6af13dc9447fad96ec9cb583c45a71)
+  [#6543](https://github.com/npm/npm/issues/6543) Clarify `npm-scripts`
+  warnings to de-emphasize dangers of using `install` scripts.
+  ([@zeke](https://github.com/zeke))
+* [`ebe3b37`](https://github.com/npm/npm/commit/ebe3b37098efdada41dcc4c52a291e29296ea242)
+  [#6711](https://github.com/npm/npm/issues/6711) Note that git tagging of
+  versions can be disabled via `--no-git-tag-verson`.
+  ([@smikes](https://github.com/smikes))
+* [`2ef5771`](https://github.com/npm/npm/commit/2ef5771632006e6cee8cf17f836c0f98ab494bd1)
+  [#6711](https://github.com/npm/npm/issues/6711) Document `git-tag-version`
+  configuration option. ([@KenanY](https://github.com/KenanY))
+* [`95e59b2`](https://github.com/npm/npm/commit/95e59b287c9517780318e145371a859e8ebb2d20)
+  Document that `NODE_ENV=production` behaves analogously to `--production` on
+  `npm install`. ([@stefaneg](https://github.com/stefaneg))
+* [`687117a`](https://github.com/npm/npm/commit/687117a5bcd6a838cd1532ea7020ec6fcf0c33c0)
+  [#7463](https://github.com/npm/npm/issues/7463) Document the new script
+  grouping behavior in the man page for `npm run-script`.
+  ([@othiym23](https://github.com/othiym23))
+* [`536b2b6`](https://github.com/npm/npm/commit/536b2b6f55c349247b3e79b5d11b4c033ef5a3df)
+  Rescue one of the the disabled tests and make it work properly.
+  ([@smikes](https://github.com/smikes))
+
+#### DEPENDENCY UPDATES
+
+* [`89fc6a4`](https://github.com/npm/npm/commit/89fc6a4e7ff8c524675fcc14493ca0a1e3a76d38)
+  `which@1.0.9`: Test for being run as root, as well as the current user.
+  ([@isaacs](https://github.com/isaacs))
+* [`5d0612f`](https://github.com/npm/npm/commit/5d0612f31e226cba32a05351c47b055c0ab6c557)
+  `glob@4.4.1`: Better error message to explain why calling sync glob with a
+  callback results in an error. ([@isaacs](https://github.com/isaacs))
+* [`64b07f6`](https://github.com/npm/npm/commit/64b07f6caf6cb07e4102f1e4e5f2ff2b944e452e)
+  `tap@0.7.1`: More accurate counts of pending & skipped tests.
+  ([@rmg](https://github.com/rmg))
+* [`8fda451`](https://github.com/npm/npm/commit/8fda45195dae1d6f792be556abe87f7763fab09b)
+  `semver@4.3.1`: Make official the fact that `node-semver` has moved from
+  [@isaacs](https://github.com/isaacs)'s organization to
+  [@npm](https://github.com/npm)'s. ([@isaacs](https://github.com/isaacs))
+
 ### v2.6.1 (2015-02-19):
 
 * [`8b98f0e`](https://github.com/npm/npm/commit/8b98f0e709d77a8616c944aebd48ab726f726f76)

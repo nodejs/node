@@ -39,6 +39,9 @@ function readDeps (test) { return function (cb) {
 }}
 
 var name = package.name || basename
+if (config.get('scope')) {
+  name = '@' + config.get('scope') + '/' + name
+}
 exports.name = yes ? name : prompt('name', name)
 
 var version = package.version ||

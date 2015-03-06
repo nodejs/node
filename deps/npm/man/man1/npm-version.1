@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "February 2015" "" ""
+.TH "NPM\-VERSION" "1" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -18,8 +18,10 @@ valid second argument to semver\.inc (one of "patch", "minor", "major",
 "prepatch", "preminor", "premajor", "prerelease")\. In the second case,
 the existing version will be incremented by 1 in the specified field\.
 .P
-If run in a git repo, it will also create a version commit and tag, and
-fail if the repo is not clean\.
+If run in a git repo, it will also create a version commit and tag, and fail if
+the repo is not clean\.  This behavior is controlled by \fBgit\-tag\-version\fR (see
+below), and can be disabled on the command line by running \fBnpm
+\-\-no\-git\-tag\-version version\fR
 .P
 If supplied with \fB\-\-message\fR (shorthand: \fB\-m\fR) config option, npm will
 use it as a commit message when creating a version commit\.  If the
@@ -48,6 +50,17 @@ user: "isaacs (http://blog\.izs\.me/) <i@izs\.me>"
 Enter passphrase:
 .fi
 .RE
+.SH CONFIGURATION
+.SS git\-tag\-version
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Commit and tag the version change\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
@@ -56,6 +69,8 @@ npm help init
 npm help 5 package\.json
 .IP \(bu 2
 npm help 7 semver
+.IP \(bu 2
+npm help 7 config
 
 .RE
 

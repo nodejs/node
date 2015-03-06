@@ -32,38 +32,58 @@ install.completion = function (opts, cb) {
   // install can complete to a folder with a package.json, or any package.
   // if it has a slash, then it's gotta be a folder
   // if it starts with https?://, then just give up, because it's a url
-  // for now, not yet implemented.
-  mapToRegistry("-/short", npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
+  if (/^https?:\/\//.test(opts.partialWord)) {
+    // do not complete to URLs
+    return cb(null, [])
+  }
 
-    var options = { auth : auth }
-    npm.registry.get(uri, options, function (er, pkgs) {
-      if (er) return cb()
-      if (!opts.partialWord) return cb(null, pkgs)
+  if (/\//.test(opts.partialWord)) {
+    // Complete fully to folder if there is exactly one match and it
+    // is a folder containing a package.json file.  If that is not the
+    // case we return 0 matches, which will trigger the default bash
+    // complete.
+    var lastSlashIdx = opts.partialWord.lastIndexOf("/")
+    var partialName = opts.partialWord.slice(lastSlashIdx + 1)
+    var partialPath = opts.partialWord.slice(0, lastSlashIdx)
+    if (partialPath === "") partialPath = "/"
 
-      var name = npa(opts.partialWord).name
-      pkgs = pkgs.filter(function (p) {
-        return p.indexOf(name) === 0
-      })
-
-      if (pkgs.length !== 1 && opts.partialWord === name) {
-        return cb(null, pkgs)
+    function annotatePackageDirMatch (sibling, cb) {
+      var fullPath = path.join(partialPath, sibling)
+      if (sibling.slice(0, partialName.length) !== partialName) {
+        return cb(null, null) // not name match
       }
+      fs.readdir(fullPath, function (err, contents) {
+        if (err) return cb(null, { isPackage: false })
 
-      mapToRegistry(pkgs[0], npm.config, function (er, uri) {
-        if (er) return cb(er)
+        cb(
+          null,
+          {
+            fullPath: fullPath,
+            isPackage: contents.indexOf("package.json") !== -1
+          }
+        )
+      })
+    }
 
-        npm.registry.get(uri, options, function (er, d) {
-          if (er) return cb()
-          return cb(null, Object.keys(d["dist-tags"] || {})
-                    .concat(Object.keys(d.versions || {}))
-                    .map(function (t) {
-                      return pkgs[0] + "@" + t
-                    }))
-        })
+    return fs.readdir(partialPath, function (err, siblings) {
+      if (err) return cb(null, []) // invalid dir: no matching
+
+      asyncMap(siblings, annotatePackageDirMatch, function (err, matches) {
+        if (err) return cb(err)
+
+        var cleaned = matches.filter(function (x) { return x !== null })
+        if (cleaned.length !== 1) return cb(null, [])
+        if (!cleaned[0].isPackage) return cb(null, [])
+
+        // Success - only one match and it is a package dir
+        return cb(null, [cleaned[0].fullPath])
       })
     })
-  })
+  }
+
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 var npm = require("./npm.js")

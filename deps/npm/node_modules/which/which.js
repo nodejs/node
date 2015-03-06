@@ -16,7 +16,9 @@ if (process.platform == "win32") {
     //console.error("isExe?", (mod & 0111).toString(8))
     var ret = (mod & 0001)
         || (mod & 0010) && process.getgid && gid === process.getgid()
+        || (mod & 0010) && process.getuid && 0   === process.getuid()
         || (mod & 0100) && process.getuid && uid === process.getuid()
+        || (mod & 0100) && process.getuid && 0   === process.getuid()
     //console.error("isExe?", ret)
     return ret
   }

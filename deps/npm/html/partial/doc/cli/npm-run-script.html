@@ -3,15 +3,11 @@
 <pre><code>npm run-script [command] [-- &lt;args&gt;]
 npm run [command] [-- &lt;args&gt;]
 </code></pre><h2 id="description">DESCRIPTION</h2>
-<p>This runs an arbitrary command from a package&#39;s <code>&quot;scripts&quot;</code> object.
-If no package name is provided, it will search for a <code>package.json</code>
-in the current folder and use its <code>&quot;scripts&quot;</code> object. If no <code>&quot;command&quot;</code>
-is provided, it will list the available top level scripts. The <code>env</code> command
-can be used to list environment variables that will be available to the script
-at runtime. If an &quot;env&quot; command is defined in your package it will have
-precedence instead.</p>
-<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but can
-be called directly, as well.</p>
+<p>This runs an arbitrary command from a package&#39;s <code>&quot;scripts&quot;</code> object.  If no
+<code>&quot;command&quot;</code> is provided, it will list the available scripts.  <code>run[-script]</code> is
+used by the test, start, restart, and stop commands, but can be called
+directly, as well. When the scripts in the package are printed out, they&#39;re
+separated into lifecycle (test, start, restart) and directly-run scripts.</p>
 <p>As of <a href="http://blog.npmjs.org/post/98131109725/npm-2-0-0"><code>npm@2.0.0</code></a>, you can
 use custom arguments when executing scripts. The special option <code>--</code> is used by
 <a href="http://goo.gl/KxMmtG">getopt</a> to delimit the end of the options. npm will pass
@@ -19,6 +15,10 @@ all the arguments after the <code>--</code> directly to your script:</p>
 <pre><code>npm run test -- --grep=&quot;pattern&quot;
 </code></pre><p>The arguments will only be passed to the script specified after <code>npm run</code>
 and not to any pre or post script.</p>
+<p>The <code>env</code> script is a special built-in command that can be used to list
+environment variables that will be available to the script at runtime. If an
+&quot;env&quot; command is defined in your package it will take precedence over the
+built-in.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>

@@ -11,7 +11,7 @@ module.exports = function maybeGithub (p, cb) {
 
   return addRemoteGit(u, true, function (er, data) {
     if (er) {
-      var upriv = "git+ssh://git@github.com:" + p
+      var upriv = "ssh://git@github.com:" + p
       log.info("maybeGithub", "Attempting %s from %s", p, upriv)
 
       return addRemoteGit(upriv, false, function (er, data) {
