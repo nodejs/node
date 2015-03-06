@@ -14,7 +14,7 @@ test("shrinkwrap doesn't strip out the dependency", function (t) {
   t.plan(1)
 
   mr({port : common.port}, function (er, s) {
-    setup({ production: true }, function (err) {
+    setup({}, function (err) {
       if (err) return t.fail(err)
 
       npm.install(".", function (err) {

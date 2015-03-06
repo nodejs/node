@@ -3,28 +3,53 @@ var common = require('../common-tap')
   , rimraf = require('rimraf')
   , npm = require('../../')
   , mr = require('npm-registry-mock')
-  , pkg = __dirname + '/outdated-depth'
+  , pkg = __dirname + '/outdated-depth-integer'
+
+var osenv = require("osenv")
+var mkdirp = require("mkdirp")
+var fs = require("fs")
+
+var pj = JSON.stringify({
+  "name": "whatever",
+  "description": "yeah idk",
+  "version": "1.2.3",
+  "main": "index.js",
+  "dependencies": {
+    "underscore": "1.3.1"
+  },
+  "repository": "git://github.com/luk-/whatever"
+}, null, 2);
 
 function cleanup () {
-  rimraf.sync(pkg + '/node_modules')
-  rimraf.sync(pkg + '/cache')
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
 }
+
+function setup () {
+  mkdirp.sync(pkg)
+  process.chdir(pkg)
+  fs.writeFileSync("package.json", pj)
+}
+
+test("setup", function (t) {
+  cleanup()
+  setup()
+  t.end()
+})
 
 test('outdated depth integer', function (t) {
   // todo: update with test-package-with-one-dep once the new
   // npm-registry-mock is published
-  var expected = [
+  var expected = [[
     pkg,
     'underscore',
-    '1.3.1',
-    '1.3.1',
-    '1.5.1',
+    undefined, // no version installed
+    '1.3.1',   // wanted
+    '1.5.1',   // latest
     '1.3.1'
-  ]
+  ]]
 
-  process.chdir(pkg)
-
-  mr({port : common.port}, function (s) {
+  mr({port : common.port}, function (er, s) {
     npm.load({
       cache: pkg + '/cache'
     , loglevel: 'silent'
@@ -36,7 +61,7 @@ test('outdated depth integer', function (t) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
             if (err) throw new Error(err)
-            t.deepEqual(d[0], expected)
+            t.deepEqual(d, expected)
             s.close()
             t.end()
           })

@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "February 2015" "" ""
+.TH "NPM\-INSTALL" "1" "March 2015" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -52,9 +52,10 @@ after packing it up into a tarball (b)\.
   In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package\.
-  By default, \fBnpm install\fR will install all modules listed as
-  dependencies\. With the \fB\-\-production\fR flag,
-  npm will not install modules listed in \fBdevDependencies\fR\|\.
+  By default, \fBnpm install\fR will install all modules listed as dependencies\.
+  With the \fB\-\-production\fR flag (or when the \fBNODE_ENV\fR environment variable
+  is set to \fBproduction\fR), npm will not install modules listed in
+  \fBdevDependencies\fR\|\.
 .IP \(bu 2
 \fBnpm install <folder>\fR:
   Install a package that is sitting in a folder on the filesystem\.

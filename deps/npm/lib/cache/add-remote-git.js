@@ -188,7 +188,9 @@ function resolveHead (p, u, co, origUrl, cb) {
       parsed.hash = stdout
       var resolved = url.format(parsed)
 
-      if (parsed.protocol !== "git:") resolved = "git+" + resolved
+      if (!/^git[+:]/.test(parsed.protocol)) {
+        resolved = "git+" + resolved
+      }
 
       // https://github.com/npm/npm/issues/3224
       // node incorrectly sticks a / at the start of the path We know that the
