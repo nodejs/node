@@ -127,6 +127,8 @@ void TLSWrap::InitSSL() {
   // Initialize SSL
   enc_in_ = NodeBIO::New();
   enc_out_ = NodeBIO::New();
+  NodeBIO::FromBIO(enc_in_)->AssignEnvironment(env());
+  NodeBIO::FromBIO(enc_out_)->AssignEnvironment(env());
 
   SSL_set_bio(ssl_, enc_in_, enc_out_);
 
@@ -162,6 +164,7 @@ void TLSWrap::InitSSL() {
 
   // Initialize ring for queud clear data
   clear_in_ = new NodeBIO();
+  clear_in_->AssignEnvironment(env());
 }
 
 
