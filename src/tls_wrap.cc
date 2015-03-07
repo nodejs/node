@@ -295,16 +295,16 @@ void TLSWrap::EncOut() {
 
   Local<Object> req_wrap_obj =
       env()->write_wrap_constructor_function()->NewInstance();
-  char* storage = new char[sizeof(WriteWrap)];
-  WriteWrap* write_req = new(storage) WriteWrap(env(),
-                                                req_wrap_obj,
-                                                this,
-                                                EncOutCb);
+  WriteWrap* write_req = WriteWrap::New(env(),
+                                        req_wrap_obj,
+                                        this,
+                                        EncOutCb);
 
   uv_buf_t buf[ARRAY_SIZE(data)];
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
   int r = stream_->DoWrite(write_req, buf, count, nullptr);
+  write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
   if (!r)
@@ -314,6 +314,7 @@ void TLSWrap::EncOut() {
 
 void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
   TLSWrap* wrap = req_wrap->wrap()->Cast<TLSWrap>();
+  req_wrap->Dispose();
 
   // Handle error
   if (status) {
