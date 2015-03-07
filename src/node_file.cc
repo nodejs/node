@@ -49,38 +49,70 @@ using v8::Value;
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
-  void* operator new(size_t size) { return new char[size]; }
-  void* operator new(size_t size, char* storage) { return storage; }
+  enum Ownership { COPY, MOVE };
 
+  inline static FSReqWrap* New(Environment* env,
+                               Local<Object> req,
+                               const char* syscall,
+                               const char* data = nullptr,
+                               Ownership ownership = COPY);
+
+  inline void Dispose();
+
+  void ReleaseEarly() {
+    if (data_ != inline_data()) {
+      delete[] data_;
+      data_ = nullptr;
+    }
+  }
+
+  const char* syscall() const { return syscall_; }
+  const char* data() const { return data_; }
+
+ private:
   FSReqWrap(Environment* env,
             Local<Object> req,
             const char* syscall,
-            char* data = nullptr)
-    : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
-      syscall_(syscall),
-      data_(data),
-      dest_len_(0) {
+            const char* data)
+      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
+        syscall_(syscall),
+        data_(data) {
     Wrap(object(), this);
   }
 
-  void ReleaseEarly() {
-    if (data_ == nullptr)
-      return;
-    delete[] data_;
-    data_ = nullptr;
-  }
+  ~FSReqWrap() { ReleaseEarly(); }
 
-  inline const char* syscall() const { return syscall_; }
-  inline const char* dest() const { return dest_; }
-  inline unsigned int dest_len() const { return dest_len_; }
-  inline void dest_len(unsigned int dest_len) { dest_len_ = dest_len; }
+  void* operator new(size_t size) = delete;
+  void* operator new(size_t size, char* storage) { return storage; }
+  char* inline_data() { return reinterpret_cast<char*>(this + 1); }
 
- private:
   const char* syscall_;
-  char* data_;
-  unsigned int dest_len_;
-  char dest_[1];
+  const char* data_;
+
+  DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };
+
+
+FSReqWrap* FSReqWrap::New(Environment* env,
+                          Local<Object> req,
+                          const char* syscall,
+                          const char* data,
+                          Ownership ownership) {
+  const bool copy = (data != nullptr && ownership == COPY);
+  const size_t size = copy ? 1 + strlen(data) : 0;
+  FSReqWrap* that;
+  char* const storage = new char[sizeof(*that) + size];
+  that = new(storage) FSReqWrap(env, req, syscall, data);
+  if (copy)
+    that->data_ = static_cast<char*>(memcpy(that->inline_data(), data, size));
+  return that;
+}
+
+
+void FSReqWrap::Dispose() {
+  this->~FSReqWrap();
+  delete[] reinterpret_cast<char*>(this);
+}
 
 
 static void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
@@ -111,13 +143,12 @@ static void After(uv_fs_t *req) {
 
   if (req->result < 0) {
     // An error happened.
-    const char* dest = req_wrap->dest_len() > 0 ? req_wrap->dest() : nullptr;
     argv[0] = UVException(env->isolate(),
                           req->result,
                           req_wrap->syscall(),
                           nullptr,
                           req->path,
-                          dest);
+                          req_wrap->data());
   } else {
     // error value is empty or null for non-error.
     argv[0] = Null(env->isolate());
@@ -212,7 +243,7 @@ static void After(uv_fs_t *req) {
   req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
-  delete req_wrap;
+  req_wrap->Dispose();
 }
 
 // This struct is only used on sync fs calls.
@@ -225,20 +256,10 @@ struct fs_req_wrap {
 };
 
 
-#define ASYNC_DEST_CALL(func, req, dest_path, ...)                            \
+#define ASYNC_DEST_CALL(func, req, dest, ...)                                 \
   Environment* env = Environment::GetCurrent(args);                           \
-  FSReqWrap* req_wrap;                                                        \
-  char* dest_str = (dest_path);                                               \
-  int dest_len = dest_str == nullptr ? 0 : strlen(dest_str);                  \
-  char* storage = new char[sizeof(*req_wrap) + dest_len];                     \
   CHECK(req->IsObject());                                                     \
-  req_wrap = new(storage) FSReqWrap(env, req.As<Object>(), #func);            \
-  req_wrap->dest_len(dest_len);                                               \
-  if (dest_str != nullptr) {                                                  \
-    memcpy(const_cast<char*>(req_wrap->dest()),                               \
-           dest_str,                                                          \
-           dest_len + 1);                                                     \
-  }                                                                           \
+  FSReqWrap* req_wrap = FSReqWrap::New(env, req.As<Object>(), #func, dest);   \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
                            &req_wrap->req_,                                   \
                            __VA_ARGS__,                                       \
@@ -811,7 +832,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   char* buf = nullptr;
   int64_t pos;
   size_t len;
-  bool must_free = false;
+  FSReqWrap::Ownership ownership = FSReqWrap::COPY;
 
   // will assign buf and len if string was external
   if (!StringBytes::GetExternalParts(env->isolate(),
@@ -824,7 +845,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
     len = StringBytes::Write(env->isolate(), buf, len, args[1], enc);
-    must_free = true;
+    ownership = FSReqWrap::MOVE;
   }
   pos = GET_OFFSET(args[2]);
   req = args[4];
@@ -833,13 +854,13 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (!req->IsObject()) {
     SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-    if (must_free)
+    if (ownership == FSReqWrap::MOVE)
       delete[] buf;
     return args.GetReturnValue().Set(SYNC_RESULT);
   }
 
   FSReqWrap* req_wrap =
-      new FSReqWrap(env, req.As<Object>(), "write", must_free ? buf : nullptr);
+      FSReqWrap::New(env, req.As<Object>(), "write", buf, ownership);
   int err = uv_fs_write(env->event_loop(),
                         &req_wrap->req_,
                         fd,
