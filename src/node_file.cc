@@ -853,9 +853,14 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
 
   if (!req->IsObject()) {
+    // SYNC_CALL returns on error.  Make sure to always free the memory.
+    struct Delete {
+      inline explicit Delete(char* pointer) : pointer_(pointer) {}
+      inline ~Delete() { delete[] pointer_; }
+      char* const pointer_;
+    };
+    Delete delete_on_return(ownership == FSReqWrap::MOVE ? buf : nullptr);
     SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-    if (ownership == FSReqWrap::MOVE)
-      delete[] buf;
     return args.GetReturnValue().Set(SYNC_RESULT);
   }
 
