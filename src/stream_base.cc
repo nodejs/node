@@ -1,4 +1,5 @@
 #include "stream_base.h"
+#include "stream_base-inl.h"
 #include "stream_wrap.h"
 
 #include "node.h"
@@ -108,6 +109,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   // Determine storage size first
   size_t storage_size = 0;
   for (size_t i = 0; i < count; i++) {
+    storage_size = ROUND_UP(storage_size, WriteWrap::kAlignSize);
+
     Handle<Value> chunk = chunks->Get(i * 2);
 
     if (Buffer::HasInstance(chunk))
@@ -124,7 +127,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     else
       chunk_size = StringBytes::StorageSize(env->isolate(), string, encoding);
 
-    storage_size += chunk_size + 15;
+    storage_size += chunk_size;
   }
 
   if (storage_size > INT_MAX)
@@ -133,13 +136,14 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   if (ARRAY_SIZE(bufs_) < count)
     bufs = new uv_buf_t[count];
 
-  storage_size += sizeof(WriteWrap);
-  char* storage = new char[storage_size];
-  WriteWrap* req_wrap =
-      new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
+  WriteWrap* req_wrap = WriteWrap::New(env,
+                                       req_wrap_obj,
+                                       this,
+                                       AfterWrite,
+                                       storage_size);
 
   uint32_t bytes = 0;
-  size_t offset = sizeof(WriteWrap);
+  size_t offset = 0;
   for (size_t i = 0; i < count; i++) {
     Handle<Value> chunk = chunks->Get(i * 2);
 
@@ -152,9 +156,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     }
 
     // Write string
-    offset = ROUND_UP(offset, 16);
+    offset = ROUND_UP(offset, WriteWrap::kAlignSize);
     CHECK_LT(offset, storage_size);
-    char* str_storage = storage + offset;
+    char* str_storage = req_wrap->Extra(offset);
     size_t str_size = storage_size - offset;
 
     Handle<String> string = chunk->ToString(env->isolate());
@@ -187,10 +191,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     ClearError();
   }
 
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
+  if (err)
+    req_wrap->Dispose();
 
   return err;
 }
@@ -207,7 +209,6 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* data = Buffer::Data(args[1]);
   size_t length = Buffer::Length(args[1]);
 
-  char* storage;
   WriteWrap* req_wrap;
   uv_buf_t buf;
   buf.base = const_cast<char*>(data);
@@ -224,17 +225,14 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(count, 1);
 
   // Allocate, or write rest
-  storage = new char[sizeof(WriteWrap)];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
+  req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite);
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
   req_wrap->Dispatched();
   req_wrap_obj->Set(env->async(), True(env->isolate()));
 
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
+  if (err)
+    req_wrap->Dispose();
 
  done:
   const char* msg = Error();
@@ -275,14 +273,13 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     return UV_ENOBUFS;
 
   // Try writing immediately if write size isn't too big
-  char* storage;
   WriteWrap* req_wrap;
   char* data;
   char stack_storage[16384];  // 16kb
   size_t data_size;
   uv_buf_t buf;
 
-  bool try_write = storage_size + 15 <= sizeof(stack_storage) &&
+  bool try_write = storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
     data_size = StringBytes::Write(env->isolate(),
@@ -308,11 +305,9 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(count, 1);
   }
 
-  storage = new char[sizeof(WriteWrap) + storage_size + 15];
-  req_wrap = new(storage) WriteWrap(env, req_wrap_obj, this, AfterWrite);
+  req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite, storage_size);
 
-  data = reinterpret_cast<char*>(ROUND_UP(
-      reinterpret_cast<uintptr_t>(storage) + sizeof(WriteWrap), 16));
+  data = req_wrap->Extra();
 
   if (try_write) {
     // Copy partial data
@@ -355,10 +350,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   req_wrap->Dispatched();
   req_wrap->object()->Set(env->async(), True(env->isolate()));
 
-  if (err) {
-    req_wrap->~WriteWrap();
-    delete[] storage;
-  }
+  if (err)
+    req_wrap->Dispose();
 
  done:
   const char* msg = Error();
@@ -404,8 +397,7 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
   if (req_wrap->object()->Has(env->oncomplete_string()))
     req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
 
-  req_wrap->~WriteWrap();
-  delete[] reinterpret_cast<char*>(req_wrap);
+  req_wrap->Dispose();
 }
 
 
