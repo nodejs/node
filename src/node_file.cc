@@ -212,7 +212,7 @@ static void After(uv_fs_t *req) {
   req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
-  delete req_wrap;
+  delete[] reinterpret_cast<char*>(req_wrap);
 }
 
 // This struct is only used on sync fs calls.
