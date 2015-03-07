@@ -56,6 +56,21 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
 class WriteWrap: public ReqWrap<uv_write_t>,
                  public StreamReq<WriteWrap> {
  public:
+  static inline WriteWrap* New(Environment* env,
+                               v8::Local<v8::Object> obj,
+                               StreamBase* wrap,
+                               DoneCb cb,
+                               int extra = 0);
+  inline void Dispose();
+  inline char* Extra(int offset = 0);
+
+  inline StreamBase* wrap() const { return wrap_; }
+
+  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(args.IsConstructCall());
+  }
+
+ protected:
   WriteWrap(Environment* env,
             v8::Local<v8::Object> obj,
             StreamBase* wrap,
@@ -66,24 +81,16 @@ class WriteWrap: public ReqWrap<uv_write_t>,
     Wrap(obj, this);
   }
 
+  void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
 
   // This is just to keep the compiler happy. It should never be called, since
   // we don't use exceptions in node.
   void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
 
-  inline StreamBase* wrap() const {
-    return wrap_;
-  }
-
-  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(args.IsConstructCall());
-  }
-
  private:
   // People should not be using the non-placement new and delete operator on a
   // WriteWrap. Ensure this never happens.
-  void* operator new(size_t size) { UNREACHABLE(); }
   void operator delete(void* ptr) { UNREACHABLE(); }
 
   StreamBase* const wrap_;
