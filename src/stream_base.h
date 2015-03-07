@@ -70,6 +70,8 @@ class WriteWrap: public ReqWrap<uv_write_t>,
     CHECK(args.IsConstructCall());
   }
 
+  static const int kAlignSize = 16;
+
  protected:
   WriteWrap(Environment* env,
             v8::Local<v8::Object> obj,

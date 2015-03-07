@@ -89,7 +89,7 @@ WriteWrap* WriteWrap::New(Environment* env,
                           StreamBase* wrap,
                           DoneCb cb,
                           int extra) {
-  int storage_size = ROUND_UP(sizeof(WriteWrap), 16) + extra;
+  int storage_size = ROUND_UP(sizeof(WriteWrap), kAlignSize) + extra;
   char* storage = new char[storage_size];
 
   return new(storage) WriteWrap(env, obj, wrap, cb);
@@ -103,7 +103,9 @@ void WriteWrap::Dispose() {
 
 
 char* WriteWrap::Extra(int offset) {
-  return reinterpret_cast<char*>(this) + ROUND_UP(sizeof(*this), 16) + offset;
+  return reinterpret_cast<char*>(this) +
+         ROUND_UP(sizeof(*this), kAlignSize) +
+         offset;
 }
 
 }  // namespace node

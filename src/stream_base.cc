@@ -109,7 +109,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   // Determine storage size first
   size_t storage_size = 0;
   for (size_t i = 0; i < count; i++) {
-    storage_size = ROUND_UP(storage_size, 16);
+    storage_size = ROUND_UP(storage_size, WriteWrap::kAlignSize);
 
     Handle<Value> chunk = chunks->Get(i * 2);
 
@@ -156,7 +156,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     }
 
     // Write string
-    offset = ROUND_UP(offset, 16);
+    offset = ROUND_UP(offset, WriteWrap::kAlignSize);
     CHECK_LT(offset, storage_size);
     char* str_storage = req_wrap->Extra(offset);
     size_t str_size = storage_size - offset;
