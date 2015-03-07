@@ -159,7 +159,7 @@ Start a local socket server listening for connections on the given `path`.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
 filesystem path name. It is subject to the same naming conventions and
