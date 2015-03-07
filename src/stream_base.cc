@@ -109,6 +109,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   // Determine storage size first
   size_t storage_size = 0;
   for (size_t i = 0; i < count; i++) {
+    storage_size = ROUND_UP(storage_size, 16);
+
     Handle<Value> chunk = chunks->Get(i * 2);
 
     if (Buffer::HasInstance(chunk))
@@ -125,7 +127,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     else
       chunk_size = StringBytes::StorageSize(env->isolate(), string, encoding);
 
-    storage_size += chunk_size + 15;
+    storage_size += chunk_size;
   }
 
   if (storage_size > INT_MAX)
@@ -277,7 +279,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   size_t data_size;
   uv_buf_t buf;
 
-  bool try_write = storage_size + 15 <= sizeof(stack_storage) &&
+  bool try_write = storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
     data_size = StringBytes::Write(env->isolate(),
