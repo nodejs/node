@@ -92,7 +92,7 @@ to the completion callback.
 
 ## fs.renameSync(oldPath, newPath)
 
-Synchronous rename(2).
+Synchronous rename(2). Returns `undefined`.
 
 ## fs.ftruncate(fd, len, callback)
 
@@ -101,7 +101,7 @@ given to the completion callback.
 
 ## fs.ftruncateSync(fd, len)
 
-Synchronous ftruncate(2).
+Synchronous ftruncate(2). Returns `undefined`.
 
 ## fs.truncate(path, len, callback)
 
@@ -111,7 +111,7 @@ first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
 
-Synchronous truncate(2).
+Synchronous truncate(2). Returns `undefined`.
 
 ## fs.chown(path, uid, gid, callback)
 
@@ -120,7 +120,7 @@ to the completion callback.
 
 ## fs.chownSync(path, uid, gid)
 
-Synchronous chown(2).
+Synchronous chown(2). Returns `undefined`.
 
 ## fs.fchown(fd, uid, gid, callback)
 
@@ -129,7 +129,7 @@ to the completion callback.
 
 ## fs.fchownSync(fd, uid, gid)
 
-Synchronous fchown(2).
+Synchronous fchown(2). Returns `undefined`.
 
 ## fs.lchown(path, uid, gid, callback)
 
@@ -138,7 +138,7 @@ to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
 
-Synchronous lchown(2).
+Synchronous lchown(2). Returns `undefined`.
 
 ## fs.chmod(path, mode, callback)
 
@@ -147,7 +147,7 @@ to the completion callback.
 
 ## fs.chmodSync(path, mode)
 
-Synchronous chmod(2).
+Synchronous chmod(2). Returns `undefined`.
 
 ## fs.fchmod(fd, mode, callback)
 
@@ -156,7 +156,7 @@ are given to the completion callback.
 
 ## fs.fchmodSync(fd, mode)
 
-Synchronous fchmod(2).
+Synchronous fchmod(2). Returns `undefined`.
 
 ## fs.lchmod(path, mode, callback)
 
@@ -167,7 +167,7 @@ Only available on Mac OS X.
 
 ## fs.lchmodSync(path, mode)
 
-Synchronous lchmod(2).
+Synchronous lchmod(2). Returns `undefined`.
 
 ## fs.stat(path, callback)
 
@@ -207,7 +207,7 @@ the completion callback.
 
 ## fs.linkSync(srcpath, dstpath)
 
-Synchronous link(2).
+Synchronous link(2). Returns `undefined`.
 
 ## fs.symlink(destination, path[, type], callback)
 
@@ -220,7 +220,7 @@ Note that Windows junction points require the destination path to be absolute.  
 
 ## fs.symlinkSync(destination, path[, type])
 
-Synchronous symlink(2).
+Synchronous symlink(2). Returns `undefined`.
 
 ## fs.readlink(path, callback)
 
@@ -257,7 +257,7 @@ to the completion callback.
 
 ## fs.unlinkSync(path)
 
-Synchronous unlink(2).
+Synchronous unlink(2). Returns `undefined`.
 
 ## fs.rmdir(path, callback)
 
@@ -266,7 +266,7 @@ to the completion callback.
 
 ## fs.rmdirSync(path)
 
-Synchronous rmdir(2).
+Synchronous rmdir(2). Returns `undefined`.
 
 ## fs.mkdir(path[, mode], callback)
 
@@ -275,7 +275,7 @@ to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
 
-Synchronous mkdir(2).
+Synchronous mkdir(2). Returns `undefined`.
 
 ## fs.readdir(path, callback)
 
@@ -295,7 +295,7 @@ to the completion callback.
 
 ## fs.closeSync(fd)
 
-Synchronous close(2).
+Synchronous close(2). Returns `undefined`.
 
 ## fs.open(path, flags[, mode], callback)
 
@@ -356,18 +356,26 @@ the end of the file.
 
 ## fs.openSync(path, flags[, mode])
 
-Synchronous version of `fs.open()`.
+Synchronous version of `fs.open()`. Returns an integer representing the file
+descriptor.
 
 ## fs.utimes(path, atime, mtime, callback)
-## fs.utimesSync(path, atime, mtime)
 
 Change file timestamps of the file referenced by the supplied path.
 
+## fs.utimesSync(path, atime, mtime)
+
+Synchronous version of `fs.utimes()`. Returns `undefined`.
+
+
 ## fs.futimes(fd, atime, mtime, callback)
-## fs.futimesSync(fd, atime, mtime)
 
 Change the file timestamps of a file referenced by the supplied file
 descriptor.
+
+## fs.futimesSync(fd, atime, mtime)
+
+Synchronous version of `fs.futimes()`. Returns `undefined`.
 
 ## fs.fsync(fd, callback)
 
@@ -376,7 +384,7 @@ to the completion callback.
 
 ## fs.fsyncSync(fd)
 
-Synchronous fsync(2).
+Synchronous fsync(2). Returns `undefined`.
 
 ## fs.write(fd, buffer, offset, length[, position], callback)
 
@@ -514,7 +522,7 @@ If `options` is a string, then it specifies the encoding. Example:
 
 ## fs.writeFileSync(filename, data[, options])
 
-The synchronous version of `fs.writeFile`.
+The synchronous version of `fs.writeFile`. Returns `undefined`.
 
 ## fs.appendFile(filename, data[, options], callback)
 
@@ -542,7 +550,7 @@ If `options` is a string, then it specifies the encoding. Example:
 
 ## fs.appendFileSync(filename, data[, options])
 
-The synchronous version of `fs.appendFile`.
+The synchronous version of `fs.appendFile`. Returns `undefined`.
 
 ## fs.watchFile(filename[, options], listener)
 
@@ -680,6 +688,7 @@ and handle the error when it's not there.
 ## fs.existsSync(path)
 
 Synchronous version of [`fs.exists`](fs.html#fs_fs_exists_path_callback).
+Returns `true` if the file exists, `false` otherwise.
 
 `fs.existsSync()` is **deprecated**. For supported alternatives please check
 out [`fs.statSync`](fs.html#fs_fs_statsync_path) or
