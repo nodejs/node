@@ -27,6 +27,11 @@ BIO* NodeBIO::New() {
 }
 
 
+void NodeBIO::AssignEnvironment(Environment* env) {
+  env_ = env;
+}
+
+
 int NodeBIO::New(BIO* bio) {
   bio->ptr = new NodeBIO();
 
@@ -399,7 +404,7 @@ void NodeBIO::TryAllocateForWrite(size_t hint) {
                              kThroughputBufferLength;
     if (len < hint)
       len = hint;
-    Buffer* next = new Buffer(len);
+    Buffer* next = new Buffer(env_, len);
 
     if (w == nullptr) {
       next->next_ = next;
