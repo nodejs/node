@@ -96,6 +96,7 @@ server.on('listening', function() {
 
 assert(http.createServer() instanceof http.Server);
 assert(http.createServer({foo: 1}) instanceof http.Server);
+assert(http.createServer({tls: false}) instanceof http.Server);
 
 process.on('exit', function() {
   assert.equal(4, request_number);
