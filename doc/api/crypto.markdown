@@ -640,17 +640,26 @@ You can get a list of supported digest functions with
 
 Synchronous PBKDF2 function.  Returns derivedKey or throws error.
 
-## crypto.randomBytes(size[, callback])
+## crypto.randomBytes(size, callback)
 
 Generates cryptographically strong pseudo-random data. Usage:
 
-    // async
     crypto.randomBytes(256, function(ex, buf) {
       if (ex) throw ex;
       console.log('Have %d bytes of random data: %s', buf.length, buf);
     });
 
-    // sync
+NOTE: This will block if there is insufficient entropy, although it should
+normally never take longer than a few milliseconds. The only time when this
+may conceivably block is right after boot, when the whole system is still
+low on entropy.
+
+NOTE: The synchronous API for this method is deprecated - please use `crypto.randomBytesSync(size)` instead.
+
+## crypto.randomBytesSync(size)
+
+A synchronous version of `crypto.randomBytes(size)`. Usage:
+
     try {
       var buf = crypto.randomBytes(256);
       console.log('Have %d bytes of random data: %s', buf.length, buf);
@@ -658,11 +667,6 @@ Generates cryptographically strong pseudo-random data. Usage:
       // handle error
       // most likely, entropy sources are drained
     }
-
-NOTE: This will block if there is insufficient entropy, although it should
-normally never take longer than a few milliseconds. The only time when this
-may conceivably block is right after boot, when the whole system is still
-low on entropy.
 
 ## Class: Certificate
 
