@@ -140,6 +140,17 @@ To run the tests:
 > vcbuild test
 ```
 
+### Android / Android based devices, aka. Firefox OS
+
+Be sure you have downloaded and extracted [Android NDK]
+(https://developer.android.com/tools/sdk/ndk/index.html)
+before in a folder. Then run:
+
+```
+$ ./android-configure /path/to/your/android-ndk
+$ make
+```
+
 ### `Intl` (ECMA-402) support:
 
 [Intl](https://github.com/joyent/node/wiki/Intl) support is not
