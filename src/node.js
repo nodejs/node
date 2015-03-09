@@ -216,6 +216,14 @@
     return startup._lazyConstants;
   };
 
+  function _clearDomainsStack() {
+    var domainModule = NativeModule.require('domain');
+    var domainStack = domainModule._stack;
+    domainStack.length = 0;
+    domainModule.active = null;
+    process.domain = null;
+  }
+
   startup.processFatal = function() {
     // call into the active domain, or emit uncaughtException,
     // and exit if there are no listeners.
@@ -268,13 +276,6 @@
             // If caught is false after this, then there's no need to exit()
             // the domain, because we're going to crash the process anyway.
             caught = domain.emit('error', er);
-
-            // Exit all domains on the stack.  Uncaught exceptions end the
-            // current tick and no domains should be left on the stack
-            // between ticks.
-            var domainModule = NativeModule.require('domain');
-            domainStack.length = 0;
-            domainModule.active = process.domain = null;
           } catch (er2) {
             // The domain error handler threw!  oh no!
             // See if another domain can catch THIS error,
@@ -291,6 +292,11 @@
             }
           }
         }
+
+        // Exit all domains on the stack.  Uncaught exceptions end the
+        // current tick and no domains should be left on the stack
+        // between ticks.
+        _clearDomainsStack();
       } else {
         caught = process.emit('uncaughtException', er);
       }
