@@ -172,7 +172,7 @@ if "%test_args%"=="" goto jslint
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'python tools/test.py %test_args%'
-python tools/test.py %test_args%
+python tools/test.py --timeout=50 %test_args%
 goto jslint
 
 :jslint
