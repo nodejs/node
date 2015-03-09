@@ -1,5 +1,38 @@
 # io.js ChangeLog
 
+## 2015-03-09, Version 1.5.1, @rvagg
+
+### Notable changes
+
+* **tls**: The reported TLS memory leak has been at least partially resolved via various commits in this release. Current testing indicated that there _may_ still be some leak problems. Track complete progress at [#1075](https://github.com/iojs/io.js/issues/1075).
+* **http**: Fixed an error reported at [joyent/node#9348](https://github.com/joyent/node/issues/9348) and [npm/npm#7349](https://github.com/npm/npm/issues/7349). Pending data was not being fully read upon an `'error'` event leading to an assertion failure on `socket.destroy()`. (Fedor Indutny) [#1103](https://github.com/iojs/io.js/pull/1103)
+
+### Known issues
+
+* Possible remaining TLS-related memory leak(s), details at [#1075](https://github.com/iojs/io.js/issues/1075).
+* Windows still reports some minor test failures and we are continuing to address all of these as a priority. See [#1005](https://github.com/iojs/io.js/issues/1005).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`030a92347d`](https://github.com/iojs/io.js/commit/030a92347d)] - **benchmark**: chunky http client benchmark variation (Rudi Cilibrasi) [#228](https://github.com/iojs/io.js/pull/228)
+* [[`3b57819b58`](https://github.com/iojs/io.js/commit/3b57819b58)] - **crypto**: fix leak in SafeX509ExtPrint (Fedor Indutny) [#1087](https://github.com/iojs/io.js/pull/1087)
+* [[`f8c893dd39`](https://github.com/iojs/io.js/commit/f8c893dd39)] - **doc**: fix confusion markdown in util.markdown (Yazhong Liu) [#1097](https://github.com/iojs/io.js/pull/1097)
+* [[`e763220f66`](https://github.com/iojs/io.js/commit/e763220f66)] - **doc**: update clang version prerequisite (Brendan Ashworth) [#1094](https://github.com/iojs/io.js/pull/1094)
+* [[`0f7c8ebeea`](https://github.com/iojs/io.js/commit/0f7c8ebeea)] - **doc**: replace article "an" with "a" in net docs (Evan Lucas) [#1093](https://github.com/iojs/io.js/pull/1093)
+* [[`cf565b5516`](https://github.com/iojs/io.js/commit/cf565b5516)] - **fs**: fix .write() not coercing non-string values (Jeremiah Senkpiel) [#1102](https://github.com/iojs/io.js/pull/1102)
+* [[`1a3ca8223e`](https://github.com/iojs/io.js/commit/1a3ca8223e)] - **http_client**: ensure empty socket on error (Fedor Indutny) [#1103](https://github.com/iojs/io.js/pull/1103)
+* [[`8670613d2d`](https://github.com/iojs/io.js/commit/8670613d2d)] - **node_crypto_bio**: adjust external memory size (Fedor Indutny) [#1085](https://github.com/iojs/io.js/pull/1085)
+* [[`528d8786ff`](https://github.com/iojs/io.js/commit/528d8786ff)] - **src**: fix memory leak in fs.writeSync error path (Ben Noordhuis) [#1092](https://github.com/iojs/io.js/pull/1092)
+* [[`648fc63cd1`](https://github.com/iojs/io.js/commit/648fc63cd1)] - **src**: fix mismatched delete[] in src/node_file.cc (Ben Noordhuis) [#1092](https://github.com/iojs/io.js/pull/1092)
+* [[`9f7c9811e2`](https://github.com/iojs/io.js/commit/9f7c9811e2)] - **src**: add missing Context::Scope (Ben Noordhuis) [#1084](https://github.com/iojs/io.js/pull/1084)
+* [[`fe36076c78`](https://github.com/iojs/io.js/commit/fe36076c78)] - **stream_base**: WriteWrap::New/::Dispose (Fedor Indutny) [#1090](https://github.com/iojs/io.js/pull/1090)
+* [[`7f4c95e160`](https://github.com/iojs/io.js/commit/7f4c95e160)] - **tls**: do not leak WriteWrap objects (Fedor Indutny) [#1090](https://github.com/iojs/io.js/pull/1090)
+* [[`4bd3620382`](https://github.com/iojs/io.js/commit/4bd3620382)] - **url**: remove redundant assignment in url.parse (Alex Kocharin) [#1095](https://github.com/iojs/io.js/pull/1095)
+
 ## 2015-03-06, Version 1.5.0, @rvagg
 
 ### Notable changes
