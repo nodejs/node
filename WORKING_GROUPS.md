@@ -29,7 +29,6 @@ back in to the TC.
 * [Bootstrap Governance](#bootstrap-governance)
 
 ### [Website](https://github.com/iojs/website)
-[![Join the chat at https://gitter.im/iojs/website](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/website?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The website working group's purpose is to build and maintain a public
 website for the `io.js` project.
@@ -50,7 +49,6 @@ Links:
 
 
 ### [Streams](https://github.com/iojs/readable-stream)
-[![Join the chat at https://gitter.im/iojs/readable-stream](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/readable-stream?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The Streams WG is dedicated to the support and improvement of the Streams API
 as used in io.js and the npm ecosystem. We seek to create a composable API that
@@ -108,7 +106,6 @@ Links:
 * [Build Governance](https://github.com/iojs/build/blob/master/GOVERNANCE.md)
 
 ### [Tracing](https://github.com/iojs/tracing-wg)
-[![Join the chat at https://gitter.im/iojs/tracing-wg](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/tracing-wg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The tracing working group's purpose is to increase the
 transparency of software written in io.js.
@@ -205,7 +202,6 @@ Links:
 * [Evangelism Governance](https://github.com/iojs/evangelism/blob/master/GOVERNANCE.md)
 
 ### [Roadmap](https://github.com/iojs/roadmap)
-[![Join the chat at https://gitter.im/iojs/roadmap](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/roadmap?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The roadmap working group is responsible for user community outreach
 and the translation of their concerns into a plan of action for io.js.
