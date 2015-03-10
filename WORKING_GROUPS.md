@@ -18,7 +18,18 @@ back in to the TC.
 
 ## Current Working Groups
 
-### Website
+* [Website](#website)
+* [Streams](#streams)
+* [Build](#build)
+* [Tracing](#tracing)
+* [i18n](#i18n)
+* [Evangelism](#evangelism)
+* [Roadmap](#roadmap)
+* [Starting a Working Group](#starting-a-wg)
+* [Bootstrap Governance](#bootstrap-governance)
+
+### [Website](https://github.com/iojs/website)
+[![Join the chat at https://gitter.im/iojs/website](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/website?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The website working group's purpose is to build and maintain a public
 website for the `io.js` project.
@@ -29,10 +40,17 @@ Its responsibilities are:
 releases and features.
 * Foster and enable a community of translators.
 
-The current members can be found in their
-[README](https://github.com/iojs/website#current-project-team-members).
+Links:
+* [Website WG](https://github.com/iojs/website)
+* [Website WG Members](https://github.com/iojs/website#current-project-team-members)
+* [Website Issues](https://github.com/iojs/website/issues)
+* [Website Contributing](https://github.com/iojs/website/blob/master/CONTRIBUTING.md)
+* [Website Governance](https://github.com/iojs/website/blob/master/GOVERNANCE.md)
 
-### Streams
+
+
+### [Streams](https://github.com/iojs/readable-stream)
+[![Join the chat at https://gitter.im/iojs/readable-stream](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/readable-stream?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The Streams WG is dedicated to the support and improvement of the Streams API
 as used in io.js and the npm ecosystem. We seek to create a composable API that
@@ -51,6 +69,7 @@ responsibilities include:
 * Messaging about the future of streams to give the community advance notice of changes.
 
 Initial members are:
+
 * @chrisdickinson
 * @isaacs
 * @rvagg
@@ -61,7 +80,15 @@ Initial members are:
 * @timgestson
 * @domenic
 
-### Build
+Links:
+* [Streams WG](https://github.com/iojs/readable-stream)
+* [Streams WG Members](https://github.com/iojs/readable-stream#current-project-team-members)
+* [Streams Issues](https://github.com/iojs/readable-stream/issues)
+* [Streams Contributing](https://github.com/iojs/readable-stream/blob/master/CONTRIBUTING.md)
+* [Streams Governance](https://github.com/iojs/readable-stream/blob/master/GOVERNANCE.md)
+
+### [Build](https://github.com/iojs/build)
+[![Join the chat at https://gitter.im/iojs/build](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/build?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The build working group's purpose is to create and maintain a
 distributed automation infrastructure.
@@ -73,23 +100,32 @@ Its responsibilities are:
 * Creates and manages official docker images.
 * Creates and manages build-containers.
 
-The current members can be found in their
-[README](https://github.com/iojs/build#people).
+Links:
+* [Build WG](https://github.com/iojs/build)
+* [Build WG Members](https://github.com/iojs/build#people)
+* [Build Issues](https://github.com/iojs/build/issues)
+* [Build Contributing](https://github.com/iojs/build/blob/master/CONTRIBUTING.md)
+* [Build Governance](https://github.com/iojs/build/blob/master/GOVERNANCE.md)
 
-### Tracing
+### [Tracing](https://github.com/iojs/tracing-wg)
+[![Join the chat at https://gitter.im/iojs/tracing-wg](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/tracing-wg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The tracing working group's purpose is to increase the
 transparency of software written in io.js.
 
 Its responsibilities are:
 * Collaboration with V8 to integrate with `trace_event`.
-* Maintinence and iteration on AsyncWrap.
-* Maintinence and improvements to system tracing support (DTrace, LTTng, etc).
-* Documention of tracing and debugging techniques.
+* Maintenance and iteration on AsyncWrap.
+* Maintenance and improvements to system tracing support (DTrace, LTTng, etc.)
+* Documentation of tracing and debugging techniques.
 * Fostering a tracing and debugging ecosystem.
 
-The current members can be found in their
-[README](https://github.com/iojs/tracing-wg#people).
+Links:
+* [Tracing WG](https://github.com/iojs/tracing-wg)
+* [Tracing WG Members](https://github.com/iojs/tracing-wg#people)
+* [Tracing Issues](https://github.com/iojs/tracing-wg/issues)
+* [Tracing Contributing](https://github.com/iojs/tracing-wg/blob/master/CONTRIBUTING.md)
+* [Tracing Governance](https://github.com/iojs/tracing-wg/blob/master/GOVERNANCE.md)
 
 ### i18n
 
@@ -102,7 +138,7 @@ language community might then produce multiple localizations for
 various project resources.
 
 Their responsibilities are:
-* Translation of any io.js materials they believe are relevant to their
+* Translations of any io.js materials they believe are relevant to their
 community.
 * Review processes for keeping translations up
 to date and of high quality.
@@ -110,42 +146,45 @@ to date and of high quality.
 * Promotion of io.js speakers for meetups and conferences in their
 language.
 
-Membership is maintained by each language community.
+Each language community maintains its own membership.
 
+* [iojs-ar](http://github.com/iojs/iojs-ar)
 * [iojs-bg](http://github.com/iojs/iojs-bg)
 * [iojs-bn](http://github.com/iojs/iojs-bn)
-* [iojs-cn](http://github.com/iojs/iojs-cn)
+* [iojs-cn](http://github.com/iojs/iojs-cn) [![Join the chat at https://gitter.im/iojs/iojs-cn](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-cn?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-cs](http://github.com/iojs/iojs-cs)
-* [iojs-da](http://github.com/iojs/iojs-da)
-* [iojs-de](http://github.com/iojs/iojs-de)
-* [iojs-el](http://github.com/iojs/iojs-el)
-* [iojs-es](http://github.com/iojs/iojs-es)
+* [iojs-da](http://github.com/iojs/iojs-da) [![Join the chat at https://gitter.im/iojs/iojs-da](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-da?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-de](http://github.com/iojs/iojs-de) [![Join the chat at https://gitter.im/iojs/iojs-de](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-de?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-el](http://github.com/iojs/iojs-el) [![Join the chat at https://gitter.im/iojs/iojs-el](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-el?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-es](http://github.com/iojs/iojs-es) [![Join the chat at https://gitter.im/iojs/iojs-es](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-es?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-fa](http://github.com/iojs/iojs-fa)
 * [iojs-fi](http://github.com/iojs/iojs-fi)
-* [iojs-fr](http://github.com/iojs/iojs-fr)
-* [iojs-he](http://github.com/iojs/iojs-he)
+* [iojs-fr](http://github.com/iojs/iojs-fr) [![Join the chat at https://gitter.im/iojs/iojs-fr](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-fr?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-he](http://github.com/iojs/iojs-he) [![Join the chat at https://gitter.im/iojs/iojs-he](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-he?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-hi](http://github.com/iojs/iojs-hi)
-* [iojs-hu](http://github.com/iojs/iojs-hu)
+* [iojs-hu](http://github.com/iojs/iojs-hu) [![Join the chat at https://gitter.im/iojs/iojs-hu](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-hu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-id](http://github.com/iojs/iojs-id)
-* [iojs-it](http://github.com/iojs/iojs-it)
+* [iojs-it](http://github.com/iojs/iojs-it) [![Join the chat at https://gitter.im/iojs/iojs-it](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-it?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-ja](http://github.com/iojs/iojs-ja)
-* [iojs-ka](http://github.com/iojs/iojs-ka)
-* [iojs-ko](http://github.com/iojs/iojs-ko)
+* [iojs-ka](http://github.com/iojs/iojs-ka) [![Join the chat at https://gitter.im/iojs/iojs-ka](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-ka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-ko](http://github.com/iojs/iojs-ko) [![Join the chat at https://gitter.im/iojs/iojs-ko](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-ko?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-mk](http://github.com/iojs/iojs-mk)
+* [iojs-ms](http://github.com/iojs/iojs-ms)
 * [iojs-nl](http://github.com/iojs/iojs-nl)
-* [iojs-no](http://github.com/iojs/iojs-no)
-* [iojs-pl](http://github.com/iojs/iojs-pl)
-* [iojs-pt](http://github.com/iojs/iojs-pt)
-* [iojs-ro](http://github.com/iojs/iojs-ro)
-* [iojs-ru](http://github.com/iojs/iojs-ru)
+* [iojs-no](http://github.com/iojs/iojs-no) [![Join the chat at https://gitter.im/iojs/iojs-no](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-no?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-pl](http://github.com/iojs/iojs-pl) [![Join the chat at https://gitter.im/iojs/iojs-pl](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-pl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-pt](http://github.com/iojs/iojs-pt) [![Join the chat at https://gitter.im/iojs/iojs-pt](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-pt?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-ro](http://github.com/iojs/iojs-ro) [![Join the chat at https://gitter.im/iojs/iojs-ro](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-ro?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+*  [iojs-ru](http://github.com/iojs/iojs-ru) [![Join the chat at https://gitter.im/iojs/iojs-ru](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-ru?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * [iojs-sv](http://github.com/iojs/iojs-sv)
 * [iojs-ta](http://github.com/iojs/iojs-ta)
-* [iojs-tr](http://github.com/iojs/iojs-tr)
-* [iojs-tw](http://github.com/iojs/iojs-tw)
-* [iojs-uk](http://github.com/iojs/iojs-uk)
-* [iojs-vi](http://github.com/iojs/iojs-vi)
+* [iojs-tr](http://github.com/iojs/iojs-tr) [![Join the chat at https://gitter.im/iojs/iojs-tr](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-tr?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-tw](http://github.com/iojs/iojs-tw) [![Join the chat at https://gitter.im/iojs/iojs-tw](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-tw?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-uk](http://github.com/iojs/iojs-uk) [![Join the chat at https://gitter.im/iojs/iojs-uk](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-uk?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [iojs-vi](http://github.com/iojs/iojs-vi) [![Join the chat at https://gitter.im/iojs/iojs-vi](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/iojs-vi?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-### Evangelism
+### [Evangelism](https://github.com/iojs/evangelism)
+[![Join the chat at https://gitter.im/iojs/evangelism](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/evangelism?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The evangelism working group promotes the accomplishments
 of io.js and lets the community know how they can get involved.
@@ -158,10 +197,15 @@ Their responsibilities are:
 * Publishing regular update summaries and other promotional
 content.
 
-The current members can be found in their
-[README](https://github.com/iojs/evangelism#people).
+Links:
+* [Evangelism WG](https://github.com/iojs/evangelism)
+* [Evangelism WG Members](https://github.com/iojs/evangelism#evangelism-wg-members)
+* [Evangelism Issues](https://github.com/iojs/evangelism/issues)
+* [Evangelism Contributing](https://github.com/iojs/evangelism/blob/master/CONTRIBUTING.md)
+* [Evangelism Governance](https://github.com/iojs/evangelism/blob/master/GOVERNANCE.md)
 
-### Roadmap
+### [Roadmap](https://github.com/iojs/roadmap)
+[![Join the chat at https://gitter.im/iojs/roadmap](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/roadmap?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The roadmap working group is responsible for user community outreach
 and the translation of their concerns into a plan of action for io.js.
@@ -174,8 +218,12 @@ Their responsibilities are:
 * Find or potentially create tools that allow for broader participation.
 * Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
 
-The current members can be found in their
-[README](https://github.com/iojs/roadmap#people).
+Links:
+* [Roadmap WG](https://github.com/iojs/roadmap)
+* [Roadmap WG Members](https://github.com/iojs/roadmap#people)
+* [Roadmap Issues](https://github.com/iojs/roadmap/issues)
+* [Roadmap Contributing](https://github.com/iojs/roadmap/blob/master/CONTRIBUTING.md)
+* [Roadmap Governance](https://github.com/iojs/roadmap/blob/master/GOVERNANCE.md)
 
 ## Starting a WG
 
@@ -186,7 +234,7 @@ ratified by the TC. A charter is a *statement of purpose*, a
 A working group needs 3 initial members. These should be individuals
 already undertaking the work described in the charter.
 
-The list of responsibilities should be specific. Once established these
+The list of responsibilities should be specific. Once established, these
 responsibilities are no longer governed by the TC and therefore should
 not be broad or subjective. The only recourse the TC has over the working
 group is to revoke the entire charter and take on the work previously
@@ -197,7 +245,7 @@ undertaken by another WG then the charter will additionally have to be
 ratified by that WG.
 
 You can submit the WG charter for ratification by sending
-a Pull Request to this document which adds it to the
+a Pull Request to this document, which adds it to the
 list of current Working Groups. Once ratified the list of
 members should be maintained in the Working Group's
 README.
@@ -212,7 +260,7 @@ governance process, hence the term "bootstrap."
 ### *[insert WG name]* Working Group
 
 The io.js *[insert WG name]* is jointly governed by a Working Group (WG)
-which is responsible for high-level guidance of the project.
+that is responsible for high-level guidance of the project.
 
 The WG has final authority over this project including:
 
@@ -297,15 +345,15 @@ members affiliated with the over-represented employer(s).
 
 ### WG Meetings
 
-The WG meets weekly on a Google Hangout On Air. The meeting is run by
-a designated moderator approved by the WG. Each meeting should be
+The WG meets weekly on a Google Hangout On Air. A designated moderator
+approved by the WG runs the meeting. Each meeting should be
 published to YouTube.
 
-Items are added to the WG agenda which are considered contentious or
+Items are added to the WG agenda that are considered contentious or
 are modifications of governance, contribution policy, WG membership,
 or release process.
 
-The intention of the agenda is not to approve or review all patches,
+The intention of the agenda is not to approve or review all patches;
 that should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
@@ -323,13 +371,13 @@ The WG may invite persons or representatives from certain projects to
 participate in a non-voting capacity.
 
 The moderator is responsible for summarizing the discussion of each
-agenda item and send it as a pull request after the meeting.
+agenda item and sends it as a pull request after the meeting.
 
 ### Consensus Seeking Process
 
 The WG follows a
 [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
-decision making model.
+decision-making model.
 
 When an agenda item has appeared to reach a consensus the moderator
 will ask "Does anyone object?" as a final call for dissent from the
