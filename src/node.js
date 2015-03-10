@@ -838,7 +838,11 @@
     return NativeModule._source.hasOwnProperty(id);
   };
 
-  if (process.env['NODE_EXPOSE_INTERNALS']) {
+  const EXPOSE_INTERNALS = process.execArgv.some(function(arg) {
+    return arg.match(/^--expose[-_]internals$/);
+  });
+
+  if (EXPOSE_INTERNALS) {
     NativeModule.nonInternalExists = NativeModule.exists;
 
     NativeModule.isInternal = function(id) {
