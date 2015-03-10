@@ -20,6 +20,10 @@ var server = net.createServer(function(socket) {
   socket.on('end', function() {
     if (++conns_closed == 2) server.close();
   });
+  socket.on('close', function() {
+    assert.notEqual(-1, remoteAddrCandidates.indexOf(socket.remoteAddress));
+    assert.notEqual(-1, remoteFamilyCandidates.indexOf(socket.remoteFamily));
+  });
   socket.resume();
 });
 
@@ -32,11 +36,19 @@ server.listen(common.PORT, 'localhost', function() {
     assert.equal(common.PORT, client.remotePort);
     client.end();
   });
+  client.on('close', function() {
+    assert.notEqual(-1, remoteAddrCandidates.indexOf(client.remoteAddress));
+    assert.notEqual(-1, remoteFamilyCandidates.indexOf(client.remoteFamily));
+  });
   client2.on('connect', function() {
     assert.notEqual(-1, remoteAddrCandidates.indexOf(client2.remoteAddress));
     assert.notEqual(-1, remoteFamilyCandidates.indexOf(client2.remoteFamily));
     assert.equal(common.PORT, client2.remotePort);
     client2.end();
+  });
+  client2.on('close', function() {
+    assert.notEqual(-1, remoteAddrCandidates.indexOf(client2.remoteAddress));
+    assert.notEqual(-1, remoteFamilyCandidates.indexOf(client2.remoteFamily));
   });
 });
 
