@@ -39,13 +39,15 @@ parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
     help='CPU architecture to build for. '
-         'Valid values are: arm, arm64, ia32, mips, mipsel, x32, x64')
+         'Valid values are: arm, arm64, ia32, mips, mipsel, x32, x64',
+    default=os.environ.get('DESTCPU', None))
 
 parser.add_option('--dest-os',
     action='store',
     dest='dest_os',
     help='operating system to build for. Valid values are: '
-         'win, mac, solaris, freebsd, openbsd, linux, android')
+         'win, mac, solaris, freebsd, openbsd, linux, android',
+    default=os.environ.get('OSTYPE', None))
 
 parser.add_option('--gdb',
     action='store_true',
