@@ -838,13 +838,22 @@
     return NativeModule._source.hasOwnProperty(id);
   };
 
-  NativeModule.nonInternalExists = function(id) {
-    return NativeModule.exists(id) && !NativeModule.isInternal(id);
-  };
+  if (process.env['NODE_EXPOSE_INTERNALS']) {
+    NativeModule.nonInternalExists = NativeModule.exists;
 
-  NativeModule.isInternal = function(id) {
-    return id.startsWith('internal/');
-  };
+    NativeModule.isInternal = function(id) {
+      return false;
+    };
+  } else {
+    NativeModule.nonInternalExists = function(id) {
+      return NativeModule.exists(id) && !NativeModule.isInternal(id);
+    };
+
+    NativeModule.isInternal = function(id) {
+      return id.startsWith('internal/');
+    };
+  }
+
 
   NativeModule.getSource = function(id) {
     return NativeModule._source[id];
