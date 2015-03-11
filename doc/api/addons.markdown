@@ -41,7 +41,15 @@ First we create a file `hello.cc`:
     // hello.cc
     #include <node.h>
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void Method(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
@@ -53,6 +61,8 @@ First we create a file `hello.cc`:
     }
 
     NODE_MODULE(addon, init)
+
+    }  // namespace demo
 
 Note that all io.js addons must export an initialization function:
 
@@ -141,7 +151,17 @@ function calls and return a result. This is the main and only needed source
     // addon.cc
     #include <node.h>
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Exception;
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Number;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void Add(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
@@ -170,6 +190,8 @@ function calls and return a result. This is the main and only needed source
 
     NODE_MODULE(addon, Init)
 
+    }  // namespace demo
+
 You can test it with the following JavaScript snippet:
 
     // test.js
@@ -186,7 +208,16 @@ there. Here's `addon.cc`:
     // addon.cc
     #include <node.h>
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Function;
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void RunCallback(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
@@ -201,6 +232,8 @@ there. Here's `addon.cc`:
     }
 
     NODE_MODULE(addon, Init)
+
+    }  // namespace demo
 
 Note that this example uses a two-argument form of `Init()` that receives
 the full `module` object as the second argument. This allows the addon
@@ -226,7 +259,15 @@ the string passed to `createObject()`:
     // addon.cc
     #include <node.h>
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
@@ -242,6 +283,8 @@ the string passed to `createObject()`:
     }
 
     NODE_MODULE(addon, Init)
+
+    }  // namespace demo
 
 To test it in JavaScript:
 
@@ -261,7 +304,17 @@ wraps a C++ function:
     // addon.cc
     #include <node.h>
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Function;
+    using v8::FunctionCallbackInfo;
+    using v8::FunctionTemplate;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void MyFunction(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
@@ -286,6 +339,8 @@ wraps a C++ function:
 
     NODE_MODULE(addon, Init)
 
+    }  // namespace demo
+
 To test:
 
     // test.js
@@ -305,13 +360,18 @@ module `addon.cc`:
     #include <node.h>
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Local;
+    using v8::Object;
 
     void InitAll(Local<Object> exports) {
       MyObject::Init(exports);
     }
 
     NODE_MODULE(addon, InitAll)
+
+    }  // namespace demo
 
 Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
 
@@ -321,6 +381,8 @@ Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
 
     #include <node.h>
     #include <node_object_wrap.h>
+
+    namespace demo {
 
     class MyObject : public node::ObjectWrap {
      public:
@@ -336,6 +398,8 @@ Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
       double value_;
     };
 
+    }  // namespace demo
+
     #endif
 
 And in `myobject.cc` implement the various methods that you want to expose.
@@ -345,7 +409,19 @@ prototype:
     // myobject.cc
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Function;
+    using v8::FunctionCallbackInfo;
+    using v8::FunctionTemplate;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Number;
+    using v8::Object;
+    using v8::Persistent;
+    using v8::String;
+    using v8::Value;
 
     Persistent<Function> MyObject::constructor;
 
@@ -398,6 +474,8 @@ prototype:
       args.GetReturnValue().Set(Number::New(isolate, obj->value_));
     }
 
+    }  // namespace demo
+
 Test it with:
 
     // test.js
@@ -423,7 +501,15 @@ Let's register our `createObject` method in `addon.cc`:
     #include <node.h>
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
       MyObject::NewInstance(args);
@@ -437,6 +523,8 @@ Let's register our `createObject` method in `addon.cc`:
 
     NODE_MODULE(addon, InitAll)
 
+    }  // namespace demo
+
 In `myobject.h` we now introduce the static method `NewInstance` that takes
 care of instantiating the object (i.e. it does the job of `new` in JavaScript):
 
@@ -446,6 +534,8 @@ care of instantiating the object (i.e. it does the job of `new` in JavaScript):
 
     #include <node.h>
     #include <node_object_wrap.h>
+
+    namespace demo {
 
     class MyObject : public node::ObjectWrap {
      public:
@@ -462,6 +552,8 @@ care of instantiating the object (i.e. it does the job of `new` in JavaScript):
       double value_;
     };
 
+    }  // namespace demo
+
     #endif
 
 The implementation is similar to the above in `myobject.cc`:
@@ -470,7 +562,19 @@ The implementation is similar to the above in `myobject.cc`:
     #include <node.h>
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Function;
+    using v8::FunctionCallbackInfo;
+    using v8::FunctionTemplate;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Number;
+    using v8::Object;
+    using v8::Persistent;
+    using v8::String;
+    using v8::Value;
 
     Persistent<Function> MyObject::constructor;
 
@@ -530,6 +634,8 @@ The implementation is similar to the above in `myobject.cc`:
       args.GetReturnValue().Set(Number::New(isolate, obj->value_));
     }
 
+    }  // namespace demo
+
 Test it with:
 
     // test.js
@@ -558,7 +664,16 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
     #include <node_object_wrap.h>
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::FunctionCallbackInfo;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Number;
+    using v8::Object;
+    using v8::String;
+    using v8::Value;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
       MyObject::NewInstance(args);
@@ -585,6 +700,8 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
 
     NODE_MODULE(addon, InitAll)
 
+    }  // namespace demo
+
 To make things interesting we introduce a public method in `myobject.h` so we
 can probe private values after unwrapping the object:
 
@@ -594,6 +711,8 @@ can probe private values after unwrapping the object:
 
     #include <node.h>
     #include <node_object_wrap.h>
+
+    namespace demo {
 
     class MyObject : public node::ObjectWrap {
      public:
@@ -610,6 +729,8 @@ can probe private values after unwrapping the object:
       double value_;
     };
 
+    }  // namespace demo
+
     #endif
 
 The implementation of `myobject.cc` is similar as before:
@@ -618,7 +739,18 @@ The implementation of `myobject.cc` is similar as before:
     #include <node.h>
     #include "myobject.h"
 
-    using namespace v8;
+    namespace demo {
+
+    using v8::Function;
+    using v8::FunctionCallbackInfo;
+    using v8::FunctionTemplate;
+    using v8::HandleScope;
+    using v8::Isolate;
+    using v8::Local;
+    using v8::Object;
+    using v8::Persistent;
+    using v8::String;
+    using v8::Value;
 
     Persistent<Function> MyObject::constructor;
 
@@ -665,6 +797,8 @@ The implementation of `myobject.cc` is similar as before:
 
       args.GetReturnValue().Set(instance);
     }
+
+    }  // namespace demo
 
 Test it with:
 
