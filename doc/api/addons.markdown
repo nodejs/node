@@ -44,7 +44,7 @@ First we create a file `hello.cc`:
     using namespace v8;
 
     void Method(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
       args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
     }
@@ -145,7 +145,7 @@ function calls and return a result. This is the main and only needed source
     using namespace v8;
 
     void Add(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       if (args.Length() < 2) {
@@ -191,7 +191,7 @@ there. Here's `addon.cc`:
     using namespace v8;
 
     void RunCallback(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       Local<Function> cb = Local<Function>::Cast(args[0]);
@@ -233,7 +233,7 @@ the string passed to `createObject()`:
     using namespace v8;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       Local<Object> obj = Object::New(isolate);
@@ -269,13 +269,13 @@ wraps a C++ function:
     using namespace v8;
 
     void MyFunction(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
       args.GetReturnValue().Set(String::NewFromUtf8(isolate, "hello world"));
     }
 
     void CreateFunction(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, MyFunction);
@@ -363,7 +363,7 @@ prototype:
     }
 
     void MyObject::Init(Handle<Object> exports) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = exports->GetIsolate();
 
       // Prepare constructor template
       Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
@@ -379,7 +379,7 @@ prototype:
     }
 
     void MyObject::New(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       if (args.IsConstructCall()) {
@@ -398,7 +398,7 @@ prototype:
     }
 
     void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
@@ -435,13 +435,13 @@ Let's register our `createObject` method in `addon.cc`:
     using namespace v8;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
       MyObject::NewInstance(args);
     }
 
     void InitAll(Handle<Object> exports, Handle<Object> module) {
-      MyObject::Init();
+      MyObject::Init(exports->GetIsolate());
 
       NODE_SET_METHOD(module, "exports", CreateObject);
     }
@@ -460,7 +460,7 @@ care of instantiating the object (i.e. it does the job of `new` in JavaScript):
 
     class MyObject : public node::ObjectWrap {
      public:
-      static void Init();
+      static void Init(v8::Isolate* isolate);
       static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
 
      private:
@@ -491,8 +491,7 @@ The implementation is similar to the above in `myobject.cc`:
     MyObject::~MyObject() {
     }
 
-    void MyObject::Init() {
-      Isolate* isolate = Isolate::GetCurrent();
+    void MyObject::Init(Isolate* isolate) {
       // Prepare constructor template
       Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
       tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
@@ -505,7 +504,7 @@ The implementation is similar to the above in `myobject.cc`:
     }
 
     void MyObject::New(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       if (args.IsConstructCall()) {
@@ -524,7 +523,7 @@ The implementation is similar to the above in `myobject.cc`:
     }
 
     void MyObject::NewInstance(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       const unsigned argc = 1;
@@ -536,7 +535,7 @@ The implementation is similar to the above in `myobject.cc`:
     }
 
     void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
@@ -576,13 +575,13 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
     using namespace v8;
 
     void CreateObject(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
       MyObject::NewInstance(args);
     }
 
     void Add(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       MyObject* obj1 = node::ObjectWrap::Unwrap<MyObject>(
@@ -595,7 +594,7 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
     }
 
     void InitAll(Handle<Object> exports) {
-      MyObject::Init();
+      MyObject::Init(exports->GetIsolate());
 
       NODE_SET_METHOD(exports, "createObject", CreateObject);
       NODE_SET_METHOD(exports, "add", Add);
@@ -615,7 +614,7 @@ can probe private values after unwrapping the object:
 
     class MyObject : public node::ObjectWrap {
      public:
-      static void Init();
+      static void Init(v8::Isolate* isolate);
       static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
       inline double value() const { return value_; }
 
@@ -646,9 +645,7 @@ The implementation of `myobject.cc` is similar as before:
     MyObject::~MyObject() {
     }
 
-    void MyObject::Init() {
-      Isolate* isolate = Isolate::GetCurrent();
-
+    void MyObject::Init(Isolate* isolate) {
       // Prepare constructor template
       Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
       tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject"));
@@ -658,7 +655,7 @@ The implementation of `myobject.cc` is similar as before:
     }
 
     void MyObject::New(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       if (args.IsConstructCall()) {
@@ -677,7 +674,7 @@ The implementation of `myobject.cc` is similar as before:
     }
 
     void MyObject::NewInstance(const FunctionCallbackInfo<Value>& args) {
-      Isolate* isolate = Isolate::GetCurrent();
+      Isolate* isolate = args.GetIsolate();
       HandleScope scope(isolate);
 
       const unsigned argc = 1;
