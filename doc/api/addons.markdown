@@ -215,6 +215,7 @@ there. Here's `addon.cc`:
     using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
+    using v8::Null;
     using v8::Object;
     using v8::String;
     using v8::Value;
@@ -224,7 +225,7 @@ there. Here's `addon.cc`:
       Local<Function> cb = Local<Function>::Cast(args[0]);
       const unsigned argc = 1;
       Local<Value> argv[argc] = { String::NewFromUtf8(isolate, "hello world") };
-      cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+      cb->Call(Null(isolate), argc, argv);
     }
 
     void Init(Local<Object> exports, Local<Object> module) {
