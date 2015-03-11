@@ -48,7 +48,7 @@ First we create a file `hello.cc`:
       args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
     }
 
-    void init(Handle<Object> exports) {
+    void init(Local<Object> exports) {
       NODE_SET_METHOD(exports, "hello", Method);
     }
 
@@ -56,7 +56,7 @@ First we create a file `hello.cc`:
 
 Note that all io.js addons must export an initialization function:
 
-    void Initialize (Handle<Object> exports);
+    void Initialize(Local<Object> exports);
     NODE_MODULE(module_name, Initialize)
 
 There is no semi-colon after `NODE_MODULE` as it's not a function (see
@@ -164,7 +164,7 @@ function calls and return a result. This is the main and only needed source
       args.GetReturnValue().Set(num);
     }
 
-    void Init(Handle<Object> exports) {
+    void Init(Local<Object> exports) {
       NODE_SET_METHOD(exports, "add", Add);
     }
 
@@ -196,7 +196,7 @@ there. Here's `addon.cc`:
       cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     }
 
-    void Init(Handle<Object> exports, Handle<Object> module) {
+    void Init(Local<Object> exports, Local<Object> module) {
       NODE_SET_METHOD(module, "exports", RunCallback);
     }
 
@@ -237,7 +237,7 @@ the string passed to `createObject()`:
       args.GetReturnValue().Set(obj);
     }
 
-    void Init(Handle<Object> exports, Handle<Object> module) {
+    void Init(Local<Object> exports, Local<Object> module) {
       NODE_SET_METHOD(module, "exports", CreateObject);
     }
 
@@ -280,7 +280,7 @@ wraps a C++ function:
       args.GetReturnValue().Set(fn);
     }
 
-    void Init(Handle<Object> exports, Handle<Object> module) {
+    void Init(Local<Object> exports, Local<Object> module) {
       NODE_SET_METHOD(module, "exports", CreateFunction);
     }
 
@@ -307,7 +307,7 @@ module `addon.cc`:
 
     using namespace v8;
 
-    void InitAll(Handle<Object> exports) {
+    void InitAll(Local<Object> exports) {
       MyObject::Init(exports);
     }
 
@@ -324,7 +324,7 @@ Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
 
     class MyObject : public node::ObjectWrap {
      public:
-      static void Init(v8::Handle<v8::Object> exports);
+      static void Init(v8::Local<v8::Object> exports);
 
      private:
       explicit MyObject(double value = 0);
@@ -355,7 +355,7 @@ prototype:
     MyObject::~MyObject() {
     }
 
-    void MyObject::Init(Handle<Object> exports) {
+    void MyObject::Init(Local<Object> exports) {
       Isolate* isolate = exports->GetIsolate();
 
       // Prepare constructor template
@@ -429,7 +429,7 @@ Let's register our `createObject` method in `addon.cc`:
       MyObject::NewInstance(args);
     }
 
-    void InitAll(Handle<Object> exports, Handle<Object> module) {
+    void InitAll(Local<Object> exports, Local<Object> module) {
       MyObject::Init(exports->GetIsolate());
 
       NODE_SET_METHOD(module, "exports", CreateObject);
@@ -514,7 +514,7 @@ The implementation is similar to the above in `myobject.cc`:
       Isolate* isolate = args.GetIsolate();
 
       const unsigned argc = 1;
-      Handle<Value> argv[argc] = { args[0] };
+      Local<Value> argv[argc] = { args[0] };
       Local<Function> cons = Local<Function>::New(isolate, constructor);
       Local<Object> instance = cons->NewInstance(argc, argv);
 
@@ -576,7 +576,7 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
       args.GetReturnValue().Set(Number::New(isolate, sum));
     }
 
-    void InitAll(Handle<Object> exports) {
+    void InitAll(Local<Object> exports) {
       MyObject::Init(exports->GetIsolate());
 
       NODE_SET_METHOD(exports, "createObject", CreateObject);
@@ -659,7 +659,7 @@ The implementation of `myobject.cc` is similar as before:
       Isolate* isolate = args.GetIsolate();
 
       const unsigned argc = 1;
-      Handle<Value> argv[argc] = { args[0] };
+      Local<Value> argv[argc] = { args[0] };
       Local<Function> cons = Local<Function>::New(isolate, constructor);
       Local<Object> instance = cons->NewInstance(argc, argv);
 
