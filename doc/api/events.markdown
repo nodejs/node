@@ -20,7 +20,7 @@ attached to.
 
 ## Class: events.EventEmitter
 
-To access the EventEmitter class, require `events`.
+Use `require('events')` to access the EventEmitter class.
 ```javascript
 var EventEmitter = require('events');
 ```
