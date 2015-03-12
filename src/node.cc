@@ -3195,6 +3195,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger agent.\n");
 
+    HandleScope scope(node_isolate);
     Environment* env = Environment::GetCurrent(node_isolate);
     Context::Scope context_scope(env->context());
 
@@ -3603,8 +3604,8 @@ void AtExit(void (*cb)(void* arg), void* arg) {
 
 
 void EmitBeforeExit(Environment* env) {
-  Context::Scope context_scope(env->context());
   HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
   Local<String> exit_code = FIXED_ONE_BYTE_STRING(env->isolate(), "exitCode");
   Local<Value> args[] = {
