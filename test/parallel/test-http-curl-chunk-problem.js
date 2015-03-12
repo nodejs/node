@@ -16,7 +16,8 @@ var count = 0;
 function maybeMakeRequest() {
   if (++count < 2) return;
   console.log('making curl request');
-  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | ' + common.opensslCli + ' sha1';
+  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | ' +
+            '"' + common.opensslCli + '" sha1';
   cp.exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
     var hex = stdout.match(/([A-Fa-f0-9]{40})/)[0];

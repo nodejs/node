@@ -16,7 +16,7 @@ var success_count = 0;
 var error_count = 0;
 
 
-exec(process.execPath + ' -p -e process.versions',
+exec('"' + process.execPath + '" -p -e process.versions',
      function(err, stdout, stderr) {
   if (err) {
     error_count++;

@@ -14,7 +14,7 @@ var err;
 var caught = false;
 try
 {
-  var cmd = util.format('%s -e "setTimeout(function(){}, %d);"',
+  var cmd = util.format('"%s" -e "setTimeout(function(){}, %d);"',
                         process.execPath, SLEEP);
   var ret = execSync(cmd, {timeout: TIMER});
 } catch (e) {
@@ -37,7 +37,7 @@ var msg = 'foobar';
 var msgBuf = new Buffer(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
-cmd = util.format('%s -e "console.log(\'%s\');"', process.execPath, msg);
+cmd = util.format('"%s" -e "console.log(\'%s\');"', process.execPath, msg);
 
 var ret = execSync(cmd);
 
