@@ -17,7 +17,7 @@ fs.fstat = function(fd, cb) {
 };
 
 fs.fstatSync = function(fd) {
-  var st = fs._fstatSync;
+  var st = fs._fstatSync(fd);
   st.size = 0;
   return st;
 };
