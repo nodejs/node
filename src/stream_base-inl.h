@@ -21,9 +21,7 @@ using v8::String;
 using v8::Value;
 
 template <class Base>
-void StreamBase::AddMethods(Environment* env,
-                            Handle<FunctionTemplate> t,
-                            int flags) {
+void StreamBase::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   enum PropertyAttribute attributes =
@@ -38,8 +36,7 @@ void StreamBase::AddMethods(Environment* env,
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStart>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStop>);
   env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
-  if ((flags & kFlagHasWritev) != 0)
-    env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
+  env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
   env->SetProtoMethod(t,
                       "writeBuffer",
                       JSMethod<Base, &StreamBase::WriteBuffer>);
