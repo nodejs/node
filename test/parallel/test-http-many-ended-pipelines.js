@@ -15,11 +15,28 @@ var numRequests = 20;
 var done = 0;
 
 var server = http.createServer(function(req, res) {
-  res.end('ok');
+
+  var callbackCalled = false;
+
+  res.end('ok', function(){
+    assert.ok(!callbackCalled);
+    callbackCalled = true;
+  });
+
+  // We might get a socket already closed error here
+  // Not really a surpise
+  res.on('error', function(){});
+
+  res.on('close', function(){
+    process.nextTick(function(){
+      assert.ok(callbackCalled, "end() callback should've been called");
+    });
+  });
 
   // Oh no!  The connection died!
   req.socket.destroy();
-  if (++done == numRequests)
+
+  if (++done === numRequests)
     server.close();
 });
 
@@ -31,5 +48,7 @@ for (var i = 0; i < numRequests; i++) {
                'Host: some.host.name\r\n'+
                '\r\n\r\n');
 }
+
 client.end();
+
 client.pipe(process.stdout);
