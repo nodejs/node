@@ -66,6 +66,7 @@ var commandCache = {}
               , "i" : "install"
               , "isntall" : "install"
               , "up" : "update"
+              , "upgrade" : "update"
               , "c" : "config"
               , "dist-tags" : "dist-tag"
               , "info" : "view"

@@ -157,7 +157,7 @@ after packing it up into a tarball (b).
 
 * `npm install <githubname>/<githubrepo>`:
 
-    Install the package at `https://github.com/githubname/githubrepo" by
+    Install the package at `https://github.com/githubname/githubrepo` by
     attempting to clone it using `git`.
 
     Example:

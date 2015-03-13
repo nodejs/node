@@ -1,0 +1,219 @@
+
+JSON5 grammar expressed in EBNF form. 
+
+PS: I don't know what is appropriate syntax highlighter for this, so I'm using "modula2" because why not. I also inserted <ZWSP> after backslash to preserve syntax highlighting, this character has nothing to do with actual JSON5 syntax and should be ignored.
+
+```modula2
+json5_text = expression_with_whitespace
+
+expression_with_whitespace = [white_space] , expression , [white_space]
+
+expression = literal
+           | array_literal
+           | object_literal
+
+literal = null_literal
+        | boolean_literal
+        | signed_numeric_literal
+        | string_literal
+
+null_literal = 'null'
+
+boolean_literal = 'true'
+                | 'false'
+
+(* Source Characters *)
+
+source_character = .
+                (* any Unicode code unit *)
+
+line_terminator = <LF>
+                | <CR>
+                | <LS>
+                | <PS>
+
+line_terminator_sequence = <LF>
+                         | <CR>
+                         | <LS>
+                         | <PS>
+                         | <CR> , <LF>
+
+white_space = white_space_element
+            | white_space , white_space_element
+
+white_space_element = white_space_character
+                    | comment
+
+white_space_character = <TAB>
+                      | <VT>
+                      | <FF>
+                      | <SP>
+                      | <NBSP>
+                      | <BOM>
+                      | <USP>
+
+comment = multi_line_comment
+        | single_line_comment
+
+multi_line_comment = '/*' , [multi_line_comment_chars] , '*/'
+
+multi_line_comment_chars = (source_character - '*') , [multi_line_comment_chars]
+                         | '*' , [post_asterisk_comment_chars]
+
+post_asterisk_comment_chars = (source_character - ('*' | '/')) , [multi_line_comment_chars]
+                            | '*' , [post_asterisk_comment_chars]
+
+single_line_comment = '//' , [single_line_comment_chars]
+
+single_line_comment_chars = single_line_comment_char , single_line_comment_chars
+
+single_line_comment_char = source_character - line_terminator
+
+(* Character classes *)
+
+decimal_digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+
+non_zero_digit = decimal_digit - '0'
+
+hex_digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a'
+          | 'b' | 'c' | 'd' | 'e' | 'f' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+
+ascii_letter = ascii_letter_lowercase
+             | ascii_letter_uppercase
+
+ascii_letter_lowercase = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' 
+                       | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r'
+                       | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
+
+ascii_letter_uppercase = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' 
+                       | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R'
+                       | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+
+(* Numeric Literals *)
+
+signed_numeric_literal = '-' , numeric_literal
+                       | '+' , numeric_literal
+                       | numeric_literal
+
+numeric_literal = decimal_literal
+                | hex_integer_literal
+                | non_finite_literal
+
+non_finite_literal = 'Infinity'
+                   | 'NaN'
+
+decimal_literal = decimal_integer_literal , '.' , [decimal_digits] , [exponent_part]
+                | '.' , decimal_digits , [exponent_part]
+                | decimal_integer_literal , [exponent_part]
+
+decimal_integer_literal = '0'
+                        | non_zero_digit , [decimal_digits]
+
+decimal_digits = decimal_digit
+               | decimal_digits , decimal_digit
+
+exponent_part = exponent_indicator , signed_integer
+
+exponent_indicator = 'e' | 'E'
+
+signed_integer = decimal_digits
+               | '+' , decimal_digits
+               | '-' , decimal_digits
+
+hex_integer_literal = '0x' , hex_digit
+                    | '0X' , hex_digit
+                    | hex_integer_literal , hex_digit
+
+(* String Literals *)
+
+string_literal = '"' , [double_string_characters] , '"'
+               | "'" , [single_string_characters] , "'"
+
+double_string_characters = double_string_character , [double_string_characters]
+
+single_string_characters = single_string_character , [single_string_characters]
+
+double_string_character = source_character - ('"' | '\​' | line_terminator)
+                        | '\​' , escape_sequence
+                        | line_continuation
+
+single_string_character = source_character - ("'" | '\​' | line_terminator)
+                        | '\​' , escape_sequence
+                        | line_continuation
+
+line_continuation = '\​' , line_terminator_sequence
+
+escape_sequence = character_escape_sequence
+                | '0'
+                | hex_escape_sequence
+                | unicode_escape_sequence
+
+character_escape_sequence = single_escape_character
+                          | non_escape_character
+
+single_escape_character = '"' | "'" | '\​' | 'b' | 'f' | 'n' | 'r' | 't' | 'v'
+
+non_escape_character = source_character - (escape_character | line_terminator)
+
+escape_character = single_escape_character
+                 | decimal_digit
+                 | 'x'
+                 | 'u'
+
+hex_escape_sequence = 'x' , hex_digit , hex_digit
+
+unicode_escape_sequence = 'u' , hex_digit , hex_digit , hex_digit , hex_digit
+
+(* Array Literals *)
+
+array_literal = '[' , [white_space] , ']'
+              | '[' , [white_space] , element_list , ']'
+              | '[' , [white_space] , element_list , ',' , [white_space] , ']'
+
+element_list = expression , [white_space]
+             | element_list , ',' , [white_space] , expression , [white_space]
+
+(* Object Literals *)
+
+object_literal = '{' , [white_space] , '}'
+               | '{' , [white_space] , property_name_and_value_list , '}'
+               | '{' , [white_space] , property_name_and_value_list , ',' , '}'
+
+property_name_and_value_list = property_assignment , [white_space]
+                             | property_name_and_value_list , [white_space] , ',' , [white_space] , property_assignment , [white_space]
+
+property_assignment = property_name , [white_space] , ':' , [white_space] , expression
+
+property_name = identifier_name
+              | string_literal
+              | numeric_literal
+
+identifier_name = identifier_start
+                | identifier_name , identifier_part
+
+identifier_start = unicode_letter
+                 | '$'
+                 | '_'
+                 | '\​' , unicode_escape_sequence
+
+identifier_part = identifier_start
+                | unicode_combining_mark
+                | unicode_digit
+                | unicode_connector_punctuation
+                | <ZWNJ>
+                | <ZWJ>
+
+unicode_letter = ascii_letter
+              (* + any character in the Unicode categories "Uppercase letter (Lu)", "Lowercase letter (Ll)", "Titlecase letter (Lt)", "Modifier letter (Lm)", "Other letter (Lo)", or "Letter number (Nl)" *)
+
+unicode_combining_mark =
+                      (* + any character in the Unicode categories "Non-spacing mark (Mn)" or "Combining spacing mark (Mc)" *)
+
+unicode_digit = decimal_digit
+             (* + any character in the Unicode category "Decimal number (Nd)" *)
+
+unicode_connector_punctuation =
+                             (* + any character in the Unicode category "Connector punctuation (Pc)" *)
+
+
+```
