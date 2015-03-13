@@ -18,7 +18,7 @@ var expectedHeadersEndNoData = {
 };
 
 var receivedRequests = 0;
-var totalRequests = 2;
+var totalRequests = 3;
 
 var server = http.createServer(function(req, res) {
   res.removeHeader('Date');
