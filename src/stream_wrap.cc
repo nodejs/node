@@ -233,7 +233,6 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
                               uv_handle_type pending) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   HandleScope scope(wrap->env()->isolate());
-  Context::Scope context_scope(wrap->env()->context());
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
