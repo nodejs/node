@@ -809,8 +809,8 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 
 
 void TLSWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+                              Handle<Value> unused,
+                              Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "wrap", TLSWrap::Wrap);
@@ -835,9 +835,6 @@ void TLSWrap::Initialize(Handle<Object> target,
 
   env->set_tls_wrap_constructor_template(t);
   env->set_tls_wrap_constructor_function(t->GetFunction());
-
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap"),
-              t->GetFunction());
 }
 
 }  // namespace node
