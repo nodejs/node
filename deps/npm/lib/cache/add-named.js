@@ -12,7 +12,6 @@ var path = require("path")
   , addRemoteTarball = require("./add-remote-tarball.js")
   , cachedPackageRoot = require("./cached-package-root.js")
   , mapToRegistry = require("../utils/map-to-registry.js")
-  , warnStrict = require("../utils/warn-deprecated.js")("engineStrict")
 
 
 module.exports = addNamed
@@ -92,12 +91,6 @@ function engineFilter (data) {
   Object.keys(data.versions || {}).forEach(function (v) {
     var eng = data.versions[v].engines
     if (!eng) return
-    if (data.versions[v].engineStrict) {
-      warnStrict([
-        "Per-package engineStrict (found in package.json for "+data.name+")",
-        "won't be used in npm 3+. Use the config setting `engine-strict` instead."
-      ], data.name)
-    }
     if (!strict && !data.versions[v].engineStrict) return
     if (eng.node && !semver.satisfies(nodev, eng.node, true)
         || eng.npm && !semver.satisfies(npmv, eng.npm, true)) {

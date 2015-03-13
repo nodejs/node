@@ -109,6 +109,7 @@ var npm = require("./npm.js")
   , locker = require("./utils/locker.js")
   , lock = locker.lock
   , unlock = locker.unlock
+  , warnStrict = require("./utils/warn-deprecated.js")("engineStrict")
   , warnPeers = require("./utils/warn-deprecated.js")("peerDependencies")
 
 function install (args, cb_) {
@@ -117,7 +118,7 @@ function install (args, cb_) {
   function cb (er, installed) {
     if (er) return cb_(er)
 
-    findPeerInvalid(where, function (er, problem) {
+    validateInstall(where, function (er, problem) {
       if (er) return cb_(er)
 
       if (problem) {
@@ -244,11 +245,24 @@ function install (args, cb_) {
   })
 }
 
-function findPeerInvalid (where, cb) {
-  readInstalled(where, { log: log.warn, dev: true }, function (er, data) {
-    if (er) return cb(er)
+function validateInstall (where, cb) {
+  readJson(path.resolve(where, 'package.json'), log.warn, function (er, data) {
+    if (er
+        && er.code !== 'ENOENT'
+        && er.code !== 'ENOTDIR') return cb(er)
 
-    cb(null, findPeerInvalid_(data.dependencies, []))
+    if (data && data.engineStrict) {
+      warnStrict([
+        "Per-package engineStrict (found in this package's package.json) ",
+        "won't be used in npm 3+. Use the config setting `engine-strict` instead."
+      ], data.name)
+    }
+
+    readInstalled(where, { log: log.warn, dev: true }, function (er, data) {
+      if (er) return cb(er)
+
+      cb(null, findPeerInvalid_(data.dependencies, []))
+    })
   })
 }
 
@@ -854,8 +868,11 @@ function targetResolver (where, context, deps) {
 function installOne (target, where, context, cb) {
   // the --link flag makes this a "link" command if it's at the
   // the top level.
+  var isGit = false
+  if (target && target._from) isGit = npa(target._from).type === 'git'
+
   if (where === npm.prefix && npm.config.get("link")
-      && !npm.config.get("global")) {
+      && !npm.config.get("global") && !isGit) {
     return localLink(target, where, context, cb)
   }
   installOne_(target, where, context, function (er, installedWhat) {

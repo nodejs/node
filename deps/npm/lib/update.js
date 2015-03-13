@@ -22,10 +22,26 @@ update.completion = npm.commands.outdated.completion
 
 function update (args, cb) {
   npm.commands.outdated(args, true, function (er, outdated) {
-    log.info("outdated", "updating", outdated)
     if (er) return cb(er)
 
-    asyncMap(outdated, function (ww, cb) {
+    var wanted = outdated.filter(function (ww) {
+      var dep = ww[1]
+      var current = ww[2]
+      var wanted = ww[3]
+      var latest = ww[4]
+      if (current === wanted && wanted !== latest) {
+        log.verbose(
+          'outdated',
+          'not updating', dep,
+          "because it's currently at the maximum version that matches its specified semver range"
+        )
+      }
+      return current !== wanted
+    })
+    if (wanted.length === 0) return cb()
+
+    log.info('outdated', 'updating', wanted)
+    asyncMap(wanted, function (ww, cb) {
       // [[ dir, dep, has, want, req ]]
       var where = ww[0]
         , dep = ww[1]

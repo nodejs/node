@@ -19,6 +19,12 @@ and not to any pre or post script.</p>
 environment variables that will be available to the script at runtime. If an
 &quot;env&quot; command is defined in your package it will take precedence over the
 built-in.</p>
+<p>In addition to the shell&#39;s pre-existing <code>PATH</code>, <code>npm run</code> adds
+<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries provided by
+locally-installed dependencies can be used without the <code>node_modules/.bin</code>
+prefix. For example, if there is a <code>devDependency</code> on <code>tap</code> in your package,
+you should write <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}</code> instead of <code>&quot;scripts&quot;:
+{&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>

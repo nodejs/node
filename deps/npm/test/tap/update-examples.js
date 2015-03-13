@@ -158,6 +158,16 @@ test('update tilde dependency to latest', function (t) {
   })
 })
 
+test('hold tilde dependency at wanted (#6441)', function (t) {
+  resetPackage({ wanted: '~1.1.2', installed: '1.1.2' })
+
+  npm.commands.update([], function (err) {
+    t.ifError(err)
+    t.notOk(installAskedFor, 'should not want to install anything')
+    t.end()
+  })
+})
+
 test('update old caret dependency with no newer', function (t) {
   resetPackage({ wanted: '^0.2.0', installed: '^0.2.0' })
 

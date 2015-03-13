@@ -287,6 +287,7 @@ function errorHandler (er) {
   case "ECONNRESET":
   case "ENOTFOUND":
   case "ETIMEDOUT":
+  case "EAI_FAIL":
     log.error("network", [er.message
               ,"This is most likely not a problem with npm itself"
               ,"and is related to network connectivity."
@@ -354,7 +355,7 @@ function errorHandler (er) {
   default:
     log.error("", er.message || er)
     log.error("", ["", "If you need help, you may report this error at:"
-                  ,"    <http://github.com/npm/npm/issues>"
+                  ,"    <https://github.com/npm/npm/issues>"
                   ].join("\n"))
     break
   }
