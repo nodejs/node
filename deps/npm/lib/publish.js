@@ -13,10 +13,12 @@ var npm = require("./npm.js")
   , cachedPackageRoot = require("./cache/cached-package-root.js")
   , createReadStream = require("graceful-fs").createReadStream
   , npa = require("npm-package-arg")
+  , semver = require('semver')
 
-publish.usage = "npm publish <tarball>"
-              + "\nnpm publish <folder>"
+publish.usage = "npm publish <tarball> [--tag <tagname>]"
+              + "\nnpm publish <folder> [--tag <tagname>]"
               + "\n\nPublishes '.' if no argument supplied"
+              + "\n\nSets tag `latest` if no --tag specified"
 
 publish.completion = function (opts, cb) {
   // publish can complete to a folder with a package.json
@@ -34,6 +36,13 @@ function publish (args, isRetry, cb) {
   if (args.length !== 1) return cb(publish.usage)
 
   log.verbose("publish", args)
+
+  var t = npm.config.get('tag').trim()
+  if (semver.validRange(t)) {
+    var er = new Error("Tag name must not be a valid SemVer range: " + t)
+    return cb(er)
+  }
+
   var arg = args[0]
   // if it's a local folder, then run the prepublish there, first.
   readJson(path.resolve(arg, "package.json"), function (er, data) {

@@ -391,10 +391,21 @@ GlobSync.prototype._stat = function (f) {
   var exists
   var stat = this.statCache[abs]
   if (!stat) {
+    var lstat
     try {
-      stat = fs.statSync(abs)
+      lstat = fs.lstatSync(abs)
     } catch (er) {
       return false
+    }
+
+    if (lstat.isSymbolicLink()) {
+      try {
+        stat = fs.statSync(abs)
+      } catch (er) {
+        stat = lstat
+      }
+    } else {
+      stat = lstat
     }
   }
 

@@ -29,6 +29,13 @@ environment variables that will be available to the script at runtime. If an
 "env" command is defined in your package it will take precedence over the
 built-in.
 
+In addition to the shell's pre-existing `PATH`, `npm run` adds
+`node_modules/.bin` to the `PATH` provided to scripts. Any binaries provided by
+locally-installed dependencies can be used without the `node_modules/.bin`
+prefix. For example, if there is a `devDependency` on `tap` in your package,
+you should write `"scripts": {"test": "tap test/\*.js"}` instead of `"scripts":
+{"test": "node_modules/.bin/tap test/\*.js"}` to run your tests.
+
 ## SEE ALSO
 
 * npm-scripts(7)

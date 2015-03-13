@@ -35,7 +35,8 @@ npm link                    # creates global link
 cd ~/projects/node-bloggy   # go into some other package directory.
 npm link redis              # link-install the package
 </code></pre><p>Now, any changes to ~/projects/node-redis will be reflected in
-~/projects/node-bloggy/node_modules/node-redis/</p>
+~/projects/node-bloggy/node_modules/node-redis/. Note that the link should
+be to the package name, not the directory name for that package. </p>
 <p>You may also shortcut the two steps in one.  For example, to do the
 above use-case in a shorter way:</p>
 <pre><code>cd ~/projects/node-bloggy  # go into the dir of your main project
@@ -71,5 +72,5 @@ include that scope, e.g.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-link &mdash; npm@2.7.0</p>
+<p id="footer">npm-link &mdash; npm@2.7.1</p>
 
