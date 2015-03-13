@@ -724,28 +724,29 @@ Local<Value> ErrnoException(Isolate* isolate,
   }
   Local<String> message = OneByteString(env->isolate(), msg);
 
-  Local<String> cons1 =
+  Local<String> cons =
       String::Concat(estring, FIXED_ONE_BYTE_STRING(env->isolate(), ", "));
-  Local<String> cons2 = String::Concat(cons1, message);
+  cons = String::Concat(cons, message);
 
-  if (path) {
-    Local<String> cons3 =
-        String::Concat(cons2, FIXED_ONE_BYTE_STRING(env->isolate(), " '"));
-    Local<String> cons4 =
-        String::Concat(cons3, String::NewFromUtf8(env->isolate(), path));
-    Local<String> cons5 =
-        String::Concat(cons4, FIXED_ONE_BYTE_STRING(env->isolate(), "'"));
-    e = Exception::Error(cons5);
-  } else {
-    e = Exception::Error(cons2);
+  Local<String> path_string;
+  if (path != nullptr) {
+    // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
+    path_string = String::NewFromUtf8(env->isolate(), path);
   }
+
+  if (path_string.IsEmpty() == false) {
+    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), " '"));
+    cons = String::Concat(cons, path_string);
+    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), "'"));
+  }
+  e = Exception::Error(cons);
 
   Local<Object> obj = e->ToObject(env->isolate());
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
-  if (path != nullptr) {
-    obj->Set(env->path_string(), String::NewFromUtf8(env->isolate(), path));
+  if (path_string.IsEmpty() == false) {
+    obj->Set(env->path_string(), path_string);
   }
 
   if (syscall != nullptr) {
