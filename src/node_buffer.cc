@@ -123,18 +123,7 @@ Local<Object> New(Environment* env, size_t length) {
   Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
   Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
 
-  // TODO(trevnorris): done like this to handle HasInstance since only checks
-  // if external array data has been set, but would like to use a better
-  // approach if v8 provided one.
-  char* data;
-  if (length > 0) {
-    data = static_cast<char*>(malloc(length));
-    if (data == nullptr)
-      FatalError("node::Buffer::New(size_t)", "Out Of Memory");
-  } else {
-    data = nullptr;
-  }
-  smalloc::Alloc(env, obj, data, length);
+  smalloc::Alloc(env, obj, length);
 
   return scope.Escape(obj);
 }
