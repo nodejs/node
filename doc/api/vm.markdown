@@ -19,6 +19,7 @@ code does not have access to local scope, but does have access to the current
 
 Example of using `vm.runInThisContext` and `eval` to run the same code:
 
+    var vm = require('vm');
     var localVar = 'initial value';
 
     var vmResult = vm.runInThisContext('localVar = "vm";');
@@ -117,7 +118,7 @@ Example: compile and execute code that increments a global variable and sets a
 new one. These globals are contained in the sandbox.
 
     var util = require('util');
-    var vm = require('vm'),
+    var vm = require('vm');
 
     var sandbox = {
       animal: 'cat',
@@ -223,10 +224,11 @@ execute the code multiple times. These globals are contained in the sandbox.
       count: 2
     };
 
+    var context = new vm.createContext(sandbox);
     var script = new vm.Script('count += 1; name = "kitty"');
 
     for (var i = 0; i < 10; ++i) {
-      script.runInContext(sandbox);
+      script.runInContext(context);
     }
 
     console.log(util.inspect(sandbox));
