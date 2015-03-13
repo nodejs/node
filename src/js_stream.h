@@ -14,8 +14,6 @@ class JSStream : public StreamBase, public AsyncWrap {
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
-  ~JSStream();
-
   void* Cast() override;
   bool IsAlive() override;
   bool IsClosing() override;
@@ -30,6 +28,7 @@ class JSStream : public StreamBase, public AsyncWrap {
 
  protected:
   JSStream(Environment* env, v8::Handle<v8::Object> obj, AsyncWrap* parent);
+  ~JSStream();
 
   AsyncWrap* GetAsyncWrap() override;
 
