@@ -1,1 +1,0 @@
-process.stdin.emit('end');
