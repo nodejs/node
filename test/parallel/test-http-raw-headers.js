@@ -44,7 +44,6 @@ http.createServer(function(req, res) {
   });
 
   req.resume();
-  res.setHeader('Trailer', 'x-foo');
   res.addTrailers([
     ['x-fOo', 'xOxOxOx'],
     ['x-foO', 'OxOxOxO'],
@@ -73,8 +72,6 @@ http.createServer(function(req, res) {
   req.end('y b a r');
   req.on('response', function(res) {
     var expectRawHeaders = [
-      'Trailer',
-      'x-foo',
       'Date',
       null,
       'Connection',
@@ -83,12 +80,11 @@ http.createServer(function(req, res) {
       'chunked'
     ];
     var expectHeaders = {
-      trailer: 'x-foo',
       date: null,
       connection: 'close',
       'transfer-encoding': 'chunked'
     };
-    res.rawHeaders[3] = null;
+    res.rawHeaders[1] = null;
     res.headers.date = null;
     assert.deepEqual(res.rawHeaders, expectRawHeaders);
     assert.deepEqual(res.headers, expectHeaders);
