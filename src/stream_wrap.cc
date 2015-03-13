@@ -145,9 +145,6 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
                          size_t suggested_size,
                          uv_buf_t* buf) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-  HandleScope scope(wrap->env()->isolate());
-  Context::Scope context_scope(wrap->env()->context());
-
   CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
 
   return static_cast<StreamBase*>(wrap)->OnAlloc(suggested_size, buf);
@@ -232,7 +229,6 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
                               const uv_buf_t* buf,
                               uv_handle_type pending) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-  HandleScope scope(wrap->env()->isolate());
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
@@ -284,8 +280,6 @@ int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
 
 void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   ShutdownWrap* req_wrap = ContainerOf(&ShutdownWrap::req_, req);
-  HandleScope scope(req_wrap->env()->isolate());
-  Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
 }
 
@@ -360,8 +354,6 @@ int StreamWrap::DoWrite(WriteWrap* w,
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
-  HandleScope scope(req_wrap->env()->isolate());
-  Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
 }
 

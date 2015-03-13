@@ -26,6 +26,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Null;
@@ -253,6 +254,8 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   SSL* ssl = const_cast<SSL*>(ssl_);
   TLSWrap* c = static_cast<TLSWrap*>(SSL_get_app_data(ssl));
   Environment* env = c->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
@@ -395,6 +398,9 @@ void TLSWrap::ClearOut() {
   if (eof_)
     return;
 
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
   CHECK_NE(ssl_, nullptr);
 
   char out[kClearOutChunkSize];
@@ -466,6 +472,9 @@ bool TLSWrap::ClearIn() {
     CHECK_GE(written, 0);
     return true;
   }
+
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
   // Error or partial write
   int err;
@@ -582,6 +591,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   if (i != count) {
     int err;
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     Local<Value> arg = GetSSLError(written, &err, &error_);
     if (!arg.IsEmpty())
       return UV_EPROTO;
@@ -654,6 +665,8 @@ void TLSWrap::DoRead(ssize_t nread,
       eof_ = true;
     }
 
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
     OnRead(nread, nullptr);
     return;
   }
@@ -786,6 +799,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   if (servername == nullptr)
     return SSL_TLSEXT_ERR_OK;
 
+  HandleScope scope(env->isolate());
   // Call the SNI callback and use its return value as context
   Local<Object> object = p->object();
   Local<Value> ctx = object->Get(env->sni_context_string());
