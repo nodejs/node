@@ -1932,10 +1932,10 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   HeapStatistics v8_heap_stats;
   env->isolate()->GetHeapStatistics(&v8_heap_stats);
 
-  Local<Integer> heap_total =
-      Integer::NewFromUnsigned(env->isolate(), v8_heap_stats.total_heap_size());
-  Local<Integer> heap_used =
-      Integer::NewFromUnsigned(env->isolate(), v8_heap_stats.used_heap_size());
+  Local<Number> heap_total =
+      Number::New(env->isolate(), v8_heap_stats.total_heap_size());
+  Local<Number> heap_used =
+      Number::New(env->isolate(), v8_heap_stats.used_heap_size());
 
   Local<Object> info = Object::New(env->isolate());
   info->Set(env->rss_string(), Number::New(env->isolate(), rss));
