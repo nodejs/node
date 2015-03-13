@@ -155,7 +155,6 @@
         'src/req-wrap-inl.h',
         'src/string_bytes.h',
         'src/stream_base.h',
-        'src/stream_base-inl.h',
         'src/stream_wrap.h',
         'src/tree.h',
         'src/util.h',
