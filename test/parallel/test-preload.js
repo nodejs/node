@@ -15,7 +15,7 @@ var preloadOption = function(preloads) {
 }
 
 var fixture = function(name) {
-  return path.join(__dirname, '../fixtures/' + name);
+  return path.join(__dirname, '..', 'fixtures', name);
 }
 
 var fixtureA = fixture('printA.js');
