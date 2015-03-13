@@ -106,13 +106,13 @@ class StreamResource {
   virtual ~StreamResource() = default;
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
-  virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
+  virtual int DoTryWrite(uv_buf_t** bufs, size_t* count) = 0;
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
                       uv_stream_t* send_handle) = 0;
-  virtual const char* Error() const;
-  virtual void ClearError();
+  virtual const char* Error() const = 0;
+  virtual void ClearError() = 0;
 
   // Events
   inline void OnAfterWrite(WriteWrap* w) {
@@ -127,7 +127,7 @@ class StreamResource {
 
   inline void OnRead(size_t nread,
                      const uv_buf_t* buf,
-                     uv_handle_type pending = UV_UNKNOWN_HANDLE) {
+                     uv_handle_type pending) {
     if (read_cb_ != nullptr)
       read_cb_(nread, buf, pending, read_ctx_);
   }
@@ -163,10 +163,10 @@ class StreamBase : public StreamResource {
                          v8::Handle<v8::FunctionTemplate> target);
 
   virtual void* Cast() = 0;
-  virtual bool IsAlive() = 0;
-  virtual bool IsClosing() = 0;
-  virtual bool IsIPCPipe();
-  virtual int GetFD();
+  virtual bool IsAlive() const = 0;
+  virtual bool IsClosing() const = 0;
+  virtual bool IsIPCPipe() const = 0;
+  virtual int GetFD() const = 0;
 
   virtual int ReadStart() = 0;
   virtual int ReadStop() = 0;

@@ -3,7 +3,6 @@
 
 #include "env.h"
 #include "env-inl.h"
-#include "js_stream.h"
 #include "pipe_wrap.h"
 #include "tcp_wrap.h"
 #include "tty_wrap.h"
@@ -40,10 +39,6 @@ namespace node {
         if (env->tls_wrap_constructor_template().IsEmpty() == false &&        \
             env->tls_wrap_constructor_template()->HasInstance(obj)) {         \
           TLSWrap* const wrap = Unwrap<TLSWrap>(obj);                         \
-          BODY                                                                \
-        } else if (env->jsstream_constructor_template().IsEmpty() == false && \
-                   env->jsstream_constructor_template()->HasInstance(obj)) {  \
-          JSStream* const wrap = Unwrap<JSStream>(obj);                       \
           BODY                                                                \
         }                                                                     \
       });                                                                     \

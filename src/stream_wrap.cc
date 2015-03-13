@@ -84,7 +84,7 @@ void StreamWrap::AddMethods(Environment* env,
 }
 
 
-int StreamWrap::GetFD() {
+int StreamWrap::GetFD() const {
   int fd = -1;
 #if !defined(_WIN32)
   if (stream() != nullptr)
@@ -94,12 +94,12 @@ int StreamWrap::GetFD() {
 }
 
 
-bool StreamWrap::IsAlive() {
+bool StreamWrap::IsAlive() const {
   return HandleWrap::IsAlive(this);
 }
 
 
-bool StreamWrap::IsClosing() {
+bool StreamWrap::IsClosing() const {
   return uv_is_closing(reinterpret_cast<uv_handle_t*>(stream()));
 }
 
@@ -114,7 +114,7 @@ AsyncWrap* StreamWrap::GetAsyncWrap() {
 }
 
 
-bool StreamWrap::IsIPCPipe() {
+bool StreamWrap::IsIPCPipe() const {
   return is_named_pipe_ipc();
 }
 
@@ -357,6 +357,16 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 void StreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
   StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
   wrap->UpdateWriteQueueSize();
+}
+
+
+const char* StreamWrap::Error() const {
+  return nullptr;
+}
+
+
+void StreamWrap::ClearError() {
+  // No-op
 }
 
 }  // namespace node

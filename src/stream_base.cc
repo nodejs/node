@@ -5,7 +5,6 @@
 #include "node_buffer.h"
 #include "env.h"
 #include "env-inl.h"
-#include "js_stream.h"
 #include "string_bytes.h"
 #include "tls_wrap.h"
 #include "util.h"
@@ -35,8 +34,6 @@ template void StreamBase::AddMethods<StreamWrap>(Environment* env,
                                                  Handle<FunctionTemplate> t);
 template void StreamBase::AddMethods<TLSWrap>(Environment* env,
                                               Handle<FunctionTemplate> t);
-template void StreamBase::AddMethods<JSStream>(Environment* env,
-                                               Handle<FunctionTemplate> t);
 
 
 template <class Base>
@@ -491,29 +488,8 @@ void StreamBase::EmitData(ssize_t nread,
 }
 
 
-bool StreamBase::IsIPCPipe() {
-  return false;
-}
-
-
-int StreamBase::GetFD() {
-  return -1;
-}
-
-
-int StreamResource::DoTryWrite(uv_buf_t** bufs, size_t* count) {
-  // No TryWrite by default
-  return 0;
-}
-
-
-const char* StreamResource::Error() const {
+AsyncWrap* StreamBase::GetAsyncWrap() {
   return nullptr;
-}
-
-
-void StreamResource::ClearError() {
-  // No-op
 }
 
 }  // namespace node
