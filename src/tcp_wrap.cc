@@ -72,6 +72,15 @@ void TCPWrap::Initialize(Handle<Object> target,
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
+  enum PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+  t->InstanceTemplate()->SetAccessor(env->fd_string(),
+                                     StreamWrap::GetFD,
+                                     nullptr,
+                                     Handle<Value>(),
+                                     v8::DEFAULT,
+                                     attributes);
+
   // Init properties
   t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
@@ -89,7 +98,16 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 
-  StreamWrap::AddMethods(env, t);
+  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
+  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
+  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
+
+  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
+  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
+  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
+  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
+  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
+  env->SetProtoMethod(t, "writev", StreamWrap::Writev);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);

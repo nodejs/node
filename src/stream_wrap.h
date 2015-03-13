@@ -1,10 +1,10 @@
 #ifndef SRC_STREAM_WRAP_H_
 #define SRC_STREAM_WRAP_H_
 
-#include "stream_base.h"
-
 #include "env.h"
 #include "handle_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "v8.h"
 
@@ -13,31 +13,126 @@ namespace node {
 // Forward declaration
 class StreamWrap;
 
-class StreamWrap : public HandleWrap, public StreamBase {
+class ShutdownWrap : public ReqWrap<uv_shutdown_t> {
+ public:
+  ShutdownWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj)
+      : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
+    Wrap(req_wrap_obj, this);
+  }
+
+  static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(args.IsConstructCall());
+  }
+};
+
+class WriteWrap: public ReqWrap<uv_write_t> {
+ public:
+  // TODO(trevnorris): WrapWrap inherits from ReqWrap, which I've globbed
+  // into the same provider. How should these be broken apart?
+  WriteWrap(Environment* env, v8::Local<v8::Object> obj, StreamWrap* wrap)
+      : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
+        wrap_(wrap) {
+    Wrap(obj, this);
+  }
+
+  void* operator new(size_t size, char* storage) { return storage; }
+
+  // This is just to keep the compiler happy. It should never be called, since
+  // we don't use exceptions in node.
+  void operator delete(void* ptr, char* storage) { UNREACHABLE(); }
+
+  inline StreamWrap* wrap() const {
+    return wrap_;
+  }
+
+  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(args.IsConstructCall());
+  }
+
+ private:
+  // People should not be using the non-placement new and delete operator on a
+  // WriteWrap. Ensure this never happens.
+  void* operator new(size_t size) { UNREACHABLE(); }
+  void operator delete(void* ptr) { UNREACHABLE(); }
+
+  StreamWrap* const wrap_;
+};
+
+// Overridable callbacks' types
+class StreamWrapCallbacks {
+ public:
+  explicit StreamWrapCallbacks(StreamWrap* wrap) : wrap_(wrap) {
+  }
+
+  explicit StreamWrapCallbacks(StreamWrapCallbacks* old) : wrap_(old->wrap()) {
+  }
+
+  virtual ~StreamWrapCallbacks() = default;
+
+  virtual const char* Error() const;
+  virtual void ClearError();
+
+  virtual int TryWrite(uv_buf_t** bufs, size_t* count);
+
+  virtual int DoWrite(WriteWrap* w,
+                      uv_buf_t* bufs,
+                      size_t count,
+                      uv_stream_t* send_handle,
+                      uv_write_cb cb);
+  virtual void AfterWrite(WriteWrap* w);
+  virtual void DoAlloc(uv_handle_t* handle,
+                       size_t suggested_size,
+                       uv_buf_t* buf);
+  virtual void DoRead(uv_stream_t* handle,
+                      ssize_t nread,
+                      const uv_buf_t* buf,
+                      uv_handle_type pending);
+  virtual int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb);
+
+ protected:
+  inline StreamWrap* wrap() const {
+    return wrap_;
+  }
+
+ private:
+  StreamWrap* const wrap_;
+};
+
+class StreamWrap : public HandleWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target,
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
-  int GetFD() const override;
-  void* Cast() override;
-  bool IsAlive() const override;
-  bool IsClosing() const override;
-  bool IsIPCPipe() const override;
+  void OverrideCallbacks(StreamWrapCallbacks* callbacks, bool gc) {
+    StreamWrapCallbacks* old = callbacks_;
+    callbacks_ = callbacks;
+    callbacks_gc_ = gc;
+    if (old != &default_callbacks_)
+      delete old;
+  }
+
+  static void GetFD(v8::Local<v8::String>,
+                    const v8::PropertyCallbackInfo<v8::Value>&);
 
   // JavaScript functions
-  int ReadStart() override;
-  int ReadStop() override;
+  static void ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Resource implementation
-  int DoShutdown(ShutdownWrap* req_wrap) override;
-  int DoTryWrite(uv_buf_t** bufs, size_t* count) override;
-  int DoWrite(WriteWrap* w,
-              uv_buf_t* bufs,
-              size_t count,
-              uv_stream_t* send_handle) override;
-  const char* Error() const override;
-  void ClearError() override;
+  static void Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteBinaryString(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  inline StreamWrapCallbacks* callbacks() const {
+    return callbacks_;
+  }
 
   inline uv_stream_t* stream() const {
     return stream_;
@@ -57,6 +152,8 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
  protected:
+  static size_t WriteBuffer(v8::Handle<v8::Value> val, uv_buf_t* buf);
+
   StreamWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_stream_t* stream,
@@ -64,21 +161,22 @@ class StreamWrap : public HandleWrap, public StreamBase {
              AsyncWrap* parent = nullptr);
 
   ~StreamWrap() {
+    if (!callbacks_gc_ && callbacks_ != &default_callbacks_) {
+      delete callbacks_;
+    }
+    callbacks_ = nullptr;
   }
 
-  AsyncWrap* GetAsyncWrap() override;
+  void StateChange() { }
   void UpdateWriteQueueSize();
 
-  static void AddMethods(Environment* env,
-                         v8::Handle<v8::FunctionTemplate> target);
-
  private:
-  static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
-
   // Callbacks for libuv
+  static void AfterWrite(uv_write_t* req, int status);
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf);
+  static void AfterShutdown(uv_shutdown_t* req, int status);
 
   static void OnRead(uv_stream_t* handle,
                      ssize_t nread,
@@ -87,18 +185,16 @@ class StreamWrap : public HandleWrap, public StreamBase {
                            ssize_t nread,
                            const uv_buf_t* buf,
                            uv_handle_type pending);
-  static void AfterWrite(uv_write_t* req, int status);
-  static void AfterShutdown(uv_shutdown_t* req, int status);
 
-  // Resource interface implementation
-  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
-  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
+  template <enum encoding encoding>
+  static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uv_stream_t* const stream_;
+  StreamWrapCallbacks default_callbacks_;
+  StreamWrapCallbacks* callbacks_;  // Overridable callbacks
+  bool callbacks_gc_;
+
+  friend class StreamWrapCallbacks;
 };
 
 

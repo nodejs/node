@@ -236,10 +236,8 @@ namespace node {
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(tls_wrap_constructor_function, v8::Function)                              \
-  V(tls_wrap_constructor_template, v8::FunctionTemplate)                      \
   V(tty_constructor_template, v8::FunctionTemplate)                           \
   V(udp_constructor_function, v8::Function)                                   \
-  V(write_wrap_constructor_function, v8::Function)                            \
 
 class Environment;
 
