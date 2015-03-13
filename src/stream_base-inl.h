@@ -15,7 +15,6 @@ using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
-using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
@@ -81,31 +80,6 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set((wrap->*Method)(args));
-}
-
-
-WriteWrap* WriteWrap::New(Environment* env,
-                          Local<Object> obj,
-                          StreamBase* wrap,
-                          DoneCb cb,
-                          size_t extra) {
-  size_t storage_size = ROUND_UP(sizeof(WriteWrap), kAlignSize) + extra;
-  char* storage = new char[storage_size];
-
-  return new(storage) WriteWrap(env, obj, wrap, cb);
-}
-
-
-void WriteWrap::Dispose() {
-  this->~WriteWrap();
-  delete[] reinterpret_cast<char*>(this);
-}
-
-
-char* WriteWrap::Extra(size_t offset) {
-  return reinterpret_cast<char*>(this) +
-         ROUND_UP(sizeof(*this), kAlignSize) +
-         offset;
 }
 
 }  // namespace node
