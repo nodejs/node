@@ -308,7 +308,6 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
   int r = stream_->DoWrite(write_req, buf, count, nullptr);
-  write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
   if (!r)
@@ -318,8 +317,6 @@ void TLSWrap::EncOut() {
 
 void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
   TLSWrap* wrap = req_wrap->wrap()->Cast<TLSWrap>();
-  req_wrap->~WriteWrap();
-  delete[] reinterpret_cast<char*>(req_wrap);
 
   // Handle error
   if (status) {
