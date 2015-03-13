@@ -160,8 +160,7 @@ class StreamBase : public StreamResource {
  public:
   enum Flags {
     kFlagNone = 0x0,
-    kFlagHasWritev = 0x1,
-    kFlagNoShutdown = 0x2
+    kFlagHasWritev = 0x1
   };
 
   template <class Base>
