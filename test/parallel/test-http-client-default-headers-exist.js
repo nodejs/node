@@ -7,8 +7,8 @@ var expectedHeaders = {
   'GET': ['host', 'connection'],
   'HEAD': ['host', 'connection'],
   'OPTIONS': ['host', 'connection'],
-  'POST': ['host', 'connection', 'content-length'],
-  'PUT': ['host', 'connection', 'content-length']
+  'POST': ['host', 'connection', 'transfer-encoding'],
+  'PUT': ['host', 'connection', 'transfer-encoding']
 };
 
 var expectedMethods = Object.keys(expectedHeaders);
