@@ -827,7 +827,7 @@ void TLSWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
   env->SetProtoMethod(t, "enableHelloParser", EnableHelloParser);
 
-  StreamBase::AddMethods<TLSWrap>(env, t);
+  StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
