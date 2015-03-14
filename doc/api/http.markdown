@@ -866,7 +866,7 @@ the client should send the request body.
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
-### request.flush()
+### request.flushHeaders()
 
 Flush the request headers.
 
@@ -875,7 +875,7 @@ call `request.end()` or write the first chunk of request data.  It then tries
 hard to pack the request headers and data into a single TCP packet.
 
 That's usually what you want (it saves a TCP round-trip) but not when the first
-data isn't sent until possibly much later.  `request.flush()` lets you bypass
+data isn't sent until possibly much later.  `request.flushHeaders()` lets you bypass
 the optimization and kickstart the request.
 
 ### request.write(chunk[, encoding][, callback])
