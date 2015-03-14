@@ -253,14 +253,34 @@ joinTests.forEach(function(test) {
   // assert.equal(actual, expected, message);
 });
 assert.equal(failures.length, 0, failures.join(''));
-var joinThrowTests = [true, false, 7, null, {}, undefined, [], NaN];
-joinThrowTests.forEach(function(test) {
+
+// Test thrown TypeErrors
+var typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
+
+function fail(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+
   assert.throws(function() {
-    path.join(test);
+    fn.apply(null, args);
   }, TypeError);
-  assert.throws(function() {
-    path.resolve(test);
-  }, TypeError);
+}
+
+typeErrorTests.forEach(function(test) {
+  fail(path.join, test);
+  fail(path.resolve, test);
+  fail(path.normalize, test);
+  fail(path.isAbsolute, test);
+  fail(path.dirname, test);
+  fail(path.relative, test, 'foo');
+  fail(path.relative, 'foo', test);
+  fail(path.basename, test);
+  fail(path.extname, test);
+  fail(path.parse, test);
+
+  // undefined is a valid value as the second argument to basename
+  if (test !== undefined) {
+    fail(path.basename, 'foo', test);
+  }
 });
 
 
