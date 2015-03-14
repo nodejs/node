@@ -310,8 +310,10 @@ void TLSWrap::EncOut() {
   write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
-  if (!r)
+  if (!r) {
     NODE_COUNT_NET_BYTES_SENT(write_size_);
+    write_req->Dispose();
+  }
 }
 
 
