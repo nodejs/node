@@ -293,7 +293,7 @@ def JS2C(source, target):
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
-    id = '/'.join((str(s).split(os.sep)[1:])).split('.')[0]
+    id = '/'.join(re.split('/|\\\\', s)[1:]).split('.')[0]
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
@@ -301,9 +301,20 @@ def JS2C(source, target):
       ids.append((id, len(lines)))
 
     escaped_id = id.replace('/', '$')
-    source_lines.append(SOURCE_DECLARATION % { 'id': id, 'escaped_id': escaped_id, 'data': data })
-    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'escaped_id': escaped_id, 'data': 0 })
-    native_lines.append(NATIVE_DECLARATION % { 'id': id, 'escaped_id': escaped_id })
+    source_lines.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': data
+    })
+    source_lines_empty.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': 0
+    })
+    native_lines.append(NATIVE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id
+    })
 
   # Build delay support functions
   get_index_cases = [ ]

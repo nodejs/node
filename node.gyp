@@ -70,7 +70,7 @@
       'lib/vm.js',
       'lib/zlib.js',
 
-      'lib/internal/freelist.js'
+      'lib/internal/freelist.js',
     ],
   },
 

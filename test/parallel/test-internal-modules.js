@@ -5,4 +5,4 @@ assert.throws(function() {
   require('internal/freelist');
 });
 
-assert(require('../fixtures/internal-modules') === true);
+assert(require('../fixtures/internal-modules') === 42);
