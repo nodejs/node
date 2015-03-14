@@ -306,11 +306,13 @@ void TLSWrap::EncOut() {
   uv_buf_t buf[ARRAY_SIZE(data)];
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
-  int r = stream_->DoWrite(write_req, buf, count, nullptr);
+  int err = stream_->DoWrite(write_req, buf, count, nullptr);
   write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
-  if (!r)
+  if (err)
+    write_req->Dispose();
+  else
     NODE_COUNT_NET_BYTES_SENT(write_size_);
 }
 
