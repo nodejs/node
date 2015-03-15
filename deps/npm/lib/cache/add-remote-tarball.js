@@ -19,8 +19,8 @@ function addRemoteTarball (u, pkgData, shasum, auth, cb_) {
   function cb (er, data) {
     if (data) {
       data._from = u
-      data._shasum = data._shasum || shasum
       data._resolved = u
+      data._shasum = data._shasum || shasum
     }
     cb_(er, data)
   }

@@ -1,0 +1,36 @@
+input: |
+  {
+    "name": "test",
+    "version": "0.0.0",
+    "dependencies": {
+      "foo": "1.2.x",
+      "bar": ">= 1"
+    },
+    "bundleDependencies": [
+      "foo",
+      "bar"
+    ],
+    "license": "BSD-2-Clause"
+  }
+
+output: |
+  {
+    "name": "test",
+    "version": "0.0.0",
+    "dependencies": {
+      "foo": "1.2.x"
+    },
+    "bundleDependencies": [
+      "foo"
+    ],
+    "license": "BSD-2-Clause"
+  }
+
+test: !!js/function |
+  function(jju, input) {
+    obj = jju.parse(input)
+    obj.bundleDependencies.pop()
+    delete obj.dependencies.bar
+    return jju.update(input, obj, {mode:'json'})
+  }
+

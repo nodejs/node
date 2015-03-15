@@ -627,12 +627,23 @@ Glob.prototype._stat = function (f, cb) {
   }
 
   var self = this
-  var statcb = inflight('stat\0' + abs, statcb_)
+  var statcb = inflight('stat\0' + abs, lstatcb_)
   if (statcb)
-    fs.stat(abs, statcb)
+    fs.lstat(abs, statcb)
 
-  function statcb_ (er, stat) {
-    self._stat2(f, abs, er, stat, cb)
+  function lstatcb_ (er, lstat) {
+    if (lstat && lstat.isSymbolicLink()) {
+      // If it's a symlink, then treat it as the target, unless
+      // the target does not exist, then treat it as a file.
+      return fs.stat(abs, function (er, stat) {
+        if (er)
+          self._stat2(f, abs, null, lstat, cb)
+        else
+          self._stat2(f, abs, er, stat, cb)
+      })
+    } else {
+      self._stat2(f, abs, er, lstat, cb)
+    }
   }
 }
 
