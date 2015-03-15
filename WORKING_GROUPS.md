@@ -39,15 +39,6 @@ Its responsibilities are:
 releases and features.
 * Foster and enable a community of translators.
 
-Links:
-* [Website WG](https://github.com/iojs/website)
-* [Website WG Members](https://github.com/iojs/website#current-project-team-members)
-* [Website Issues](https://github.com/iojs/website/issues)
-* [Website Contributing](https://github.com/iojs/website/blob/master/CONTRIBUTING.md)
-* [Website Governance](https://github.com/iojs/website/blob/master/GOVERNANCE.md)
-
-
-
 ### [Streams](https://github.com/iojs/readable-stream)
 
 The Streams WG is dedicated to the support and improvement of the Streams API
@@ -66,27 +57,8 @@ responsibilities include:
 * Recommending versions of readable-stream to be included in io.js.
 * Messaging about the future of streams to give the community advance notice of changes.
 
-Initial members are:
-
-* @chrisdickinson
-* @isaacs
-* @rvagg
-* @Raynos
-* @calvinmetcalf
-* @sonewman
-* @mafintosh
-* @timgestson
-* @domenic
-
-Links:
-* [Streams WG](https://github.com/iojs/readable-stream)
-* [Streams WG Members](https://github.com/iojs/readable-stream#current-project-team-members)
-* [Streams Issues](https://github.com/iojs/readable-stream/issues)
-* [Streams Contributing](https://github.com/iojs/readable-stream/blob/master/CONTRIBUTING.md)
-* [Streams Governance](https://github.com/iojs/readable-stream/blob/master/GOVERNANCE.md)
 
 ### [Build](https://github.com/iojs/build)
-[![Join the chat at https://gitter.im/iojs/build](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/build?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The build working group's purpose is to create and maintain a
 distributed automation infrastructure.
@@ -98,13 +70,6 @@ Its responsibilities are:
 * Creates and manages official docker images.
 * Creates and manages build-containers.
 
-Links:
-* [Build WG](https://github.com/iojs/build)
-* [Build WG Members](https://github.com/iojs/build#people)
-* [Build WG chat](https://gitter.im/iojs/build)
-* [Build Issues](https://github.com/iojs/build/issues)
-* [Build Contributing](https://github.com/iojs/build/blob/master/CONTRIBUTING.md)
-* [Build Governance](https://github.com/iojs/build/blob/master/GOVERNANCE.md)
 
 ### [Tracing](https://github.com/iojs/tracing-wg)
 
@@ -117,13 +82,6 @@ Its responsibilities are:
 * Maintenance and improvements to system tracing support (DTrace, LTTng, etc.)
 * Documentation of tracing and debugging techniques.
 * Fostering a tracing and debugging ecosystem.
-
-Links:
-* [Tracing WG](https://github.com/iojs/tracing-wg)
-* [Tracing WG Members](https://github.com/iojs/tracing-wg#people)
-* [Tracing Issues](https://github.com/iojs/tracing-wg/issues)
-* [Tracing Contributing](https://github.com/iojs/tracing-wg/blob/master/CONTRIBUTING.md)
-* [Tracing Governance](https://github.com/iojs/tracing-wg/blob/master/GOVERNANCE.md)
 
 ### i18n
 
@@ -149,119 +107,40 @@ Each language community maintains its own membership.
 * [iojs-ar - Arabic(اللغة العربية)](http://github.com/iojs/iojs-ar)
 * [iojs-bg - Bulgarian(български език)](http://github.com/iojs/iojs-bg)
 * [iojs-bn - Bengali(বাংলা)](http://github.com/iojs/iojs-bn)
-  * [iojs-bn WG Members](https://github.com/iojs/iojs-bn#%E0%A6%85%E0%A6%A8%E0%A7%81%E0%A6%AC%E0%A6%BE%E0%A6%A6-%E0%A6%9F%E0%A6%BF%E0%A6%AE-%E0%A6%B8%E0%A6%A6%E0%A6%B8%E0%A7%8D%E0%A6%AF)
-  * Social Links: [@iojs_bn - twitter](https://twitter.com/iojs_bn)
 * [iojs-cn - Chinese(中文)](http://github.com/iojs/iojs-cn)
-  * [iojs-cn WG chat](https://iojs-cn.herokuapp.com/)
-  * Social Links: [@iojs_cn - twitter](https://twitter.com/iojs_cn), [@iojs_cn - weibo](http://weibo.com/iojscn), [iojs-cn Weekly](http://cn.iojs.org/)
 * [iojs-cs - Czech(Český Jazyk)](http://github.com/iojs/iojs-cs)
 * [iojs-da - Danish(Dansk)](http://github.com/iojs/iojs-da)
-  * [iojs-da WG Members](https://github.com/iojs/iojs-da#team)
-  * Social Links: [@iojs_da - twitter](https://twitter.com/iojs_da), [iojs-da Weekly](https://medium.com/@iojs_da/)
 * [iojs-de - German(Deutsch)](http://github.com/iojs/iojs-de)
-  * [iojs-de WG Members](https://github.com/iojs/iojs-de#deutsches-iojs-team)
-  * [iojs-de WG chat](https://gitter.im/iojs/iojs-de)
-  * Social Links: [@iojs_de - twitter](https://twitter.com/iojs_de), [iojs-da Weekly](https://medium.com/@iojs_da/)
 * [iojs-el - Greek(Ελληνικά)](http://github.com/iojs/iojs-el)
-  * [iojs-el WG Members](https://github.com/iojs/iojs-el#%CE%9C%CE%AD%CE%BB%CE%B7)
-  * [iojs-el WG chat](https://gitter.im/iojs/iojs-el)
-  * [iojs-el Contributing](https://github.com/iojs/iojs-el/blob/master/CONTRIBUTING.md)
-  * Social Links: [@iojs_el - twitter](https://twitter.com/iojs_el), [iojs_el Weekly](https://medium.com/@iojs_el)
 * [iojs-es - Spanish(Español)](http://github.com/iojs/iojs-es)
-  * [iojs-es WG Members](https://github.com/iojs/iojs-es#colaboradores)
-  * [iojs-es WG chat](https://gitter.im/iojs/iojs-es)
-  * Social Links: [@iojs_es - twitter](https://twitter.com/iojs_es), [iojs-es - facebook](https://www.facebook.com/iojses), [iojs_es Weekly](https://medium.com/@iojs_es)
 * [iojs-fa - Persian(فارسی)](http://github.com/iojs/iojs-fa)
-  * [iojs-fa WG Members](https://github.com/iojs/iojs-fa#%D8%A7%D8%B9%D8%B6%D8%A7%DB%8C-%D8%AA%DB%8C%D9%85-%D8%AA%D8%B1%D8%AC%D9%85%D9%87)
-  * Social Links: [@iojs_fa - twitter](https://twitter.com/iojs_fa)
 * [iojs-fi - Finnish(Suomi)](http://github.com/iojs/iojs-fi)
-  * [iojs-fi WG Members](https://github.com/iojs/iojs-fi#j%C3%A4senet)
-  * Social Links: [@iojs_fi - twitter](https://twitter.com/iojs_fi), [iojs-fi facebook](https://www.facebook.com/pages/iojs-suomeksi/383838695132192), [iojs-fi Weekly](https://medium.com/@iojs_fi)
 * [iojs-fr - French(Français)](http://github.com/iojs/iojs-fr)
-  * [iojs-fr WG Members](https://github.com/iojs/iojs-fr#membres-de-l%C3%A9quipe-de-traduction)
-  * [iojs-fr WG chat](https://gitter.im/iojs/iojs-fr)
-  * Social Links: [@iojs_fr - twitter](https://twitter.com/iojs_fr), [@iojs_fr Weekly](https://medium.com/@iojs_fr)
 * [iojs-he - Hebrew(עברית)](http://github.com/iojs/iojs-he)
-  * [iojs-he WG Members](https://github.com/iojs/iojs-he#members)
-  * [iojs-he WG chat](https://gitter.im/iojs/iojs-he)
-  * [iojs-he Contributing](https://github.com/iojs/iojs-he/blob/master/CONTRIBUTING.MD)
 * [iojs-hi - Hindi(फिजी बात)](http://github.com/iojs/iojs-hi)
-  * [iojs-hi WG Members](https://github.com/iojs/iojs-hi#team)
-  * Social Links: [@iojs_hi - twitter](https://twitter.com/iojs_hi), [iojs-hi Weekly](https://medium.com/@iojs_hi)
 * [iojs-hu - Hungarian(Magyar)](http://github.com/iojs/iojs-hu)
-  * [iojs-hu WG Members](https://github.com/iojs/iojs-hu#tagok)
-  * [iojs-hu WG chat](https://gitter.im/iojs/iojs-hu)
-  * Social Links: [@iojs_hu - twitter](https://twitter.com/iojs_hu), [iojs-hu Weekly](https://medium.com/@iojs_hu)
 * [iojs-id - Indonesian(Bahasa Indonesia)](http://github.com/iojs/iojs-id)
-  * [iojs-id WG Members](https://github.com/iojs/iojs-id#anggota-tim)
-  * Social Links: [@iojs_id - twitter](https://twitter.com/iojs_id), [iojs-id Weekly](https://medium.com/@iojs_id)
 * [iojs-it - Italian(Italiano)](http://github.com/iojs/iojs-it)
-  * [iojs-it WG Members](https://github.com/iojs/iojs-it#collaboratori)
-  * [iojs-it WG chat](https://gitter.im/iojs/iojs-it)
-  * Social Links: [@iojs_it - twitter](https://twitter.com/iojs_it)
 * [iojs-ja - Japanese(日本語)](http://github.com/iojs/iojs-ja)
-  * [iojs-ja WG Members](https://github.com/iojs/iojs-ja#%E3%83%A1%E3%83%B3%E3%83%90%E3%83%BC)
-  * [iojs-ja WG chat](https://iojs-jp-slack.herokuapp.com/)
-  * [iojs-ja Contributing](https://github.com/iojs/iojs-ja/blob/master/COLLABORATOR_GUIDE.md)
-  * Social Links: [@iojs_jp - twitter](https://twitter.com/iojs_jp), [iojs-jp Weekly](http://blog.iojs.jp/)
 * [iojs-ka - Georgian(ქართული)](http://github.com/iojs/iojs-ka)
-  * [iojs-ka WG Members](https://github.com/iojs/iojs-ka#iojs-%E1%83%98%E1%83%A1-%E1%83%A5%E1%83%90%E1%83%A0%E1%83%97%E1%83%A3%E1%83%9A%E1%83%98-%E1%83%9A%E1%83%9D%E1%83%99%E1%83%90%E1%83%9A%E1%83%98%E1%83%96%E1%83%94%E1%83%91%E1%83%98%E1%83%A1-%E1%83%AF%E1%83%92%E1%83%A3%E1%83%A4%E1%83%98%E1%83%A1-%E1%83%AC%E1%83%94%E1%83%95%E1%83%A0%E1%83%94%E1%83%91%E1%83%98)
-  * [iojs-ka WG chat](https://gitter.im/iojs/iojs-ka)
-  * Social Links: [@iojs_ka - twitter](http://twitter.com/iojs_ka), [iojs-ka Weekly](https://medium.com/@iojs_ka)
 * [iojs-ko - Korean(조선말)](http://github.com/iojs/iojs-ko)
-  * [iojs-ko WG Members](https://github.com/iojs/iojs-ko#%EC%B0%B8%EC%97%AC%EC%9E%90-%EC%B0%B8%EC%97%AC%EC%8B%9C%EA%B8%B0-%EC%88%9C)
-  * [iojs-ko WG chat](https://gitter.im/iojs/iojs-ko)
-  * Social Links: [@iojs_ko - twitter](https://twitter.com/iojs_ko), [iojs-kr Weekly](https://medium.com/@iojs_kr)
 * [iojs-mk - Macedonian(Mакедонски)](http://github.com/iojs/iojs-mk)
-  * [iojs-mk WG Members](https://github.com/iojs/iojs-mk#%D0%9D%D0%B0-%D1%81%D0%BE%D1%86%D0%B8%D1%98%D0%B0%D0%BB%D0%BD%D0%B8-%D0%BC%D1%80%D0%B5%D0%B6%D0%B8)
-  * Social Links: [@iojs_mk - twitter](https://twitter.com/iojs_mk)
 * [iojs-ms - Malay(بهاس ملايو)](http://github.com/iojs/iojs-ms)
 * [iojs-nl - Dutch(Nederlands)](http://github.com/iojs/iojs-nl)
-  * [iojs-nl WG Members](https://github.com/iojs/iojs-nl#members)
-  * Social Links: [@iojs_nl - twitter](https://twitter.com/iojs_nl)
 * [iojs-no - Norwegian(Norsk)](http://github.com/iojs/iojs-no)
-  * [iojs-no WG Members](https://github.com/iojs/iojs-no#medlemmer-av-iojs-norge)
-  * [iojs-no WG chat](https://gitter.im/iojs/iojs-no)
-  * Social Links: [@iojs_no - twitter](https://twitter.com/iojs_no), [iojs-no Weekly](http://www.iojs.no/blogg/)
 * [iojs-pl - Polish(Język Polski)](http://github.com/iojs/iojs-pl)
-  * [iojs-pl WG Members](https://github.com/iojs/iojs-pl#zesp%C3%B3%C5%82)
-  * [iojs-pl WG chat](https://gitter.im/iojs/iojs-pl)
-  * Social Links: [@iojs_pl - twitter](https://twitter.com/iojs_pl)
 * [iojs-pt - Portuguese(Português)](http://github.com/iojs/iojs-pt)
-  * [iojs-pt WG Members](https://github.com/iojs/iojs-pt#membros)
-  * [iojs-pt WG chat](https://gitter.im/iojs/iojs-pt)
-  * [iojs-pt Governance](https://github.com/iojs/iojs-pt/blob/master/GOVERNANCE.md)
-  * Social Links: [@iojs_pt - twitter](https://twitter.com/iojs_pt), [iojs-pt Weekly](https://medium.com/@iojs_pt)
 * [iojs-ro - Romanian(Română)](http://github.com/iojs/iojs-ro)
-  * [iojs-ro WG Members](https://github.com/iojs/iojs-ro#membrii)
-  * [iojs-ro WG chat](https://gitter.im/iojs/iojs-ro)
 * [iojs-ru - Russian(Русский)](http://github.com/iojs/iojs-ru)
-  * [iojs-ru WG Members](https://github.com/iojs/iojs-ru#%D0%9F%D0%B5%D1%80%D0%B5%D0%B2%D0%BE%D0%B4%D1%87%D0%B8%D0%BA%D0%B8)
-  * [iojs-ru WG chat](https://gitter.im/iojs/iojs-ru)
 * [iojs-sv - Swedish(Svenska)](http://github.com/iojs/iojs-sv)
 * [iojs-ta - Tamil(தமிழ்)](http://github.com/iojs/iojs-ta)
-  * [iojs-ta WG Members](https://github.com/iojs/iojs-ta#%E0%AE%AE%E0%AF%86%E0%AE%BE%E0%AE%B4%E0%AE%BF%E0%AE%AA%E0%AF%86%E0%AE%AF%E0%AE%B0%E0%AF%8D%E0%AE%AA%E0%AF%8D%E0%AE%AA%E0%AF%81-%E0%AE%95%E0%AF%81%E0%AE%B4%E0%AF%81-%E0%AE%89%E0%AE%B1%E0%AF%81%E0%AE%AA%E0%AF%8D%E0%AE%AA%E0%AE%BF%E0%AE%A9%E0%AE%B0%E0%AF%8D%E0%AE%95%E0%AE%B3%E0%AF%8D)
 * [iojs-tr - Turkish(Türkçe)](http://github.com/iojs/iojs-tr)
-  * [iojs-tr WG Members](https://github.com/iojs/iojs-tr#iojs-t%C3%BCrkiye-ekibi)
-  * [iojs-tr WG chat](http://webchat.freenode.net/?channels=io.js-tr)
-  * Social Links: [iojs_tr - twitter](https://twitter.com/iojs_tr),[iojs-tr Weekly](https://medium.com/iojstr-haftalik-bulten), [iojs-tr other](https://medium.com/@iojs_tr)
 * [iojs-tw - Taiwanese(Hō-ló)](http://github.com/iojs/iojs-tw)
-  * [iojs-tw WG Members](https://github.com/iojs/iojs-tw#%E7%A4%BE%E7%BE%A4%E5%AA%92%E9%AB%94)
-  * [iojs-tw WG chat](https://gitter.im/iojs/iojs-tw)
-  * Social Links: [@iojs_tw - twitter](https://twitter.com/iojs_tw), [iojs-tw Weekly](http://tw.iojs.org/)
 * [iojs-uk - Ukrainian(Українська)](http://github.com/iojs/iojs-uk)
-  * [iojs-uk WG Members](https://github.com/iojs/iojs-uk#%D0%A0%D0%BE%D0%B1%D0%BE%D1%87%D0%B0-%D0%B3%D1%80%D1%83%D0%BF%D0%B0)
-  * [iojs-uk WG chat](https://gitter.im/iojs/iojs-uk)
-  * [iojs-uk Contributing](https://github.com/iojs/iojs-uk/blob/master/CONTRIBUTING.md)
-  * [iojs-uk Governance](https://github.com/iojs/iojs-uk/blob/master/GOVERNANCE.md)
-  * Social Links: [@iojs_uk - twitter](https://twitter.com/iojs_uk)
 * [iojs-vi - Vietnamese(Tiếng Việtnam)](http://github.com/iojs/iojs-vi)
-  * [iojs-vi WG Members](https://github.com/iojs/iojs-vi#th%C3%A0nh-vi%C3%AAn)
-  * [iojs-vi WG chat](https://gitter.im/iojs/iojs-vi)
-  * Social Links: [@iojs_vi - twitter](https://twitter.com/iojs_vi)
+
 
 ### [Evangelism](https://github.com/iojs/evangelism)
-[![Join the chat at https://gitter.im/iojs/evangelism](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/iojs/evangelism?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The evangelism working group promotes the accomplishments
 of io.js and lets the community know how they can get involved.
@@ -273,14 +152,6 @@ Their responsibilities are:
 * Promotion of community events.
 * Publishing regular update summaries and other promotional
 content.
-
-Links:
-* [Evangelism WG](https://github.com/iojs/evangelism)
-* [Evangelism WG Members](https://github.com/iojs/evangelism#evangelism-wg-members)
-* [Evangelism WG chat](https://gitter.im/iojs/evangelism)
-* [Evangelism Issues](https://github.com/iojs/evangelism/issues)
-* [Evangelism Contributing](https://github.com/iojs/evangelism/blob/master/CONTRIBUTING.md)
-* [Evangelism Governance](https://github.com/iojs/evangelism/blob/master/GOVERNANCE.md)
 
 
 ### [Roadmap](https://github.com/iojs/roadmap)
@@ -295,13 +166,6 @@ Their responsibilities are:
 * Attract and summarize user community needs and feedback.
 * Find or potentially create tools that allow for broader participation.
 * Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
-
-Links:
-* [Roadmap WG](https://github.com/iojs/roadmap)
-* [Roadmap WG Members](https://github.com/iojs/roadmap#people)
-* [Roadmap Issues](https://github.com/iojs/roadmap/issues)
-* [Roadmap Contributing](https://github.com/iojs/roadmap/blob/master/CONTRIBUTING.md)
-* [Roadmap Governance](https://github.com/iojs/roadmap/blob/master/GOVERNANCE.md)
 
 
 ## Starting a WG
