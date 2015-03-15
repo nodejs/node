@@ -18,17 +18,17 @@ var server = http.createServer(function(req, res) {
 
   var callbackCalled = false;
 
-  res.end('ok', function(){
+  res.end('ok', function() {
     assert.ok(!callbackCalled);
     callbackCalled = true;
   });
 
   // We might get a socket already closed error here
   // Not really a surpise
-  res.on('error', function(){});
+  res.on('error', function() {});
 
-  res.on('close', function(){
-    process.nextTick(function(){
+  res.on('close', function() {
+    process.nextTick(function() {
       assert.ok(callbackCalled, "end() callback should've been called");
     });
   });
@@ -36,7 +36,7 @@ var server = http.createServer(function(req, res) {
   // Oh no!  The connection died!
   req.socket.destroy();
 
-  if (++done === numRequests)
+  if (++done == numRequests)
     server.close();
 });
 
