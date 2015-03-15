@@ -42,7 +42,7 @@ server.listen(common.PORT, function() {
 
     // Each failed write will cause an error, but
     // we are only interested in one
-    if(gotError) return;
+    if (gotError) return;
 
     gotError = true;
     switch (er.code) {
