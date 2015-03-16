@@ -5,6 +5,7 @@ PYTHON ?= python
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
+NO_SYMLINK ?= false
 
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
@@ -50,7 +51,7 @@ config.gypi: configure
 	fi
 
 install: all
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)' '$(NO_SYMLINK)'
 
 uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
@@ -219,7 +220,7 @@ BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 PKG=out/$(TARNAME).pkg
-packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+packagesbuild=/usr/local/bin/packagesbuild
 
 PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
 ifdef NIGHTLY
@@ -252,16 +253,32 @@ release-only:
 		exit 1 ; \
 	fi
 
+pre-pkg:
+	touch tools/osx-pkg/scripts/iojs-create-node-symlink # empty file for symlink step
+	touch tools/osx-pkg/scripts/iojs-run-uninstall # empty file for uninstall step
+	cp LICENSE tools/osx-pkg/strings/LICENSE.txt
+	cat tools/osx-pkg/osx-pkg.pkgproj | \
+		sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|introduction.rtf|introduction.out.rtf|g' > \
+		tools/osx-pkg/osx-pkg-out.pkgproj
+	$(foreach dir, \
+		$(shell echo tools/osx-pkg/strings/*/), \
+		cat $(dir)introduction.rtf | \
+		sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
+		$(dir)introduction.out.rtf; \
+	)
+
 pkg: $(PKG)
 
-$(PKG): release-only
+$(PKG): release-only pre-pkg
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
 	$(PYTHON) ./configure --dest-cpu=ia32 --tag=$(TAG)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
 	rm -rf out/deps out/Release
 	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
+	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR) NO_SYMLINK=true
 	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/iojs \
 		$(PKGDIR)/usr/local/bin/iojs \
@@ -269,11 +286,7 @@ $(PKG): release-only
 		-create
 	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
 	rm -rf $(PKGDIR)/32
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > tools/osx-pkg.pmdoc/index.xml
-	$(packagemaker) \
-		--id "org.nodejs.Node" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
+	$(packagesbuild) tools/osx-pkg/osx-pkg-out.pkgproj
 	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 $(TARBALL): release-only $(NODE_EXE) doc
@@ -401,4 +414,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pre-pkg pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
