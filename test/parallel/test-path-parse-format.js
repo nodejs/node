@@ -30,11 +30,11 @@ var unixPaths = [
 ];
 
 var errors = [
-  {method: 'parse', input: [null], message: /Parameter 'pathString' must be a string, not/},
-  {method: 'parse', input: [{}], message: /Parameter 'pathString' must be a string, not object/},
-  {method: 'parse', input: [true], message: /Parameter 'pathString' must be a string, not boolean/},
-  {method: 'parse', input: [1], message: /Parameter 'pathString' must be a string, not number/},
-  {method: 'parse', input: [], message: /Parameter 'pathString' must be a string, not undefined/},
+  {method: 'parse', input: [null], message: /Path must be a string. Received null/},
+  {method: 'parse', input: [{}], message: /Path must be a string. Received {}/},
+  {method: 'parse', input: [true], message: /Path must be a string. Received true/},
+  {method: 'parse', input: [1], message: /Path must be a string. Received 1/},
+  {method: 'parse', input: [], message: /Path must be a string. Received undefined/},
   // {method: 'parse', input: [''], message: /Invalid path/}, // omitted because it's hard to trigger!
   {method: 'format', input: [null], message: /Parameter 'pathObject' must be an object, not/},
   {method: 'format', input: [''], message: /Parameter 'pathObject' must be an object, not string/},
