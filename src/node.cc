@@ -3012,8 +3012,6 @@ static void PrintHelp() {
          "NODE_PATH              ':'-separated list of directories\n"
 #endif
          "                       prefixed to the module search path.\n"
-         "NODE_MODULE_CONTEXTS   Set to 1 to load modules in their own\n"
-         "                       global contexts.\n"
          "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "NODE_ICU_DATA          Data path for ICU (Intl object) data\n"
