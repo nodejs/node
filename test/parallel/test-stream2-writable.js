@@ -383,3 +383,25 @@ test('finish is emitted if last chunk is empty', function(t) {
   w.write(Buffer(1));
   w.end(Buffer(0));
 });
+
+test('finish is emitted after shutdown', function(t) {
+  var w = new W();
+  var shutdown = false;
+
+  w._writableState._end = function(stream, cb) {
+    assert(stream === w);
+    setTimeout(function() {
+      shutdown = true;
+      cb();
+    }, 100);
+  };
+  w._write = function(chunk, e, cb) {
+    process.nextTick(cb);
+  };
+  w.on('finish', function() {
+    assert(shutdown);
+    t.end();
+  });
+  w.write(Buffer(1));
+  w.end(Buffer(0));
+});
