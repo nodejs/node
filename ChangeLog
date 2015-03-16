@@ -1,4 +1,4 @@
-2015.02.06, Version 0.12.0 (Stable)
+2015.02.06, Version 0.12.0 (Stable), 2b18916ff054309a07408719b62e2b6a4f1e056a
 
 * npm: Upgrade to 2.5.1
 
@@ -946,6 +946,21 @@
 * util: custom `inspect()` method may return an Object (Nathan Rajlich)
 
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
+
+
+2015.03.11, Version 0.10.37 (Maintenance)
+
+* uv: update to 0.10.36 (CVE-2015-0278)
+
+* domains: fix stack clearing after error handled (Jonas Dohse)
+
+* buffer: reword Buffer.concat error message (Chris Dickinson)
+
+* console: allow Object.prototype fields as labels (Julien Gilli)
+
+* V8: log version in profiler log file (Ben Noordhuis)
+
+* http: fix performance regression for GET requests (Florin-Cristian Gavrila)
 
 
 2015.01.26, Version 0.10.36 (Stable), 09b482886bdd3d863c3d4e7d71264eac0daaf9e1
