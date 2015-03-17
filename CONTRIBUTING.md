@@ -130,7 +130,7 @@ $ git rebase upstream/v1.x  # or upstream/master
 ### Step 5: Test
 
 Bug fixes and features **should come with tests**.  Add your tests in the
-test/simple/ directory.  Look at other tests to see how they should be
+test/parallel/ directory.  Look at other tests to see how they should be
 structured (license boilerplate, common includes, etc.).
 
 ```text
@@ -144,13 +144,13 @@ If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
 
 ```text
-$ python tools/test.py -v --mode=release simple/test-stream2-transform
+$ python tools/test.py -v --mode=release parallel/test-stream2-transform
 ```
 
 You can run tests directly with node:
 
 ```text
-$ node ./test/simple/test-streams2-transform.js
+$ node ./test/parallel/test-streams2-transform.js
 ```
 
 
