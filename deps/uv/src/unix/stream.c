@@ -301,7 +301,7 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   if (fds[1] > max_fd)
     max_fd = fds[1];
 
-  sread_sz = (max_fd + NBBY) / NBBY;
+  sread_sz = ROUND_UP(max_fd + 1, sizeof(uint32_t) * NBBY) / NBBY;
   swrite_sz = sread_sz;
 
   s = malloc(sizeof(*s) + sread_sz + swrite_sz);

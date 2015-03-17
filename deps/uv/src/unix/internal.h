@@ -55,6 +55,9 @@
 #define ACCESS_ONCE(type, var)                                                \
   (*(volatile type*) &(var))
 
+#define ROUND_UP(a, b)                                                        \
+  ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
+
 #define UNREACHABLE()                                                         \
   do {                                                                        \
     assert(0 && "unreachable code");                                          \
