@@ -874,5 +874,5 @@ un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
       store.push(sb);
     });
 
-Though this should used sparingly and only be a last resort *after* a developer
+Though this should be used sparingly and only be a last resort *after* a developer
 has actively observed undue memory retention in their applications.
