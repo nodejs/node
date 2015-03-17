@@ -5,7 +5,7 @@ var net = require('net');
 
 var conns = 0, conns_closed = 0;
 
-var remoteAddrCandidates = [ '127.0.0.1'];
+var remoteAddrCandidates = [ common.localhost_ipv4 ];
 if (common.hasIPv6) remoteAddrCandidates.push('::ffff:127.0.0.1');
 
 var remoteFamilyCandidates = ['IPv4'];

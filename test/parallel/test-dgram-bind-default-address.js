@@ -2,6 +2,12 @@ var common = require('../common');
 var assert = require('assert');
 var dgram = require('dgram');
 
+// skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
+if (common.inFreeBSDJail) {
+  console.log('1..0 # Skipped: In a FreeBSD jail');
+  process.exit();
+}
+
 dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
   assert.equal(this.address().port, common.PORT + 0);
   assert.equal(this.address().address, '0.0.0.0');

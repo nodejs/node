@@ -3,7 +3,7 @@ var assert = require('assert');
 var net = require('net');
 
 // Test on IPv4 Server
-var localhost_ipv4 = '127.0.0.1';
+var localhost_ipv4 = common.localhost_ipv4;
 var family_ipv4 = 'IPv4';
 var server_ipv4 = net.createServer();
 
