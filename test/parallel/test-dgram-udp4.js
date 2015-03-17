@@ -11,7 +11,7 @@ server = dgram.createSocket('udp4');
 server.on('message', function(msg, rinfo) {
   console.log('server got: ' + msg +
               ' from ' + rinfo.address + ':' + rinfo.port);
-  assert.strictEqual(rinfo.address, '127.0.0.1');
+  assert.strictEqual(rinfo.address, common.localhost_ipv4);
   assert.strictEqual(msg.toString(), message_to_send.toString());
   server.send(msg, 0, msg.length, rinfo.port, rinfo.address);
 });
@@ -22,7 +22,7 @@ server.on('listening', function() {
   client.on('message', function(msg, rinfo) {
     console.log('client got: ' + msg +
                 ' from ' + rinfo.address + ':' + address.port);
-    assert.strictEqual(rinfo.address, '127.0.0.1');
+    assert.strictEqual(rinfo.address, common.localhost_ipv4);
     assert.strictEqual(rinfo.port, server_port);
     assert.strictEqual(msg.toString(), message_to_send.toString());
     client.close();
