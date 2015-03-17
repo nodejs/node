@@ -9,8 +9,9 @@ import sys
 import shutil
 import string
 
-CC = os.environ.get('CC', 'cc')
-CXX = os.environ.get('CXX', 'c++')
+# gcc and g++ as defaults matches what GYP's Makefile generator does.
+CC = os.environ.get('CC', 'gcc')
+CXX = os.environ.get('CXX', 'g++')
 
 root_dir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(root_dir, 'tools', 'gyp', 'pylib'))
