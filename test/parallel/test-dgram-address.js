@@ -3,7 +3,7 @@ var assert = require('assert');
 var dgram = require('dgram');
 
 // IPv4 Test
-var localhost_ipv4 = '127.0.0.1';
+var localhost_ipv4 = common.localhost_ipv4;
 var socket_ipv4 = dgram.createSocket('udp4');
 var family_ipv4 = 'IPv4';
 

@@ -21,6 +21,35 @@ exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 
 var opensslCli = null;
 
+Object.defineProperty(exports, 'inFreeBSDJail', {
+  get: function() {
+    if (process.platform === 'freebsd' &&
+      child_process.execSync('sysctl -n security.jail.jailed').toString() ===
+      '1\n') {
+      return true;
+    } else {
+      return false;
+    }
+  }
+});
+
+Object.defineProperty(exports, 'localhost_ipv4', {
+  get: function() {
+    if (exports.inFreeBSDJail) {
+      // Jailed network interfaces are a bit special - since we need to jump
+      // through loops, as well as this being an exception case, assume the
+      // user will provide this instead.
+      if (process.env.LOCALHOST)
+        return process.env.LOCALHOST;
+
+      console.error('Looks like we\'re in a FreeBSD Jail. ' +
+                    'Please provide your default interface address ' +
+                    'as LOCALHOST or expect some tests to fail.');
+    }
+    return '127.0.0.1';
+  }
+});
+
 // opensslCli defined lazily to reduce overhead of spawnSync
 Object.defineProperty(exports, 'opensslCli', {get: function() {
   if (opensslCli !== null) return opensslCli;
