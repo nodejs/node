@@ -107,8 +107,10 @@ class NodeBIO {
 
     ~Buffer() {
       delete[] data_;
-      if (env_ != nullptr)
-        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-len_);
+      if (env_ != nullptr) {
+        const int64_t len = static_cast<int64_t>(len_);
+        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-len);
+      }
     }
 
     Environment* env_;
