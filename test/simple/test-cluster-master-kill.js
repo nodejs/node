@@ -82,7 +82,7 @@ if (cluster.isWorker) {
     // check worker process status
     setTimeout(function() {
       alive = isAlive(pid);
-    }, 200);
+    }, 1000);
   });
 
   process.once('exit', function() {

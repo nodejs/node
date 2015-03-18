@@ -114,7 +114,7 @@ if (cluster.isWorker) {
     existMaster = !!code;
 
     // Give the workers time to shut down
-    setTimeout(checkWorkers, 200);
+    setTimeout(checkWorkers, 1000);
 
     function checkWorkers() {
       // When master is dead all workers should be dead to
