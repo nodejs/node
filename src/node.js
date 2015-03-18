@@ -43,7 +43,7 @@
 
     startup.processRawDebug();
 
-    startup.resolveArgv0();
+    process.argv[0] = process.execPath;
 
     // There are various modes that Node can run in. The most common two
     // are running from a script and running the REPL - but there are a few
@@ -459,7 +459,15 @@
   function evalScript(name) {
     var Module = NativeModule.require('module');
     var path = NativeModule.require('path');
-    var cwd = process.cwd();
+
+    try {
+      var cwd = process.cwd();
+    } catch (e) {
+      // getcwd(3) can fail if the current working directory has been deleted.
+      // Fall back to the directory name of the (absolute) executable path.
+      // It's not really correct but what are the alternatives?
+      var cwd = path.dirname(process.execPath);
+    }
 
     var module = new Module(name);
     module.filename = path.join(cwd, name);
@@ -762,23 +770,6 @@
     process._rawDebug = function() {
       rawDebug(format.apply(null, arguments));
     };
-  };
-
-
-  startup.resolveArgv0 = function() {
-    var cwd = process.cwd();
-    var isWindows = process.platform === 'win32';
-
-    // Make process.argv[0] into a full path, but only touch argv[0] if it's
-    // not a system $PATH lookup.
-    // TODO: Make this work on Windows as well.  Note that "node" might
-    // execute cwd\node.exe, or some %PATH%\node.exe on Windows,
-    // and that every directory has its own cwd, so d:node.exe is valid.
-    var argv0 = process.argv[0];
-    if (!isWindows && argv0.indexOf('/') !== -1 && argv0.charAt(0) !== '/') {
-      var path = NativeModule.require('path');
-      process.argv[0] = path.join(cwd, process.argv[0]);
-    }
   };
 
   // Below you find a minimal module system, which is used to load the node

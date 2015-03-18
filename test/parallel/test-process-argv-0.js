@@ -22,12 +22,7 @@ if (process.argv[2] !== "child") {
   });
   child.on('exit', function () {
     console.error('CHILD: %s', childErr.trim().split('\n').join('\nCHILD: '));
-    if (process.platform === 'win32') {
-      // On Windows argv[0] is not expanded into full path
-      assert.equal(childArgv0, './iojs');
-    } else {
-      assert.equal(childArgv0, process.execPath);
-    }
+    assert.equal(childArgv0, process.execPath);
   });
 }
 else {
