@@ -3,7 +3,6 @@ var assert = require('assert');
 var net = require('net');
 
 // Test on IPv4 Server
-var localhost_ipv4 = common.localhost_ipv4;
 var family_ipv4 = 'IPv4';
 var server_ipv4 = net.createServer();
 
@@ -11,9 +10,9 @@ server_ipv4.on('error', function(e) {
   console.log('Error on ipv4 socket: ' + e.toString());
 });
 
-server_ipv4.listen(common.PORT, localhost_ipv4, function() {
+server_ipv4.listen(common.PORT, common.localhostIPv4, function() {
   var address_ipv4 = server_ipv4.address();
-  assert.strictEqual(address_ipv4.address, localhost_ipv4);
+  assert.strictEqual(address_ipv4.address, common.localhostIPv4);
   assert.strictEqual(address_ipv4.port, common.PORT);
   assert.strictEqual(address_ipv4.family, family_ipv4);
   server_ipv4.close();
