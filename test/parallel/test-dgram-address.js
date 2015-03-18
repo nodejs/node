@@ -3,13 +3,12 @@ var assert = require('assert');
 var dgram = require('dgram');
 
 // IPv4 Test
-var localhost_ipv4 = common.localhost_ipv4;
 var socket_ipv4 = dgram.createSocket('udp4');
 var family_ipv4 = 'IPv4';
 
 socket_ipv4.on('listening', function() {
   var address_ipv4 = socket_ipv4.address();
-  assert.strictEqual(address_ipv4.address, localhost_ipv4);
+  assert.strictEqual(address_ipv4.address, common.localhostIPv4);
   assert.strictEqual(address_ipv4.port, common.PORT);
   assert.strictEqual(address_ipv4.family, family_ipv4);
   socket_ipv4.close();
@@ -20,7 +19,7 @@ socket_ipv4.on('error', function(e) {
   socket_ipv4.close();
 });
 
-socket_ipv4.bind(common.PORT, localhost_ipv4);
+socket_ipv4.bind(common.PORT, common.localhostIPv4);
 
 // IPv6 Test
 var localhost_ipv6 = '::1';
