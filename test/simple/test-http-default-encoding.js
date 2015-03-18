@@ -31,16 +31,11 @@ var server = http.Server(function(req, res) {
   req.on('data', function(chunk) {
     result += chunk;
   }).on('end', function() {
-    clearTimeout(timeout);
     server.close();
+    res.writeHead(200);
+    res.end('hello world\n');
   });
 
-  var timeout = setTimeout(function() {
-    process.exit(1);
-  }, 100);
-
-  res.writeHead(200);
-  res.end('hello world\n');
 });
 
 server.listen(common.PORT, function() {

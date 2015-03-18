@@ -34,10 +34,10 @@ var server = http.Server(function(req, res) {
 
   req.on('end', function() {
     server.close();
+    res.writeHead(200);
+    res.end('hello world\n');
   });
 
-  res.writeHead(200);
-  res.end('hello world\n');
 });
 
 server.listen(common.PORT, function() {
