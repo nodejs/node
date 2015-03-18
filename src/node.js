@@ -117,11 +117,47 @@
 
       // If -i or --interactive were passed, or stdin is a TTY.
       if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
+        var history;
+        var path = NativeModule.require('path');
+        var fs = NativeModule.require('fs');
+        // This code comes from Sindre Sorhus `user-home` module
+        // https://github.com/sindresorhus/user-home
+        var home = (function getUserHome() {
+          var env = process.env;
+          var home = env.HOME;
+          var user = env.LOGNAME || env.USER || env.LNAME || env.USERNAME;
+
+          if (process.platform === 'win32') {
+            return env.USERPROFILE || env.HOMEDRIVE + env.HOMEPATH || home || null;
+          } else if (process.platform === 'darwin') {
+            return home || (user ? '/Users/' + user : null);
+          } else if (process.platform === 'linux') {
+            return home ||
+              (user ? (process.getuid() === 0 ? '/root' : '/home/' + user) : null);
+          }
+          return home || null;
+        })()
+        var HISTORY_PATH = home ? path.join(home,'.iojs_history') : null;
+
         // REPL
         var opts = {
           useGlobal: true,
           ignoreUndefined: false
         };
+
+        // If we got user-home dir
+        if(HISTORY_PATH) {
+          // Get history if exist
+          try {
+            history = fs.readFileSync(HISTORY_PATH, 'utf8')
+              .replace(/\n$/, '') // Ignore the last \n
+              .split('\n');
+          } catch(e) {
+            history = [];
+          }
+          opts.history = history;
+        }
+
         if (parseInt(process.env['NODE_NO_READLINE'], 10)) {
           opts.terminal = false;
         }
@@ -129,9 +165,22 @@
           opts.useColors = false;
         }
         var repl = Module.requireRepl().start(opts);
-        repl.on('exit', function() {
-          process.exit();
-        });
+        repl
+          .on('line', function(line) {
+            if(HISTORY_PATH)
+              try {
+                fs.appendFileSync(HISTORY_PATH, line + '\n');
+              } catch(e) {}
+          })
+          .on('exit', function() {
+            if(HISTORY_PATH && repl.history)
+              try {
+                fs.writeFileSync(HISTORY_PATH, repl.history
+                  .join('\n'));
+              } catch(e) {}
+
+            process.exit();
+          });
 
       } else {
         // Read all of stdin - execute it.

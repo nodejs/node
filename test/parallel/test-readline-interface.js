@@ -206,7 +206,7 @@ function isWarned(emitter) {
       callCount++;
       if (ch) assert(!key.code);
       assert.equal(key.sequence, remainingKeypresses.shift());
-    };
+    }
     readline.emitKeypressEvents(fi);
     fi.on('keypress', keypressListener);
     fi.emit('data', keypresses.join(''));
@@ -315,5 +315,34 @@ function isWarned(emitter) {
     })
   });
 
+  // Test readline support history
+  function testHistory() {
+    var history = ['foo', 'bar'];
+    var fi = new FakeInput();
+    var rl = new readline.Interface({
+      input: fi,
+      output: null,
+      terminal: true,
+      history: history
+    });
+
+    // Test history size
+    rl.setHistorySize(2);
+    fi.emit('data', 'baz\n');
+    fi.emit('data', 'bug\n');
+    assert.deepEqual(rl.history, history);
+    assert.deepEqual(rl.history, ['bug', 'baz']);
+
+    // Increase history size
+    rl.setHistorySize(Infinity);
+    fi.emit('data', 'foo\n');
+    fi.emit('data', 'bar\n');
+    assert.deepEqual(rl.history, history);
+    assert.deepEqual(rl.history, ['bar', 'foo', 'bug', 'baz']);
+
+    rl.close();
+  }
+
+  testHistory();
 });
 
