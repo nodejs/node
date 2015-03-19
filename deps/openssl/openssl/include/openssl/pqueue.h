@@ -1,1 +1,1 @@
-../../crypto/pqueue/pqueue.h
+#include "../../crypto/pqueue/pqueue.h"
