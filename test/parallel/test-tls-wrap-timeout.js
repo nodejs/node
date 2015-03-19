@@ -21,13 +21,13 @@ var server = tls.createServer(options, function(c) {
     setTimeout(function() {
       c.destroy();
       server.close();
-    }, 75);
-  }, 75);
+    }, 150);
+  }, 150);
 });
 
 server.listen(common.PORT, function() {
   var socket = net.connect(common.PORT, function() {
-    socket.setTimeout(120, assert.fail);
+    socket.setTimeout(240, assert.fail);
 
     var tsocket = tls.connect({
       socket: socket,
