@@ -285,7 +285,7 @@ information about the governance of the io.js project, see
 * **Julian Duque** ([@julianduque](https://github.com/julianduque)) &lt;julianduquej@gmail.com&gt;
 * **Johan Bergström** ([@jbergstroem](https://github.com/jbergstroem)) &lt;bugs@bergstroem.nu&gt;
 * **Roman Reiss** ([@silverwind](https://github.com/silverwind)) &lt;me@silverwind.io&gt;
-* **Petka Antonov** ([@petkaantonov](https://github.com/petkaanotnov)) &lt;petka_antonov@hotmail.com&gt;
+* **Petka Antonov** ([@petkaantonov](https://github.com/petkaantonov)) &lt;petka_antonov@hotmail.com&gt;
 * **Yosuke Furukawa** ([@yosuke-furukawa](https://github.com/yosuke-furukawa)) &lt;yosuke.furukawa@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
