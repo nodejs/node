@@ -309,52 +309,64 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<BASE64>(args);
 }
 
-// source<this>, mask, output, end
+// source, mask, target, targetOffset, start, end
 void Mask(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
-  ARGS_THIS(args.This())
-  uint32_t* obj_data_32 = reinterpret_cast<uint32_t*>(obj_data);
 
-  // setup mask
   uint32_t mask32 = args[0]->Uint32Value();
-  char* mask = reinterpret_cast<char*>(&mask32);
+  char* mask = (char*)&mask32;
 
-  Local<Object> output = args[1]->ToObject();
-  if (!HasInstance(output)) {
-    return env->ThrowTypeError("expected second arg to be Buffer instance");
-  }
+  Local<Object> target = args[1]->ToObject(env->isolate());
 
-  size_t output_length = Buffer::Length(output);
-  char* output_data = Buffer::Data(output);
-  size_t len;
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], obj_length, &len));
-  if (len > obj_length) {
+  if (!HasInstance(target))
+    return env->ThrowTypeError("second arg should be a Buffer");
+
+  ARGS_THIS(args.This())
+  size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
+  char* target_data = static_cast<char*>(
+      target->GetIndexedPropertiesExternalArrayData());
+  size_t target_start;
+  size_t source_start;
+  size_t source_end;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], obj_length, &source_end));
+
+  // Copy 0 bytes; we're done
+  if (target_start >= target_length || source_start >= source_end)
+    return args.GetReturnValue().Set(0);
+
+  if (source_start > obj_length)
     return env->ThrowRangeError("out of range index");
-  }
 
-  uint32_t* output_data_32 = reinterpret_cast<uint32_t*>(output_data);
+  if (source_end - source_start > target_length - target_start)
+    source_end = source_start + target_length - target_start;
+
+  uint32_t to_copy = MIN(MIN(source_end - source_start,
+                             target_length - target_start),
+                             obj_length - source_start);
+
+  obj_data += source_start;
+  target_data += target_start;
+
+  uint32_t* target_data_32 = (uint32_t*)target_data;
+  uint32_t* obj_data_32 = (uint32_t*)obj_data;
+  size_t to_copy_32 = to_copy / 4;
   size_t i;
-
-  if (output_length > 0)
-    CHECK_NE(output_data, nullptr);
-
-  if (output_length < len) {
-    return env->ThrowError("output length should be >= object length");
+  for (i = 0; i < to_copy_32; ++i) {
+    target_data_32[i] = mask32 ^ obj_data_32[i];
   }
+  target_data += to_copy_32 * 4;
+  obj_data += to_copy_32 * 4;
 
-  size_t len32 = len / 4;
-  for (i = 0; i < len32; ++i) {
-    output_data_32[i] = mask32 ^ obj_data_32[i];
-  }
-  output_data += i * 4;
-  obj_data += i * 4;
-  switch(len % 4) {
+  switch(to_copy % 4) {
     case 3:
-      output_data[2] = obj_data[2] ^ mask[2];
+      target_data[2] = obj_data[2] ^ mask[2];
     case 2:
-      output_data[1] = obj_data[1] ^ mask[1];
+      target_data[1] = obj_data[1] ^ mask[1];
     case 1:
-      output_data[0] = obj_data[0] ^ mask[0];
+      target_data[0] = obj_data[0] ^ mask[0];
     case 0:;
   }
   return args.GetReturnValue().Set(0);
