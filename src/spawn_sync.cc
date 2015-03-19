@@ -342,6 +342,14 @@ void SyncProcessStdioPipe::WriteCallback(uv_write_t* req, int result) {
 void SyncProcessStdioPipe::ShutdownCallback(uv_shutdown_t* req, int result) {
   SyncProcessStdioPipe* self =
       reinterpret_cast<SyncProcessStdioPipe*>(req->handle->data);
+
+  // On AIX, OS X and the BSDs, calling shutdown() on one end of a pipe
+  // when the other end has closed the connection fails with ENOTCONN.
+  // Libuv is not the right place to handle that because it can't tell
+  // if the error is genuine but we here can.
+  if (result == UV_ENOTCONN)
+    result = 0;
+
   self->OnShutdownDone(result);
 }
 
