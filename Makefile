@@ -72,7 +72,10 @@ distclean:
 
 check: test
 
-test: all
+cctest: all
+	@out/$(BUILDTYPE)/$@
+
+test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
 	$(MAKE) jslint
 	$(MAKE) cpplint
@@ -120,7 +123,7 @@ test-debug: test-build
 test-message: test-build
 	$(PYTHON) tools/test.py message
 
-test-simple: all
+test-simple: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py parallel sequential
 
 test-pummel: all
@@ -402,4 +405,9 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all test-addons build-addons website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
+	check uninstall install install-includes install-bin all staticlib \
+	dynamiclib test test-all test-addons build-addons website-upload pkg \
+	blog blogclean tar binary release-only bench-http-simple bench-idle \
+	bench-all bench bench-misc bench-array bench-buffer bench-net \
+	bench-http bench-fs bench-tls cctest
