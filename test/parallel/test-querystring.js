@@ -138,6 +138,14 @@ qsWeirdObjects.forEach(function(testCase) {
   assert.equal(testCase[1], qs.stringify(testCase[0]));
 });
 
+// coerce numbers to string
+assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
+assert.strictEqual('foo=0', qs.stringify({ foo: -0 }));
+assert.strictEqual('foo=3', qs.stringify({ foo: 3 }));
+assert.strictEqual('foo=-72.42', qs.stringify({ foo: -72.42 }));
+assert.strictEqual('foo=', qs.stringify({ foo: NaN }));
+assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
+
 // nested
 var f = qs.stringify({
   a: 'b',
