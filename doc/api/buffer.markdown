@@ -828,6 +828,8 @@ corresponding parameters to
 
 The target region of memory may overlap the source region of memory.
 
+Returns the number of bytes masked and written into `targetBuffer`.
+
 ### buffer.values()
 
 Creates iterator for buffer values (bytes). This function is called automatically

@@ -5,7 +5,8 @@ var tests = [
   testBasic,
   testBounds,
   testOverflow,
-  testNonAligned
+  testNonAligned,
+  testReturnValue
 ]
 
 tests.forEach(Function.prototype.call.bind(Function.prototype.call))
@@ -78,4 +79,14 @@ function testNonAligned() {
     for (var i = 0; i < end; ++i)
       assert.equal(output[i], refoutput[i]);
   }
+}
+
+function testReturnValue() {
+  var input = new Buffer(16);
+  var output = new Buffer(16);
+  assert.equal(input.mask(0, output), 16)
+  assert.equal(input.mask(0, output, 4), 12)
+  assert.equal(input.mask(0, output, 4, 6), 10)
+  assert.equal(input.mask(0, output, 4, 6, 4), 0)
+  assert.equal(input.mask(0, output, 4, 6, 8), 2)
 }
