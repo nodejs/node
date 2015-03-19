@@ -9,7 +9,9 @@ var tests = [
   testReturnValue
 ]
 
-tests.forEach(Function.prototype.call.bind(Function.prototype.call))
+tests.forEach(function(fn) {
+  fn();
+});
 
 function referenceImplementation(source, maskNum, output, offset, start, end) {
   var i = 0;
