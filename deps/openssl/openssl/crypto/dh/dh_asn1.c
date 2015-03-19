@@ -1,6 +1,7 @@
 /* dh_asn1.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project 2000.
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -65,29 +66,30 @@
 
 /* Override the default free and new methods */
 static int dh_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-						void *exarg)
+                 void *exarg)
 {
-	if(operation == ASN1_OP_NEW_PRE) {
-		*pval = (ASN1_VALUE *)DH_new();
-		if(*pval) return 2;
-		return 0;
-	} else if(operation == ASN1_OP_FREE_PRE) {
-		DH_free((DH *)*pval);
-		*pval = NULL;
-		return 2;
-	}
-	return 1;
+    if (operation == ASN1_OP_NEW_PRE) {
+        *pval = (ASN1_VALUE *)DH_new();
+        if (*pval)
+            return 2;
+        return 0;
+    } else if (operation == ASN1_OP_FREE_PRE) {
+        DH_free((DH *)*pval);
+        *pval = NULL;
+        return 2;
+    }
+    return 1;
 }
 
 ASN1_SEQUENCE_cb(DHparams, dh_cb) = {
-	ASN1_SIMPLE(DH, p, BIGNUM),
-	ASN1_SIMPLE(DH, g, BIGNUM),
-	ASN1_OPT(DH, length, ZLONG),
+        ASN1_SIMPLE(DH, p, BIGNUM),
+        ASN1_SIMPLE(DH, g, BIGNUM),
+        ASN1_OPT(DH, length, ZLONG),
 } ASN1_SEQUENCE_END_cb(DH, DHparams)
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DH, DHparams, DHparams)
 
 DH *DHparams_dup(DH *dh)
-	{
-	return ASN1_item_dup(ASN1_ITEM_rptr(DHparams), dh);
-	}
+{
+    return ASN1_item_dup(ASN1_ITEM_rptr(DHparams), dh);
+}
