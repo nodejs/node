@@ -611,6 +611,31 @@
           ],
         } ],
       ]
+    },
+    {
+      'target_name': 'cctest',
+      'type': 'executable',
+      'dependencies': [ 'deps/gtest/gtest.gyp:gtest' ],
+      'conditions': [
+        [ 'node_shared_v8=="false"', {
+          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
+        }],
+      ],
+      'include_dirs': [
+        'src',
+      ],
+      'defines': [
+        # gtest's ASSERT macros conflict with our own.
+        'GTEST_DONT_DEFINE_ASSERT_EQ=1',
+        'GTEST_DONT_DEFINE_ASSERT_GE=1',
+        'GTEST_DONT_DEFINE_ASSERT_GT=1',
+        'GTEST_DONT_DEFINE_ASSERT_LE=1',
+        'GTEST_DONT_DEFINE_ASSERT_LT=1',
+        'GTEST_DONT_DEFINE_ASSERT_NE=1',
+      ],
+      'sources': [
+        'test/cctest/util.cc',
+      ],
     }
   ] # end targets
 }
