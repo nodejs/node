@@ -54,6 +54,12 @@ using v8::Uint32;
 using v8::Value;
 
 
+union CopyDWord {
+  char as_bytes[sizeof(uint32_t)];
+  uint32_t as_dword;
+};
+
+
 bool HasInstance(Handle<Value> val) {
   return val->IsObject() && HasInstance(val.As<Object>());
 }
@@ -314,10 +320,11 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Mask(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  uint32_t mask32 = args[0]->Uint32Value();
-  char* mask = (char*)&mask32;
+  CopyDWord mask;
+  mask.as_dword = args[0]->Uint32Value();
 
-  Local<Object> target = args[1]->ToObject(env->isolate());
+  CHECK(args[1]->IsObject());
+  Local<Object> target = args[1].As<Object>();
 
   if (!HasInstance(target))
     return env->ThrowTypeError("second arg should be a Buffer");
@@ -343,31 +350,31 @@ void Mask(const FunctionCallbackInfo<Value> &args) {
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
+  CHECK_LE(source_start, source_end);
 
   uint32_t to_copy = MIN(MIN(source_end - source_start,
                              target_length - target_start),
                              obj_length - source_start);
-
+  size_t written = (to_copy / sizeof(uint32_t)) * sizeof(uint32_t);
   obj_data += source_start;
   target_data += target_start;
 
-  uint32_t* target_data_32 = (uint32_t*)target_data;
-  uint32_t* obj_data_32 = (uint32_t*)obj_data;
-  size_t to_copy_32 = to_copy / 4;
-  size_t i;
-  for (i = 0; i < to_copy_32; ++i) {
-    target_data_32[i] = mask32 ^ obj_data_32[i];
+  CopyDWord tmp;
+  for (size_t i = 0; i < written; i += sizeof(tmp.as_bytes)) {
+    memcpy(tmp.as_bytes, obj_data + i, sizeof(tmp.as_bytes));
+    tmp.as_dword ^= mask.as_dword;
+    memcpy(target_data + i, tmp.as_bytes, sizeof(tmp.as_bytes));
   }
-  target_data += to_copy_32 * 4;
-  obj_data += to_copy_32 * 4;
+  target_data += written;
+  obj_data += written;
 
   switch(to_copy % 4) {
     case 3:
-      target_data[2] = obj_data[2] ^ mask[2];
+      target_data[2] = obj_data[2] ^ mask.as_bytes[2];
     case 2:
-      target_data[1] = obj_data[1] ^ mask[1];
+      target_data[1] = obj_data[1] ^ mask.as_bytes[1];
     case 1:
-      target_data[0] = obj_data[0] ^ mask[0];
+      target_data[0] = obj_data[0] ^ mask.as_bytes[0];
     case 0:;
   }
   return args.GetReturnValue().Set(to_copy);
