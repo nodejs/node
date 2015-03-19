@@ -309,6 +309,57 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<BASE64>(args);
 }
 
+// source<this>, mask, output, end
+void Mask(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+  ARGS_THIS(args.This())
+  uint32_t* obj_data_32 = reinterpret_cast<uint32_t*>(obj_data);
+
+  // setup mask
+  uint32_t mask32 = args[0]->Uint32Value();
+  char* mask = reinterpret_cast<char*>(&mask32);
+
+  Local<Object> output = args[1]->ToObject();
+  if (!HasInstance(output)) {
+    return env->ThrowTypeError("expected second arg to be Buffer instance");
+  }
+
+  size_t output_length = Buffer::Length(output);
+  char* output_data = Buffer::Data(output);
+  size_t len;
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], obj_length, &len));
+  if (len > obj_length) {
+    return env->ThrowRangeError("out of range index");
+  }
+
+  uint32_t* output_data_32 = reinterpret_cast<uint32_t*>(output_data);
+  size_t i;
+
+  if (output_length > 0)
+    CHECK_NE(output_data, nullptr);
+
+  if (output_length < len) {
+    return env->ThrowError("output length should be >= object length");
+  }
+
+  size_t len32 = len / 4;
+  for (i = 0; i < len32; ++i) {
+    output_data_32[i] = mask32 ^ obj_data_32[i];
+  }
+  output_data += i * 4;
+  obj_data += i * 4;
+  switch(len % 4) {
+    case 3:
+      output_data[2] = obj_data[2] ^ mask[2];
+    case 2:
+      output_data[1] = obj_data[1] ^ mask[1];
+    case 1:
+      output_data[0] = obj_data[0] ^ mask[0];
+    case 0:;
+  }
+  return args.GetReturnValue().Set(0);
+}
+
 
 // bytesCopied = buffer.copy(target[, targetStart][, sourceStart][, sourceEnd]);
 void Copy(const FunctionCallbackInfo<Value> &args) {
@@ -741,6 +792,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "utf8Write", Utf8Write);
 
   env->SetMethod(proto, "copy", Copy);
+  env->SetMethod(proto, "mask", Mask);
 
   // for backwards compatibility
   proto->ForceSet(env->offset_string(),
