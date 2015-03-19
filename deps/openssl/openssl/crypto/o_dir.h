@@ -1,5 +1,6 @@
 /* crypto/o_dir.h -*- mode:C; c-file-style: "eay" -*- */
-/* Copied from Richard Levitte's (richard@levitte.org) LP library.  All
+/*
+ * Copied from Richard Levitte's (richard@levitte.org) LP library.  All
  * symbol names have been changed, with permission from the author.
  */
 
@@ -30,24 +31,25 @@
  * SUCH DAMAGE.
  */
 
-
 #ifndef O_DIR_H
-#define O_DIR_H
+# define O_DIR_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  typedef struct OPENSSL_dir_context_st OPENSSL_DIR_CTX;
+typedef struct OPENSSL_dir_context_st OPENSSL_DIR_CTX;
 
-  /* returns NULL on error or end-of-directory.
-     If it is end-of-directory, errno will be zero */
-  const char *OPENSSL_DIR_read(OPENSSL_DIR_CTX **ctx, const char *directory);
+  /*
+   * returns NULL on error or end-of-directory. If it is end-of-directory,
+   * errno will be zero
+   */
+const char *OPENSSL_DIR_read(OPENSSL_DIR_CTX **ctx, const char *directory);
   /* returns 1 on success, 0 on error */
-  int OPENSSL_DIR_end(OPENSSL_DIR_CTX **ctx);
+int OPENSSL_DIR_end(OPENSSL_DIR_CTX **ctx);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LPDIR_H */
+#endif                          /* LPDIR_H */

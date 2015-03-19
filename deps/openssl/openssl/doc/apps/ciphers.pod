@@ -109,8 +109,8 @@ The following is a list of all permitted cipher strings and their meanings.
 
 =item B<DEFAULT>
 
-the default cipher list. This is determined at compile time and, as of OpenSSL
-1.0.0, is normally B<ALL:!aNULL:!eNULL>. This must be the first cipher string
+the default cipher list. This is determined at compile time and
+is normally B<ALL:!EXPORT:!aNULL:!eNULL:!SSLv2>. This must be the firstcipher string
 specified.
 
 =item B<COMPLEMENTOFDEFAULT>

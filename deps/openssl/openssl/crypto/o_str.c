@@ -1,6 +1,7 @@
 /* crypto/o_str.c -*- mode:C; c-file-style: "eay" -*- */
-/* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
- * project 2003.
+/*
+ * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
+ * 2003.
  */
 /* ====================================================================
  * Copyright (c) 2003 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -67,45 +68,49 @@
 #endif
 
 int OPENSSL_strncasecmp(const char *str1, const char *str2, size_t n)
-	{
+{
 #if defined(OPENSSL_IMPLEMENTS_strncasecmp)
-	while (*str1 && *str2 && n)
-		{
-		int res = toupper(*str1) - toupper(*str2);
-		if (res) return res < 0 ? -1 : 1;
-		str1++;
-		str2++;
-		n--;
-		}
-	if (n == 0)
-		return 0;
-	if (*str1)
-		return 1;
-	if (*str2)
-		return -1;
-	return 0;
+    while (*str1 && *str2 && n) {
+        int res = toupper(*str1) - toupper(*str2);
+        if (res)
+            return res < 0 ? -1 : 1;
+        str1++;
+        str2++;
+        n--;
+    }
+    if (n == 0)
+        return 0;
+    if (*str1)
+        return 1;
+    if (*str2)
+        return -1;
+    return 0;
 #else
-	/* Recursion hazard warning! Whenever strncasecmp is #defined as
-	 * OPENSSL_strncasecmp, OPENSSL_IMPLEMENTS_strncasecmp must be
-	 * defined as well. */
-	return strncasecmp(str1, str2, n);
+    /*
+     * Recursion hazard warning! Whenever strncasecmp is #defined as
+     * OPENSSL_strncasecmp, OPENSSL_IMPLEMENTS_strncasecmp must be defined as
+     * well.
+     */
+    return strncasecmp(str1, str2, n);
 #endif
-	}
+}
+
 int OPENSSL_strcasecmp(const char *str1, const char *str2)
-	{
+{
 #if defined(OPENSSL_IMPLEMENTS_strncasecmp)
-	return OPENSSL_strncasecmp(str1, str2, (size_t)-1);
+    return OPENSSL_strncasecmp(str1, str2, (size_t)-1);
 #else
-	return strcasecmp(str1, str2);
+    return strcasecmp(str1, str2);
 #endif
-	}
+}
 
-int OPENSSL_memcmp(const void *v1,const void *v2,size_t n)
-	{
-	const unsigned char *c1=v1,*c2=v2;
-	int ret=0;
+int OPENSSL_memcmp(const void *v1, const void *v2, size_t n)
+{
+    const unsigned char *c1 = v1, *c2 = v2;
+    int ret = 0;
 
-	while(n && (ret=*c1-*c2)==0) n--,c1++,c2++;
+    while (n && (ret = *c1 - *c2) == 0)
+        n--, c1++, c2++;
 
-	return ret;
-	}
+    return ret;
+}

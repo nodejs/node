@@ -1,5 +1,6 @@
 /* v3_pmaps.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,7 +57,6 @@
  *
  */
 
-
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/asn1t.h>
@@ -64,92 +64,93 @@
 #include <openssl/x509v3.h>
 
 static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
-				 X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval);
-static STACK_OF(CONF_VALUE) *
-i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method, void *pmps,
-		    STACK_OF(CONF_VALUE) *extlist);
+                                 X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval);
+static STACK_OF(CONF_VALUE) *i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD
+                                                 *method, void *pmps, STACK_OF(CONF_VALUE)
+                                                 *extlist);
 
 const X509V3_EXT_METHOD v3_policy_mappings = {
-	NID_policy_mappings, 0,
-	ASN1_ITEM_ref(POLICY_MAPPINGS),
-	0,0,0,0,
-	0,0,
-	i2v_POLICY_MAPPINGS,
-	v2i_POLICY_MAPPINGS,
-	0,0,
-	NULL
+    NID_policy_mappings, 0,
+    ASN1_ITEM_ref(POLICY_MAPPINGS),
+    0, 0, 0, 0,
+    0, 0,
+    i2v_POLICY_MAPPINGS,
+    v2i_POLICY_MAPPINGS,
+    0, 0,
+    NULL
 };
 
 ASN1_SEQUENCE(POLICY_MAPPING) = {
-	ASN1_SIMPLE(POLICY_MAPPING, issuerDomainPolicy, ASN1_OBJECT),
-	ASN1_SIMPLE(POLICY_MAPPING, subjectDomainPolicy, ASN1_OBJECT)
+        ASN1_SIMPLE(POLICY_MAPPING, issuerDomainPolicy, ASN1_OBJECT),
+        ASN1_SIMPLE(POLICY_MAPPING, subjectDomainPolicy, ASN1_OBJECT)
 } ASN1_SEQUENCE_END(POLICY_MAPPING)
 
-ASN1_ITEM_TEMPLATE(POLICY_MAPPINGS) = 
-	ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, POLICY_MAPPINGS,
-								POLICY_MAPPING)
+ASN1_ITEM_TEMPLATE(POLICY_MAPPINGS) =
+        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, POLICY_MAPPINGS,
+                                                                POLICY_MAPPING)
 ASN1_ITEM_TEMPLATE_END(POLICY_MAPPINGS)
 
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(POLICY_MAPPING)
 
-
-static STACK_OF(CONF_VALUE) *
-i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method, void *a,
-		    STACK_OF(CONF_VALUE) *ext_list)
+static STACK_OF(CONF_VALUE) *i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD
+                                                 *method, void *a, STACK_OF(CONF_VALUE)
+                                                 *ext_list)
 {
-	POLICY_MAPPINGS *pmaps = a;
-	POLICY_MAPPING *pmap;
-	int i;
-	char obj_tmp1[80];
-	char obj_tmp2[80];
-	for(i = 0; i < sk_POLICY_MAPPING_num(pmaps); i++) {
-		pmap = sk_POLICY_MAPPING_value(pmaps, i);
-		i2t_ASN1_OBJECT(obj_tmp1, 80, pmap->issuerDomainPolicy);
-		i2t_ASN1_OBJECT(obj_tmp2, 80, pmap->subjectDomainPolicy);
-		X509V3_add_value(obj_tmp1, obj_tmp2, &ext_list);
-	}
-	return ext_list;
+    POLICY_MAPPINGS *pmaps = a;
+    POLICY_MAPPING *pmap;
+    int i;
+    char obj_tmp1[80];
+    char obj_tmp2[80];
+    for (i = 0; i < sk_POLICY_MAPPING_num(pmaps); i++) {
+        pmap = sk_POLICY_MAPPING_value(pmaps, i);
+        i2t_ASN1_OBJECT(obj_tmp1, 80, pmap->issuerDomainPolicy);
+        i2t_ASN1_OBJECT(obj_tmp2, 80, pmap->subjectDomainPolicy);
+        X509V3_add_value(obj_tmp1, obj_tmp2, &ext_list);
+    }
+    return ext_list;
 }
 
 static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
-				 X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
+                                 X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
 {
-	POLICY_MAPPINGS *pmaps;
-	POLICY_MAPPING *pmap;
-	ASN1_OBJECT *obj1, *obj2;
-	CONF_VALUE *val;
-	int i;
+    POLICY_MAPPINGS *pmaps;
+    POLICY_MAPPING *pmap;
+    ASN1_OBJECT *obj1, *obj2;
+    CONF_VALUE *val;
+    int i;
 
-	if(!(pmaps = sk_POLICY_MAPPING_new_null())) {
-		X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,ERR_R_MALLOC_FAILURE);
-		return NULL;
-	}
+    if (!(pmaps = sk_POLICY_MAPPING_new_null())) {
+        X509V3err(X509V3_F_V2I_POLICY_MAPPINGS, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
 
-	for(i = 0; i < sk_CONF_VALUE_num(nval); i++) {
-		val = sk_CONF_VALUE_value(nval, i);
-		if(!val->value || !val->name) {
-			sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
-			X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,X509V3_R_INVALID_OBJECT_IDENTIFIER);
-			X509V3_conf_err(val);
-			return NULL;
-		}
-		obj1 = OBJ_txt2obj(val->name, 0);
-		obj2 = OBJ_txt2obj(val->value, 0);
-		if(!obj1 || !obj2) {
-			sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
-			X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,X509V3_R_INVALID_OBJECT_IDENTIFIER);
-			X509V3_conf_err(val);
-			return NULL;
-		}
-		pmap = POLICY_MAPPING_new();
-		if (!pmap) {
-			sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
-			X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,ERR_R_MALLOC_FAILURE);
-			return NULL;
-		}
-		pmap->issuerDomainPolicy = obj1;
-		pmap->subjectDomainPolicy = obj2;
-		sk_POLICY_MAPPING_push(pmaps, pmap);
-	}
-	return pmaps;
+    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+        val = sk_CONF_VALUE_value(nval, i);
+        if (!val->value || !val->name) {
+            sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
+            X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,
+                      X509V3_R_INVALID_OBJECT_IDENTIFIER);
+            X509V3_conf_err(val);
+            return NULL;
+        }
+        obj1 = OBJ_txt2obj(val->name, 0);
+        obj2 = OBJ_txt2obj(val->value, 0);
+        if (!obj1 || !obj2) {
+            sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
+            X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,
+                      X509V3_R_INVALID_OBJECT_IDENTIFIER);
+            X509V3_conf_err(val);
+            return NULL;
+        }
+        pmap = POLICY_MAPPING_new();
+        if (!pmap) {
+            sk_POLICY_MAPPING_pop_free(pmaps, POLICY_MAPPING_free);
+            X509V3err(X509V3_F_V2I_POLICY_MAPPINGS, ERR_R_MALLOC_FAILURE);
+            return NULL;
+        }
+        pmap->issuerDomainPolicy = obj1;
+        pmap->subjectDomainPolicy = obj2;
+        sk_POLICY_MAPPING_push(pmaps, pmap);
+    }
+    return pmaps;
 }
