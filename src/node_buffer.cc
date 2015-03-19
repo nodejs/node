@@ -309,7 +309,8 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<BASE64>(args);
 }
 
-// source, mask, target, targetOffset, start, end
+
+// bytesCopied = buffer.mask(mask, target, targetOffset, sourceStart, sourceEnd)
 void Mask(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -369,7 +370,7 @@ void Mask(const FunctionCallbackInfo<Value> &args) {
       target_data[0] = obj_data[0] ^ mask[0];
     case 0:;
   }
-  return args.GetReturnValue().Set(0);
+  return args.GetReturnValue().Set(to_copy);
 }
 
 
