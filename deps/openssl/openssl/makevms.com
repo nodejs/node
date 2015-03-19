@@ -646,7 +646,7 @@ $   if (CFLAGS .nes. "") then CFLAGS = CFLAGS+ " "
 $   CFLAGS = CFLAGS+ "/DEFINE=ZLIB"
 $ endif
 $! 
-$ WRITE H_FILE "#define CFLAGS"
+$ WRITE H_FILE "#define CFLAGS cflags"
 $ WRITE H_FILE "static const char cflags[] = ""compiler: ''CFLAGS'"";"
 $ WRITE H_FILE "#define PLATFORM ""platform: VMS ''ARCHD' ''VMS_VERSION'"""
 $ WRITE H_FILE "#define DATE ""built on: ''TIME'"" "

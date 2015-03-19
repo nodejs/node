@@ -625,7 +625,7 @@ open (OUT,">>crypto/buildinf.h") || die "Can't open buildinf.h";
 printf OUT <<EOF;
 #ifdef $platform_cpp_symbol
   /* auto-generated/updated by util/mk1mf.pl for crypto/cversion.c */
-  #define CFLAGS "$cc $cflags"
+  #define CFLAGS "compiler: $cc $cflags"
   #define PLATFORM "$platform"
 EOF
 printf OUT "  #define DATE \"%s\"\n", scalar gmtime();

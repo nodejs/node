@@ -55,7 +55,7 @@ top:
 all: shared
 
 buildinf.h: ../Makefile
-	$(PERL) $(TOP)/util/mkbuildinf.pl "$(CFLAGS)" "$(PLATFORM)" >buildinf.h
+	$(PERL) $(TOP)/util/mkbuildinf.pl "$(CC) $(CFLAGS)" "$(PLATFORM)" >buildinf.h
 
 x86cpuid.s:	x86cpuid.pl perlasm/x86asm.pl
 	$(PERL) x86cpuid.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
