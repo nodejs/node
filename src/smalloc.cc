@@ -314,8 +314,10 @@ void Alloc(Environment* env,
 
   char* data = static_cast<char*>(malloc(length));
   if (data == nullptr) {
-    FatalError("node::smalloc::Alloc(v8::Handle<v8::Object>, size_t,"
-               " v8::ExternalArrayType)", "Out Of Memory");
+    FatalError("node::smalloc::Alloc(node::Environment*, "
+               " v8::Handle<v8::Object>, size_t, v8::ExternalArrayType)",
+               "Out Of Memory");
+    UNREACHABLE();
   }
 
   Alloc(env, obj, data, length, type);
@@ -394,7 +396,14 @@ void Alloc(Environment* env,
 
   length *= type_size;
 
-  char* data = new char[length];
+  char* data = static_cast<char*>(malloc(length));
+  if (data == nullptr) {
+    FatalError("node::smalloc::Alloc(node::Environment*, "
+               " v8::Handle<v8::Object>, size_t, node::FreeCallback,"
+               " void*, v8::ExternalArrayType)", "Out Of Memory");
+    UNREACHABLE();
+  }
+
   Alloc(env, obj, data, length, fn, hint, type);
 }
 
