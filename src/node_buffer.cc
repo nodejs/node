@@ -368,14 +368,14 @@ void Mask(const FunctionCallbackInfo<Value> &args) {
   target_data += written;
   obj_data += written;
 
-  switch(to_copy % 4) {
+  switch (to_copy % 4) {
     case 3:
       target_data[2] = obj_data[2] ^ mask.as_bytes[2];
     case 2:
       target_data[1] = obj_data[1] ^ mask.as_bytes[1];
     case 1:
       target_data[0] = obj_data[0] ^ mask.as_bytes[0];
-    case 0:;
+    case 0: {}
   }
   return args.GetReturnValue().Set(to_copy);
 }
