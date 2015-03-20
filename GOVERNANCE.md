@@ -79,9 +79,9 @@ a standard TC motion.
 Changes to TC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "TC Meetings" below).
 
-No more than 1/3 of the TC members may be affiliated with the same
+No more than 1/4 of the TC members may be affiliated with the same
 employer.  If removal or resignation of a TC member, or a change of
-employment by a TC member, creates a situation where more than 1/3 of
+employment by a TC member, creates a situation where more than 1/4 of
 the TC membership shares an employer, then the situation must be
 immediately remedied by the resignation or removal of one or more TC
 members affiliated with the over-represented employer(s).
@@ -129,7 +129,16 @@ When an agenda item has appeared to reach a consensus the moderator
 will ask "Does anyone object?" as a final call for dissent from the
 consensus.
 
+Agenda items should be tagged at least 24 hours in advance. If an item
+is added less than 24 hours before the meeting it cannot be brought to
+a vote.
+
 If an agenda item cannot reach a consensus a TC member can call for
 either a closing vote or a vote to table the issue to the next
 meeting. The call for a vote must be seconded by a majority of the TC
-or else the discussion will continue. Simple majority wins.
+or else the discussion will continue. Simple majority wins, those not
+in attendance abstain.
+
+Changes to governance or TC membership that are forced to a vote require
+a 2/3 majority. Changes to governance or TC membership must be tagged at
+least 72 hours prior to the meeting they might be voted on.
