@@ -1,32 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
+var spawn = require('child_process').spawn;
 
-var childKilled = false, done = false,
-    spawn = require('child_process').spawn,
-    util = require('util'),
-    child;
-
-var join = require('path').join;
-
-child = spawn(process.argv[0], [join(common.fixturesDir, 'should_exit.js')]);
-child.on('exit', function() {
-  if (!done) childKilled = true;
-});
-
-setTimeout(function() {
-  console.log('Sending SIGINT');
+var child = spawn(process.argv[0], [common.fixturesDir + '/should_exit.js']);
+child.stdout.once('data', function() {
   child.kill('SIGINT');
-  setTimeout(function() {
-    console.log('Chance has been given to die');
-    done = true;
-    if (!childKilled) {
-      // Cleanup
-      console.log('Child did not die on SIGINT, sending SIGTERM');
-      child.kill('SIGTERM');
-    }
-  }, 200);
-}, 200);
-
-process.on('exit', function() {
-  assert.ok(childKilled);
 });
+child.on('exit', common.mustCall(function(exitCode, signalCode) {
+  assert.equal(exitCode, null);
+  assert.equal(signalCode, 'SIGINT');
+}));
