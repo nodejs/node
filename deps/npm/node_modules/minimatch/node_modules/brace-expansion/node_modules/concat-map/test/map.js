@@ -1,5 +1,5 @@
 var concatMap = require('../');
-var test = require('tap').test;
+var test = require('tape');
 
 test('empty or not', function (t) {
     var xs = [ 1, 2, 3, 4, 5, 6 ];

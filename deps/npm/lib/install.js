@@ -402,7 +402,6 @@ function readWrap (w) {
 
 // if the -S|--save option is specified, then write installed packages
 // as dependencies to a package.json file.
-// This is experimental.
 function save (where, installed, tree, pretty, hasArguments, cb) {
   if (!hasArguments ||
       !npm.config.get("save") &&
@@ -698,34 +697,72 @@ function installMany (what, where, context, cb) {
 
       if (er) return cb(er)
 
-      // each target will be a data object corresponding
-      // to a package, folder, or whatever that is in the cache now.
-      var newPrev = Object.create(context.family)
-        , newAnc = Object.create(context.ancestors)
-
-      if (!context.root) {
-        newAnc[data.name] = data.version
+      var bundled = data.bundleDependencies || data.bundledDependencies || []
+      // only take the hit for readInstalled if there are probably bundled
+      // dependencies to read
+      if (bundled.length) {
+        readInstalled(where, { dev: true }, andBuildResolvedTree)
+      } else {
+        andBuildResolvedTree()
       }
-      targets.forEach(function (t) {
-        newPrev[t.name] = t.version
-      })
-      log.silly("install resolved", targets)
-      targets.filter(function (t) { return t }).forEach(function (t) {
-        log.info("install", "%s into %s", t._id, where)
-      })
-      asyncMap(targets, function (target, cb) {
-        log.info("installOne", target._id)
-        var wrapData = wrap ? wrap[target.name] : null
-        var newWrap = wrapData && wrapData.dependencies
-                    ? wrap[target.name].dependencies || {}
-                    : null
-        var newContext = { family: newPrev
-                         , ancestors: newAnc
-                         , parent: parent
-                         , explicit: false
-                         , wrap: newWrap }
-        installOne(target, where, newContext, cb)
-      }, cb)
+
+      function andBuildResolvedTree (er, current) {
+        if (er) return cb(er)
+
+        // each target will be a data object corresponding
+        // to a package, folder, or whatever that is in the cache now.
+        var newPrev = Object.create(context.family)
+          , newAnc = Object.create(context.ancestors)
+
+        if (!context.root) {
+          newAnc[data.name] = data.version
+        }
+        bundled.forEach(function (bundle) {
+          var bundleData = current.dependencies[bundle]
+          if ((!bundleData || !bundleData.version) && current.devDependencies) {
+            log.verbose(
+              'installMany', bundle, 'was bundled with',
+              data.name + '@' + data.version +
+                ", but wasn't found in dependencies. Trying devDependencies"
+            )
+            bundleData = current.devDependencies[bundle]
+          }
+
+          if (!bundleData || !bundleData.version) {
+            log.warn(
+              'installMany', bundle, 'was bundled with',
+              data.name + '@' + data.version +
+                ", but bundled package wasn't found in unpacked tree"
+            )
+          } else {
+            log.verbose(
+              'installMany', bundle + '@' + bundleData.version,
+              'was bundled with', data.name + '@' + data.version
+            )
+            newPrev[bundle] = bundleData.version
+          }
+        })
+        targets.forEach(function (t) {
+          newPrev[t.name] = t.version
+        })
+        log.silly("install resolved", targets)
+        targets.filter(function (t) { return t }).forEach(function (t) {
+          log.info("install", "%s into %s", t._id, where)
+        })
+        asyncMap(targets, function (target, cb) {
+          log.info("installOne", target._id)
+          var wrapData = wrap ? wrap[target.name] : null
+          var newWrap = wrapData && wrapData.dependencies
+                      ? wrap[target.name].dependencies || {}
+                      : null
+          var newContext = { family: newPrev
+                           , ancestors: newAnc
+                           , parent: parent
+                           , explicit: false
+                           , wrap: newWrap }
+          installOne(target, where, newContext, cb)
+        }, cb)
+      }
     })
   })
 }
@@ -760,9 +797,9 @@ function targetResolver (where, context, deps) {
           // if it's a bundled dep, then assume that anything there is valid.
           // otherwise, make sure that it's a semver match with what we want.
           var bd = parent.bundleDependencies
-          if (bd && bd.indexOf(d.name) !== -1 ||
-              semver.satisfies(d.version, deps[d.name] || "*", true) ||
-              deps[d.name] === d._resolved) {
+          var isBundled = bd && bd.indexOf(d.name) !== -1
+          var currentIsSatisfactory = semver.satisfies(d.version, deps[d.name] || "*", true)
+          if (isBundled || currentIsSatisfactory || deps[d.name] === d._resolved) {
             return cb(null, d.name)
           }
 
@@ -801,6 +838,7 @@ function targetResolver (where, context, deps) {
     // check for a version installed higher in the tree.
     // If installing from a shrinkwrap, it must match exactly.
     if (context.family[what]) {
+      log.verbose('install', what, 'is installed as', context.family[what])
       if (wrap && wrap[what].version === context.family[what]) {
         log.verbose("shrinkwrap", "use existing", what)
         return cb(null, [])
@@ -955,18 +993,12 @@ function installOne_ (target, where, context, cb_) {
   if (prettyWhere === ".") prettyWhere = null
 
   cb_ = inflight(target.name + ":" + where, cb_)
-  if (!cb_) return log.verbose(
-    "installOne",
-    "of", target.name,
-    "to", where,
-    "already in flight; waiting"
-  )
-  else log.verbose(
-    "installOne",
-    "of", target.name,
-    "to", where,
-    "not in flight; installing"
-  )
+  if (!cb_) {
+    return log.verbose("installOne", "of", target.name, "to", where, "already in flight; waiting")
+  }
+  else {
+    log.verbose("installOne", "of", target.name, "to", where, "not in flight; installing")
+  }
 
   function cb(er, data) {
     unlock(nm, target.name, function () { cb_(er, data) })
@@ -1126,8 +1158,9 @@ function prepareForInstallMany (packageData, depsKey, bundled, wrap, family) {
     // something in the "family" list, unless we're installing
     // from a shrinkwrap.
     if (wrap) return wrap
-    if (semver.validRange(family[d], true))
+    if (semver.validRange(family[d], true)) {
       return !semver.satisfies(family[d], packageData[depsKey][d], true)
+    }
     return true
   }).map(function (d) {
     var v = packageData[depsKey][d]
