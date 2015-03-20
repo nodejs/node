@@ -8,7 +8,6 @@ var npm = require("./npm.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
   , path = require("path")
-  , rm = require("./utils/gently-rm.js")
   , build = require("./build.js")
   , npa = require("npm-package-arg")
 
@@ -128,20 +127,17 @@ function linkPkg (folder, cb_) {
       return cb(er)
     }
     var target = path.resolve(npm.globalDir, d.name)
-    rm(target, function (er) {
+    symlink(me, target, function (er) {
       if (er) return cb(er)
-      symlink(me, target, function (er) {
+      log.verbose("link", "build target", target)
+      // also install missing dependencies.
+      npm.commands.install(me, [], function (er) {
         if (er) return cb(er)
-        log.verbose("link", "build target", target)
-        // also install missing dependencies.
-        npm.commands.install(me, [], function (er) {
+        // build the global stuff.  Don't run *any* scripts, because
+        // install command already will have done that.
+        build([target], true, build._noLC, true, function (er) {
           if (er) return cb(er)
-          // build the global stuff.  Don't run *any* scripts, because
-          // install command already will have done that.
-          build([target], true, build._noLC, true, function (er) {
-            if (er) return cb(er)
-            resultPrinter(path.basename(me), me, target, cb)
-          })
+          resultPrinter(path.basename(me), me, target, cb)
         })
       })
     })
