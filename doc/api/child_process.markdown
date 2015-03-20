@@ -460,11 +460,11 @@ index corresponds to a fd in the child.  The value is one of the following:
    ignored node will open `/dev/null` and attach it to the child's fd.
 4. `Stream` object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
-   file descriptor is duplicated in the child process to the fd that 
+   file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. Note that the stream must
    have an underlying descriptor (file streams do not until the `'open'`
    event has occurred).
-5. Positive integer - The integer value is interpreted as a file descriptor 
+5. Positive integer - The integer value is interpreted as a file descriptor
    that is is currently open in the parent process. It is shared with the child
    process, similar to how `Stream` objects can be shared.
 6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
@@ -488,7 +488,7 @@ Example:
 ### options.detached
 
 If the `detached` option is set, the child process will be made the leader of a
-new process group.  This makes it possible for the child to continue running 
+new process group.  This makes it possible for the child to continue running
 after the parent exits.
 
 By default, the parent will wait for the detached child to exit.  To prevent
@@ -544,8 +544,10 @@ See also: `child_process.exec()` and `child_process.fork()`
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {Buffer} only if {encoding: null}, otherwise {String}
+  encoded with the specified encoding or {String} (Default: 'utf8').
+  * `stderr` {Buffer} only if {encoding: null}, otherwise {String}
+  encoded with the specified encoding or {String} (Default: 'utf8').
 * Return: ChildProcess object
 
 Runs a command in a shell and buffers the output.
