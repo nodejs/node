@@ -1,3 +1,56 @@
+### v2.7.3 (2015-03-16):
+
+#### HAHA WHOOPS LIL SHINKWRAP ISSUE THERE LOL
+
+* [`1549106`](https://github.com/npm/npm/commit/1549106f518000633915686f5f1ccc6afcf77f8f)
+  [#7641](https://github.com/npm/npm/issues/7641) Due to 448efd0, running `npm
+  shrinkwrap --dev` caused production dependencies to no longer be included in
+  `npm-shrinkwrap.json`. Whoopsie! ([@othiym23](https://github.com/othiym23))
+
+### v2.7.2 (2015-03-12):
+
+#### NPM GASTROENTEROLOGY
+
+* [`fb0ac26`](https://github.com/npm/npm/commit/fb0ac26eecdd76f6eaa4a96a865b7c6f52ce5aa5)
+  [#7579](https://github.com/npm/npm/issues/7579) Only block removing files and
+  links when we're sure npm isn't responsible for them. This change is hard to
+  summarize, because if things are working correctly you should never see it,
+  but if you want more context, just [go read the commit
+  message](https://github.com/npm/npm/commit/fb0ac26eecdd76f6eaa4a96a865b7c6f52ce5aa5),
+  which lays it all out. ([@othiym23](https://github.com/othiym23))
+* [`051c473`](https://github.com/npm/npm/commit/051c4738486a826300f205b71590781ce7744f01)
+  [#7552](https://github.com/npm/npm/issues/7552) `bundledDependencies` are now
+  properly included in the installation context. This is another fantastically
+  hard-to-summarize bug, and once again, I encourage you to [read the commit
+  message](https://github.com/npm/npm/commit/051c4738486a826300f205b71590781ce7744f01)
+  if you're curious about the details. The snappy takeaway is that this
+  unbreaks many use cases for `ember-cli`. ([@othiym23](https://github.com/othiym23))
+
+#### LESS DRAMATIC CHANGES
+
+* [`fcd9247`](https://github.com/npm/npm/commit/fcd92476f3a9092f6f8c83a19a24fe63b206edcd)
+  [#7597](https://github.com/npm/npm/issues/7597) Awk varies pretty
+  dramatically from platform to platform, so use Perl to generate the AUTHORS
+  list instead. ([@KenanY](https://github.com/KenanY))
+* [`721b17a`](https://github.com/npm/npm/commit/721b17a31690bec074eb8763d823d6de63406005)
+  [#7598](https://github.com/npm/npm/issues/7598) `npm install --save` really
+  isn't experimental anymore. ([@RichardLitt](https://github.com/RichardLitt))
+
+#### DEPENDENCY REFRESH
+
+* [`a91f2c7`](https://github.com/npm/npm/commit/a91f2c7c9a5183d9cde7aae040ebd9ccdf104be7)
+  [#7559](https://github.com/npm/npm/issues/7559) `node-gyp@1.0.3` Switch
+  `node-gyp` to use `stdio` instead of `customFds` so it stops printing a
+  deprecation warning every time you build a native dependency.
+  ([@jeffbski](https://github.com/jeffbski))
+* [`0c85db7`](https://github.com/npm/npm/commit/0c85db7f0dde41762411e40a029153e6a65ef483)
+  `rimraf@2.3.2`: Globbing now deals with paths containing valid glob
+  metacharacters better. ([@isaacs](https://github.com/isaacs))
+* [`d14588e`](https://github.com/npm/npm/commit/d14588ed09b032c4c770e34b4c0f2436f5fccf6e)
+  `minimatch@2.0.4`: Bug fixes. ([@isaacs](https://github.com/isaacs))
+* [`aa9952e`](https://github.com/npm/npm/commit/aa9952e8270a6c1b7f97e579875dd6e3aa22abfd)
+  `graceful-fs@3.0.6`: Bug fixes. ([@isaacs](https://github.com/isaacs))
+
 ### v2.7.1 (2015-03-05):
 
 #### GITSANITY

@@ -180,8 +180,8 @@ proto.parseArgv = function parseOpts (argv) {
 
 proto.spawn = function spawn (command, args, opts) {
   if (!opts) opts = {}
-  if (!opts.silent && !opts.customFds) {
-    opts.customFds = [ 0, 1, 2 ]
+  if (!opts.silent && !opts.stdio) {
+    opts.stdio = [ 0, 1, 2 ]
   }
   var cp = child_process.spawn(command, args, opts)
   log.info('spawn', command)

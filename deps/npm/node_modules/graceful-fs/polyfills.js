@@ -214,7 +214,7 @@ if (process.platform === "win32") {
           && Date.now() - start < 1000) {
         return rename_(from, to, CB)
       }
-      cb(er)
+      if(cb) cb(er)
     })
   }
 }
