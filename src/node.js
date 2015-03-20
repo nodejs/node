@@ -347,23 +347,27 @@
         scheduleMicrotasks();
     }
 
+    function _tryCallback(callback) {
+      var threw = true;
+      try {
+        callback();
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
     // Run callbacks that have no domain.
     // Using domains will cause this to be overridden.
     function _tickCallback() {
-      var callback, threw, tock;
+      var callback, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
-          }
+          _tryCallback(callback);
           if (1e4 < tickInfo[kIndex])
             tickDone();
         }
@@ -374,7 +378,7 @@
     }
 
     function _tickDomainCallback() {
-      var callback, domain, threw, tock;
+      var callback, domain, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
@@ -383,14 +387,7 @@
           domain = tock.domain;
           if (domain)
             domain.enter();
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
-          }
+          _tryCallback(callback);
           if (1e4 < tickInfo[kIndex])
             tickDone();
           if (domain)
