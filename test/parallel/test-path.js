@@ -270,12 +270,15 @@ typeErrorTests.forEach(function(test) {
   fail(path.resolve, test);
   fail(path.normalize, test);
   fail(path.isAbsolute, test);
-  fail(path.dirname, test);
   fail(path.relative, test, 'foo');
   fail(path.relative, 'foo', test);
-  fail(path.basename, test);
-  fail(path.extname, test);
   fail(path.parse, test);
+
+  // These methods should throw a TypeError, but do not for backwards
+  // compatibility. Uncommenting these lines in the future should be a goal.
+  // fail(path.dirname, test);
+  // fail(path.basename, test);
+  // fail(path.extname, test);
 
   // undefined is a valid value as the second argument to basename
   if (test !== undefined) {
