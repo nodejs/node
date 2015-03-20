@@ -2877,6 +2877,13 @@ static void AtExit() {
 
 static void SignalExit(int signo) {
   uv_tty_reset_mode();
+#ifdef __FreeBSD__
+  // FreeBSD has a nasty bug, see RegisterSignalHandler for details
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = SIG_DFL;
+  CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
+#endif
   raise(signo);
 }
 
@@ -3257,7 +3264,12 @@ static void RegisterSignalHandler(int signal,
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;
+#ifndef __FreeBSD__
+  // FreeBSD has a nasty bug with SA_RESETHAND reseting the SA_SIGINFO, that is
+  // in turn set for a libthr wrapper. This leads to a crash.
+  // Work around the issue by manually setting SIG_DFL in the signal handler
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
+#endif
   sigfillset(&sa.sa_mask);
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
