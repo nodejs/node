@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "v8-version.h"
 #include "v8config.h"
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
