@@ -59,6 +59,7 @@ SSLTEST=	ssltest
 RSATEST=	rsa_test
 ENGINETEST=	enginetest
 EVPTEST=	evp_test
+EVPEXTRATEST=evp_extra_test
 IGETEST=	igetest
 JPAKETEST=	jpaketest
 SRPTEST=	srptest
@@ -75,7 +76,7 @@ EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)
 	$(MDC2TEST)$(EXE_EXT) $(RMDTEST)$(EXE_EXT) \
 	$(RANDTEST)$(EXE_EXT) $(DHTEST)$(EXE_EXT) $(ENGINETEST)$(EXE_EXT) \
 	$(BFTEST)$(EXE_EXT) $(CASTTEST)$(EXE_EXT) $(SSLTEST)$(EXE_EXT) $(EXPTEST)$(EXE_EXT) $(DSATEST)$(EXE_EXT) $(RSATEST)$(EXE_EXT) \
-	$(EVPTEST)$(EXE_EXT) $(IGETEST)$(EXE_EXT) $(JPAKETEST)$(EXE_EXT) $(SRPTEST)$(EXE_EXT) \
+	$(EVPTEST)$(EXE_EXT) $(EVPEXTRATEST)$(EXE_EXT) $(IGETEST)$(EXE_EXT) $(JPAKETEST)$(EXE_EXT) $(SRPTEST)$(EXE_EXT) \
 	$(ASN1TEST)$(EXE_EXT) $(HEARTBEATTEST)$(EXE_EXT) $(CONSTTIMETEST)$(EXE_EXT)
 
 # $(METHTEST)$(EXE_EXT)
@@ -88,7 +89,7 @@ OBJ=	$(BNTEST).o $(ECTEST).o  $(ECDSATEST).o $(ECDHTEST).o $(IDEATEST).o \
 	$(MDC2TEST).o $(RMDTEST).o \
 	$(RANDTEST).o $(DHTEST).o $(ENGINETEST).o $(CASTTEST).o \
 	$(BFTEST).o  $(SSLTEST).o  $(DSATEST).o  $(EXPTEST).o $(RSATEST).o \
-	$(EVPTEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o \
+	$(EVPTEST).o $(EVPEXTRATEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o \
 	$(HEARTBEATTEST).o $(CONSTTIMETEST).o
 
 SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
@@ -98,7 +99,7 @@ SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(DESTEST).c $(SHATEST).c $(SHA1TEST).c $(MDC2TEST).c $(RMDTEST).c \
 	$(RANDTEST).c $(DHTEST).c $(ENGINETEST).c $(CASTTEST).c \
 	$(BFTEST).c  $(SSLTEST).c $(DSATEST).c   $(EXPTEST).c $(RSATEST).c \
-	$(EVPTEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c \
+	$(EVPTEST).c $(EVPEXTRATEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c \
 	$(HEARTBEATTEST).c $(CONSTTIMETEST).c
 
 EXHEADER= 
@@ -141,11 +142,14 @@ alltests: \
 	test_rand test_bn test_ec test_ecdsa test_ecdh \
 	test_enc test_x509 test_rsa test_crl test_sid \
 	test_gen test_req test_pkcs7 test_verify test_dh test_dsa \
-	test_ss test_ca test_engine test_evp test_ssl test_tsa test_ige \
+	test_ss test_ca test_engine test_evp test_evp_extra test_ssl test_tsa test_ige \
 	test_jpake test_srp test_cms test_heartbeat test_constant_time
 
 test_evp:
 	../util/shlib_wrap.sh ./$(EVPTEST) evptests.txt
+
+test_evp_extra:
+	../util/shlib_wrap.sh ./$(EVPEXTRATEST)
 
 test_des:
 	../util/shlib_wrap.sh ./$(DESTEST)
@@ -470,6 +474,9 @@ $(ENGINETEST)$(EXE_EXT): $(ENGINETEST).o $(DLIBCRYPTO)
 $(EVPTEST)$(EXE_EXT): $(EVPTEST).o $(DLIBCRYPTO)
 	@target=$(EVPTEST); $(BUILD_CMD)
 
+$(EVPEXTRATEST)$(EXE_EXT): $(EVPEXTRATEST).o $(DLIBCRYPTO)
+	@target=$(EVPEXTRATEST); $(BUILD_CMD)
+
 $(ECDSATEST)$(EXE_EXT): $(ECDSATEST).o $(DLIBCRYPTO)
 	@target=$(ECDSATEST); $(BUILD_CMD)
 
@@ -612,6 +619,19 @@ enginetest.o: ../include/openssl/safestack.h ../include/openssl/sha.h
 enginetest.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
 enginetest.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h
 enginetest.o: enginetest.c
+evp_extra_test.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+evp_extra_test.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
+evp_extra_test.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+evp_extra_test.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+evp_extra_test.o: ../include/openssl/err.h ../include/openssl/evp.h
+evp_extra_test.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+evp_extra_test.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+evp_extra_test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+evp_extra_test.o: ../include/openssl/pkcs7.h ../include/openssl/rsa.h
+evp_extra_test.o: ../include/openssl/safestack.h ../include/openssl/sha.h
+evp_extra_test.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
+evp_extra_test.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h
+evp_extra_test.o: evp_extra_test.c
 evp_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 evp_test.o: ../include/openssl/buffer.h ../include/openssl/conf.h
 evp_test.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h

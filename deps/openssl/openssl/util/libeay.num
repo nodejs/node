@@ -1806,6 +1806,7 @@ d2i_ASN1_SET_OF_PKCS12_SAFEBAG          2341	NOEXIST::FUNCTION:
 ASN1_UTCTIME_get                        2350	NOEXIST::FUNCTION:
 X509_REQ_digest                         2362	EXIST::FUNCTION:EVP
 X509_CRL_digest                         2391	EXIST::FUNCTION:EVP
+ASN1_STRING_clear_free                  2392	EXIST::FUNCTION:
 d2i_ASN1_SET_OF_PKCS7                   2397	NOEXIST::FUNCTION:
 X509_ALGOR_cmp                          2398	EXIST::FUNCTION:
 EVP_CIPHER_CTX_set_key_length           2399	EXIST::FUNCTION:

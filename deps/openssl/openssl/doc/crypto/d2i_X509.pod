@@ -28,8 +28,11 @@ successful a pointer to the B<X509> structure is returned. If an error
 occurred then B<NULL> is returned. If B<px> is not B<NULL> then the
 returned structure is written to B<*px>. If B<*px> is not B<NULL>
 then it is assumed that B<*px> contains a valid B<X509>
-structure and an attempt is made to reuse it. If the call is
-successful B<*in> is incremented to the byte following the
+structure and an attempt is made to reuse it. This "reuse" capability is present
+for historical compatibility but its use is B<strongly discouraged> (see BUGS
+below, and the discussion in the RETURN VALUES section).
+
+If the call is successful B<*in> is incremented to the byte following the
 parsed data.
 
 i2d_X509() encodes the structure pointed to by B<x> into DER format.
@@ -210,7 +213,10 @@ always succeed.
 
 d2i_X509(), d2i_X509_bio() and d2i_X509_fp() return a valid B<X509> structure
 or B<NULL> if an error occurs. The error code that can be obtained by
-L<ERR_get_error(3)|ERR_get_error(3)>. 
+L<ERR_get_error(3)|ERR_get_error(3)>. If the "reuse" capability has been used
+with a valid X509 structure being passed in via B<px> then the object is not
+freed in the event of error but may be in a potentially invalid or inconsistent
+state.
 
 i2d_X509() returns the number of bytes successfully encoded or a negative
 value if an error occurs. The error code can be obtained by
