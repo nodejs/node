@@ -89,8 +89,7 @@ section containing configuration module specific information. E.g.
 
  ... engine stuff here ...
 
-Currently there are two configuration modules. One for ASN1 objects another
-for ENGINE configuration.
+The features of each configuration module are described below.
 
 =head2 ASN1 OBJECT CONFIGURATION MODULE
 
@@ -190,6 +189,25 @@ For example:
  other_ctrl = EMPTY
  # Supply all default algorithms
  default_algorithms = ALL
+
+=head2 EVP CONFIGURATION MODULE
+
+This modules has the name B<alg_section> which points to a section containing
+algorithm commands.
+
+Currently the only algorithm command supported is B<fips_mode> whose
+value should be a boolean string such as B<on> or B<off>. If the value is
+B<on> this attempt to enter FIPS mode. If the call fails or the library is
+not FIPS capable then an error occurs.
+
+For example:
+
+ alg_section = evp_settings
+
+ [evp_settings]
+
+ fips_mode = on
+
 
 =head1 NOTES
 

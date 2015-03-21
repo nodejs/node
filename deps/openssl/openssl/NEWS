@@ -5,6 +5,16 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1l and OpenSSL 1.0.1m [19 Mar 2015]
+
+      o Segmentation fault in ASN1_TYPE_cmp fix (CVE-2015-0286)
+      o ASN.1 structure reuse memory corruption fix (CVE-2015-0287)
+      o PKCS7 NULL pointer dereferences fix (CVE-2015-0289)
+      o DoS via reachable assert in SSLv2 servers fix (CVE-2015-0293)
+      o Use After Free following d2i_ECPrivatekey error fix (CVE-2015-0209)
+      o X509_to_X509_REQ NULL pointer deref fix (CVE-2015-0288)
+      o Removed the export ciphers from the DEFAULT ciphers
+
   Major changes between OpenSSL 1.0.1k and OpenSSL 1.0.1l [15 Jan 2015]
 
       o Build fixes for the Windows and OpenVMS platforms
@@ -103,19 +113,6 @@
       o Preliminary FIPS capability for unvalidated 2.0 FIPS module.
       o SRP support.
 
-  Major changes between OpenSSL 1.0.0j and OpenSSL 1.0.0k [5 Feb 2013]:
-
-      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
-      o Fix OCSP bad key DoS attack CVE-2013-0166
-
-  Major changes between OpenSSL 1.0.0i and OpenSSL 1.0.0j [10 May 2012]:
-
-      o Fix DTLS record length checking bug CVE-2012-2333
-
-  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.0i [19 Apr 2012]:
-
-      o Fix for ASN1 overflow bug CVE-2012-2110
-
   Major changes between OpenSSL 1.0.0g and OpenSSL 1.0.0h [12 Mar 2012]:
 
       o Fix for CMS/PKCS#7 MMA CVE-2012-0884
@@ -187,62 +184,6 @@
       o dsa-with-SHA224 and dsa-with-SHA256 signature types.
       o Opaque PRF Input TLS extension support.
       o Updated time routines to avoid OS limitations.
-
-  Major changes between OpenSSL 0.9.8x and OpenSSL 0.9.8y [5 Feb 2013]:
-
-      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
-      o Fix OCSP bad key DoS attack CVE-2013-0166
-
-  Major changes between OpenSSL 0.9.8w and OpenSSL 0.9.8x [10 May 2012]:
-
-      o Fix DTLS record length checking bug CVE-2012-2333
-
-  Major changes between OpenSSL 0.9.8v and OpenSSL 0.9.8w [23 Apr 2012]:
-
-      o Fix for CVE-2012-2131 (corrected fix for 0.9.8 and CVE-2012-2110)
-
-  Major changes between OpenSSL 0.9.8u and OpenSSL 0.9.8v [19 Apr 2012]:
-
-      o Fix for ASN1 overflow bug CVE-2012-2110
-
-  Major changes between OpenSSL 0.9.8t and OpenSSL 0.9.8u [12 Mar 2012]:
-
-      o Fix for CMS/PKCS#7 MMA CVE-2012-0884
-      o Corrected fix for CVE-2011-4619
-      o Various DTLS fixes.
-
-  Major changes between OpenSSL 0.9.8s and OpenSSL 0.9.8t [18 Jan 2012]:
-
-      o Fix for DTLS DoS issue CVE-2012-0050
-
-  Major changes between OpenSSL 0.9.8r and OpenSSL 0.9.8s [4 Jan 2012]:
-
-      o Fix for DTLS plaintext recovery attack CVE-2011-4108
-      o Fix policy check double free error CVE-2011-4109
-      o Clear block padding bytes of SSL 3.0 records CVE-2011-4576
-      o Only allow one SGC handshake restart for SSL/TLS CVE-2011-4619
-      o Check for malformed RFC3779 data CVE-2011-4577
-
-  Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r [8 Feb 2011]:
-
-      o Fix for security issue CVE-2011-0014
-
-  Major changes between OpenSSL 0.9.8p and OpenSSL 0.9.8q [2 Dec 2010]:
-
-      o Fix for security issue CVE-2010-4180
-      o Fix for CVE-2010-4252
-
-  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p [16 Nov 2010]:
-
-      o Fix for security issue CVE-2010-3864.
-
-  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o [1 Jun 2010]:
-
-      o Fix for security issue CVE-2010-0742.
-      o Various DTLS fixes.
-      o Recognise SHA2 certificates if only SSL algorithms added.
-      o Fix for no-rc4 compilation.
-      o Chil ENGINE unload workaround.
 
   Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n [24 Mar 2010]:
 

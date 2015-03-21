@@ -1,6 +1,7 @@
 /* crypto/mem_clr.c -*- mode:C; c-file-style: "eay" -*- */
-/* Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL
- * project 2002.
+/*
+ * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
+ * 2002.
  */
 /* ====================================================================
  * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -62,16 +63,15 @@
 unsigned char cleanse_ctr = 0;
 
 void OPENSSL_cleanse(void *ptr, size_t len)
-	{
-	unsigned char *p = ptr;
-	size_t loop = len, ctr = cleanse_ctr;
-	while(loop--)
-		{
-		*(p++) = (unsigned char)ctr;
-		ctr += (17 + ((size_t)p & 0xF));
-		}
-	p=memchr(ptr, (unsigned char)ctr, len);
-	if(p)
-		ctr += (63 + (size_t)p);
-	cleanse_ctr = (unsigned char)ctr;
-	}
+{
+    unsigned char *p = ptr;
+    size_t loop = len, ctr = cleanse_ctr;
+    while (loop--) {
+        *(p++) = (unsigned char)ctr;
+        ctr += (17 + ((size_t)p & 0xF));
+    }
+    p = memchr(ptr, (unsigned char)ctr, len);
+    if (p)
+        ctr += (63 + (size_t)p);
+    cleanse_ctr = (unsigned char)ctr;
+}

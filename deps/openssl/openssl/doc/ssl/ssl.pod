@@ -229,6 +229,8 @@ protocol context defined in the B<SSL_CTX> structure.
 
 =item int (*B<SSL_CTX_get_client_cert_cb>(SSL_CTX *ctx))(SSL *ssl, X509 **x509, EVP_PKEY **pkey);
 
+=item void B<SSL_CTX_get_default_read_ahead>(SSL_CTX *ctx);
+
 =item char *B<SSL_CTX_get_ex_data>(const SSL_CTX *s, int idx);
 
 =item int B<SSL_CTX_get_ex_new_index>(long argl, char *argp, int (*new_func);(void), int (*dup_func)(void), void (*free_func)(void))
@@ -236,6 +238,8 @@ protocol context defined in the B<SSL_CTX> structure.
 =item void (*B<SSL_CTX_get_info_callback>(SSL_CTX *ctx))(SSL *ssl, int cb, int ret);
 
 =item int B<SSL_CTX_get_quiet_shutdown>(const SSL_CTX *ctx);
+
+=item void B<SSL_CTX_get_read_ahead>(SSL_CTX *ctx);
 
 =item int B<SSL_CTX_get_session_cache_mode>(SSL_CTX *ctx);
 
@@ -324,6 +328,8 @@ protocol context defined in the B<SSL_CTX> structure.
 =item void B<SSL_CTX_set_options>(SSL_CTX *ctx, unsigned long op);
 
 =item void B<SSL_CTX_set_quiet_shutdown>(SSL_CTX *ctx, int mode);
+
+=item void B<SSL_CTX_set_read_ahead>(SSL_CTX *ctx, int m);
 
 =item void B<SSL_CTX_set_session_cache_mode>(SSL_CTX *ctx, int mode);
 
@@ -703,6 +709,7 @@ L<SSL_CTX_set_mode(3)|SSL_CTX_set_mode(3)>,
 L<SSL_CTX_set_msg_callback(3)|SSL_CTX_set_msg_callback(3)>,
 L<SSL_CTX_set_options(3)|SSL_CTX_set_options(3)>,
 L<SSL_CTX_set_quiet_shutdown(3)|SSL_CTX_set_quiet_shutdown(3)>,
+L<SSL_CTX_set_read_ahead(3)|SSL_CTX_set_read_ahead(3)>,
 L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>,
 L<SSL_CTX_set_session_id_context(3)|SSL_CTX_set_session_id_context(3)>,
 L<SSL_CTX_set_ssl_version(3)|SSL_CTX_set_ssl_version(3)>,
