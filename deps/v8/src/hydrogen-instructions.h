@@ -7355,8 +7355,13 @@ class HTransitionElementsKind FINAL : public HTemplateInstruction<2> {
   HValue* context() const { return OperandAt(1); }
   Unique<Map> original_map() const { return original_map_; }
   Unique<Map> transitioned_map() const { return transitioned_map_; }
-  ElementsKind from_kind() const { return from_kind_; }
-  ElementsKind to_kind() const { return to_kind_; }
+  ElementsKind from_kind() const {
+    return FromElementsKindField::decode(bit_field_);
+  }
+  ElementsKind to_kind() const {
+    return ToElementsKindField::decode(bit_field_);
+  }
+  bool map_is_stable() const { return MapIsStableField::decode(bit_field_); }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
@@ -7372,29 +7377,33 @@ class HTransitionElementsKind FINAL : public HTemplateInstruction<2> {
   int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
-  HTransitionElementsKind(HValue* context,
-                          HValue* object,
+  HTransitionElementsKind(HValue* context, HValue* object,
                           Handle<Map> original_map,
                           Handle<Map> transitioned_map)
       : original_map_(Unique<Map>(original_map)),
         transitioned_map_(Unique<Map>(transitioned_map)),
-        from_kind_(original_map->elements_kind()),
-        to_kind_(transitioned_map->elements_kind()) {
+        bit_field_(
+            FromElementsKindField::encode(original_map->elements_kind()) |
+            ToElementsKindField::encode(transitioned_map->elements_kind()) |
+            MapIsStableField::encode(transitioned_map->is_stable())) {
     SetOperandAt(0, object);
     SetOperandAt(1, context);
     SetFlag(kUseGVN);
     SetChangesFlag(kElementsKind);
-    if (!IsSimpleMapChangeTransition(from_kind_, to_kind_)) {
+    if (!IsSimpleMapChangeTransition(from_kind(), to_kind())) {
       SetChangesFlag(kElementsPointer);
       SetChangesFlag(kNewSpacePromotion);
     }
     set_representation(Representation::Tagged());
   }
 
+  class FromElementsKindField : public BitField<ElementsKind, 0, 5> {};
+  class ToElementsKindField : public BitField<ElementsKind, 5, 5> {};
+  class MapIsStableField : public BitField<bool, 10, 1> {};
+
   Unique<Map> original_map_;
   Unique<Map> transitioned_map_;
-  ElementsKind from_kind_;
-  ElementsKind to_kind_;
+  uint32_t bit_field_;
 };
 
 
