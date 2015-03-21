@@ -179,6 +179,31 @@ Their responsibilities are:
 * Maintain and improve the images' documentation.
 
 
+### Addon API
+
+The Addon API Working Group is responsible for maintaining the NAN project and
+corresponding _nan_ package in npm. The NAN project makes available an
+abstraction layer for native add-on authors for both Node.js and io.js,
+assisting in the writing of code that is compatible with many actively used
+versions of Node.js, io.js, V8 and libuv.
+
+Their responsibilities are:
+
+* Maintaining the [NAN](https://github.com/rvagg/nan) GitHub repository,
+  including code, issues and documentation.
+* Maintaining the [addon-examples](https://github.com/rvagg/node-addon-examples)
+  GitHub repository, including code, issues and documentation.
+* Maintaining the C++ Addon API within the io.js project, in subordination to
+  the io.js TC.
+* Maintaining the Addon documentation within the io.js project, in
+  subordination to the io.js TC.
+* Maintaining the _nan_ package in npm, releasing new versions as appropriate.
+* Messaging about the future of the io.js and NAN interface to give the
+  community advance notice of changes.
+
+The current members can be found in their
+[README](https://github.com/rvagg/nan#collaborators).
+
 ## Starting a WG
 
 A Working Group is established by first defining a charter  that can be
