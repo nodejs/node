@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 1
-#define NODE_MINOR_VERSION 6
-#define NODE_PATCH_VERSION 2
+#define NODE_MAJOR_VERSION 2
+#define NODE_MINOR_VERSION 0
+#define NODE_PATCH_VERSION 0
 
 #define NODE_VERSION_IS_RELEASE 0
 
@@ -45,6 +45,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 43  /* io.js v1.1.0 */
+#define NODE_MODULE_VERSION 44  /* io.js v2.x */
 
 #endif  /* SRC_NODE_VERSION_H_ */
