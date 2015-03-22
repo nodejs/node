@@ -630,6 +630,8 @@
               writable: false
             });
           }
+          // Ensure that Streams2 won't try to `.end()` the stream
+          stdin._writableState.ended = true;
           break;
 
         default:
