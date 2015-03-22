@@ -195,21 +195,6 @@ NODE_DEPRECATED("Use ThrowUVException(isolate)",
   return ThrowUVException(isolate, errorno, syscall, message, path);
 })
 
-inline void NODE_SET_EXTERNAL(v8::Handle<v8::ObjectTemplate> target,
-                              const char* key,
-                              v8::AccessorGetterCallback getter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::String> prop = v8::String::NewFromUtf8(isolate, key);
-  target->SetAccessor(prop,
-                      getter,
-                      nullptr,
-                      v8::Handle<v8::Value>(),
-                      v8::DEFAULT,
-                      static_cast<v8::PropertyAttribute>(v8::ReadOnly |
-                                                         v8::DontDelete));
-}
-
 enum NodeInstanceType { MAIN, WORKER };
 
 class NodeInstanceData {
